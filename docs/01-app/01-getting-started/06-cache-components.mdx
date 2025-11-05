@@ -1,7 +1,6 @@
 ---
 title: Cache Components
 description: Learn how to use Cache Components and combine the benefits of static and dynamic rendering.
-version: beta
 related:
   title: Next Steps
   description: Learn more about the config option for Cache Components.
@@ -17,6 +16,8 @@ related:
 Cache Components is a new approach to rendering and caching in Next.js that provides fine-grained control over what gets cached and when, while ensuring a great user experience through **Partial Prerendering (PPR)**.
 
 ## Cache Components
+
+> **Good to know:** Cache Components is an opt-in feature. Enable it by setting the `cacheComponents` flag to `true` in your Next config file. See [Enabling Cache Components](#enabling-cache-components) for more details.
 
 When developing dynamic applications, you have to balance two primary approaches:
 
@@ -48,6 +49,15 @@ When a user visits a route:
 
 > **🎥 Watch:** Why PPR and how it works → [YouTube (10 minutes)](https://www.youtube.com/watch?v=MTcPrTIBkpA).
 
+<details>
+<summary>Does this replace Partial Prerendering (PPR)?</summary>
+
+No. Cache Components **implements** PPR as a feature. The old experimental PPR flag has been removed but PPR is here to stay.
+
+PPR provides the static shell and streaming infrastructure; `use cache` lets you include optimized dynamic output in that shell when beneficial.
+
+</details>
+
 ## Prerendering Model
 
 Next.js attempts to prerender everything during the build phase. When it encounters work that cannot complete during prerendering (dynamic I/O, runtime APIs), that work is deferred to request time:
@@ -60,21 +70,43 @@ Next.js attempts to prerender everything during the build phase. When it encount
 Before Cache Components, a single dynamic operation (like `fetch` with `cache: 'no-store'`) would silently flip an entire route to dynamic, losing the ability to generate static content. With Cache Components:
 
 - Static content can be part of the static shell
-- Dynamic parts must be explicitly wrapped in `<Suspense>` (enforced via [error](#missing-suspense-boundaries))
+- Dynamic parts must be explicitly wrapped in `<Suspense>` (Next.js will show a [helpful error during development](#missing-suspense-boundaries) if you forget)
   - The `Suspense` boundary defines the fallback UI to use in the static shell
 - You can cache dynamic work with `use cache` to include it in the static shell
 
+## Before vs. after Cache Components
+
+Understanding how Cache Components changes your mental model:
+
+### Before Cache Components
+
+- **Static by default**: Next.js tried to prerender and cache as much as possible for you unless you opted out
+- **Route-level controls**: Switches like `dynamic`, `revalidate`, `fetchCache` controlled caching for the whole page
+- **Limits of `fetch`**: Using `fetch` alone was incomplete, as it didn't cover direct database clients or other server-side IO. A nested `fetch` switching to dynamic (e.g., `{ cache: 'no-store' }`) could unintentionally change the entire route behavior
+
+### With Cache Components
+
+- **Dynamic by default**: Everything is dynamic by default. You decide which parts to cache by adding [`use cache`](/docs/app/api-reference/directives/use-cache) where it helps
+- **Fine-grained control**: File/component/function-level [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife) control caching exactly where you need it
+- **Streaming stays**: Use `<Suspense>` or a `loading.(js|tsx)` file to stream dynamic parts while the shell shows immediately
+- **Beyond `fetch`**: Using the `use cache` directive caching can be applied to all server IO (database calls, APIs, computations), not just `fetch`. Nested `fetch` calls won't silently flip an entire route because behavior is governed by explicit cache boundaries and `Suspense`
+- **All pages generate static shells**: Even pages with dynamic behavior generate static HTML along with prefetch data for instant client-side navigation. You'll see more files in your build output, where each page has static HTML that serves instantly from disk or CDN while dynamic content streams at runtime.
+
 ## How it works
 
-> **Good to know:** Cache Components is an opt-in feature. Enable it by setting the `cacheComponents` flag to `true` in your Next config file. See [Enabling Cache Components](#enabling-cache-components) for more details.
+Cache Components implements **Partial Prerendering (PPR)**, which means pages load instantly with a static shell while dynamic content streams in.
 
-Cache Components gives you three key tools to control rendering:
+All routes are dynamic by default, but Next.js prerenders everything it can at build time. For dynamic content that should be fresh on every request or requires request context (like cookies or headers), you use React's `<Suspense>` to define fallback UI that's included in the static shell.
+
+> **Good to know**: Wrapping a component in `Suspense` doesn't make it dynamic; all code is dynamic by default. `Suspense` provides fallback UI that can be prerendered if the child component renders uncached data.
 
 ### Static (Prerendered)
 
-Work that can complete during the build or prerender phase:
+Content that can complete during the build phase is automatically included in the static shell. This includes:
 
 ```tsx filename="page.tsx"
+import fs from 'node:fs'
+
 export default async function Page() {
   // Deterministic async work
   const data = await new Promise((resolve) => resolve('foo'))
@@ -92,33 +124,121 @@ export default async function Page() {
 }
 ```
 
-### Dynamic (Defers to Request Time)
+**No special handling needed.** If a page contains only static content, the entire page is prerendered as part of the static shell.
 
-Operations that perform external I/O or access non-deterministic values. These create dynamic holes (deferred UI parts requiring `<Suspense>`) during prerendering unless wrapped in [`use cache`](/docs/app/api-reference/directives/use-cache):
+### Dynamic data (external I/O)
+
+Operations that perform external I/O, like `fetch()` requests, database queries, or async file system operations, cannot complete at build time and defer to request time:
 
 ```tsx filename="page.tsx"
-import { connection } from 'next/server'
 import { Suspense } from 'react'
+import fs from 'node:fs/promises'
+import { setTimeout } from 'node:timers/promise'
 
 async function Example() {
-  // We could also use cache
-
   // External I/O (fetch)
   const data = await fetch('https://api.example.com/data')
 
-  // Database queries
+  // External I/O Database queries
   const users = await db.query('SELECT * FROM users')
 
-  // Non-deterministic operations
-  const random = Math.random()
-  const now = Date.now()
+  // External I/O File system access
+  const file = await fs.readFile('..', 'utf-8')
+
+  // Simulating I/O
+  await setTimeout(100) // from 'node:timers/promise'
+
+  return <div>Not in the static shell</div>
+}
+```
+
+Wrap these components in `<Suspense>` to define fallback UI:
+
+```tsx filename="page.tsx"
+export default async function Page(props) {
+  return (
+    // <p>Loading..</p> is part of the static shell
+    <Suspense fallback={<p>Loading..</p>}>
+      <Example />
+    </Suspense>
+  )
+}
+```
+
+The fallback (`<p>Loading...</p>`) is included in the static shell, and the content is fetched at request time.
+
+> **Good to know**: For external I/O that doesn't change frequently, you can use `use cache` to include the [dynamic data](#caching-dynamic-data) in the static shell instead of streaming it.
+
+### Runtime data (request context)
+
+A specific type of dynamic data that requires request context, only available when a user makes a request.
+
+- [`cookies()`](/docs/app/api-reference/functions/cookies) - User's cookie data
+- [`headers()`](/docs/app/api-reference/functions/headers) - Request headers
+- [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) - URL query parameters
+- [`params`](/docs/app/api-reference/file-conventions/page#params-optional) - Dynamic route parameters (unless at least one sample is provided via [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params))
+
+```tsx filename="page.tsx"
+import { connection } from 'next/server'
+import { cookies, headers } from 'next/headers'
+import { Suspense } from 'react'
+
+async function Example({ searchParams }) {
+  // Accessing request data
+  const cookieStore = await cookies()
+  const headerStore = await headers()
+  const search = await searchParams
 
   // Explicitly defer to request time
   await connection()
 
   return <div>Not in the static shell</div>
 }
+```
 
+Wrap these components in `<Suspense>`:
+
+```tsx filename="page.tsx"
+export default async function Page(props) {
+  return (
+    // <p>Loading..</p> is part of the static shell
+    <Suspense fallback={<p>Loading..</p>}>
+      <Example searchParams={props.searchParams} />
+    </Suspense>
+  )
+}
+```
+
+> **Good to know**: Unlike external I/O, runtime data cannot be cached with `use cache` because it requires request context. Components that access runtime APIs must always be wrapped in `<Suspense>`. However, you can extract values from runtime data and pass them as arguments to cached functions. See [Runtime data](#runtime-data) in the `use cache` section for an example.
+
+### Non-deterministic operations
+
+Operations like `Math.random()` or `Date.now()` need request context to be used. Call [`connection()`](/docs/app/api-reference/functions/connection) or access runtime data first to defer to request time:
+
+```tsx
+import { connection } from 'next/server'
+import { cookies, headers } from 'next/headers'
+import { Suspense } from 'react'
+import fs from 'fs/promises'
+
+async function Example() {
+  // Explicitly defer to request time
+  await connection()
+
+  // Non-deterministic operations
+  const random = Math.random()
+  const now = Date.now()
+  const date = new Date()
+  const uuid = crypto.randomUUID()
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+
+  return <div>Not in the static shell</div>
+}
+```
+
+Wrap in `<Suspense>`:
+
+```tsx filename="page.tsx"
 export default async function Page() {
   return (
     // <p>Loading..</p> is part of the static shell
@@ -129,143 +249,84 @@ export default async function Page() {
 }
 ```
 
-These operations can be completed with [`use cache`](/docs/app/api-reference/directives/use-cache), making them part of the static shell, or wrapped in [`<Suspense>`](https://react.dev/reference/react/Suspense) to include the fallback UI in the static shell.
+Every new incoming request would see different random numbers, date, etc.
 
-### Runtime Data
+> **Good to know**: You can [cache non-deterministic](#making-non-deterministic-work-static) operations with `use cache`, which means all users see the same cached value until revalidation. This can be useful for generating unique IDs or timestamps that should be consistent across requests.
 
-A specific type of dynamic data that requires request context, only available when a user makes a request:
+### Putting it all together
 
-- [`cookies()`](/docs/app/api-reference/functions/cookies) - User's cookie data
-- [`headers()`](/docs/app/api-reference/functions/headers) - Request headers
-- [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) - URL query parameters
-- [`params`](/docs/app/api-reference/file-conventions/page#params-optional) - Dynamic route parameters (unless at least one sample is provided via [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params))
+Here's a complete example showing static content, cached dynamic content, and streaming dynamic content working together on a single page:
 
-```tsx filename="page.tsx"
-import { cookies } from 'next/headers'
-
-async function User() {
-  // Reads the user's session cookie
-  const session = (await cookies()).get('session')?.value
-  return <div>Session: {session}</div>
-}
-
-export default function Page() {
-  return (
-    // Suspense shows static shell while waiting for runtime data
-    <Suspense fallback={<p>Loading user...</p>}>
-      <User />
-    </Suspense>
-  )
-}
-```
-
-Runtime data and [`use cache`](/docs/app/api-reference/directives/use-cache) cannot be used in the same scope. However, you can pass derived values from runtime APIs into a function using the `use cache` directive.
-
-```tsx filename="app/profile/page.tsx"
-import { cookies } from 'next/headers'
+```tsx filename="app/blog/page.tsx"
 import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+import { cacheLife } from 'next/cache'
+import Link from 'next/link'
 
-export default function Page() {
-  // Page itself creates the dynamic boundary
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <ProfileContent />
-    </Suspense>
-  )
-}
-
-// Component (not cached) reads runtime data
-async function ProfileContent() {
-  const session = (await cookies()).get('session')?.value
-
-  return <CachedContent sessionId={session} />
-}
-
-// Cached component receives data as props
-async function CachedContent({ sessionId }: { sessionId: string }) {
-  'use cache'
-  // sessionId becomes part of cache key
-  const data = await fetchUserData(sessionId)
-  return <div>{data}</div>
-}
-```
-
-At request time, `CachedContent` executes if no matching cache entry is found, and stores the result for future requests.
-
-### Making Non-Deterministic Work Static
-
-Non-deterministic operations become static when cached:
-
-```tsx
-export default async function Page() {
-  'use cache'
-
-  // These are all cached. Same for all requests
-  const random = Math.random()
-
-  const now = Date.now()
-  const date = new Date()
-
-  const uuid = crypto.randomUUID()
-  const bytes = crypto.getRandomValues(new Uint8Array(16))
-
-  return <div>I render</div>
-}
-```
-
-## Using Suspense boundaries
-
-React [Suspense](https://react.dev/reference/react/Suspense) boundaries let you define what fallback UI to use when it wraps dynamic or runtime data.
-
-Content outside the boundary, including the fallback UI, is prerendered as a static shell, while content inside the boundary streams in when ready.
-
-Here's how to use `Suspense` with Cache Components:
-
-```tsx filename="app/page.tsx" switcher
-import { Suspense } from 'react'
-
-export default function Page() {
+export default function BlogPage() {
   return (
     <>
-      <h1>This will be prerendered</h1>
-      <Suspense fallback={<Skeleton />}>
-        <DynamicContent />
+      {/* Static content - prerendered automatically */}
+      <header>
+        <h1>Our Blog</h1>
+        <nav>
+          <Link href="/">Home</Link> | <Link href="/about">About</Link>
+        </nav>
+      </header>
+
+      {/* Cached dynamic content - included in the static shell */}
+      <BlogPosts />
+
+      {/* Runtime dynamic content - streams at request time */}
+      <Suspense fallback={<p>Loading your preferences...</p>}>
+        <UserPreferences />
       </Suspense>
     </>
   )
 }
 
-async function DynamicContent() {
-  const res = await fetch('http://api.cms.com/posts')
-  const { posts } = await res.json()
-  return <div>{/* ... */}</div>
-}
-```
+// Everyone sees the same blog posts (revalidated every hour)
+async function BlogPosts() {
+  'use cache'
+  cacheLife('hours')
 
-```jsx filename="app/page.js" switcher
-import { Suspense } from 'react'
+  const res = await fetch('https://api.vercel.app/blog')
+  const posts = await res.json()
 
-export default function Page() {
   return (
-    <>
-      <h1>This will be prerendered</h1>
-      <Suspense fallback={<Skeleton />}>
-        <DynamicContent />
-      </Suspense>
-    </>
+    <section>
+      <h2>Latest Posts</h2>
+      <ul>
+        {posts.slice(0, 5).map((post: any) => (
+          <li key={post.id}>
+            <h3>{post.title}</h3>
+            <p>
+              By {post.author} on {post.date}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
-async function DynamicContent() {
-  const res = await fetch('http://api.cms.com/posts')
-  const { posts } = await res.json()
-  return <div>{/* ... */}</div>
+// Personalized per user based on their cookie
+async function UserPreferences() {
+  const theme = (await cookies()).get('theme')?.value || 'light'
+  const favoriteCategory = (await cookies()).get('category')?.value
+
+  return (
+    <aside>
+      <p>Your theme: {theme}</p>
+      {favoriteCategory && <p>Favorite category: {favoriteCategory}</p>}
+    </aside>
+  )
 }
 ```
 
-At build time, Next.js prerenders the static content and the `fallback` UI, while the dynamic content is postponed until a user requests the route.
+At build time, Next.js prerenders the header (static) and fetches the blog posts from the API (cached with `use cache`). Both become part of the static shell along with the loading fallback UI.
 
-> **Good to know**: Wrapping a component in `Suspense` doesn't make it dynamic; all code is dynamic by default. `Suspense` provides fallback UI that can be prerendered if the child component renders uncached data.
+When a user visits the page, they instantly see this prerendered shell with the header and blog posts. Only the personalized preferences need to stream in at request time since they depend on the user's cookies. This ensures fast initial page loads while still providing personalized content.
 
 ### Missing Suspense boundaries
 
@@ -317,33 +378,125 @@ To reduce network overhead, the full response, including static HTML and streame
 
 ## Using `use cache`
 
-While `Suspense` boundaries manage dynamic content, the [`use cache`](/docs/app/api-reference/directives/use-cache) directive is available for caching data or computations that don't change often.
+By default, dynamic content needs `<Suspense>` and streams at request time. However, if your dynamic data doesn't change frequently, you can use the [`use cache`](/docs/app/api-reference/directives/use-cache) directive to cache it and include it in the static shell, avoiding the need for Suspense and loading states.
 
-### Basic usage
+<details>
+<summary>What should I cache first?</summary>
 
-Add `use cache` to cache a page, component, or async function, and define a lifetime with [`cacheLife`](/docs/app/api-reference/functions/cacheLife):
+What you cache should be a function of what you want your UI loading states to be. If data doesn't depend on runtime data and you're okay with a cached value being served for multiple requests over a period of time, use `use cache` with `cacheLife` to describe that behavior.
 
-```tsx filename="app/page.tsx" highlight={1,4,5} switcher
+For content management systems with update mechanisms, consider using tags with longer cache durations and rely on `revalidateTag` to mark static initial UI as ready for revalidation. This pattern allows you to serve fast, cached responses while still updating content when it actually changes, rather than expiring the cache preemptively.
+
+</details>
+
+### Caching dynamic data
+
+Add `use cache` to cache a page, component, or async function. Use [`cacheLife`](/docs/app/api-reference/functions/cacheLife) to define how long the cached data should be stored:
+
+```tsx filename="app/page.tsx" highlight={1,4,5}
 import { cacheLife } from 'next/cache'
 
-export default async function Page() {
+async function fetchUsers() {
   'use cache'
   cacheLife('hours')
-  // fetch or compute
-  return <div>...</div>
+
+  // This query result will be cached for 1 hour
+  const users = await db.query('SELECT * FROM users')
+
+  return users
+}
+
+export default async function Page() {
+  const users = await fetchUsers()
+  return (
+    <ul>
+      {users.map((user) => (
+        <li key={user.id}>{user.name}</li>
+      ))}
+    </ul>
+  )
 }
 ```
 
-```jsx filename="app/page.js" highlight={1,4,5} switcher
+The `cacheLife` function accepts a cache profile name (like `'hours'`, `'days'`, or `'weeks'`) or a custom configuration object to control cache behavior:
+
+```tsx filename="app/page.tsx" highlight={5-9}
 import { cacheLife } from 'next/cache'
 
-export default async function Page() {
+async function fetchUsers() {
   'use cache'
-  cacheLife('hours')
-  // fetch or compute
-  return <div>...</div>
+  cacheLife({
+    stale: 3600, // 1 hour until considered stale
+    revalidate: 7200, // 2 hours until revalidated
+    expire: 86400, // 1 day until expired
+  })
+
+  const users = await db.query('SELECT * FROM users')
+  return users
 }
 ```
+
+See the [`cacheLife` API reference](/docs/app/api-reference/functions/cacheLife) for available profiles and custom configuration options.
+
+### Runtime data
+
+Runtime data and [`use cache`](/docs/app/api-reference/directives/use-cache) cannot be used in the same scope. However, you can extract values from runtime APIs and pass them as arguments to cached functions.
+
+```tsx filename="app/profile/page.tsx"
+import { cookies } from 'next/headers'
+import { Suspense } from 'react'
+
+export default function Page() {
+  // Page itself creates the dynamic boundary
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ProfileContent />
+    </Suspense>
+  )
+}
+
+// Component (not cached) reads runtime data
+async function ProfileContent() {
+  const session = (await cookies()).get('session')?.value
+
+  return <CachedContent sessionId={session} />
+}
+
+// Cached component/function receives data as props
+async function CachedContent({ sessionId }: { sessionId: string }) {
+  'use cache'
+  // sessionId becomes part of cache key
+  const data = await fetchUserData(sessionId)
+  return <div>{data}</div>
+}
+```
+
+At request time, `CachedContent` executes if no matching cache entry is found, and stores the result for future requests.
+
+> **Good to know:** For more on how runtime `use cache` works in serverless and self-hosted environments, see the [`use cache` in serverless environments](#runtime-caching-considerations).
+
+### Making non-deterministic work static
+
+Non-deterministic operations become static when cached:
+
+```tsx
+export default async function Page() {
+  'use cache'
+
+  // These are all cached. Same for all requests
+  const random = Math.random()
+
+  const now = Date.now()
+  const date = new Date()
+
+  const uuid = crypto.randomUUID()
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+
+  return <div>I render</div>
+}
+```
+
+When this page is cached, the random number, timestamp, and UUID are generated once and then reused for all users until the cache is revalidated.
 
 ### Caveats
 
@@ -363,7 +516,7 @@ import { setTimeout } from 'node:timers/promises'
 
 async function getSiteTitle() {
   // Simulate a slow database or API call
-  await setTimeout(1000)
+  await setTimeout(1000) // from 'node:timers/promise'
   return 'My Website'
 }
 
@@ -386,7 +539,7 @@ import { setTimeout } from 'node:timers/promises'
 
 async function getSiteTitle() {
   // Simulate a slow database or API call
-  await setTimeout(1000)
+  await setTimeout(1000) // from 'node:timers/promise'
   return 'My Website'
 }
 
@@ -406,11 +559,20 @@ export async function CachedWrapper({ children }) {
 
 #### Runtime caching considerations
 
-While `use cache` is designed primarily to include dynamic data in the static shell, it can also cache data at runtime. However, the in-memory LRU storage has limitations - as older entries are evicted, you may unnecessarily repeat data fetching or calculations.
+While `use cache` is designed primarily to include dynamic data in the static shell, it can also cache data at runtime using in-memory LRU (Least Recently Used) storage.
 
-If the in-memory cache isn't sufficient, [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) allows platforms to provide a dedicated cache handler (like a KV database). This can help reduce hits against data sources not scaled to your total traffic, though it comes with its own costs (storage, network latency, platform fees).
+Runtime cache behavior depends on your hosting environment:
 
-For compliance requirements where certain data must never be stored on the server (even ephemerally), or when a deeply nested component needs to access runtime APIs (like `cookies()`) and restructuring would be disruptive, use [`use cache: private`](/docs/app/api-reference/directives/use-cache-private). This allows runtime API access while preventing the data from being cached.
+| Environment     | Runtime Caching Behavior                                                                                                                                          |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Serverless**  | Cache entries may not persist across requests (each request can be a different instance). Build-time caching works normally.                                      |
+| **Self-hosted** | Cache entries persist across requests. Control cache size with [`cacheMaxMemorySize`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath). |
+
+If the default in-memory cache doesn't meet your needs, consider these alternatives:
+
+- **[`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)** - Allows platforms to provide a dedicated cache handler (like Redis or KV database). This helps reduce hits against data sources not scaled to your total traffic, though it comes with costs (storage, network latency, platform fees).
+
+- **[`use cache: private`](/docs/app/api-reference/directives/use-cache-private)** - For compliance requirements where certain data must never be cached on the server (even ephemerally), or when a component within a `use cache` scope needs to access runtime APIs like `cookies()` and restructuring the component tree is impractical.
 
 ### Tagging and revalidating
 
@@ -593,7 +755,7 @@ export default async function Page() {
 
 ### Route Handlers with Cache Components
 
-`GET` and `HEAD` Route Handlers follow the same model as normal UI routes in your application. They are dynamic by default, can be prerendered when deterministic, and you can `use cache` to include more dynamic data in the cached response. Other HTTP methods (POST, PUT, DELETE, PATCH, OPTIONS) are always dynamic and never prerendered.
+`GET` Route Handlers follow the same model as normal UI routes in your application. They are dynamic by default, can be prerendered when deterministic, and you can `use cache` to include more dynamic data in the cached response. Other HTTP methods are always dynamic and never prerendered.
 
 Dynamic example, returns a different number for every request:
 
@@ -605,7 +767,7 @@ export async function GET() {
 }
 ```
 
-A handler that returns only static data will be prerendered at build time:
+A handler that returns only static data, and doesn't use dynamic or runtime data, will be prerendered at build time:
 
 ```tsx filename="app/api/project-info/route.ts"
 export async function GET() {
@@ -648,85 +810,112 @@ async function getProducts() {
 >
 > - `use cache` cannot be used directly inside a Route Handler body; extract it to a helper.
 > - Cached responses revalidate according to `cacheLife` when a new request arrives.
-> - Using runtime APIs like [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), or calling [`connection()`](/docs/app/api-reference/functions/connection), always defers to request time (no prerendering).
-
-## Before vs. after Cache Components
-
-Understanding how Cache Components changes your mental model:
-
-### Before Cache Components
-
-- **Static by default**: Next.js tried to prerender and cache as much as possible for you unless you opted out
-- **Route-level controls**: Switches like `dynamic`, `revalidate`, `fetchCache` controlled caching for the whole page
-- **Limits of `fetch`**: Using `fetch` alone was incomplete, as it didn't cover direct database clients or other server-side IO. A nested `fetch` switching to dynamic (e.g., `{ cache: 'no-store' }`) could unintentionally change the entire route behavior
-
-### With Cache Components
-
-- **Dynamic by default**: Everything is dynamic by default. You decide which parts to cache by adding [`use cache`](/docs/app/api-reference/directives/use-cache) where it helps
-- **Fine-grained control**: File/component/function-level [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife) control caching exactly where you need it
-- **Streaming stays**: Use `<Suspense>` or a `loading.(js|tsx)` file to stream dynamic parts while the shell shows immediately
-- **Beyond `fetch`**: Using the `use cache` directive caching can be applied to all server IO (database calls, APIs, computations), not just `fetch`. Nested `fetch` calls won't silently flip an entire route because behavior is governed by explicit cache boundaries and `Suspense`
-- **All pages generate static shells**: Even pages with dynamic behavior generate static HTML along with prefetch data for instant client-side navigation. You'll see more files in your build output, where each page has static HTML that serves instantly from disk or CDN while dynamic content streams at runtime.
+> - Using runtime APIs like [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), or [`connection()`](/docs/app/api-reference/functions/connection), as well as using [non-deterministic behavior](#making-non-deterministic-work-static), also defers to request time (no prerendering).
 
 ## Examples
 
-### Dynamic APIs
+### Using runtime data with caching
 
-When accessing runtime APIs like `cookies()`, Next.js will only prerender the fallback UI above this component.
+Runtime APIs like `cookies()` require request context and cannot be cached directly. However, you can extract values from runtime data and pass them to cached components. This allows you to cache personalized data that depends on the user.
 
-In this example, we have no fallback defined, so Next.js shows an error instructing us to provide one. The `<User />` component needs to be wrapped in `Suspense` because it uses the `cookies` API:
+Here's a page that accesses runtime data (cookies) and passes it to a cached component:
 
-```jsx filename="app/user.js" switcher
-import { cookies } from 'next/headers'
-
-export async function User() {
-  const session = (await cookies()).get('session')?.value
-  return '...'
-}
-```
-
-```tsx filename="app/user.tsx" switcher
-import { cookies } from 'next/headers'
-
-export async function User() {
-  const session = (await cookies()).get('session')?.value
-  return '...'
-}
-```
-
-Now we have a `Suspense` boundary around our User component we can prerender the Page with a Skeleton UI and stream in the `<User />` UI when a specific user makes a request
-
-```tsx filename="app/page.tsx" switcher
+```tsx filename="app/profile/page.tsx" switcher
 import { Suspense } from 'react'
-import { User, AvatarSkeleton } from './user'
+import { cookies } from 'next/headers'
 
-export default function Page() {
+export default function ProfilePage() {
   return (
-    <section>
-      <h1>This will be prerendered</h1>
-      <Suspense fallback={<AvatarSkeleton />}>
-        <User />
+    <>
+      <h1>User Profile</h1>
+      <Suspense fallback={<div>Loading profile...</div>}>
+        <ProfileContent />
       </Suspense>
-    </section>
+    </>
+  )
+}
+
+// This component accesses runtime data
+async function ProfileContent() {
+  const sessionId = (await cookies()).get('session')?.value
+
+  if (!sessionId) {
+    return <div>Please log in</div>
+  }
+
+  // Pass the session ID to a cached component
+  return <CachedUserProfile sessionId={sessionId} />
+}
+
+// This component can be cached because it receives data as props
+async function CachedUserProfile({ sessionId }: { sessionId: string }) {
+  'use cache'
+
+  // sessionId becomes part of the cache key
+  // Each user gets their own cached profile
+  const profile = await fetch(`https://api.example.com/profile/${sessionId}`)
+  const data = await profile.json()
+
+  return (
+    <div>
+      <h2>{data.name}</h2>
+      <p>{data.email}</p>
+    </div>
   )
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/profile/page.js" switcher
 import { Suspense } from 'react'
-import { User, AvatarSkeleton } from './user'
+import { cookies } from 'next/headers'
 
-export default function Page() {
+export default function ProfilePage() {
   return (
-    <section>
-      <h1>This will be prerendered</h1>
-      <Suspense fallback={<AvatarSkeleton />}>
-        <User />
+    <>
+      <h1>User Profile</h1>
+      <Suspense fallback={<div>Loading profile...</div>}>
+        <ProfileContent />
       </Suspense>
-    </section>
+    </>
+  )
+}
+
+// This component accesses runtime data
+async function ProfileContent() {
+  const sessionId = (await cookies()).get('session')?.value
+
+  if (!sessionId) {
+    return <div>Please log in</div>
+  }
+
+  // Pass the session ID to a cached component
+  return <CachedUserProfile sessionId={sessionId} />
+}
+
+// This component can be cached because it receives data as props
+async function CachedUserProfile({ sessionId }) {
+  'use cache'
+
+  // sessionId becomes part of the cache key
+  // Each user gets their own cached profile
+  const profile = await fetch(`https://api.example.com/profile/${sessionId}`)
+  const data = await profile.json()
+
+  return (
+    <div>
+      <h2>{data.name}</h2>
+      <p>{data.email}</p>
+    </div>
   )
 }
 ```
+
+The pattern:
+
+1. `ProfileContent` accesses `cookies()` (runtime data) - must be wrapped in `Suspense`
+2. Extract the session ID value
+3. Pass it to `CachedUserProfile` which uses `use cache`
+4. The session ID becomes part of the cache key, so each user gets their own cached profile
 
 ### Passing dynamic props
 
@@ -783,21 +972,3 @@ export async function Table({ sortPromise }) {
   return '...'
 }
 ```
-
-## Frequently Asked Questions
-
-### Does this replace Partial Prerendering (PPR)?
-
-No. Cache Components **implements** PPR as a feature. The old experimental PPR flag has been removed but PPR is here to stay.
-
-PPR provides the static shell and streaming infrastructure; `use cache` lets you include optimized dynamic output in that shell when beneficial.
-
-### What should I cache first?
-
-What you cache should be a function of what you want your UI loading states to be. If data doesn't depend on runtime data and you're okay with a cached value being served for multiple requests over a period of time, use `use cache` with `cacheLife` to describe that behavior.
-
-For content management systems with update mechanisms, consider using tags with longer cache durations and rely on `revalidateTag` to mark static initial UI as ready for revalidation. This pattern allows you to serve fast, cached responses while still updating content when it actually changes, rather than expiring the cache preemptively.
-
-### How do I update cached content quickly?
-
-Use [`cacheTag`](/docs/app/api-reference/functions/cacheTag) to tag your cached data, then trigger [`updateTag`](/docs/app/api-reference/functions/updateTag) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag).

@@ -82,7 +82,7 @@ A cache entry's key is generated using a serialized version of its inputs, which
 When a cached function references variables from outer scopes, those variables are automatically captured and bound as arguments, making them part of the cache key.
 
 ```tsx filename="lib/data.ts"
-function Component({ userId }: { userId: string }) {
+async function Component({ userId }: { userId: string }) {
   const getData = async (filter: string) => {
     'use cache'
     // Cache key includes both userId (from closure) and filter (argument)
