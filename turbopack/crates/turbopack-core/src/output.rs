@@ -118,15 +118,25 @@ pub struct OutputAssetsWithReferenced {
 }
 
 impl OutputAssetsWithReferenced {
-    /// Returns all assets, including referenced assets and nested assets.
-    pub fn all_assets(self: Vc<Self>) -> Vc<OutputAssets> {
-        self.expand_assets(true)
-    }
-
-    /// Returns only direct referenced assets and does not include assets referenced indirectly by
-    /// them.
-    pub fn direct_assets(self: Vc<Self>) -> Vc<OutputAssets> {
-        self.expand_assets(false)
+    async fn expand_assets(
+        &self,
+        inner_output_assets: bool,
+    ) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
+        expand_output_assets(
+            self.assets
+                .await?
+                .into_iter()
+                .chain(self.referenced_assets.await?.into_iter())
+                .map(|&asset| ExpandOutputAssetsInput::Asset(asset))
+                .chain(
+                    self.references
+                        .await?
+                        .into_iter()
+                        .map(|&reference| ExpandOutputAssetsInput::Reference(reference)),
+                ),
+            inner_output_assets,
+        )
+        .await
     }
 }
 
@@ -164,25 +174,17 @@ impl OutputAssetsWithReferenced {
         .cell())
     }
 
+    /// Returns all assets, including referenced assets and nested assets.
     #[turbo_tasks::function]
-    async fn expand_assets(&self, inner_output_assets: bool) -> Result<Vc<OutputAssets>> {
-        Ok(Vc::cell(
-            expand_output_assets(
-                self.assets
-                    .await?
-                    .into_iter()
-                    .chain(self.referenced_assets.await?.into_iter())
-                    .map(|&asset| ExpandOutputAssetsInput::Asset(asset))
-                    .chain(
-                        self.references
-                            .await?
-                            .into_iter()
-                            .map(|&reference| ExpandOutputAssetsInput::Reference(reference)),
-                    ),
-                inner_output_assets,
-            )
-            .await?,
-        ))
+    pub async fn all_assets(&self) -> Result<Vc<ExpandedOutputAssets>> {
+        Ok(Vc::cell(self.expand_assets(true).await?))
+    }
+
+    /// Returns only direct referenced assets and does not include assets referenced indirectly by
+    /// them.
+    #[turbo_tasks::function]
+    pub async fn direct_assets(&self) -> Result<Vc<OutputAssets>> {
+        Ok(Vc::cell(self.expand_assets(false).await?))
     }
 
     #[turbo_tasks::function]

@@ -25,7 +25,6 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
-    reference::all_assets_from_entries,
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
     virtual_output::VirtualOutputAsset,
@@ -267,10 +266,10 @@ impl MiddlewareEndpoint {
                 get_js_paths_from_root(&node_root_value, &edge_chunk_group.await?.assets.await?)
                     .await?;
 
-            let mut output_assets = all_assets_from_entries(edge_all_assets).owned().await?;
+            let mut output_assets = edge_chunk_group.direct_assets().owned().await?;
 
             let wasm_paths_from_root =
-                get_wasm_paths_from_root(&node_root_value, &output_assets).await?;
+                get_wasm_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
 
             let all_assets = get_asset_paths_from_root(&node_root_value, &output_assets).await?;
 

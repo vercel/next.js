@@ -1588,11 +1588,7 @@ impl AppEndpoint {
                     server_assets.insert(app_paths_manifest_output);
                 }
 
-                let server_assets = all_assets_from_entries(Vc::cell(
-                    server_assets.into_iter().collect::<Vec<_>>(),
-                ))
-                .to_resolved()
-                .await?;
+                let server_assets = ResolvedVc::cell(server_assets.into_iter().collect::<Vec<_>>());
 
                 AppEndpointOutput::Edge {
                     files: app_entry_chunks,
@@ -1673,11 +1669,7 @@ impl AppEndpoint {
                     ));
                 }
 
-                let server_assets = all_assets_from_entries(Vc::cell(
-                    server_assets.into_iter().collect::<Vec<_>>(),
-                ))
-                .to_resolved()
-                .await?;
+                let server_assets = ResolvedVc::cell(server_assets.into_iter().collect::<Vec<_>>());
 
                 AppEndpointOutput::NodeJs {
                     rsc_chunk,

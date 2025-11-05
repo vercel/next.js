@@ -62,7 +62,10 @@ use turbopack_core::{
         chunk_group_info::ChunkGroupEntry,
         export_usage::{OptionExportUsageInfo, compute_export_usage_info},
     },
-    output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
+    output::{
+        ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
+        expand_output_assets,
+    },
     reference::all_assets_from_entries,
     resolve::{FindContextFileResult, find_context_file},
     source_map::OptionStringifiedSourceMap,
@@ -1973,7 +1976,7 @@ async fn any_output_changed(
 #[turbo_tasks::function(operation)]
 fn all_assets_from_entries_operation(
     operation: OperationVc<OutputAssets>,
-) -> Result<Vc<OutputAssets>> {
+) -> Result<Vc<ExpandedOutputAssets>> {
     let assets = operation.connect();
     Ok(all_assets_from_entries(assets))
 }

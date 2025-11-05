@@ -38,7 +38,7 @@ use turbopack_core::{
     issue::{IssueExt, IssueSource, module::ModuleIssue},
     module::Module,
     node_addon_module::NodeAddonModule,
-    output::{OutputAsset, OutputAssets},
+    output::{ExpandedOutputAssets, OutputAsset},
     raw_module::RawModule,
     reference_type::{
         CssReferenceSubType, EcmaScriptModulesReferenceSubType, ImportContext, ImportWithType,
@@ -996,7 +996,7 @@ pub async fn emit_asset_into_dir(
 
 #[turbo_tasks::function]
 pub async fn emit_assets_into_dir(
-    assets: Vc<OutputAssets>,
+    assets: Vc<ExpandedOutputAssets>,
     output_dir: FileSystemPath,
 ) -> Result<()> {
     let assets = assets.await?;
@@ -1011,7 +1011,7 @@ pub async fn emit_assets_into_dir(
 
 #[turbo_tasks::function(operation)]
 pub async fn emit_assets_into_dir_operation(
-    assets: ResolvedVc<OutputAssets>,
+    assets: ResolvedVc<ExpandedOutputAssets>,
     output_dir: FileSystemPath,
 ) -> Result<Vc<()>> {
     emit_assets_into_dir(*assets, output_dir)

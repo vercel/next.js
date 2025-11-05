@@ -9,7 +9,10 @@ use turbo_tasks::{
 use crate::{
     chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
     module::{Module, Modules},
-    output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
+    output::{
+        ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
+        expand_output_assets,
+    },
     raw_module::RawModule,
     resolve::{ExportUsage, ModuleResolveResult, RequestKey},
 };
@@ -330,7 +333,9 @@ pub async fn primary_chunkable_referenced_modules(
 /// Walks the asset graph from multiple assets and collect all referenced
 /// assets.
 #[turbo_tasks::function]
-pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<OutputAssets>> {
+pub async fn all_assets_from_entries(
+    entries: Vc<OutputAssets>,
+) -> Result<Vc<ExpandedOutputAssets>> {
     Ok(Vc::cell(
         expand_output_assets(
             entries
@@ -348,7 +353,7 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
 #[turbo_tasks::function]
 pub async fn all_assets_from_entry(
     entry: ResolvedVc<Box<dyn OutputAsset>>,
-) -> Result<Vc<OutputAssets>> {
+) -> Result<Vc<ExpandedOutputAssets>> {
     Ok(Vc::cell(
         expand_output_assets(std::iter::once(ExpandOutputAssetsInput::Asset(entry)), true).await?,
     ))

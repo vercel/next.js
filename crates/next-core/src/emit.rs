@@ -4,7 +4,7 @@ use turbo_tasks::{TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::{FileSystemPath, rebase};
 use turbopack_core::{
     asset::Asset,
-    output::{OutputAsset, OutputAssets},
+    output::{ExpandedOutputAssets, OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
 };
 
@@ -38,7 +38,7 @@ pub async fn emit_all_assets(
 /// path.
 #[turbo_tasks::function]
 pub async fn emit_assets(
-    assets: Vc<OutputAssets>,
+    assets: Vc<ExpandedOutputAssets>,
     node_root: FileSystemPath,
     client_relative_path: FileSystemPath,
     client_output_path: FileSystemPath,
