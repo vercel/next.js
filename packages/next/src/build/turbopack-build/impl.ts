@@ -2,7 +2,7 @@ import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
-import { createDefineEnv, loadBindings } from '../swc'
+import { createDefineEnv, getBindingsSync } from '../swc'
 import {
   handleRouteType,
   rawEntrypointsToEntrypoints,
@@ -42,7 +42,7 @@ export async function turbopackBuild(): Promise<{
   const currentNodeJsVersion = process.versions.node
 
   const startTime = process.hrtime()
-  const bindings = await loadBindings(config?.experimental?.useWasmBinary)
+  const bindings = getBindingsSync() // our caller should have already loaded these
   const dev = false
 
   const supportedBrowsers = getSupportedBrowsers(dir, dev)

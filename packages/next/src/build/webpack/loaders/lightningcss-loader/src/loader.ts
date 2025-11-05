@@ -19,6 +19,7 @@ import {
 } from '../../css-loader/src/utils'
 import { stringifyRequest } from '../../../stringify-request'
 import { ECacheKey } from './interface'
+import { getBindingsSync, installBindings } from '../../../../../build/swc'
 
 const encoder = new TextEncoder()
 
@@ -266,6 +267,10 @@ export async function LightningCssLoader(
 ): Promise<void> {
   const done = this.async()
   const options = this.getOptions()
+  // Install bindings early so they are definitely available to the loader.
+  // When run by webpack in next this is already done with correct configuration so this is a no-op.
+  // In turbopack loaders are run in a subprocess so it may or may not be done.
+  await installBindings()
   const { implementation, targets: userTargets, ...opts } = options
 
   options.modules ??= {}
@@ -305,12 +310,8 @@ export async function LightningCssLoader(
       ),
     })
   }
-  const { loadBindings } =
-    require('../../../../../build/swc') as typeof import('../../../../../build/swc')
-
   const transform =
-    implementation?.transformCss ??
-    (await loadBindings()).css.lightning.transform
+    implementation?.transformCss ?? getBindingsSync().css.lightning.transform
 
   const replacedUrls = new Map<number, string>()
   const icssReplacedUrls = new Map<number, string>()
