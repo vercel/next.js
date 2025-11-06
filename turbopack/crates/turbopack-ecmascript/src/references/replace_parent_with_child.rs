@@ -29,7 +29,7 @@ impl ReplaceParentWithChild {
 
     pub fn code_generation(&self) -> Result<CodeGeneration> {
         let parent_path = &self.path[0..(self.path.len() - 1)];
-        let to_replace_with = self.path.last().unwrap().clone();
+        let to_replace_with = *self.path.last().unwrap();
         let visitor = create_visitor!(parent_path, visit_mut_expr, |parent_expr: &mut Expr| {
             let child = match parent_expr {
                 Expr::Bin(BinExpr {
