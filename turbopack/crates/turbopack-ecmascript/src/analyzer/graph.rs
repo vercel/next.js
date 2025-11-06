@@ -45,6 +45,11 @@ impl EffectsBlock {
     pub fn is_empty(&self) -> bool {
         self.effects.is_empty()
     }
+    fn normalize(&mut self) {
+        for e in self.effects.iter_mut() {
+            e.normalize();
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -88,25 +93,15 @@ impl ConditionalKind {
             | ConditionalKind::And { expr: block, .. }
             | ConditionalKind::Or { expr: block, .. }
             | ConditionalKind::NullishCoalescing { expr: block, .. }
-            | ConditionalKind::Labeled { body: block } => {
-                for effect in &mut block.effects {
-                    effect.normalize();
-                }
-            }
+            | ConditionalKind::Labeled { body: block } => block.normalize(),
             ConditionalKind::IfElse { then, r#else, .. }
             | ConditionalKind::Ternary { then, r#else, .. } => {
-                for effect in &mut then.effects {
-                    effect.normalize();
-                }
-                for effect in &mut r#else.effects {
-                    effect.normalize();
-                }
+                then.normalize();
+                r#else.normalize();
             }
             ConditionalKind::IfElseMultiple { then, r#else, .. } => {
                 for block in then.iter_mut().chain(r#else.iter_mut()) {
-                    for effect in &mut block.effects {
-                        effect.normalize();
-                    }
+                    block.normalize();
                 }
             }
         }
@@ -127,9 +122,7 @@ impl EffectArg {
             EffectArg::Value(value) => value.normalize(),
             EffectArg::Closure(value, effects) => {
                 value.normalize();
-                for effect in &mut effects.effects {
-                    effect.normalize();
-                }
+                effects.normalize();
             }
             EffectArg::Spread => {}
         }
