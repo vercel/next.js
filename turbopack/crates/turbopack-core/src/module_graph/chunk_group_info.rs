@@ -507,8 +507,8 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
                 })
                 .collect::<Result<Vec<_>>>()?,
             &mut module_chunk_groups,
-            |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ RefData)>,
-             node: &'_ SingleModuleGraphModuleNode,
+            |parent_info: Option<(SingleModuleGraphModuleNode, &'_ RefData)>,
+             node: SingleModuleGraphModuleNode,
              module_chunk_groups: &mut FxHashMap<
                 ResolvedVc<Box<dyn Module>>,
                 RoaringBitmapWrapper,
