@@ -1118,6 +1118,24 @@ async fn analyze_ecmascript_module_internal(
                                 .extend($effects.into_iter().map(Action::Effect).rev())
                         };
                     }
+                    macro_rules! replace_with_left {
+                        ($path:ident) => {
+                            if analyze_mode.is_code_gen() && !condition_has_side_effects {
+                                $path.pop();
+                                $path.push(AstParentKind::BinExpr(BinExprField::Left));
+                                analysis.add_code_gen(ReplaceParentWithChild::new(AstPath($path)));
+                            }
+                        };
+                    }
+                    macro_rules! replace_with_right {
+                        ($path:ident) => {
+                            if analyze_mode.is_code_gen() && !condition_has_side_effects {
+                                $path.pop();
+                                $path.push(AstParentKind::BinExpr(BinExprField::Right));
+                                analysis.add_code_gen(ReplaceParentWithChild::new(AstPath($path)));
+                            }
+                        };
+                    }
                     match *kind {
                         ConditionalKind::If { then } => match condition.is_truthy() {
                             Some(true) => {
@@ -1196,25 +1214,12 @@ async fn analyze_ecmascript_module_internal(
                         }
                         ConditionalKind::And { rhs_effects } => match condition.is_truthy() {
                             Some(true) => {
-                                if analyze_mode.is_code_gen() && !condition_has_side_effects {
-                                    // condition_ast_path is pointing at the condition, but we want
-                                    // to just produce the RHS
-                                    condition_ast_path.pop();
-                                    condition_ast_path
-                                        .push(AstParentKind::BinExpr(BinExprField::Right));
-                                    analysis.add_code_gen(ReplaceParentWithChild::new(AstPath(
-                                        condition_ast_path,
-                                    )));
-                                }
+                                replace_with_right!(condition_ast_path);
                                 active_effects!(rhs_effects);
                             }
                             Some(false) => {
                                 // The condition value needs to stay since it's used
-                                if analyze_mode.is_code_gen() {
-                                    analysis.add_code_gen(ReplaceParentWithChild::new(AstPath(
-                                        condition_ast_path,
-                                    )));
-                                }
+                                replace_with_left!(condition_ast_path);
                             }
                             None => {
                                 active_effects!(rhs_effects);
@@ -1222,23 +1227,10 @@ async fn analyze_ecmascript_module_internal(
                         },
                         ConditionalKind::Or { rhs_effects } => match condition.is_truthy() {
                             Some(true) => {
-                                if analyze_mode.is_code_gen() {
-                                    analysis.add_code_gen(ReplaceParentWithChild::new(AstPath(
-                                        condition_ast_path,
-                                    )));
-                                }
+                                replace_with_left!(condition_ast_path);
                             }
                             Some(false) => {
-                                if analyze_mode.is_code_gen() && !condition_has_side_effects {
-                                    // condition_ast_path is pointing at the condition, but we want
-                                    // to just produce the RHS
-                                    condition_ast_path.pop();
-                                    condition_ast_path
-                                        .push(AstParentKind::BinExpr(BinExprField::Right));
-                                    analysis.add_code_gen(ReplaceParentWithChild::new(AstPath(
-                                        condition_ast_path,
-                                    )));
-                                }
+                                replace_with_right!(condition_ast_path);
                                 active_effects!(rhs_effects);
                             }
                             None => {
@@ -1248,23 +1240,11 @@ async fn analyze_ecmascript_module_internal(
                         ConditionalKind::NullishCoalescing { rhs_effects } => {
                             match condition.is_nullish() {
                                 Some(true) => {
-                                    if analyze_mode.is_code_gen() && !condition_has_side_effects {
-                                        condition_ast_path.pop();
-                                        condition_ast_path
-                                            .push(AstParentKind::BinExpr(BinExprField::Right));
-                                        analysis.add_code_gen(ReplaceParentWithChild::new(
-                                            AstPath(condition_ast_path),
-                                        ));
-                                    }
-
+                                    replace_with_right!(condition_ast_path);
                                     active_effects!(rhs_effects);
                                 }
                                 Some(false) => {
-                                    if condition_has_side_effects {
-                                        analysis.add_code_gen(ReplaceParentWithChild::new(
-                                            AstPath(condition_ast_path),
-                                        ));
-                                    }
+                                    replace_with_left!(condition_ast_path);
                                 }
                                 None => {
                                     active_effects!(rhs_effects);
