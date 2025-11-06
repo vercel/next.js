@@ -90,24 +90,32 @@ fn next_ssg_errors(input: PathBuf) {
 }
 
 #[fixture("tests/errors/react-server-components/**/input.js")]
+#[fixture("tests/errors/react-server-components/**/page.js")]
+#[fixture("tests/errors/react-server-components/**/route.js")]
 fn react_server_components_errors(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
     let cache_components_enabled = input.iter().any(|s| s.to_str() == Some("cache-components"));
     let use_cache_enabled = input.iter().any(|s| s.to_str() == Some("use-cache"));
+
+    let app_dir = input
+        .iter()
+        .position(|s| s.to_str() == Some("app-dir"))
+        .map(|pos| input.iter().take(pos + 1).collect());
+
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
         &|tr| {
             server_components(
-                FileName::Real(PathBuf::from("/some-project/src/page.js")).into(),
+                FileName::Real(input.clone()).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer,
                     cache_components_enabled,
                     use_cache_enabled,
                 }),
                 tr.comments.as_ref().clone(),
-                None,
+                app_dir.clone(),
             )
         },
         &input,
