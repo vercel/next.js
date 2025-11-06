@@ -27,7 +27,7 @@ serde_json = { workspace = true }
 swc_core = { workspace = true }
 tracing = { workspace = true }
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true, features = ["non_operation_vc_strongly_consistent"] }
+turbo-tasks = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-unix-path = { workspace = true }
