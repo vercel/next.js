@@ -55,5 +55,13 @@ describe('compiler.define', () => {
     it('should not render the inlined expression on client side', async () => {
       expect(loadedText).toContain('Client expr: not set')
     })
+
+    it('should render the inlined client flag on server side', async () => {
+      expect(loadedText).toContain('Server flag: false')
+    })
+
+    it('should render the inlined client flag on client side', async () => {
+      expect(loadedText).toContain('Client flag: true')
+    })
   })
 })

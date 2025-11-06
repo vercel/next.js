@@ -28,3 +28,14 @@ export function ClientExpr() {
 
   return <>{serverExpr}</>
 }
+
+export function ClientFlag() {
+  const [clientFlag, setClientFlag] = useState('<loading>')
+  useEffect(() => {
+    setClientFlag(
+      typeof IS_CLIENT === 'boolean' ? String(IS_CLIENT) : 'not set'
+    )
+  }, [setClientFlag])
+
+  return <>{clientFlag}</>
+}
