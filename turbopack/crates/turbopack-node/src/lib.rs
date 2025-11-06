@@ -32,7 +32,6 @@ pub mod evaluate;
 pub mod execution_context;
 mod heap_queue;
 mod pool;
-pub mod route_matcher;
 pub mod source_map;
 pub mod transforms;
 

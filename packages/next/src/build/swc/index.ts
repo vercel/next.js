@@ -655,6 +655,16 @@ function bindingToApi(
       )
     }
 
+    async writeAnalyzeData(
+      appDirOnly: boolean
+    ): Promise<TurbopackResult<void>> {
+      const napiResult = (await binding.projectWriteAnalyzeData(
+        this._nativeProject,
+        appDirOnly
+      )) as TurbopackResult<void>
+      return napiResult
+    }
+
     async writeAllEntrypointsToDisk(
       appDirOnly: boolean
     ): Promise<TurbopackResult<Partial<RawEntrypoints>>> {

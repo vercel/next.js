@@ -3,12 +3,11 @@ import { waitForNoErrorToast } from 'next-test-utils'
 import { getPrerenderOutput } from './utils'
 
 describe('Cache Components Errors', () => {
-  const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
+  const { next, isTurbopack, isNextStart, skipped, isRspack } = nextTestSetup({
     files: __dirname + '/fixtures/default',
     skipStart: !isNextDev,
     skipDeployment: true,
   })
-  const isRspack = !!process.env.NEXT_RSPACK
 
   if (skipped) {
     return

@@ -6,7 +6,6 @@ use std::{
     hash::{BuildHasherDefault, Hash},
     pin::Pin,
     sync::Arc,
-    time::Duration,
 };
 
 use anyhow::{Result, anyhow};
@@ -541,8 +540,6 @@ pub trait Backend: Sync + Send {
     fn task_execution_completed(
         &self,
         task: TaskId,
-        duration: Duration,
-        memory_usage: usize,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,

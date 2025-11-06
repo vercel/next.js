@@ -1,12 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('metadata-invalid-image-file', () => {
-  const { next, isTurbopack, isNextDev, skipped } = nextTestSetup({
+  const { next, isTurbopack, isNextDev, skipped, isRspack } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     skipStart: true,
   })
-  const isRspack = !!process.env.NEXT_RSPACK
 
   if (skipped) return
 

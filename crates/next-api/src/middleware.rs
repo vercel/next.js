@@ -38,7 +38,7 @@ use crate::{
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
-    route::{Endpoint, EndpointOutput, EndpointOutputPaths},
+    route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs},
 };
 
 #[turbo_tasks::value]
@@ -385,5 +385,16 @@ impl Endpoint for MiddlewareEndpoint {
         Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![
             self.entry_module().to_resolved().await?,
         ])]))
+    }
+
+    #[turbo_tasks::function]
+    async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
+        let this = self.await?;
+        let module_graph = this
+            .project
+            .module_graph(self.entry_module())
+            .to_resolved()
+            .await?;
+        Ok(Vc::cell(vec![module_graph]))
     }
 }

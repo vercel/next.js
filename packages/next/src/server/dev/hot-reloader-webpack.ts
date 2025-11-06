@@ -99,8 +99,9 @@ import {
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   connectReactDebugChannel,
-  deleteReactDebugChannel,
-  setReactDebugChannel,
+  connectReactDebugChannelForHtmlRequest,
+  deleteReactDebugChannelForHtmlRequest,
+  setReactDebugChannelForHtmlRequest,
   type ReactDebugChannelForBrowser,
 } from './debug-channel'
 import {
@@ -444,7 +445,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     ) => void
   ) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
-      const requestId = req.url
+      const htmlRequestId = req.url
         ? new URL(req.url, 'http://n').searchParams.get('id')
         : null
 
@@ -452,7 +453,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         throw new InvariantError('Did not start HotReloaderWebpack.')
       }
 
-      this.webpackHotMiddleware.onHMR(client, requestId)
+      this.webpackHotMiddleware.onHMR(client, htmlRequestId)
       this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
 
       const enableCacheComponents = this.config.cacheComponents
@@ -461,7 +462,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       // Router clients are also considered legacy clients. TODO: Maybe mark
       // clients as App Router / Pages Router clients explicitly, instead of
       // inferring it from the presence of a request ID.
-      const isLegacyClient = !requestId || !enableCacheComponents
+      const isLegacyClient = !htmlRequestId || !enableCacheComponents
 
       callback(client, { isLegacyClient })
 
@@ -639,28 +640,28 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         }
       })
 
-      if (requestId) {
-        connectReactDebugChannel(
-          requestId,
+      if (htmlRequestId) {
+        connectReactDebugChannelForHtmlRequest(
+          htmlRequestId,
           this.sendToClient.bind(this, client)
         )
         if (enableCacheComponents) {
-          const status = this.cacheStatusesByRequestId.get(requestId)
+          const status = this.cacheStatusesByRequestId.get(htmlRequestId)
           if (status) {
             this.sendToClient(client, {
               type: HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR,
               state: status,
             })
-            this.cacheStatusesByRequestId.delete(requestId)
+            this.cacheStatusesByRequestId.delete(htmlRequestId)
           }
         }
       }
 
       client.on('close', () => {
-        this.webpackHotMiddleware?.deleteClient(client, requestId)
+        this.webpackHotMiddleware?.deleteClient(client, htmlRequestId)
 
-        if (requestId) {
-          deleteReactDebugChannel(requestId)
+        if (htmlRequestId) {
+          deleteReactDebugChannelForHtmlRequest(htmlRequestId)
         }
       })
     })
@@ -1748,8 +1749,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
   public setCacheStatus(
     status: ServerCacheStatus,
-    htmlRequestId: string,
-    requestId: string
+    htmlRequestId: string
   ): void {
     const client = this.webpackHotMiddleware?.getClient(htmlRequestId)
     if (client !== undefined) {
@@ -1760,7 +1760,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     } else {
       // If the client is not connected, store the status so that we can send it
       // when the client connects.
-      this.cacheStatusesByRequestId.set(requestId, status)
+      this.cacheStatusesByRequestId.set(htmlRequestId, status)
     }
   }
 
@@ -1769,15 +1769,32 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     htmlRequestId: string,
     requestId: string
   ): void {
-    // Store the debug channel, regardless of whether the client is connected.
-    setReactDebugChannel(requestId, debugChannel)
-
-    // If the client is connected, we can connect the debug channel immediately.
-    // Otherwise, we'll do that when the client connects.
     const client = this.webpackHotMiddleware?.getClient(htmlRequestId)
 
-    if (client) {
-      connectReactDebugChannel(requestId, this.sendToClient.bind(this, client))
+    if (htmlRequestId === requestId) {
+      // The debug channel is for the HTML request.
+      if (client) {
+        // If the client is connected, we can connect the debug channel for
+        // the HTML request immediately.
+        connectReactDebugChannel(
+          htmlRequestId,
+          debugChannel,
+          this.sendToClient.bind(this, client)
+        )
+      } else {
+        // Otherwise, we'll do that when the client connects and just store
+        // the debug channel.
+        setReactDebugChannelForHtmlRequest(htmlRequestId, debugChannel)
+      }
+    } else if (client) {
+      // The debug channel is for a subsequent request (e.g. client-side
+      // navigation for server function call). If the client is not connected
+      // anymore, we don't need to connect the debug channel.
+      connectReactDebugChannel(
+        requestId,
+        debugChannel,
+        this.sendToClient.bind(this, client)
+      )
     }
   }
 
