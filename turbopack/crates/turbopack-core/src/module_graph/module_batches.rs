@@ -396,6 +396,7 @@ pub async fn compute_module_batches(
                         .boundary_modules
                         .extend(cycle.iter().map(|node| node.module));
                 }
+                Ok(())
             },
         )?;
 

@@ -73,7 +73,8 @@ async fn compute_async_module_info_single(
     // modules in the SCC is async.
 
     let mut async_modules = self_async_modules;
-    graph.traverse_edges_from_entries_dfs(
+    let graph_ref = graph.read();
+    graph_ref.traverse_edges_from_entries_dfs(
         graph.entry_modules(),
         &mut (),
         |_, _, _| Ok(GraphTraversalAction::Continue),
@@ -82,7 +83,7 @@ async fn compute_async_module_info_single(
                 // An entry module
                 return Ok(());
             };
-            let module = module.module();
+            let module = module.module;
             let parent_module = parent_module.module;
 
             if ref_data.chunking_type.is_inherit_async() && async_modules.contains(&module) {
@@ -92,7 +93,7 @@ async fn compute_async_module_info_single(
         },
     )?;
 
-    graph.traverse_cycles(
+    graph_ref.traverse_cycles(
         |ref_data| ref_data.chunking_type.is_inherit_async(),
         |cycle| {
             if cycle
@@ -103,8 +104,9 @@ async fn compute_async_module_info_single(
                     async_modules.insert(node.module);
                 }
             }
+            Ok(())
         },
-    );
+    )?;
 
     Ok(Vc::cell(async_modules))
 }

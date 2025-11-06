@@ -41,6 +41,7 @@ pub async fn compute_export_usage_info(
             // (or 1.2% of all modules).  So with this analysis we could potentially drop 80% of
             // the cycle breaker modules.
             circuit_breakers.extend(cycle.iter().map(|n| n.module));
+            Ok(())
         },
     )?;
 
