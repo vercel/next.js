@@ -12,7 +12,7 @@ import {
 import { parseStack, type StackFrame } from './lib/parse-stack'
 import { getOriginalCodeFrame } from '../next-devtools/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
-import { dim } from '../lib/picocolors'
+import { dim, italic } from '../lib/picocolors'
 
 type FindSourceMapPayload = (
   sourceURL: string
@@ -416,6 +416,17 @@ function parseAndSourceMap(
     }
   }
 
+  if (sourceMappedStack === '' && sourceMappedFrames.length > 0) {
+    // The `at` marker is important so that Node.js doesn't add square brackets
+    // around the stringified error i.e. this results in
+    // Error: message
+    //   at <ignore-listed frames>
+    // instead of
+    // [Error: message
+    //   at <ignore-listed frames>]
+    sourceMappedStack = '\n    at ' + italic('ignore-listed frames')
+  }
+
   return (
     errorName +
     ': ' +
@@ -460,7 +471,6 @@ export function patchErrorInspectNodeJS(
   errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
 
   // @ts-expect-error -- TODO upstream types
-  // eslint-disable-next-line no-extend-native -- We're not extending but overriding.
   errorConstructor.prototype[inspectSymbol] = function (
     depth: number,
     inspectOptions: util.InspectOptions,
@@ -501,7 +511,6 @@ export function patchErrorInspectEdgeLite(
   errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
 
   // @ts-expect-error -- TODO upstream types
-  // eslint-disable-next-line no-extend-native -- We're not extending but overriding.
   errorConstructor.prototype[inspectSymbol] = function ({
     format,
   }: {

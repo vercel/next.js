@@ -46,6 +46,10 @@ export const INFINITE_CACHE = 0xfffffffe
 export const MIDDLEWARE_FILENAME = 'middleware'
 export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`
 
+// Patterns to detect proxy files (replacement for middleware)
+export const PROXY_FILENAME = 'proxy'
+export const PROXY_LOCATION_REGEXP = `(?:src/)?${PROXY_FILENAME}`
+
 // Pattern to detect instrumentation hooks file
 export const INSTRUMENTATION_HOOK_FILENAME = 'instrumentation'
 
@@ -99,6 +103,8 @@ export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
   experimentalEdge: 'experimental-edge',
   nodejs: 'nodejs',
 }
+
+export const WEB_SOCKET_MAX_RECONNECTIONS = 12
 
 /**
  * The names of the webpack layers. These layers are the primitives for the

@@ -111,10 +111,15 @@ describe('Production Usage', () => {
   })
 
   it('should contain generated page count in output', async () => {
-    const pageCount = 37
-    expect(next.cliOutput).toContain(`Generating static pages (0/${pageCount})`)
-    expect(next.cliOutput).toContain(
-      `Generating static pages (${pageCount}/${pageCount})`
+    const pageCount = 34
+    expect(next.cliOutput).toMatch(
+      new RegExp(`Generating static pages.*\\(0\\/${pageCount}\\)`, 'g')
+    )
+    expect(next.cliOutput).toMatch(
+      new RegExp(
+        `Generating static pages.*\\(${pageCount}\\/${pageCount}\\)`,
+        'g'
+      )
     )
     // we should only have 4 segments and the initial message logged out
     expect(next.cliOutput.match(/Generating static pages/g).length).toBe(5)
@@ -342,7 +347,7 @@ describe('Production Usage', () => {
 
   // This test checks webpack chunks in particular
   ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
-    'should not contain amp, rsc APIs in main chunk',
+    'should not contain rsc APIs in main chunk',
     async () => {
       const globResult = await glob('main-*.js', {
         cwd: join(next.testDir, '.next/static/chunks'),
@@ -357,8 +362,6 @@ describe('Production Usage', () => {
         'utf8'
       )
 
-      // eslint-disable-next-line jest/no-standalone-expect
-      expect(content).not.toContain('useAmp')
       // eslint-disable-next-line jest/no-standalone-expect
       expect(content).not.toContain('useRefreshRoot')
     }
@@ -783,7 +786,8 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      // Just wait for google.com to be revealed. We can't control which input we get.
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -800,7 +804,7 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -820,7 +824,7 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -936,19 +940,6 @@ describe('Production Usage', () => {
         await browser.close()
       })
     }
-
-    it('should have default runtime values when not defined', async () => {
-      const html = await renderViaHTTP(next.appPort, '/runtime-config')
-      expect(html).toMatch(/found public config/)
-      expect(html).toMatch(/found server config/)
-    })
-
-    it('should not have runtimeConfig in __NEXT_DATA__', async () => {
-      const html = await renderViaHTTP(next.appPort, '/runtime-config')
-      const $ = cheerio.load(html)
-      const script = $('#__NEXT_DATA__').html()
-      expect(script).not.toMatch(/runtimeConfig/)
-    })
 
     it('should add autoExport for auto pre-rendered pages', async () => {
       for (const page of ['/about']) {
@@ -1115,12 +1106,6 @@ describe('Production Usage', () => {
 
       expect(file.endsWith('.js')).toBe(true)
     }
-  })
-
-  it('should handle AMP correctly in IE', async () => {
-    const browser = await webdriver(next.appPort, '/some-amp')
-    const text = await browser.elementByCss('p').text()
-    expect(text).toBe('Not AMP')
   })
 
   it('should warn when prefetch is true', async () => {

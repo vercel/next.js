@@ -1,13 +1,12 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import {
-  workUnitAsyncStorage,
-  type PrerenderStoreModern,
-} from '../app-render/work-unit-async-storage.external'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
   abortOnSynchronousPlatformIOAccess,
   trackSynchronousPlatformIOAccessInDev,
 } from '../app-render/dynamic-rendering'
 import { InvariantError } from '../../shared/lib/invariant-error'
+
+import { getServerReact, getClientReact } from '../runtime-reacts.external'
 
 type ApiType = 'time' | 'random' | 'crypto'
 
@@ -30,13 +29,13 @@ export function io(expression: string, type: ApiType) {
         let message: string
         switch (type) {
           case 'time':
-            message = `Route "${workStore.route}" used ${expression} instead of using \`performance\` or without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time`
+            message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time`
             break
           case 'random':
-            message = `Route "${workStore.route}" used ${expression} outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random`
+            message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random`
             break
           case 'crypto':
-            message = `Route "${workStore.route}" used ${expression} outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto`
+            message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto`
             break
           default:
             throw new InvariantError(
@@ -47,7 +46,7 @@ export function io(expression: string, type: ApiType) {
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
           expression,
-          applyOwnerStack(new Error(message), workUnitStore),
+          applyOwnerStack(new Error(message)),
           workUnitStore
         )
       }
@@ -79,14 +78,14 @@ export function io(expression: string, type: ApiType) {
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
           expression,
-          applyOwnerStack(new Error(message), workUnitStore),
+          applyOwnerStack(new Error(message)),
           workUnitStore
         )
       }
       break
     }
     case 'request':
-      if (workUnitStore.prerenderPhase === true) {
+      if (process.env.NODE_ENV === 'development') {
         trackSynchronousPlatformIOAccessInDev(workUnitStore)
       }
       break
@@ -101,16 +100,15 @@ export function io(expression: string, type: ApiType) {
   }
 }
 
-function applyOwnerStack(error: Error, workUnitStore: PrerenderStoreModern) {
+function applyOwnerStack(error: Error) {
   // TODO: Instead of stitching the stacks here, we should log the original
   // error as-is when it occurs, and let `patchErrorInspect` handle adding the
   // owner stack, instead of logging it deferred in the `LogSafely` component
   // via `throwIfDisallowedDynamic`.
-  if (
-    process.env.NODE_ENV !== 'production' &&
-    workUnitStore.captureOwnerStack
-  ) {
-    const ownerStack = workUnitStore.captureOwnerStack()
+  if (process.env.NODE_ENV !== 'production') {
+    const ownerStack =
+      getClientReact()?.captureOwnerStack() ??
+      getServerReact()?.captureOwnerStack()
 
     if (ownerStack) {
       let stack = ownerStack

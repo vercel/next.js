@@ -5,11 +5,9 @@ const MODERN_BROWSERSLIST_TARGET = require('./src/shared/lib/modern-browserslist
 
 const path = require('path')
 
-// eslint-disable-next-line import/no-extraneous-dependencies
 const transform = require('@swc/core').transform
 
 module.exports = function (task) {
-  // eslint-disable-next-line require-yield
   task.plugin(
     'swc',
     {},
@@ -125,7 +123,11 @@ module.exports = function (task) {
       const distFilePath = path.dirname(
         // we must strip src from filePath as it isn't carried into
         // the dist file path
-        path.join(__dirname, 'dist', filePath.replace(/^src[/\\]/, ''))
+        path.join(
+          __dirname,
+          esm ? 'dist/esm' : 'dist',
+          filePath.replace(/^src[/\\]/, '')
+        )
       )
 
       const options = {

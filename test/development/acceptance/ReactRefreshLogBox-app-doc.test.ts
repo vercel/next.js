@@ -36,7 +36,7 @@ describe('ReactRefreshLogBox _app _document', () => {
         export default MyApp
       `
     )
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 
   test('empty _document shows logbox', async () => {
@@ -83,7 +83,7 @@ describe('ReactRefreshLogBox _app _document', () => {
         export default MyDocument
       `
     )
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 
   test('_app syntax error shows logbox', async () => {
@@ -128,15 +128,15 @@ describe('ReactRefreshLogBox _app _document', () => {
                │    ,-[2:1]
                │  1 | function MyApp({ Component, pageProps }) {
                │  2 |   return <<Component {...pageProps} />;
-               │    :           ^
+               │    :          ^^
                │  3 | }
                │  4 | export default MyApp
                │    \`----
-               │   x Expression expected
+               │   x Expected ';', got '{'
                │    ,-[2:1]
                │  1 | function MyApp({ Component, pageProps }) {
                │  2 |   return <<Component {...pageProps} />;
-               │    :            ^^^^^^^^^
+               │    :                      ^
                │  3 | }
                │  4 | export default MyApp
                │    \`----
@@ -186,7 +186,7 @@ describe('ReactRefreshLogBox _app _document', () => {
         export default MyApp
       `
     )
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 
   test('_document syntax error shows logbox', async () => {
@@ -312,6 +312,6 @@ describe('ReactRefreshLogBox _app _document', () => {
         export default MyDocument
       `
     )
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 })

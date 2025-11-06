@@ -1,4 +1,5 @@
 import fs from 'fs-extra'
+import { debugPrint } from 'next-test-utils'
 import {
   chromium,
   webkit,
@@ -59,9 +60,15 @@ interface ElementHandleExt extends ElementHandle {
 
 export type ElementByCssOpts = {
   timeout?: number
-  /** The state of the DOM element. */
+  /**
+   * The state of the DOM element.
+   * @default 'visible'
+   */
   state?: 'attached' | 'visible' | 'hidden'
-  /** The state of the page. */
+  /**
+   * The state of the page.
+   * @default 'load'
+   */
   waitUntil?: false | 'load' | 'domcontentloaded' | 'networkidle'
 }
 
@@ -243,6 +250,10 @@ export class Playwright<TCurrent = undefined> {
       cpuThrottleRate?: number
       pushErrorAsConsoleLog?: boolean
       beforePageLoad?: (page: Page) => void | Promise<void>
+      /**
+       * @see {@link https://playwright.dev/docs/api/class-page#page-set-extra-http-headers Playwright.Page.setExtraHTTPHeaders}
+       */
+      extraHTTPHeaders?: Record<string, string>
       waitUntil?: PlaywrightNavigationWaitUntil
     }
   ) {
@@ -258,12 +269,16 @@ export class Playwright<TCurrent = undefined> {
 
     page.setDefaultTimeout(defaultTimeout)
     page.setDefaultNavigationTimeout(defaultTimeout)
+    const extraHTTPHeaders = opts?.extraHTTPHeaders
+    if (extraHTTPHeaders !== undefined) {
+      page.setExtraHTTPHeaders(extraHTTPHeaders)
+    }
 
     pageLogs = []
     websocketFrames = []
 
     page.on('console', (msg) => {
-      console.log('browser log:', msg)
+      debugPrint('Browser Log:', msg)
 
       pageLogs.push(
         Promise.all(
@@ -486,7 +501,20 @@ export class Playwright<TCurrent = undefined> {
     const {
       timeout = 10_000,
       waitUntil = 'load', // TODO: we should get rid of this and fix the tests that implicitly rely on it
-      state = 'attached', // TODO: we should probably default to "visible" instead
+      // Selected elements may be in a completed boundary that React hasn't revealed yet.
+      // We almost always want to wait for the reveal.
+      // This matches Playwright's default behavior.
+      // We don't care about visibility of metadata tags.
+      // Can hopefully be dropped if https://github.com/microsoft/playwright/pull/37265 is accepted
+      state = selector.startsWith('base') ||
+      selector.startsWith('link') ||
+      selector.startsWith('meta') ||
+      selector.startsWith('script') ||
+      selector.startsWith('source') ||
+      selector.startsWith('style') ||
+      selector.startsWith('title')
+        ? 'attached'
+        : 'visible',
     } = typeof opts === 'number' ? { timeout: opts } : opts
 
     return this.startChain(async () => {
@@ -573,6 +601,13 @@ export class Playwright<TCurrent = undefined> {
     })
   }
 
+  getByRole(
+    role: Parameters<(typeof page)['getByRole']>[0],
+    options?: Parameters<(typeof page)['getByRole']>[1]
+  ) {
+    return page.getByRole(role, options)
+  }
+
   locateRedbox(): Locator {
     return page.locator(
       'nextjs-portal [aria-labelledby="nextjs__container_errors_label"]'
@@ -580,7 +615,7 @@ export class Playwright<TCurrent = undefined> {
   }
 
   locateDevToolsIndicator(): Locator {
-    return page.locator('nextjs-portal [data-nextjs-dev-tools-button]')
+    return page.locator('nextjs-portal [data-nextjs-dev-tools-button]:visible')
   }
 
   locator(selector: string, options?: Parameters<(typeof page)['locator']>[1]) {

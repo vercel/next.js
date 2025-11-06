@@ -49,7 +49,6 @@ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
-  REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
   REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
@@ -318,43 +317,46 @@ function cleanup(entryValue) {
     1 === entry.count ? TaintRegistryValues.delete(entryValue) : entry.count--);
 }
 var finalizationRegistry =
-  "function" === typeof FinalizationRegistry
-    ? new FinalizationRegistry(cleanup)
-    : null;
-exports.Children = {
-  map: mapChildren,
-  forEach: function (children, forEachFunc, forEachContext) {
-    mapChildren(
-      children,
-      function () {
-        forEachFunc.apply(this, arguments);
-      },
-      forEachContext
-    );
-  },
-  count: function (children) {
-    var n = 0;
-    mapChildren(children, function () {
-      n++;
-    });
-    return n;
-  },
-  toArray: function (children) {
-    return (
-      mapChildren(children, function (child) {
-        return child;
-      }) || []
-    );
-  },
-  only: function (children) {
-    if (!isValidElement(children)) throw Error(formatProdErrorMessage(143));
-    return children;
-  }
-};
+    "function" === typeof FinalizationRegistry
+      ? new FinalizationRegistry(cleanup)
+      : null,
+  Children = {
+    map: mapChildren,
+    forEach: function (children, forEachFunc, forEachContext) {
+      mapChildren(
+        children,
+        function () {
+          forEachFunc.apply(this, arguments);
+        },
+        forEachContext
+      );
+    },
+    count: function (children) {
+      var n = 0;
+      mapChildren(children, function () {
+        n++;
+      });
+      return n;
+    },
+    toArray: function (children) {
+      return (
+        mapChildren(children, function (child) {
+          return child;
+        }) || []
+      );
+    },
+    only: function (children) {
+      if (!isValidElement(children)) throw Error(formatProdErrorMessage(143));
+      return children;
+    }
+  };
+exports.Activity = REACT_ACTIVITY_TYPE;
+exports.Children = Children;
 exports.Fragment = REACT_FRAGMENT_TYPE;
 exports.Profiler = REACT_PROFILER_TYPE;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
+exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
 exports.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   ReactSharedInternals;
 exports.cache = function (fn) {
@@ -537,17 +539,10 @@ exports.startTransition = function (scope) {
       (ReactSharedInternals.T = prevTransition);
   }
 };
-exports.unstable_Activity = REACT_ACTIVITY_TYPE;
 exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
-exports.unstable_ViewTransition = REACT_VIEW_TRANSITION_TYPE;
 exports.unstable_getCacheForType = function (resourceType) {
   var dispatcher = ReactSharedInternals.A;
   return dispatcher ? dispatcher.getCacheForType(resourceType) : resourceType();
-};
-exports.unstable_postpone = function (reason) {
-  reason = Error(reason);
-  reason.$$typeof = REACT_POSTPONE_TYPE;
-  throw reason;
 };
 exports.use = function (usable) {
   return ReactSharedInternals.H.use(usable);
@@ -562,4 +557,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.2.0-experimental-0bdb9206-20250818";
+exports.version = "19.3.0-experimental-dd048c3b-20251105";

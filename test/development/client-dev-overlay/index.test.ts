@@ -2,7 +2,7 @@ import { FileRef } from 'e2e-utils'
 import { Playwright } from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
-import { assertHasDevToolsIndicator, retry } from 'next-test-utils'
+import { waitForDevToolsIndicator, retry } from 'next-test-utils'
 
 describe('client-dev-overlay', () => {
   const { next, isTurbopack } = nextTestSetup({
@@ -124,8 +124,8 @@ describe('client-dev-overlay', () => {
   it('should nudge to use Turbopack unless Turbopack is disabled', async () => {
     const browser = await next.browser('/')
 
-    // Don't use openDevToolsIndicatorPopover because this is asserting something in the old dev tools menu which isn't preset yet in the new UI.
-    const devToolsIndicator = await assertHasDevToolsIndicator(browser)
+    // Don't use toggleDevToolsIndicatorPopover because this is asserting something in the old dev tools menu which isn't preset yet in the new UI.
+    const devToolsIndicator = await waitForDevToolsIndicator(browser)
     try {
       await devToolsIndicator.click()
     } catch (cause) {
@@ -151,6 +151,67 @@ describe('client-dev-overlay', () => {
        Route
        Static
        Try Turbopack
+       Preferences"
+      `)
+    }
+  })
+})
+
+describe('client-dev-overlay with Cache Components', () => {
+  const { next, isTurbopack } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'pages')),
+      'next.config.js': `
+        module.exports = {
+          cacheComponents: true,
+        }
+      `,
+    },
+    env: {
+      __NEXT_DEV_INDICATOR_COOLDOWN_MS: '0',
+    },
+  })
+
+  it('should show Cache Components as enabled in the devtools menu', async () => {
+    const browser = await next.browser('/')
+
+    const devToolsIndicator = await waitForDevToolsIndicator(browser)
+    try {
+      await devToolsIndicator.click()
+    } catch (cause) {
+      const error = new Error('No DevTools Indicator to open.', { cause })
+      throw error
+    }
+
+    const devtoolsMenu = await browser.elementByCss('#nextjs-dev-tools-menu')
+    const menuText = await devtoolsMenu.innerText()
+
+    // Should include Cache Components
+    expect(menuText).toContain('Cache Components')
+    expect(menuText).toContain('Enabled')
+
+    // Should also include Turbopack info
+    if (isTurbopack) {
+      expect(menuText).toMatchInlineSnapshot(`
+       "Issues
+       1
+       Route
+       Static
+       Turbopack
+       Enabled
+       Cache Components
+       Enabled
+       Preferences"
+      `)
+    } else {
+      expect(menuText).toMatchInlineSnapshot(`
+       "Issues
+       1
+       Route
+       Static
+       Try Turbopack
+       Cache Components
+       Enabled
        Preferences"
       `)
     }

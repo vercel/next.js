@@ -1,7 +1,11 @@
 // Used to deterministically stub out minified local names in stack traces.
 const abc = 'abcdefghijklmnopqrstuvwxyz'
 const hostElementsUsedInFixtures = ['html', 'body', 'main', 'div']
-const ignoredLines = ['Generating static pages', 'Inlining static env']
+const ignoredLines = [
+  'Generating static pages',
+  'Inlining static env',
+  'Finalizing page optimization',
+]
 
 /**
  * Converts a module function sequence expression, e.g.:
@@ -29,6 +33,9 @@ export function getPrerenderOutput(
   const replaceNextDistStackFrame = () =>
     `at ${abc[a++ % abc.length]} (<next-dist-dir>)`
 
+  const isLikelyLibraryInternalStackFrame = (line: string) => {
+    return line.startsWith('    at InnerLayoutRouter (')
+  }
   const replaceAnonymousStackFrame = (_m, name) => {
     const deterministicName = hostElementsUsedInFixtures.includes(name)
       ? name
@@ -40,13 +47,42 @@ export function getPrerenderOutput(
   const replaceMinifiedName = () => `at ${abc[a++ % abc.length]} (`
   const replaceNumericModuleId = () => `at ${n++} (`
 
+  let isErrorWithStackTraceStartingInLibraryInternals = false
   for (let line of cliOutput.split('\n')) {
+    if (
+      !isErrorWithStackTraceStartingInLibraryInternals &&
+      isLikelyLibraryInternalStackFrame(line)
+    ) {
+      isErrorWithStackTraceStartingInLibraryInternals = true
+      lines.push('    at <FIXME-library-internal>')
+      continue
+    }
+    if (isErrorWithStackTraceStartingInLibraryInternals) {
+      if (
+        // stackframe
+        line.startsWith('    at ') ||
+        // codeframe
+        /^ {2}\d+ \|/.test(line) ||
+        // codeframe cursor for callsite
+        /^> \d+ \|/.test(line) ||
+        /^\s+\|/.test(line)
+      ) {
+        // still an error with a stack trace starting in library internals
+        continue
+      } else {
+        isErrorWithStackTraceStartingInLibraryInternals = false
+      }
+    }
     if (line.includes('Collecting page data')) {
       foundPrerenderingLine = true
       continue
     }
 
     if (line.includes('Next.js build worker exited')) {
+      break
+    }
+
+    if (line.includes('Route (app)')) {
       break
     }
 
@@ -67,7 +103,7 @@ export function getPrerenderOutput(
       }
 
       line = line
-        .replace(/at \S+ \(.next[^)]+\)/, replaceNextDistStackFrame)
+        .replace(/at .+? \(.next[^)]+\)/, replaceNextDistStackFrame)
         .replace(
           // Single-letter lower-case names are likely minified.
           /at [a-z] \((?!(<next-dist-dir>|<anonymous>))/,

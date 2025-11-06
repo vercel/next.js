@@ -6,7 +6,7 @@ import {
   writeFileSync,
   createReadStream,
 } from 'fs'
-import { promisify } from 'util'
+import { inspect, promisify } from 'util'
 import http from 'http'
 import path from 'path'
 
@@ -40,6 +40,21 @@ export { shouldUseTurbopack }
 
 export const nextServer = server
 export const pkg = _pkg
+
+// This goes straight to Node’s stdout, avoiding Jest's verbose output:
+export const debugPrint = (...args: unknown[]) => {
+  const prettyArgs = args
+    .map((arg) =>
+      typeof arg === 'string'
+        ? arg
+        : inspect(arg, { colors: process.stdout.isTTY })
+    )
+    .join(' ')
+
+  const timestamp = new Date().toISOString().split('T')[1]
+
+  return process.stdout.write(`[${timestamp}] ${prettyArgs}\n`)
+}
 
 export function initNextServerScript(
   scriptPath: string,
@@ -217,12 +232,6 @@ export interface NextOptions {
   stdout?: true | 'log'
   ignoreFail?: boolean
 
-  /**
-   * If true, this enables the linting step in the build process. If false or
-   * undefined, it adds a `--no-lint` flag to the build command.
-   */
-  lint?: boolean
-
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
 }
@@ -249,7 +258,7 @@ export function runNextCommand(
   }
 
   return new Promise((resolve, reject) => {
-    console.log(`Running command "next ${argv.join(' ')}"`)
+    debugPrint(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn(
       'node',
       [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
@@ -274,7 +283,7 @@ export function runNextCommand(
         stderrOutput += chunk
 
         if (options.stderr === 'log') {
-          console.log(chunk.toString())
+          debugPrint(chunk.toString())
         }
         if (typeof options.onStderr === 'function') {
           options.onStderr(chunk.toString())
@@ -293,7 +302,7 @@ export function runNextCommand(
         stdoutOutput += chunk
 
         if (options.stdout === 'log') {
-          console.log(chunk.toString())
+          debugPrint(chunk.toString())
         }
         if (typeof options.onStdout === 'function') {
           options.onStdout(chunk.toString())
@@ -474,21 +483,7 @@ export function nextBuild(
   args: string[] = [],
   opts: NextOptions = {}
 ) {
-  // If the build hasn't requested it to be linted explicitly, disable linting
-  // if it's not already disabled.
-  if (!opts.lint && !args.includes('--no-lint')) {
-    args.push('--no-lint')
-  }
-
   return runNextCommand(['build', dir, ...args], opts)
-}
-
-export function nextLint(
-  dir: string,
-  args: string[] = [],
-  opts: NextOptions = {}
-) {
-  return runNextCommand(['lint', dir, ...args], opts)
 }
 
 export function nextTest(
@@ -702,29 +697,22 @@ export async function startCleanStaticServer(dir: string) {
 /**
  * Check for content in 1 second intervals timing out after 30 seconds.
  * @deprecated use retry + expect instead
- * @param {() => Promise<unknown> | unknown} contentFn
- * @param {RegExp | string | number} regex
- * @param {boolean} hardError
- * @param {number} maxRetries
- * @returns {Promise<boolean>}
  */
 export async function check(
-  contentFn: () => any | Promise<any>,
-  regex: any,
-  hardError = true,
-  maxRetries = 30
-) {
-  let content
-  let lastErr
+  contentFn: () => unknown | Promise<unknown>,
+  regex: boolean | number | string | RegExp
+): Promise<boolean> {
+  let content: unknown
+  let lastErr: unknown
 
-  for (let tries = 0; tries < maxRetries; tries++) {
+  for (let tries = 0; tries < 30; tries++) {
     try {
       content = await contentFn()
-      if (typeof regex !== typeof /regex/) {
+      if (typeof regex !== 'object') {
         if (regex === content) {
           return true
         }
-      } else if (regex.test(content)) {
+      } else if (regex.test('' + content)) {
         // found the content
         return true
       }
@@ -735,11 +723,7 @@ export async function check(
     }
   }
   console.error('TIMED OUT CHECK: ', { regex, content, lastErr })
-
-  if (hardError) {
-    throw new Error('TIMED OUT: ' + regex + '\n\n' + content + '\n\n' + lastErr)
-  }
-  return false
+  throw new Error('TIMED OUT: ' + regex + '\n\n' + content + '\n\n' + lastErr)
 }
 
 export class File {
@@ -820,7 +804,7 @@ export async function retry<T>(
         )
         throw err
       }
-      console.log(
+      debugPrint(
         `Retrying${description ? ` ${description}` : ''} in ${interval}ms`
       )
       await waitFor(interval)
@@ -830,13 +814,13 @@ export async function retry<T>(
   throw new Error('Duration cannot be less than 0.')
 }
 
-export async function assertHasRedbox(browser: Playwright) {
+export async function waitForRedbox(browser: Playwright) {
   const redbox = browser.locateRedbox()
   try {
     await redbox.waitFor({ timeout: 5000 })
   } catch (errorCause) {
     const error = new Error('Expected Redbox but found no visible one.')
-    Error.captureStackTrace(error, assertHasRedbox)
+    Error.captureStackTrace(error, waitForRedbox)
     throw error
   }
 
@@ -848,12 +832,12 @@ export async function assertHasRedbox(browser: Playwright) {
     const error = new Error('Redbox still had suspended content after 10s', {
       cause,
     })
-    Error.captureStackTrace(error, assertHasRedbox)
+    Error.captureStackTrace(error, waitForRedbox)
     throw error
   }
 }
 
-export async function assertNoRedbox(
+export async function waitForNoRedbox(
   browser: Playwright,
   { waitInMs = 5000 }: { waitInMs?: number } = {}
 ) {
@@ -873,12 +857,12 @@ export async function assertNoRedbox(
         `description: ${redboxDescription}\n` +
         `source: ${redboxSource}`
     )
-    Error.captureStackTrace(error, assertNoRedbox)
+    Error.captureStackTrace(error, waitForNoRedbox)
     throw error
   }
 }
 
-export async function assertNoErrorToast(browser: Playwright): Promise<void> {
+export async function waitForNoErrorToast(browser: Playwright): Promise<void> {
   let didOpenRedbox = false
 
   try {
@@ -889,9 +873,9 @@ export async function assertNoErrorToast(browser: Playwright): Promise<void> {
   }
 
   if (didOpenRedbox) {
-    // If a redbox was opened unexpectedly, we use the `assertNoRedbox` helper
+    // If a redbox was opened unexpectedly, we use the `waitForNoRedbox` helper
     // to print a useful error message containing the redbox contents.
-    await assertNoRedbox(browser, {
+    await waitForNoRedbox(browser, {
       // We already know the redbox is open, so we can skip waiting for it.
       waitInMs: 0,
     })
@@ -928,13 +912,13 @@ export async function getToastErrorCount(browser: Playwright): Promise<number> {
 
 /**
  * Has retried version of {@link hasErrorToast} built-in.
- * Success implies {@link assertHasRedbox}.
+ * Success implies {@link waitForRedbox}.
  */
 export async function openRedbox(browser: Playwright): Promise<void> {
   const redbox = browser.locateRedbox()
   if (await redbox.isVisible()) {
     const error = new Error(
-      'Redbox is already open. Use `assertHasRedbox` instead.'
+      'Redbox is already open. Use `waitForRedbox` instead.'
     )
     Error.captureStackTrace(error, openRedbox)
     throw error
@@ -947,19 +931,19 @@ export async function openRedbox(browser: Playwright): Promise<void> {
     Error.captureStackTrace(error, openRedbox)
     throw error
   }
-  await assertHasRedbox(browser)
+  await waitForRedbox(browser)
 }
 
-export async function openDevToolsIndicatorPopover(
+export async function toggleDevToolsIndicatorPopover(
   browser: Playwright
 ): Promise<void> {
-  const devToolsIndicator = await assertHasDevToolsIndicator(browser)
+  const devToolsIndicator = await waitForDevToolsIndicator(browser)
 
   try {
     await devToolsIndicator.click()
   } catch (cause) {
-    const error = new Error('No DevTools Indicator to open.', { cause })
-    Error.captureStackTrace(error, openDevToolsIndicatorPopover)
+    const error = new Error('No DevTools Indicator to toggle.', { cause })
+    Error.captureStackTrace(error, toggleDevToolsIndicatorPopover)
     throw error
   }
 }
@@ -968,11 +952,12 @@ export async function getSegmentExplorerRoute(browser: Playwright) {
   return await browser
     .elementByCss('.segment-explorer-page-route-bar-path')
     .text()
+    .catch(() => '<empty>')
 }
 
 export async function getSegmentExplorerContent(browser: Playwright) {
   // open the devtool button
-  await openDevToolsIndicatorPopover(browser)
+  await toggleDevToolsIndicatorPopover(browser)
 
   // open the segment explorer
   await browser.elementByCss('[data-segment-explorer]').click()
@@ -1010,7 +995,7 @@ export async function hasDevToolsPanel(browser: Playwright) {
   return result
 }
 
-export async function assertHasDevToolsIndicator(browser: Playwright) {
+export async function waitForDevToolsIndicator(browser: Playwright) {
   const devToolsIndicator = browser.locateDevToolsIndicator()
   try {
     await devToolsIndicator.waitFor({ timeout: 5000 })
@@ -1018,7 +1003,7 @@ export async function assertHasDevToolsIndicator(browser: Playwright) {
     const error = new Error(
       'Expected DevTools Indicator but found no visible one.'
     )
-    Error.captureStackTrace(error, assertHasDevToolsIndicator)
+    Error.captureStackTrace(error, waitForDevToolsIndicator)
     throw error
   }
 
@@ -1037,34 +1022,38 @@ export async function assertNoDevToolsIndicator(browser: Playwright) {
   }
 }
 
-export async function getRouteTypeFromDevToolsIndicator(
-  browser: Playwright
-): Promise<'Static' | 'Dynamic'> {
-  await openDevToolsIndicatorPopover(browser)
+export async function waitForStaticIndicator(
+  browser: Playwright,
+  expectedRouteType: 'Static' | 'Dynamic' | undefined
+): Promise<void> {
+  await toggleDevToolsIndicatorPopover(browser)
 
-  return browser.eval(() => {
-    const portal = [].slice
-      .call(document.querySelectorAll('nextjs-portal'))
-      .find((p) => p.shadowRoot.querySelector('[data-nextjs-toast]'))
+  await retry(async () => {
+    const routeType = await browser.eval(() => {
+      const portal = [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p) => p.shadowRoot.querySelector('[data-nextjs-toast]'))
 
-    const root = portal?.shadowRoot
+      return (
+        portal?.shadowRoot
+          // 'Route\nStatic' || 'Route\nDynamic'
+          ?.querySelector('[data-nextjs-route-type]')
+          ?.innerText.split('\n')
+          .pop()
+      )
+    })
 
-    // 'Route\nStatic' || 'Route\nDynamic'
-    const routeTypeText = root?.querySelector(
-      '[data-nextjs-route-type]'
-    )?.innerText
-
-    if (!routeTypeText) {
-      throw new Error('No Route Type Text Found')
+    if (routeType !== expectedRouteType) {
+      if (expectedRouteType) {
+        throw new Error(
+          `Expected static indicator with route type ${expectedRouteType}, found ${routeType} instead.`
+        )
+      } else {
+        throw new Error(
+          `Expected no static indicator, found ${routeType} instead.`
+        )
+      }
     }
-
-    // 'Static' || 'Dynamic'
-    const routeType = routeTypeText.split('\n').pop()
-    if (routeType !== 'Static' && routeType !== 'Dynamic') {
-      throw new Error(`Invalid Route Type: ${routeType}`)
-    }
-
-    return routeType as 'Static' | 'Dynamic'
   })
 }
 
@@ -1210,11 +1199,11 @@ function readJson(path: string) {
 }
 
 export function getBuildManifest(dir: string) {
-  return readJson(path.join(dir, '.next/build-manifest.json'))
+  return readJson(path.join(dir, getDistDir(), 'build-manifest.json'))
 }
 
 export function getImagesManifest(dir: string) {
-  return readJson(path.join(dir, '.next/images-manifest.json'))
+  return readJson(path.join(dir, getDistDir(), 'images-manifest.json'))
 }
 
 export function getPageFilesFromBuildManifest(dir: string, page: string) {
@@ -1234,7 +1223,7 @@ export function getContentOfPageFilesFromBuildManifest(
   const pageFiles = getPageFilesFromBuildManifest(dir, page)
 
   return pageFiles
-    .map((file) => readFileSync(path.join(dir, '.next', file), 'utf8'))
+    .map((file) => readFileSync(path.join(dir, getDistDir(), file), 'utf8'))
     .join('\n')
 }
 
@@ -1255,17 +1244,17 @@ export function getPageFileFromBuildManifest(dir: string, page: string) {
 
 export function readNextBuildClientPageFile(appDir: string, page: string) {
   const pageFile = getPageFileFromBuildManifest(appDir, page)
-  return readFileSync(path.join(appDir, '.next', pageFile), 'utf8')
+  return readFileSync(path.join(appDir, getDistDir(), pageFile), 'utf8')
 }
 
 export function getPagesManifest(dir: string) {
-  const serverFile = path.join(dir, '.next/server/pages-manifest.json')
+  const serverFile = path.join(dir, getDistDir(), 'server/pages-manifest.json')
 
   return readJson(serverFile)
 }
 
 export function updatePagesManifest(dir: string, content: any) {
-  const serverFile = path.join(dir, '.next/server/pages-manifest.json')
+  const serverFile = path.join(dir, getDistDir(), 'server/pages-manifest.json')
 
   return writeFile(serverFile, content)
 }
@@ -1282,13 +1271,16 @@ export function getPageFileFromPagesManifest(dir: string, page: string) {
 
 export function readNextBuildServerPageFile(appDir: string, page: string) {
   const pageFile = getPageFileFromPagesManifest(appDir, page)
-  return readFileSync(path.join(appDir, '.next', 'server', pageFile), 'utf8')
+  return readFileSync(
+    path.join(appDir, getDistDir(), 'server', pageFile),
+    'utf8'
+  )
 }
 
 export function getClientBuildManifest(dir: string) {
-  let buildId = readFileSync(path.join(dir, '.next/BUILD_ID'), 'utf8')
+  let buildId = readFileSync(path.join(dir, getDistDir(), 'BUILD_ID'), 'utf8')
   let code = readFileSync(
-    path.join(dir, '.next/static', buildId, '_buildManifest.js'),
+    path.join(dir, getDistDir(), 'static', buildId, '_buildManifest.js'),
     'utf8'
   )
   // eslint-disable-next-line no-eval
@@ -1445,24 +1437,75 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
   return shouldSkip ? describe.skip : describe
 }
 
+const nextjsClientComponentNames = [
+  // Pages Router
+  'App',
+  'AppContainer',
+  'Container',
+  'Head',
+  'PagesDevOverlayBridge',
+  'PagesDevOverlayErrorBoundary',
+  'PathnameContextProviderAdapter',
+  // App Router
+  'ClientPageRoot',
+  'ClientSegmentRoot',
+  'HTTPAccessFallbackBoundary',
+  'HTTPAccessFallbackErrorBoundary',
+  'InnerLayoutRouter',
+  'InnerScrollAndFocusHandler',
+  'RedirectBoundary',
+  'RedirectErrorBoundary',
+  'RenderFromTemplateContext',
+  'Root',
+  'ScrollAndFocusHandler',
+  'SegmentViewNode',
+  'SegmentTrieNode',
+  // These are added due to user actions e.g. loading.js -> LoadingBoundary
+  // They may be relevant in some context in the future.
+  // Consider including them in different assertions.
+  'ErrorBoundary',
+  'LoadingBoundary',
+]
+const nextjsClientComponentStackFrame = new RegExp(
+  `^(\\s*)<(${nextjsClientComponentNames.join('|')})(>| )`
+)
+
 /**
  * @returns `null` if there are no frames
  */
 export async function getRedboxComponentStack(
-  browser: Playwright
+  browser: Playwright,
+  includeNextjsInternalComponents = false
 ): Promise<string | null> {
-  const componentStackFrameElements = await browser.elementsByCss(
+  const componentStackTraceElements = await browser.elementsByCss(
     '[data-nextjs-container-errors-pseudo-html] code'
   )
-  if (componentStackFrameElements.length === 0) {
+  if (componentStackTraceElements.length === 0) {
     return null
   }
 
-  const componentStackFrameTexts = await Promise.all(
-    componentStackFrameElements.map((f) => f.innerText())
-  )
+  const componentStackTrace = await componentStackTraceElements[0].innerText()
+  const componentStackFrames = componentStackTrace.split('\n')
 
-  return componentStackFrameTexts.join('\n').trim()
+  return componentStackFrames
+    .map((componentStackFrame) => {
+      if (!includeNextjsInternalComponents) {
+        const componentStackFrameMatch = componentStackFrame.match(
+          nextjsClientComponentStackFrame
+        )
+        // React component stack frames aren't subject to ignore-listing.
+        // They're not relevant for our tests though.
+        // If you need to assert on Next.js internal component frames,
+        // use `getRedboxComponentStack(browser, true)` instead.
+        if (componentStackFrameMatch) {
+          return componentStackFrameMatch[1] + '<Next.js Internal Component>'
+        }
+      }
+
+      return componentStackFrame
+    })
+    .join('\n')
+    .trim()
 }
 
 export async function hasRedboxCallStack(browser: Playwright) {
@@ -1581,7 +1624,7 @@ export function getUrlFromBackgroundImage(backgroundImage: string) {
 }
 
 export const getTitle = (browser: Playwright) =>
-  browser.elementByCss('title').text()
+  browser.elementByCss('title', { state: 'attached' }).text()
 
 async function checkMeta(
   browser: Playwright,
@@ -1869,4 +1912,12 @@ export function normalizeManifest<T>(
       JSON.stringify(manifest)
     )
   )
+}
+
+export function getDistDir(): '.next' | '.next/dev' {
+  // global.isNextDev is set in e2e/development/production tests.
+  // NEXT_TEST_MODE is set in CI or local test-* commands.
+  return (global as any).isNextDev || process.env.NEXT_TEST_MODE === 'dev'
+    ? '.next/dev'
+    : '.next'
 }

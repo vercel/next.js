@@ -1,13 +1,13 @@
-import { assertNoRedbox, check, retry } from 'next-test-utils'
+import { waitForNoRedbox, check, getDistDir, retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('middleware - development errors', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
-    env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
     patchFileDelay: 500,
   })
+
   beforeEach(async () => {
     await next.stop()
   })
@@ -65,6 +65,20 @@ describe('middleware - development errors', () => {
            ],
          }
         `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "boom",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "middleware.js (3:15) @ default
+         > 3 |         throw new Error('boom')
+             |               ^",
+           "stack": [
+             "default middleware.js (3:15)",
+           ],
+         }
+        `)
       } else {
         await expect(browser).toDisplayRedbox(`
          {
@@ -83,7 +97,7 @@ describe('middleware - development errors', () => {
 
       await next.patchFile('middleware.js', `export default function () {}`)
 
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     })
   })
 
@@ -134,7 +148,7 @@ describe('middleware - development errors', () => {
 
     it('does not render the error', async () => {
       const browser = await next.browser('/')
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
     })
   })
@@ -214,6 +228,21 @@ describe('middleware - development errors', () => {
            ],
          }
         `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "test is not defined",
+           "environmentLabel": null,
+           "label": "Runtime ReferenceError",
+           "source": "middleware.js (4:9) @ default
+         > 4 |         eval('test')
+             |         ^",
+           "stack": [
+             "<FIXME-file-protocol>",
+             "default middleware.js (4:9)",
+           ],
+         }
+        `)
       } else {
         await expect(browser).toDisplayRedbox(`
          {
@@ -236,10 +265,10 @@ describe('middleware - development errors', () => {
       await next.patchFile('middleware.js', `export default function () {}`)
 
       retry(() => {
-        expect(next.cliOutput.slice(lengthOfLogs)).toContain('✓ Compiled')
+        expect(next.cliOutput.slice(lengthOfLogs)).toContain('GET / 200')
       }, 10000) // middleware rebuild takes a while in CI
 
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     })
   })
 
@@ -267,13 +296,13 @@ describe('middleware - development errors', () => {
         isTurbopack
           ? '\n ⨯ Error: booooom!' +
               // TODO(veil): Should be sourcemapped
-              '\n    at __TURBOPACK__module__evaluation__ (middleware.js:3:13)'
+              '\n    at module evaluation (middleware.js:3:13)'
           : '\n ⨯ Error: booooom!' +
               // TODO: Should be anonymous method without a method name
               '\n    at <unknown> (middleware.js:3)' +
               // TODO: Should be ignore-listed
               '\n    at eval (middleware.js:3:13)' +
-              '\n    at (middleware)/./middleware.js (.next/server/middleware.js:18:1)' +
+              `\n    at (middleware)/./middleware.js (${getDistDir()}/server/middleware.js:18:1)` +
               '\n    at __webpack_require__ '
       )
     })
@@ -287,11 +316,34 @@ describe('middleware - development errors', () => {
            "description": "booooom!",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "middleware.js (3:13) @ {module evaluation}
+           "source": "middleware.js (3:13) @ module evaluation
          > 3 |       throw new Error('booooom!')
              |             ^",
            "stack": [
-             "{module evaluation} middleware.js (3:13)",
+             "module evaluation middleware.js (3:13)",
+           ],
+         }
+        `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "booooom!",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "middleware.js (3:13) @ eval
+         > 3 |       throw new Error('booooom!')
+             |             ^",
+           "stack": [
+             "<FIXME-next-dist-dir>",
+             "eval middleware.js (3:13)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
            ],
          }
         `)
@@ -322,7 +374,7 @@ describe('middleware - development errors', () => {
 
       await next.patchFile('middleware.js', `export default function () {}`)
 
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     })
   })
 
@@ -357,7 +409,7 @@ describe('middleware - development errors', () => {
 
     it('does not render the error', async () => {
       const browser = await next.browser('/')
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
     })
   })
@@ -395,7 +447,7 @@ describe('middleware - development errors', () => {
 
     it('does not render the error', async () => {
       const browser = await next.browser('/')
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
     })
   })
@@ -435,6 +487,26 @@ describe('middleware - development errors', () => {
            "stack": [],
          }
         `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "  × Module build failed:",
+           "environmentLabel": null,
+           "label": "Build Error",
+           "source": "./middleware.js
+           × Module build failed:
+           ╰─▶   × Error:   x Expected '{', got '}'
+                 │    ,----
+                 │  1 | export default function () }
+                 │    :                            ^
+                 │    \`----
+                 │
+                 │
+                 │ Caused by:
+                 │     Syntax Error",
+           "stack": [],
+         }
+        `)
       } else {
         await expect(browser).toDisplayRedbox(`
          {
@@ -456,7 +528,7 @@ describe('middleware - development errors', () => {
 
       await next.patchFile('middleware.js', `export default function () {}`)
 
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
     })
   })
@@ -484,7 +556,7 @@ describe('middleware - development errors', () => {
     it('renders the error correctly and recovers', async () => {
       const browser = await next.browser('/')
 
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
 
       await next.patchFile('middleware.js', `export default function () }`)
 
@@ -498,6 +570,26 @@ describe('middleware - development errors', () => {
          Parsing ecmascript source code failed
          > 1 | export default function () }
              |                            ^",
+           "stack": [],
+         }
+        `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "  × Module build failed:",
+           "environmentLabel": null,
+           "label": "Build Error",
+           "source": "./middleware.js
+           × Module build failed:
+           ╰─▶   × Error:   x Expected '{', got '}'
+                 │    ,----
+                 │  1 | export default function () }
+                 │    :                            ^
+                 │    \`----
+                 │
+                 │
+                 │ Caused by:
+                 │     Syntax Error",
            "stack": [],
          }
         `)
@@ -522,7 +614,7 @@ describe('middleware - development errors', () => {
 
       await next.patchFile('middleware.js', `export default function () {}`)
 
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
     })
   })

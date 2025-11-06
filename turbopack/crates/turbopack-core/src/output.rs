@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::asset::Asset;
@@ -15,6 +16,13 @@ pub trait OutputAsset: Asset {
     /// capture all properties of the [OutputAsset].
     #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath>;
+
+    /// The identifier of the [OutputAsset] as string. It's expected to be unique and
+    /// capture all properties of the [OutputAsset].
+    #[turbo_tasks::function]
+    fn path_string(self: Vc<Self>) -> Vc<RcStr> {
+        self.path().to_string()
+    }
 
     /// Other references [OutputAsset]s from this [OutputAsset].
     #[turbo_tasks::function]
@@ -44,6 +52,15 @@ impl OutputAssets {
         assets.extend(other.await?.iter().copied());
         Ok(Vc::cell(assets.into_iter().collect()))
     }
+
+    #[turbo_tasks::function]
+    pub async fn concat(other: Vec<Vc<Self>>) -> Result<Vc<Self>> {
+        let mut assets: FxIndexSet<_> = FxIndexSet::default();
+        for other in other {
+            assets.extend(other.await?.iter().copied());
+        }
+        Ok(Vc::cell(assets.into_iter().collect()))
+    }
 }
 
 impl OutputAssets {
@@ -59,3 +76,18 @@ impl OutputAssets {
 /// A set of [OutputAsset]s
 #[turbo_tasks::value(transparent)]
 pub struct OutputAssetsSet(FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>);
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Copy)]
+pub struct OutputAssetsWithReferenced {
+    pub assets: ResolvedVc<OutputAssets>,
+    pub referenced_assets: ResolvedVc<OutputAssets>,
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsWithReferenced {
+    #[turbo_tasks::function]
+    pub fn all_assets(&self) -> Vc<OutputAssets> {
+        self.assets.concatenate(*self.referenced_assets)
+    }
+}

@@ -2,8 +2,6 @@ use std::{env, fs, path::Path, process::Command, str};
 
 use serde_json::Value;
 
-extern crate napi_build;
-
 fn main() -> anyhow::Result<()> {
     println!("cargo:rerun-if-env-changed=CI");
     let is_ci = env::var("CI").is_ok_and(|value| !value.is_empty());
@@ -33,7 +31,7 @@ fn main() -> anyhow::Result<()> {
     let cargo = vergen_gitcl::CargoBuilder::default()
         .target_triple(true)
         .build()?;
-    // We use the git dirty state to disable persistent caching (persistent caching relies on a
+    // We use the git dirty state to disable filesystem cache (filesystem cache relies on a
     // commit hash to be safe). One tradeoff of this is that we must invalidate the rust build more
     // often.
     //
@@ -46,7 +44,7 @@ fn main() -> anyhow::Result<()> {
     //
     // However, in practice that shouldn't be much of an issue: If no other dependency of this
     // top-level crate has changed (which would've triggered our rebuild), then the resulting binary
-    // must be equivalent to a clean build anyways. Therefore, persistent caching using the HEAD
+    // must be equivalent to a clean build anyways. Therefore, filesystem cache using the HEAD
     // commit hash as a version is okay.
     let git = vergen_gitcl::GitclBuilder::default()
         .dirty(/* include_untracked */ true)
@@ -88,9 +86,6 @@ fn main() -> anyhow::Result<()> {
     // https://github.com/napi-rs/napi-rs/issues/1782
     #[cfg(all(target_os = "linux", not(target_arch = "wasm32")))]
     println!("cargo:rustc-link-arg=-Wl,--warn-unresolved-symbols");
-
-    #[cfg(not(target_arch = "wasm32"))]
-    turbo_tasks_build::generate_register();
 
     Ok(())
 }

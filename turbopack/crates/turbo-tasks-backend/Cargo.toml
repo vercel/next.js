@@ -19,6 +19,7 @@ no_fast_stale = []
 verify_serialization = []
 verify_aggregation_graph = []
 verify_immutable = []
+verify_determinism = []
 trace_aggregation_update = []
 trace_find_and_schedule = []
 trace_task_completion = []
@@ -30,7 +31,7 @@ anyhow = { workspace = true }
 arc-swap = { version = "1.7.1" }
 auto-hash-map = { workspace = true }
 bitfield = { workspace = true }
-byteorder = "1.5.0"
+byteorder = { workspace = true }
 dashmap = { workspace = true, features = ["raw-api"]}
 either = { workspace = true }
 hashbrown = { workspace = true, features = ["raw"] }
@@ -40,7 +41,6 @@ once_cell = { workspace = true }
 parking_lot = { workspace = true }
 pot = "3.0.0"
 rand = { workspace = true }
-rayon = { workspace = true }
 ringmap = { workspace = true, features = ["serde"] }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
@@ -57,12 +57,12 @@ turbo-tasks-testing = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+futures = { workspace = true }
 regex = { workspace = true }
 tempfile = { workspace = true }
+turbo-tasks-malloc = { workspace = true }
 rstest = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }
 
 [[bench]]
 name = "mod"

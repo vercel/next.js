@@ -1,12 +1,11 @@
 ---
 title: use cache
 description: Learn how to use the use cache directive to cache data in your Next.js application.
-version: canary
 related:
   title: Related
   description: View related API references.
   links:
-    - app/api-reference/config/next-config-js/useCache
+    - app/api-reference/directives/use-cache-private
     - app/api-reference/config/next-config-js/cacheComponents
     - app/api-reference/config/next-config-js/cacheLife
     - app/api-reference/functions/cacheTag
@@ -16,17 +15,17 @@ related:
 
 The `use cache` directive allows you to mark a route, React component, or a function as cacheable. It can be used at the top of a file to indicate that all exports in the file should be cached, or inline at the top of function or component to cache the return value.
 
+> **Good to know:** For caching user-specific content that requires access to cookies or headers, see [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private).
+
 ## Usage
 
-`use cache` is currently an experimental feature. To enable it, add the [`useCache`](/docs/app/api-reference/config/next-config-js/useCache) option to your `next.config.ts` file:
+`use cache` is a Cache Components feature. To enable it, add the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) option to your `next.config.ts` file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  experimental: {
-    useCache: true,
-  },
+  cacheComponents: true,
 }
 
 export default nextConfig
@@ -35,15 +34,11 @@ export default nextConfig
 ```js filename="next.config.js" switcher
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    useCache: true,
-  },
+  cacheComponents: true,
 }
 
 module.exports = nextConfig
 ```
-
-> **Good to know:** `use cache` can also be enabled with the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) option.
 
 Then, add `use cache` at the file, component, or function level:
 
@@ -88,14 +83,14 @@ Any non-serializable arguments, props, or closed-over values will turn into refe
 For example, a cached function can take in JSX as a `children` prop and return `<div>{children}</div>`, but it won't be able to introspect the actual `children` object. This allows you to nest uncached content inside a cached component.
 
 ```tsx filename="app/ui/cached-component.tsx" switcher
-function CachedComponent({ children }: { children: ReactNode }) {
+async function CachedComponent({ children }: { children: ReactNode }) {
   'use cache'
   return <div>{children}</div>
 }
 ```
 
 ```jsx filename="app/ui/cached-component.js" switcher
-function CachedComponent({ children }) {
+async function CachedComponent({ children }) {
   'use cache'
   return <div>{children}</div>
 }
@@ -103,13 +98,17 @@ function CachedComponent({ children }) {
 
 ## Return values
 
-The return value of the cacheable function must be serializable. This ensures that the cached data can be stored and retrieved correctly.
+The return value of the cacheable function must be serializable props. This ensures that the cached data can be stored and retrieved correctly.
+
+> **Good to know:** The supported types for arguments and the supported types for returned values are **not the same**. For more details, refer to [Serializable Parameters and Return Values](https://react.dev/reference/rsc/use-server#serializable-parameters-and-return-values) for function arguments and [Serializable Types](https://react.dev/reference/rsc/use-client#serializable-types) for return values.
 
 ## `use cache` at build time
 
 When used at the top of a [layout](/docs/app/api-reference/file-conventions/layout) or [page](/docs/app/api-reference/file-conventions/page), the route segment will be prerendered, allowing it to later be [revalidated](#during-revalidation).
 
-This means `use cache` cannot be used with [request-time APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering) like `cookies` or `headers`.
+This means `use cache` cannot be used with [runtime data](/docs/app/getting-started/cache-components#1-suspense-for-runtime-data) like `cookies` or `headers`.
+
+> **Note:** If you need to cache content that depends on cookies, headers, or search params, use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead.
 
 ## `use cache` at runtime
 
@@ -132,12 +131,12 @@ See the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) and [`cacheTa
 
 ### Caching an entire route with `use cache`
 
-To prerender an entire route, add `use cache` to the top of **both** the `layout` and `page` files. Each of these segments are treated as separate entry points in your application, and will be cached independently.
+To pre-render an entire route, add `use cache` to the top of **both** the `layout` and `page` files. Each of these segments are treated as separate entry points in your application, and will be cached independently.
 
 ```tsx filename="app/layout.tsx" switcher
 'use cache'
 
-export default function Layout({ children }: { children: ReactNode }) {
+export default async function Layout({ children }: { children: ReactNode }) {
   return <div>{children}</div>
 }
 ```
@@ -145,12 +144,12 @@ export default function Layout({ children }: { children: ReactNode }) {
 ```jsx filename="app/page.tsx" switcher
 'use cache'
 
-export default function Layout({ children }) {
+export default async function Layout({ children }) {
   return <div>{children}</div>
 }
 ```
 
-Any components imported and nested in `page` file will inherit the cache behavior of `page`.
+Any components imported and nested in `page` file are part of the cache output associated with the `page`.
 
 ```tsx filename="app/page.tsx" switcher
 'use cache'
@@ -160,7 +159,7 @@ async function Users() {
   // loop through users
 }
 
-export default function Page() {
+export default async function Page() {
   return (
     <main>
       <Users />
@@ -177,7 +176,7 @@ async function Users() {
   // loop through users
 }
 
-export default function Page() {
+export default async function Page() {
   return (
     <main>
       <Users />
@@ -189,7 +188,7 @@ export default function Page() {
 > **Good to know**:
 >
 > - If `use cache` is added only to the `layout` or the `page`, only that route segment and any components imported into it will be cached.
-> - If any of the nested children in the route use [Dynamic APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering), then the route will opt out of prerendering.
+> - If any of the nested children in the route use [Dynamic APIs](/docs/app/guides/caching#dynamic-rendering), then the route will opt out of pre-rendering.
 
 ### Caching a component's output with `use cache`
 
@@ -245,23 +244,34 @@ export async function getData() {
 
 ### Interleaving
 
-If you need to pass non-serializable arguments to a cacheable function, you can pass them as `children`. This means the `children` reference can change without affecting the cache entry.
+In React, composition with `children` or slots is a well-known pattern for building flexible components. When using `use cache`, you can continue to compose your UI in this way. Anything included as `children`, or other compositional slots, in the returned JSX will be passed through the cached component without affecting its cache entry.
+
+As long as you don't directly reference any of the JSX slots inside the body of the cacheable function itself, their presence in the returned output won't affect the cache entry.
 
 ```tsx filename="app/page.tsx" switcher
 export default async function Page() {
   const uncachedData = await getData()
   return (
-    <CacheComponent>
+    // Pass compositional slots as props, e.g. header and children
+    <CacheComponent header={<h1>Home</h1>}>
+      {/* DynamicComponent is provided as the children slot */}
       <DynamicComponent data={uncachedData} />
     </CacheComponent>
   )
 }
 
-async function CacheComponent({ children }: { children: ReactNode }) {
+async function CacheComponent({
+  header, // header: a compositional slot, injected as a prop
+  children, // children: another slot for nested composition
+}: {
+  header: ReactNode
+  children: ReactNode
+}) {
   'use cache'
   const cachedData = await fetch('/api/cached-data')
   return (
     <div>
+      {header}
       <PrerenderedComponent data={cachedData} />
       {children}
     </div>
@@ -273,17 +283,23 @@ async function CacheComponent({ children }: { children: ReactNode }) {
 export default async function Page() {
   const uncachedData = await getData()
   return (
-    <CacheComponent>
+    // Pass compositional slots as props, e.g. header and children
+    <CacheComponent header={<h1>Home</h1>}>
+      {/* DynamicComponent is provided as the children slot */}
       <DynamicComponent data={uncachedData} />
     </CacheComponent>
   )
 }
 
-async function CacheComponent({ children }) {
+async function CacheComponent({
+  header, // header: a compositional slot, injected as a prop
+  children, // children: another slot for nested composition
+}) {
   'use cache'
   const cachedData = await fetch('/api/cached-data')
   return (
     <div>
+      {header}
       <PrerenderedComponent data={cachedData} />
       {children}
     </div>
@@ -370,6 +386,7 @@ Learn how to [configure caching](/docs/app/guides/self-hosting#caching-and-isr) 
 
 ## Version History
 
-| Version   | Changes                                                 |
-| --------- | ------------------------------------------------------- |
-| `v15.0.0` | `"use cache"` is introduced as an experimental feature. |
+| Version   | Changes                                                     |
+| --------- | ----------------------------------------------------------- |
+| `v16.0.0` | `"use cache"` is enabled with the Cache Components feature. |
+| `v15.0.0` | `"use cache"` is introduced as an experimental feature.     |

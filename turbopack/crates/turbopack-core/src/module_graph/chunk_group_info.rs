@@ -19,7 +19,7 @@ use turbo_tasks::{
 use crate::{
     chunk::ChunkingType,
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraph, RefData, SingleModuleGraphModuleNode},
+    module_graph::{GraphTraversalAction, ModuleGraphRef, RefData, SingleModuleGraphModuleNode},
 };
 
 #[derive(
@@ -288,6 +288,47 @@ pub enum ChunkGroupKey {
     },
 }
 
+impl ChunkGroupKey {
+    pub async fn debug_str(
+        &self,
+        keys: impl std::ops::Index<usize, Output = Self>,
+    ) -> Result<String> {
+        Ok(match self {
+            ChunkGroupKey::Entry(entries) => format!(
+                "Entry({:?})",
+                entries
+                    .iter()
+                    .map(|m| m.ident().to_string())
+                    .try_join()
+                    .await?
+            ),
+            ChunkGroupKey::Async(module) => {
+                format!("Async({:?})", module.ident().to_string().await?)
+            }
+            ChunkGroupKey::Isolated(module) => {
+                format!("Isolated({:?})", module.ident().to_string().await?)
+            }
+            ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
+                format!(
+                    "IsolatedMerged {{ parent: {}, merge_tag: {:?} }}",
+                    Box::pin(keys.index(parent.0 as usize).clone().debug_str(keys)).await?,
+                    merge_tag
+                )
+            }
+            ChunkGroupKey::Shared(module) => {
+                format!("Shared({:?})", module.ident().to_string().await?)
+            }
+            ChunkGroupKey::SharedMerged { parent, merge_tag } => {
+                format!(
+                    "SharedMerged {{ parent: {}, merge_tag: {:?} }}",
+                    Box::pin(keys.index(parent.0 as usize).clone().debug_str(keys)).await?,
+                    merge_tag
+                )
+            }
+        })
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ChunkGroupId(u32);
 
@@ -327,7 +368,7 @@ impl Ord for TraversalPriority {
     }
 }
 
-pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGroupInfo>> {
+pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<ChunkGroupInfo>> {
     let span_outer = tracing::info_span!(
         "compute chunk group info",
         module_count = tracing::field::Empty,
@@ -348,38 +389,41 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         let mut module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
             FxHashMap::default();
 
-        let graphs = graph.graphs.iter().try_join().await?;
-        let module_count = graphs.iter().map(|g| g.graph.node_count()).sum::<usize>();
+        let module_count = graph
+            .graphs
+            .iter()
+            .map(|g| g.graph.node_count())
+            .sum::<usize>();
         span.record("module_count", module_count);
 
         // use all entries from all graphs
-        let entries = graphs
+        let entries = graph
+            .graphs
             .iter()
             .flat_map(|g| g.entries.iter())
             .collect::<Vec<_>>();
 
         // First, compute the depth for each module in the graph
         let module_depth: FxHashMap<ResolvedVc<Box<dyn Module>>, usize> = {
-            let mut module_depth = FxHashMap::default();
-            graph
-                .traverse_edges_from_entries_bfs(
-                    entries.iter().flat_map(|e| e.entries()),
-                    |parent, node| {
-                        if let Some((parent, _)) = parent {
-                            let parent_depth = *module_depth
-                                .get(&parent.module)
-                                .context("Module depth not found")?;
-                            module_depth.entry(node.module).or_insert(parent_depth + 1);
-                        } else {
-                            module_depth.insert(node.module, 0);
-                        };
+            let mut module_depth =
+                FxHashMap::with_capacity_and_hasher(module_count, Default::default());
+            graph.traverse_edges_from_entries_bfs(
+                entries.iter().flat_map(|e| e.entries()),
+                |parent, node| {
+                    if let Some((parent, _)) = parent {
+                        let parent_depth = *module_depth
+                            .get(&parent.module)
+                            .context("Module depth not found")?;
+                        module_depth.entry(node.module).or_insert(parent_depth + 1);
+                    } else {
+                        module_depth.insert(node.module, 0);
+                    };
 
-                        module_chunk_groups.insert(node.module, RoaringBitmapWrapper::default());
+                    module_chunk_groups.insert(node.module, RoaringBitmapWrapper::default());
 
-                        Ok(GraphTraversalAction::Continue)
-                    },
-                )
-                .await?;
+                    Ok(GraphTraversalAction::Continue)
+                },
+            )?;
             module_depth
         };
 
@@ -435,7 +479,8 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             }
         }
 
-        let entry_chunk_group_keys = graphs
+        let entry_chunk_group_keys = graph
+            .graphs
             .iter()
             .flat_map(|g| g.entries.iter())
             .flat_map(|chunk_group| {
@@ -447,203 +492,246 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             })
             .collect::<FxHashMap<_, _>>();
 
-        let visit_count = graph
-            .traverse_edges_fixed_point_with_priority(
-                entries
-                    .iter()
-                    .flat_map(|e| e.entries())
-                    .map(|e| {
-                        Ok((
-                            e,
-                            TraversalPriority {
-                                depth: *module_depth.get(&e).context("Module depth not found")?,
-                                chunk_group_len: 0,
-                            },
-                        ))
-                    })
-                    .collect::<Result<Vec<_>>>()?,
-                &mut module_chunk_groups,
-                |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ RefData)>,
-                 node: &'_ SingleModuleGraphModuleNode,
-                 module_chunk_groups: &mut FxHashMap<
-                    ResolvedVc<Box<dyn Module>>,
-                    RoaringBitmapWrapper,
-                >|
-                 -> Result<GraphTraversalAction> {
-                    enum ChunkGroupInheritance<It: Iterator<Item = ChunkGroupKey>> {
-                        Inherit(ResolvedVc<Box<dyn Module>>),
-                        ChunkGroup(It),
-                    }
-                    let chunk_groups = if let Some((parent, ref_data)) = parent_info {
-                        match &ref_data.chunking_type {
-                            ChunkingType::Parallel { .. } => {
-                                ChunkGroupInheritance::Inherit(parent.module)
-                            }
-                            ChunkingType::Async => ChunkGroupInheritance::ChunkGroup(Either::Left(
-                                std::iter::once(ChunkGroupKey::Async(node.module)),
-                            )),
-                            ChunkingType::Isolated {
-                                merge_tag: None, ..
-                            } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
-                                ChunkGroupKey::Isolated(node.module),
-                            ))),
-                            ChunkingType::Shared {
-                                merge_tag: None, ..
-                            } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
-                                ChunkGroupKey::Shared(node.module),
-                            ))),
-                            ChunkingType::Isolated {
-                                merge_tag: Some(merge_tag),
-                                ..
-                            } => {
-                                let parents = module_chunk_groups
-                                    .get(&parent.module)
-                                    .context("Module chunk group not found")?;
-                                let chunk_groups =
-                                    parents.iter().map(|parent| ChunkGroupKey::IsolatedMerged {
-                                        parent: ChunkGroupId(parent),
-                                        merge_tag: merge_tag.clone(),
-                                    });
-                                ChunkGroupInheritance::ChunkGroup(Either::Right(Either::Left(
-                                    chunk_groups,
-                                )))
-                            }
-                            ChunkingType::Shared {
-                                merge_tag: Some(merge_tag),
-                                ..
-                            } => {
-                                let parents = module_chunk_groups
-                                    .get(&parent.module)
-                                    .context("Module chunk group not found")?;
-                                let chunk_groups =
-                                    parents.iter().map(|parent| ChunkGroupKey::SharedMerged {
-                                        parent: ChunkGroupId(parent),
-                                        merge_tag: merge_tag.clone(),
-                                    });
-                                ChunkGroupInheritance::ChunkGroup(Either::Right(Either::Right(
-                                    chunk_groups,
-                                )))
-                            }
-                            ChunkingType::Traced => {
-                                // Traced modules are not placed in chunk groups
-                                return Ok(GraphTraversalAction::Skip);
-                            }
+        let visit_count = graph.traverse_edges_fixed_point_with_priority(
+            entries
+                .iter()
+                .flat_map(|e| e.entries())
+                .map(|e| {
+                    Ok((
+                        e,
+                        TraversalPriority {
+                            depth: *module_depth.get(&e).context("Module depth not found")?,
+                            chunk_group_len: 0,
+                        },
+                    ))
+                })
+                .collect::<Result<Vec<_>>>()?,
+            &mut module_chunk_groups,
+            |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ RefData)>,
+             node: &'_ SingleModuleGraphModuleNode,
+             module_chunk_groups: &mut FxHashMap<
+                ResolvedVc<Box<dyn Module>>,
+                RoaringBitmapWrapper,
+            >|
+             -> Result<GraphTraversalAction> {
+                enum ChunkGroupInheritance<It: Iterator<Item = ChunkGroupKey>> {
+                    Inherit(ResolvedVc<Box<dyn Module>>),
+                    ChunkGroup(It),
+                }
+                let chunk_groups = if let Some((parent, ref_data)) = parent_info {
+                    match &ref_data.chunking_type {
+                        ChunkingType::Parallel { .. } => {
+                            ChunkGroupInheritance::Inherit(parent.module)
                         }
-                    } else {
-                        ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
-                            // TODO remove clone
-                            entry_chunk_group_keys
-                                .get(&node.module)
-                                .context("Module chunk group not found")?
-                                .clone(),
-                        )))
-                    };
-
-                    Ok(match chunk_groups {
-                        ChunkGroupInheritance::ChunkGroup(chunk_groups) => {
-                            // Start of a new chunk group, don't inherit anything from parent
-                            let chunk_group_ids = chunk_groups.map(|chunk_group| {
-                                let len = chunk_groups_map.len();
-                                let is_merged = matches!(
-                                    chunk_group,
-                                    ChunkGroupKey::IsolatedMerged { .. }
-                                        | ChunkGroupKey::SharedMerged { .. }
-                                );
-                                match chunk_groups_map.entry(chunk_group) {
-                                    Entry::Occupied(mut e) => {
-                                        let (id, merged_entries) = e.get_mut();
-                                        if is_merged {
-                                            merged_entries.insert(node.module);
-                                        }
-                                        **id
-                                    }
-                                    Entry::Vacant(e) => {
-                                        let chunk_group_id = len as u32;
-                                        let mut set = FxIndexSet::default();
-                                        if is_merged {
-                                            set.insert(node.module);
-                                        }
-                                        e.insert((ChunkGroupId(chunk_group_id), set));
-                                        chunk_group_id
-                                    }
-                                }
-                            });
-
-                            let chunk_groups =
-                                RoaringBitmapWrapper(RoaringBitmap::from_iter(chunk_group_ids));
-
-                            // Assign chunk group to the target node (the entry of the chunk group)
-                            let bitset = module_chunk_groups
-                                .get_mut(&node.module)
+                        ChunkingType::Async => ChunkGroupInheritance::ChunkGroup(Either::Left(
+                            std::iter::once(ChunkGroupKey::Async(node.module)),
+                        )),
+                        ChunkingType::Isolated {
+                            merge_tag: None, ..
+                        } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
+                            ChunkGroupKey::Isolated(node.module),
+                        ))),
+                        ChunkingType::Shared {
+                            merge_tag: None, ..
+                        } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
+                            ChunkGroupKey::Shared(node.module),
+                        ))),
+                        ChunkingType::Isolated {
+                            merge_tag: Some(merge_tag),
+                            ..
+                        } => {
+                            let parents = module_chunk_groups
+                                .get(&parent.module)
                                 .context("Module chunk group not found")?;
-                            if chunk_groups.is_proper_superset(bitset) {
-                                // Add bits from parent, and continue traversal because changed
-                                **bitset |= chunk_groups.into_inner();
+                            let chunk_groups =
+                                parents.iter().map(|parent| ChunkGroupKey::IsolatedMerged {
+                                    parent: ChunkGroupId(parent),
+                                    merge_tag: merge_tag.clone(),
+                                });
+                            ChunkGroupInheritance::ChunkGroup(Either::Right(Either::Left(
+                                chunk_groups,
+                            )))
+                        }
+                        ChunkingType::Shared {
+                            merge_tag: Some(merge_tag),
+                            ..
+                        } => {
+                            let parents = module_chunk_groups
+                                .get(&parent.module)
+                                .context("Module chunk group not found")?;
+                            let chunk_groups =
+                                parents.iter().map(|parent| ChunkGroupKey::SharedMerged {
+                                    parent: ChunkGroupId(parent),
+                                    merge_tag: merge_tag.clone(),
+                                });
+                            ChunkGroupInheritance::ChunkGroup(Either::Right(Either::Right(
+                                chunk_groups,
+                            )))
+                        }
+                        ChunkingType::Traced => {
+                            // Traced modules are not placed in chunk groups
+                            return Ok(GraphTraversalAction::Skip);
+                        }
+                    }
+                } else {
+                    ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
+                        // TODO remove clone
+                        entry_chunk_group_keys
+                            .get(&node.module)
+                            .context("Module chunk group not found")?
+                            .clone(),
+                    )))
+                };
 
+                Ok(match chunk_groups {
+                    ChunkGroupInheritance::ChunkGroup(chunk_groups) => {
+                        // Start of a new chunk group, don't inherit anything from parent
+                        let chunk_group_ids = chunk_groups.map(|chunk_group| {
+                            let len = chunk_groups_map.len();
+                            let is_merged = matches!(
+                                chunk_group,
+                                ChunkGroupKey::IsolatedMerged { .. }
+                                    | ChunkGroupKey::SharedMerged { .. }
+                            );
+                            match chunk_groups_map.entry(chunk_group) {
+                                Entry::Occupied(mut e) => {
+                                    let (id, merged_entries) = e.get_mut();
+                                    if is_merged {
+                                        merged_entries.insert(node.module);
+                                    }
+                                    **id
+                                }
+                                Entry::Vacant(e) => {
+                                    let chunk_group_id = len as u32;
+                                    let mut set = FxIndexSet::default();
+                                    if is_merged {
+                                        set.insert(node.module);
+                                    }
+                                    e.insert((ChunkGroupId(chunk_group_id), set));
+                                    chunk_group_id
+                                }
+                            }
+                        });
+
+                        let chunk_groups =
+                            RoaringBitmapWrapper(RoaringBitmap::from_iter(chunk_group_ids));
+
+                        // Assign chunk group to the target node (the entry of the chunk group)
+                        let bitset = module_chunk_groups
+                            .get_mut(&node.module)
+                            .context("Module chunk group not found")?;
+                        if chunk_groups.is_proper_superset(bitset) {
+                            // Add bits from parent, and continue traversal because changed
+                            **bitset |= chunk_groups.into_inner();
+
+                            GraphTraversalAction::Continue
+                        } else {
+                            // Unchanged, no need to forward to children
+                            GraphTraversalAction::Skip
+                        }
+                    }
+                    ChunkGroupInheritance::Inherit(parent) => {
+                        // Inherit chunk groups from parent, merge parent chunk groups into
+                        // current
+
+                        if parent == node.module {
+                            // A self-reference
+                            GraphTraversalAction::Skip
+                        } else {
+                            let [Some(parent_chunk_groups), Some(current_chunk_groups)] =
+                                module_chunk_groups.get_disjoint_mut([&parent, &node.module])
+                            else {
+                                // All modules are inserted in the previous iteration
+                                // Technically unreachable, but could be reached due to eventual
+                                // consistency
+                                bail!("Module chunk groups not found");
+                            };
+
+                            if current_chunk_groups.is_empty() {
+                                // Initial visit, clone instead of merging
+                                *current_chunk_groups = parent_chunk_groups.clone();
+                                GraphTraversalAction::Continue
+                            } else if parent_chunk_groups.is_proper_superset(current_chunk_groups) {
+                                // Add bits from parent, and continue traversal because changed
+                                **current_chunk_groups |= &**parent_chunk_groups;
                                 GraphTraversalAction::Continue
                             } else {
                                 // Unchanged, no need to forward to children
                                 GraphTraversalAction::Skip
                             }
                         }
-                        ChunkGroupInheritance::Inherit(parent) => {
-                            // Inherit chunk groups from parent, merge parent chunk groups into
-                            // current
-
-                            if parent == node.module {
-                                // A self-reference
-                                GraphTraversalAction::Skip
-                            } else {
-                                let [Some(parent_chunk_groups), Some(current_chunk_groups)] =
-                                    module_chunk_groups.get_disjoint_mut([&parent, &node.module])
-                                else {
-                                    // All modules are inserted in the previous iteration
-                                    // Technically unreachable, but could be reached due to eventual
-                                    // consistency
-                                    bail!("Module chunk groups not found");
-                                };
-
-                                if current_chunk_groups.is_empty() {
-                                    // Initial visit, clone instead of merging
-                                    *current_chunk_groups = parent_chunk_groups.clone();
-                                    GraphTraversalAction::Continue
-                                } else if parent_chunk_groups
-                                    .is_proper_superset(current_chunk_groups)
-                                {
-                                    // Add bits from parent, and continue traversal because changed
-                                    **current_chunk_groups |= &**parent_chunk_groups;
-                                    GraphTraversalAction::Continue
-                                } else {
-                                    // Unchanged, no need to forward to children
-                                    GraphTraversalAction::Skip
-                                }
-                            }
-                        }
-                    })
-                },
-                // This priority is used as a heuristic to keep the number of retraversals down, by
-                // - keeping it similar to a BFS via the depth priority
-                // - prioritizing smaller chunk groups which are expected to themselves reference
-                //   bigger chunk groups (i.e. shared code deeper down in the graph).
-                //
-                // Both try to first visit modules with a large dependency subgraph first (which
-                // would be higher in the graph and are included by few chunks themselves).
-                |successor, module_chunk_groups| {
-                    Ok(TraversalPriority {
-                        depth: *module_depth
-                            .get(&successor.module)
-                            .context("Module depth not found")?,
-                        chunk_group_len: module_chunk_groups
-                            .get(&successor.module)
-                            .context("Module chunk group not found")?
-                            .len(),
-                    })
-                },
-            )
-            .await?;
+                    }
+                })
+            },
+            // This priority is used as a heuristic to keep the number of retraversals down, by
+            // - keeping it similar to a BFS via the depth priority
+            // - prioritizing smaller chunk groups which are expected to themselves reference
+            //   bigger chunk groups (i.e. shared code deeper down in the graph).
+            //
+            // Both try to first visit modules with a large dependency subgraph first (which
+            // would be higher in the graph and are included by few chunks themselves).
+            |successor, module_chunk_groups| {
+                Ok(TraversalPriority {
+                    depth: *module_depth
+                        .get(&successor.module)
+                        .context("Module depth not found")?,
+                    chunk_group_len: module_chunk_groups
+                        .get(&successor.module)
+                        .context("Module chunk group not found")?
+                        .len(),
+                })
+            },
+        )?;
 
         span.record("visit_count", visit_count);
         span.record("chunk_group_count", chunk_groups_map.len());
+
+        #[cfg(debug_assertions)]
+        {
+            use once_cell::sync::Lazy;
+            static PRINT_CHUNK_GROUP_INFO: Lazy<bool> =
+                Lazy::new(|| match std::env::var_os("TURBOPACK_PRINT_CHUNK_GROUPS") {
+                    Some(v) => v == "1",
+                    None => false,
+                });
+            if *PRINT_CHUNK_GROUP_INFO {
+                use std::{
+                    collections::{BTreeMap, BTreeSet},
+                    path::absolute,
+                };
+
+                let mut buckets = BTreeMap::default();
+                for (module, key) in &module_chunk_groups {
+                    if !key.is_empty() {
+                        buckets
+                            .entry(key.iter().collect::<Vec<_>>())
+                            .or_insert(BTreeSet::new())
+                            .insert(module.ident().to_string().await?);
+                    }
+                }
+
+                let mut result = vec![];
+                result.push("Chunk Groups:".to_string());
+                for (i, (key, _)) in chunk_groups_map.iter().enumerate() {
+                    result.push(format!(
+                        "  {:?}: {}",
+                        i,
+                        key.debug_str(chunk_groups_map.keys()).await?
+                    ));
+                }
+                result.push("# Module buckets:".to_string());
+                for (key, modules) in buckets.iter() {
+                    result.push(format!("## {:?}:", key.iter().collect::<Vec<_>>()));
+                    for module in modules {
+                        result.push(format!("  {module}"));
+                    }
+                    result.push("".to_string());
+                }
+                let f = absolute("chunk_group_info.log")?;
+                println!("written to {}", f.display());
+                std::fs::write(f, result.join("\n"))?;
+            }
+        }
 
         Ok(ChunkGroupInfo {
             module_chunk_groups,

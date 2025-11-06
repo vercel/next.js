@@ -1,4 +1,4 @@
-import type { MiddlewareConfig } from 'next/server'
+import type { ProxyConfig } from 'next/server'
 
 export default async function middleware() {
   // This import should not be instrumented.
@@ -7,6 +7,6 @@ export default async function middleware() {
   await import('./messages')
 }
 
-export const config: MiddlewareConfig = {
+export const config: ProxyConfig = {
   matcher: ['/not-instrumented/middleware'],
 }

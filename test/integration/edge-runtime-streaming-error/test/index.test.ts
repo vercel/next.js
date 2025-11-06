@@ -57,7 +57,6 @@ describe('development mode', () => {
     context.appPort = await findPort()
     context.app = await launchApp(appDir, context.appPort, {
       ...context.handler,
-      env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
     })
   })
 
@@ -84,7 +83,6 @@ describe('development mode', () => {
       })
     })
     afterAll(() => killApp(context.app))
-    // eslint-disable-next-line jest/no-identical-title
     it('logs the error correctly', test(context))
   }
 )

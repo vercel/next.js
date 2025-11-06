@@ -45,6 +45,8 @@ pub struct CodeGeneration {
     pub visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
     pub hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     pub early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
+    pub late_stmts: Vec<CodeGenerationHoistedStmt>,
+    pub early_late_stmts: Vec<CodeGenerationHoistedStmt>,
     pub comments: Option<SwcComments>,
 }
 
@@ -59,11 +61,15 @@ impl CodeGeneration {
         visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
         hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
         early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
+        late_stmts: Vec<CodeGenerationHoistedStmt>,
+        early_late_stmts: Vec<CodeGenerationHoistedStmt>,
     ) -> Self {
         CodeGeneration {
             visitors,
             hoisted_stmts,
             early_hoisted_stmts,
+            late_stmts,
+            early_late_stmts,
             ..Default::default()
         }
     }

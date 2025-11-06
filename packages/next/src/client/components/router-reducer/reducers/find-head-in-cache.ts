@@ -1,5 +1,7 @@
-import type { FlightRouterState } from '../../../../server/app-render/types'
-import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type {
+  FlightRouterState,
+  CacheNode,
+} from '../../../../shared/lib/app-router-types'
 import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
 import { createRouterCacheKey } from '../create-router-cache-key'
 

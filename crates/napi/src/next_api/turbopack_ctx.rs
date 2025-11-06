@@ -12,6 +12,7 @@ use std::{
 use anyhow::Result;
 use either::Either;
 use napi::{JsFunction, threadsafe_function::ThreadsafeFunction};
+use napi_derive::napi;
 use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use serde::Serialize;
@@ -207,6 +208,7 @@ pub fn create_turbo_tasks(
                     turbo_tasks_backend::StorageMode::ReadWrite
                 }),
                 dependency_tracking,
+                num_workers: Some(tokio::runtime::Handle::current().metrics().num_workers()),
                 ..Default::default()
             },
             Either::Left(backing_storage),
@@ -250,7 +252,7 @@ impl CompilationEvent for StartupCacheInvalidationEvent {
             _ => "", // ignore unknown reasons
         };
         format!(
-            "Turbopack's persistent cache has been deleted{reason_msg}. Builds or page loads may \
+            "Turbopack's filesystem cache has been deleted{reason_msg}. Builds or page loads may \
              be slower as a result."
         )
     }

@@ -3,18 +3,21 @@ use std::io::Write;
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc,
     trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkingContext, ModuleId},
+    chunk::{
+        AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkingContext,
+        ChunkingContextExt, ModuleId, SourceMapSourceType,
+    },
     code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
-    source_map::utils::fileify_source_map,
+    source_map::utils::{absolute_fileify_source_map, relative_fileify_source_map},
 };
 
 use crate::{
@@ -24,6 +27,26 @@ use crate::{
     utils::StringifyJs,
 };
 
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    TaskInput,
+    NonLocalValue,
+    Default,
+)]
+pub enum RewriteSourcePath {
+    AbsoluteFilePath(FileSystemPath),
+    RelativeFilePath(FileSystemPath, RcStr),
+    #[default]
+    None,
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
@@ -31,7 +54,7 @@ pub struct EcmascriptChunkItemContent {
     pub source_map: Option<Rope>,
     pub additional_ids: SmallVec<[ResolvedVc<ModuleId>; 1]>,
     pub options: EcmascriptChunkItemOptions,
-    pub rewrite_source_path: Option<FileSystemPath>,
+    pub rewrite_source_path: RewriteSourcePath,
     pub placeholder_for_future_extensions: (),
 }
 
@@ -53,10 +76,18 @@ impl EcmascriptChunkItemContent {
         let strict = content.strict;
 
         Ok(EcmascriptChunkItemContent {
-            rewrite_source_path: if *chunking_context.should_use_file_source_map_uris().await? {
-                Some(chunking_context.root_path().owned().await?)
-            } else {
-                None
+            rewrite_source_path: match *chunking_context.source_map_source_type().await? {
+                SourceMapSourceType::AbsoluteFileUri => {
+                    RewriteSourcePath::AbsoluteFilePath(chunking_context.root_path().owned().await?)
+                }
+                SourceMapSourceType::RelativeUri => RewriteSourcePath::RelativeFilePath(
+                    chunking_context.root_path().owned().await?,
+                    chunking_context
+                        .relative_path_from_chunk_root_to_project_root()
+                        .owned()
+                        .await?,
+                ),
+                SourceMapSourceType::TurbopackUri => RewriteSourcePath::None,
             },
             inner_code: content.inner_code.clone(),
             source_map: content.source_map.clone(),
@@ -85,9 +116,10 @@ impl EcmascriptChunkItemContent {
         }
         .cell())
     }
+}
 
-    #[turbo_tasks::function]
-    pub async fn module_factory(&self) -> Result<Vc<Code>> {
+impl EcmascriptChunkItemContent {
+    async fn module_factory(&self) -> Result<ResolvedVc<Code>> {
         let mut code = CodeBuilder::default();
         for additional_id in self.additional_ids.iter().try_join().await? {
             writeln!(code, "{}, ", StringifyJs(&*additional_id))?;
@@ -111,10 +143,19 @@ impl EcmascriptChunkItemContent {
             )?;
         }
 
-        let source_map = if let Some(rewrite_source_path) = &self.rewrite_source_path {
-            fileify_source_map(self.source_map.as_ref(), rewrite_source_path.clone()).await?
-        } else {
-            self.source_map.clone()
+        let source_map = match &self.rewrite_source_path {
+            RewriteSourcePath::AbsoluteFilePath(path) => {
+                absolute_fileify_source_map(self.source_map.as_ref(), path.clone()).await?
+            }
+            RewriteSourcePath::RelativeFilePath(path, relative_path) => {
+                relative_fileify_source_map(
+                    self.source_map.as_ref(),
+                    path.clone(),
+                    relative_path.clone(),
+                )
+                .await?
+            }
+            RewriteSourcePath::None => self.source_map.clone(),
         };
 
         code.push_source(&self.inner_code, source_map);
@@ -130,7 +171,7 @@ impl EcmascriptChunkItemContent {
 
         code += "})";
 
-        Ok(code.build().cell())
+        Ok(code.build().resolved_cell())
     }
 }
 
@@ -212,7 +253,7 @@ where
 {
     /// Generates the module factory for this chunk item.
     fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code> {
-        module_factory_with_code_generation_issue(Vc::upcast(self), async_module_info)
+        module_factory_with_code_generation_issue(Vc::upcast_non_strict(self), async_module_info)
     }
 }
 
@@ -221,37 +262,37 @@ async fn module_factory_with_code_generation_issue(
     chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
 ) -> Result<Vc<Code>> {
-    Ok(
-        match chunk_item
-            .content_with_async_module_info(async_module_info)
-            .module_factory()
-            .resolve()
-            .await
-        {
-            Ok(factory) => factory,
-            Err(error) => {
-                let id = chunk_item.asset_ident().to_string().await;
-                let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
-                let error = error.context(format!(
-                    "An error occurred while generating the chunk item {id}"
-                ));
-                let error_message = format!("{}", PrettyPrintError(&error)).into();
-                let js_error_message = serde_json::to_string(&error_message)?;
-                CodeGenerationIssue {
-                    severity: IssueSeverity::Error,
-                    path: chunk_item.asset_ident().path().owned().await?,
-                    title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
-                        .resolved_cell(),
-                    message: StyledString::Text(error_message).resolved_cell(),
-                }
-                .resolved_cell()
-                .emit();
-                let mut code = CodeBuilder::default();
-                code += "(() => {{\n\n";
-                writeln!(code, "throw new Error({error});", error = &js_error_message)?;
-                code += "\n}})";
-                code.build().cell()
+    let content = match chunk_item
+        .content_with_async_module_info(async_module_info)
+        .await
+    {
+        Ok(item) => item.module_factory().await,
+        Err(err) => Err(err),
+    };
+    Ok(match content {
+        Ok(factory) => *factory,
+        Err(error) => {
+            let id = chunk_item.asset_ident().to_string().await;
+            let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
+            let error = error.context(format!(
+                "An error occurred while generating the chunk item {id}"
+            ));
+            let error_message = format!("{}", PrettyPrintError(&error)).into();
+            let js_error_message = serde_json::to_string(&error_message)?;
+            CodeGenerationIssue {
+                severity: IssueSeverity::Error,
+                path: chunk_item.asset_ident().path().owned().await?,
+                title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
+                    .resolved_cell(),
+                message: StyledString::Text(error_message).resolved_cell(),
             }
-        },
-    )
+            .resolved_cell()
+            .emit();
+            let mut code = CodeBuilder::default();
+            code += "(() => {{\n\n";
+            writeln!(code, "throw new Error({error});", error = &js_error_message)?;
+            code += "\n}})";
+            code.build().cell()
+        }
+    })
 }

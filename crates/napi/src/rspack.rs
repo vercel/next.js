@@ -1,6 +1,7 @@
 use std::{cell::RefCell, fs, path::PathBuf, sync::Arc};
 
 use napi::bindgen_prelude::*;
+use napi_derive::napi;
 use swc_core::{
     base::{
         config::{IsModule, ParseOptions},
@@ -16,10 +17,12 @@ use swc_core::{
         utils::{ExprCtx, find_pat_ids},
         visit::{Visit, VisitMutWith, VisitWith},
     },
-    node::MapErr,
 };
 
-use crate::next_api::utils::{NapiIssueSourceRange, NapiSourcePos};
+use crate::{
+    next_api::utils::{NapiIssueSourceRange, NapiSourcePos},
+    util::MapErr,
+};
 
 struct Finder {
     pub named_exports: Vec<Atom>,
