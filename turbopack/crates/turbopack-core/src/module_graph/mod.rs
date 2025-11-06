@@ -7,7 +7,7 @@ use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
 use petgraph::{
     graph::{DiGraph, EdgeIndex, NodeIndex},
-    visit::{Dfs, EdgeRef, IntoNeighbors, IntoNodeReferences, NodeIndexable, Reversed},
+    visit::{EdgeRef, IntoNeighbors, IntoNodeReferences, NodeIndexable, Reversed},
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -92,9 +92,7 @@ impl VisitedModules {
                 .await?
                 .enumerate_nodes()
                 .flat_map(|(node_idx, module)| match module {
-                    SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
-                        module, ..
-                    }) => Some((
+                    SingleModuleGraphNode::Module(module) => Some((
                         *module,
                         GraphNodeIndex {
                             graph_idx: 0,
@@ -129,10 +127,7 @@ impl VisitedModules {
                 graph
                     .enumerate_nodes()
                     .flat_map(|(node_idx, module)| match module {
-                        SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
-                            module,
-                            ..
-                        }) => Some((
+                        SingleModuleGraphNode::Module(module) => Some((
                             *module,
                             GraphNodeIndex {
                                 graph_idx: self.next_graph_idx,
@@ -284,9 +279,7 @@ impl SingleModuleGraph {
                         let current_idx = if let Some(current_idx) = modules.get(&module) {
                             *current_idx
                         } else {
-                            let idx = graph.add_node(SingleModuleGraphNode::Module(
-                                SingleModuleGraphModuleNode { module },
-                            ));
+                            let idx = graph.add_node(SingleModuleGraphNode::Module(module));
                             number_of_modules += 1;
                             modules.insert(module, idx);
                             idx
@@ -327,11 +320,7 @@ impl SingleModuleGraph {
                                     idx: *idx,
                                     module: target,
                                 },
-                                None => {
-                                    SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
-                                        module: target,
-                                    })
-                                }
+                                None => SingleModuleGraphNode::Module(target),
                             });
                             modules.insert(target, idx);
                             idx
@@ -382,15 +371,8 @@ impl SingleModuleGraph {
         Ok(graph)
     }
 
-    fn get_module(&self, module: ResolvedVc<Box<dyn Module>>) -> Result<NodeIndex> {
-        self.modules
-            .get(&module)
-            .copied()
-            .context("Couldn't find module in graph")
-    }
-
     /// Iterate over all nodes in the graph
-    pub fn iter_nodes(&self) -> impl Iterator<Item = SingleModuleGraphModuleNode> + '_ {
+    pub fn iter_nodes(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
         self.graph.node_weights().filter_map(|n| match n {
             SingleModuleGraphNode::Module(node) => Some(*node),
             SingleModuleGraphNode::VisitedModule { .. } => None,
@@ -421,25 +403,6 @@ impl SingleModuleGraph {
         self.graph.node_references()
     }
 
-    /// Traverses all reachable nodes (once)
-    pub fn traverse_from_entryx<'a>(
-        &'a self,
-        entry: ResolvedVc<Box<dyn Module>>,
-        mut visitor: impl FnMut(&'a SingleModuleGraphModuleNode),
-    ) -> Result<()> {
-        let entry_node = self.get_module(entry)?;
-
-        let mut dfs = Dfs::new(&*self.graph, entry_node);
-        while let Some(nx) = dfs.next(&*self.graph) {
-            let SingleModuleGraphNode::Module(weight) = self.graph.node_weight(nx).unwrap() else {
-                return Ok(());
-            };
-            // weight.emit_issues();
-            visitor(weight);
-        }
-        Ok(())
-    }
-
     pub fn read(self: &ReadRef<SingleModuleGraph>) -> ModuleGraphRef {
         ModuleGraphRef {
             graphs: vec![self.clone()],
@@ -450,7 +413,7 @@ impl SingleModuleGraph {
     fn traverse_cycles<'l>(
         &'l self,
         edge_filter: impl Fn(&'l RefData) -> bool,
-        mut visit_cycle: impl FnMut(&[&'l SingleModuleGraphModuleNode]) -> Result<()>,
+        mut visit_cycle: impl FnMut(&[&'l ResolvedVc<Box<dyn Module>>]) -> Result<()>,
     ) -> Result<()> {
         // see https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm
         // but iteratively instead of recursively
@@ -915,7 +878,7 @@ impl ModuleGraphRef {
             .graphs
             .iter()
             .flat_map(|g| g.iter_nodes())
-            .map(async |n| Ok((n.module, n.module.ident().to_string().await?)))
+            .map(async |n| Ok((n, n.ident().to_string().await?)))
             .try_join()
             .await?
             .into_iter()
@@ -1055,8 +1018,7 @@ impl ModuleGraphRef {
     ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
     ///    - Can return [GraphTraversalAction]s to control the traversal
-    // TODO this is actually traverse_edges_from_entries_dfs
-    pub fn traverse_edges_from_entry(
+    pub fn traverse_edges_from_entry_dfs(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         mut visitor: impl FnMut(
@@ -1223,7 +1185,7 @@ impl ModuleGraphRef {
     pub fn traverse_cycles(
         &self,
         edge_filter: impl Fn(&RefData) -> bool,
-        mut visit_cycle: impl FnMut(&[&SingleModuleGraphModuleNode]) -> Result<()>,
+        mut visit_cycle: impl FnMut(&[&ResolvedVc<Box<dyn Module>>]) -> Result<()>,
     ) -> Result<()> {
         for graph in &self.graphs {
             graph.traverse_cycles(&edge_filter, &mut visit_cycle)?;
@@ -1377,15 +1339,9 @@ impl SingleModuleGraph {
     }
 }
 
-// TODO get rid of this wrapper type
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
-pub struct SingleModuleGraphModuleNode {
-    pub module: ResolvedVc<Box<dyn Module>>,
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub enum SingleModuleGraphNode {
-    Module(SingleModuleGraphModuleNode),
+    Module(ResolvedVc<Box<dyn Module>>),
     // Models a module that is referenced but has already been visited by an earlier graph.
     VisitedModule {
         idx: GraphNodeIndex,
@@ -1396,7 +1352,7 @@ pub enum SingleModuleGraphNode {
 impl SingleModuleGraphNode {
     pub fn module(&self) -> ResolvedVc<Box<dyn Module>> {
         match self {
-            SingleModuleGraphNode::Module(SingleModuleGraphModuleNode { module }) => *module,
+            SingleModuleGraphNode::Module(module) => *module,
             SingleModuleGraphNode::VisitedModule { module, .. } => *module,
         }
     }

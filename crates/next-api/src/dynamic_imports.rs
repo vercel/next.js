@@ -35,7 +35,7 @@ use turbopack_core::{
         availability_info::AvailabilityInfo,
     },
     module::Module,
-    module_graph::{ModuleGraph, SingleModuleGraph, SingleModuleGraphModuleNode},
+    module_graph::{ModuleGraph, SingleModuleGraph},
     output::OutputAssets,
 };
 
@@ -125,9 +125,7 @@ pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<Dynamic
     let actions = graph
         .await?
         .iter_nodes()
-        .map(|node| async move {
-            let SingleModuleGraphModuleNode { module } = node;
-
+        .map(|module| async move {
             if module
                 .ident()
                 .await?

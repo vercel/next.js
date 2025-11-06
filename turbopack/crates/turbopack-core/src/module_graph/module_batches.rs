@@ -390,11 +390,11 @@ pub async fn compute_module_batches(
             |cycle| {
                 if cycle
                     .iter()
-                    .any(|node| pre_batches.boundary_modules.contains(&node.module))
+                    .any(|node| pre_batches.boundary_modules.contains(node))
                 {
                     pre_batches
                         .boundary_modules
-                        .extend(cycle.iter().map(|node| node.module));
+                        .extend(cycle.iter().map(|node| **node));
                 }
                 Ok(())
             },

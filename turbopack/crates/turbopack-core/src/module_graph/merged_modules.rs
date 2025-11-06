@@ -124,8 +124,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let mergeable = graphs
             .iter()
             .flat_map(|g| g.iter_nodes())
-            .map(async |n| {
-                let module = n.module;
+            .map(async |module| {
                 if let Some(mergeable) =
                     ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module)
                     && *mergeable.is_mergeable().await?

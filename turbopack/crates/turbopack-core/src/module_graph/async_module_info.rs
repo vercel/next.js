@@ -57,7 +57,7 @@ async fn compute_async_module_info_single(
 
     let self_async_modules = graph
         .iter_nodes()
-        .map(async |node| Ok((node.module, *node.module.is_self_async().await?)))
+        .map(async |node| Ok((node, *node.is_self_async().await?)))
         .try_join()
         .await?
         .into_iter()
@@ -94,13 +94,8 @@ async fn compute_async_module_info_single(
     graph_ref.traverse_cycles(
         |ref_data| ref_data.chunking_type.is_inherit_async(),
         |cycle| {
-            if cycle
-                .iter()
-                .any(|node| async_modules.contains(&node.module))
-            {
-                for &node in cycle {
-                    async_modules.insert(node.module);
-                }
+            if cycle.iter().any(|node| async_modules.contains(node)) {
+                async_modules.extend(cycle.iter().map(|n| **n));
             }
             Ok(())
         },
