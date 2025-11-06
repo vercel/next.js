@@ -15,7 +15,7 @@ pub async fn compute_export_usage_info(
     let mut used_exports = FxHashMap::<_, ModuleExportUsageInfo>::default();
     let graph = graph.read_graphs().await?;
     graph.traverse_all_edges_unordered(|(_, ref_data), target| {
-        let e = used_exports.entry(target.module).or_default();
+        let e = used_exports.entry(target).or_default();
 
         e.add(&ref_data.export);
 

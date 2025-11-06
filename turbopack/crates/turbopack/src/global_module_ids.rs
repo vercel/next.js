@@ -39,7 +39,7 @@ pub async fn get_global_module_id_strategy(
                 },
             ) = parent
             {
-                let module = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current.module)
+                let module = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current)
                     .context("expected chunkable module for async reference")?;
                 async_idents.push(AsyncLoaderModule::asset_ident_for(*module));
             }

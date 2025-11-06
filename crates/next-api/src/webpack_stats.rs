@@ -60,9 +60,9 @@ where
         let mut edges = vec![];
         module_graph.traverse_all_edges_unordered(|(parent_node, r), current| {
             edges.push((
-                parent_node.module,
+                parent_node,
                 RcStr::from(format!("{}: {}", r.chunking_type, r.export)),
-                current.module,
+                current,
             ));
             Ok(())
         })?;

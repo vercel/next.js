@@ -100,12 +100,12 @@ impl NextDynamicGraph {
                 entries,
                 &mut (),
                 |parent_info, node, _| {
-                    let module = node.module;
+                    let module = node;
                     let Some((parent_node, _)) = parent_info else {
                         state_map.insert(module, VisitState::Entry);
                         return Ok(GraphTraversalAction::Continue);
                     };
-                    let parent_module = parent_node.module;
+                    let parent_module = parent_node;
 
                     let module_type = data.get(&module);
                     let parent_state = state_map.get(&parent_module).unwrap().clone();
@@ -204,8 +204,8 @@ impl ServerActionsGraph {
                     vec![entry],
                     &mut result,
                     |node, result| {
-                        if let Some(node_data) = data.get(&node.module) {
-                            result.insert(node.module, *node_data);
+                        if let Some(node_data) = data.get(&node) {
+                            result.insert(node, *node_data);
                         }
                         Ok(GraphTraversalAction::Continue)
                     },
@@ -313,7 +313,7 @@ impl ClientReferencesGraph {
                 entries,
                 &mut (),
                 |node, _| {
-                    let module_type = data.get(&node.module);
+                    let module_type = data.get(&node);
                     Ok(match module_type {
                         Some(
                             ClientManifestEntryType::EcmascriptClientReference { .. }
@@ -325,14 +325,14 @@ impl ClientReferencesGraph {
                 },
                 |node, _| {
                     if let Some(server_util_module) =
-                        ResolvedVc::try_downcast_type::<NextServerUtilityModule>(node.module)
+                        ResolvedVc::try_downcast_type::<NextServerUtilityModule>(node)
                     {
                         // Server utility used by the template, not a server component
                         server_utils.insert(server_util_module);
                         return Ok(());
                     }
 
-                    let module_type = data.get(&node.module);
+                    let module_type = data.get(&node);
 
                     let ty = match module_type {
                         Some(ClientManifestEntryType::EcmascriptClientReference {
@@ -369,7 +369,7 @@ impl ClientReferencesGraph {
                     std::iter::once(ResolvedVc::upcast(sc)),
                     &mut (),
                     |node, _| {
-                        let module = node.module;
+                        let module = node;
                         let module_type = data.get(&module);
 
                         Ok(match module_type {
@@ -381,7 +381,7 @@ impl ClientReferencesGraph {
                         })
                     },
                     |node, _| {
-                        let module = node.module;
+                        let module = node;
                         if let Some(server_util_module) =
                             ResolvedVc::try_downcast_type::<NextServerUtilityModule>(module)
                         {
@@ -540,14 +540,14 @@ async fn validate_pages_css_imports(
         entries,
         &mut (),
         |parent_info, node, _| {
-            let module = node.module;
+            let module = node;
 
             // If we're at a root node, there is nothing importing this module and we can skip
             // any further validations.
             let Some((parent_node, _)) = parent_info else {
                 return Ok(GraphTraversalAction::Continue);
             };
-            let parent_module = parent_node.module;
+            let parent_module = parent_node;
 
             // Importing CSS from _app.js is always allowed.
             if parent_module == app_module {
