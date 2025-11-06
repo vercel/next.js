@@ -169,7 +169,7 @@
     "@next/swc": "16.0.2-canary.9",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.51.1",
-    "@rspack/core": "1.5.0",
+    "@rspack/core": "1.6.0",
     "@storybook/addon-a11y": "8.6.0",
     "@storybook/addon-essentials": "8.6.0",
     "@storybook/addon-interactions": "8.6.0",

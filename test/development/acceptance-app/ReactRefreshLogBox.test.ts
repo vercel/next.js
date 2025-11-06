@@ -6,13 +6,11 @@ import path from 'path'
 import { outdent } from 'outdent'
 
 describe('ReactRefreshLogBox app', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
     patchFileDelay: 1000,
   })
-
-  const isRspack = !!process.env.NEXT_RSPACK
 
   test('should strip whitespace correctly with newline', async () => {
     await using sandbox = await createSandbox(next)
@@ -1443,7 +1441,7 @@ describe('ReactRefreshLogBox app', () => {
          × Module not found: Can't resolve 'non-existing-module' in '<FIXME-project-root>/app'
           ╭────
         1 │ import "non-existing-module";
-          ·        ─────────────────────
+          · ─────────────────────────────
           ╰────
        Import trace for requested module:
        ./app/module.js

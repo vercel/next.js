@@ -371,7 +371,7 @@ tungstenite = "0.20.1"
 allsorts = { version = "0.14.0", default-features = false, features = [
   "flate2_rust",
 ] }
-anyhow = "1.0.98"
+anyhow = "1.0.100"
 async-compression = { version = "0.3.13", default-features = false, features = [
   "gzip",
   "tokio",

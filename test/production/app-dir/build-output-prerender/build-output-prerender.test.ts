@@ -6,12 +6,10 @@ const cacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 const pprEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
-const isRspack = !!process.env.NEXT_RSPACK
-
 describe('build-output-prerender', () => {
   describe('with a next config file', () => {
     describe('without --debug-prerender', () => {
-      const { next, isTurbopack } = nextTestSetup({
+      const { next, isTurbopack, isRspack } = nextTestSetup({
         files: path.join(__dirname, 'fixtures/with-config-file'),
         skipStart: true,
       })
@@ -97,7 +95,7 @@ describe('build-output-prerender', () => {
     })
 
     describe('with --debug-prerender', () => {
-      const { next, isTurbopack } = nextTestSetup({
+      const { next, isTurbopack, isRspack } = nextTestSetup({
         files: path.join(__dirname, 'fixtures/with-config-file'),
         skipStart: true,
         buildArgs: ['--debug-prerender'],
@@ -215,7 +213,7 @@ describe('build-output-prerender', () => {
 
   describe('without a next config file', () => {
     describe('without --debug-prerender', () => {
-      const { next, isTurbopack } = nextTestSetup({
+      const { next, isTurbopack, isRspack } = nextTestSetup({
         files: path.join(__dirname, 'fixtures/without-config-file'),
         skipStart: true,
       })
@@ -270,7 +268,7 @@ describe('build-output-prerender', () => {
     })
 
     describe('with --debug-prerender', () => {
-      const { next, isTurbopack } = nextTestSetup({
+      const { next, isTurbopack, isRspack } = nextTestSetup({
         files: path.join(__dirname, 'fixtures/without-config-file'),
         skipStart: true,
         buildArgs: ['--debug-prerender'],

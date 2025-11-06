@@ -1533,10 +1533,8 @@ pub async fn rebase(
         let base_path = [&old_base.path, "/"].concat();
         if !fs_path.path.starts_with(&base_path) {
             bail!(
-                "rebasing {} from {} onto {} doesn't work because it's not part of the source path",
-                fs_path.to_string(),
-                old_base.to_string(),
-                new_base.to_string()
+                "rebasing {fs_path} from {old_base} onto {new_base} doesn't work because it's not \
+                 part of the source path",
             );
         }
         if new_base.path.is_empty() {

@@ -10,6 +10,9 @@ import fsp from 'fs/promises'
     )
     return
   }
+
+  const preferOffline = process.env.NEXT_TEST_PREFER_OFFLINE === '1'
+
   let cwd = process.cwd()
   const { version: nextVersion } = JSON.parse(
     fs.readFileSync(path.join(cwd, 'packages', 'next', 'package.json'))
@@ -57,9 +60,11 @@ import fsp from 'fs/promises'
     fs.writeFileSync(path.join(tmpdir, 'package.json'), JSON.stringify(pkgJson))
     fs.writeFileSync(path.join(tmpdir, '.npmrc'), 'node-linker=hoisted')
 
-    let { stdout } = await execa('pnpm', ['add', `next@${nextVersion}`], {
-      cwd: tmpdir,
-    })
+    const args = ['add', `next@${nextVersion}`]
+    if (preferOffline) {
+      args.push('--prefer-offline')
+    }
+    let { stdout } = await execa('pnpm', args, { cwd: tmpdir })
     console.log(stdout)
 
     let pkgs = fs.readdirSync(path.join(tmpdir, 'node_modules/@next'))

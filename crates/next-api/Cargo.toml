@@ -13,7 +13,7 @@ bench = false
 workspace = true
 
 [dependencies]
-anyhow = { workspace = true, features = ["backtrace"] }
+anyhow = { workspace = true }
 byteorder = { workspace = true }
 either = { workspace = true }
 futures = { workspace = true }

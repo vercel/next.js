@@ -46,11 +46,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
         let runtime_public_path = if let Some(path) = output_root.get_path_to(&runtime_path) {
             path
         } else {
-            bail!(
-                "runtime path {} is not in output root {}",
-                runtime_path.to_string(),
-                output_root.to_string()
-            );
+            bail!("runtime path {runtime_path} is not in output root {output_root}");
         };
 
         let mut code = CodeBuilder::default();
