@@ -158,6 +158,8 @@ fn react_server_actions_errors(input: PathBuf) {
         syntax(),
         &|tr| {
             (
+                // The transforms are intentionally declared in the same order as in
+                // crates/next-custom-transforms/src/chain_transforms.rs
                 resolver(Mark::new(), Mark::new(), false),
                 server_components(
                     FileName::Real(PathBuf::from("/app/item.js")).into(),
@@ -222,6 +224,8 @@ fn use_cache_not_allowed(input: PathBuf) {
         syntax(),
         &|tr| {
             (
+                // The transforms are intentionally declared in the same order as in
+                // crates/next-custom-transforms/src/chain_transforms.rs
                 resolver(Mark::new(), Mark::new(), false),
                 server_components(
                     FileName::Real(PathBuf::from("/app/item.js")).into(),
