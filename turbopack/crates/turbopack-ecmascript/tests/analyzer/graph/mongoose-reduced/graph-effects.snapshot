@@ -103,41 +103,7 @@
             ),
         ),
         kind: Or {
-            expr: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                    ],
-                ),
-            },
+            rhs_effects: [],
         },
         ast_path: [
             Program(

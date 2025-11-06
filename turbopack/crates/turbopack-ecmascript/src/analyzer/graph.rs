@@ -75,11 +75,11 @@ pub enum ConditionalKind {
         r#else: Box<EffectsBlock>,
     },
     /// The expression on the right side of the `&&` operator.
-    And { expr: Box<EffectsBlock> },
+    And { rhs_effects: Vec<Effect> },
     /// The expression on the right side of the `||` operator.
-    Or { expr: Box<EffectsBlock> },
+    Or { rhs_effects: Vec<Effect> },
     /// The expression on the right side of the `??` operator.
-    NullishCoalescing { expr: Box<EffectsBlock> },
+    NullishCoalescing { rhs_effects: Vec<Effect> },
     /// The expression on the right side of a labeled statement.
     Labeled { body: Box<EffectsBlock> },
 }
@@ -90,14 +90,18 @@ impl ConditionalKind {
         match self {
             ConditionalKind::If { then: block }
             | ConditionalKind::Else { r#else: block }
-            | ConditionalKind::And { expr: block, .. }
-            | ConditionalKind::Or { expr: block, .. }
-            | ConditionalKind::NullishCoalescing { expr: block, .. }
             | ConditionalKind::Labeled { body: block } => block.normalize(),
             ConditionalKind::IfElse { then, r#else, .. }
             | ConditionalKind::Ternary { then, r#else, .. } => {
                 then.normalize();
                 r#else.normalize();
+            }
+            ConditionalKind::And { rhs_effects, .. }
+            | ConditionalKind::Or { rhs_effects, .. }
+            | ConditionalKind::NullishCoalescing { rhs_effects, .. } => {
+                for effect in rhs_effects.iter_mut() {
+                    effect.normalize();
+                }
             }
             ConditionalKind::IfElseMultiple { then, r#else, .. } => {
                 for block in then.iter_mut().chain(r#else.iter_mut()) {
@@ -2356,14 +2360,11 @@ impl VisitAstPath for Analyzer<'_> {
                     expr.left.visit_with_ast_path(self, &mut ast_path);
                 };
                 let prev_effects = take(&mut self.effects);
-                let right = {
+                let rhs_effects = {
                     let mut ast_path =
                         ast_path.with_guard(AstParentNodeRef::BinExpr(expr, BinExprField::Right));
                     expr.right.visit_with_ast_path(self, &mut ast_path);
-                    Box::new(EffectsBlock {
-                        effects: take(&mut self.effects),
-                        range: AstPathRange::Exact(as_parent_path(&ast_path)),
-                    })
+                    take(&mut self.effects)
                 };
                 self.effects = prev_effects;
                 self.add_conditional_effect(
@@ -2372,10 +2373,10 @@ impl VisitAstPath for Analyzer<'_> {
                     AstParentKind::BinExpr(BinExprField::Left),
                     expr.span(),
                     match expr.op {
-                        BinaryOp::LogicalAnd => ConditionalKind::And { expr: right },
-                        BinaryOp::LogicalOr => ConditionalKind::Or { expr: right },
+                        BinaryOp::LogicalAnd => ConditionalKind::And { rhs_effects },
+                        BinaryOp::LogicalOr => ConditionalKind::Or { rhs_effects },
                         BinaryOp::NullishCoalescing => {
-                            ConditionalKind::NullishCoalescing { expr: right }
+                            ConditionalKind::NullishCoalescing { rhs_effects }
                         }
                         _ => unreachable!(),
                     },
@@ -2726,7 +2727,7 @@ impl Analyzer<'_> {
         span: Span,
         mut cond_kind: ConditionalKind,
     ) {
-        let condition = Box::new(self.eval_context.eval(test));
+        let condition = self.eval_context.eval(test);
         if condition.is_unknown() {
             match &mut cond_kind {
                 ConditionalKind::If { then } => {
@@ -2748,10 +2749,10 @@ impl Analyzer<'_> {
                         self.effects.append(&mut block.effects);
                     }
                 }
-                ConditionalKind::And { expr }
-                | ConditionalKind::Or { expr }
-                | ConditionalKind::NullishCoalescing { expr } => {
-                    self.effects.append(&mut expr.effects);
+                ConditionalKind::And { rhs_effects }
+                | ConditionalKind::Or { rhs_effects }
+                | ConditionalKind::NullishCoalescing { rhs_effects } => {
+                    self.effects.append(rhs_effects);
                 }
                 ConditionalKind::Labeled { body } => {
                     self.effects.append(&mut body.effects);
@@ -2759,7 +2760,7 @@ impl Analyzer<'_> {
             }
         } else {
             self.add_effect(Effect::Conditional {
-                condition,
+                condition: Box::new(condition),
                 kind: Box::new(cond_kind),
                 ast_path: as_parent_path_with(ast_path, ast_kind),
                 span,

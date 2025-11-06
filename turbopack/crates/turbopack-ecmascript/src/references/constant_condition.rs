@@ -1,8 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::quote;
-use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
-use turbopack_core::chunk::ChunkingContext;
+use turbo_tasks::{NonLocalValue, debug::ValueDebugFormat, trace::TraceRawVcs};
 
 use super::AstPath;
 use crate::{
@@ -32,10 +31,7 @@ impl ConstantConditionCodeGen {
         ConstantConditionCodeGen { value, path }
     }
 
-    pub async fn code_generation(
-        &self,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<CodeGeneration> {
+    pub fn code_generation(&self) -> Result<CodeGeneration> {
         let value = self.value;
         let visitors = [create_visitor!(
             exact,
@@ -50,7 +46,7 @@ impl ConstantConditionCodeGen {
                         quote!("(\"TURBOPACK compile-time falsy\", 0)" as Expr)
                     }
                     ConstantConditionValue::Nullish => {
-                        quote!("(\"TURBOPACK compile-time nullish\", null)" as Expr)
+                        quote!("(void \"TURBOPACK compile-time nullish\")" as Expr)
                     }
                 };
             }

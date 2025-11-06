@@ -7,41 +7,7 @@
             ),
         ),
         kind: And {
-            expr: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                2,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                    ],
-                ),
-            },
+            rhs_effects: [],
         },
         ast_path: [
             Program(
@@ -83,41 +49,7 @@
             ),
         ),
         kind: Or {
-            expr: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                3,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                    ],
-                ),
-            },
+            rhs_effects: [],
         },
         ast_path: [
             Program(
@@ -159,41 +91,7 @@
             ),
         ),
         kind: NullishCoalescing {
-            expr: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                4,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                    ],
-                ),
-            },
+            rhs_effects: [],
         },
         ast_path: [
             Program(
@@ -236,53 +134,7 @@
             ),
         ),
         kind: And {
-            expr: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                7,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Left,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Left,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                    ],
-                ),
-            },
+            rhs_effects: [],
         },
         ast_path: [
             Program(
@@ -350,47 +202,7 @@
             ],
         ),
         kind: And {
-            expr: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                7,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Left,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                    ],
-                ),
-            },
+            rhs_effects: [],
         },
         ast_path: [
             Program(
@@ -459,48 +271,10 @@
             ],
         ),
         kind: And {
-            expr: EffectsBlock {
-                effects: [
-                    FreeVar {
-                        var: "global",
-                        ast_path: [
-                            Program(
-                                Script,
-                            ),
-                            Script(
-                                Body(
-                                    7,
-                                ),
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Var,
-                            ),
-                            VarDecl(
-                                Decls(
-                                    0,
-                                ),
-                            ),
-                            VarDeclarator(
-                                Init,
-                            ),
-                            Expr(
-                                Bin,
-                            ),
-                            BinExpr(
-                                Right,
-                            ),
-                            Expr(
-                                Ident,
-                            ),
-                        ],
-                        span: 132..138,
-                    },
-                ],
-                range: Exact(
-                    [
+            rhs_effects: [
+                FreeVar {
+                    var: "global",
+                    ast_path: [
                         Program(
                             Script,
                         ),
@@ -529,9 +303,13 @@
                         BinExpr(
                             Right,
                         ),
+                        Expr(
+                            Ident,
+                        ),
                     ],
-                ),
-            },
+                    span: 132..138,
+                },
+            ],
         },
         ast_path: [
             Program(
@@ -574,65 +352,7 @@
             ),
         ),
         kind: And {
-            expr: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                8,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Left,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Left,
-                        ),
-                        Expr(
-                            Paren,
-                        ),
-                        ParenExpr(
-                            Expr,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Left,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                    ],
-                ),
-            },
+            rhs_effects: [],
         },
         ast_path: [
             Program(
@@ -712,66 +432,10 @@
             ],
         ),
         kind: And {
-            expr: EffectsBlock {
-                effects: [
-                    FreeVar {
-                        var: "global",
-                        ast_path: [
-                            Program(
-                                Script,
-                            ),
-                            Script(
-                                Body(
-                                    8,
-                                ),
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Var,
-                            ),
-                            VarDecl(
-                                Decls(
-                                    0,
-                                ),
-                            ),
-                            VarDeclarator(
-                                Init,
-                            ),
-                            Expr(
-                                Bin,
-                            ),
-                            BinExpr(
-                                Left,
-                            ),
-                            Expr(
-                                Bin,
-                            ),
-                            BinExpr(
-                                Left,
-                            ),
-                            Expr(
-                                Paren,
-                            ),
-                            ParenExpr(
-                                Expr,
-                            ),
-                            Expr(
-                                Bin,
-                            ),
-                            BinExpr(
-                                Right,
-                            ),
-                            Expr(
-                                Ident,
-                            ),
-                        ],
-                        span: 164..170,
-                    },
-                ],
-                range: Exact(
-                    [
+            rhs_effects: [
+                FreeVar {
+                    var: "global",
+                    ast_path: [
                         Program(
                             Script,
                         ),
@@ -818,9 +482,13 @@
                         BinExpr(
                             Right,
                         ),
+                        Expr(
+                            Ident,
+                        ),
                     ],
-                ),
-            },
+                    span: 164..170,
+                },
+            ],
         },
         ast_path: [
             Program(
@@ -897,47 +565,7 @@
             ],
         ),
         kind: Or {
-            expr: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                8,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Left,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                    ],
-                ),
-            },
+            rhs_effects: [],
         },
         ast_path: [
             Program(
@@ -1015,41 +643,7 @@
             ],
         ),
         kind: Or {
-            expr: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                8,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                    ],
-                ),
-            },
+            rhs_effects: [],
         },
         ast_path: [
             Program(
@@ -1092,59 +686,7 @@
             ),
         ),
         kind: And {
-            expr: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                9,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Left,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Left,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Left,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                    ],
-                ),
-            },
+            rhs_effects: [],
         },
         ast_path: [
             Program(
@@ -1218,60 +760,10 @@
             ],
         ),
         kind: And {
-            expr: EffectsBlock {
-                effects: [
-                    FreeVar {
-                        var: "global",
-                        ast_path: [
-                            Program(
-                                Script,
-                            ),
-                            Script(
-                                Body(
-                                    9,
-                                ),
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Var,
-                            ),
-                            VarDecl(
-                                Decls(
-                                    0,
-                                ),
-                            ),
-                            VarDeclarator(
-                                Init,
-                            ),
-                            Expr(
-                                Bin,
-                            ),
-                            BinExpr(
-                                Left,
-                            ),
-                            Expr(
-                                Bin,
-                            ),
-                            BinExpr(
-                                Left,
-                            ),
-                            Expr(
-                                Bin,
-                            ),
-                            BinExpr(
-                                Right,
-                            ),
-                            Expr(
-                                Ident,
-                            ),
-                        ],
-                        span: 208..214,
-                    },
-                ],
-                range: Exact(
-                    [
+            rhs_effects: [
+                FreeVar {
+                    var: "global",
+                    ast_path: [
                         Program(
                             Script,
                         ),
@@ -1312,9 +804,13 @@
                         BinExpr(
                             Right,
                         ),
+                        Expr(
+                            Ident,
+                        ),
                     ],
-                ),
-            },
+                    span: 208..214,
+                },
+            ],
         },
         ast_path: [
             Program(
@@ -1385,47 +881,7 @@
             ],
         ),
         kind: And {
-            expr: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                9,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Left,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                    ],
-                ),
-            },
+            rhs_effects: [],
         },
         ast_path: [
             Program(
@@ -1497,41 +953,7 @@
             ],
         ),
         kind: And {
-            expr: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                9,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                    ],
-                ),
-            },
+            rhs_effects: [],
         },
         ast_path: [
             Program(
@@ -1574,59 +996,7 @@
             ),
         ),
         kind: And {
-            expr: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                10,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Left,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Left,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Left,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                    ],
-                ),
-            },
+            rhs_effects: [],
         },
         ast_path: [
             Program(
@@ -1700,53 +1070,7 @@
             ],
         ),
         kind: And {
-            expr: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                10,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Left,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Left,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                    ],
-                ),
-            },
+            rhs_effects: [],
         },
         ast_path: [
             Program(
@@ -1821,54 +1145,10 @@
             ],
         ),
         kind: And {
-            expr: EffectsBlock {
-                effects: [
-                    FreeVar {
-                        var: "global",
-                        ast_path: [
-                            Program(
-                                Script,
-                            ),
-                            Script(
-                                Body(
-                                    10,
-                                ),
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Var,
-                            ),
-                            VarDecl(
-                                Decls(
-                                    0,
-                                ),
-                            ),
-                            VarDeclarator(
-                                Init,
-                            ),
-                            Expr(
-                                Bin,
-                            ),
-                            BinExpr(
-                                Left,
-                            ),
-                            Expr(
-                                Bin,
-                            ),
-                            BinExpr(
-                                Right,
-                            ),
-                            Expr(
-                                Ident,
-                            ),
-                        ],
-                        span: 256..262,
-                    },
-                ],
-                range: Exact(
-                    [
+            rhs_effects: [
+                FreeVar {
+                    var: "global",
+                    ast_path: [
                         Program(
                             Script,
                         ),
@@ -1903,9 +1183,13 @@
                         BinExpr(
                             Right,
                         ),
+                        Expr(
+                            Ident,
+                        ),
                     ],
-                ),
-            },
+                    span: 256..262,
+                },
+            ],
         },
         ast_path: [
             Program(
@@ -1977,41 +1261,7 @@
             ],
         ),
         kind: And {
-            expr: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                10,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                    ],
-                ),
-            },
+            rhs_effects: [],
         },
         ast_path: [
             Program(
@@ -2087,41 +1337,7 @@
             "global",
         ),
         kind: Or {
-            expr: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                11,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                    ],
-                ),
-            },
+            rhs_effects: [],
         },
         ast_path: [
             Program(
@@ -2160,48 +1376,10 @@
             True,
         ),
         kind: Or {
-            expr: EffectsBlock {
-                effects: [
-                    FreeVar {
-                        var: "global",
-                        ast_path: [
-                            Program(
-                                Script,
-                            ),
-                            Script(
-                                Body(
-                                    12,
-                                ),
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Var,
-                            ),
-                            VarDecl(
-                                Decls(
-                                    0,
-                                ),
-                            ),
-                            VarDeclarator(
-                                Init,
-                            ),
-                            Expr(
-                                Bin,
-                            ),
-                            BinExpr(
-                                Right,
-                            ),
-                            Expr(
-                                Ident,
-                            ),
-                        ],
-                        span: 323..329,
-                    },
-                ],
-                range: Exact(
-                    [
+            rhs_effects: [
+                FreeVar {
+                    var: "global",
+                    ast_path: [
                         Program(
                             Script,
                         ),
@@ -2230,9 +1408,13 @@
                         BinExpr(
                             Right,
                         ),
+                        Expr(
+                            Ident,
+                        ),
                     ],
-                ),
-            },
+                    span: 323..329,
+                },
+            ],
         },
         ast_path: [
             Program(
@@ -2308,41 +1490,7 @@
             "global",
         ),
         kind: And {
-            expr: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                13,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Bin,
-                        ),
-                        BinExpr(
-                            Right,
-                        ),
-                    ],
-                ),
-            },
+            rhs_effects: [],
         },
         ast_path: [
             Program(
@@ -2381,48 +1529,10 @@
             False,
         ),
         kind: And {
-            expr: EffectsBlock {
-                effects: [
-                    FreeVar {
-                        var: "global",
-                        ast_path: [
-                            Program(
-                                Script,
-                            ),
-                            Script(
-                                Body(
-                                    14,
-                                ),
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Var,
-                            ),
-                            VarDecl(
-                                Decls(
-                                    0,
-                                ),
-                            ),
-                            VarDeclarator(
-                                Init,
-                            ),
-                            Expr(
-                                Bin,
-                            ),
-                            BinExpr(
-                                Right,
-                            ),
-                            Expr(
-                                Ident,
-                            ),
-                        ],
-                        span: 387..393,
-                    },
-                ],
-                range: Exact(
-                    [
+            rhs_effects: [
+                FreeVar {
+                    var: "global",
+                    ast_path: [
                         Program(
                             Script,
                         ),
@@ -2451,9 +1561,13 @@
                         BinExpr(
                             Right,
                         ),
+                        Expr(
+                            Ident,
+                        ),
                     ],
-                ),
-            },
+                    span: 387..393,
+                },
+            ],
         },
         ast_path: [
             Program(
