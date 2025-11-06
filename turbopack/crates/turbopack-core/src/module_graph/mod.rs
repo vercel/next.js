@@ -32,7 +32,7 @@ use crate::{
         merged_modules::{MergedModuleInfo, compute_merged_modules},
         module_batches::{ModuleBatchesGraph, compute_module_batches},
         style_groups::{StyleGroups, StyleGroupsConfig, compute_style_groups},
-        traced_di_graph::{TracedDiGraph, iter_graphs_neighbors_rev},
+        traced_di_graph::TracedDiGraph,
     },
     reference::primary_chunkable_referenced_modules,
     resolve::ExportUsage,
@@ -406,7 +406,7 @@ impl SingleModuleGraph {
     pub fn read(self: &ReadRef<SingleModuleGraph>) -> ModuleGraphRef {
         ModuleGraphRef {
             graphs: vec![self.clone()],
-            ignore_visited_module: true,
+            skip_visited_module_children: true,
         }
     }
 
@@ -807,7 +807,7 @@ impl ModuleGraph {
         let async_modules_info = self.async_module_info().await?;
 
         let entry = graph_ref.get_entry(module)?;
-        let referenced_modules = iter_graphs_neighbors_rev(&graphs[entry.graph_idx()].graph, entry)
+        let referenced_modules = iter_graphs_neighbors_rev(graphs, entry)
             .filter(|(edge_idx, _)| {
                 let ty = graphs[entry.graph_idx()]
                     .graph
@@ -831,7 +831,7 @@ impl ModuleGraph {
     pub async fn read_graphs(self: Vc<ModuleGraph>) -> Result<ModuleGraphRef> {
         Ok(ModuleGraphRef {
             graphs: self.await?.graphs.iter().try_join().await?,
-            ignore_visited_module: false,
+            skip_visited_module_children: false,
         })
     }
 }
@@ -842,7 +842,7 @@ pub struct ModuleGraphRef {
     pub graphs: Vec<ReadRef<SingleModuleGraph>>,
     // Whether to simply ignore SingleModuleGraphNode::VisitedModule during traversals. For single
     // module graph usecases, this is what you want. For the whole graph, there should be an error.
-    ignore_visited_module: bool,
+    skip_visited_module_children: bool,
 }
 
 impl ModuleGraphRef {
@@ -899,7 +899,7 @@ impl ModuleGraphRef {
         mut visit_postorder: impl FnMut(ResolvedVc<Box<dyn Module>>, &mut S) -> Result<()>,
     ) -> Result<()> {
         let graphs = &self.graphs;
-        let ignore_visited_module = self.ignore_visited_module;
+        let skip_visited_module_children = self.skip_visited_module_children;
 
         let entries = entries.into_iter().collect::<Vec<_>>();
 
@@ -928,20 +928,14 @@ impl ModuleGraphRef {
                     }
                     stack.push((Pass::Visit, current));
                     if action == GraphTraversalAction::Continue
-                        && !(ignore_visited_module
+                        && !(skip_visited_module_children
                             && matches!(current_node, SingleModuleGraphNode::VisitedModule { .. }))
                     {
-                        let graph = &graphs[current.graph_idx()].graph;
-                        let neighbors_rev = match graph.node_weight(current.node_idx).unwrap() {
-                            SingleModuleGraphNode::Module(_) => {
-                                iter_graphs_neighbors_rev(graph, current)
-                            }
-                            SingleModuleGraphNode::VisitedModule { idx, .. } => {
-                                // We switch graphs
-                                iter_graphs_neighbors_rev(&graphs[idx.graph_idx()].graph, *idx)
-                            }
-                        };
-                        stack.extend(neighbors_rev.map(|(_, child)| (Pass::ExpandAndVisit, child)));
+                        let current = current_node.target_idx().unwrap_or(current);
+                        stack.extend(
+                            iter_graphs_neighbors_rev(graphs, current)
+                                .map(|(_, child)| (Pass::ExpandAndVisit, child)),
+                        );
                     }
                 }
             }
@@ -969,7 +963,7 @@ impl ModuleGraphRef {
         ) -> Result<GraphTraversalAction>,
     ) -> Result<()> {
         let graphs = &self.graphs;
-        let ignore_visited_module = self.ignore_visited_module;
+        let skip_visited_module_children = self.skip_visited_module_children;
 
         let mut queue = VecDeque::from(
             entries
@@ -985,18 +979,18 @@ impl ModuleGraphRef {
             if visited.insert(node) {
                 let node_weight = self.get_node(node)?;
                 let graph = &graphs[node.graph_idx()].graph;
-                for (edge, succ) in iter_graphs_neighbors_rev(graph, node) {
+                for (edge, succ) in iter_graphs_neighbors_rev(graphs, node) {
                     let succ_weight = self.get_node(succ)?;
-                    if ignore_visited_module
-                        && matches!(succ_weight, SingleModuleGraphNode::VisitedModule { .. })
-                    {
-                        continue;
-                    }
                     let edge_weight = graph.edge_weight(edge).unwrap();
                     let action = visitor(
                         Some((node_weight.module(), edge_weight)),
                         succ_weight.module(),
                     )?;
+                    if skip_visited_module_children
+                        && matches!(succ_weight, SingleModuleGraphNode::VisitedModule { .. })
+                    {
+                        continue;
+                    }
                     let succ = succ_weight.target_idx().unwrap_or(succ);
                     if !visited.contains(&succ) && action == GraphTraversalAction::Continue {
                         queue.push_back(succ);
@@ -1027,7 +1021,7 @@ impl ModuleGraphRef {
         ) -> GraphTraversalAction,
     ) -> Result<()> {
         let graphs = &self.graphs;
-        let ignore_visited_module = self.ignore_visited_module;
+        let skip_visited_module_children = self.skip_visited_module_children;
 
         let mut stack = entries
             .into_iter()
@@ -1041,18 +1035,18 @@ impl ModuleGraphRef {
             if visited.insert(node) {
                 let node_weight = self.get_node(node)?;
                 let graph = &graphs[node.graph_idx()].graph;
-                for (edge, succ) in iter_graphs_neighbors_rev(graph, node) {
+                for (edge, succ) in iter_graphs_neighbors_rev(graphs, node) {
                     let succ_weight = self.get_node(succ)?;
-                    if ignore_visited_module
-                        && matches!(succ_weight, SingleModuleGraphNode::VisitedModule { .. })
-                    {
-                        continue;
-                    }
                     let edge_weight = graph.edge_weight(edge).unwrap();
                     let action = visitor(
                         Some((node_weight.module(), edge_weight)),
                         succ_weight.module(),
                     );
+                    if skip_visited_module_children
+                        && matches!(succ_weight, SingleModuleGraphNode::VisitedModule { .. })
+                    {
+                        continue;
+                    }
                     let succ = succ_weight.target_idx().unwrap_or(succ);
                     if !visited.contains(&succ) && action == GraphTraversalAction::Continue {
                         stack.push(succ);
@@ -1125,7 +1119,7 @@ impl ModuleGraphRef {
         ) -> Result<()>,
     ) -> Result<()> {
         let graphs = &self.graphs;
-        let ignore_visited_module = self.ignore_visited_module;
+        let skip_visited_module_children = self.skip_visited_module_children;
 
         let entries = entries.into_iter().collect::<Vec<_>>();
 
@@ -1164,12 +1158,11 @@ impl ModuleGraphRef {
                     stack.push((Pass::Visit, parent, current));
                     if action == GraphTraversalAction::Continue
                         && expanded.insert(current)
-                        && !(ignore_visited_module
+                        && !(skip_visited_module_children
                             && matches!(current_node, SingleModuleGraphNode::VisitedModule { .. }))
                     {
-                        let graph = &graphs[current.graph_idx()].graph;
                         let current = current_node.target_idx().unwrap_or(current);
-                        stack.extend(iter_graphs_neighbors_rev(graph, current).map(
+                        stack.extend(iter_graphs_neighbors_rev(graphs, current).map(
                             |(edge, child)| (Pass::ExpandAndVisit, Some((current, edge)), child),
                         ));
                     }
@@ -1226,7 +1219,9 @@ impl ModuleGraphRef {
         priority: impl Fn(ResolvedVc<Box<dyn Module>>, &mut S) -> Result<P>,
     ) -> Result<usize> {
         let graphs = &self.graphs;
-        let ignore_visited_module = self.ignore_visited_module;
+        if self.skip_visited_module_children {
+            bail!("traverse_edges_fixed_point_with_priority musn't be called on individual graphs");
+        }
 
         #[derive(PartialEq, Eq)]
         struct NodeWithPriority<T: Ord> {
@@ -1275,7 +1270,7 @@ impl ModuleGraphRef {
             visit_count += 1;
 
             let graph = &graphs[node.graph_idx()].graph;
-            for (edge, succ) in iter_graphs_neighbors_rev(graph, node) {
+            for (edge, succ) in iter_graphs_neighbors_rev(graphs, node) {
                 let succ_weight = self.get_node(succ)?;
 
                 let edge_weight = graph.edge_weight(edge).unwrap();
@@ -1286,11 +1281,7 @@ impl ModuleGraphRef {
                 )?;
 
                 let succ = succ_weight.target_idx().unwrap_or(succ);
-                if action == GraphTraversalAction::Continue
-                    && queue_set.insert(succ)
-                    && !(ignore_visited_module
-                        && matches!(succ_weight, SingleModuleGraphNode::VisitedModule { .. }))
-                {
+                if action == GraphTraversalAction::Continue && queue_set.insert(succ) {
                     queue.push(NodeWithPriority {
                         node: succ,
                         priority: priority(succ_weight.module(), state)?,
@@ -1301,6 +1292,34 @@ impl ModuleGraphRef {
 
         Ok(visit_count)
     }
+}
+
+/// Iterate the edges of a node REVERSED!
+fn iter_graphs_neighbors_rev(
+    graphs: &[ReadRef<SingleModuleGraph>],
+    node: GraphNodeIndex,
+) -> impl Iterator<Item = (EdgeIndex, GraphNodeIndex)> + '_ {
+    let graph = &*graphs[node.graph_idx()].graph;
+
+    if cfg!(debug_assertions) {
+        let node_weight = graph.node_weight(node.node_idx).unwrap();
+        if let SingleModuleGraphNode::VisitedModule { .. } = node_weight {
+            panic!("iter_graphs_neighbors_rev called on VisitedModule node");
+        }
+    }
+
+    let mut walker = graph.neighbors(node.node_idx).detach();
+    std::iter::from_fn(move || {
+        walker.next(graph).map(|(edge_idx, succ_idx)| {
+            (
+                edge_idx,
+                GraphNodeIndex {
+                    graph_idx: node.graph_idx,
+                    node_idx: succ_idx,
+                },
+            )
+        })
+    })
 }
 
 #[turbo_tasks::value_impl]
