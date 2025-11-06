@@ -1638,7 +1638,7 @@ pub mod tests {
         ident::AssetIdent,
         module::Module,
         module_graph::{
-            GraphEntries, GraphTraversalAction, ModuleGraphRef, SingleModuleGraph,
+            GraphEntries, GraphTraversalAction, ModuleGraph, ModuleGraphRef, SingleModuleGraph,
             chunk_group_info::ChunkGroupEntry,
         },
         reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
@@ -1931,14 +1931,13 @@ pub mod tests {
                     entry_modules.clone(),
                 )])),
                 false,
-            )
-            .await?;
+            );
 
             // Create a simple name mapping to make analyzing the visitors easier.
             // Technically they could always pull this name off of the
-            // `module.ident().await?.path.path` themselves but that `await` is trick in the
-            // visitors so precomputing this helps.
+            // `module.ident().await?.path.path` themselves but you cannot `await` in visitors.
             let module_to_name = graph
+                .await?
                 .modules
                 .keys()
                 .map(|m| async move { Ok((*m, m.ident().await?.path.path.clone())) })
@@ -1946,7 +1945,11 @@ pub mod tests {
                 .await?
                 .into_iter()
                 .collect();
-            test_fn(graph.read(), entry_modules, module_to_name)
+            test_fn(
+                ModuleGraph::from_single_graph(graph).read_graphs().await?,
+                entry_modules,
+                module_to_name,
+            )
         })
         .await
         .unwrap();
