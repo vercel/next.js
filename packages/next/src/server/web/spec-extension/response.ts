@@ -1,7 +1,7 @@
 import { stringifyCookie } from '../../web/spec-extension/cookies'
 import type { I18NConfig } from '../../config-shared'
 import { NextURL } from '../next-url'
-import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
+import { toNodeOutgoingHttpHeaders, validateURL, encodeHeaderValue } from '../utils'
 import { ReflectAdapter } from './adapters/reflect'
 
 import { ResponseCookies } from './cookies'
@@ -20,7 +20,7 @@ function handleMiddlewareField(
 
     const keys = []
     for (const [key, value] of init.request.headers) {
-      headers.set('x-middleware-request-' + key, value)
+      headers.set('x-middleware-request-' + key, encodeHeaderValue(value))
       keys.push(key)
     }
 
