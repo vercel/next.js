@@ -1,5 +1,6 @@
 /* eslint-env jest */
-import { installBindings, transform } from 'next/dist/build/swc'
+import { transform } from 'next/dist/build/swc'
+import { installBindings } from 'next/dist/build/swc/install-bindings'
 import path from 'path'
 import fsp from 'fs/promises'
 
