@@ -44,11 +44,7 @@ export type RouterServerContext = Record<
       htmlRequestId: string,
       requestId: string
     ) => void
-    setCacheStatus?: (
-      status: ServerCacheStatus,
-      htmlRequestId: string,
-      requestId: string
-    ) => void
+    setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
   }
 >
 

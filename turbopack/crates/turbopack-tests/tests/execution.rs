@@ -17,7 +17,6 @@ use turbo_tasks::{
     debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemEntryType, FileSystemPath,
@@ -528,12 +527,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     )
     .await?;
 
-    let single = res
-        .try_into_single()
-        .await
-        .context("test node result did not emit anything")?;
-
-    let SingleValue::Single(bytes) = single else {
+    let Some(str) = &*res else {
         return Ok(RunTestResult {
             js_result: JsResult {
                 uncaught_exceptions: vec![],
@@ -549,7 +543,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     };
 
     Ok(RunTestResult {
-        js_result: JsResult::resolved_cell(parse_json_with_source_context(bytes.to_str()?)?),
+        js_result: JsResult::resolved_cell(parse_json_with_source_context(str)?),
         path: path.clone(),
     }
     .cell())

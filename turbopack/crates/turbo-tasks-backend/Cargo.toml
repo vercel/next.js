@@ -31,7 +31,7 @@ anyhow = { workspace = true }
 arc-swap = { version = "1.7.1" }
 auto-hash-map = { workspace = true }
 bitfield = { workspace = true }
-byteorder = "1.5.0"
+byteorder = { workspace = true }
 dashmap = { workspace = true, features = ["raw-api"]}
 either = { workspace = true }
 hashbrown = { workspace = true, features = ["raw"] }

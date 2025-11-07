@@ -407,11 +407,6 @@ async function isPartialRSCData(
     filterStackFrame,
     signal: abortController.signal,
     onError() {},
-    onPostpone() {
-      // If something postponed, i.e. when Cache Components is not enabled, we can
-      // infer that the RSC data is partial.
-      isPartial = true
-    },
   })
   return isPartial
 }

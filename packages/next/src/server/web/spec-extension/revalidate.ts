@@ -55,7 +55,7 @@ export function updateTag(tag: string) {
 /**
  * This function allows you to refresh client cache from server actions.
  * It's useful as dynamic data can be cached on the client which won't
- * be refreshed by expireTag
+ * be refreshed by updateTag
  */
 export function refresh() {
   const workStore = workAsyncStorage.getStore()

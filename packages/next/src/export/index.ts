@@ -641,13 +641,15 @@ async function exportAppImpl(
   if (totalExportPaths > 0) {
     const progress = createProgress(
       totalExportPaths,
-      options.statusMessage || 'Exporting'
+      options.statusMessage ??
+        `Exporting using ${options.numWorkers} worker${options.numWorkers > 1 ? 's' : ''}`
     )
 
     worker = createStaticWorker(nextConfig, {
       debuggerPortOffset: getNextBuildDebuggerPortOffset({
         kind: 'export-page',
       }),
+      numberOfWorkers: options.numWorkers,
       progress,
     })
 

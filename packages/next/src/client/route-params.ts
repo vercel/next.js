@@ -19,12 +19,6 @@ import type { ParsedUrlQuery } from 'querystring'
 
 export type RouteParamValue = string | Array<string> | null
 
-export type RouteParam = {
-  name: string
-  value: RouteParamValue
-  type: DynamicParamTypesShort
-}
-
 export function getRenderedSearch(
   response: RSCResponse<unknown> | Response
 ): NormalizedSearch {

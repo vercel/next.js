@@ -232,14 +232,23 @@ Like Server Actions, arguments to cached functions must be serializable. This me
 You can accept unserializable values as arguments as long as you don't introspect them. However, you can return them. This allows patterns like cached components that accept Server or Client Components as children:
 
 ```tsx filename="app/cached-wrapper.tsx" switcher
-import { ReactNode } from 'react'
+import type { ReactNode } from 'react'
+import { setTimeout } from 'node:timers/promises'
+
+async function getSiteTitle() {
+  // Simulate a slow database or API call
+  await setTimeout(1000) // from 'node:timers/promises'
+  return 'My Website'
+}
 
 export async function CachedWrapper({ children }: { children: ReactNode }) {
   'use cache'
+  const title = await getSiteTitle()
+
   // Don't introspect children, just pass it through
   return (
     <div className="wrapper">
-      <header>Cached Header</header>
+      <h1>{title}</h1>
       {children}
     </div>
   )
@@ -247,21 +256,27 @@ export async function CachedWrapper({ children }: { children: ReactNode }) {
 ```
 
 ```jsx filename="app/cached-wrapper.js" switcher
+import { setTimeout } from 'node:timers/promises'
+
+async function getSiteTitle() {
+  // Simulate a slow database or API call
+  await setTimeout(1000) // from 'node:timers/promises'
+  return 'My Website'
+}
+
 export async function CachedWrapper({ children }) {
   'use cache'
+  const title = await getSiteTitle()
+
   // Don't introspect children, just pass it through
   return (
     <div className="wrapper">
-      <header>Cached Header</header>
+      <h1>{title}</h1>
       {children}
     </div>
   )
 }
 ```
-
-#### Avoid passing dynamic inputs
-
-You must not pass dynamic or runtime data into `use cache` functions unless you avoid introspecting them. Passing values from `cookies()`, `headers()`, or other runtime APIs as arguments will cause errors, as the cache key cannot be determined at pre-render time.
 
 ### Tagging and revalidating
 
@@ -521,7 +536,7 @@ export default function Page() {
 
 ### Passing dynamic props
 
-Components only opt into dynamic rendering when the value is accessed. For example, if you are reading `searchParams` from a `<Page />` component, you can forward this value to another component as a prop:
+Components that access runtime values like `cookies` or `searchParams` cannot be prerendered. To prerender more of a page's content, you can pass these props down and access their values lower in the tree. For example, if you are reading `searchParams` from a `<Page />` component, you can forward this value to another component as a prop:
 
 ```tsx filename="app/page.tsx" switcher
 import { Table, TableSkeleton } from './table'

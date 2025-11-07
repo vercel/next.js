@@ -1,17 +1,13 @@
 import { PAGE_SEGMENT_KEY } from '../segment'
 import type { Segment as FlightRouterStateSegment } from '../app-router-types'
-import type { NormalizedPathname } from '../../../client/components/segment-cache/cache-key'
 
 // TypeScript trick to simulate opaque types, like in Flow.
 type Opaque<K, T> = T & { __brand: K }
 
 export type SegmentRequestKeyPart = Opaque<'SegmentRequestKeyPart', string>
 export type SegmentRequestKey = Opaque<'SegmentRequestKey', string>
-export type SegmentCacheKeyPart = Opaque<'SegmentCacheKeyPart', string>
-export type SegmentCacheKey = Opaque<'SegmentCacheKey', string>
 
 export const ROOT_SEGMENT_REQUEST_KEY = '' as SegmentRequestKey
-export const ROOT_SEGMENT_CACHE_KEY = '' as SegmentCacheKey
 
 export const HEAD_REQUEST_KEY = '/_head' as SegmentRequestKey
 
@@ -69,48 +65,6 @@ export function appendSegmentRequestKeyPart(
       ? childRequestKeyPart
       : `@${encodeToFilesystemAndURLSafeString(parallelRouteKey)}/${childRequestKeyPart}`
   return (parentRequestKey + '/' + slotKey) as SegmentRequestKey
-}
-
-export function createSegmentCacheKeyPart(
-  requestKeyPart: SegmentRequestKeyPart,
-  segment: FlightRouterStateSegment
-): SegmentCacheKeyPart {
-  if (typeof segment === 'string') {
-    return requestKeyPart as any as SegmentCacheKeyPart
-  }
-  const paramValue = segment[1]
-  const safeValue = encodeToFilesystemAndURLSafeString(paramValue)
-  return (requestKeyPart + '$' + safeValue) as SegmentCacheKeyPart
-}
-
-export function appendSegmentCacheKeyPart(
-  parentSegmentKey: SegmentCacheKey,
-  parallelRouteKey: string,
-  childCacheKeyPart: SegmentCacheKeyPart
-): SegmentCacheKey {
-  const slotKey =
-    parallelRouteKey === 'children'
-      ? childCacheKeyPart
-      : `@${encodeToFilesystemAndURLSafeString(parallelRouteKey)}/${childCacheKeyPart}`
-  return (parentSegmentKey + '/' + slotKey) as SegmentCacheKey
-}
-
-export function createHeadCacheKey(
-  renderedPathname: NormalizedPathname
-): SegmentCacheKey {
-  // The "head" segment doesn't exist in the normal hierarchy of the page,
-  // but it needs to vary on all the route params. So we append the entire
-  // rendered pathname.
-  // TODO: Eventually, cache entries will only vary on params if they were
-  // actually accessed during server rendering. We'll do that by creating a
-  // separate key part for each of the route params (see: cache-map.ts). The
-  // same technique will also be used for the head segment.
-  return ('/_head/' +
-    encodeToFilesystemAndURLSafeString(renderedPathname)) as SegmentCacheKey
-}
-
-export function isHeadCacheKey(cacheKey: SegmentCacheKey): boolean {
-  return cacheKey.startsWith('/_head/')
 }
 
 // Define a regex pattern to match the most common characters found in a route

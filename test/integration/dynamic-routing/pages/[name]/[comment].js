@@ -9,7 +9,7 @@ const Comment = ({ gipQuery }) => {
       <p id="asdf">
         I am {query.comment} on {query.name}
       </p>
-      <span>gip {gipQuery && gipQuery.name}</span>
+      <span data-testid="gip-query">gip {gipQuery && gipQuery.name}</span>
     </>
   )
 }

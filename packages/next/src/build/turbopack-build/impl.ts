@@ -193,6 +193,10 @@ export async function turbopackBuild(): Promise<{
       entrypoints: currentEntrypoints,
     })
 
+    if (NextBuildContext.analyze) {
+      await project.writeAnalyzeData(appDirOnly)
+    }
+
     const shutdownPromise = project.shutdown()
 
     const time = process.hrtime(startTime)

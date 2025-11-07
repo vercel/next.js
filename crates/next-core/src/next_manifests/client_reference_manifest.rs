@@ -185,7 +185,7 @@ async fn build_manifest(
             .client_references
             .iter()
             .map(async |r| {
-                Ok(match r.ty() {
+                Ok(match r.ty {
                     ClientReferenceType::EcmascriptClientReference(r) => Some((r, r.await?)),
                     ClientReferenceType::CssClientReference(_) => None,
                 })

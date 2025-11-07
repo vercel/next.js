@@ -1687,7 +1687,6 @@
         for (var debugInfo = [], i = 0; i < value._debugInfo.length; i++) {
           var info = value._debugInfo[i];
           if ("number" === typeof info.time && info.time > response) break;
-          if (null != info.awaited && info.awaited.end > response) break;
           debugInfo.push(info);
         }
         value._debugInfo = debugInfo;
@@ -5142,10 +5141,7 @@
         options && null != options.startTime ? options.startTime : void 0,
         options && null != options.endTime ? options.endTime : void 0,
         options && void 0 !== options.debugChannel
-          ? {
-              hasReadable: void 0 !== options.debugChannel.readable,
-              callback: null
-            }
+          ? { hasReadable: !0, callback: null }
           : void 0
       )._weakResponse;
       if (options && options.debugChannel) {

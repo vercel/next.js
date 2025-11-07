@@ -1,6 +1,7 @@
 use std::{cell::RefCell, fs, path::PathBuf, sync::Arc};
 
 use napi::bindgen_prelude::*;
+use napi_derive::napi;
 use swc_core::{
     base::{
         config::{IsModule, ParseOptions},

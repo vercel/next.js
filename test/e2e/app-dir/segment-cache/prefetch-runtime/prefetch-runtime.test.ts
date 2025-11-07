@@ -4,12 +4,10 @@ import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
 describe('runtime prefetching', () => {
-  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    // TODO (runtime-prefetching): investigate failures when deployed to Vercel.
-    skipDeployment: true,
   })
-  if (isNextDev || skipped) {
+  if (isNextDev) {
     it('is skipped', () => {})
     return
   }
@@ -475,7 +473,8 @@ describe('runtime prefetching', () => {
       await browser.back()
 
       // wait a tick before navigating
-      await waitFor(500)
+      // TODO: Why does this need to be so long when deployed? What other signal do we have that we can wait on?
+      await waitFor(2000)
 
       // Navigate to the page
       await act(async () => {
