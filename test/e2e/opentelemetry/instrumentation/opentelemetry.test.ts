@@ -463,23 +463,22 @@ describe('opentelemetry', () => {
                   'next.span_type': 'Middleware.execute',
                 },
                 status: { code: 0 },
-                spans: [],
-              },
-
-              {
-                runtime: 'nodejs',
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                name: 'GET /behind-middleware',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/behind-middleware',
-                  'http.status_code': 200,
-                  'http.target': '/behind-middleware',
-                  'next.route': '/behind-middleware',
-                  'next.span_name': 'GET /behind-middleware',
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
+                spans: [
+                  {
+                    runtime: 'nodejs',
+                    traceId: env.span.traceId,
+                    name: 'GET /behind-middleware',
+                    attributes: {
+                      'http.method': 'GET',
+                      'http.route': '/behind-middleware',
+                      'http.status_code': 200,
+                      'http.target': '/behind-middleware',
+                      'next.route': '/behind-middleware',
+                      'next.span_name': 'GET /behind-middleware',
+                      'next.span_type': 'BaseServer.handleRequest',
+                    },
+                  },
+                ],
               },
             ])
           })
