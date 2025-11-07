@@ -62,11 +62,20 @@ pub(super) async fn build_font_face_definitions(
         };
         let query_str = qstring::QString::from(serde_json::to_string(&query)?.as_str());
 
+        // Check if `font-family` is explicitly defined in `declarations`
+        let has_custom_font_family = options
+            .declarations
+            .as_ref()
+            .is_some_and(|declarations| {
+                declarations
+                    .iter()
+                    .any(|declaration| declaration.prop == "font-family")
+            });
+
         definitions.push_str(&formatdoc!(
             r#"
                 @font-face {{
-                    {}
-                    font-family: '{}';
+                    {}{}
                     src: url('@vercel/turbopack-next/internal/font/local/font?{}') format('{}');
                     font-display: {};
                     {}{}
@@ -79,7 +88,11 @@ pub(super) async fn build_font_face_definitions(
                     .map(|declaration| format!("{}: {};", declaration.prop, declaration.value))
                     .join("\n")
             ),
-            scoped_font_family,
+            if has_custom_font_family {
+                "".to_owned()
+            } else {
+                format!("\nfont-family: '{}';", scoped_font_family)
+            },
             query_str,
             ext_to_format(&font.ext)?,
             options.display,
