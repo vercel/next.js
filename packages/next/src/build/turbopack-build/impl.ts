@@ -229,8 +229,6 @@ export async function workerMain(workerData: {
       reactProductionProfiling: NextBuildContext.reactProductionProfiling,
     }
   ))
-  await installBindings(config.experimental?.useWasmBinary)
-
   // Matches handling in build/index.ts
   // https://github.com/vercel/next.js/blob/84f347fc86f4efc4ec9f13615c215e4b9fb6f8f0/packages/next/src/build/index.ts#L815-L818
   // Ensures the `config.distDir` option is matched.
@@ -243,6 +241,8 @@ export async function workerMain(workerData: {
     distDir: NextBuildContext.config.distDir,
   })
   setGlobal('telemetry', telemetry)
+  // Install bindings early so we can access synchronously later
+  await installBindings(config.experimental?.useWasmBinary)
 
   const {
     shutdownPromise: resultShutdownPromise,
