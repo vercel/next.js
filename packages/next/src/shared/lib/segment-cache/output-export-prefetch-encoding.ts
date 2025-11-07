@@ -18,6 +18,7 @@ const MAX_BUILD_ID_LENGTH = 24
 
 // Request the first 64 bytes. The Range header is inclusive of the end value.
 export const DOC_PREFETCH_RANGE_HEADER_VALUE = 'bytes=0-63'
+export const DOC_PREFETCH_MAX_BYTE_LENGTH = 64
 
 function escapeBuildId(buildId: string) {
   // If the build id is longer than the given limit, it's OK for our purposes

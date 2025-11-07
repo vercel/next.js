@@ -89,6 +89,7 @@ import { pingVisibleLinks } from '../links'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 import {
   DOC_PREFETCH_RANGE_HEADER_VALUE,
+  DOC_PREFETCH_MAX_BYTE_LENGTH,
   doesExportedHtmlMatchBuildId,
 } from '../../../shared/lib/segment-cache/output-export-prefetch-encoding'
 import { FetchStrategy } from './types'
@@ -1338,12 +1339,50 @@ export async function fetchRouteOnCacheMiss(
       // NOTE: We could embed the route tree into the HTML document, to avoid
       // a second request. We're not doing that currently because it would make
       // the HTML document larger and affect normal page loads.
+
+      // Not all static hosting providers support "Range" requests. if they don't they will return full HTML instead of a partial response
+      // To save bandwidth, we still manually read bytes up to the specified range and ignore the rest.
+      const abortController = new AbortController()
       const htmlResponse = await fetch(url, {
         headers: {
           Range: DOC_PREFETCH_RANGE_HEADER_VALUE,
         },
+        signal: abortController.signal,
       })
-      const partialHtml = await htmlResponse.text()
+
+      if (!htmlResponse.body) {
+        // Server responded with no body, we should reject the entry
+        rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
+        return null
+      }
+
+      let partialHtml = ''
+
+      // use TextDecoderStream to get UTF-8 string then read first 64 bytes
+      const stream = htmlResponse.body.pipeThrough(
+        new TextDecoderStream('utf-8')
+      )
+      const reader = stream.getReader()
+      try {
+        while (partialHtml.length < DOC_PREFETCH_MAX_BYTE_LENGTH) {
+          // Limit to first 64 bytes
+          const { done, value } = await reader.read()
+          if (done) break
+          if (!value) continue
+          partialHtml += value
+        }
+      } catch {
+        // error happened during reading the stream, we should reject the entry
+        rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
+        return null
+      } finally {
+        reader.cancel()
+        // technically if we cancel the readablestream, it should close the original body stream too.
+        // but this is never described in the fetch spec. let's just abort the fetch request to prevent
+        // any potential leaks.
+        abortController.abort()
+      }
+
       if (!doesExportedHtmlMatchBuildId(partialHtml, getAppBuildId())) {
         // The target page is not part of this app, or it belongs to a
         // different build.
