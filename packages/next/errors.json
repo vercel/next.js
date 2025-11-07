@@ -925,5 +925,7 @@
   "924": "Invalid interception route: %s",
   "925": "You cannot define a route with the same specificity as an optional catch-all route (\"%s\" and \"/[[...%s]]\").",
   "926": "Optional route parameters are not yet supported (\"[%s]\") in route \"%s\".",
-  "927": "No debug targets found"
+  "927": "No debug targets found",
+  "928": "Unable to get server address",
+  "929": "No pages or app directory found."
 }
