@@ -52,7 +52,6 @@ async function getData() {
 While both `updateTag` and `revalidateTag` invalidate cached data, they serve different purposes:
 
 - **`updateTag`**:
-
   - Can only be used in Server Actions
   - Next request waits for fresh data (no stale content served)
   - Designed for read-your-own-writes scenarios
