@@ -70,7 +70,6 @@ export function getFlightStream<T>(
     })
   } else {
     if (process.env.NEXT_RUNTIME === 'edge') {
-      console.error('getFlightStream - not a ReadableStream', flightStream)
       throw new InvariantError(
         'getFlightStream should always receive a ReadableStream when using the edge runtime'
       )
