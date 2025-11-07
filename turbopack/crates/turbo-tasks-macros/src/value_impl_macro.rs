@@ -8,10 +8,6 @@ use syn::{
     parse_macro_input, parse_quote,
     spanned::Spanned,
 };
-use turbo_tasks_macros_shared::{
-    get_cast_to_fat_pointer_ident, get_inherent_impl_function_ident, get_path_ident,
-    get_trait_impl_function_ident, get_type_ident, is_self_used,
-};
 
 use crate::{
     func::{
@@ -19,6 +15,11 @@ use crate::{
         split_function_attributes,
     },
     global_name::global_name,
+    ident::{
+        get_cast_to_fat_pointer_ident, get_inherent_impl_function_ident, get_path_ident,
+        get_trait_impl_function_ident, get_type_ident,
+    },
+    self_filter::is_self_used,
 };
 
 struct ValueImplArguments {
