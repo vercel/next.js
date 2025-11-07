@@ -1057,6 +1057,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             (meta, data)
         };
         let process = |task_id: TaskId, (meta, data): (Option<Vec<_>>, Option<Vec<_>>)| {
+            // TODO: perf: Instead of returning a `Vec` of individually allocated `SmallVec`s, it'd
+            // be better to append everything to a flat per-task or per-shard `Vec<u8>`, and have
+            // each `serialize` call return `(start_idx, end_idx)`.
             (
                 task_id,
                 meta.map(|d| self.backing_storage.serialize(task_id, &d)),

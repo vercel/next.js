@@ -73,6 +73,7 @@ macro_rules! define_id {
             type Target = $primitive;
 
             fn deref(&self) -> &Self::Target {
+                // SAFETY: `NonZero<T>` is guaranteed to have the same layout as `T`
                 unsafe { transmute_copy(&&self.id) }
             }
         }

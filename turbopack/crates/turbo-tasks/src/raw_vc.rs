@@ -211,7 +211,7 @@ impl RawVc {
                         task,
                         index,
                         ReadCellOptions {
-                            is_serializable_cell_content: value_type.is_serializable(),
+                            is_serializable_cell_content: value_type.bincode.is_some(),
                             final_read_hint: false,
                             tracking: ReadTracking::default(),
                         },
@@ -467,7 +467,7 @@ impl Future for ReadRawVcFuture {
                         if this.is_serializable_cell_content_unknown {
                             let value_type = registry::get_value_type(index.type_id);
                             this.read_cell_options.is_serializable_cell_content =
-                                value_type.is_serializable();
+                                value_type.bincode.is_some();
                         }
                         let read_result =
                             tt.try_read_task_cell(task, index, this.read_cell_options);

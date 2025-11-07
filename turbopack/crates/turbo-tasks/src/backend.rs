@@ -10,9 +10,13 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
+use bincode::{
+    Decode, Encode,
+    error::{DecodeError, EncodeError},
+};
 use rustc_hash::FxHasher;
-use serde::{Deserialize, Serialize};
 use tracing::Span;
+use turbo_bincode::{TurboBincodeDecoder, TurboBincodeEncoder};
 use turbo_rcstr::RcStr;
 
 use crate::{
@@ -99,110 +103,31 @@ impl Display for CachedTaskType {
 }
 
 mod ser {
-    use std::any::Any;
-
-    use serde::{
-        Deserialize, Deserializer, Serialize, Serializer,
-        de::{self},
-        ser::{SerializeSeq, SerializeTuple},
+    use bincode::{
+        de::{Decoder, read::Reader},
+        enc::Encoder,
     };
+    use serde::{Deserialize, Deserializer, Serialize, Serializer, ser::SerializeSeq};
 
     use super::*;
 
-    impl Serialize for TypedCellContent {
-        fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    const POT_CONFIG: pot::Config = pot::Config::new().compatibility(pot::Compatibility::V4);
+
+    struct FunctionAndArgBorrowed<'a> {
+        native_fn: &'static NativeFunction,
+        arg: &'a dyn MagicAny,
+    }
+    struct FunctionAndArgOwned {
+        native_fn: &'static NativeFunction,
+        arg: Box<dyn MagicAny>,
+    }
+
+    impl Serialize for FunctionAndArgBorrowed<'_> {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: Serializer,
         {
-            let value_type = registry::get_value_type(self.0);
-            let serializable = if let Some(value) = &self.1.0 {
-                value_type.any_as_serializable(&value.0)
-            } else {
-                None
-            };
-            let mut state = serializer.serialize_tuple(3)?;
-            state.serialize_element(&self.0)?;
-            if let Some(serializable) = serializable {
-                state.serialize_element(&true)?;
-                state.serialize_element(serializable)?;
-            } else {
-                state.serialize_element(&false)?;
-                state.serialize_element(&())?;
-            }
-            state.end()
-        }
-    }
-
-    impl<'de> Deserialize<'de> for TypedCellContent {
-        fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            struct Visitor;
-
-            impl<'de> serde::de::Visitor<'de> for Visitor {
-                type Value = TypedCellContent;
-
-                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                    write!(formatter, "a valid TypedCellContent")
-                }
-
-                fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
-                where
-                    A: de::SeqAccess<'de>,
-                {
-                    let value_type: ValueTypeId = seq
-                        .next_element()?
-                        .ok_or_else(|| de::Error::invalid_length(0, &self))?;
-                    let has_value: bool = seq
-                        .next_element()?
-                        .ok_or_else(|| de::Error::invalid_length(1, &self))?;
-                    if has_value {
-                        let seed = registry::get_value_type(value_type)
-                            .get_any_deserialize_seed()
-                            .ok_or_else(|| {
-                                de::Error::custom("Value type doesn't support deserialization")
-                            })?;
-                        let value = seq
-                            .next_element_seed(seed)?
-                            .ok_or_else(|| de::Error::invalid_length(2, &self))?;
-                        let arc = triomphe::Arc::<dyn Any + Send + Sync>::from(value);
-                        Ok(TypedCellContent(
-                            value_type,
-                            CellContent(Some(SharedReference(arc))),
-                        ))
-                    } else {
-                        let () = seq
-                            .next_element()?
-                            .ok_or_else(|| de::Error::invalid_length(2, &self))?;
-                        Ok(TypedCellContent(value_type, CellContent(None)))
-                    }
-                }
-            }
-
-            deserializer.deserialize_tuple(2, Visitor)
-        }
-    }
-
-    enum FunctionAndArg<'a> {
-        Owned {
-            native_fn: &'static NativeFunction,
-            arg: Box<dyn MagicAny>,
-        },
-        Borrowed {
-            native_fn: &'static NativeFunction,
-            arg: &'a dyn MagicAny,
-        },
-    }
-
-    impl Serialize for FunctionAndArg<'_> {
-        fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            let FunctionAndArg::Borrowed { native_fn, arg } = self else {
-                unreachable!();
-            };
+            let Self { native_fn, arg } = self;
             let mut state = serializer.serialize_seq(Some(2))?;
             state.serialize_element(&registry::get_function_id(native_fn))?;
             let arg = *arg;
@@ -212,17 +137,17 @@ mod ser {
         }
     }
 
-    impl<'de> Deserialize<'de> for FunctionAndArg<'de> {
+    impl<'de> Deserialize<'de> for FunctionAndArgOwned {
         fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
             struct Visitor;
             impl<'de> serde::de::Visitor<'de> for Visitor {
-                type Value = FunctionAndArg<'de>;
+                type Value = FunctionAndArgOwned;
 
                 fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                    write!(formatter, "a valid FunctionAndArg")
+                    write!(formatter, "a valid FunctionAndArgOwned")
                 }
 
-                fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
+                fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
                 where
                     A: serde::de::SeqAccess<'de>,
                 {
@@ -234,64 +159,65 @@ mod ser {
                     let arg = seq
                         .next_element_seed(seed)?
                         .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-                    Ok(FunctionAndArg::Owned { native_fn, arg })
+                    Ok(FunctionAndArgOwned { native_fn, arg })
                 }
             }
             deserializer.deserialize_seq(Visitor)
         }
     }
 
-    impl Serialize for CachedTaskType {
-        fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-        where
-            S: ser::Serializer,
-        {
-            let CachedTaskType {
-                native_fn,
-                this,
-                arg,
-            } = self;
-            let mut s = serializer.serialize_tuple(2)?;
-            s.serialize_element(&FunctionAndArg::Borrowed {
-                native_fn,
-                arg: &**arg,
-            })?;
-            s.serialize_element(this)?;
-            s.end()
+    // HACK: We don't yet require `TaskInput: Encode + Decode`, so use a pot serializer for the
+    // function arguments, and bincode for everything else.
+    impl Encode for CachedTaskType {
+        fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+            struct BincodeWriterWrapper<W: bincode::enc::write::Writer>(W);
+            impl<W: bincode::enc::write::Writer> std::io::Write for BincodeWriterWrapper<W> {
+                fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                    self.write_all(buf)?;
+                    Ok(buf.len())
+                }
+                fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+                    self.0.write(buf).map_err(std::io::Error::other)
+                }
+                fn flush(&mut self) -> std::io::Result<()> {
+                    Ok(())
+                }
+            }
+            let function_and_arg = FunctionAndArgBorrowed {
+                native_fn: self.native_fn,
+                arg: &*self.arg,
+            };
+            POT_CONFIG
+                .serialize_into(
+                    &function_and_arg,
+                    &mut BincodeWriterWrapper(encoder.writer()),
+                )
+                .map_err(|e| EncodeError::OtherString(e.to_string()))?;
+            Encode::encode(&self.this, encoder)
         }
     }
 
-    impl<'de> Deserialize<'de> for CachedTaskType {
-        fn deserialize<D: ser::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-            struct Visitor;
-            impl<'de> serde::de::Visitor<'de> for Visitor {
-                type Value = CachedTaskType;
-
-                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                    write!(formatter, "a valid PersistentTaskType")
+    impl<Context> Decode<Context> for CachedTaskType {
+        fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+            struct BincodeReaderWrapper<R: Reader>(R);
+            impl<R: Reader> std::io::Read for BincodeReaderWrapper<R> {
+                fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+                    self.read_exact(buf)?;
+                    Ok(buf.len())
                 }
-
-                fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
-                where
-                    A: serde::de::SeqAccess<'de>,
-                {
-                    let FunctionAndArg::Owned { native_fn, arg } = seq
-                        .next_element()?
-                        .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?
-                    else {
-                        unreachable!();
-                    };
-                    let this = seq
-                        .next_element()?
-                        .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-                    Ok(CachedTaskType {
-                        native_fn,
-                        this,
-                        arg,
-                    })
+                fn read_exact(&mut self, buf: &mut [u8]) -> std::io::Result<()> {
+                    self.0.read(buf).map_err(std::io::Error::other)
                 }
             }
-            deserializer.deserialize_tuple(2, Visitor)
+            let FunctionAndArgOwned { native_fn, arg } = POT_CONFIG
+                .deserialize_from(BincodeReaderWrapper(decoder.reader()))
+                .map_err(|e| DecodeError::OtherString(e.to_string()))?;
+            let this: Option<RawVc> = Decode::decode(decoder)?;
+            Ok(CachedTaskType {
+                native_fn,
+                this,
+                arg,
+            })
         }
     }
 }
@@ -349,6 +275,37 @@ impl TypedCellContent {
     pub fn into_untyped(self) -> CellContent {
         self.1
     }
+
+    pub fn encode(&self, enc: &mut TurboBincodeEncoder) -> Result<(), EncodeError> {
+        let Self(type_id, content) = self;
+        let value_type = registry::get_value_type(*type_id);
+        type_id.encode(enc)?;
+        if let Some(bincode) = value_type.bincode {
+            if let Some(reference) = &content.0 {
+                true.encode(enc)?;
+                bincode.0(&*reference.0, enc)?;
+                Ok(())
+            } else {
+                false.encode(enc)?;
+                Ok(())
+            }
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn decode(dec: &mut TurboBincodeDecoder) -> Result<Self, DecodeError> {
+        let type_id = ValueTypeId::decode(dec)?;
+        let value_type = registry::get_value_type(type_id);
+        if let Some(bincode) = value_type.bincode {
+            let is_some = bool::decode(dec)?;
+            if is_some {
+                let reference = bincode.1(dec)?;
+                return Ok(TypedCellContent(type_id, CellContent(Some(reference))));
+            }
+        }
+        Ok(TypedCellContent(type_id, CellContent(None)))
+    }
 }
 
 impl From<TypedSharedReference> for TypedCellContent {
@@ -403,9 +360,9 @@ pub type TaskCollectiblesMap = AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>,
 
 // Structurally and functionally similar to Cow<&'static, str> but explicitly notes the importance
 // of non-static strings potentially containing PII (Personal Identifiable Information).
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Encode, Decode, PartialEq, Eq)]
 pub enum TurboTasksExecutionErrorMessage {
-    PIISafe(Cow<'static, str>),
+    PIISafe(#[bincode(with = "turbo_bincode::owned_cow")] Cow<'static, str>),
     NonPIISafe(String),
 }
 
@@ -418,13 +375,13 @@ impl Display for TurboTasksExecutionErrorMessage {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
 pub struct TurboTasksError {
     pub message: TurboTasksExecutionErrorMessage,
     pub source: Option<TurboTasksExecutionError>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
 pub struct TurboTaskContextError {
     pub task: RcStr,
     #[cfg(feature = "task_id_details")]
@@ -432,7 +389,7 @@ pub struct TurboTaskContextError {
     pub source: Option<TurboTasksExecutionError>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Encode, Decode, PartialEq, Eq)]
 pub enum TurboTasksExecutionError {
     Panic(Arc<TurboTasksPanic>),
     Error(Arc<TurboTasksError>),

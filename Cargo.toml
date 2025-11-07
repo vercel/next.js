@@ -360,7 +360,6 @@ preset_env_base = "6.0.0"
 
 
 # General Deps
-bincode = { version = "2.0.1", features = ["serde"] }
 chromiumoxide = { version = "0.5.4", features = [
   "tokio-runtime",
 ], default-features = false }
@@ -374,6 +373,7 @@ allsorts = { version = "0.14.0", default-features = false, features = [
 ] }
 anyhow = "1.0.100"
 async-trait = "0.1.64"
+bincode = { version = "2.0.1", features = ["serde"] }
 bitfield = "0.18.0"
 byteorder = "1.5.0"
 bytes = "1.1.0"
@@ -393,12 +393,13 @@ either = "1.9.0"
 erased-serde = "0.4.5"
 flate2 = "1.0.28"
 futures = "0.3.31"
-futures-util = "0.3.31"
 futures-retry = "0.6.0"
+futures-util = "0.3.31"
 hashbrown = "0.14.5"
 image = { version = "0.25.8", default-features = false }
 indexmap = "2.7.1"
 indoc = "2.0.0"
+inventory = "0.3.21"
 itertools = "0.10.5"
 lightningcss = { version = "1.0.0-alpha.68", features = [
   "serde",
@@ -443,11 +444,10 @@ ringmap = "0.1.3"
 roaring = "0.10.10"
 rstest = "0.16.0"
 rustc-hash = "2.1.1"
-twox-hash = { version = "2.1.0", features = ["xxhash64", "xxhash3_128"] }
 semver = "1.0.16"
 serde = { version = "1.0.217", features = ["derive"] }
-serde_json = "1.0.138"
 serde_bytes = "0.11.15"
+serde_json = "1.0.138"
 serde_path_to_error = "0.1.16"
 serde_qs = "0.13.0"
 serde_with = "3.12.0"
@@ -458,18 +458,19 @@ smallvec = { version = "1.15.1", features = [
   "const_new",
   "impl_bincode",
 ] }
-swc_sourcemap = "9.3.4"
-strsim = "0.11.1"
 shrink-to-fit = "0.2.10"
+strsim = "0.11.1"
+swc_sourcemap = "9.3.4"
 syn = "2.0.100"
 tempfile = "3.20.0"
-thread_local = "1.1.8"
 thiserror = "1.0.48"
+thread_local = "1.1.8"
 tokio = "1.43.0"
 tokio-util = { version = "0.7.13", features = ["io", "rt"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
 triomphe = { git = "https://github.com/sokra/triomphe", branch = "sokra/unstable" }
+twox-hash = { version = "2.1.0", features = ["xxhash64", "xxhash3_128"] }
 unsize = "1.1.0"
 unty = "0.0.4"
 url = "2.2.2"
@@ -478,7 +479,6 @@ uuid = "1.18.1"
 vergen = { version = "9.0.6", features = ["cargo"] }
 vergen-gitcl = { version = "1.0.8", features = ["cargo"] }
 webbrowser = "1.0.6"
-inventory = "0.3.21"
 
 [patch.crates-io]
 bincode = { git = "https://github.com/bgw/bincode.git", branch = "bgw/patches" }

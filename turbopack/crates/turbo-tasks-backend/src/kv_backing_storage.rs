@@ -6,8 +6,9 @@ use std::{
 };
 
 use anyhow::{Context, Result, anyhow};
-use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
+use turbo_bincode::{
+    TurboBincodeBuffer, turbo_bincode_decode, turbo_bincode_encode, turbo_bincode_encode_into,
+};
 use turbo_tasks::{
     TaskId,
     backend::CachedTaskType,
@@ -32,42 +33,6 @@ use crate::{
     db_invalidation::invalidation_reasons,
     utils::chunked_vec::ChunkedVec,
 };
-
-const POT_CONFIG: pot::Config = pot::Config::new().compatibility(pot::Compatibility::V4);
-
-fn pot_serialize_small_vec<T: Serialize>(value: &T) -> pot::Result<SmallVec<[u8; 16]>> {
-    struct SmallVecWrite<'l>(&'l mut SmallVec<[u8; 16]>);
-    impl std::io::Write for SmallVecWrite<'_> {
-        #[inline]
-        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-            self.0.extend_from_slice(buf);
-            Ok(buf.len())
-        }
-
-        #[inline]
-        fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
-            self.0.extend_from_slice(buf);
-            Ok(())
-        }
-
-        #[inline]
-        fn flush(&mut self) -> std::io::Result<()> {
-            Ok(())
-        }
-    }
-
-    let mut output = SmallVec::new();
-    POT_CONFIG.serialize_into(value, SmallVecWrite(&mut output))?;
-    Ok(output)
-}
-
-fn pot_ser_symbol_map() -> pot::ser::SymbolMap {
-    pot::ser::SymbolMap::new().with_compatibility(pot::Compatibility::V4)
-}
-
-fn pot_de_symbol_list<'l>() -> pot::de::SymbolList<'l> {
-    pot::de::SymbolList::new()
-}
 
 const META_KEY_OPERATIONS: u32 = 0;
 const META_KEY_NEXT_FREE_TASK_ID: u32 = 1;
@@ -279,14 +244,14 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             else {
                 return Ok(Vec::new());
             };
-            let operations = deserialize_with_good_error(operations.borrow())?;
+            let operations = turbo_bincode_decode(operations.borrow())?;
             Ok(operations)
         }
         get(&self.inner.database).context("Unable to read uncompleted operations from database")
     }
 
-    fn serialize(&self, task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>> {
-        serialize(task, data)
+    fn serialize(&self, task: TaskId, data: &Vec<CachedDataItem>) -> Result<TurboBincodeBuffer> {
+        encode_task_data(task, data)
     }
 
     fn save_snapshot<I>(
@@ -299,14 +264,17 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         I: Iterator<
                 Item = (
                     TaskId,
-                    Option<SmallVec<[u8; 16]>>,
-                    Option<SmallVec<[u8; 16]>>,
+                    Option<TurboBincodeBuffer>,
+                    Option<TurboBincodeBuffer>,
                 ),
             > + Send
             + Sync,
     {
         let _span = tracing::info_span!("save snapshot", operations = operations.len()).entered();
         let mut batch = self.inner.database.write_batch()?;
+
+        // these buffers should be large, because they're temporary and re-used.
+        const INITIAL_ENCODE_BUFFER_CAPACITY: usize = 1024;
 
         // Start organizing the updates in parallel
         match &mut batch {
@@ -337,19 +305,20 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                         items = task_cache_updates.iter().map(|m| m.len()).sum::<usize>()
                     )
                     .entered();
-                    let result = parallel::map_collect_owned::<_, _, Result<Vec<_>>>(
+                    let max_task_id = parallel::map_collect_owned::<_, _, Result<Vec<_>>>(
                         task_cache_updates,
                         |updates| {
                             let _span = _span.clone().entered();
                             let mut max_task_id = 0;
 
-                            let mut task_type_bytes = Vec::new();
+                            // Re-use the same buffer across every `serialize_task_type` call in
+                            // this chunk. `ConcurrentWriteBatch::put` will copy the data out of
+                            // this buffer into smaller exact-sized vecs.
+                            let mut task_type_bytes =
+                                TurboBincodeBuffer::with_capacity(INITIAL_ENCODE_BUFFER_CAPACITY);
                             for (task_type, task_id) in updates {
-                                serialize_task_type(
-                                    &task_type,
-                                    &mut task_type_bytes,
-                                    Some(task_id),
-                                )?;
+                                task_type_bytes.clear();
+                                encode_task_type(&task_type, &mut task_type_bytes, Some(task_id))?;
                                 let task_id: u32 = *task_id;
 
                                 batch
@@ -374,7 +343,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                                             "Unable to write task cache {task_id} => {task_type:?}"
                                         )
                                     })?;
-                                max_task_id = max_task_id.max(task_id + 1);
+                                max_task_id = max_task_id.max(task_id);
                             }
 
                             Ok(max_task_id)
@@ -383,7 +352,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                     .into_iter()
                     .max()
                     .unwrap_or(0);
-                    next_task_id = next_task_id.max(result);
+                    next_task_id = next_task_id.max(max_task_id + 1);
                 }
 
                 save_infra::<T::SerialWriteBatch<'_>, T::ConcurrentWriteBatch<'_>>(
@@ -430,9 +399,13 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                         items = task_cache_updates.iter().map(|m| m.len()).sum::<usize>()
                     )
                     .entered();
-                    let mut task_type_bytes = Vec::new();
+                    // Re-use the same buffer across every `serialize_task_type` call.
+                    // `ConcurrentWriteBatch::put` will copy the data out of this buffer into
+                    // smaller exact-sized vecs.
+                    let mut task_type_bytes =
+                        TurboBincodeBuffer::with_capacity(INITIAL_ENCODE_BUFFER_CAPACITY);
                     for (task_type, task_id) in task_cache_updates.into_iter().flatten() {
-                        serialize_task_type(&task_type, &mut task_type_bytes, Some(task_id))?;
+                        encode_task_type(&task_type, &mut task_type_bytes, Some(task_id))?;
                         let task_id = *task_id;
 
                         batch
@@ -489,8 +462,8 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             tx: &D::ReadTransaction<'_>,
             task_type: &CachedTaskType,
         ) -> Result<Option<TaskId>> {
-            let mut task_type_bytes = Vec::new();
-            serialize_task_type(task_type, &mut task_type_bytes, None)?;
+            let mut task_type_bytes = TurboBincodeBuffer::new();
+            encode_task_type(task_type, &mut task_type_bytes, None)?;
             let Some(bytes) = database.get(tx, KeySpace::ForwardTaskCache, &task_type_bytes)?
             else {
                 return Ok(None);
@@ -528,7 +501,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             else {
                 return Ok(None);
             };
-            Ok(Some(deserialize_with_good_error(bytes.borrow())?))
+            Ok(Some(turbo_bincode_decode(bytes.borrow())?))
         }
         inner
             .with_tx(tx, |tx| lookup(&inner.database, tx, task_id))
@@ -560,7 +533,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             else {
                 return Ok(Vec::new());
             };
-            let result: Vec<CachedDataItem> = deserialize_with_good_error(bytes.borrow())?;
+            let result: Vec<CachedDataItem> = turbo_bincode_decode(bytes.borrow())?;
             Ok(result)
         }
         inner
@@ -607,95 +580,91 @@ where
                 WriteBuffer::Borrowed(IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref()),
                 WriteBuffer::Borrowed(&next_task_id.to_le_bytes()),
             )
-            .with_context(|| anyhow!("Unable to write next free task id"))?;
+            .context("Unable to write next free task id")?;
     }
     {
         let _span =
             tracing::trace_span!("update operations", operations = operations.len()).entered();
-        let operations = pot_serialize_small_vec(&operations)
-            .with_context(|| anyhow!("Unable to serialize operations"))?;
+        let operations =
+            turbo_bincode_encode(&operations).context("Unable to serialize operations")?;
         batch
             .put(
                 KeySpace::Infra,
                 WriteBuffer::Borrowed(IntKey::new(META_KEY_OPERATIONS).as_ref()),
                 WriteBuffer::SmallVec(operations),
             )
-            .with_context(|| anyhow!("Unable to write operations"))?;
+            .context("Unable to write operations")?;
     }
     batch.flush(KeySpace::Infra)?;
     Ok(())
 }
 
-// DO NOT REMOVE THE `inline(never)` ATTRIBUTE!
-// `pot` uses the pointer address of `&'static str` to deduplicate Symbols.
-// If this function is inlined into multiple different callsites it might inline the Serialize
-// implementation too, which can pull a `&'static str` from another crate into this crate.
-// Since string deduplication between crates is not guaranteed, it can lead to behavior changes due
-// to the pointer addresses. This can lead to lookup path and store path creating different
-// serialization of the same task type, which breaks task cache lookups.
-#[inline(never)]
-fn serialize_task_type(
+fn encode_task_type(
     task_type: &CachedTaskType,
-    mut task_type_bytes: &mut Vec<u8>,
+    buffer: &mut TurboBincodeBuffer,
     task_id: Option<TaskId>,
 ) -> Result<()> {
-    task_type_bytes.clear();
-    POT_CONFIG
-        .serialize_into(task_type, &mut task_type_bytes)
-        .with_context(|| {
+    // DO NOT REMOVE THE `inline(never)` ATTRIBUTE!
+    // CachedTaskType's `Encode`/`Decode` implementations use `pot` internally for `TaskInput`s.
+    // TODO: remove `serde` and `pot`, make `TaskInput: Encode + Decode`.
+    //
+    // `pot` uses the pointer address of `&'static str` to deduplicate Symbols.
+    // If this function is inlined into multiple different callsites it might inline the Serialize
+    // implementation too, which can pull a `&'static str` from another crate into this crate.
+    // Since string deduplication between crates is not guaranteed, it can lead to behavior changes
+    // due to the pointer addresses. This can lead to lookup path and store path creating different
+    // serialization of the same task type, which breaks task cache lookups.
+    #[inline(never)]
+    fn encode_once_into(
+        task_type: &CachedTaskType,
+        buffer: &mut TurboBincodeBuffer,
+        task_id: Option<TaskId>,
+    ) -> Result<()> {
+        turbo_bincode_encode_into(task_type, buffer).with_context(|| {
             if let Some(task_id) = task_id {
-                anyhow!("Unable to serialize task {task_id} cache key {task_type:?}")
+                format!("Unable to serialize task {task_id} cache key {task_type:?}")
             } else {
-                anyhow!("Unable to serialize task cache key {task_type:?}")
+                format!("Unable to serialize task cache key {task_type:?}")
             }
-        })?;
-    #[cfg(feature = "verify_serialization")]
-    {
-        let deserialize: Result<CachedTaskType, _> = serde_path_to_error::deserialize(
-            &mut pot_de_symbol_list().deserializer_for_slice(&*task_type_bytes)?,
-        );
+        })
+    }
+
+    debug_assert!(buffer.is_empty());
+    encode_once_into(task_type, buffer, task_id)?;
+
+    if cfg!(feature = "verify_serialization") {
+        macro_rules! println_and_panic {
+            ($($tt:tt)*) => {
+                println!($($tt)*);
+                panic!($($tt)*);
+            };
+        }
+        let deserialize: Result<CachedTaskType, _> = turbo_bincode_decode(buffer);
         match deserialize {
             Err(err) => {
-                println!(
-                    "Task type would not be deserializable {task_id:?}: {err:?}\n{task_type:#?}"
-                );
-                panic!("Task type would not be deserializable {task_id:?}: {err:?}");
+                println_and_panic!("Task type would not be deserializable:\n{err:?}");
             }
             Ok(task_type2) => {
                 if &task_type2 != task_type {
-                    println!(
-                        "Task type would not round-trip {task_id:?}:\noriginal: \
-                         {task_type:#?}\nround-tripped: {task_type2:#?}"
-                    );
-                    panic!(
+                    println_and_panic!(
                         "Task type would not round-trip {task_id:?}:\noriginal: \
                          {task_type:#?}\nround-tripped: {task_type2:#?}"
                     );
                 }
-                let mut bytes2 = Vec::new();
-                let result2 = POT_CONFIG.serialize_into(&task_type2, &mut bytes2);
-                match result2 {
+                let mut buffer2 = TurboBincodeBuffer::new();
+                match encode_once_into(&task_type2, &mut buffer2, task_id) {
                     Err(err) => {
-                        println!(
-                            "Task type would not be serializable the second time {task_id:?}: \
-                             {err:?}\n{task_type2:#?}"
-                        );
-                        panic!(
-                            "Task type would not be serializable the second time {task_id:?}: \
-                             {err:?}\n{task_type2:#?}"
+                        println_and_panic!(
+                            "Task type would not be serializable the second time:\n{err:?}"
                         );
                     }
                     Ok(()) => {
-                        if bytes2 != *task_type_bytes {
-                            println!(
+                        if buffer2 != *buffer {
+                            println_and_panic!(
                                 "Task type would not serialize to the same bytes the second time \
                                  {task_id:?}:\noriginal: {:x?}\nsecond: {:x?}\n{task_type2:#?}",
-                                task_type_bytes, bytes2
-                            );
-                            panic!(
-                                "Task type would not serialize to the same bytes the second time \
-                                 {task_id:?}:\noriginal: {:x?}\nsecond: {:x?}\n{task_type2:#?}",
-                                task_type_bytes, bytes2
+                                buffer,
+                                buffer2
                             );
                         }
                     }
@@ -703,6 +672,7 @@ fn serialize_task_type(
             }
         }
     }
+
     Ok(())
 }
 
@@ -722,8 +692,8 @@ where
     I: Iterator<
             Item = (
                 TaskId,
-                Option<SmallVec<[u8; 16]>>,
-                Option<SmallVec<[u8; 16]>>,
+                Option<TurboBincodeBuffer>,
+                Option<TurboBincodeBuffer>,
             ),
         > + Send
         + Sync,
@@ -762,63 +732,47 @@ where
     })
 }
 
-fn serialize(task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>> {
-    Ok(match pot_serialize_small_vec(data) {
-        #[cfg(not(feature = "verify_serialization"))]
-        Ok(value) => value,
-        _ => {
-            let mut error = Ok(());
-            let mut data = data.clone();
-            data.retain(|item| {
-                let mut buf = Vec::<u8>::new();
-                let mut symbol_map = pot_ser_symbol_map();
-                let mut serializer = symbol_map.serializer_for(&mut buf).unwrap();
-                if let Err(err) = serde_path_to_error::serialize(&item, &mut serializer) {
-                    if item.is_optional() {
-                        #[cfg(feature = "verify_serialization")]
-                        println!(
-                            "Skipping non-serializable optional item for {task}: {item:?} due to \
-                             {err}"
-                        );
-                    } else {
-                        error = Err(err).context({
-                            anyhow!("Unable to serialize data item for {task}: {item:?}")
-                        });
-                    }
-                    false
-                } else {
-                    #[cfg(feature = "verify_serialization")]
-                    {
-                        let deserialize: Result<CachedDataItem, _> =
-                            serde_path_to_error::deserialize(
-                                &mut pot_de_symbol_list().deserializer_for_slice(&buf).unwrap(),
-                            );
-                        if let Err(err) = deserialize {
-                            println!(
-                                "Data item would not be deserializable {task}: {err:?}\n{item:?}"
-                            );
-                            return false;
-                        }
-                    }
-                    true
-                }
-            });
-            error?;
-
-            pot_serialize_small_vec(&data)
-                .with_context(|| anyhow!("Unable to serialize data items for {task}: {data:#?}"))?
-        }
-    })
-}
-
-fn deserialize_with_good_error<'de, T: Deserialize<'de>>(data: &'de [u8]) -> Result<T> {
-    match POT_CONFIG.deserialize(data) {
-        Ok(value) => Ok(value),
-        Err(error) => serde_path_to_error::deserialize::<'_, _, T>(
-            &mut pot_de_symbol_list().deserializer_for_slice(data)?,
-        )
-        .map_err(anyhow::Error::from)
-        .and(Err(error.into()))
-        .context("Deserialization failed"),
+fn encode_task_data(task: TaskId, data: &Vec<CachedDataItem>) -> Result<TurboBincodeBuffer> {
+    let orig_result = turbo_bincode_encode(data);
+    if !cfg!(feature = "verify_serialization")
+        && let Ok(value) = orig_result
+    {
+        return Ok(value);
     }
+
+    let mut error = Ok(());
+    let mut filtered_data = data.clone();
+    filtered_data.retain(|item| match turbo_bincode_encode(&item) {
+        Ok(buf) => {
+            if cfg!(feature = "verify_serialization") {
+                let deserialized = turbo_bincode_decode::<CachedDataItem>(&buf);
+                if let Err(err) = deserialized {
+                    println!("Data item would not be deserializable {task}: {err:?}\n{item:?}");
+                    return false;
+                }
+            }
+            true
+        }
+        Err(err) => {
+            if item.is_optional() {
+                if cfg!(feature = "verify_serialization") {
+                    println!(
+                        "Skipping non-encodable optional item for {task}: {item:?} due to {err}"
+                    );
+                }
+            } else {
+                error =
+                    Err(err).context(format!("Unable to encode data item for {task}: {item:?}"));
+            }
+            false
+        }
+    });
+    error?;
+
+    (if filtered_data.len() == data.len() {
+        orig_result
+    } else {
+        turbo_bincode_encode(&filtered_data)
+    })
+    .with_context(|| format!("Unable to serialize data items for {task}: {filtered_data:#?}"))
 }
