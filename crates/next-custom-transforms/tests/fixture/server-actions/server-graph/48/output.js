@@ -25,13 +25,14 @@ export async function action3(a, b) {
       {b}
     </div>;
 }
-export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function cache() {
-    return $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 0, async function cache(a, b) {
-        return <div>
+const $$RSC_SERVER_CACHE_0_INNER = async function cache(a, b) {
+    return <div>
       {a}
       {b}
     </div>;
-    }, arguments);
+};
+export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function cache() {
+    return $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, arguments);
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
