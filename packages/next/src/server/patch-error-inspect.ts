@@ -328,7 +328,7 @@ function parseAndSourceMap(
   inspectOptions: util.InspectOptions
 ): string {
   // TODO(veil): Expose as CLI arg or config option. Useful for local debugging.
-  const showIgnoreListed = false
+  const showIgnoreListed = true
   // We overwrote Error.prepareStackTrace earlier so error.stack is not sourcemapped.
   let unparsedStack = String(error.stack)
   // We could just read it from `error.stack`.

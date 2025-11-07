@@ -28,7 +28,8 @@ DEALINGS IN THE SOFTWARE.
 
 import type { NextConfig } from '../../../types'
 import { type WebpackLayerName, WEBPACK_LAYERS } from '../../../lib/constants'
-import { getBindingsSync, installBindings, transform } from '../../swc'
+import { getBindingsSync, transform } from '../../swc'
+import { installBindings } from '../../swc/install-bindings'
 import { getLoaderSWCOptions } from '../../swc/options'
 import path, { isAbsolute } from 'path'
 import { babelIncludeRegexes } from '../../webpack-config'

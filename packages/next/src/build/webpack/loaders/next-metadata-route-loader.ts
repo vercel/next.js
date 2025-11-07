@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 import { getLoaderModuleNamedExports } from './utils'
-import { installBindings } from '../../swc'
+import { installBindings } from '../../swc/install-bindings'
 
 function errorOnBadHandler(resourcePath: string) {
   return `

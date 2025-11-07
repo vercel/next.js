@@ -41,7 +41,7 @@ import type { UnwrapPromise } from '../../lib/coalesced-function'
 import origDebug from 'next/dist/compiled/debug'
 import { Telemetry } from '../../telemetry/storage'
 import { durationToString, hrtimeToSeconds } from '../duration-to-string'
-import { installBindings } from '../swc'
+import { installBindings } from '../swc/install-bindings'
 
 const debug = origDebug('next:build:webpack-build')
 

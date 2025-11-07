@@ -32,7 +32,7 @@ import {
 } from '../server/lib/router-utils/route-types-utils'
 import { writeCacheLifeTypes } from '../server/lib/router-utils/cache-life-type-utils'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
-import { installBindings } from '../build/swc'
+import { installBindings } from '../build/swc/install-bindings'
 
 export type NextTypegenOptions = {
   dir?: string

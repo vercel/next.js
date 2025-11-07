@@ -19,7 +19,8 @@ import {
 } from '../../css-loader/src/utils'
 import { stringifyRequest } from '../../../stringify-request'
 import { ECacheKey } from './interface'
-import { getBindingsSync, installBindings } from '../../../../../build/swc'
+import { getBindingsSync } from '../../../../../build/swc'
+import { installBindings } from '../../../../../build/swc/install-bindings'
 
 const encoder = new TextEncoder()
 

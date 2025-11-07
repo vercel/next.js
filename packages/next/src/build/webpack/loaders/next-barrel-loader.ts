@@ -87,7 +87,8 @@
 import type webpack from 'webpack'
 
 import path from 'path'
-import { transform, installBindings } from '../../swc'
+import { transform } from '../../swc'
+import { installBindings } from '../../swc/install-bindings'
 
 // This is a in-memory cache for the mapping of barrel exports. This only applies
 // to the packages that we optimize. It will never change (e.g. upgrading packages)

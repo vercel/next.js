@@ -38,8 +38,9 @@ import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../../client/components/built
 import type { Compilation } from 'webpack'
 import { createAppRouteCode } from './create-app-route-code'
 import { MissingDefaultParallelRouteError } from '../../../../shared/lib/errors/missing-default-parallel-route-error'
+
 import { normalizePathSep } from '../../../../shared/lib/page-path/normalize-path-sep'
-import { installBindings } from '../../../swc'
+import { installBindings } from '../../../swc/install-bindings'
 
 export type AppLoaderOptions = {
   name: string

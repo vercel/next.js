@@ -170,14 +170,6 @@ let downloadNativeBindingsPromise: Promise<void> | undefined = undefined
 
 export const lockfilePatchPromise: { cur?: Promise<void> } = {}
 
-/**
- * Loads and caches the native bindings.  This is idempotent and should be called early so bindings can be accessed synchronously later.
- * @param useWasmBinary
- */
-export async function installBindings(useWasmBinary: boolean = false) {
-  await loadBindings(useWasmBinary)
-}
-
 /** Access the native bindings which should already have been loaded via `installBindings.  Throws if they are not available. */
 export function getBindingsSync(): Binding {
   if (!loadedBindings) {

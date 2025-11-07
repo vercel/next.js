@@ -2,7 +2,8 @@ import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
-import { createDefineEnv, getBindingsSync, installBindings } from '../swc'
+import { createDefineEnv, getBindingsSync } from '../swc'
+import { installBindings } from '../swc/install-bindings'
 import {
   handleRouteType,
   rawEntrypointsToEntrypoints,

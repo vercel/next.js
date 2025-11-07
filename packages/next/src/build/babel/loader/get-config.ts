@@ -16,7 +16,8 @@ import {
   type BabelLoaderTransformOptions,
 } from './util'
 import * as Log from '../../output/log'
-import { installBindings, isReactCompilerRequired } from '../../swc'
+import { isReactCompilerRequired } from '../../swc'
+import { installBindings } from '../../swc/install-bindings'
 
 /**
  * An internal (non-exported) type used by babel.

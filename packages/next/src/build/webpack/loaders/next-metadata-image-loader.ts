@@ -16,7 +16,7 @@ import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import type { PageExtensions } from '../../page-extensions-type'
 import { getLoaderModuleNamedExports } from './utils'
-import { installBindings } from '../../swc'
+import { installBindings } from '../../swc/install-bindings'
 
 interface Options {
   segment: string
