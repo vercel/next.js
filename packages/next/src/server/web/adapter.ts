@@ -235,6 +235,9 @@ export async function adapter(
   })
   let response
   let cookiesFromResponse
+  let middlewareTraceContext: ReturnType<
+    ReturnType<typeof getTracer>['getTracePropagationData']
+  > = []
 
   response = await propagator(request, () => {
     // we only care to make async storage available for middleware
@@ -306,7 +309,7 @@ export async function adapter(
               previouslyRevalidatedTags: [],
             })
 
-            return await workAsyncStorage.run(workStore, () =>
+            const result = await workAsyncStorage.run(workStore, () =>
               workUnitAsyncStorage.run(
                 requestStore,
                 params.handler,
@@ -314,6 +317,12 @@ export async function adapter(
                 event
               )
             )
+
+            // Capture trace context while middleware span is still active
+            // This ensures the server span becomes a child of the middleware span
+            middlewareTraceContext = getTracer().getTracePropagationData()
+
+            return result
           } finally {
             // middleware cannot stream, so we can consider the response closed
             // as soon as the handler returns.
@@ -469,23 +478,37 @@ export async function adapter(
 
   const finalResponse = response ? response : NextResponse.next()
 
-  // Flight headers are not overridable / removable so they are applied at the end.
+  const overwrittenHeaders: string[] = []
+
+  if (middlewareTraceContext.length > 0) {
+    // Inject trace context headers (traceparent, tracestate) so the Node.js server
+    // can continue the trace started by middleware
+    for (const { key, value } of middlewareTraceContext) {
+      finalResponse.headers.set(`x-middleware-request-${key}`, value)
+      if (!overwrittenHeaders.includes(key)) {
+        overwrittenHeaders.push(key)
+      }
+    }
+  }
+
+  // Get existing override headers list
   const middlewareOverrideHeaders = finalResponse.headers.get(
     'x-middleware-override-headers'
   )
-  const overwrittenHeaders: string[] = []
+  // Flight headers are not overridable / removable so they are applied at the end.
   if (middlewareOverrideHeaders) {
     for (const [key, value] of flightHeaders) {
       finalResponse.headers.set(`x-middleware-request-${key}`, value)
       overwrittenHeaders.push(key)
     }
+  }
 
-    if (overwrittenHeaders.length > 0) {
-      finalResponse.headers.set(
-        'x-middleware-override-headers',
-        middlewareOverrideHeaders + ',' + overwrittenHeaders.join(',')
-      )
-    }
+  // Update the override headers list if we added any headers
+  if (overwrittenHeaders.length > 0) {
+    finalResponse.headers.set(
+      'x-middleware-override-headers',
+      middlewareOverrideHeaders + ',' + overwrittenHeaders.join(',')
+    )
   }
 
   return {
