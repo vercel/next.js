@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
@@ -1133,6 +1133,7 @@ describe('opentelemetry with custom server', () => {
     env: {
       TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
       NEXT_TELEMETRY_DISABLED: '1',
+      NODE_ENV: isNextDev ? 'development' : 'production',
     },
   })
 
@@ -1256,7 +1257,7 @@ describe('opentelemetry with custom server', () => {
                   },
                   {
                     attributes: {
-                      'next.clientComponentLoadCount': 6,
+                      'next.clientComponentLoadCount': isNextDev ? 7 : 6,
                       'next.span_type': 'NextNodeServer.clientComponentLoading',
                     },
                     kind: 0,

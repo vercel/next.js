@@ -11,7 +11,12 @@ async function main() {
   const port = await getPort()
   const hostname = 'localhost'
 
-  const app = next({ dev: false, hostname, port, dir: __dirname })
+  const app = next({
+    dev: process.env.NODE_ENV === 'development',
+    hostname,
+    port,
+    dir: __dirname,
+  })
   const handle = app.getRequestHandler()
 
   await app.prepare()
