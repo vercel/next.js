@@ -43,7 +43,6 @@ pub fn benchmark(c: &mut Criterion) {
         if entry.file_type().unwrap().is_dir() {
             let name = entry.file_name().into_string().unwrap();
             let input = entry.path().join("input.js");
-
             let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
             let fm = cm.load_file(&input).unwrap();
             GLOBALS.set(&swc_core::common::Globals::new(), || {

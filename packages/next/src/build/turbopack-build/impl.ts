@@ -2,7 +2,7 @@ import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
-import { createDefineEnv, getBindingsSync } from '../swc'
+import { createDefineEnv, getBindingsSync, installBindings } from '../swc'
 import {
   handleRouteType,
   rawEntrypointsToEntrypoints,
@@ -221,14 +221,15 @@ export async function workerMain(workerData: {
   Object.assign(NextBuildContext, workerData.buildContext)
 
   /// load the config because it's not serializable
-  NextBuildContext.config = await loadConfig(
+  const config = (NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
     NextBuildContext.dir!,
     {
       debugPrerender: NextBuildContext.debugPrerender,
       reactProductionProfiling: NextBuildContext.reactProductionProfiling,
     }
-  )
+  ))
+  await installBindings(config.experimental?.useWasmBinary)
 
   // Matches handling in build/index.ts
   // https://github.com/vercel/next.js/blob/84f347fc86f4efc4ec9f13615c215e4b9fb6f8f0/packages/next/src/build/index.ts#L815-L818
