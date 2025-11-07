@@ -59,7 +59,6 @@ import {
   handleChromeDevtoolsWorkspaceRequest,
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
-import { installBindings } from '../../build/swc/install-bindings'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -103,8 +102,6 @@ export async function initialize(opts: {
     opts.dir,
     { silent: false }
   )
-  // install native bindings early so later parts can access apis synchronously
-  await installBindings(config.experimental?.useWasmBinary)
 
   let compress: ReturnType<typeof setupCompression> | undefined
 

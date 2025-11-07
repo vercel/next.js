@@ -86,7 +86,6 @@ class NextRootCommand extends Command {
       }
 
       ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
-      console.trace('SETTING NODE_ENV')
       ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
       if (commandName !== 'dev' && event.getOptionValue('inspect') === true) {
