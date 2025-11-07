@@ -1123,7 +1123,12 @@ describe('opentelemetry with custom server', () => {
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
-    startCommand: 'tsx custom-server.ts',
+    startCommand: 'pnpm start',
+    packageJson: {
+      scripts: {
+        start: 'pnpm tsx custom-server.ts',
+      },
+    },
     serverReadyPattern: /- Local:/,
     env: {
       TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
