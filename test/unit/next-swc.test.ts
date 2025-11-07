@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { transform } from 'next/dist/build/swc'
+import { installBindings, transform } from 'next/dist/build/swc'
 import path from 'path'
 import fsp from 'fs/promises'
 
@@ -11,6 +11,9 @@ const swc = async (code) => {
 const trim = (s) => s.join('\n').trim().replace(/^\s+/gm, '')
 
 describe('next/swc', () => {
+  beforeAll(async () => {
+    await installBindings()
+  })
   describe('hook_optimizer', () => {
     it('should leave alone array destructuring of hooks', async () => {
       const output = await swc(
