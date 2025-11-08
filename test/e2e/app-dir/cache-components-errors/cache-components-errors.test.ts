@@ -107,7 +107,6 @@ describe('Cache Components Errors', () => {
                |         ^",
              "stack": [
                "Module.generateMetadata app/dynamic-metadata-static-route/page.tsx (2:9)",
-               "ReportValidation <anonymous>",
              ],
            }
           `)
@@ -174,7 +173,6 @@ describe('Cache Components Errors', () => {
              "stack": [
                "Dynamic app/dynamic-metadata-error-route/page.tsx (21:9)",
                "Page app/dynamic-metadata-error-route/page.tsx (15:7)",
-               "ReportValidation <anonymous>",
              ],
            }
           `)
@@ -298,7 +296,6 @@ describe('Cache Components Errors', () => {
                |         ^",
              "stack": [
                "Module.generateMetadata app/dynamic-metadata-static-with-suspense/page.tsx (2:9)",
-               "ReportValidation <anonymous>",
              ],
            }
           `)
@@ -389,7 +386,6 @@ describe('Cache Components Errors', () => {
                |         ^",
              "stack": [
                "Module.generateViewport app/dynamic-viewport-static-route/page.tsx (2:9)",
-               "ReportValidation <anonymous>",
              ],
            }
           `)
@@ -455,7 +451,6 @@ describe('Cache Components Errors', () => {
                |         ^",
              "stack": [
                "Module.generateViewport app/dynamic-viewport-dynamic-route/page.tsx (4:9)",
-               "ReportValidation <anonymous>",
              ],
            }
           `)
@@ -543,7 +538,6 @@ describe('Cache Components Errors', () => {
                  "fetchRandom app/dynamic-root/page.tsx (63:26)",
                  "FetchingComponent app/dynamic-root/page.tsx (46:50)",
                  "Page app/dynamic-root/page.tsx (23:9)",
-                 "ReportValidation <anonymous>",
                ],
              },
              {
@@ -569,7 +563,6 @@ describe('Cache Components Errors', () => {
                  "fetchRandom app/dynamic-root/page.tsx (63:26)",
                  "FetchingComponent app/dynamic-root/page.tsx (46:50)",
                  "Page app/dynamic-root/page.tsx (28:7)",
-                 "ReportValidation <anonymous>",
                ],
              },
            ]
@@ -779,7 +772,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "RandomReadingComponent app/sync-random-with-fallback/page.tsx (37:23)",
                  "Page app/sync-random-with-fallback/page.tsx (18:11)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -890,7 +882,6 @@ describe('Cache Components Errors', () => {
                  "getRandomNumber app/sync-random-without-fallback/page.tsx (32:15)",
                  "RandomReadingComponent app/sync-random-without-fallback/page.tsx (40:18)",
                  "Page app/sync-random-without-fallback/page.tsx (18:11)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -1793,7 +1784,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIO app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16)",
                  "Page app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx (22:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -1917,7 +1907,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "RequestData app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:18)",
                  "Page app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (27:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -2058,7 +2047,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIO app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16)",
                  "Page app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx (22:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -2686,7 +2674,6 @@ describe('Cache Components Errors', () => {
                "source": null,
                "stack": [
                  "Page [Prerender] <anonymous>",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -3093,7 +3080,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "Private app/use-cache-private-without-suspense/page.tsx (15:1)",
                  "Page app/use-cache-private-without-suspense/page.tsx (10:7)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -3253,7 +3239,6 @@ describe('Cache Components Errors', () => {
              "stack": [
                "DateReadingComponent app/sync-io-current-time/date/page.tsx (19:16)",
                "Page app/sync-io-current-time/date/page.tsx (11:9)",
-               "ReportValidation <anonymous>",
              ],
            }
           `)
@@ -3356,7 +3341,6 @@ describe('Cache Components Errors', () => {
              "stack": [
                "DateReadingComponent app/sync-io-current-time/date-now/page.tsx (19:21)",
                "Page app/sync-io-current-time/date-now/page.tsx (11:9)",
-               "ReportValidation <anonymous>",
              ],
            }
           `)
@@ -3459,7 +3443,6 @@ describe('Cache Components Errors', () => {
              "stack": [
                "DateReadingComponent app/sync-io-current-time/new-date/page.tsx (19:16)",
                "Page app/sync-io-current-time/new-date/page.tsx (11:9)",
-               "ReportValidation <anonymous>",
              ],
            }
           `)
@@ -3562,7 +3545,6 @@ describe('Cache Components Errors', () => {
              "stack": [
                "SyncIOComponent app/sync-io-random/math-random/page.tsx (19:21)",
                "Page app/sync-io-random/math-random/page.tsx (11:9)",
-               "ReportValidation <anonymous>",
              ],
            }
           `)
@@ -3665,7 +3647,6 @@ describe('Cache Components Errors', () => {
              "stack": [
                "SyncIOComponent app/sync-io-web-crypto/get-random-value/page.tsx (20:10)",
                "Page app/sync-io-web-crypto/get-random-value/page.tsx (11:9)",
-               "ReportValidation <anonymous>",
              ],
            }
           `)
@@ -3771,7 +3752,6 @@ describe('Cache Components Errors', () => {
              "stack": [
                "SyncIOComponent app/sync-io-web-crypto/random-uuid/page.tsx (19:23)",
                "Page app/sync-io-web-crypto/random-uuid/page.tsx (11:9)",
-               "ReportValidation <anonymous>",
              ],
            }
           `)
@@ -3875,7 +3855,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -3891,7 +3870,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:17)",
                  "Page app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -3999,7 +3977,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/generate-key-sync/page.tsx (21:6)",
                  "Page app/sync-io-node-crypto/generate-key-sync/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4015,7 +3992,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/generate-key-sync/page.tsx (20:17)",
                  "Page app/sync-io-node-crypto/generate-key-sync/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4123,7 +4099,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:39)",
                  "Page app/sync-io-node-crypto/generate-prime-sync/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4139,7 +4114,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:32)",
                  "Page app/sync-io-node-crypto/generate-prime-sync/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4247,7 +4221,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/get-random-values/page.tsx (21:10)",
                  "Page app/sync-io-node-crypto/get-random-values/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4263,7 +4236,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/get-random-values/page.tsx (21:3)",
                  "Page app/sync-io-node-crypto/get-random-values/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4371,7 +4343,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/random-bytes/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/random-bytes/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4387,7 +4358,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/random-bytes/page.tsx (20:17)",
                  "Page app/sync-io-node-crypto/random-bytes/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4495,7 +4465,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/random-fill-sync/page.tsx (21:10)",
                  "Page app/sync-io-node-crypto/random-fill-sync/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4511,7 +4480,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/random-fill-sync/page.tsx (21:3)",
                  "Page app/sync-io-node-crypto/random-fill-sync/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4619,7 +4587,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/random-int-between/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/random-int-between/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4635,7 +4602,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/random-int-between/page.tsx (20:17)",
                  "Page app/sync-io-node-crypto/random-int-between/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4743,7 +4709,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/random-int-up-to/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/random-int-up-to/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4759,7 +4724,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/random-int-up-to/page.tsx (20:17)",
                  "Page app/sync-io-node-crypto/random-int-up-to/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4867,7 +4831,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/random-uuid/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/random-uuid/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4883,7 +4846,6 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/random-uuid/page.tsx (20:17)",
                  "Page app/sync-io-node-crypto/random-uuid/page.tsx (12:9)",
-                 "ReportValidation <anonymous>",
                ],
              }
             `)
