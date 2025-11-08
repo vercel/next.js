@@ -3,14 +3,11 @@ import { retry } from 'next-test-utils'
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 describe('resume-data-cache', () => {
-  const { next, isNextDeploy, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    // TODO (rdc-for-navigations): This test is failing as the dynamic response
-    // is producing a different cached value than the static prefetch.
-    skipDeployment: true,
   })
 
-  if (isNextDev || skipped) {
+  if (isNextDev) {
     it('is skipped', () => {})
     return
   }
@@ -70,18 +67,14 @@ describe('resume-data-cache', () => {
       // same random number. The first request will get the stale data, but the
       // second request will get the fresh data as it'll eventually have
       // revalidated.
-      // NOTE: this current doesn't work on Next.js Deploy, as the dynamic RSC
-      // requests are not able to revalidate the page.
-      if (!isNextDeploy) {
-        const rsc = await next
-          .fetch('/', {
-            headers: {
-              RSC: '1',
-            },
-          })
-          .then((res) => res.text())
-        expect(rsc).toContain(first)
-      }
+      const rsc = await next
+        .fetch('/', {
+          headers: {
+            RSC: '1',
+          },
+        })
+        .then((res) => res.text())
+      expect(rsc).toContain(first)
 
       // We then expect after the background revalidation has been completed,
       // the dynamic RSC to get the fresh data.
@@ -113,6 +106,7 @@ describe('resume-data-cache', () => {
             headers: {
               RSC: '1',
               'Next-Router-Prefetch': '1',
+              'Next-Router-Segment-Prefetch': '/__PAGE__',
             },
           })
           .then((res) => res.text())
