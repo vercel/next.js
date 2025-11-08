@@ -1,11 +1,12 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{ItemFn, parse_macro_input, parse_quote};
-use turbo_tasks_macros_shared::{get_native_function_ident, is_self_used};
 
 use crate::{
     func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes},
     global_name::global_name,
+    ident::get_native_function_ident,
+    self_filter::is_self_used,
 };
 
 /// This macro generates the virtual function that powers turbo tasks.

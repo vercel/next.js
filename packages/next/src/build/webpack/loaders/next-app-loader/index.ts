@@ -38,6 +38,7 @@ import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../../client/components/built
 import type { Compilation } from 'webpack'
 import { createAppRouteCode } from './create-app-route-code'
 import { MissingDefaultParallelRouteError } from '../../../../shared/lib/errors/missing-default-parallel-route-error'
+import { normalizePathSep } from '../../../../shared/lib/page-path/normalize-path-sep'
 
 export type AppLoaderOptions = {
   name: string
@@ -87,7 +88,7 @@ const PARALLEL_VIRTUAL_SEGMENT = 'slot$'
 const defaultGlobalErrorPath =
   'next/dist/client/components/builtin/global-error.js'
 const defaultNotFoundPath = 'next/dist/client/components/builtin/not-found.js'
-const defaultEmptyStubPath = 'next/dist/client/components/builtin/empty-stub'
+const defaultEmptyStubPath = 'next/dist/client/components/builtin/empty-stub.js'
 const defaultLayoutPath = 'next/dist/client/components/builtin/layout.js'
 const defaultGlobalNotFoundPath =
   'next/dist/client/components/builtin/global-not-found.js'
@@ -176,9 +177,7 @@ async function createTreeCodeFromPath(
   async function resolveAdjacentParallelSegments(
     segmentPath: string
   ): Promise<string[]> {
-    const absoluteSegmentPath = await resolveDir(
-      `${appDirPrefix}${segmentPath}`
-    )
+    const absoluteSegmentPath = resolveDir(`${appDirPrefix}${segmentPath}`)
 
     if (!absoluteSegmentPath) {
       return []
@@ -232,7 +231,11 @@ async function createTreeCodeFromPath(
     const routerDirPath = `${appDirPrefix}${segmentPath}`
     const resolvedRouteDir = resolveDir(routerDirPath)
 
-    if (resolvedRouteDir) {
+    if (
+      resolvedRouteDir &&
+      // Do not collect metadata for app-error route as it's for generating pure static 500.html
+      !normalizePathSep(pagePath).endsWith(appErrorPath)
+    ) {
       metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
         basePath,
         segment: segmentPath,

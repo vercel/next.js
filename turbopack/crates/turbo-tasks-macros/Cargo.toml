@@ -20,4 +20,3 @@ quote = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 syn = { workspace = true, features = ["full", "extra-traits", "visit", "visit-mut"] }
-turbo-tasks-macros-shared = { workspace = true }
