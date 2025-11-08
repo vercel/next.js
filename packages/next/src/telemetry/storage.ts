@@ -301,7 +301,7 @@ export class Telemetry {
             )
           )
           resolve(undefined)
-        }, 1000)
+        }, 100)
       })
     }
 
