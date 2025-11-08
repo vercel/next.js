@@ -140,4 +140,42 @@ describe('segment cache (CDN cache busting)', () => {
       }, 'no-requests')
     }
   )
+
+  it(
+    'prevent infinite redirect loops when segment prefetch URLs contain ' +
+      'doubled segment suffixes',
+    async () => {
+      const browser = await webdriver(port, '/')
+
+      // Test the scenario that was causing infinite redirect loops on Vercel
+      // This simulates what happens when a URL gets processed multiple times
+      // and accumulates .segments/_tree.segment.rsc suffixes
+      const doubledSegmentPath =
+        '/target-page.segments/_tree.segment.rsc.segments/_tree.segment.rsc'
+
+      const { status, redirected } = await browser.eval(
+        async (path: string) => {
+          // This request would previously cause an infinite loop because the
+          // greedy regex in SegmentPrefixRSCPathnameNormalizer failed to
+          // properly strip the segment suffixes
+          const res = await fetch(path, {
+            headers: {
+              rsc: '1',
+              'next-router-prefetch': '1',
+              'next-router-segment-prefetch': '/_tree',
+            },
+          })
+          return {
+            status: res.status,
+            redirected: res.redirected,
+          }
+        },
+        doubledSegmentPath
+      )
+
+      // Should handle the doubled path gracefully without infinite loops
+      expect(status).toBe(200)
+      expect(redirected).toBe(true) // Should redirect to clean up the URL
+    }
+  )
 })
