@@ -1,3 +1,5 @@
+const enableCaching = !!process.env.ENABLE_CACHING
+
 /**
  * @type {import('next').NextConfig}
  */
@@ -16,8 +18,8 @@ const nextConfig = {
     },
   },
   experimental: {
-    turbopackFileSystemCacheForDev: true,
-    turbopackFileSystemCacheForBuild: true,
+    turbopackFileSystemCacheForDev: enableCaching,
+    turbopackFileSystemCacheForBuild: enableCaching,
   },
   env: {
     NEXT_PUBLIC_CONFIG_ENV: 'hello world',
@@ -30,6 +32,9 @@ const nextConfig = {
     config.module.rules.push({
       test: /app\/loader(?:\/client)?\/page\.tsx/,
       use: ['./my-loader.js'],
+    })
+    config.cache = Object.freeze({
+      type: enableCaching ? 'filesystem' : 'memory',
     })
     if (dev) {
       // Make webpack consider the build as large change which makes it filesystem cache it sooner

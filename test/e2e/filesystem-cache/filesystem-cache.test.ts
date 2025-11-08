@@ -1,8 +1,12 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
 
-describe('persistent-caching', () => {
+describe('filesystem-caching', () => {
   process.env.NEXT_PUBLIC_ENV_VAR = 'hello world'
+  // Make it easier to run in development, test directories are cleared between runs already so this is safe.
+  process.env.TURBO_ENGINE_DISABLE_VERSIONING = '1'
+  // decrease the idle timeout to make the test more reliable
+  process.env.TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS = '1000'
   const { skipped, next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
@@ -30,7 +34,7 @@ describe('persistent-caching', () => {
   async function stop() {
     if (isNextDev) {
       // Give FileSystem Cache time to write to disk
-      // Turbopack has an idle timeout of 2s
+      // Turbopack is configured to wait 1s above.
       // Webpack has an idle timeout (after large changes) of 1s
       // and we give time a bit more to allow writing to disk
       await waitFor(3000)
@@ -43,6 +47,7 @@ describe('persistent-caching', () => {
   }
 
   it('should filesystem cache loaders', async () => {
+    process.env.ENABLE_CACHING = '1'
     let appTimestamp, unchangedTimestamp, appClientTimestamp, pagesTimestamp
     {
       const browser = await next.browser('/')
@@ -114,7 +119,13 @@ describe('persistent-caching', () => {
     }
   }
 
-  const POTENTIAL_CHANGES = {
+  interface Change {
+    checkInitial(): Promise<void>
+    withChange(previous: () => Promise<void>): Promise<void>
+    checkChanged(): Promise<void>
+    fullInvalidation?: boolean
+  }
+  const POTENTIAL_CHANGES: Record<string, Change> = {
     'RSC change': {
       checkInitial: makeTextCheck('/', 'hello world'),
       withChange: makeFileEdit('app/page.tsx'),
@@ -189,80 +200,86 @@ describe('persistent-caching', () => {
         await textCheck('/env/client', 'hello filesystem cache')
       },
     },
-  }
+  } as const
 
-  const KEYS = Object.keys(POTENTIAL_CHANGES)
-  for (let bitset = 1; bitset < 1 << KEYS.length; bitset++) {
-    let combination = []
-    for (let i = 0; i < KEYS.length; i++) {
-      if (bitset & (1 << i)) {
-        combination.push(KEYS[i])
+  // Checking only single change and all combined for performance reasons.
+  const combinations = Object.entries(POTENTIAL_CHANGES).map(([k, v]) => [
+    k,
+    [v],
+  ]) as Array<[string, Array<Change>]>
+  combinations.push([
+    Object.keys(POTENTIAL_CHANGES).join(', '),
+    Object.values(POTENTIAL_CHANGES),
+  ])
+  for (const cacheEnabled of [true, false]) {
+    describe(`with cache ${cacheEnabled ? 'enabled' : 'disabled'}`, () => {
+      beforeAll(() => {
+        process.env.ENABLE_CACHING = cacheEnabled ? '1' : '0'
+      })
+      for (const [name, changes] of combinations) {
+        it(`should allow to change files while stopped (${name})`, async () => {
+          let fullInvalidation = false
+          for (const change of changes) {
+            await change.checkInitial()
+            if (change.fullInvalidation) {
+              fullInvalidation = true
+            }
+          }
+
+          let unchangedTimestamp: string
+          if (!fullInvalidation) {
+            const browser = await next.browser('/unchanged')
+            unchangedTimestamp = await browser.elementByCss('main').text()
+            expect(unchangedTimestamp).toMatch(/Timestamp = \d+$/)
+            await browser.close()
+          }
+
+          async function checkChanged() {
+            for (const change of changes) {
+              await change.checkChanged()
+            }
+
+            if (!fullInvalidation) {
+              const browser = await next.browser('/unchanged')
+              const timestamp = await browser.elementByCss('main').text()
+              expect(unchangedTimestamp).toEqual(timestamp)
+              await browser.close()
+            }
+          }
+
+          await stop()
+
+          async function inner() {
+            await start()
+            await checkChanged()
+            // Some no-op change builds
+            for (let i = 0; i < 2; i++) {
+              await restartCycle()
+              await checkChanged()
+            }
+            await stop()
+          }
+
+          let current = inner
+          for (const change of changes) {
+            const prev = current
+            current = () => change.withChange(prev)
+          }
+          await current()
+
+          await start()
+          for (const change of changes) {
+            await change.checkInitial()
+          }
+
+          if (!fullInvalidation) {
+            const browser = await next.browser('/unchanged')
+            const timestamp = await browser.elementByCss('main').text()
+            expect(unchangedTimestamp).toEqual(timestamp)
+            await browser.close()
+          }
+        }, 200000)
       }
-    }
-    // Checking only single change and all combined for performance reasons.
-    if (combination.length !== 1 && combination.length !== KEYS.length) continue
-
-    it(`should allow to change files while stopped (${combination.join(', ')})`, async () => {
-      let fullInvalidation = false
-      for (const key of combination) {
-        await POTENTIAL_CHANGES[key].checkInitial()
-        if (POTENTIAL_CHANGES[key].fullInvalidation) {
-          fullInvalidation = true
-        }
-      }
-
-      let unchangedTimestamp
-      if (!fullInvalidation) {
-        const browser = await next.browser('/unchanged')
-        unchangedTimestamp = await browser.elementByCss('main').text()
-        expect(unchangedTimestamp).toMatch(/Timestamp = \d+$/)
-        await browser.close()
-      }
-
-      async function checkChanged() {
-        for (const key of combination) {
-          await POTENTIAL_CHANGES[key].checkChanged()
-        }
-
-        if (!fullInvalidation) {
-          const browser = await next.browser('/unchanged')
-          const timestamp = await browser.elementByCss('main').text()
-          expect(unchangedTimestamp).toEqual(timestamp)
-          await browser.close()
-        }
-      }
-
-      await stop()
-
-      async function inner() {
-        await start()
-        await checkChanged()
-        // Some no-op change builds
-        for (let i = 0; i < 2; i++) {
-          await restartCycle()
-          await checkChanged()
-        }
-        await stop()
-      }
-
-      let current = inner
-      for (const key of combination) {
-        const prev = current
-        current = () => POTENTIAL_CHANGES[key].withChange(prev)
-      }
-      await current()
-
-      await start()
-      for (const key of combination) {
-        await POTENTIAL_CHANGES[key].checkInitial()
-      }
-
-      if (!fullInvalidation) {
-        const browser = await next.browser('/unchanged')
-        const timestamp = await browser.elementByCss('main').text()
-        expect(unchangedTimestamp).toEqual(timestamp)
-        await browser.close()
-      }
-    }, 200000)
+    })
   }
 })
