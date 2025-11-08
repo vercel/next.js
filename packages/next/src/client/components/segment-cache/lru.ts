@@ -7,7 +7,7 @@ import { deleteFromCacheMap } from './cache-map'
 // The MapEntry type is used as an LRU node, too. We choose this one instead of
 // the inner cache entry type (RouteCacheEntry, SegmentCacheEntry) because it's
 // monomorphic and can be optimized by the VM.
-type LRUNode = MapEntry<any, any>
+type LRUNode = MapEntry<any>
 
 let head: LRUNode | null = null
 let didScheduleCleanup: boolean = false

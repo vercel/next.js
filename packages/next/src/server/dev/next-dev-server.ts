@@ -76,6 +76,7 @@ import {
 import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import type { PrerenderedRoute } from '../../build/static-paths/types'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 
 // Load ReactDevOverlay only when needed
 let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
@@ -801,6 +802,24 @@ export default class DevServer extends Server {
                 `Page "${page}" is missing param "${pathname}" in "generateStaticParams()", which is required with "output: export" config.`
               )
             }
+          }
+
+          // Since generateStaticParams run on the background, when accessing the
+          // devFallbackParams during the render, it is still set to the previous
+          // result from the cache. Therefore when the result has changed, re-render
+          // the Server Component to sync the devFallbackParams with the new result.
+          if (
+            isAppPath &&
+            this.nextConfig.cacheComponents &&
+            // Ensure this is not the first invocation.
+            result &&
+            // Ideally, we would want to compare the whole objects, but that is too expensive.
+            result.prerenderedRoutes?.length !== prerenderedRoutes?.length
+          ) {
+            this.bundlerService.triggerHMR({
+              type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+              hash: `generateStaticParams-${Date.now()}`,
+            })
           }
         }
 

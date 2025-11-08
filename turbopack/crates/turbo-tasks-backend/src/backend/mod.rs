@@ -1953,8 +1953,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             && !session_dependent
             // Task has no invalidator
             && !task.has_key(&CachedDataItemKey::HasInvalidator {})
-            // This is a hack for the streaming hack.
-            && !task.has_key(&CachedDataItemKey::Stateful {})
             // Task has no dependencies on collectibles
             && count!(task, CollectiblesDependency) == 0
         {

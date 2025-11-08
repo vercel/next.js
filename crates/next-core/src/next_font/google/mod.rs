@@ -8,7 +8,6 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Vc};
-use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
 use turbo_tasks_fetch::{FetchClientConfig, HttpResponseBody};
 use turbo_tasks_fs::{
@@ -768,10 +767,9 @@ async fn get_mock_stylesheet(
     )
     .await?;
 
-    match &val.try_into_single().await? {
-        SingleValue::Single(val) => {
-            let val: FxHashMap<RcStr, Option<RcStr>> =
-                parse_json_with_source_context(val.to_str()?)?;
+    match &*val {
+        Some(val) => {
+            let val: FxHashMap<RcStr, Option<RcStr>> = parse_json_with_source_context(val)?;
             Ok(val
                 .get(&stylesheet_url)
                 .context("url not found")?

@@ -142,7 +142,7 @@
     "@next/third-parties": "workspace:*",
     "@opentelemetry/api": "1.4.1",
     "@picocss/pico": "1.5.10",
-    "@rspack/core": "1.5.0",
+    "@rspack/core": "1.6.0",
     "@slack/web-api": "7.9.1",
     "@swc/cli": "0.1.55",
     "@swc/core": "1.11.24",

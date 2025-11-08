@@ -1,25 +1,14 @@
-use std::{
-    borrow::Cow, iter, ops::ControlFlow, sync::Arc, thread::available_parallelism, time::Duration,
-};
+use std::{borrow::Cow, iter, sync::Arc, thread::available_parallelism, time::Duration};
 
-use anyhow::{Result, anyhow, bail};
-use async_stream::try_stream as generator;
-use futures::{
-    SinkExt, StreamExt,
-    channel::mpsc::{UnboundedSender, unbounded},
-    pin_mut,
-};
+use anyhow::{Result, bail};
 use futures_retry::{FutureRetry, RetryPolicy};
-use parking_lot::Mutex;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Effects, FxIndexMap, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc,
-    TaskInput, TryJoinIterExt, Vc, VcValueType, backend::VerificationMode, duration_span,
-    fxindexmap, get_effects, mark_finished, prevent_gc, trace::TraceRawVcs, util::SharedError,
+    Completion, Effects, FxIndexMap, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TaskInput,
+    TryJoinIterExt, Vc, duration_span, fxindexmap, get_effects, trace::TraceRawVcs,
 };
-use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileSystemPath, to_sys_path};
 use turbopack_core::{
@@ -69,21 +58,6 @@ enum EvalJavaScriptIncomingMessage {
     End { data: Option<String> },
     Error(StructuredError),
 }
-
-type LoopResult = ControlFlow<Result<Option<String>, StructuredError>, String>;
-
-type EvaluationItem = Result<Bytes, SharedError>;
-type JavaScriptStream = Stream<EvaluationItem>;
-
-#[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
-pub struct JavaScriptStreamSender {
-    #[turbo_tasks(trace_ignore, debug_ignore)]
-    get: Box<dyn Fn() -> UnboundedSender<Result<Bytes, SharedError>> + Send + Sync>,
-}
-
-#[turbo_tasks::value(transparent)]
-#[derive(Clone, Debug)]
-pub struct JavaScriptEvaluation(#[turbo_tasks(trace_ignore)] JavaScriptStream);
 
 #[turbo_tasks::value]
 struct EmittedEvaluatePoolAssets {
@@ -350,8 +324,6 @@ pub trait EvaluateContext {
     type ResponseMessage: Serialize;
     type State: Default;
 
-    fn compute(self, sender: Vc<JavaScriptStreamSender>)
-    -> impl Future<Output = Result<()>> + Send;
     fn pool(&self) -> OperationVc<NodeJsPool>;
     fn keep_alive(&self) -> bool {
         false
@@ -382,59 +354,51 @@ pub trait EvaluateContext {
     ) -> impl Future<Output = Result<()>> + Send;
 }
 
-pub async fn custom_evaluate(
-    evaluate_context: impl EvaluateContext,
-) -> Result<Vc<JavaScriptEvaluation>> {
-    // TODO: The way we invoke compute_evaluate_stream as side effect is not
-    // GC-safe, so we disable GC for this task.
-    prevent_gc();
+pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<Vc<Option<RcStr>>> {
+    let pool_op = evaluate_context.pool();
+    let mut state = Default::default();
 
-    // Note the following code uses some hacks to create a child task that produces
-    // a stream that is returned by this task.
+    // Read this strongly consistent, since we don't want to run inconsistent
+    // node.js code.
+    let pool = pool_op.read_strongly_consistent().await?;
 
-    // We create a new cell in this task, which will be updated from the
-    // [compute_evaluate_stream] task.
-    let cell = turbo_tasks::macro_helpers::find_cell_by_type(
-        <JavaScriptEvaluation as VcValueType>::get_value_type_id(),
-    );
+    let args = evaluate_context.args().iter().try_join().await?;
+    // Assume this is a one-off operation, so we can kill the process
+    // TODO use a better way to decide that.
+    let kill = !evaluate_context.keep_alive();
 
-    // We initialize the cell with a stream that is open, but has no values.
-    // The first [compute_evaluate_stream] pipe call will pick up that stream.
-    let (sender, receiver) = unbounded();
-    cell.update(
-        JavaScriptEvaluation(JavaScriptStream::new_open(vec![], Box::new(receiver))),
-        VerificationMode::Skip,
-    );
-    let initial = Mutex::new(Some(sender));
+    // Workers in the pool could be in a bad state that we didn't detect yet.
+    // The bad state might even be unnoticeable until we actually send the job to the
+    // worker. So we retry picking workers from the pools until we succeed
+    // sending the job.
 
-    // run the evaluation as side effect
-    evaluate_context
-        .compute(
-            JavaScriptStreamSender {
-                get: Box::new(move || {
-                    if let Some(sender) = initial.lock().take() {
-                        sender
-                    } else {
-                        // In cases when only [compute_evaluate_stream] is (re)executed, we need to
-                        // update the old stream with a new value.
-                        let (sender, receiver) = unbounded();
-                        cell.update(
-                            JavaScriptEvaluation(JavaScriptStream::new_open(
-                                vec![],
-                                Box::new(receiver),
-                            )),
-                            VerificationMode::Skip,
-                        );
-                        sender
-                    }
-                }),
-            }
-            .cell(),
-        )
-        .await?;
+    let (mut operation, _) = FutureRetry::new(
+        || async {
+            let mut operation = pool.operation().await?;
+            operation
+                .send(EvalJavaScriptOutgoingMessage::Evaluate {
+                    args: args.iter().map(|v| &**v).collect(),
+                })
+                .await?;
+            Ok(operation)
+        },
+        PoolErrorHandler,
+    )
+    .await
+    .map_err(|(e, _)| e)?;
 
-    let raw: RawVc = cell.into();
-    Ok(raw.into())
+    // The evaluation sent an initial intermediate value without completing. We'll
+    // need to spawn a new thread to continually pull data out of the process,
+    // and ferry that along.
+    let result = pull_operation(&mut operation, &pool, &evaluate_context, &mut state).await?;
+
+    evaluate_context.finish(state, &pool).await?;
+
+    if kill {
+        operation.wait_or_kill().await?;
+    }
+
+    Ok(Vc::cell(result.map(RcStr::from)))
 }
 
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
@@ -451,7 +415,7 @@ pub async fn evaluate(
     args: Vec<ResolvedVc<JsonValue>>,
     additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
-) -> Result<Vc<JavaScriptEvaluation>> {
+) -> Result<Vc<Option<RcStr>>> {
     custom_evaluate(BasicEvaluateContext {
         module_asset,
         cwd,
@@ -467,95 +431,6 @@ pub async fn evaluate(
     .await
 }
 
-pub async fn compute(
-    evaluate_context: impl EvaluateContext,
-    sender: Vc<JavaScriptStreamSender>,
-) -> Result<Vc<()>> {
-    mark_finished();
-    let Ok(sender) = sender.await else {
-        // Impossible to handle the error in a good way.
-        return Ok(Default::default());
-    };
-
-    let stream = generator! {
-        let pool_op = evaluate_context.pool();
-        let mut state = Default::default();
-
-        // Read this strongly consistent, since we don't want to run inconsistent
-        // node.js code.
-        let pool = pool_op.read_strongly_consistent().await?;
-
-        let args = evaluate_context.args().iter().try_join().await?;
-        // Assume this is a one-off operation, so we can kill the process
-        // TODO use a better way to decide that.
-        let kill = !evaluate_context.keep_alive();
-
-        // Workers in the pool could be in a bad state that we didn't detect yet.
-        // The bad state might even be unnoticeable until we actually send the job to the
-        // worker. So we retry picking workers from the pools until we succeed
-        // sending the job.
-
-        let (mut operation, _) = FutureRetry::new(
-            || async {
-                let mut operation = pool.operation().await?;
-                operation
-                    .send(EvalJavaScriptOutgoingMessage::Evaluate {
-                        args: args.iter().map(|v| &**v).collect(),
-                    })
-                    .await?;
-                Ok(operation)
-            },
-            PoolErrorHandler,
-        )
-        .await
-        .map_err(|(e, _)| e)?;
-
-        // The evaluation sent an initial intermediate value without completing. We'll
-        // need to spawn a new thread to continually pull data out of the process,
-        // and ferry that along.
-        loop {
-            let output = pull_operation(&mut operation, &pool, &evaluate_context, &mut state).await?;
-
-            match output {
-                LoopResult::Continue(data) => {
-                    yield data.into();
-                }
-                LoopResult::Break(Ok(Some(data))) => {
-                    yield data.into();
-                    break;
-                }
-                LoopResult::Break(Err(e)) => {
-                    let error = print_error(e, &pool, &evaluate_context).await?;
-                    Err(anyhow!("Node.js evaluation failed: {}", error))?;
-                    break;
-                }
-                LoopResult::Break(Ok(None)) => {
-                    break;
-                }
-            }
-        }
-
-        evaluate_context.finish(state, &pool).await?;
-
-        if kill {
-            operation.wait_or_kill().await?;
-        }
-    };
-
-    let mut sender = (sender.get)();
-    pin_mut!(stream);
-    while let Some(value) = stream.next().await {
-        if sender.send(value).await.is_err() {
-            return Ok(Default::default());
-        }
-        if sender.flush().await.is_err() {
-            return Ok(Default::default());
-        }
-    }
-
-    Ok(Default::default())
-}
-
 /// Repeatedly pulls from the NodeJsOperation until we receive a
 /// value/error/end.
 async fn pull_operation<T: EvaluateContext>(
@@ -563,19 +438,19 @@ async fn pull_operation<T: EvaluateContext>(
     pool: &NodeJsPool,
     evaluate_context: &T,
     state: &mut T::State,
-) -> Result<LoopResult> {
-    let guard = duration_span!("Node.js evaluation");
+) -> Result<Option<String>> {
+    let _guard = duration_span!("Node.js evaluation");
 
-    let output = loop {
+    loop {
         match operation.recv().await? {
             EvalJavaScriptIncomingMessage::Error(error) => {
                 evaluate_context.emit_error(error, pool).await?;
                 // Do not reuse the process in case of error
                 operation.disallow_reuse();
                 // Issue emitted, we want to break but don't want to return an error
-                break ControlFlow::Break(Ok(None));
+                return Ok(None);
             }
-            EvalJavaScriptIncomingMessage::End { data } => break ControlFlow::Break(Ok(data)),
+            EvalJavaScriptIncomingMessage::End { data } => return Ok(data),
             EvalJavaScriptIncomingMessage::Info { data } => {
                 evaluate_context
                     .info(state, serde_json::from_value(data)?, pool)
@@ -607,18 +482,7 @@ async fn pull_operation<T: EvaluateContext>(
                 }
             }
         }
-    };
-    drop(guard);
-
-    Ok(output)
-}
-
-#[turbo_tasks::function]
-async fn basic_compute(
-    evaluate_context: BasicEvaluateContext,
-    sender: Vc<JavaScriptStreamSender>,
-) -> Result<Vc<()>> {
-    compute(evaluate_context, sender).await
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, Serialize, Deserialize, TraceRawVcs)]
@@ -640,10 +504,6 @@ impl EvaluateContext for BasicEvaluateContext {
     type RequestMessage = ();
     type ResponseMessage = ();
     type State = ();
-
-    async fn compute(self, sender: Vc<JavaScriptStreamSender>) -> Result<()> {
-        basic_compute(self, sender).as_side_effect().await
-    }
 
     fn pool(&self) -> OperationVc<crate::pool::NodeJsPool> {
         get_evaluate_pool(
@@ -715,20 +575,6 @@ pub fn scale_down() {
     NodeJsPool::scale_down();
 }
 
-async fn print_error(
-    error: StructuredError,
-    pool: &NodeJsPool,
-    evaluate_context: &impl EvaluateContext,
-) -> Result<String> {
-    error
-        .print(
-            *pool.assets_for_source_mapping,
-            pool.assets_root.clone(),
-            evaluate_context.cwd().owned().await?,
-            FormattingMode::Plain,
-        )
-        .await
-}
 /// An issue that occurred while evaluating node code.
 #[turbo_tasks::value(shared)]
 pub struct EvaluationIssue {

@@ -5,9 +5,6 @@ use syn::{
     FnArg, ItemTrait, Pat, Receiver, TraitItem, TraitItemFn, parse_macro_input, parse_quote,
     spanned::Spanned,
 };
-use turbo_tasks_macros_shared::{
-    ValueTraitArguments, get_trait_default_impl_function_ident, get_trait_type_ident, is_self_used,
-};
 
 use crate::{
     func::{
@@ -15,6 +12,9 @@ use crate::{
         get_receiver_style, split_function_attributes,
     },
     global_name::global_name,
+    ident::{get_trait_default_impl_function_ident, get_trait_type_ident},
+    self_filter::is_self_used,
+    value_trait_arguments::ValueTraitArguments,
 };
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
