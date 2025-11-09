@@ -193,21 +193,36 @@ where
     }
 }
 
-fn create_semaphore() -> tokio::sync::Semaphore {
+fn number_env_var(name: &'static str) -> Option<usize> {
+    env::var(name)
+        .ok()
+        .filter(|val| !val.is_empty())
+        .map(|val| match val.parse() {
+            Ok(n) => n,
+            Err(err) => panic!("{name} must be a valid integer: {err}"),
+        })
+        .filter(|val| *val != 0)
+}
+
+fn create_read_semaphore() -> tokio::sync::Semaphore {
     // the semaphore isn't serialized, and we assume the environment variable doesn't change during
     // runtime, so it's okay to access it in this untracked way.
-    static NEXT_TURBOPACK_IO_CONCURRENCY: LazyLock<usize> = LazyLock::new(|| {
-        env::var("NEXT_TURBOPACK_IO_CONCURRENCY")
-            .ok()
-            .filter(|val| !val.is_empty())
-            .map(|val| {
-                val.parse()
-                    .expect("NEXT_TURBOPACK_IO_CONCURRENCY must be a valid integer")
-            })
-            .filter(|val| *val != 0)
-            .unwrap_or(256)
+    static TURBO_ENGINE_READ_CONCURRENCY: LazyLock<usize> =
+        LazyLock::new(|| number_env_var("TURBO_ENGINE_READ_CONCURRENCY").unwrap_or(64));
+    tokio::sync::Semaphore::new(*TURBO_ENGINE_READ_CONCURRENCY)
+}
+
+fn create_write_semaphore() -> tokio::sync::Semaphore {
+    // the semaphore isn't serialized, and we assume the environment variable doesn't change during
+    // runtime, so it's okay to access it in this untracked way.
+    static TURBO_ENGINE_WRITE_CONCURRENCY: LazyLock<usize> = LazyLock::new(|| {
+        number_env_var("TURBO_ENGINE_WRITE_CONCURRENCY").unwrap_or(
+            // We write a lot of smallish files where high concurrency will cause metadata
+            // thrashing. So 4 threads is a safe cross platform suitable value.
+            4,
+        )
     });
-    tokio::sync::Semaphore::new(*NEXT_TURBOPACK_IO_CONCURRENCY)
+    tokio::sync::Semaphore::new(*TURBO_ENGINE_WRITE_CONCURRENCY)
 }
 
 #[turbo_tasks::value_trait]
@@ -257,8 +272,12 @@ struct DiskFileSystemInner {
     invalidation_lock: RwLock<()>,
     /// Semaphore to limit the maximum number of concurrent file operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[serde(skip, default = "create_semaphore")]
-    semaphore: tokio::sync::Semaphore,
+    #[serde(skip, default = "create_read_semaphore")]
+    read_semaphore: tokio::sync::Semaphore,
+    /// Semaphore to limit the maximum number of concurrent file operations.
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[serde(skip, default = "create_write_semaphore")]
+    write_semaphore: tokio::sync::Semaphore,
 
     #[turbo_tasks(debug_ignore, trace_ignore)]
     watcher: DiskWatcher,
@@ -427,7 +446,7 @@ impl DiskFileSystemInner {
 
             std::fs::create_dir_all(path)
         })
-        .concurrency_limited(&self.semaphore)
+        .concurrency_limited(&self.write_semaphore)
         .await?;
 
         self.watcher
@@ -444,7 +463,7 @@ impl DiskFileSystemInner {
         if !already_created {
             let func = |p: &Path| std::fs::create_dir_all(p);
             retry_blocking(directory.to_path_buf(), func)
-                .concurrency_limited(&self.semaphore)
+                .concurrency_limited(&self.write_semaphore)
                 .instrument(tracing::info_span!(
                     "create directory",
                     name = display(directory.display())
@@ -624,7 +643,8 @@ impl DiskFileSystem {
                 invalidation_lock: Default::default(),
                 invalidator_map: InvalidatorMap::new(),
                 dir_invalidator_map: InvalidatorMap::new(),
-                semaphore: create_semaphore(),
+                read_semaphore: create_read_semaphore(),
+                write_semaphore: create_write_semaphore(),
                 watcher: DiskWatcher::new(),
                 denied_path,
             }),
@@ -656,7 +676,7 @@ impl FileSystem for DiskFileSystem {
 
         let _lock = self.inner.lock_path(&full_path).await;
         let content = match retry_blocking(full_path.clone(), |path: &Path| File::from_path(path))
-            .concurrency_limited(&self.inner.semaphore)
+            .concurrency_limited(&self.inner.read_semaphore)
             .instrument(tracing::info_span!(
                 "read file",
                 name = display(full_path.display())
@@ -693,7 +713,7 @@ impl FileSystem for DiskFileSystem {
                 tracing::info_span!("read directory", name = display(path.display())).entered();
             std::fs::read_dir(path)
         })
-        .concurrency_limited(&self.inner.semaphore)
+        .concurrency_limited(&self.inner.read_semaphore)
         .await
         {
             Ok(dir) => dir,
@@ -782,7 +802,7 @@ impl FileSystem for DiskFileSystem {
         let _lock = self.inner.lock_path(&full_path).await;
         let link_path =
             match retry_blocking(full_path.clone(), |path: &Path| std::fs::read_link(path))
-                .concurrency_limited(&self.inner.semaphore)
+                .concurrency_limited(&self.inner.read_semaphore)
                 .instrument(tracing::info_span!(
                     "read symlink",
                     name = display(full_path.display())
@@ -904,7 +924,7 @@ impl FileSystem for DiskFileSystem {
             // not wasting cycles.
             let compare = content
                 .streaming_compare(&full_path)
-                .concurrency_limited(&inner.semaphore)
+                .concurrency_limited(&inner.read_semaphore)
                 .instrument(tracing::info_span!(
                     "read file before write",
                     name = display(full_path.display())
@@ -972,7 +992,7 @@ impl FileSystem for DiskFileSystem {
                         }
                         Ok::<(), io::Error>(())
                     })
-                    .concurrency_limited(&inner.semaphore)
+                    .concurrency_limited(&inner.write_semaphore)
                     .instrument(tracing::info_span!(
                         "write file",
                         name = display(full_path.display())
@@ -984,7 +1004,7 @@ impl FileSystem for DiskFileSystem {
                     retry_blocking(full_path.clone().into_owned(), |path| {
                         std::fs::remove_file(path)
                     })
-                    .concurrency_limited(&inner.semaphore)
+                    .concurrency_limited(&inner.write_semaphore)
                     .instrument(tracing::info_span!(
                         "remove file",
                         name = display(full_path.display())
@@ -1049,7 +1069,7 @@ impl FileSystem for DiskFileSystem {
             let old_content = match retry_blocking(full_path.clone().into_owned(), |path| {
                 std::fs::read_link(path)
             })
-            .concurrency_limited(&inner.semaphore)
+            .concurrency_limited(&inner.read_semaphore)
             .instrument(tracing::info_span!(
                 "read symlink before write",
                 name = display(full_path.display())
@@ -1131,7 +1151,7 @@ impl FileSystem for DiskFileSystem {
                     retry_blocking(full_path.clone().into_owned(), |path| {
                         std::fs::remove_file(path)
                     })
-                    .concurrency_limited(&inner.semaphore)
+                    .concurrency_limited(&inner.write_semaphore)
                     .await
                     .or_else(|err| {
                         if err.kind() == ErrorKind::NotFound {
@@ -1166,7 +1186,7 @@ impl FileSystem for DiskFileSystem {
 
         let _lock = self.inner.lock_path(&full_path).await;
         let meta = retry_blocking(full_path.clone(), |path| std::fs::metadata(path))
-            .concurrency_limited(&self.inner.semaphore)
+            .concurrency_limited(&self.inner.read_semaphore)
             .instrument(tracing::info_span!(
                 "read metadata",
                 name = display(full_path.display())

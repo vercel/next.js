@@ -1,5 +1,6 @@
 import { bold, cyan } from '../lib/picocolors'
 import * as Log from './output/log'
+import { getBindingsSync } from './swc'
 
 import type { Binding, Lockfile as NativeLockfile } from './swc/types'
 
@@ -56,16 +57,11 @@ export class Lockfile {
    * - If we fail to acquire the lock, we return `undefined`.
    * - If we're on wasm, this always returns a dummy `Lockfile` object.
    */
-  static async tryAcquire(
+  static tryAcquire(
     path: string,
     unlockOnExit: boolean = true
-  ): Promise<Lockfile | undefined> {
-    const { loadBindings } = require('./swc') as typeof import('./swc')
-    // Ideally we could provide a sync version of `tryAcquire`, but
-    // `loadBindings` is async. We're okay with skipping async-loaded wasm
-    // bindings and the internal `loadNative` function is synchronous, but it
-    // lacks some checks that `loadBindings` has.
-    const bindings = await loadBindings()
+  ): Lockfile | undefined {
+    const bindings = getBindingsSync()
     if (bindings.isWasm) {
       Log.info(
         `Skipping creating a lockfile at ${cyan(path)} because we're using WASM bindings`
@@ -74,7 +70,7 @@ export class Lockfile {
     } else {
       let nativeLockfile
       try {
-        nativeLockfile = await bindings.lockfileTryAcquire(path)
+        nativeLockfile = bindings.lockfileTryAcquireSync(path)
       } catch (e) {
         // this happens if there's an IO error (e.g. `ENOENT`), which is
         // different than if we just didn't acquire the lock
@@ -123,7 +119,7 @@ export class Lockfile {
     const startMs = Date.now()
     let lockfile
     while (Date.now() - startMs < MAX_RETRY_MS) {
-      lockfile = await Lockfile.tryAcquire(path, unlockOnExit)
+      lockfile = Lockfile.tryAcquire(path, unlockOnExit)
       if (lockfile !== undefined) break
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
     }

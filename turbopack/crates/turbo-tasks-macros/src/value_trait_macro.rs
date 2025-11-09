@@ -5,9 +5,6 @@ use syn::{
     FnArg, ItemTrait, Pat, Receiver, TraitItem, TraitItemFn, parse_macro_input, parse_quote,
     spanned::Spanned,
 };
-use turbo_tasks_macros_shared::{
-    ValueTraitArguments, get_trait_default_impl_function_ident, get_trait_type_ident, is_self_used,
-};
 
 use crate::{
     func::{
@@ -15,6 +12,9 @@ use crate::{
         get_receiver_style, split_function_attributes,
     },
     global_name::global_name,
+    ident::{get_trait_default_impl_function_ident, get_trait_type_ident},
+    self_filter::is_self_used,
+    value_trait_arguments::ValueTraitArguments,
 };
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
@@ -212,11 +212,6 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 is_method: turbo_fn.is_method(),
                 is_self_used,
                 filter_trait_call_args: turbo_fn.filter_trait_call_args(),
-                // `local` is currently unsupported here because:
-                // - The `#[turbo_tasks::function]` macro needs to be present for us to read this
-                //   argument. (This could be fixed)
-                // - This only makes sense when a default implementation is present.
-                local: false,
             };
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);
