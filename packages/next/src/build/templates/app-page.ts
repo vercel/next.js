@@ -267,8 +267,15 @@ export async function handler(
   // If PPR is enabled, and this is a RSC request (but not a prefetch), then
   // we can use this fact to only generate the flight data for the request
   // because we can't cache the HTML (as it's also dynamic).
-  const isDynamicRSCRequest =
+  let isDynamicRSCRequest =
     isRoutePPREnabled && isRSCRequest && !isPrefetchRSCRequest
+
+  // During a PPR revalidation, the RSC request is not dynamic if we do not have the postponed data.
+  // We only attach the postponed data during a resume. If there's no postponed data, then it must be a revalidation.
+  // This is to ensure that we don't bypass the cache during a revalidation.
+  if (isMinimalMode) {
+    isDynamicRSCRequest = isDynamicRSCRequest && !!minimalPostponed
+  }
 
   // Need to read this before it's stripped by stripFlightHeaders. We don't
   // need to transfer it to the request meta because it's only read

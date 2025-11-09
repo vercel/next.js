@@ -8,7 +8,6 @@ function normalizeCliOutput(output: string) {
     stripAnsi(output)
       // TODO(veil): Should not appear in sourcemapped stackframes.
       .replaceAll('webpack:///', 'bundler:///')
-      .replaceAll('turbopack:///[project]/', 'bundler:///')
       .replaceAll(/at [a-zA-Z] \(/g, 'at <mangled> (')
   )
 }
@@ -55,9 +54,9 @@ describe('app-dir - server source maps', () => {
     } else {
       if (isTurbopack) {
         // TODO(veil): Sourcemap names
-        // TODO(veil): relative paths
+        // TODO(veil): relative paths in webpack
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          '(bundler:///app/rsc-error-log/page.js:4:17)'
+          '(app/rsc-error-log/page.js:4:17)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
@@ -106,10 +105,10 @@ describe('app-dir - server source maps', () => {
         // TODO(veil): Sourcemap names
         // TODO(veil): relative paths
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          '(bundler:///app/rsc-error-log-cause/page.js:2:17)'
+          '(app/rsc-error-log-cause/page.js:2:17)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          '(bundler:///app/rsc-error-log-cause/page.js:7:17)'
+          '(app/rsc-error-log-cause/page.js:7:17)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
@@ -230,7 +229,7 @@ describe('app-dir - server source maps', () => {
         // TODO(veil): Sourcemap names
         // TODO(veil): relative paths
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          '(bundler:///app/ssr-error-log-ignore-listed/page.js:9:17)'
+          '(app/ssr-error-log-ignore-listed/page.js:9:17)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '\n' +
@@ -295,7 +294,7 @@ describe('app-dir - server source maps', () => {
         // TODO(veil): Sourcemap names
         // TODO(veil): relative paths
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          'at <unknown> (bundler:///app/rsc-error-log-ignore-listed/page.js:8:17)'
+          'at <unknown> (app/rsc-error-log-ignore-listed/page.js:8:17)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
@@ -528,7 +527,7 @@ describe('app-dir - server source maps', () => {
           '' +
             '\nError: module-evaluation' +
             // TODO(veil): Turbopack internals. Feel free to update. Tracked in https://linear.app/vercel/issue/NEXT-4362
-            '\n    at module evaluation (bundler:///app/module-evaluation/module.js:1:22)'
+            '\n    at module evaluation (app/module-evaluation/module.js:1:22)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +

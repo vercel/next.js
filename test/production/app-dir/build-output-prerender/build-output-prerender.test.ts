@@ -67,7 +67,7 @@ describe('build-output-prerender', () => {
           // TODO(veil): Why is the location incomplete unless we enable --no-mangling?
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
            "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-               at c (bundler:///app/client/page.tsx:4:28)
+               at c (app/client/page.tsx:4:28)
              2 |
              3 | export default function Page() {
            > 4 |   return <p>Current time: {new Date().toISOString()}</p>
@@ -181,32 +181,62 @@ describe('build-output-prerender', () => {
       })
 
       it('shows all prerender errors with readable stacks and code frames', async () => {
-        expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-         "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-             at Page (bundler:///app/client/page.tsx:4:28)
-           2 |
-           3 | export default function Page() {
-         > 4 |   return <p>Current time: {new Date().toISOString()}</p>
-             |                            ^
-           5 | }
-           6 |
-         To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
-         Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
-         Error: Route "/server" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-             at Page (bundler:///app/server/page.tsx:13:27)
-           11 |   await cachedDelay()
-           12 |
-         > 13 |   return <p>Random: {Math.random()}</p>
-              |                           ^
-           14 | }
-           15 |
-         To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/server" in your browser to investigate the error.
-         Error occurred prerendering page "/server". Read more: https://nextjs.org/docs/messages/prerender-error
+        if (isTurbopack) {
+          expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
+           "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
+               at Page (app/client/page.tsx:4:28)
+             2 |
+             3 | export default function Page() {
+           > 4 |   return <p>Current time: {new Date().toISOString()}</p>
+               |                            ^
+             5 | }
+             6 |
+           To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
+           Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
+           Error: Route "/server" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
+               at Page (app/server/page.tsx:13:27)
+             11 |   await cachedDelay()
+             12 |
+           > 13 |   return <p>Random: {Math.random()}</p>
+                |                           ^
+             14 | }
+             15 |
+           To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/server" in your browser to investigate the error.
+           Error occurred prerendering page "/server". Read more: https://nextjs.org/docs/messages/prerender-error
 
-         > Export encountered errors on following paths:
-         	/client/page: /client
-         	/server/page: /server"
-        `)
+           > Export encountered errors on following paths:
+           	/client/page: /client
+           	/server/page: /server"
+          `)
+        } else {
+          // TODO(veil): Bundler protocols should not appear in stackframes.
+          expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
+           "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
+               at Page (webpack:///app/client/page.tsx:4:28)
+             2 |
+             3 | export default function Page() {
+           > 4 |   return <p>Current time: {new Date().toISOString()}</p>
+               |                            ^
+             5 | }
+             6 |
+           To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
+           Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
+           Error: Route "/server" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random
+               at Page (webpack:///app/server/page.tsx:13:27)
+             11 |   await cachedDelay()
+             12 |
+           > 13 |   return <p>Random: {Math.random()}</p>
+                |                           ^
+             14 | }
+             15 |
+           To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/server" in your browser to investigate the error.
+           Error occurred prerendering page "/server". Read more: https://nextjs.org/docs/messages/prerender-error
+
+           > Export encountered errors on following paths:
+           	/client/page: /client
+           	/server/page: /server"
+          `)
+        }
       })
     })
   })
@@ -386,11 +416,7 @@ function getPrerenderOutput(cliOutput: string): string {
 
     if (foundPrerenderingLine && !line.includes('Generating static pages')) {
       lines.push(
-        line
-          .replace(/at \w+ \(.next[^)]+\)/, 'at x (<next-dist-dir>)')
-          // TODO(veil): Bundler protocols should not appear in stackframes.
-          .replace('webpack:///', 'bundler:///')
-          .replace('turbopack:///[project]/', 'bundler:///')
+        line.replace(/at \w+ \(.next[^)]+\)/, 'at x (<next-dist-dir>)')
       )
     }
   }

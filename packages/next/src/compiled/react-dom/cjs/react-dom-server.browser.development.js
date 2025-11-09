@@ -4628,8 +4628,9 @@
     function isEligibleForOutlining(request, boundary) {
       return (
         (500 < boundary.byteSize ||
-          hasSuspenseyContent(boundary.contentState)) &&
-        null === boundary.contentPreamble
+          hasSuspenseyContent(boundary.contentState) ||
+          boundary.defer) &&
+        null === boundary.preamble
       );
     }
     function defaultErrorHandler(error) {
@@ -4919,8 +4920,8 @@
       request,
       row,
       fallbackAbortableTasks,
-      contentPreamble,
-      fallbackPreamble
+      preamble,
+      defer
     ) {
       fallbackAbortableTasks = {
         status: PENDING,
@@ -4930,25 +4931,24 @@
         row: row,
         completedSegments: [],
         byteSize: 0,
+        defer: defer,
         fallbackAbortableTasks: fallbackAbortableTasks,
         errorDigest: null,
         contentState: createHoistableState(),
         fallbackState: createHoistableState(),
-        contentPreamble: contentPreamble,
-        fallbackPreamble: fallbackPreamble,
-        trackedContentKeyPath: null,
-        trackedFallbackNode: null,
+        preamble: preamble,
+        tracked: null,
         errorMessage: null,
         errorStack: null,
         errorComponentStack: null
       };
       null !== row &&
         (row.pendingTasks++,
-        (contentPreamble = row.boundaries),
-        null !== contentPreamble &&
+        (preamble = row.boundaries),
+        null !== preamble &&
           (request.allPendingTasks++,
           fallbackAbortableTasks.pendingTasks++,
-          contentPreamble.push(fallbackAbortableTasks)),
+          preamble.push(fallbackAbortableTasks)),
         (request = row.inheritedHoistables),
         null !== request &&
           hoistHoistables(fallbackAbortableTasks.contentState, request));
@@ -6282,18 +6282,19 @@
                       request,
                       task.row,
                       fallbackAbortSet,
-                      createPreambleState(),
-                      createPreambleState()
+                      {
+                        content: createPreambleState(),
+                        fallback: createPreambleState()
+                      },
+                      !1
                     )
                   : createSuspenseBoundary(
                       request,
                       task.row,
                       fallbackAbortSet,
                       null,
-                      null
+                      !1
                     );
-              null !== request.trackedPostpones &&
-                (newBoundary.trackedContentKeyPath = keyPath);
               var boundarySegment = createPendingSegment(
                 request,
                 parentSegment.chunks.length,
@@ -6313,26 +6314,35 @@
                 !1
               );
               contentRootSegment.parentFlushed = !0;
-              if (null !== request.trackedPostpones) {
+              var trackedPostpones = request.trackedPostpones;
+              if (null !== trackedPostpones) {
                 var suspenseComponentStack = task.componentStack,
                   fallbackKeyPath = [
                     keyPath[0],
                     "Suspense Fallback",
                     keyPath[2]
-                  ],
-                  fallbackReplayNode = [
+                  ];
+                if (null !== trackedPostpones) {
+                  var fallbackReplayNode = [
                     fallbackKeyPath[1],
                     fallbackKeyPath[2],
                     [],
                     null
                   ];
-                request.trackedPostpones.workingMap.set(
-                  fallbackKeyPath,
-                  fallbackReplayNode
-                );
-                newBoundary.trackedFallbackNode = fallbackReplayNode;
+                  trackedPostpones.workingMap.set(
+                    fallbackKeyPath,
+                    fallbackReplayNode
+                  );
+                  newBoundary.tracked = {
+                    contentKeyPath: keyPath,
+                    fallbackNode: fallbackReplayNode
+                  };
+                }
                 task.blockedSegment = boundarySegment;
-                task.blockedPreamble = newBoundary.fallbackPreamble;
+                task.blockedPreamble =
+                  null === newBoundary.preamble
+                    ? null
+                    : newBoundary.preamble.fallback;
                 task.keyPath = fallbackKeyPath;
                 task.formatContext = getSuspenseFallbackFormatContext(
                   request.resumableState,
@@ -6369,7 +6379,9 @@
                   -1,
                   newBoundary,
                   contentRootSegment,
-                  newBoundary.contentPreamble,
+                  null === newBoundary.preamble
+                    ? null
+                    : newBoundary.preamble.content,
                   newBoundary.contentState,
                   task.abortSet,
                   keyPath,
@@ -6388,7 +6400,10 @@
                 request.pingedTasks.push(suspendedPrimaryTask);
               } else {
                 task.blockedBoundary = newBoundary;
-                task.blockedPreamble = newBoundary.contentPreamble;
+                task.blockedPreamble =
+                  null === newBoundary.preamble
+                    ? null
+                    : newBoundary.preamble.content;
                 task.hoistableState = newBoundary.contentState;
                 task.blockedSegment = contentRootSegment;
                 task.keyPath = keyPath;
@@ -6465,7 +6480,9 @@
                   -1,
                   parentBoundary,
                   boundarySegment,
-                  newBoundary.fallbackPreamble,
+                  null === newBoundary.preamble
+                    ? null
+                    : newBoundary.preamble.fallback,
                   newBoundary.fallbackState,
                   fallbackAbortSet,
                   [keyPath[0], "Suspense Fallback", keyPath[2]],
@@ -6734,15 +6751,18 @@
                       replay,
                       task.row,
                       fallbackAbortSet,
-                      createPreambleState(),
-                      createPreambleState()
+                      {
+                        content: createPreambleState(),
+                        fallback: createPreambleState()
+                      },
+                      !1
                     )
                   : createSuspenseBoundary(
                       replay,
                       task.row,
                       fallbackAbortSet,
                       null,
-                      null
+                      !1
                     );
               props.parentFlushed = !0;
               props.rootSegmentID = request;
@@ -7180,13 +7200,18 @@
     function trackPostponedBoundary(request, trackedPostpones, boundary) {
       boundary.status = POSTPONED;
       boundary.rootSegmentID = request.nextSegmentId++;
-      request = boundary.trackedContentKeyPath;
+      var tracked = boundary.tracked;
+      if (null === tracked)
+        throw Error(
+          "It should not be possible to postpone at the root. This is a bug in React."
+        );
+      request = tracked.contentKeyPath;
       if (null === request)
         throw Error(
           "It should not be possible to postpone at the root. This is a bug in React."
         );
-      var fallbackReplayNode = boundary.trackedFallbackNode,
-        children = [],
+      tracked = tracked.fallbackNode;
+      var children = [],
         boundaryNode = trackedPostpones.workingMap.get(request);
       if (void 0 === boundaryNode)
         return (
@@ -7195,14 +7220,14 @@
             request[2],
             children,
             null,
-            fallbackReplayNode,
+            tracked,
             boundary.rootSegmentID
           ]),
           trackedPostpones.workingMap.set(request, boundary),
           addToReplayParent(boundary, request[0], trackedPostpones),
           boundary
         );
-      boundaryNode[4] = fallbackReplayNode;
+      boundaryNode[4] = tracked;
       boundaryNode[5] = boundary.rootSegmentID;
       return boundaryNode;
     }
@@ -7223,7 +7248,8 @@
             boundary
           );
           if (
-            boundary.trackedContentKeyPath === keyPath &&
+            null !== boundary.tracked &&
+            boundary.tracked.contentKeyPath === keyPath &&
             -1 === task.childIndex
           ) {
             -1 === segment.id &&
@@ -7279,11 +7305,13 @@
     function untrackBoundary(request, boundary) {
       request = request.trackedPostpones;
       null !== request &&
-        ((boundary = boundary.trackedContentKeyPath),
+        ((boundary = boundary.tracked),
         null !== boundary &&
-          ((boundary = request.workingMap.get(boundary)),
-          void 0 !== boundary &&
-            ((boundary.length = 4), (boundary[2] = []), (boundary[3] = null))));
+          ((boundary = boundary.contentKeyPath),
+          null !== boundary &&
+            ((request = request.workingMap.get(boundary)),
+            void 0 !== request &&
+              ((request.length = 4), (request[2] = []), (request[3] = null)))));
     }
     function spawnNewSuspendedReplayTask(request, task, thenableState) {
       return createReplayTask(
@@ -7499,7 +7527,7 @@
               null,
               new Set(),
               null,
-              null
+              !1
             );
           resumedBoundary.parentFlushed = !0;
           resumedBoundary.rootSegmentID = node;
@@ -7792,7 +7820,7 @@
                   finishSuspenseListRow(request, row)),
               0 === request.pendingRootTasks &&
                 null === request.trackedPostpones &&
-                null !== boundary.contentPreamble &&
+                null !== boundary.preamble &&
                 preparePreamble(request);
           else {
             if (
@@ -8066,7 +8094,7 @@
                       request.clientRenderedBoundaries.push(boundary$jscomp$0);
                     0 === request.pendingRootTasks &&
                       null === request.trackedPostpones &&
-                      null !== boundary$jscomp$0.contentPreamble &&
+                      null !== boundary$jscomp$0.preamble &&
                       preparePreamble(request);
                   }
                   0 === request.allPendingTasks && completeAll(request);
@@ -8124,12 +8152,11 @@
           segment,
           collectedPreambleSegments
         );
-      var preamble = boundary.contentPreamble,
-        fallbackPreamble = boundary.fallbackPreamble;
-      if (null === preamble || null === fallbackPreamble) return !1;
+      var preamble = boundary.preamble;
+      if (null === preamble) return !1;
       switch (boundary.status) {
         case COMPLETED:
-          hoistPreambleState(request.renderState, preamble);
+          hoistPreambleState(request.renderState, preamble.content);
           request.byteSize += boundary.byteSize;
           segment = boundary.completedSegments[0];
           if (!segment)
@@ -8146,7 +8173,7 @@
         case CLIENT_RENDERED:
           if (segment.status === COMPLETED)
             return (
-              hoistPreambleState(request.renderState, fallbackPreamble),
+              hoistPreambleState(request.renderState, preamble.fallback),
               preparePreambleFromSubtree(
                 request,
                 segment,
@@ -8290,7 +8317,8 @@
         !flushingPartialBoundaries &&
         isEligibleForOutlining(request, boundary) &&
         (flushedByteSize + boundary.byteSize > request.progressiveChunkSize ||
-          hasSuspenseyContent(boundary.contentState))
+          hasSuspenseyContent(boundary.contentState) ||
+          boundary.defer)
       )
         (boundary.rootSegmentID = request.nextSegmentId++),
           request.completedBoundaries.push(boundary),
@@ -8979,11 +9007,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-dd048c3b-20251105" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-fa50caf5-20251107" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-dd048c3b-20251105\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-fa50caf5-20251107\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react"),
@@ -10227,7 +10255,7 @@
         '$RB=[];$RV=function(a){$RT=performance.now();for(var b=0;b<a.length;b+=2){var c=a[b],e=a[b+1];null!==e.parentNode&&e.parentNode.removeChild(e);var f=c.parentNode;if(f){var g=c.previousSibling,h=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d||"/&"===d)if(0===h)break;else h--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||h++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;e.firstChild;)f.insertBefore(e.firstChild,c);g.data="$";g._reactRetry&&requestAnimationFrame(g._reactRetry)}}a.length=0};\n$RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))?(a.previousSibling.data="$~",$RB.push(a,b),2===$RB.length&&("number"!==typeof $RT?requestAnimationFrame($RV.bind(null,$RB)):(a=performance.now(),setTimeout($RV.bind(null,$RB),2300>a&&2E3<a?2300-a:$RT+300-a)))):b.parentNode.removeChild(b)};'
       ),
       completeBoundaryUpgradeToViewTransitionsInstruction = stringToChunk(
-        '$RV=function(A,g){function k(a,b){var e=a.getAttribute(b);e&&(b=a.style,l.push(a,b.viewTransitionName,b.viewTransitionClass),"auto"!==e&&(b.viewTransitionClass=e),(a=a.getAttribute("vt-name"))||(a="_T_"+K++ +"_"),b.viewTransitionName=a,B=!0)}var B=!1,K=0,l=[];try{var f=document.__reactViewTransition;if(f){f.finished.finally($RV.bind(null,g));return}var m=new Map;for(f=1;f<g.length;f+=2)for(var h=g[f].querySelectorAll("[vt-share]"),d=0;d<h.length;d++){var c=h[d];m.set(c.getAttribute("vt-name"),c)}var u=[];for(h=0;h<g.length;h+=2){var C=g[h],x=C.parentNode;if(x){var v=x.getBoundingClientRect();if(v.left||v.top||v.width||v.height){c=C;for(f=0;c;){if(8===c.nodeType){var r=c.data;if("/$"===r)if(0===f)break;else f--;else"$"!==r&&"$?"!==r&&"$~"!==r&&"$!"!==r||f++}else if(1===c.nodeType){d=c;var D=d.getAttribute("vt-name"),y=m.get(D);k(d,y?"vt-share":"vt-exit");y&&(k(y,"vt-share"),m.set(D,null));var E=d.querySelectorAll("[vt-share]");for(d=0;d<E.length;d++){var F=E[d],G=F.getAttribute("vt-name"),\nH=m.get(G);H&&(k(F,"vt-share"),k(H,"vt-share"),m.set(G,null))}}c=c.nextSibling}for(var I=g[h+1],t=I.firstElementChild;t;)null!==m.get(t.getAttribute("vt-name"))&&k(t,"vt-enter"),t=t.nextElementSibling;c=x;do for(var n=c.firstElementChild;n;){var J=n.getAttribute("vt-update");J&&"none"!==J&&!l.includes(n)&&k(n,"vt-update");n=n.nextElementSibling}while((c=c.parentNode)&&1===c.nodeType&&"none"!==c.getAttribute("vt-update"));u.push.apply(u,I.querySelectorAll(\'img[src]:not([loading="lazy"])\'))}}}if(B){var z=\ndocument.__reactViewTransition=document.startViewTransition({update:function(){A(g);for(var a=[document.documentElement.clientHeight,document.fonts.ready],b={},e=0;e<u.length;b={g:b.g},e++)if(b.g=u[e],!b.g.complete){var p=b.g.getBoundingClientRect();0<p.bottom&&0<p.right&&p.top<window.innerHeight&&p.left<window.innerWidth&&(p=new Promise(function(w){return function(q){w.g.addEventListener("load",q);w.g.addEventListener("error",q)}}(b)),a.push(p))}return Promise.race([Promise.all(a),new Promise(function(w){var q=\nperformance.now();setTimeout(w,2300>q&&2E3<q?2300-q:500)})])},types:[]});z.ready.finally(function(){for(var a=l.length-3;0<=a;a-=3){var b=l[a],e=b.style;e.viewTransitionName=l[a+1];e.viewTransitionClass=l[a+1];""===b.getAttribute("style")&&b.removeAttribute("style")}});z.finished.finally(function(){document.__reactViewTransition===z&&(document.__reactViewTransition=null)});$RB=[];return}}catch(a){}A(g)}.bind(null,$RV);'
+        '$RV=function(A,g){function k(a,b){var e=a.getAttribute(b);e&&(b=a.style,l.push(a,b.viewTransitionName,b.viewTransitionClass),"auto"!==e&&(b.viewTransitionClass=e),(a=a.getAttribute("vt-name"))||(a="_T_"+K++ +"_"),a=CSS.escape(a)!==a?"r-"+btoa(a).replace(/=/g,""):a,b.viewTransitionName=a,B=!0)}var B=!1,K=0,l=[];try{var f=document.__reactViewTransition;if(f){f.finished.finally($RV.bind(null,g));return}var m=new Map;for(f=1;f<g.length;f+=2)for(var h=g[f].querySelectorAll("[vt-share]"),d=0;d<h.length;d++){var c=h[d];m.set(c.getAttribute("vt-name"),c)}var u=[];for(h=0;h<g.length;h+=2){var C=g[h],x=C.parentNode;if(x){var v=x.getBoundingClientRect();if(v.left||v.top||v.width||v.height){c=C;for(f=0;c;){if(8===c.nodeType){var r=c.data;if("/$"===r)if(0===f)break;else f--;else"$"!==r&&"$?"!==r&&"$~"!==r&&"$!"!==r||f++}else if(1===c.nodeType){d=c;var D=d.getAttribute("vt-name"),y=m.get(D);k(d,y?"vt-share":"vt-exit");y&&(k(y,"vt-share"),m.set(D,null));var E=d.querySelectorAll("[vt-share]");\nfor(d=0;d<E.length;d++){var F=E[d],G=F.getAttribute("vt-name"),H=m.get(G);H&&(k(F,"vt-share"),k(H,"vt-share"),m.set(G,null))}}c=c.nextSibling}for(var I=g[h+1],t=I.firstElementChild;t;)null!==m.get(t.getAttribute("vt-name"))&&k(t,"vt-enter"),t=t.nextElementSibling;c=x;do for(var n=c.firstElementChild;n;){var J=n.getAttribute("vt-update");J&&"none"!==J&&!l.includes(n)&&k(n,"vt-update");n=n.nextElementSibling}while((c=c.parentNode)&&1===c.nodeType&&"none"!==c.getAttribute("vt-update"));u.push.apply(u,\nI.querySelectorAll(\'img[src]:not([loading="lazy"])\'))}}}if(B){var z=document.__reactViewTransition=document.startViewTransition({update:function(){A(g);for(var a=[document.documentElement.clientHeight,document.fonts.ready],b={},e=0;e<u.length;b={g:b.g},e++)if(b.g=u[e],!b.g.complete){var p=b.g.getBoundingClientRect();0<p.bottom&&0<p.right&&p.top<window.innerHeight&&p.left<window.innerWidth&&(p=new Promise(function(w){return function(q){w.g.addEventListener("load",q);w.g.addEventListener("error",q)}}(b)),\na.push(p))}return Promise.race([Promise.all(a),new Promise(function(w){var q=performance.now();setTimeout(w,2300>q&&2E3<q?2300-q:500)})])},types:[]});z.ready.finally(function(){for(var a=l.length-3;0<=a;a-=3){var b=l[a],e=b.style;e.viewTransitionName=l[a+1];e.viewTransitionClass=l[a+1];""===b.getAttribute("style")&&b.removeAttribute("style")}});z.finished.finally(function(){document.__reactViewTransition===z&&(document.__reactViewTransition=null)});$RB=[];return}}catch(a){}A(g)}.bind(null,\n$RV);'
       ),
       completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("'),
       completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(
@@ -10785,5 +10813,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.3.0-canary-dd048c3b-20251105";
+    exports.version = "19.3.0-canary-fa50caf5-20251107";
   })();

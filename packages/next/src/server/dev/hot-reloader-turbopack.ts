@@ -24,7 +24,7 @@ import type {
   Project,
   Entrypoints,
 } from '../../build/swc/types'
-import { createDefineEnv } from '../../build/swc'
+import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import {
@@ -193,10 +193,7 @@ export async function createHotReloaderTurbopack(
   const buildId = 'development'
   const { nextConfig, dir: projectPath } = opts
 
-  const { loadBindings } =
-    require('../../build/swc') as typeof import('../../build/swc')
-
-  let bindings = await loadBindings()
+  const bindings = getBindingsSync()
 
   // For the debugging purpose, check if createNext or equivalent next instance setup in test cases
   // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.
@@ -781,6 +778,9 @@ export async function createHotReloaderTurbopack(
           getMcpMiddleware({
             projectPath,
             distDir,
+            nextConfig,
+            pagesDir: opts.pagesDir,
+            appDir: opts.appDir,
             sendHmrMessage: (message) => hotReloader.send(message),
             getActiveConnectionCount: () =>
               clientsWithoutHtmlRequestId.size + clientsByHtmlRequestId.size,
