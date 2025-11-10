@@ -5,6 +5,10 @@ import { cache as $$reactCache__ } from "react";
 const $$RSC_SERVER_CACHE_0_INNER = async function([$$ACTION_ARG_0]) {
     return $$ACTION_ARG_0();
 };
+Object["defineProperty"]($$RSC_SERVER_CACHE_0_INNER, "name", {
+    value: "",
+    writable: false
+});
 export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function() {
     return $$cache__("default", "c03128060c414d59f8552e4788b846c0d2b7f74743", 1, $$RSC_SERVER_CACHE_0_INNER, arguments);
 });

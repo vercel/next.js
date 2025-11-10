@@ -2381,6 +2381,12 @@ fn create_and_hoist_cache_function(
         ..Default::default()
     })))));
 
+    // For anonymous functions, set the name property to an empty string to
+    // avoid leaking the internal variable name in stack traces.
+    if fn_ident.is_none() {
+        assign_name_to_ident(&inner_fn_ident, "", hoisted_extra_items);
+    }
+
     let cache_call = CallExpr {
         span: original_span,
         callee: quote_ident!("$$cache__").as_callee(),

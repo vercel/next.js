@@ -50,7 +50,6 @@ describe('use-cache-errors', () => {
     }
   })
 
-  // FIXME: This is leaking the internal cache function name in the stack trace.
   it('should not leak generated internal cache function names in call stacks', async () => {
     const browser = await next.browser('/anonymous')
 
@@ -60,11 +59,11 @@ describe('use-cache-errors', () => {
          "description": "kaputt!",
          "environmentLabel": "Cache",
          "label": "Runtime Error",
-         "source": "app/anonymous/page.tsx (4:11) @ $$RSC_SERVER_CACHE_0_INNER
+         "source": "app/anonymous/page.tsx (4:11) @ <anonymous>
        > 4 |     throw new Error('kaputt!')
            |           ^",
          "stack": [
-           "$$RSC_SERVER_CACHE_0_INNER app/anonymous/page.tsx (4:11)",
+           "<anonymous> app/anonymous/page.tsx (4:11)",
          ],
        }
       `)
@@ -74,11 +73,11 @@ describe('use-cache-errors', () => {
          "description": "kaputt!",
          "environmentLabel": "Cache",
          "label": "Runtime Error",
-         "source": "app/anonymous/page.tsx (4:11) @ $$RSC_SERVER_CACHE_0_INNER
+         "source": "app/anonymous/page.tsx (4:11) @ eval
        > 4 |     throw new Error('kaputt!')
            |           ^",
          "stack": [
-           "$$RSC_SERVER_CACHE_0_INNER app/anonymous/page.tsx (4:11)",
+           "eval app/anonymous/page.tsx (4:11)",
          ],
        }
       `)

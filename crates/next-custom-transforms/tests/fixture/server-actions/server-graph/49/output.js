@@ -9,6 +9,10 @@ const $$RSC_SERVER_CACHE_0_INNER = async function(a, b, c) {
       {c}
     </div>;
 };
+Object["defineProperty"]($$RSC_SERVER_CACHE_0_INNER, "name", {
+    value: "",
+    writable: false
+});
 export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function() {
     return $$cache__("default", "f03128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, arguments);
 });
