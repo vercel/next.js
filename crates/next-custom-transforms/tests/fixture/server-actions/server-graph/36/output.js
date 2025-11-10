@@ -10,8 +10,7 @@ export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function foo() {
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "803128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
-    value: "foo",
-    writable: false
+    value: "foo"
 });
 export var foo = $$RSC_SERVER_CACHE_0;
 const $$RSC_SERVER_CACHE_1_INNER = async function bar() {
@@ -22,8 +21,7 @@ export var $$RSC_SERVER_CACHE_1 = $$reactCache__(function bar() {
 });
 registerServerReference($$RSC_SERVER_CACHE_1, "80951c375b4a6a6e89d67b743ec5808127cfde405d", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_1, "name", {
-    value: "bar",
-    writable: false
+    value: "bar"
 });
 export var bar = $$RSC_SERVER_CACHE_1;
 const $$RSC_SERVER_CACHE_2_INNER = async function Cached({ children }) {
@@ -34,8 +32,7 @@ export var $$RSC_SERVER_CACHE_2 = $$reactCache__(function Cached() {
 });
 registerServerReference($$RSC_SERVER_CACHE_2, "c069348c79fce073bae2f70f139565a2fda1c74c74", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_2, "name", {
-    value: "Cached",
-    writable: false
+    value: "Cached"
 });
 export default $$RSC_SERVER_CACHE_2;
 const $$RSC_SERVER_CACHE_3_INNER = async function baz() {
@@ -46,7 +43,6 @@ export var $$RSC_SERVER_CACHE_3 = $$reactCache__(function baz() {
 });
 registerServerReference($$RSC_SERVER_CACHE_3, "8012a8d21b6362b4cc8f5b15560525095bc48dba80", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_3, "name", {
-    value: "baz",
-    writable: false
+    value: "baz"
 });
 export const baz = $$RSC_SERVER_CACHE_3;

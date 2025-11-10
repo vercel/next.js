@@ -12,7 +12,6 @@ export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function Cached() {
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "c0dd5bb6fef67f5ab84327f5164ac2c3111a159337", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
-    value: "Cached",
-    writable: false
+    value: "Cached"
 });
 export var Cached = $$RSC_SERVER_CACHE_0;

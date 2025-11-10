@@ -13,8 +13,7 @@ export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function fn1() {
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
-    value: "fn1",
-    writable: false
+    value: "fn1"
 });
 const $$RSC_SERVER_CACHE_1_INNER = async function // Should be 1 100000 0, which is "c0" in hex (counts as one param,
 // because of the encrypted bound args param)
@@ -26,8 +25,7 @@ export var $$RSC_SERVER_CACHE_1 = $$reactCache__(function fn2() {
 });
 registerServerReference($$RSC_SERVER_CACHE_1, "c0951c375b4a6a6e89d67b743ec5808127cfde405d", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_1, "name", {
-    value: "fn2",
-    writable: false
+    value: "fn2"
 });
 export const $$RSC_SERVER_ACTION_2 = async function // Should be 0 110000 0, which is "60" in hex (counts as two params,
 // because of the encrypted bound args param)

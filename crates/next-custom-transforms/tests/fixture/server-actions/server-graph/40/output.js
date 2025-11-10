@@ -17,8 +17,7 @@ export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function cache() {
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
-    value: "cache",
-    writable: false
+    value: "cache"
 });
 export const $$RSC_SERVER_ACTION_1 = async function action($$ACTION_CLOSURE_BOUND, c) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("6090b5db271335765a4b0eab01f044b381b5ebd5cd", $$ACTION_CLOSURE_BOUND);

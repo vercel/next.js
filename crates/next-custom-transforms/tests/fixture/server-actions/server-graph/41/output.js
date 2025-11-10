@@ -22,7 +22,6 @@ export var $$RSC_SERVER_CACHE_1 = $$reactCache__(function Component() {
 });
 registerServerReference($$RSC_SERVER_CACHE_1, "c0951c375b4a6a6e89d67b743ec5808127cfde405d", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_1, "name", {
-    value: "Component",
-    writable: false
+    value: "Component"
 });
 export var Component = $$RSC_SERVER_CACHE_1;

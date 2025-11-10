@@ -15,8 +15,7 @@ export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function f1() {
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
-    value: "f1",
-    writable: false
+    value: "f1"
 });
 var f1 = $$RSC_SERVER_CACHE_0;
 export const // Should be 0 110000 0, which is "60" in hex.
@@ -41,8 +40,7 @@ export var $$RSC_SERVER_CACHE_2 = $$reactCache__(function f3() {
 });
 registerServerReference($$RSC_SERVER_CACHE_2, "ff69348c79fce073bae2f70f139565a2fda1c74c74", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_2, "name", {
-    value: "f3",
-    writable: false
+    value: "f3"
 });
 var f3 = $$RSC_SERVER_CACHE_2;
 export const // Should be 0 111110 0, which is "7c" in hex.
@@ -87,7 +85,6 @@ export var $$RSC_SERVER_CACHE_5 = $$reactCache__(function f6() {
 });
 registerServerReference($$RSC_SERVER_CACHE_5, "ff471a5eb0be1c31686dd4ba938a80328b80b1615d", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_5, "name", {
-    value: "f6",
-    writable: false
+    value: "f6"
 });
 var f6 = $$RSC_SERVER_CACHE_5;

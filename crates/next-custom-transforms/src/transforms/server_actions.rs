@@ -2476,11 +2476,11 @@ fn assign_name_to_ident(ident: &Ident, name: &str, extra_items: &mut Vec<ModuleI
         // WORKAROUND for https://github.com/microsoft/TypeScript/issues/61165
         // This should just be
         //
-        //   "Object.defineProperty($action, \"name\", { value: $name, writable: false });"
+        //   "Object.defineProperty($action, \"name\", { value: $name });"
         //
         // but due to the above typescript bug, `Object.defineProperty` calls are typechecked incorrectly
         // in js files, and it can cause false positives when typechecking our fixture files.
-        "Object[\"defineProperty\"]($action, \"name\", { value: $name, writable: false });"
+        "Object[\"defineProperty\"]($action, \"name\", { value: $name });"
             as ModuleItem,
         action: Ident = ident.clone(),
         name: Expr = name.into(),

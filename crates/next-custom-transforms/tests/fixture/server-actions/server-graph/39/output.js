@@ -13,8 +13,7 @@ export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function fn() {
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "c03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
-    value: "fn",
-    writable: false
+    value: "fn"
 });
 async function Component({ foo }) {
     const a = 123;

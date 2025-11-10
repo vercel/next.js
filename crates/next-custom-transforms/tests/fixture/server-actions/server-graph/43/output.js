@@ -22,7 +22,6 @@ export var $$RSC_SERVER_CACHE_1 = $$reactCache__(function getCachedRandom() {
 });
 registerServerReference($$RSC_SERVER_CACHE_1, "e0951c375b4a6a6e89d67b743ec5808127cfde405d", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_1, "name", {
-    value: "getCachedRandom",
-    writable: false
+    value: "getCachedRandom"
 });
 var getCachedRandom = $$RSC_SERVER_CACHE_1;

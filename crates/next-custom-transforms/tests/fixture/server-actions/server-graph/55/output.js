@@ -10,8 +10,7 @@ export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function fetch1() {
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "803128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
-    value: "fetch",
-    writable: false
+    value: "fetch"
 });
 export const api = {
     product: {

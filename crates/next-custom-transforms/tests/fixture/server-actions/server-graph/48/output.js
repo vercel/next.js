@@ -36,8 +36,7 @@ export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function cache() {
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
-    value: "cache",
-    writable: false
+    value: "cache"
 });
 // Should be 1 110000 0, which is "e0" in hex.
 export var cache = $$RSC_SERVER_CACHE_0;

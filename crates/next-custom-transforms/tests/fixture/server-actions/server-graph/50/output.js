@@ -10,15 +10,13 @@ const $$RSC_SERVER_CACHE_0_INNER = async function(a, b, c) {
     </div>;
 };
 Object["defineProperty"]($$RSC_SERVER_CACHE_0_INNER, "name", {
-    value: "",
-    writable: false
+    value: ""
 });
 export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function() {
     return $$cache__("default", "f03128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, arguments);
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "f03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
-    value: "default",
-    writable: false
+    value: "default"
 });
 export default $$RSC_SERVER_CACHE_0;
