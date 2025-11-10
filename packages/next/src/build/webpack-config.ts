@@ -2399,7 +2399,10 @@ export default async function getBaseWebpackConfig(
   webpack5Config.cache = cache
 
   if (isRspack) {
-    const buildDependencies: string[] = cache.buildDependencies.config ?? []
+    const buildDependencies: string[] = []
+    if (config.configFile) {
+      buildDependencies.push(config.configFile)
+    }
     if (babelConfigFile) {
       buildDependencies.push(babelConfigFile)
     }

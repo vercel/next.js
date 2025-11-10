@@ -565,7 +565,6 @@ const context = {}
       expect(inspectPayload).toContain('error')
     })
 
-    // eslint-disable-next-line jest/no-identical-title
     // Rspack caches complete compilation results, preventing detection of /only-amp recompilation
     ;(process.env.NEXT_RSPACK ? it.skip : it)(
       'should not contain missing files warning',
