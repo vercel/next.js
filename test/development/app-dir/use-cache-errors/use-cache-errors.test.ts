@@ -2,10 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox } from '../../../lib/next-test-utils'
 
 describe('use-cache-errors', () => {
-  const { next } = nextTestSetup({
+  const { next, isRspack, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
-  const isRspack = Boolean(process.env.NEXT_RSPACK)
 
   it('should not show a false-positive compiler error about a misplaced "use cache" directive', async () => {
     // This is a regression test to ensure that an injected React Refresh
@@ -45,6 +44,41 @@ describe('use-cache-errors', () => {
          "stack": [
            "useCachedStuff app/module-with-use-cache.ts (16:18)",
            "Page app/page.tsx (22:10)",
+         ],
+       }
+      `)
+    }
+  })
+
+  // FIXME: This is leaking the internal cache function name in the stack trace.
+  it('should not leak generated internal cache function names in call stacks', async () => {
+    const browser = await next.browser('/anonymous')
+
+    if (isTurbopack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "kaputt!",
+         "environmentLabel": "Cache",
+         "label": "Runtime Error",
+         "source": "app/anonymous/page.tsx (4:11) @ $$RSC_SERVER_CACHE_0_INNER
+       > 4 |     throw new Error('kaputt!')
+           |           ^",
+         "stack": [
+           "$$RSC_SERVER_CACHE_0_INNER app/anonymous/page.tsx (4:11)",
+         ],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "kaputt!",
+         "environmentLabel": "Cache",
+         "label": "Runtime Error",
+         "source": "app/anonymous/page.tsx (4:11) @ $$RSC_SERVER_CACHE_0_INNER
+       > 4 |     throw new Error('kaputt!')
+           |           ^",
+         "stack": [
+           "$$RSC_SERVER_CACHE_0_INNER app/anonymous/page.tsx (4:11)",
          ],
        }
       `)
