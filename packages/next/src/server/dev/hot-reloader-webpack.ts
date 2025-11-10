@@ -1682,20 +1682,20 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
             }),
           ]
-        : []),
-          setStackFrameResolver(async (request) => {
-            return getOriginalStackFrames({
-              isServer: request.isServer,
-              isEdgeServer: request.isEdgeServer,
-              isAppDirectory: request.isAppDirectory,
-              frames: request.frames,
-              clientStats: () => this.clientStats,
-              serverStats: () => this.serverStats,
-              edgeServerStats: () => this.edgeServerStats,
-              rootDirectory: this.dir,
-            })
-          })
-        )
+        : [])
+    )
+    setStackFrameResolver(async (request) => {
+      return getOriginalStackFrames({
+        isServer: request.isServer,
+        isEdgeServer: request.isEdgeServer,
+        isAppDirectory: request.isAppDirectory,
+        frames: request.frames,
+        clientStats: () => this.clientStats,
+        serverStats: () => this.serverStats,
+        edgeServerStats: () => this.edgeServerStats,
+        rootDirectory: this.dir,
+      })
+    })
   }
 
   protected async afterCompile(_multiCompiler: webpack.MultiCompiler) {}

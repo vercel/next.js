@@ -3,10 +3,7 @@ import fs from 'fs/promises'
 import { createHash } from 'crypto'
 import HotReloaderWebpack from './hot-reloader-webpack'
 import { BUILT, EntryTypes, getEntries } from './on-demand-entry-handler'
-import type { NextConfigComplete } from '../config-shared'
 import type { __ApiPreviewProps } from '../api-utils'
-import type { CustomRoutes } from '../../lib/load-custom-routes'
-import type { Telemetry } from '../../telemetry/storage'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { MultiCompiler } from 'webpack'
 import { COMPILER_NAMES } from '../../shared/lib/constants'
@@ -35,49 +32,6 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
   private isClientCacheEnabled = false
   private isServerCacheEnabled = false
   private isEdgeServerCacheEnabled = false
-
-  constructor(
-    dir: string,
-    {
-      config,
-      isSrcDir,
-      pagesDir,
-      distDir,
-      buildId,
-      encryptionKey,
-      previewProps,
-      rewrites,
-      appDir,
-      telemetry,
-      resetFetch,
-    }: {
-      config: NextConfigComplete
-      isSrcDir: boolean
-      pagesDir?: string
-      distDir: string
-      buildId: string
-      encryptionKey: string
-      previewProps: __ApiPreviewProps
-      rewrites: CustomRoutes['rewrites']
-      appDir?: string
-      telemetry: Telemetry
-      resetFetch: () => void
-    }
-  ) {
-    super(dir, {
-      config,
-      isSrcDir,
-      pagesDir,
-      distDir,
-      buildId,
-      encryptionKey,
-      previewProps,
-      rewrites,
-      appDir,
-      telemetry,
-      resetFetch,
-    })
-  }
 
   public async afterCompile(multiCompiler: MultiCompiler): Promise<void> {
     const rspackStartSpan = this.hotReloaderSpan.traceChild(
