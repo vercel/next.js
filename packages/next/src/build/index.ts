@@ -151,6 +151,7 @@ import type { NextError } from '../lib/is-error'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
+import { installBindings } from './swc/install-bindings'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
@@ -836,6 +837,7 @@ export type StaticWorker = typeof import('./worker') & Worker
 export function createStaticWorker(
   config: NextConfigComplete,
   options: {
+    numberOfWorkers: number
     debuggerPortOffset: number
     progress?: {
       run: () => void
@@ -843,10 +845,10 @@ export function createStaticWorker(
     }
   }
 ): StaticWorker {
-  const { debuggerPortOffset, progress } = options
+  const { numberOfWorkers, debuggerPortOffset, progress } = options
   return new Worker(staticWorkerPath, {
     logger: Log,
-    numWorkers: getNumberOfWorkers(config),
+    numWorkers: numberOfWorkers,
     onActivity: () => {
       progress?.run()
     },
@@ -904,6 +906,7 @@ async function getBuildId(
 
 export default async function build(
   dir: string,
+  experimentalAnalyze = false,
   reactProductionProfiling = false,
   debugOutput = false,
   debugPrerender = false,
@@ -918,6 +921,7 @@ export default async function build(
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
   NextBuildContext.isCompileMode = isCompileMode
+  NextBuildContext.analyze = experimentalAnalyze
   const buildStartTime = Date.now()
 
   let loadedConfig: NextConfigComplete | undefined
@@ -961,6 +965,8 @@ export default async function build(
       // Reading the config can modify environment variables that influence the bundler selection.
       bundler = finalizeBundlerFromConfig(bundler)
       nextBuildSpan.setAttribute('bundler', getBundlerForTelemetry(bundler))
+      // Install the native bindings early so we can have synchronous access later.
+      await installBindings(config.experimental?.useWasmBinary)
 
       process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
@@ -1145,11 +1151,11 @@ export default async function build(
       }
 
       if (appDir && 'exportPathMap' in config) {
-        Log.error(
+        const errorMessage =
           'The "exportPathMap" configuration cannot be used with the "app" directory. Please use generateStaticParams() instead.'
-        )
+        Log.error(errorMessage)
         await telemetry.flush()
-        process.exit(1)
+        throw new Error(errorMessage)
       }
 
       const validFileMatcher = createValidFileMatcher(
@@ -1215,7 +1221,10 @@ export default async function build(
 
       for (const rootPath of rootPaths) {
         const { name: fileBaseName, dir: fileDir } = path.parse(rootPath)
-        const isAtConventionLevel = fileDir === '/' || fileDir === '/src'
+
+        const normalizedFileDir = normalizePathSep(fileDir)
+        const isAtConventionLevel =
+          normalizedFileDir === '/' || normalizedFileDir === '/src'
 
         if (isAtConventionLevel && fileBaseName === MIDDLEWARE_FILENAME) {
           middlewareFilePath = rootPath
@@ -1272,6 +1281,11 @@ export default async function build(
           })
         )
       NextBuildContext.mappedPages = mappedPages
+
+      // Update appDirOnly if no user pages routes are found
+      if (Object.keys(mappedPages).length === 0 && !appDirOnly) {
+        NextBuildContext.appDirOnly = appDirOnly = true
+      }
 
       let mappedAppPages: MappedPages | undefined
       let mappedAppLayouts: MappedPages | undefined
@@ -1481,16 +1495,15 @@ export default async function build(
       if (bundler !== Bundler.Turbopack) {
         const numConflictingAppPaths = conflictingAppPagePaths.length
         if (mappedAppPages && numConflictingAppPaths > 0) {
-          Log.error(
-            `Conflicting app and page file${
-              numConflictingAppPaths === 1 ? ' was' : 's were'
-            } found, please remove the conflicting files to continue:`
-          )
+          const errorMessage = `Conflicting app and page file${
+            numConflictingAppPaths === 1 ? ' was' : 's were'
+          } found, please remove the conflicting files to continue:`
+          Log.error(errorMessage)
           for (const [pagePath, appPath] of conflictingAppPagePaths) {
             Log.error(`  "${pagePath}" - "${appPath}"`)
           }
           await telemetry.flush()
-          process.exit(1)
+          throw new Error(errorMessage)
         }
       }
 
@@ -1821,7 +1834,7 @@ export default async function build(
                       })
                       .catch((err) => {
                         console.error(err)
-                        process.exit(1)
+                        throw err
                       })
                   })
               }
@@ -1907,8 +1920,11 @@ export default async function build(
         traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
+      const numberOfWorkers = getNumberOfWorkers(config)
       const collectingPageDataStart = process.hrtime()
-      const postCompileSpinner = createSpinner('Collecting page data')
+      const postCompileSpinner = createSpinner(
+        `Collecting page data using ${numberOfWorkers} worker${numberOfWorkers > 1 ? 's' : ''}`
+      )
 
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
 
@@ -1950,7 +1966,10 @@ export default async function build(
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-      const worker = createStaticWorker(config, { debuggerPortOffset: -1 })
+      const worker = createStaticWorker(config, {
+        numberOfWorkers,
+        debuggerPortOffset: -1,
+      })
 
       const analysisBegin = process.hrtime()
       const staticCheckSpan = nextBuildSpan.traceChild('static-check')
@@ -2472,7 +2491,7 @@ export default async function build(
       if (postCompileSpinner) {
         const collectingPageDataEnd = process.hrtime(collectingPageDataStart)
         postCompileSpinner.setText(
-          `Collecting page data in ${hrtimeDurationToString(collectingPageDataEnd)}`
+          `Collecting page data using ${numberOfWorkers} worker${numberOfWorkers > 1 ? 's' : ''} in ${hrtimeDurationToString(collectingPageDataEnd)}`
         )
         postCompileSpinner.stopAndPersist()
       }
@@ -2610,7 +2629,9 @@ export default async function build(
           return serverFilesManifest
         })
 
-      const middlewareFile = proxyFilePath || middlewareFilePath
+      const middlewareFile = normalizePathSep(
+        proxyFilePath || middlewareFilePath || ''
+      )
       let hasNodeMiddleware = false
 
       if (middlewareFile) {
@@ -2680,7 +2701,7 @@ export default async function build(
               outputFileTracingRoot,
             }).catch((err) => {
               console.error(err)
-              process.exit(1)
+              throw err
             })
           })
       }
@@ -2990,10 +3011,7 @@ export default async function build(
                     // following enabled. This is because the flight data now
                     // does not contain any of the route params and is instead
                     // completely static.
-                    !(
-                      config.experimental.clientSegmentCache &&
-                      config.cacheComponents
-                    )
+                    !config.cacheComponents
                   ) {
                     return
                   }
@@ -3056,8 +3074,8 @@ export default async function build(
               debugPrerender,
               pages: combinedPages,
               outdir,
-              statusMessage: 'Generating static pages',
-              numWorkers: getNumberOfWorkers(exportConfig),
+              statusMessage: `Generating static pages using ${numberOfWorkers} worker${numberOfWorkers > 1 ? 's' : ''}`,
+              numWorkers: numberOfWorkers,
               appDirOnly,
             },
             nextBuildSpan
@@ -3301,16 +3319,12 @@ export default async function build(
                 if (
                   !isAppRouteHandler &&
                   isAppPPREnabled &&
-                  // Don't add a prefetch data route if we have both
-                  // clientSegmentCache and clientParamParsing enabled. This is
+                  // Don't add a prefetch data route if we have
+                  // cacheComponents enabled. This is
                   // because we don't actually use the prefetch data route in
                   // this case. This only applies if we have PPR enabled for
                   // this route.
-                  !(
-                    config.experimental.clientSegmentCache &&
-                    config.cacheComponents &&
-                    isRoutePPREnabled
-                  )
+                  !(config.cacheComponents && isRoutePPREnabled)
                 ) {
                   prefetchDataRoute = path.posix.join(
                     `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
@@ -3412,12 +3426,11 @@ export default async function build(
                 )
                 if (!isAppRouteHandler && isAppPPREnabled) {
                   if (
-                    // Don't add a prefetch data route if we have both
-                    // clientSegmentCache and clientParamParsing enabled. This is
+                    // Don't add a prefetch data route if we have
+                    // cacheComponents enabled. This is
                     // because we don't actually use the prefetch data route in
                     // this case. This only applies if we have PPR enabled for
                     // this route.
-                    !config.experimental.clientSegmentCache ||
                     !config.cacheComponents ||
                     !isRoutePPREnabled
                   ) {
@@ -4263,6 +4276,7 @@ export default async function build(
           pageExtensions: config.pageExtensions,
           buildManifest,
           middlewareManifest,
+          functionsConfigManifest,
           hasGSPAndRevalidateZero,
         })
       )
@@ -4288,6 +4302,12 @@ export default async function build(
   } finally {
     // Ensure we wait for lockfile patching if present
     await lockfilePatchPromise.cur
+
+    // Flush telemetry before finishing (waits for async operations like setTimeout in debug mode)
+    const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
+    if (telemetry) {
+      await telemetry.flush()
+    }
 
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()

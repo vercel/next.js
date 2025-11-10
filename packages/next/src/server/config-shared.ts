@@ -279,8 +279,6 @@ export interface ExperimentalConfig {
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
-  clientSegmentCache?: boolean | 'client-only'
-
   /**
    * The origins that are allowed to write the rewritten headers when
    * performing a non-relative rewrite. When undefined, no non-relative
@@ -299,6 +297,7 @@ export interface ExperimentalConfig {
    */
   staleTimes?: {
     dynamic?: number
+    /** Must be greater than or equal to 30 seconds, to ensure prefetching is not completely wasteful */
     static?: number
   }
   /**
@@ -1454,7 +1453,6 @@ export const defaultConfig = Object.freeze({
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    clientSegmentCache: true,
     clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
     preloadEntriesOnStart: true,

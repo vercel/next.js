@@ -6,13 +6,11 @@ import path from 'path'
 import { outdent } from 'outdent'
 
 describe('ReactRefreshLogBox app', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
     patchFileDelay: 1000,
   })
-
-  const isRspack = !!process.env.NEXT_RSPACK
 
   test('should strip whitespace correctly with newline', async () => {
     await using sandbox = await createSandbox(next)
@@ -265,7 +263,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
 
     await session.patch(
       'index.js',
@@ -388,7 +386,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('hello')
@@ -452,7 +450,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('hello new')
@@ -477,7 +475,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
 
     await session.patch('index.module.css', `.button`)
 
@@ -957,7 +955,7 @@ describe('ReactRefreshLogBox app', () => {
         }
       `
     )
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await session.patch(
       'index.js',
       outdent`
@@ -985,7 +983,7 @@ describe('ReactRefreshLogBox app', () => {
         }
       `
     )
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await session.patch(
       'index.js',
       outdent`
@@ -1011,7 +1009,7 @@ describe('ReactRefreshLogBox app', () => {
         }
       `
     )
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await session.patch(
       'index.js',
       outdent`
@@ -1131,7 +1129,7 @@ describe('ReactRefreshLogBox app', () => {
     await retry(async () => {
       expect(await getToastErrorCount(browser)).toBe(4)
     })
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
 
     // Add Component error
     await session.patch(
@@ -1363,7 +1361,7 @@ describe('ReactRefreshLogBox app', () => {
     expect(await browser.waitForElementByCss('#text').text()).toBe(
       'Hello world'
     )
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
 
     // Re-add error
     await session.patch(
@@ -1443,7 +1441,7 @@ describe('ReactRefreshLogBox app', () => {
          × Module not found: Can't resolve 'non-existing-module' in '<FIXME-project-root>/app'
           ╭────
         1 │ import "non-existing-module";
-          ·        ─────────────────────
+          · ─────────────────────────────
           ╰────
        Import trace for requested module:
        ./app/module.js
@@ -1544,7 +1542,7 @@ describe('ReactRefreshLogBox app', () => {
 
       await retry(async () => {
         // Should use `await expect(browser).toDisplayRedbox()`
-        await session.assertHasRedbox()
+        await session.waitForRedbox()
       })
 
       if (isRspack) {
@@ -1589,7 +1587,7 @@ describe('ReactRefreshLogBox app', () => {
         'index.js',
         'export default function Page() {return <p>hello world</p>}'
       )
-      await session.assertNoRedbox()
+      await session.waitForNoRedbox()
     })
   }
 

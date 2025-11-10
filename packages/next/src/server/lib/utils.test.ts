@@ -3,6 +3,7 @@ import {
   getParsedDebugAddress,
   formatNodeOptions,
   tokenizeArgs,
+  getParsedNodeOptions,
 } from './utils'
 
 const originalNodeOptions = process.env.NODE_OPTIONS
@@ -56,13 +57,15 @@ describe('formatNodeOptions', () => {
 describe('getParsedDebugAddress', () => {
   it('supports the flag with an equal sign', () => {
     process.env.NODE_OPTIONS = '--inspect=1234'
-    const result = getParsedDebugAddress()
+    const nodeOptions = getParsedNodeOptions()
+    const result = getParsedDebugAddress(nodeOptions.inspect)
     expect(result).toEqual({ host: undefined, port: 1234 })
   })
 
   it('supports the flag without an equal sign', () => {
     process.env.NODE_OPTIONS = '--inspect 1234'
-    const result = getParsedDebugAddress()
+    const nodeOptions = getParsedNodeOptions()
+    const result = getParsedDebugAddress(nodeOptions.inspect)
     expect(result).toEqual({ host: undefined, port: 1234 })
   })
 })

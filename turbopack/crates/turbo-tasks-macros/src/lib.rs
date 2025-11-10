@@ -14,7 +14,12 @@ mod value_impl_macro;
 mod value_macro;
 mod value_trait_macro;
 
-extern crate proc_macro;
+mod expand;
+mod generic_type_input;
+mod ident;
+mod primitive_input;
+mod self_filter;
+mod value_trait_arguments;
 
 use proc_macro::TokenStream;
 use proc_macro_error::proc_macro_error;

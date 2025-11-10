@@ -84,6 +84,46 @@ export async function GET() {
 
 > **Good to know**: Other supported HTTP methods are **not** cached, even if they are placed alongside a `GET` method that is cached, in the same file.
 
+#### With Cache Components
+
+When using [Cache Components](/docs/app/getting-started/cache-components), you can use the [`use cache`](/docs/app/api-reference/directives/use-cache) directive to cache data fetching within your Route Handlers. Route Handlers are dynamic by default, but can be pre-rendered at build time if they don't use runtime or dynamic data.
+
+```ts filename="app/api/posts/route.ts" switcher
+import { cacheTag } from 'next/cache'
+
+async function getPosts() {
+  'use cache'
+  cacheTag('posts')
+
+  const posts = await fetchPosts()
+  return posts
+}
+
+export async function GET() {
+  const posts = await getPosts()
+  return Response.json(posts)
+}
+```
+
+```js filename="app/api/posts/route.js" switcher
+import { cacheTag } from 'next/cache'
+
+async function getPosts() {
+  'use cache'
+  cacheTag('posts')
+
+  const posts = await fetchPosts()
+  return posts
+}
+
+export async function GET() {
+  const posts = await getPosts()
+  return Response.json(posts)
+}
+```
+
+See the [Cache Components documentation](/docs/app/getting-started/cache-components#route-handlers-with-cache-components) for more details on caching strategies and revalidation.
+
 ### Special Route Handlers
 
 Special Route Handlers like [`sitemap.ts`](/docs/app/api-reference/file-conventions/metadata/sitemap), [`opengraph-image.tsx`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), and [`icon.tsx`](/docs/app/api-reference/file-conventions/metadata/app-icons), and other [metadata files](/docs/app/api-reference/file-conventions/metadata) remain static by default unless they use Dynamic APIs or dynamic config options.

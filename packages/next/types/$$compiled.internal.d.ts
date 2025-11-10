@@ -156,7 +156,6 @@ declare module 'react-server-dom-webpack/server.edge' {
           ) => boolean)
         | undefined
       onError?: (error: unknown) => void
-      onPostpone?: (reason: string) => void
       signal?: AbortSignal
       debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
     }
@@ -291,7 +290,6 @@ declare module 'react-server-dom-webpack/static' {
       signal?: AbortSignal
       temporaryReferences?: TemporaryReferenceSet
       onError?: (error: unknown) => void
-      onPostpone?: (reason: string) => void
     }
   ): Promise<{
     prelude: ReadableStream<Uint8Array>
@@ -860,8 +858,9 @@ declare module 'next/dist/compiled/is-animated' {
   export default function isAnimated(buffer: Buffer): boolean
 }
 
-declare module 'next/dist/compiled/is-local-address' {
-  export default function isLocalAddress(ip: string): boolean
+declare module 'next/dist/compiled/ipaddr.js' {
+  import * as m from 'ipaddr.js'
+  export = m
 }
 
 declare module 'next/dist/compiled/@opentelemetry/api' {

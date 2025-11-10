@@ -6,7 +6,6 @@ use std::{
     hash::{BuildHasherDefault, Hash},
     pin::Pin,
     sync::Arc,
-    time::Duration,
 };
 
 use anyhow::{Result, anyhow};
@@ -497,6 +496,11 @@ impl From<anyhow::Error> for TurboTasksExecutionError {
     }
 }
 
+pub enum VerificationMode {
+    EqualityCheck,
+    Skip,
+}
+
 pub trait Backend: Sync + Send {
     #[allow(unused_variables)]
     fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
@@ -536,8 +540,6 @@ pub trait Backend: Sync + Send {
     fn task_execution_completed(
         &self,
         task: TaskId,
-        duration: Duration,
-        memory_usage: usize,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,
@@ -621,6 +623,7 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         index: CellId,
         content: CellContent,
+        verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 

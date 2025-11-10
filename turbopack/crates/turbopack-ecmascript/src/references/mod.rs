@@ -151,7 +151,7 @@ use crate::{
         },
         ident::IdentReplacement,
         member::MemberReplacement,
-        node::PackageJsonReference,
+        node::{FilePathModuleReference, PackageJsonReference},
         require_context::{RequireContextAssetReference, RequireContextMap},
         type_issue::SpecifiedModuleTypeIssue,
     },
@@ -974,12 +974,7 @@ async fn analyze_ecmascript_module_internal(
             origin,
             compile_time_info,
             var_graph: &var_graph,
-            allow_project_root_tracing: !source
-                .ident()
-                .path()
-                .await?
-                .path
-                .contains("/node_modules/"),
+            allow_project_root_tracing: !source.ident().path().await?.is_in_node_modules(),
             fun_args_values: Default::default(),
             var_cache: Default::default(),
             first_import_meta: true,
@@ -1651,8 +1646,27 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             .await
     };
 
-    let make_issue_source =
+    let get_traced_project_dir = async || -> Result<FileSystemPath> {
+        // readFileSync("./foo") should always be relative to the project root, but this is
+        // dangerous inside of node_modules as it can cause a lot of false positives in the tracing,
+        // if some package does `path.join(dynamic)`, it would include everything from the project
+        // root as well.
+        //
+        // Also, when there's no cwd set (i.e. in a tracing-specific module context, as we shouldn't
+        // assume a `process.cwd()` for all of node_modules), fallback to the source file directory.
+        // This still allows relative file accesses, just not from the project root.
+        if allow_project_root_tracing
+            && let Some(cwd) = compile_time_info.environment().cwd().owned().await?
+        {
+            Ok(cwd)
+        } else {
+            Ok(source.ident().path().await?.parent())
+        }
+    };
+
+    let get_issue_source =
         || IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32());
+
     if new {
         match func {
             JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor) => {
@@ -1731,9 +1745,54 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 // Ignore (e.g. dynamic parameter or string literal), just as Webpack does
                 return Ok(());
             }
+            JsValue::WellKnownFunction(WellKnownFunctionKind::NodeWorkerConstructor)
+                if analysis.analyze_mode.is_tracing() =>
+            {
+                // Only for tracing, not for bundling (yet?)
+                let args = linked_args(args).await?;
+                if !args.is_empty() {
+                    let pat = js_value_to_pattern(&args[0]);
+                    if !pat.has_constant_parts() {
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("new Worker({args}) is very dynamic{hints}",),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyze::ecmascript::NEW_WORKER.to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                    }
+                    analysis.add_reference(
+                        FilePathModuleReference::new(
+                            origin.asset_context(),
+                            get_traced_project_dir().await?,
+                            Pattern::new(pat),
+                            collect_affecting_sources,
+                            get_issue_source(),
+                        )
+                        .to_resolved()
+                        .await?,
+                    );
+                    return Ok(());
+                }
+                let (args, hints) = explain_args(&args);
+                handler.span_warn_with_code(
+                    span,
+                    &format!("new Worker({args}) is not statically analyze-able{hints}",),
+                    DiagnosticId::Error(
+                        errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
+                    ),
+                );
+                // Ignore (e.g. dynamic parameter or string literal)
+                return Ok(());
+            }
             _ => {}
         }
 
+        // linked_args wasn't called, so manually add the closure effects
         for arg in args {
             if let EffectArg::Closure(_, block) = arg {
                 add_effects(block.effects);
@@ -1741,18 +1800,6 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         }
         return Ok(());
     }
-
-    let get_traced_project_dir = async || {
-        // readFileSync("./foo") should always be relative to the project root, but this is
-        // dangerous inside of node_modules as it can cause a lot of false positives in the
-        // tracing, if some package does `path.join(dynamic)`, it would include everything from
-        // the project root as well.
-        if allow_project_root_tracing {
-            compile_time_info.environment().cwd().owned().await
-        } else {
-            Ok(Some(source.ident().path().await?.parent()))
-        }
-    };
 
     match func {
         JsValue::Alternatives {
@@ -1982,18 +2029,16 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         return Ok(());
                     }
                 }
-                if let Some(context_dir) = get_traced_project_dir().await? {
-                    analysis.add_reference(
-                        FileSourceReference::new(
-                            context_dir,
-                            Pattern::new(pat),
-                            collect_affecting_sources,
-                            make_issue_source(),
-                        )
-                        .to_resolved()
-                        .await?,
-                    );
-                }
+                analysis.add_reference(
+                    FileSourceReference::new(
+                        get_traced_project_dir().await?,
+                        Pattern::new(pat),
+                        collect_affecting_sources,
+                        get_issue_source(),
+                    )
+                    .to_resolved()
+                    .await?,
+                );
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
@@ -2038,13 +2083,15 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     return Ok(());
                 }
             }
-            if let Some(context_dir) = get_traced_project_dir().await? {
-                analysis.add_reference(
-                    DirAssetReference::new(context_dir, Pattern::new(pat), make_issue_source())
-                        .to_resolved()
-                        .await?,
-                );
-            }
+            analysis.add_reference(
+                DirAssetReference::new(
+                    get_traced_project_dir().await?,
+                    Pattern::new(pat),
+                    get_issue_source(),
+                )
+                .to_resolved()
+                .await?,
+            );
             return Ok(());
         }
 
@@ -2080,13 +2127,15 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     return Ok(());
                 }
             }
-            if let Some(context_dir) = get_traced_project_dir().await? {
-                analysis.add_reference(
-                    DirAssetReference::new(context_dir, Pattern::new(pat), make_issue_source())
-                        .to_resolved()
-                        .await?,
-                );
-            }
+            analysis.add_reference(
+                DirAssetReference::new(
+                    get_traced_project_dir().await?,
+                    Pattern::new(pat),
+                    get_issue_source(),
+                )
+                .to_resolved()
+                .await?,
+            );
             return Ok(());
         }
         JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawnMethod(name))
@@ -2130,12 +2179,10 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 if dynamic {
                     show_dynamic_warning = true;
                 }
-                if (!dynamic || !ignore_dynamic_requests)
-                    && let Some(context_dir) = get_traced_project_dir().await?
-                {
+                if !dynamic || !ignore_dynamic_requests {
                     analysis.add_reference(
                         FileSourceReference::new(
-                            context_dir,
+                            get_traced_project_dir().await?,
                             Pattern::new(pat),
                             collect_affecting_sources,
                             IssueSource::from_swc_offsets(
@@ -2371,17 +2418,15 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                     .await?;
                                 js_value_to_pattern(&linked_func_call)
                             };
-                            if let Some(context_dir) = get_traced_project_dir().await? {
-                                analysis.add_reference(
-                                    DirAssetReference::new(
-                                        context_dir,
-                                        Pattern::new(abs_pattern),
-                                        make_issue_source(),
-                                    )
-                                    .to_resolved()
-                                    .await?,
-                                );
-                            }
+                            analysis.add_reference(
+                                DirAssetReference::new(
+                                    get_traced_project_dir().await?,
+                                    Pattern::new(abs_pattern),
+                                    get_issue_source(),
+                                )
+                                .to_resolved()
+                                .await?,
+                            );
                             return Ok(());
                         }
                     }
@@ -2440,17 +2485,15 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         .await?;
                     js_value_to_pattern(&linked_func_call)
                 };
-                if let Some(context_dir) = get_traced_project_dir().await? {
-                    analysis.add_reference(
-                        DirAssetReference::new(
-                            context_dir,
-                            Pattern::new(abs_pattern),
-                            make_issue_source(),
-                        )
-                        .to_resolved()
-                        .await?,
-                    );
-                }
+                analysis.add_reference(
+                    DirAssetReference::new(
+                        get_traced_project_dir().await?,
+                        Pattern::new(abs_pattern),
+                        get_issue_source(),
+                    )
+                    .to_resolved()
+                    .await?,
+                );
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
@@ -2498,33 +2541,32 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             if args.len() == 2
                 && let Some(JsValue::Object { parts, .. }) = args.get(1)
             {
-                if let Some(context_dir) = get_traced_project_dir().await? {
-                    let resolved_dirs = parts
-                        .iter()
-                        .filter_map(|object_part| match object_part {
-                            ObjectPart::KeyValue(
-                                JsValue::Constant(key),
-                                JsValue::Array { items: dirs, .. },
-                            ) if key.as_str() == Some("includeDirs") => {
-                                Some(dirs.iter().filter_map(|dir| dir.as_str()))
-                            }
-                            _ => None,
-                        })
-                        .flatten()
-                        .map(|dir| {
-                            DirAssetReference::new(
-                                context_dir.clone(),
-                                Pattern::new(Pattern::Constant(dir.into())),
-                                make_issue_source(),
-                            )
-                            .to_resolved()
-                        })
-                        .try_join()
-                        .await?;
+                let context_dir = get_traced_project_dir().await?;
+                let resolved_dirs = parts
+                    .iter()
+                    .filter_map(|object_part| match object_part {
+                        ObjectPart::KeyValue(
+                            JsValue::Constant(key),
+                            JsValue::Array { items: dirs, .. },
+                        ) if key.as_str() == Some("includeDirs") => {
+                            Some(dirs.iter().filter_map(|dir| dir.as_str()))
+                        }
+                        _ => None,
+                    })
+                    .flatten()
+                    .map(|dir| {
+                        DirAssetReference::new(
+                            context_dir.clone(),
+                            Pattern::new(Pattern::Constant(dir.into())),
+                            get_issue_source(),
+                        )
+                        .to_resolved()
+                    })
+                    .try_join()
+                    .await?;
 
-                    for resolved_dir_ref in resolved_dirs {
-                        analysis.add_reference(resolved_dir_ref);
-                    }
+                for resolved_dir_ref in resolved_dirs {
+                    analysis.add_reference(resolved_dir_ref);
                 }
 
                 return Ok(());
@@ -3151,7 +3193,7 @@ async fn value_visitor_inner(
             ),
             "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
             "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-            "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
+            "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule),
             "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
             _ => return Ok((v, false)),
@@ -3735,7 +3777,7 @@ async fn resolve_as_webpack_runtime(
     if let Some(source) = *resolved.first_source().await? {
         Ok(webpack_runtime(*source, transforms))
     } else {
-        Ok(WebpackRuntime::None.into())
+        Ok(WebpackRuntime::None.cell())
     }
 }
 

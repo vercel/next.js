@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox } from 'next-test-utils'
+import { waitForNoRedbox } from 'next-test-utils'
 
 describe('app-dir - async-client-component', () => {
   const { next } = nextTestSetup({
@@ -37,7 +37,7 @@ describe('app-dir - async-client-component', () => {
   it('app router server component async module', async () => {
     const browser = await next.browser('/server')
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
 
     expect(await browser.elementByCss('#app-router-value').text()).toBe('hello')
   })

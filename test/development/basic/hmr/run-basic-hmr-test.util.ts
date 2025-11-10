@@ -1,5 +1,5 @@
 import {
-  assertHasRedbox,
+  waitForRedbox,
   getBrowserBodyText,
   retry,
   waitFor,
@@ -57,7 +57,7 @@ export function runBasicHmrTest(nextConfig: {
         'pages/auto-export-is-ready.js',
         (content) => `import hello from 'non-existent'\n` + content,
         async () => {
-          await assertHasRedbox(browser)
+          await waitForRedbox(browser)
           await waitFor(3000)
           outputLength = next.cliOutput.length
         }

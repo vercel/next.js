@@ -248,6 +248,31 @@ opt-level = 3
 [profile.release.package.serde]
 opt-level = 3
 
+[profile.release.package.wasmer]
+opt-level = "s"
+
+[profile.release.package.wasmer-vm]
+opt-level = "s"
+
+[profile.release.package.wasmer-compiler-cranelift]
+opt-level = "s"
+
+[profile.release.package.regalloc2]
+opt-level = "s"
+
+[profile.release.package.swc_plugin_backend_wasmer]
+opt-level = "s"
+
+[profile.release.package.globset]
+opt-level = "s"
+
+[profile.release.package.toml_edit]
+opt-level = "s"
+
+[profile.release.package.miette]
+opt-level = "s"
+
+
 # Use a custom profile for CI where many tests are performance sensitive but we still want the additional validation of debug-assertions
 [profile.release-with-assertions]
 inherits = "release"
@@ -283,7 +308,6 @@ turbo-tasks-fetch = { path = "turbopack/crates/turbo-tasks-fetch" }
 turbo-tasks-fs = { path = "turbopack/crates/turbo-tasks-fs" }
 turbo-tasks-hash = { path = "turbopack/crates/turbo-tasks-hash" }
 turbo-tasks-macros = { path = "turbopack/crates/turbo-tasks-macros" }
-turbo-tasks-macros-shared = { path = "turbopack/crates/turbo-tasks-macros-shared" }
 turbo-tasks-testing = { path = "turbopack/crates/turbo-tasks-testing" }
 turbopack = { path = "turbopack/crates/turbopack" }
 turbopack-bench = { path = "turbopack/crates/turbopack-bench" }
@@ -292,6 +316,7 @@ turbopack-cli-utils = { path = "turbopack/crates/turbopack-cli-utils" }
 turbopack-core = { path = "turbopack/crates/turbopack-core" }
 turbopack-create-test-app = { path = "turbopack/crates/turbopack-create-test-app" }
 turbopack-css = { path = "turbopack/crates/turbopack-css" }
+turbopack-analyze = { path = "turbopack/crates/turbopack-analyze" }
 turbopack-browser = { path = "turbopack/crates/turbopack-browser" }
 turbopack-dev-server = { path = "turbopack/crates/turbopack-dev-server" }
 turbopack-ecmascript = { path = "turbopack/crates/turbopack-ecmascript" }
@@ -345,13 +370,14 @@ tungstenite = "0.20.1"
 allsorts = { version = "0.14.0", default-features = false, features = [
   "flate2_rust",
 ] }
-anyhow = "1.0.98"
+anyhow = "1.0.100"
 async-compression = { version = "0.3.13", default-features = false, features = [
   "gzip",
   "tokio",
 ] }
 async-trait = "0.1.64"
 bitfield = "0.18.0"
+byteorder = "1.5.0"
 bytes = "1.1.0"
 bytes-str = "0.2.7"
 chrono = "0.4.23"
@@ -372,7 +398,7 @@ futures = "0.3.31"
 futures-util = "0.3.31"
 futures-retry = "0.6.0"
 hashbrown = "0.14.5"
-image = { version = "0.25.0", default-features = false }
+image = { version = "0.25.8", default-features = false }
 indexmap = "2.7.1"
 indoc = "2.0.0"
 itertools = "0.10.5"

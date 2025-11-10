@@ -1,7 +1,8 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{DeriveInput, parse_macro_input, spanned::Spanned};
-use turbo_tasks_macros_shared::{generate_exhaustive_destructuring, match_expansion};
+
+use crate::expand::{generate_exhaustive_destructuring, match_expansion};
 
 pub fn derive_task_input(input: TokenStream) -> TokenStream {
     let derive_input = parse_macro_input!(input as DeriveInput);
