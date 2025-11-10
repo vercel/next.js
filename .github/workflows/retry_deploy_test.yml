@@ -17,8 +17,8 @@ jobs:
     name: retry failed jobs
     # Retry the test-e2e-deploy-release workflow up to 2 times
     if: >-
-      ${{ 
-        github.event.workflow_run.display_title == 'test-e2e-deploy canary' &&
+      ${{
+        startsWith(github.event.workflow_run.display_title, 'test-e2e-deploy') &&
         github.event.workflow_run.conclusion == 'failure' &&
         github.repository == 'vercel/next.js' &&
         github.event.workflow_run.run_attempt < 2
@@ -39,8 +39,8 @@ jobs:
     name: report failure to slack
     # Report the failure to Slack if the test-e2e-deploy-release workflow has failed 2 times
     if: >-
-      ${{ 
-        github.event.workflow_run.display_title == 'test-e2e-deploy canary' &&
+      ${{
+        startsWith(github.event.workflow_run.display_title, 'test-e2e-deploy') &&
         github.event.workflow_run.conclusion == 'failure' &&
         github.event.workflow_run.run_attempt >= 2 &&
         !github.event.workflow_run.head_repository.fork
