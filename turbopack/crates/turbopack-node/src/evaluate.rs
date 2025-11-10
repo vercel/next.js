@@ -23,7 +23,7 @@ use turbopack_core::{
         StyledString,
     },
     module::Module,
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
+    module_graph::{GraphEntries, ModuleGraph, chunk_group_info::ChunkGroupEntry},
     output::{OutputAsset, OutputAssets},
     reference_type::{InnerAssets, ReferenceType},
     source::Source,
@@ -68,23 +68,13 @@ struct EmittedEvaluatePoolAssets {
 
 #[turbo_tasks::function(operation)]
 async fn emit_evaluate_pool_assets_operation(
-    module_asset: ResolvedVc<Box<dyn Module>>,
-    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    entries: ResolvedVc<EvaluateEntries>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
+    module_graph: ResolvedVc<ModuleGraph>,
 ) -> Result<Vc<EmittedEvaluatePoolAssets>> {
-    let runtime_asset = asset_context
-        .process(
-            Vc::upcast(FileSource::new(
-                embed_file_path(rcstr!("ipc/evaluate.ts")).owned().await?,
-            )),
-            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
-        )
-        .module()
-        .to_resolved()
-        .await?;
+    let entries = &entries.await?.0;
 
-    let module_path = module_asset.ident().path().await?;
+    let module_path = entries.last().unwrap().ident().path().await?;
     let file_name = module_path.file_name();
     let file_name = if file_name.ends_with(".js") {
         Cow::Borrowed(file_name)
@@ -94,62 +84,11 @@ async fn emit_evaluate_pool_assets_operation(
         Cow::Owned(format!("{file_name}.js"))
     };
     let entrypoint = chunking_context.output_root().await?.join(&file_name)?;
-    let entry_module = asset_context
-        .process(
-            Vc::upcast(VirtualSource::new(
-                runtime_asset.ident().path().await?.join("evaluate.js")?,
-                AssetContent::file(
-                    File::from("import { run } from 'RUNTIME'; run(() => import('INNER'))").into(),
-                ),
-            )),
-            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                rcstr!("INNER") => module_asset,
-                rcstr!("RUNTIME") => runtime_asset
-            })),
-        )
-        .module()
-        .to_resolved()
-        .await?;
-
-    let runtime_entries = {
-        let globals_module = asset_context
-            .process(
-                Vc::upcast(FileSource::new(
-                    embed_file_path(rcstr!("globals.ts")).owned().await?,
-                )),
-                ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
-            )
-            .module();
-
-        let Some(globals_module) =
-            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(globals_module).await?
-        else {
-            bail!("Internal module is not evaluatable");
-        };
-
-        let mut entries = vec![globals_module.to_resolved().await?];
-        if let Some(runtime_entries) = runtime_entries {
-            for &entry in &*runtime_entries.await? {
-                entries.push(entry)
-            }
-        }
-        entries
-    };
-
-    let module_graph = ModuleGraph::from_modules(
-        Vc::cell(vec![ChunkGroupEntry::Entry(
-            iter::once(entry_module)
-                .chain(runtime_entries.iter().copied().map(ResolvedVc::upcast))
-                .collect(),
-        )]),
-        false,
-    );
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(
         entrypoint.clone(),
-        Vc::<EvaluatableAssets>::cell(runtime_entries)
-            .with_entry(*ResolvedVc::try_downcast(entry_module).unwrap()),
-        module_graph,
+        Vc::cell(entries.clone()),
+        *module_graph,
         OutputAssets::empty(),
         OutputAssets::empty(),
     );
@@ -178,17 +117,11 @@ struct EmittedEvaluatePoolAssetsWithEffects {
 
 #[turbo_tasks::function(operation)]
 async fn emit_evaluate_pool_assets_with_effects_operation(
-    module_asset: ResolvedVc<Box<dyn Module>>,
-    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    entries: ResolvedVc<EvaluateEntries>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
+    module_graph: ResolvedVc<ModuleGraph>,
 ) -> Result<Vc<EmittedEvaluatePoolAssetsWithEffects>> {
-    let operation = emit_evaluate_pool_assets_operation(
-        module_asset,
-        asset_context,
-        chunking_context,
-        runtime_entries,
-    );
+    let operation = emit_evaluate_pool_assets_operation(entries, chunking_context, module_graph);
     let assets = operation.read_strongly_consistent().await?;
     let effects = Arc::new(get_effects(operation).await?);
     Ok(EmittedEvaluatePoolAssetsWithEffects { assets, effects }.cell())
@@ -216,22 +149,17 @@ pub enum EnvVarTracking {
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
 pub async fn get_evaluate_pool(
-    module_asset: ResolvedVc<Box<dyn Module>>,
+    entries: ResolvedVc<EvaluateEntries>,
     cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
-    asset_context: ResolvedVc<Box<dyn AssetContext>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
+    module_graph: ResolvedVc<ModuleGraph>,
     additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
     env_var_tracking: EnvVarTracking,
 ) -> Result<Vc<NodeJsPool>> {
-    let operation = emit_evaluate_pool_assets_with_effects_operation(
-        module_asset,
-        asset_context,
-        chunking_context,
-        runtime_entries,
-    );
+    let operation =
+        emit_evaluate_pool_assets_with_effects_operation(entries, chunking_context, module_graph);
     let EmittedEvaluatePoolAssetsWithEffects { assets, effects } =
         &*operation.read_strongly_consistent().await?;
     effects.apply().await?;
@@ -401,29 +329,114 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
     Ok(Vc::cell(result.map(RcStr::from)))
 }
 
+#[turbo_tasks::value]
+pub struct EvaluateEntries(Vec<ResolvedVc<Box<dyn EvaluatableAsset + 'static>>>);
+
+#[turbo_tasks::value_impl]
+impl EvaluateEntries {
+    #[turbo_tasks::function]
+    pub async fn graph_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
+        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(
+            self.await?
+                .0
+                .iter()
+                .cloned()
+                .map(ResolvedVc::upcast)
+                .collect(),
+        )]))
+    }
+}
+
+#[turbo_tasks::function]
+pub async fn get_evaluate_entries(
+    module_asset: ResolvedVc<Box<dyn Module>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
+) -> Result<Vc<EvaluateEntries>> {
+    let runtime_asset = asset_context
+        .process(
+            Vc::upcast(FileSource::new(
+                embed_file_path(rcstr!("ipc/evaluate.ts")).owned().await?,
+            )),
+            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
+        )
+        .module()
+        .to_resolved()
+        .await?;
+
+    let entry_module = asset_context
+        .process(
+            Vc::upcast(VirtualSource::new(
+                runtime_asset.ident().path().await?.join("evaluate.js")?,
+                AssetContent::file(
+                    File::from("import { run } from 'RUNTIME'; run(() => import('INNER'))").into(),
+                ),
+            )),
+            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
+                rcstr!("INNER") => module_asset,
+                rcstr!("RUNTIME") => runtime_asset
+            })),
+        )
+        .module()
+        .to_resolved()
+        .await?;
+
+    let runtime_entries = {
+        let globals_module = asset_context
+            .process(
+                Vc::upcast(FileSource::new(
+                    embed_file_path(rcstr!("globals.ts")).owned().await?,
+                )),
+                ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
+            )
+            .module();
+
+        let Some(globals_module) =
+            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(globals_module).await?
+        else {
+            bail!("Internal module is not evaluatable");
+        };
+
+        let mut entries = vec![globals_module.to_resolved().await?];
+        if let Some(runtime_entries) = runtime_entries {
+            for &entry in &*runtime_entries.await? {
+                entries.push(entry)
+            }
+        }
+        entries
+    };
+
+    Ok(EvaluateEntries(
+        runtime_entries
+            .iter()
+            .copied()
+            .chain(iter::once(ResolvedVc::try_downcast(entry_module).unwrap()))
+            .collect(),
+    )
+    .cell())
+}
+
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
 #[turbo_tasks::function]
 pub async fn evaluate(
-    module_asset: ResolvedVc<Box<dyn Module>>,
+    entries: ResolvedVc<EvaluateEntries>,
     cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     context_source_for_issue: ResolvedVc<Box<dyn Source>>,
-    asset_context: ResolvedVc<Box<dyn AssetContext>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
+    module_graph: ResolvedVc<ModuleGraph>,
     args: Vec<ResolvedVc<JsonValue>>,
     additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
 ) -> Result<Vc<Option<RcStr>>> {
     custom_evaluate(BasicEvaluateContext {
-        module_asset,
+        entries,
         cwd,
         env,
         context_source_for_issue,
-        asset_context,
         chunking_context,
-        runtime_entries,
+        module_graph,
         args,
         additional_invalidation,
         debug,
@@ -487,13 +500,12 @@ async fn pull_operation<T: EvaluateContext>(
 
 #[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, Serialize, Deserialize, TraceRawVcs)]
 struct BasicEvaluateContext {
-    module_asset: ResolvedVc<Box<dyn Module>>,
+    entries: ResolvedVc<EvaluateEntries>,
     cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     context_source_for_issue: ResolvedVc<Box<dyn Source>>,
-    asset_context: ResolvedVc<Box<dyn AssetContext>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
+    module_graph: ResolvedVc<ModuleGraph>,
     args: Vec<ResolvedVc<JsonValue>>,
     additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
@@ -507,12 +519,11 @@ impl EvaluateContext for BasicEvaluateContext {
 
     fn pool(&self) -> OperationVc<crate::pool::NodeJsPool> {
         get_evaluate_pool(
-            self.module_asset,
+            self.entries,
             self.cwd.clone(),
             self.env,
-            self.asset_context,
             self.chunking_context,
-            self.runtime_entries,
+            self.module_graph,
             self.additional_invalidation,
             self.debug,
             EnvVarTracking::WholeEnvTracked,
