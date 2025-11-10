@@ -11,9 +11,7 @@ related:
     - app/api-reference/config/next-config-js/cacheLife
 ---
 
-The `cacheHandlers` configuration allows you to define custom cache storage implementations for [`'use cache'`](/docs/app/api-reference/directives/use-cache) and [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote). This enables you to store cached components and functions in external services or customize the caching behavior.
-
-> **Good to know**: The `cacheHandlers` (plural) configuration is specifically for `'use cache'` directives. This is different from `cacheHandler` (singular), which is used for ISR and App/Pages Router cache operations. Note that [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) is not configurable through `cacheHandlers`.
+The `cacheHandlers` configuration allows you to define custom cache storage implementations for [`'use cache'`](/docs/app/api-reference/directives/use-cache) and [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote). This enables you to store cached components and functions in external services or customize the caching behavior. [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) is not configurable.
 
 ## When to use custom cache handlers
 
@@ -93,17 +91,19 @@ Returns a `CacheEntry` object if found, or `undefined` if not found or expired.
 Your `get` method should retrieve the cache entry from storage, check if it has expired based on the `revalidate` time, and return `undefined` for missing or expired entries.
 
 ```js
-async get(cacheKey, softTags) {
-  const entry = cache.get(cacheKey);
-  if (!entry) return undefined;
+class CacheHandler {
+  async get(cacheKey, softTags) {
+    const entry = cache.get(cacheKey)
+    if (!entry) return undefined
 
-  // Check if expired
-  const now = Date.now();
-  if (now > entry.timestamp + entry.revalidate * 1000) {
-    return undefined;
+    // Check if expired
+    const now = Date.now()
+    if (now > entry.timestamp + entry.revalidate * 1000) {
+      return undefined
+    }
+
+    return entry
   }
-
-  return entry;
 }
 ```
 
@@ -127,12 +127,14 @@ Returns `Promise<void>`.
 Your `set` method must await the `pendingEntry` promise before storing it, since the cache entry may still be generating when this method is called. Once resolved, store the entry in your cache system.
 
 ```js
-async set(cacheKey, pendingEntry) {
-  // Wait for the entry to be ready
-  const entry = await pendingEntry;
+class CacheHandler {
+  async set(cacheKey, pendingEntry) {
+    // Wait for the entry to be ready
+    const entry = await pendingEntry
 
-  // Store in your cache system
-  cache.set(cacheKey, entry);
+    // Store in your cache system
+    cache.set(cacheKey, entry)
+  }
 }
 ```
 
@@ -151,9 +153,11 @@ Returns `Promise<void>`.
 For in-memory caches, this can be a no-op. For distributed caches, use this to sync tag state from an external service or database before processing requests.
 
 ```js
-async refreshTags() {
-  // For in-memory cache, no action needed
-  // For distributed cache, sync tag state from external service
+class CacheHandler {
+  async refreshTags() {
+    // For in-memory cache, no action needed
+    // For distributed cache, sync tag state from external service
+  }
 }
 ```
 
@@ -178,12 +182,14 @@ Returns:
 If you're not tracking tag revalidation timestamps, return `0`. Otherwise, find the most recent revalidation timestamp across all the provided tags. Return `Infinity` if you prefer to handle soft tag checking in the `get` method.
 
 ```js
-async getExpiration(tags) {
-  // Return 0 if not tracking tag revalidation
-  return 0;
+class CacheHandler {
+  async getExpiration(tags) {
+    // Return 0 if not tracking tag revalidation
+    return 0
 
-  // Or return the most recent revalidation timestamp
-  // return Math.max(...tags.map(tag => tagTimestamps.get(tag) || 0));
+    // Or return the most recent revalidation timestamp
+    // return Math.max(...tags.map(tag => tagTimestamps.get(tag) || 0));
+  }
 }
 ```
 
@@ -207,11 +213,13 @@ Returns `Promise<void>`.
 When tags are revalidated, your handler should invalidate all cache entries that have any of those tags. Iterate through your cache and remove entries whose tags match the provided list.
 
 ```js
-async updateTags(tags, durations) {
-  // Invalidate all cache entries with matching tags
-  for (const [key, entry] of cache.entries()) {
-    if (entry.tags.some((tag) => tags.includes(tag))) {
-      cache.delete(key);
+class CacheHandler {
+  async updateTags(tags, durations) {
+    // Invalidate all cache entries with matching tags
+    for (const [key, entry] of cache.entries()) {
+      if (entry.tags.some((tag) => tags.includes(tag))) {
+        cache.delete(key)
+      }
     }
   }
 }
