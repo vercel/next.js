@@ -63,14 +63,11 @@ pub(super) async fn build_font_face_definitions(
         let query_str = qstring::QString::from(serde_json::to_string(&query)?.as_str());
 
         // Check if `font-family` is explicitly defined in `declarations`
-        let has_custom_font_family = options
-            .declarations
-            .as_ref()
-            .is_some_and(|declarations| {
-                declarations
-                    .iter()
-                    .any(|declaration| declaration.prop == "font-family")
-            });
+        let has_custom_font_family = options.declarations.as_ref().is_some_and(|declarations| {
+            declarations
+                .iter()
+                .any(|declaration| declaration.prop == "font-family")
+        });
 
         definitions.push_str(&formatdoc!(
             r#"
@@ -100,12 +97,12 @@ pub(super) async fn build_font_face_definitions(
                 .weight
                 .as_ref()
                 .or(options.default_weight.as_ref())
-                .map_or_else(|| "".to_owned(), |w| format!("font-weight: {w};")),
+                .map_or_else(|| "".to_owned(), |w| format!("\nfont-weight: {w};")),
             &font
                 .style
                 .as_ref()
                 .or(options.default_style.as_ref())
-                .map_or_else(|| "".to_owned(), |s| format!("font-style: {s};")),
+                .map_or_else(|| "".to_owned(), |s| format!("\nfont-style: {s};")),
         ));
     }
 
