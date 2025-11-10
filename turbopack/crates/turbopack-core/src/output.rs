@@ -112,8 +112,13 @@ pub struct OutputAssetsSet(FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>);
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub struct OutputAssetsWithReferenced {
+    /// Primary output assets. These are e. g. the chunks needed for a chunk group.
     pub assets: ResolvedVc<OutputAssets>,
+    /// Secondary output assets that are referenced by the primary assets.
     pub referenced_assets: ResolvedVc<OutputAssets>,
+    /// Secondary output assets that are referenced by the primary assets. These are unresolved
+    /// `OutputAssetsReference`s and need to be expanded to get the actual assets. These are e. g.
+    /// async loaders that reference other chunk groups.
     pub references: ResolvedVc<OutputAssetsReferences>,
 }
 
@@ -187,11 +192,15 @@ impl OutputAssetsWithReferenced {
         Ok(Vc::cell(self.expand_assets(false).await?))
     }
 
+    /// Returns only primary asset entries. Doesn't expand OutputAssets. Doesn't return referenced
+    /// assets.
     #[turbo_tasks::function]
     pub fn assets(&self) -> Vc<OutputAssets> {
         *self.assets
     }
 
+    /// Returns only secondary referenced asset entries. Doesn't expand OutputAssets. Doesn't return
+    /// primary assets.
     #[turbo_tasks::function]
     pub async fn referenced_assets(&self) -> Result<Vc<OutputAssets>> {
         Ok(Vc::cell(
