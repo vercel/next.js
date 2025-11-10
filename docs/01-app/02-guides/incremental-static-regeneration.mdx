@@ -35,6 +35,9 @@ interface Post {
 // request comes in, at most once every 60 seconds.
 export const revalidate = 60
 
+// You must always return an array from `generateStaticParams`, even if it's empty;
+// Or you must add `export const dynamic = 'force-static'` to enable ISR.
+// Otherwise, the route will be dynamically rendered
 export async function generateStaticParams() {
   const posts: Post[] = await fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
