@@ -38,7 +38,7 @@ where
         let mut queue = entry_assets.clone();
         while let Some(asset) = queue.pop() {
             if visited.insert(asset) {
-                let references = asset.references().direct_assets().await?;
+                let references = asset.references().all_assets().await?;
                 asset_children.insert(asset, references.clone());
                 queue.extend(references);
             }

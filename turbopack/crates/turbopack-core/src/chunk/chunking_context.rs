@@ -153,7 +153,7 @@ impl ChunkGroupResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn direct_assets(&self) -> Result<Vc<OutputAssets>> {
+    pub async fn all_assets(&self) -> Result<Vc<OutputAssets>> {
         Ok(Vc::cell(
             expand_output_assets(
                 self.assets

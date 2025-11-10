@@ -584,7 +584,7 @@ async fn walk_asset(
         diff(path.clone(), asset.content()).await?;
     }
 
-    queue.extend(asset.references().direct_assets().await?.iter().copied());
+    queue.extend(asset.references().all_assets().await?.iter().copied());
 
     Ok(())
 }

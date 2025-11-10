@@ -750,7 +750,7 @@ async fn print_graph(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
     let mut queue = Vec::new();
     queue.push((0, asset));
     while let Some((depth, asset)) = queue.pop() {
-        let references = asset.references().direct_assets().await?;
+        let references = asset.references().all_assets().await?;
         let mut indent = String::new();
         for _ in 0..depth {
             indent.push_str("  ");

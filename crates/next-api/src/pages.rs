@@ -1307,7 +1307,7 @@ impl PageEndpoint {
         let ssr_chunk = match this.ty {
             PageEndpointType::Html => {
                 let client_chunk_group = self.client_chunk_group();
-                client_assets.extend(client_chunk_group.direct_assets().await?.iter().copied());
+                client_assets.extend(client_chunk_group.all_assets().await?.iter().copied());
                 let client_chunks = *client_chunk_group.await?.assets;
 
                 let build_manifest = self.build_manifest(client_chunks).to_resolved().await?;

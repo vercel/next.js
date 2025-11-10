@@ -1239,7 +1239,7 @@ impl AppEndpoint {
                 *client_chunking_context,
             );
 
-            client_assets.extend(client_shared_chunk_group.direct_assets().await?);
+            client_assets.extend(client_shared_chunk_group.all_assets().await?);
 
             let client_shared_chunk_group = client_shared_chunk_group.await?;
             (
@@ -1282,20 +1282,20 @@ impl AppEndpoint {
             .layout_segment_client_chunks
             .values()
         {
-            client_assets.extend(assets.direct_assets().await?.iter().copied());
+            client_assets.extend(assets.all_assets().await?.iter().copied());
         }
         for &assets in client_references_chunks_ref
             .client_component_client_chunks
             .values()
         {
-            client_assets.extend(assets.direct_assets().await?.iter().copied());
+            client_assets.extend(assets.all_assets().await?.iter().copied());
         }
         for &assets in client_references_chunks_ref
             .client_component_ssr_chunks
             .values()
         {
             // TODO(alexkirsz) In which manifest does this go?
-            server_assets.extend(assets.direct_assets().await?.iter().copied());
+            server_assets.extend(assets.all_assets().await?.iter().copied());
         }
 
         let manifest_path_prefix = &app_entry.original_name;
@@ -1372,7 +1372,7 @@ impl AppEndpoint {
                 .client_component_ssr_chunks
                 .values()
             {
-                middleware_assets.extend(assets.direct_assets().await?);
+                middleware_assets.extend(assets.all_assets().await?);
             }
         }
 
@@ -1416,7 +1416,7 @@ impl AppEndpoint {
             )
             .to_resolved()
             .await?;
-        server_assets.extend(app_entry_chunks.direct_assets().await?.into_iter().copied());
+        server_assets.extend(app_entry_chunks.all_assets().await?.into_iter().copied());
         let app_entry_chunk_group_ref = app_entry_chunks.await?;
         let app_entry_chunks = app_entry_chunk_group_ref.assets;
         let app_entry_chunks_ref = app_entry_chunks.await?;

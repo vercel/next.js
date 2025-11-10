@@ -481,7 +481,7 @@ async fn get_referenced_server_assets(
     client_root: Option<FileSystemPath>,
     exclude_glob: Option<ReadRef<Glob>>,
 ) -> Result<Vec<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)>> {
-    let refs = asset.references().direct_assets().await?;
+    let refs = asset.references().all_assets().await?;
 
     refs.iter()
         .map(async |asset| {

@@ -188,7 +188,7 @@ impl OutputAssetsWithReferenced {
     /// Returns only direct referenced assets and does not include assets referenced indirectly by
     /// them.
     #[turbo_tasks::function]
-    pub async fn direct_assets(&self) -> Result<Vc<OutputAssets>> {
+    pub async fn all_assets(&self) -> Result<Vc<OutputAssets>> {
         Ok(Vc::cell(self.expand_assets(false).await?))
     }
 
