@@ -170,10 +170,17 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
         if (entry.status !== BUILT) return
         const result =
           /^(client|server|edge-server)@(app|pages|root)@(.*)/g.exec(entryName)
-        const [, key /* pageType */, ,] = result! // this match should always happen
+        const [, key /* pageType */, , page] = result! // this match should always happen
         if (key === 'client' && !this.isClientCacheEnabled) return
         if (key === 'server' && !this.isServerCacheEnabled) return
         if (key === 'edge-server' && !this.isEdgeServerCacheEnabled) return
+
+        // TODO: Rspack does not store middleware entries in persistent cache, causing 
+        // test/integration/middleware-src/test/index.test.ts to fail. This is a temporary 
+        // workaround to skip middleware entry caching until Rspack properly supports it.
+        if (page === '/middleware') {
+          return
+        }
 
         let hash: string | undefined
         if (entry.type === EntryTypes.ENTRY) {
