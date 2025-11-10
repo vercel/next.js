@@ -434,6 +434,8 @@ export interface ExperimentalConfig {
 
   /**
    * Enable filesystem cache for the turbopack build.
+   *
+   * Defaults to `false`.
    */
   turbopackFileSystemCacheForBuild?: boolean
 
