@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox } from '../../../lib/next-test-utils'
 
+const cacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
+
 describe('use-cache-errors', () => {
   const { next, isRspack, isTurbopack } = nextTestSetup({
     files: __dirname,
@@ -53,34 +55,66 @@ describe('use-cache-errors', () => {
   it('should not leak generated internal cache function names in call stacks', async () => {
     const browser = await next.browser('/anonymous')
 
-    if (isTurbopack) {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "kaputt!",
-         "environmentLabel": "Cache",
-         "label": "Runtime Error",
-         "source": "app/anonymous/page.tsx (4:11) @ <anonymous>
-       > 4 |     throw new Error('kaputt!')
-           |           ^",
-         "stack": [
-           "<anonymous> app/anonymous/page.tsx (4:11)",
-         ],
-       }
-      `)
+    if (cacheComponentsEnabled) {
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "kaputt!",
+           "environmentLabel": "Prerender",
+           "label": "Runtime Error",
+           "source": "app/anonymous/page.tsx (4:11) @ <anonymous>
+         > 4 |     throw new Error('kaputt!')
+             |           ^",
+           "stack": [
+             "<anonymous> app/anonymous/page.tsx (4:11)",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "kaputt!",
+           "environmentLabel": "Prerender",
+           "label": "Runtime Error",
+           "source": "app/anonymous/page.tsx (4:11) @ eval
+         > 4 |     throw new Error('kaputt!')
+             |           ^",
+           "stack": [
+             "eval app/anonymous/page.tsx (4:11)",
+           ],
+         }
+        `)
+      }
     } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "kaputt!",
-         "environmentLabel": "Cache",
-         "label": "Runtime Error",
-         "source": "app/anonymous/page.tsx (4:11) @ eval
-       > 4 |     throw new Error('kaputt!')
-           |           ^",
-         "stack": [
-           "eval app/anonymous/page.tsx (4:11)",
-         ],
-       }
-      `)
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "kaputt!",
+           "environmentLabel": "Cache",
+           "label": "Runtime Error",
+           "source": "app/anonymous/page.tsx (4:11) @ <anonymous>
+         > 4 |     throw new Error('kaputt!')
+             |           ^",
+           "stack": [
+             "<anonymous> app/anonymous/page.tsx (4:11)",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "kaputt!",
+           "environmentLabel": "Cache",
+           "label": "Runtime Error",
+           "source": "app/anonymous/page.tsx (4:11) @ eval
+         > 4 |     throw new Error('kaputt!')
+             |           ^",
+           "stack": [
+             "eval app/anonymous/page.tsx (4:11)",
+           ],
+         }
+        `)
+      }
     }
   })
 })
