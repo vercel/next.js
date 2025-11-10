@@ -3,15 +3,15 @@ import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 import { cache as $$reactCache__ } from "react";
 const v = 'world';
+const $$RSC_SERVER_CACHE_0_INNER = async function fn() {
+    return 'hello, ' + v;
+};
 export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function fn() {
-    return $$cache__("default", "803128060c414d59f8552e4788b846c0d2b7f74743", 0, async function fn() {
-        return 'hello, ' + v;
-    }, arguments);
+    return $$cache__("default", "803128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, arguments);
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "803128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
-    value: "fn",
-    writable: false
+    value: "fn"
 });
 var fn = $$RSC_SERVER_CACHE_0;
 export async function Component() {
