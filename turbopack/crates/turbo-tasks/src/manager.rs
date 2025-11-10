@@ -286,7 +286,6 @@ impl Display for TaskPersistence {
         match self {
             TaskPersistence::Persistent => write!(f, "persistent"),
             TaskPersistence::Transient => write!(f, "transient"),
-            TaskPersistence::Local => write!(f, "local"),
         }
     }
 }
