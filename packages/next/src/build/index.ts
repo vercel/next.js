@@ -151,6 +151,7 @@ import type { NextError } from '../lib/is-error'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
+import { installBindings } from './swc/install-bindings'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
@@ -964,6 +965,8 @@ export default async function build(
       // Reading the config can modify environment variables that influence the bundler selection.
       bundler = finalizeBundlerFromConfig(bundler)
       nextBuildSpan.setAttribute('bundler', getBundlerForTelemetry(bundler))
+      // Install the native bindings early so we can have synchronous access later.
+      await installBindings(config.experimental?.useWasmBinary)
 
       process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
@@ -1148,11 +1151,11 @@ export default async function build(
       }
 
       if (appDir && 'exportPathMap' in config) {
-        Log.error(
+        const errorMessage =
           'The "exportPathMap" configuration cannot be used with the "app" directory. Please use generateStaticParams() instead.'
-        )
+        Log.error(errorMessage)
         await telemetry.flush()
-        process.exit(1)
+        throw new Error(errorMessage)
       }
 
       const validFileMatcher = createValidFileMatcher(
@@ -1492,16 +1495,15 @@ export default async function build(
       if (bundler !== Bundler.Turbopack) {
         const numConflictingAppPaths = conflictingAppPagePaths.length
         if (mappedAppPages && numConflictingAppPaths > 0) {
-          Log.error(
-            `Conflicting app and page file${
-              numConflictingAppPaths === 1 ? ' was' : 's were'
-            } found, please remove the conflicting files to continue:`
-          )
+          const errorMessage = `Conflicting app and page file${
+            numConflictingAppPaths === 1 ? ' was' : 's were'
+          } found, please remove the conflicting files to continue:`
+          Log.error(errorMessage)
           for (const [pagePath, appPath] of conflictingAppPagePaths) {
             Log.error(`  "${pagePath}" - "${appPath}"`)
           }
           await telemetry.flush()
-          process.exit(1)
+          throw new Error(errorMessage)
         }
       }
 
@@ -1832,7 +1834,7 @@ export default async function build(
                       })
                       .catch((err) => {
                         console.error(err)
-                        process.exit(1)
+                        throw err
                       })
                   })
               }
@@ -2699,7 +2701,7 @@ export default async function build(
               outputFileTracingRoot,
             }).catch((err) => {
               console.error(err)
-              process.exit(1)
+              throw err
             })
           })
       }
@@ -4300,6 +4302,12 @@ export default async function build(
   } finally {
     // Ensure we wait for lockfile patching if present
     await lockfilePatchPromise.cur
+
+    // Flush telemetry before finishing (waits for async operations like setTimeout in debug mode)
+    const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
+    if (telemetry) {
+      await telemetry.flush()
+    }
 
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()

@@ -2096,8 +2096,7 @@ async function renderToHTMLOrFlightImpl(
       null
 
     const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
-    const devValidatingFallbackParams =
-      getRequestMeta(req, 'devValidatingFallbackParams') || null
+    const devFallbackParams = getRequestMeta(req, 'devFallbackParams') || null
 
     const createRequestStore = createRequestStoreForRender.bind(
       null,
@@ -2111,7 +2110,7 @@ async function renderToHTMLOrFlightImpl(
       isHmrRefresh,
       serverComponentsHmrCache,
       renderResumeDataCache,
-      devValidatingFallbackParams
+      devFallbackParams
     )
     const requestStore = createRequestStore()
 
@@ -2201,7 +2200,7 @@ async function renderToHTMLOrFlightImpl(
             postponedState,
             metadata,
             undefined, // Prevent restartable-render behavior in dev + Cache Components mode
-            devValidatingFallbackParams
+            devFallbackParams
           )
 
           return new RenderResult(stream, {
@@ -2245,7 +2244,7 @@ async function renderToHTMLOrFlightImpl(
       // and we currently we don't copy changes over when creating a new store,
       // so the restarted render wouldn't be correct.
       didExecuteServerAction ? undefined : createRequestStore,
-      devValidatingFallbackParams
+      devFallbackParams
     )
 
     // Invalid dynamic usages should only error the request in development.
@@ -2451,7 +2450,7 @@ async function renderToStream(
   postponedState: PostponedState | null,
   metadata: AppPageRenderResultMetadata,
   createRequestStore: (() => RequestStore) | undefined,
-  devValidatingFallbackParams: OpaqueFallbackRouteParams | null
+  devFallbackParams: OpaqueFallbackRouteParams | null
 ): Promise<ReadableStream<Uint8Array>> {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   const {
@@ -2689,7 +2688,7 @@ async function renderToStream(
         res.statusCode === 404,
         clientReferenceManifest,
         requestStore,
-        devValidatingFallbackParams
+        devFallbackParams
       )
     } else {
       // This is a dynamic render. We don't do dynamic tracking because we're not prerendering

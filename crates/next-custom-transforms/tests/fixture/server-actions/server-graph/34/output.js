@@ -2,53 +2,53 @@
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 import { cache as $$reactCache__ } from "react";
+const $$RSC_SERVER_CACHE_0_INNER = async function foo() {
+    return 'foo';
+};
 export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function foo() {
-    return $$cache__("default", "803128060c414d59f8552e4788b846c0d2b7f74743", 0, async function() {
-        return 'foo';
-    }, arguments);
+    return $$cache__("default", "803128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, arguments);
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "803128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
-    value: "foo",
-    writable: false
+    value: "foo"
 });
 const foo = $$RSC_SERVER_CACHE_0;
 export { bar };
+const $$RSC_SERVER_CACHE_1_INNER = async function bar() {
+    return 'bar';
+};
 export var $$RSC_SERVER_CACHE_1 = $$reactCache__(function bar() {
-    return $$cache__("default", "80951c375b4a6a6e89d67b743ec5808127cfde405d", 0, async function bar() {
-        return 'bar';
-    }, arguments);
+    return $$cache__("default", "80951c375b4a6a6e89d67b743ec5808127cfde405d", 0, $$RSC_SERVER_CACHE_1_INNER, arguments);
 });
 registerServerReference($$RSC_SERVER_CACHE_1, "80951c375b4a6a6e89d67b743ec5808127cfde405d", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_1, "name", {
-    value: "bar",
-    writable: false
+    value: "bar"
 });
 var bar = $$RSC_SERVER_CACHE_1;
 // Should not be wrapped in $$cache__.
 const qux = async function qux() {
     return 'qux';
 };
+const $$RSC_SERVER_CACHE_2_INNER = async function baz() {
+    return qux() + 'baz';
+};
 export var $$RSC_SERVER_CACHE_2 = $$reactCache__(function baz() {
-    return $$cache__("default", "8069348c79fce073bae2f70f139565a2fda1c74c74", 0, async function baz() {
-        return qux() + 'baz';
-    }, arguments);
+    return $$cache__("default", "8069348c79fce073bae2f70f139565a2fda1c74c74", 0, $$RSC_SERVER_CACHE_2_INNER, arguments);
 });
 registerServerReference($$RSC_SERVER_CACHE_2, "8069348c79fce073bae2f70f139565a2fda1c74c74", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_2, "name", {
-    value: "baz",
-    writable: false
+    value: "baz"
 });
 const baz = $$RSC_SERVER_CACHE_2;
+const $$RSC_SERVER_CACHE_3_INNER = async function quux() {
+    return 'quux';
+};
 export var $$RSC_SERVER_CACHE_3 = $$reactCache__(function quux() {
-    return $$cache__("default", "8012a8d21b6362b4cc8f5b15560525095bc48dba80", 0, async function() {
-        return 'quux';
-    }, arguments);
+    return $$cache__("default", "8012a8d21b6362b4cc8f5b15560525095bc48dba80", 0, $$RSC_SERVER_CACHE_3_INNER, arguments);
 });
 registerServerReference($$RSC_SERVER_CACHE_3, "8012a8d21b6362b4cc8f5b15560525095bc48dba80", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_3, "name", {
-    value: "quux",
-    writable: false
+    value: "quux"
 });
 const quux = $$RSC_SERVER_CACHE_3;
 export { foo, baz };

@@ -1671,7 +1671,9 @@ export default async function loadConfig(
     if (userConfig.experimental?.useLightningcss) {
       const { loadBindings } =
         require('../build/swc') as typeof import('../build/swc')
-      const isLightningSupported = (await loadBindings())?.css?.lightning
+      const isLightningSupported = (
+        await loadBindings(userConfig.experimental?.useWasmBinary)
+      )?.css?.lightning
 
       if (!isLightningSupported) {
         curLog.warn(

@@ -18,7 +18,7 @@ bench = false
 workspace = true
 
 [dependencies]
-anyhow = { workspace = true, features = ["backtrace"] }
+anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 console-subscriber = { workspace = true, optional = true }
 rustc-hash = { workspace = true }

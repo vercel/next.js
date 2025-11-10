@@ -1,6 +1,6 @@
 import { revalidateTag } from 'next/cache'
 
 export function POST() {
-  revalidateTag('test', 'seconds')
+  revalidateTag('test', 'minutes')
   return new Response(null, { status: 200 })
 }

@@ -6,7 +6,6 @@ import type {
 import type { LoadingModuleData } from '../../../shared/lib/app-router-types'
 import type {
   CacheNodeSeedData,
-  DynamicParamTypesShort,
   Segment as FlightRouterStateSegment,
 } from '../../../shared/lib/app-router-types'
 import { HasLoadingBoundary } from '../../../shared/lib/app-router-types'
@@ -33,24 +32,31 @@ import {
   type PrefetchSubtaskResult,
   startRevalidationCooldown,
 } from './scheduler'
+import {
+  type RouteVaryPath,
+  type SegmentVaryPath,
+  type PartialSegmentVaryPath,
+  getRouteVaryPath,
+  getFulfilledRouteVaryPath,
+  getSegmentVaryPathForRequest,
+  appendLayoutVaryPath,
+  finalizeLayoutVaryPath,
+  finalizePageVaryPath,
+  clonePageVaryPathWithNewSearchParams,
+  type PageVaryPath,
+  finalizeMetadataVaryPath,
+} from './vary-path'
 import { getAppBuildId } from '../../app-build-id'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
-import type {
-  NormalizedPathname,
-  NormalizedNextUrl,
-  NormalizedSearch,
-  RouteCacheKey,
-} from './cache-key'
+import type { NormalizedSearch, RouteCacheKey } from './cache-key'
 // TODO: Rename this module to avoid confusion with other types of cache keys
 import { createCacheKey as createPrefetchRequestKey } from './cache-key'
 import {
   doesStaticSegmentAppearInURL,
   getCacheKeyForDynamicParam,
-  getParamValueFromCacheKey,
   getRenderedPathname,
   getRenderedSearch,
   parseDynamicParamFromURLPart,
-  type RouteParam,
 } from '../../route-params'
 import {
   createCacheMap,
@@ -59,23 +65,15 @@ import {
   setSizeInCacheMap,
   deleteFromCacheMap,
   isValueExpired,
-  Fallback,
   type CacheMap,
   type MapEntry,
-  type FallbackType,
 } from './cache-map'
 import {
-  appendSegmentCacheKeyPart,
   appendSegmentRequestKeyPart,
   convertSegmentPathToStaticExportFilename,
-  createSegmentCacheKeyPart,
   createSegmentRequestKeyPart,
-  createHeadCacheKey,
-  isHeadCacheKey,
   HEAD_REQUEST_KEY,
-  ROOT_SEGMENT_CACHE_KEY,
   ROOT_SEGMENT_REQUEST_KEY,
-  type SegmentCacheKey,
   type SegmentRequestKey,
 } from '../../../shared/lib/segment-cache/segment-value-encoding'
 import type {
@@ -125,13 +123,11 @@ export function getStaleTimeMs(staleTimeSeconds: number): number {
 // the root, then it's effectively canceled. This is similar to the design of
 // Rust Futures, or React Suspense.
 
-export type RouteTree = {
-  cacheKey: SegmentCacheKey
+type RouteTreeShared = {
   requestKey: SegmentRequestKey
   // TODO: Remove the `segment` field, now that it can be reconstructed
   // from `param`.
   segment: FlightRouterStateSegment
-  param: RouteParam | null
   slots: null | {
     [parallelRouteKey: string]: RouteTree
   }
@@ -151,6 +147,18 @@ export type RouteTree = {
   hasRuntimePrefetch: boolean
 }
 
+type LayoutRouteTree = RouteTreeShared & {
+  isPage: false
+  varyPath: SegmentVaryPath
+}
+
+type PageRouteTree = RouteTreeShared & {
+  isPage: true
+  varyPath: PageVaryPath
+}
+
+export type RouteTree = LayoutRouteTree | PageRouteTree
+
 type RouteCacheEntryShared = {
   // This is false only if we're certain the route cannot be intercepted. It's
   // true in all other cases, including on initialization when we haven't yet
@@ -158,7 +166,7 @@ type RouteCacheEntryShared = {
   couldBeIntercepted: boolean
 
   // Map-related fields.
-  ref: null | MapEntry<RouteCacheKeypath, RouteCacheEntry>
+  ref: null | MapEntry<RouteCacheEntry>
   size: number
   staleAt: number
   version: number
@@ -215,7 +223,7 @@ type SegmentCacheEntryShared = {
   fetchStrategy: FetchStrategy
 
   // Map-related fields.
-  ref: null | MapEntry<SegmentCacheKeypath, SegmentCacheEntry>
+  ref: null | MapEntry<SegmentCacheEntry>
   size: number
   staleAt: number
   version: number
@@ -275,23 +283,8 @@ const MetadataOnlyRequestTree: FlightRouterState = [
   'metadata-only',
 ]
 
-// Route cache entries vary on multiple keys: the href and the Next-Url. Each of
-// these parts needs to be included in the internal cache key. Rather than
-// concatenate the keys into a single key, we use a multi-level map, where the
-// first level is keyed by href, the second level is keyed by Next-Url, and so
-// on (if were to add more levels).
-type RouteCacheKeypath = [
-  NormalizedPathname,
-  NormalizedSearch,
-  NormalizedNextUrl | null | FallbackType,
-]
-let routeCacheMap: CacheMap<RouteCacheKeypath, RouteCacheEntry> =
-  createCacheMap()
-
-export type SegmentCacheKeypath = [string, NormalizedSearch | FallbackType]
-
-let segmentCacheMap: CacheMap<SegmentCacheKeypath, SegmentCacheEntry> =
-  createCacheMap()
+let routeCacheMap: CacheMap<RouteCacheEntry> = createCacheMap()
+let segmentCacheMap: CacheMap<SegmentCacheEntry> = createCacheMap()
 
 // All invalidation listeners for the whole cache are tracked in single set.
 // Since we don't yet support tag or path-based invalidation, there's no point
@@ -396,88 +389,45 @@ export function readRouteCacheEntry(
   now: number,
   key: RouteCacheKey
 ): RouteCacheEntry | null {
-  const keypath: RouteCacheKeypath = [key.pathname, key.search, key.nextUrl]
+  const varyPath: RouteVaryPath = getRouteVaryPath(
+    key.pathname,
+    key.search,
+    key.nextUrl
+  )
   const isRevalidation = false
   return getFromCacheMap(
     now,
     getCurrentCacheVersion(),
     routeCacheMap,
-    keypath,
+    varyPath,
     isRevalidation
   )
 }
 
-export function getCanonicalSegmentKeypath(
-  route: FulfilledRouteCacheEntry,
-  cacheKey: SegmentCacheKey
-): SegmentCacheKeypath {
-  // Returns the actual keypath for a segment, without omitting any params.
-  return [
-    cacheKey,
-    cacheKey.endsWith('/' + PAGE_SEGMENT_KEY) || isHeadCacheKey(cacheKey)
-      ? route.renderedSearch
-      : // Only page segments and the head may contain search params. There's no
-        // reason to include them in the keypath otherwise.
-        Fallback,
-  ]
-}
-
-export function getGenericSegmentKeypathFromFetchStrategy(
-  fetchStrategy: FetchStrategy,
-  route: FulfilledRouteCacheEntry,
-  cacheKey: SegmentCacheKey
-): SegmentCacheKeypath {
-  // Returns the most generic possible keypath for a segment, based on the
-  // strategy used to fetch it, i.e. static/PPR versus runtime prefetching.
-  //
-  // This is used when _writing_ to the cache. We want to choose the most
-  // generic keypath so that it can be reused as much as possible.
-  //
-  // We may be able to re-key the response to something even more generic once
-  // we receive it — for example, if the server tells us that the response
-  // doesn't vary on a particular param — but even before we send the request,
-  // we know somethings based on the fetch strategy alone.
-  const doesVaryOnSearchParams =
-    // Only page segments and the head may contain search params. There's no
-    // reason to include them in the keypath otherwise.
-    (cacheKey.endsWith('/' + PAGE_SEGMENT_KEY) || isHeadCacheKey(cacheKey)) &&
-    // Only a runtime prefetch will include search params in the result. Static
-    // prefetches never include search params, so they can be reused across all
-    // possible search param values.
-    (fetchStrategy === FetchStrategy.Full ||
-      fetchStrategy === FetchStrategy.PPRRuntime)
-  const keypath: SegmentCacheKeypath = [
-    cacheKey,
-
-    doesVaryOnSearchParams ? route.renderedSearch : Fallback,
-  ]
-  return keypath
-}
-
 export function readSegmentCacheEntry(
   now: number,
-  keypath: SegmentCacheKeypath
+  varyPath: SegmentVaryPath
 ): SegmentCacheEntry | null {
   const isRevalidation = false
   return getFromCacheMap(
     now,
     getCurrentCacheVersion(),
     segmentCacheMap,
-    keypath,
+    varyPath,
     isRevalidation
   )
 }
 
 function readRevalidatingSegmentCacheEntry(
   now: number,
-  keypath: SegmentCacheKeypath
+  varyPath: SegmentVaryPath
 ): SegmentCacheEntry | null {
   const isRevalidation = true
   return getFromCacheMap(
     now,
     getCurrentCacheVersion(),
     segmentCacheMap,
-    keypath,
+    varyPath,
     isRevalidation
   )
 }
@@ -535,9 +485,13 @@ export function readOrCreateRouteCacheEntry(
     staleAt: Infinity,
     version: getCurrentCacheVersion(),
   }
-  const keypath: RouteCacheKeypath = [key.pathname, key.search, key.nextUrl]
+  const varyPath: RouteVaryPath = getRouteVaryPath(
+    key.pathname,
+    key.search,
+    key.nextUrl
+  )
   const isRevalidation = false
-  setInCacheMap(routeCacheMap, keypath, pendingEntry, isRevalidation)
+  setInCacheMap(routeCacheMap, varyPath, pendingEntry, isRevalidation)
   return pendingEntry
 }
 
@@ -626,6 +580,15 @@ export function requestOptimisticRouteCacheEntry(
   optimisticUrl.search = optimisticCanonicalSearch
   const optimisticCanonicalUrl = createHrefFromUrl(optimisticUrl)
 
+  const optimisticRouteTree = createOptimisticRouteTree(
+    routeWithNoSearchParams.tree,
+    optimisticRenderedSearch
+  )
+  const optimisticMetadataTree = createOptimisticRouteTree(
+    routeWithNoSearchParams.metadata,
+    optimisticRenderedSearch
+  )
+
   // Clone the base route tree, and override the relevant fields with our
   // optimistic values.
   const optimisticEntry: FulfilledRouteCacheEntry = {
@@ -634,8 +597,8 @@ export function requestOptimisticRouteCacheEntry(
     status: EntryStatus.Fulfilled,
     // This isn't cloned because it's instance-specific
     blockedTasks: null,
-    tree: routeWithNoSearchParams.tree,
-    metadata: routeWithNoSearchParams.metadata,
+    tree: optimisticRouteTree,
+    metadata: optimisticMetadataTree,
     couldBeIntercepted: routeWithNoSearchParams.couldBeIntercepted,
     isPPREnabled: routeWithNoSearchParams.isPPREnabled,
 
@@ -654,6 +617,55 @@ export function requestOptimisticRouteCacheEntry(
   return optimisticEntry
 }
 
+function createOptimisticRouteTree(
+  tree: RouteTree,
+  newRenderedSearch: NormalizedSearch
+): RouteTree {
+  // Create a new route tree that identical to the original one except for
+  // the rendered search string, which is contained in the vary path.
+
+  let clonedSlots: Record<string, RouteTree> | null = null
+  const originalSlots = tree.slots
+  if (originalSlots !== null) {
+    clonedSlots = {}
+    for (const parallelRouteKey in originalSlots) {
+      const childTree = originalSlots[parallelRouteKey]
+      clonedSlots[parallelRouteKey] = createOptimisticRouteTree(
+        childTree,
+        newRenderedSearch
+      )
+    }
+  }
+
+  // We only need to clone the vary path if the route is a page.
+  if (tree.isPage) {
+    return {
+      requestKey: tree.requestKey,
+      segment: tree.segment,
+      varyPath: clonePageVaryPathWithNewSearchParams(
+        tree.varyPath,
+        newRenderedSearch
+      ),
+      isPage: true,
+      slots: clonedSlots,
+      isRootLayout: tree.isRootLayout,
+      hasLoadingBoundary: tree.hasLoadingBoundary,
+      hasRuntimePrefetch: tree.hasRuntimePrefetch,
+    }
+  }
+
+  return {
+    requestKey: tree.requestKey,
+    segment: tree.segment,
+    varyPath: tree.varyPath,
+    isPage: false,
+    slots: clonedSlots,
+    isRootLayout: tree.isRootLayout,
+    hasLoadingBoundary: tree.hasLoadingBoundary,
+    hasRuntimePrefetch: tree.hasRuntimePrefetch,
+  }
+}
+
 /**
  * Checks if an entry for a segment exists in the cache. If so, it returns the
  * entry, If not, it adds an empty entry to the cache and returns it.
@@ -662,22 +674,22 @@ export function readOrCreateSegmentCacheEntry(
   now: number,
   fetchStrategy: FetchStrategy,
   route: FulfilledRouteCacheEntry,
-  cacheKey: SegmentCacheKey
+  tree: RouteTree
 ): SegmentCacheEntry {
-  const canonicalKeypath = getCanonicalSegmentKeypath(route, cacheKey)
-  const existingEntry = readSegmentCacheEntry(now, canonicalKeypath)
+  const existingEntry = readSegmentCacheEntry(now, tree.varyPath)
   if (existingEntry !== null) {
     return existingEntry
   }
   // Create a pending entry and add it to the cache.
-  const genericKeypath = getGenericSegmentKeypathFromFetchStrategy(
-    fetchStrategy,
-    route,
-    cacheKey
-  )
+  const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
   const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
   const isRevalidation = false
-  setInCacheMap(segmentCacheMap, genericKeypath, pendingEntry, isRevalidation)
+  setInCacheMap(
+    segmentCacheMap,
+    varyPathForRequest,
+    pendingEntry,
+    isRevalidation
+  )
   return pendingEntry
 }
 
@@ -685,7 +697,7 @@ export function readOrCreateRevalidatingSegmentEntry(
   now: number,
   fetchStrategy: FetchStrategy,
   route: FulfilledRouteCacheEntry,
-  cacheKey: SegmentCacheKey
+  tree: RouteTree
 ): SegmentCacheEntry {
   // This function is called when we've already confirmed that a particular
   // segment is cached, but we want to perform another request anyway in case it
@@ -714,45 +726,46 @@ export function readOrCreateRevalidatingSegmentEntry(
   // return a less generic entry upon revalidation. For now, though, this isn't
   // a concern because the keypath is based solely on the prefetch strategy,
   // not on data contained in the response.
-  const canonicalKeypath = getCanonicalSegmentKeypath(route, cacheKey)
-  const existingEntry = readRevalidatingSegmentCacheEntry(now, canonicalKeypath)
+  const existingEntry = readRevalidatingSegmentCacheEntry(now, tree.varyPath)
   if (existingEntry !== null) {
     return existingEntry
   }
   // Create a pending entry and add it to the cache.
-  const genericKeypath = getGenericSegmentKeypathFromFetchStrategy(
-    fetchStrategy,
-    route,
-    cacheKey
-  )
+  const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
   const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
   const isRevalidation = true
-  setInCacheMap(segmentCacheMap, genericKeypath, pendingEntry, isRevalidation)
+  setInCacheMap(
+    segmentCacheMap,
+    varyPathForRequest,
+    pendingEntry,
+    isRevalidation
+  )
   return pendingEntry
 }
 
 export function overwriteRevalidatingSegmentCacheEntry(
   fetchStrategy: FetchStrategy,
   route: FulfilledRouteCacheEntry,
-  cacheKey: SegmentCacheKey
+  tree: RouteTree
 ) {
   // This function is called when we've already decided to replace an existing
   // revalidation entry. Create a new entry and write it into the cache,
   // overwriting the previous value.
-  const genericKeypath = getGenericSegmentKeypathFromFetchStrategy(
-    fetchStrategy,
-    route,
-    cacheKey
-  )
+  const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
   const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
   const isRevalidation = true
-  setInCacheMap(segmentCacheMap, genericKeypath, pendingEntry, isRevalidation)
+  setInCacheMap(
+    segmentCacheMap,
+    varyPathForRequest,
+    pendingEntry,
+    isRevalidation
+  )
   return pendingEntry
 }
 
 export function upsertSegmentEntry(
   now: number,
-  keypath: SegmentCacheKeypath,
+  varyPath: SegmentVaryPath,
   candidateEntry: SegmentCacheEntry
 ): SegmentCacheEntry | null {
   // We have a new entry that has not yet been inserted into the cache. Before
@@ -767,7 +780,7 @@ export function upsertSegmentEntry(
     return null
   }
 
-  const existingEntry = readSegmentCacheEntry(now, keypath)
+  const existingEntry = readSegmentCacheEntry(now, varyPath)
   if (existingEntry !== null) {
     // Don't replace a more specific segment with a less-specific one. A case where this
     // might happen is if the existing segment was fetched via
@@ -801,7 +814,7 @@ export function upsertSegmentEntry(
   }
 
   const isRevalidation = false
-  setInCacheMap(segmentCacheMap, keypath, candidateEntry, isRevalidation)
+  setInCacheMap(segmentCacheMap, varyPath, candidateEntry, isRevalidation)
   return candidateEntry
 }
 
@@ -858,10 +871,10 @@ function pingBlockedTasks(entry: {
 function fulfillRouteCacheEntry(
   entry: RouteCacheEntry,
   tree: RouteTree,
+  metadataVaryPath: PageVaryPath,
   staleAt: number,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
-  renderedPathname: NormalizedPathname,
   renderedSearch: NormalizedSearch,
   isPPREnabled: boolean
 ): FulfilledRouteCacheEntry {
@@ -870,10 +883,13 @@ function fulfillRouteCacheEntry(
   // object, so rather than fork the logic in all those places, we use this
   // "fake" one.
   const metadata: RouteTree = {
-    cacheKey: createHeadCacheKey(renderedPathname),
     requestKey: HEAD_REQUEST_KEY,
     segment: HEAD_REQUEST_KEY,
-    param: null,
+    varyPath: metadataVaryPath,
+    // The metadata isn't really a "page" (though it isn't really a "segment"
+    // either) but for the purposes of how this field is used, it behaves like
+    // one. If this logic ever gets more complex we can change this to an enum.
+    isPage: true,
     slots: null,
     isRootLayout: false,
     hasLoadingBoundary: HasLoadingBoundary.SubtreeHasNoLoadingBoundary,
@@ -939,33 +955,41 @@ function rejectSegmentCacheEntry(
   }
 }
 
+type RouteTreeAccumulator = {
+  metadataVaryPath: PageVaryPath | null
+}
+
 function convertRootTreePrefetchToRouteTree(
   rootTree: RootTreePrefetch,
-  renderedPathname: string
+  renderedPathname: string,
+  renderedSearch: NormalizedSearch,
+  acc: RouteTreeAccumulator
 ) {
   // Remove trailing and leading slashes
   const pathnameParts = renderedPathname.split('/').filter((p) => p !== '')
   const index = 0
-  const rootSegment = ROOT_SEGMENT_CACHE_KEY
+  const rootSegment = ROOT_SEGMENT_REQUEST_KEY
   return convertTreePrefetchToRouteTree(
     rootTree.tree,
     rootSegment,
     null,
     ROOT_SEGMENT_REQUEST_KEY,
-    ROOT_SEGMENT_CACHE_KEY,
     pathnameParts,
-    index
+    index,
+    renderedSearch,
+    acc
   )
 }
 
 function convertTreePrefetchToRouteTree(
   prefetch: TreePrefetch,
   segment: FlightRouterStateSegment,
-  param: RouteParam | null,
+  partialVaryPath: PartialSegmentVaryPath | null,
   requestKey: SegmentRequestKey,
-  cacheKey: SegmentCacheKey,
   pathnameParts: Array<string>,
-  pathnamePartsIndex: number
+  pathnamePartsIndex: number,
+  renderedSearch: NormalizedSearch,
+  acc: RouteTreeAccumulator
 ): RouteTree {
   // Converts the route tree sent by the server into the format used by the
   // cache. The cached version of the tree includes additional fields, such as a
@@ -974,8 +998,13 @@ function convertTreePrefetchToRouteTree(
   // request the segment from the server.
 
   let slots: { [parallelRouteKey: string]: RouteTree } | null = null
+  let isPage: boolean
+  let varyPath: SegmentVaryPath
   const prefetchSlots = prefetch.slots
   if (prefetchSlots !== null) {
+    isPage = false
+    varyPath = finalizeLayoutVaryPath(requestKey, partialVaryPath)
+
     slots = {}
     for (let parallelRouteKey in prefetchSlots) {
       const childPrefetch = prefetchSlots[parallelRouteKey]
@@ -984,8 +1013,8 @@ function convertTreePrefetchToRouteTree(
       const childServerSentParamKey = childPrefetch.paramKey
 
       let childDoesAppearInURL: boolean
-      let childParam: RouteParam | null = null
       let childSegment: FlightRouterStateSegment
+      let childPartialVaryPath: PartialSegmentVaryPath | null
       if (childParamType !== null) {
         // This segment is parameterized. Get the param from the pathname.
         const childParamValue = parseDynamicParamFromURLPart(
@@ -1004,23 +1033,27 @@ function convertTreePrefetchToRouteTree(
         // This would clearer if we waited to construct the segment until it's
         // read from the cache, since that's effectively what we're
         // doing anyway.
-        const renderedSearch = '' as NormalizedSearch
         const childParamKey =
           // The server omits this field from the prefetch response when
           // cacheComponents is enabled.
           childServerSentParamKey !== null
             ? childServerSentParamKey
             : // If no param key was sent, use the value parsed on the client.
-              getCacheKeyForDynamicParam(childParamValue, renderedSearch)
+              getCacheKeyForDynamicParam(
+                childParamValue,
+                '' as NormalizedSearch
+              )
 
-        childParam = {
-          name: childParamName,
-          value: childParamValue,
-          type: childParamType,
-        }
+        childPartialVaryPath = appendLayoutVaryPath(
+          partialVaryPath,
+          childParamKey
+        )
         childSegment = [childParamName, childParamKey, childParamType]
         childDoesAppearInURL = true
       } else {
+        // This segment does not have a param. Inherit the partial vary path of
+        // the parent.
+        childPartialVaryPath = partialVaryPath
         childSegment = childParamName
         childDoesAppearInURL = doesStaticSegmentAppearInURL(childParamName)
       }
@@ -1037,28 +1070,57 @@ function convertTreePrefetchToRouteTree(
         parallelRouteKey,
         childRequestKeyPart
       )
-      const childCacheKey = appendSegmentCacheKeyPart(
-        cacheKey,
-        parallelRouteKey,
-        createSegmentCacheKeyPart(childRequestKeyPart, childSegment)
-      )
       slots[parallelRouteKey] = convertTreePrefetchToRouteTree(
         childPrefetch,
         childSegment,
-        childParam,
+        childPartialVaryPath,
         childRequestKey,
-        childCacheKey,
         pathnameParts,
-        childPathnamePartsIndex
+        childPathnamePartsIndex,
+        renderedSearch,
+        acc
       )
+    }
+  } else {
+    if (requestKey.endsWith(PAGE_SEGMENT_KEY)) {
+      // This is a page segment.
+      isPage = true
+      varyPath = finalizePageVaryPath(
+        requestKey,
+        renderedSearch,
+        partialVaryPath
+      )
+      // The metadata "segment" is not part the route tree, but it has the same
+      // conceptual params as a page segment. Write the vary path into the
+      // accumulator object. If there are multiple parallel pages, we use the
+      // first one. Which page we choose is arbitrary as long as it's
+      // consistently the same one every time every time. See
+      // finalizeMetadataVaryPath for more details.
+      if (acc.metadataVaryPath === null) {
+        acc.metadataVaryPath = finalizeMetadataVaryPath(
+          requestKey,
+          renderedSearch,
+          partialVaryPath
+        )
+      }
+    } else {
+      // This is a layout segment.
+      isPage = false
+      varyPath = finalizeLayoutVaryPath(requestKey, partialVaryPath)
     }
   }
 
   return {
-    cacheKey,
     requestKey,
     segment,
-    param,
+    varyPath,
+    // TODO: Cheating the type system here a bit because TypeScript can't tell
+    // that the type of isPage and varyPath are consistent. The fix would be to
+    // create separate constructors and call the appropriate one from each of
+    // the branches above. Just seems a bit overkill only for one field so I'll
+    // leave it as-is for now. If isPage were wrong it would break the behavior
+    // and we'd catch it quickly, anyway.
+    isPage: isPage as boolean as any,
     slots,
     isRootLayout: prefetch.isRootLayout,
     // This field is only relevant to dynamic routes. For a PPR/static route,
@@ -1069,20 +1131,82 @@ function convertTreePrefetchToRouteTree(
 }
 
 function convertRootFlightRouterStateToRouteTree(
-  flightRouterState: FlightRouterState
+  flightRouterState: FlightRouterState,
+  renderedSearch: NormalizedSearch,
+  acc: RouteTreeAccumulator
 ): RouteTree {
   return convertFlightRouterStateToRouteTree(
     flightRouterState,
-    ROOT_SEGMENT_CACHE_KEY,
-    ROOT_SEGMENT_REQUEST_KEY
+    ROOT_SEGMENT_REQUEST_KEY,
+    null,
+    renderedSearch,
+    acc
   )
 }
 
 function convertFlightRouterStateToRouteTree(
   flightRouterState: FlightRouterState,
-  cacheKey: SegmentCacheKey,
-  requestKey: SegmentRequestKey
+  requestKey: SegmentRequestKey,
+  parentPartialVaryPath: PartialSegmentVaryPath | null,
+  renderedSearch: NormalizedSearch,
+  acc: RouteTreeAccumulator
 ): RouteTree {
+  const originalSegment = flightRouterState[0]
+
+  let segment: FlightRouterStateSegment
+  let partialVaryPath: PartialSegmentVaryPath | null
+  let isPage: boolean
+  let varyPath: SegmentVaryPath
+  if (Array.isArray(originalSegment)) {
+    isPage = false
+    const paramCacheKey = originalSegment[1]
+    partialVaryPath = appendLayoutVaryPath(parentPartialVaryPath, paramCacheKey)
+    varyPath = finalizeLayoutVaryPath(requestKey, partialVaryPath)
+    segment = originalSegment
+  } else {
+    // This segment does not have a param. Inherit the partial vary path of
+    // the parent.
+    partialVaryPath = parentPartialVaryPath
+    if (requestKey.endsWith(PAGE_SEGMENT_KEY)) {
+      // This is a page segment.
+      isPage = true
+
+      // The navigation implementation expects the search params to be included
+      // in the segment. However, in the case of a static response, the search
+      // params are omitted. So the client needs to add them back in when reading
+      // from the Segment Cache.
+      //
+      // For consistency, we'll do this for dynamic responses, too.
+      //
+      // TODO: We should move search params out of FlightRouterState and handle
+      // them entirely on the client, similar to our plan for dynamic params.
+      segment = PAGE_SEGMENT_KEY
+      varyPath = finalizePageVaryPath(
+        requestKey,
+        renderedSearch,
+        partialVaryPath
+      )
+      // The metadata "segment" is not part the route tree, but it has the same
+      // conceptual params as a page segment. Write the vary path into the
+      // accumulator object. If there are multiple parallel pages, we use the
+      // first one. Which page we choose is arbitrary as long as it's
+      // consistently the same one every time every time. See
+      // finalizeMetadataVaryPath for more details.
+      if (acc.metadataVaryPath === null) {
+        acc.metadataVaryPath = finalizeMetadataVaryPath(
+          requestKey,
+          renderedSearch,
+          partialVaryPath
+        )
+      }
+    } else {
+      // This is a layout segment.
+      isPage = false
+      segment = originalSegment
+      varyPath = finalizeLayoutVaryPath(requestKey, partialVaryPath)
+    }
+  }
+
   let slots: { [parallelRouteKey: string]: RouteTree } | null = null
 
   const parallelRoutes = flightRouterState[1]
@@ -1098,15 +1222,12 @@ function convertFlightRouterStateToRouteTree(
       parallelRouteKey,
       childRequestKeyPart
     )
-    const childCacheKey = appendSegmentCacheKeyPart(
-      cacheKey,
-      parallelRouteKey,
-      createSegmentCacheKeyPart(childRequestKeyPart, childSegment)
-    )
     const childTree = convertFlightRouterStateToRouteTree(
       childRouterState,
-      childCacheKey,
-      childRequestKey
+      childRequestKey,
+      partialVaryPath,
+      renderedSearch,
+      acc
     )
     if (slots === null) {
       slots = {
@@ -1116,42 +1237,18 @@ function convertFlightRouterStateToRouteTree(
       slots[parallelRouteKey] = childTree
     }
   }
-  const originalSegment = flightRouterState[0]
-
-  let segment: FlightRouterStateSegment
-  let param: RouteParam | null = null
-  if (Array.isArray(originalSegment)) {
-    const paramCacheKey = originalSegment[1]
-    const paramType = originalSegment[2]
-    const paramValue = getParamValueFromCacheKey(paramCacheKey, paramType)
-    param = {
-      name: originalSegment[0],
-      value: paramValue === undefined ? null : paramValue,
-      type: originalSegment[2] as DynamicParamTypesShort,
-    }
-    segment = originalSegment
-  } else {
-    // The navigation implementation expects the search params to be included
-    // in the segment. However, in the case of a static response, the search
-    // params are omitted. So the client needs to add them back in when reading
-    // from the Segment Cache.
-    //
-    // For consistency, we'll do this for dynamic responses, too.
-    //
-    // TODO: We should move search params out of FlightRouterState and handle
-    // them entirely on the client, similar to our plan for dynamic params.
-    segment =
-      typeof originalSegment === 'string' &&
-      originalSegment.startsWith(PAGE_SEGMENT_KEY)
-        ? PAGE_SEGMENT_KEY
-        : originalSegment
-  }
 
   return {
-    cacheKey,
     requestKey,
     segment,
-    param,
+    varyPath,
+    // TODO: Cheating the type system here a bit because TypeScript can't tell
+    // that the type of isPage and varyPath are consistent. The fix would be to
+    // create separate constructors and call the appropriate one from each of
+    // the branches above. Just seems a bit overkill only for one field so I'll
+    // leave it as-is for now. If isPage were wrong it would break the behavior
+    // and we'd catch it quickly, anyway.
+    isPage: isPage as boolean as any,
     slots,
     isRootLayout: flightRouterState[4] === true,
     hasLoadingBoundary:
@@ -1347,19 +1444,32 @@ export async function fetchRouteOnCacheMiss(
       const renderedPathname = getRenderedPathname(response)
       const renderedSearch = getRenderedSearch(response)
 
+      // Convert the server-sent data into the RouteTree format used by the
+      // client cache.
+      //
+      // During this traversal, we accumulate additional data into this
+      // "accumulator" object.
+      const acc: RouteTreeAccumulator = { metadataVaryPath: null }
       const routeTree = convertRootTreePrefetchToRouteTree(
         serverData,
-        renderedPathname
+        renderedPathname,
+        renderedSearch,
+        acc
       )
+      const metadataVaryPath = acc.metadataVaryPath
+      if (metadataVaryPath === null) {
+        rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
+        return null
+      }
 
       const staleTimeMs = getStaleTimeMs(serverData.staleTime)
       fulfillRouteCacheEntry(
         entry,
         routeTree,
+        metadataVaryPath,
         Date.now() + staleTimeMs,
         couldBeIntercepted,
         canonicalUrl,
-        renderedPathname,
         renderedSearch,
         routeIsPPREnabled
       )
@@ -1419,9 +1529,14 @@ export async function fetchRouteOnCacheMiss(
       // TODO: Treat this as an upsert — should check if an entry already
       // exists at the new keypath, and if so, whether we should keep that
       // one instead.
-      const newKeypath: RouteCacheKeypath = [pathname, search, Fallback]
+      const fulfilledVaryPath: RouteVaryPath = getFulfilledRouteVaryPath(
+        pathname,
+        search,
+        nextUrl,
+        couldBeIntercepted
+      )
       const isRevalidation = false
-      setInCacheMap(routeCacheMap, newKeypath, entry, isRevalidation)
+      setInCacheMap(routeCacheMap, fulfilledVaryPath, entry, isRevalidation)
     }
     // Return a promise that resolves when the network connection closes, so
     // the scheduler can track the number of concurrent network connections.
@@ -1559,7 +1674,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
   dynamicRequestTree: FlightRouterState,
-  spawnedEntries: Map<SegmentCacheKey, PendingSegmentCacheEntry>
+  spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>
 ): Promise<PrefetchSubtaskResult<null> | null> {
   const key = task.key
   const url = new URL(route.canonicalUrl, location.origin)
@@ -1567,7 +1682,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
 
   if (
     spawnedEntries.size === 1 &&
-    spawnedEntries.has(route.metadata.cacheKey)
+    spawnedEntries.has(route.metadata.requestKey)
   ) {
     // The only thing pending is the head. Instruct the server to
     // skip over everything else.
@@ -1698,7 +1813,6 @@ function writeDynamicTreeResponseIntoCache(
 ) {
   // Get the URL that was used to render the target page. This may be different
   // from the URL in the request URL, if the page was rewritten.
-  const renderedPathname = getRenderedPathname(response)
   const renderedSearch = getRenderedSearch(response)
 
   const normalizedFlightDataResult = normalizeFlightData(serverData.f)
@@ -1736,13 +1850,30 @@ function writeDynamicTreeResponseIntoCache(
   const isResponsePartial =
     response.headers.get(NEXT_DID_POSTPONE_HEADER) === '1'
 
+  // Convert the server-sent data into the RouteTree format used by the
+  // client cache.
+  //
+  // During this traversal, we accumulate additional data into this
+  // "accumulator" object.
+  const acc: RouteTreeAccumulator = { metadataVaryPath: null }
+  const routeTree = convertRootFlightRouterStateToRouteTree(
+    flightRouterState,
+    renderedSearch,
+    acc
+  )
+  const metadataVaryPath = acc.metadataVaryPath
+  if (metadataVaryPath === null) {
+    rejectRouteCacheEntry(entry, now + 10 * 1000)
+    return
+  }
+
   const fulfilledEntry = fulfillRouteCacheEntry(
     entry,
-    convertRootFlightRouterStateToRouteTree(flightRouterState),
+    routeTree,
+    metadataVaryPath,
     now + staleTimeMs,
     couldBeIntercepted,
     canonicalUrl,
-    renderedPathname,
     renderedSearch,
     routeIsPPREnabled
   )
@@ -1769,7 +1900,7 @@ function writeDynamicTreeResponseIntoCache(
 }
 
 function rejectSegmentEntriesIfStillPending(
-  entries: Map<SegmentCacheKey, SegmentCacheEntry>,
+  entries: Map<SegmentRequestKey, SegmentCacheEntry>,
   staleAt: number
 ): Array<FulfilledSegmentCacheEntry> {
   const fulfilledEntries = []
@@ -1794,7 +1925,7 @@ function writeDynamicRenderResponseIntoCache(
   serverData: NavigationFlightResponse,
   isResponsePartial: boolean,
   route: FulfilledRouteCacheEntry,
-  spawnedEntries: Map<SegmentCacheKey, PendingSegmentCacheEntry> | null
+  spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null
 ): Array<FulfilledSegmentCacheEntry> | null {
   if (serverData.b !== getAppBuildId()) {
     // The server build does not match the client. Treat as a 404. During
@@ -1837,22 +1968,17 @@ function writeDynamicRenderResponseIntoCache(
       //
       //   [string, Segment, string, Segment, string, Segment, ...]
       const segmentPath = flightData.segmentPath
-      let requestKey = ROOT_SEGMENT_REQUEST_KEY
-      let cacheKey = ROOT_SEGMENT_CACHE_KEY
+      let tree = route.tree
       for (let i = 0; i < segmentPath.length; i += 2) {
         const parallelRouteKey: string = segmentPath[i]
-        const segment: FlightRouterStateSegment = segmentPath[i + 1]
-        const requestKeyPart = createSegmentRequestKeyPart(segment)
-        requestKey = appendSegmentRequestKeyPart(
-          requestKey,
-          parallelRouteKey,
-          requestKeyPart
-        )
-        cacheKey = appendSegmentCacheKeyPart(
-          cacheKey,
-          parallelRouteKey,
-          createSegmentCacheKeyPart(requestKeyPart, segment)
-        )
+        if (tree?.slots?.[parallelRouteKey] !== undefined) {
+          tree = tree.slots[parallelRouteKey]
+        } else {
+          if (spawnedEntries !== null) {
+            rejectSegmentEntriesIfStillPending(spawnedEntries, now + 10 * 1000)
+          }
+          return null
+        }
       }
 
       writeSeedDataIntoCache(
@@ -1860,12 +1986,10 @@ function writeDynamicRenderResponseIntoCache(
         task,
         fetchStrategy,
         route,
+        tree,
         staleAt,
-        flightData.tree,
         seedData,
         isResponsePartial,
-        cacheKey,
-        requestKey,
         spawnedEntries
       )
     }
@@ -1880,7 +2004,7 @@ function writeDynamicRenderResponseIntoCache(
         null,
         flightData.isHeadPartial,
         staleAt,
-        route.metadata.cacheKey,
+        route.metadata,
         spawnedEntries
       )
     }
@@ -1911,14 +2035,12 @@ function writeSeedDataIntoCache(
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
   route: FulfilledRouteCacheEntry,
+  tree: RouteTree,
   staleAt: number,
-  flightRouterState: FlightRouterState,
   seedData: CacheNodeSeedData,
   isResponsePartial: boolean,
-  cacheKey: SegmentCacheKey,
-  requestKey: SegmentRequestKey,
   entriesOwnedByCurrentTask: Map<
-    SegmentCacheKey,
+    SegmentRequestKey,
     PendingSegmentCacheEntry
   > | null
 ) {
@@ -1935,43 +2057,31 @@ function writeSeedDataIntoCache(
     loading,
     isPartial,
     staleAt,
-    cacheKey,
+    tree,
     entriesOwnedByCurrentTask
   )
 
   // Recursively write the child data into the cache.
-  const flightRouterStateChildren = flightRouterState[1]
-  const seedDataChildren = seedData[1]
-  for (const parallelRouteKey in flightRouterStateChildren) {
-    const childFlightRouterState = flightRouterStateChildren[parallelRouteKey]
-    const childSeedData: CacheNodeSeedData | null | void =
-      seedDataChildren[parallelRouteKey]
-    if (childSeedData !== null && childSeedData !== undefined) {
-      const childSegment = childFlightRouterState[0]
-      const childRequestKeyPart = createSegmentRequestKeyPart(childSegment)
-      const childRequestKey = appendSegmentRequestKeyPart(
-        requestKey,
-        parallelRouteKey,
-        childRequestKeyPart
-      )
-      const childCacheKey = appendSegmentCacheKeyPart(
-        cacheKey,
-        parallelRouteKey,
-        createSegmentCacheKeyPart(childRequestKeyPart, childSegment)
-      )
-      writeSeedDataIntoCache(
-        now,
-        task,
-        fetchStrategy,
-        route,
-        staleAt,
-        childFlightRouterState,
-        childSeedData,
-        isResponsePartial,
-        childCacheKey,
-        childRequestKey,
-        entriesOwnedByCurrentTask
-      )
+  const slots = tree.slots
+  if (slots !== null) {
+    const seedDataChildren = seedData[1]
+    for (const parallelRouteKey in slots) {
+      const childTree = slots[parallelRouteKey]
+      const childSeedData: CacheNodeSeedData | null | void =
+        seedDataChildren[parallelRouteKey]
+      if (childSeedData !== null && childSeedData !== undefined) {
+        writeSeedDataIntoCache(
+          now,
+          task,
+          fetchStrategy,
+          route,
+          childTree,
+          staleAt,
+          childSeedData,
+          isResponsePartial,
+          entriesOwnedByCurrentTask
+        )
+      }
     }
   }
 }
@@ -1987,9 +2097,9 @@ function fulfillEntrySpawnedByRuntimePrefetch(
   loading: LoadingModuleData | Promise<LoadingModuleData>,
   isPartial: boolean,
   staleAt: number,
-  cacheKey: SegmentCacheKey,
+  tree: RouteTree,
   entriesOwnedByCurrentTask: Map<
-    SegmentCacheKey,
+    SegmentRequestKey,
     PendingSegmentCacheEntry
   > | null
 ) {
@@ -1998,7 +2108,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
   // created by a different task, because that causes data races.
   const ownedEntry =
     entriesOwnedByCurrentTask !== null
-      ? entriesOwnedByCurrentTask.get(cacheKey)
+      ? entriesOwnedByCurrentTask.get(tree.requestKey)
       : undefined
   if (ownedEntry !== undefined) {
     fulfillSegmentCacheEntry(ownedEntry, rsc, loading, staleAt, isPartial)
@@ -2008,7 +2118,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       now,
       fetchStrategy,
       route,
-      cacheKey
+      tree
     )
     if (possiblyNewEntry.status === EntryStatus.Empty) {
       // Confirmed this is a new entry. We can fulfill it.
@@ -2035,11 +2145,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       )
       upsertSegmentEntry(
         now,
-        getGenericSegmentKeypathFromFetchStrategy(
-          fetchStrategy,
-          route,
-          cacheKey
-        ),
+        getSegmentVaryPathForRequest(fetchStrategy, tree),
         newEntry
       )
     }

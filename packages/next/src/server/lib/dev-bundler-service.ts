@@ -4,7 +4,10 @@ import type { WorkerRequestHandler } from './types'
 
 import { LRUCache } from './lru-cache'
 import { createRequestResponseMocks } from './mock-request'
-import { HMR_MESSAGE_SENT_TO_BROWSER } from '../dev/hot-reloader-types'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  type HmrMessageSentToBrowser,
+} from '../dev/hot-reloader-types'
 import type { ReactDebugChannelForBrowser } from '../dev/debug-channel'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 
@@ -136,5 +139,9 @@ export class DevBundlerService {
 
   public close() {
     this.bundler.hotReloader.close()
+  }
+
+  public triggerHMR(message: HmrMessageSentToBrowser) {
+    this.bundler.hotReloader.send(message)
   }
 }

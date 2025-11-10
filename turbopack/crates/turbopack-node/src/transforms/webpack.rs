@@ -12,7 +12,6 @@ use turbo_tasks::{
     Completion, NonLocalValue, OperationValue, OperationVc, ResolvedVc, TaskInput, TryJoinIterExt,
     ValueToString, Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
     File, FileContent, FileSystemPath,
@@ -56,8 +55,7 @@ use crate::{
     debug::should_debug,
     embed_js::embed_file_path,
     evaluate::{
-        EnvVarTracking, EvaluateContext, EvaluationIssue, JavaScriptEvaluation,
-        JavaScriptStreamSender, compute, custom_evaluate, get_evaluate_pool,
+        EnvVarTracking, EvaluateContext, EvaluationIssue, custom_evaluate, get_evaluate_pool,
     },
     execution_context::ExecutionContext,
     pool::{FormattingMode, NodeJsPool},
@@ -275,7 +273,7 @@ impl WebpackLoadersProcessedAsset {
         })
         .await?;
 
-        let SingleValue::Single(val) = config_value.try_into_single().await? else {
+        let Some(val) = &*config_value else {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
@@ -284,10 +282,8 @@ impl WebpackLoadersProcessedAsset {
             }
             .cell());
         };
-        let processed: WebpackLoadersProcessingResult = parse_json_with_source_context(
-            val.to_str()?,
-        )
-        .context("Unable to deserializate response from webpack loaders transform operation")?;
+        let processed: WebpackLoadersProcessingResult = parse_json_with_source_context(val)
+            .context("Unable to deserializate response from webpack loaders transform operation")?;
 
         // handle SourceMap
         let source_map = if !transform.source_maps {
@@ -319,16 +315,8 @@ impl WebpackLoadersProcessedAsset {
 #[turbo_tasks::function]
 pub(crate) async fn evaluate_webpack_loader(
     webpack_loader_context: WebpackLoaderContext,
-) -> Result<Vc<JavaScriptEvaluation>> {
+) -> Result<Vc<Option<RcStr>>> {
     custom_evaluate(webpack_loader_context).await
-}
-
-#[turbo_tasks::function]
-async fn compute_webpack_loader_evaluation(
-    webpack_loader_context: WebpackLoaderContext,
-    sender: Vc<JavaScriptStreamSender>,
-) -> Result<Vc<()>> {
-    compute(webpack_loader_context, sender).await
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -438,12 +426,6 @@ impl EvaluateContext for WebpackLoaderContext {
     type RequestMessage = RequestMessage;
     type ResponseMessage = ResponseMessage;
     type State = Vec<LogInfo>;
-
-    async fn compute(self, sender: Vc<JavaScriptStreamSender>) -> Result<()> {
-        compute_webpack_loader_evaluation(self, sender)
-            .as_side_effect()
-            .await
-    }
 
     fn pool(&self) -> OperationVc<crate::pool::NodeJsPool> {
         get_evaluate_pool(

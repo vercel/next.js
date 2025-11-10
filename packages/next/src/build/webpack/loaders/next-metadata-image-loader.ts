@@ -16,6 +16,7 @@ import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import type { PageExtensions } from '../../page-extensions-type'
 import { getLoaderModuleNamedExports } from './utils'
+import { installBindings } from '../../swc/install-bindings'
 
 interface Options {
   segment: string
@@ -30,6 +31,10 @@ async function nextMetadataImageLoader(
   this: webpack.LoaderContext<Options>,
   content: Buffer
 ) {
+  // Install bindings early so they are definitely available to the loader.
+  // When run by webpack in next this is already done with correct configuration so this is a no-op.
+  // In turbopack loaders are run in a subprocess so it may or may not be done.
+  await installBindings()
   const options: Options = this.getOptions()
   const { type, segment, pageExtensions, basePath } = options
   const { resourcePath, rootContext: context } = this

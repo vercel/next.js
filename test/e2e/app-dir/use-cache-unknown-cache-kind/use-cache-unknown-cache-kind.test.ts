@@ -9,10 +9,8 @@ import {
 import stripAnsi from 'strip-ansi'
 import { createSandbox } from 'development-sandbox'
 
-const isRspack = !!process.env.NEXT_RSPACK
-
 describe('use-cache-unknown-cache-kind', () => {
-  const { next, isNextStart, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextStart, isTurbopack, isRspack, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
     skipDeployment: true,
