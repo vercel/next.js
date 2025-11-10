@@ -232,8 +232,9 @@ where
     {
         debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<ResolvedVc<K>>());
         debug_assert!(size_of::<Vec<ResolvedVc<T>>>() == size_of::<Vec<ResolvedVc<K>>>());
+        let (ptr, len, capacity) = vec.into_raw_parts();
         // Safety: The memory layout of `ResolvedVc<T>` and `ResolvedVc<K>` is the same.
-        unsafe { transmute::<Vec<ResolvedVc<T>>, Vec<ResolvedVc<K>>>(vec) }
+        unsafe { Vec::from_raw_parts(ptr as *mut ResolvedVc<K>, len, capacity) }
     }
 
     /// Cheaply converts a Vec of resolved Vcs to a Vec of Vcs.
