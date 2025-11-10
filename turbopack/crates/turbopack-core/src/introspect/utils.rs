@@ -125,7 +125,7 @@ pub async fn children_from_output_assets(
 ) -> Result<Vc<IntrospectableChildren>> {
     let key = reference_ty();
     let mut children = FxIndexSet::default();
-    let references = references.all_assets().await?;
+    let references = references.expand_all_assets().await?;
     for &reference in &*references {
         children.insert((
             key.clone(),

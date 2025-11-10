@@ -489,7 +489,7 @@ async fn build_internal(
     let all_assets = async move {
         let mut all_assets: FxHashSet<ResolvedVc<Box<dyn OutputAsset>>> = FxHashSet::default();
         for group in entry_chunk_groups {
-            all_assets.extend(group.all_assets().await?);
+            all_assets.extend(group.expand_all_assets().await?);
         }
         anyhow::Ok(all_assets)
     }

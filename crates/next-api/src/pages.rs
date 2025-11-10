@@ -1046,7 +1046,7 @@ impl PageEndpoint {
                     .await?;
 
                 Ok(SsrChunk::Edge {
-                    assets: chunk_assets.assets().to_resolved().await?,
+                    assets: chunk_assets.primary_assets().to_resolved().await?,
                     referenced_assets: chunk_assets.referenced_assets().to_resolved().await?,
                     dynamic_import_entries,
                     regions: regions.clone(),
@@ -1064,7 +1064,7 @@ impl PageEndpoint {
                         ssr_entry_chunk_path,
                         EvaluatableAssets::empty().with_entry(*ssr_module_evaluatable),
                         ssr_module_graph,
-                        current_chunk_group.assets(),
+                        current_chunk_group.primary_assets(),
                         current_chunk_group.referenced_assets(),
                         current_chunk_group.await?.availability_info,
                     )

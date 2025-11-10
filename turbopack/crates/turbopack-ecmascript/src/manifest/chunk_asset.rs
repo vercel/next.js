@@ -126,7 +126,7 @@ impl Module for ManifestAsyncModule {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let assets = self.chunk_group().all_assets().await?;
+        let assets = self.chunk_group().expand_all_assets().await?;
 
         Ok(Vc::cell(
             assets

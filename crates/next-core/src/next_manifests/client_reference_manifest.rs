@@ -259,7 +259,7 @@ async fn build_manifest(
             let (client_chunks_paths, client_is_async) = if let Some(client_assets) =
                 client_component_client_chunks.get(&app_client_reference_ty)
             {
-                let client_chunks = client_assets.assets().await?;
+                let client_chunks = client_assets.primary_assets().await?;
                 let client_referenced_assets = client_assets.referenced_assets().await?;
                 references.extend(client_chunks.iter());
                 references.extend(client_referenced_assets.iter());
@@ -312,7 +312,7 @@ async fn build_manifest(
                 } else if let Some(ssr_assets) =
                     client_component_ssr_chunks.get(&app_client_reference_ty)
                 {
-                    let ssr_chunks = ssr_assets.assets().await?;
+                    let ssr_chunks = ssr_assets.primary_assets().await?;
                     let ssr_referenced_assets = ssr_assets.referenced_assets().await?;
                     references.extend(ssr_chunks.iter());
                     references.extend(ssr_referenced_assets.iter());
@@ -418,7 +418,7 @@ async fn build_manifest(
                 .entry(server_component_name)
                 .or_default();
 
-            let client_chunks = client_assets.assets().await?;
+            let client_chunks = client_assets.primary_assets().await?;
             let client_chunks_with_path =
                 cached_chunk_paths(&mut client_chunk_path_cache, client_chunks.iter().copied())
                     .await?;

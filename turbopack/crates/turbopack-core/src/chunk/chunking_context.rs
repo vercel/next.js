@@ -175,8 +175,10 @@ impl ChunkGroupResult {
         ))
     }
 
+    /// Returns only primary asset entries. Doesn't expand OutputAssets. Doesn't return referenced
+    /// assets.
     #[turbo_tasks::function]
-    pub fn assets(&self) -> Vc<OutputAssets> {
+    pub fn primary_assets(&self) -> Vc<OutputAssets> {
         *self.assets
     }
 

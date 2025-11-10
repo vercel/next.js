@@ -257,7 +257,7 @@ impl MiddlewareEndpoint {
             Ok(Vc::cell(output_assets))
         } else {
             let edge_chunk_group = self.edge_chunk_group();
-            let edge_all_assets = edge_chunk_group.all_assets();
+            let edge_all_assets = edge_chunk_group.expand_all_assets();
 
             let node_root = this.project.node_root().owned().await?;
             let node_root_value = node_root.clone();

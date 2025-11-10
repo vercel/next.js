@@ -181,7 +181,7 @@ impl OutputAssetsWithReferenced {
 
     /// Returns all assets, including referenced assets and nested assets.
     #[turbo_tasks::function]
-    pub async fn all_assets(&self) -> Result<Vc<ExpandedOutputAssets>> {
+    pub async fn expand_all_assets(&self) -> Result<Vc<ExpandedOutputAssets>> {
         Ok(Vc::cell(self.expand_assets(true).await?))
     }
 
@@ -195,7 +195,7 @@ impl OutputAssetsWithReferenced {
     /// Returns only primary asset entries. Doesn't expand OutputAssets. Doesn't return referenced
     /// assets.
     #[turbo_tasks::function]
-    pub fn assets(&self) -> Vc<OutputAssets> {
+    pub fn primary_assets(&self) -> Vc<OutputAssets> {
         *self.assets
     }
 
