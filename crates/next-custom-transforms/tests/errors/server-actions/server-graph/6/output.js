@@ -3,8 +3,7 @@ import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc
 export default $$RSC_SERVER_ACTION_0 = ()=>{};
 var $$RSC_SERVER_ACTION_0;
 Object["defineProperty"]($$RSC_SERVER_ACTION_0, "name", {
-    value: "default",
-    writable: false
+    value: "default"
 });
 import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([

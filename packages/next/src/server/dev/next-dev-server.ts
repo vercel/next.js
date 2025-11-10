@@ -40,6 +40,7 @@ import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { Telemetry } from '../../telemetry/storage'
 import { type Span, setGlobal, trace } from '../../trace'
+import { traceGlobals } from '../../trace/shared'
 import { findPageFile } from '../lib/find-page-file'
 import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
@@ -289,7 +290,12 @@ export default class DevServer extends Server {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
-    const telemetry = new Telemetry({ distDir: this.distDir })
+    // Use existing telemetry instance from traceGlobals instead of creating a new one.
+    // Creating a new instance would overwrite the existing one, causing any telemetry
+    // events recorded to the original instance to be lost during cleanup/flush.
+    const existingTelemetry = traceGlobals.get('telemetry')
+    const telemetry =
+      existingTelemetry || new Telemetry({ distDir: this.distDir })
 
     await super.prepareImpl()
     await this.matchers.reload()
@@ -303,7 +309,10 @@ export default class DevServer extends Server {
     // This is required by the tracing subsystem.
     setGlobal('appDir', this.appDir)
     setGlobal('pagesDir', this.pagesDir)
-    setGlobal('telemetry', telemetry)
+    // Only set telemetry if it wasn't already set
+    if (!existingTelemetry) {
+      setGlobal('telemetry', telemetry)
+    }
 
     process.on('unhandledRejection', (reason) => {
       if (isPostpone(reason)) {

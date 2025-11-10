@@ -4631,22 +4631,22 @@ function renderElement(request, task, keyPath, type, props, ref) {
             parentSegment = task.blockedSegment,
             fallback = props.fallback,
             content = props.children,
-            fallbackAbortSet = new Set();
-          var newBoundary = createSuspenseBoundary(
-            request,
-            task.row,
-            fallbackAbortSet,
-            null,
-            !1
-          );
-          var boundarySegment = createPendingSegment(
-            request,
-            parentSegment.chunks.length,
-            newBoundary,
-            task.formatContext,
-            !1,
-            !1
-          );
+            fallbackAbortSet = new Set(),
+            newBoundary = createSuspenseBoundary(
+              request,
+              task.row,
+              fallbackAbortSet,
+              null,
+              !1
+            ),
+            boundarySegment = createPendingSegment(
+              request,
+              parentSegment.chunks.length,
+              newBoundary,
+              task.formatContext,
+              !1,
+              !1
+            );
           parentSegment.children.push(boundarySegment);
           parentSegment.lastPushedText = !1;
           var contentRootSegment = createPendingSegment(
@@ -5038,20 +5038,20 @@ function retryNode(request, task) {
                         previousReplaySet = task.replay,
                         parentBoundary = task.blockedBoundary,
                         parentHoistableState = task.hoistableState,
-                        content = props.children,
-                        fallback = props.fallback,
-                        fallbackAbortSet = new Set();
-                      props = createSuspenseBoundary(
-                        request,
-                        task.row,
-                        fallbackAbortSet,
-                        null,
-                        !1
-                      );
-                      props.parentFlushed = !0;
-                      props.rootSegmentID = replay;
-                      task.blockedBoundary = props;
-                      task.hoistableState = props.contentState;
+                        content = props.children;
+                      props = props.fallback;
+                      var fallbackAbortSet = new Set(),
+                        resumedBoundary = createSuspenseBoundary(
+                          request,
+                          task.row,
+                          fallbackAbortSet,
+                          null,
+                          !1
+                        );
+                      resumedBoundary.parentFlushed = !0;
+                      resumedBoundary.rootSegmentID = replay;
+                      task.blockedBoundary = resumedBoundary;
+                      task.hoistableState = resumedBoundary.contentState;
                       task.keyPath = key;
                       task.formatContext = getSuspenseContentFormatContext(
                         request.resumableState,
@@ -5071,22 +5071,27 @@ function retryNode(request, task) {
                         )
                           throw Error(formatProdErrorMessage(488));
                         task.replay.pendingTasks--;
-                        if (0 === props.pendingTasks && 0 === props.status) {
-                          props.status = 1;
-                          request.completedBoundaries.push(props);
+                        if (
+                          0 === resumedBoundary.pendingTasks &&
+                          0 === resumedBoundary.status
+                        ) {
+                          resumedBoundary.status = 1;
+                          request.completedBoundaries.push(resumedBoundary);
                           break b;
                         }
                       } catch (error) {
-                        (props.status = 4),
+                        (resumedBoundary.status = 4),
                           (childNodes = getThrownInfo(task.componentStack)),
                           (childSlots = logRecoverableError(
                             request,
                             error,
                             childNodes
                           )),
-                          (props.errorDigest = childSlots),
+                          (resumedBoundary.errorDigest = childSlots),
                           task.replay.pendingTasks--,
-                          request.clientRenderedBoundaries.push(props);
+                          request.clientRenderedBoundaries.push(
+                            resumedBoundary
+                          );
                       } finally {
                         (task.blockedBoundary = parentBoundary),
                           (task.hoistableState = parentHoistableState),
@@ -5099,10 +5104,10 @@ function retryNode(request, task) {
                         request,
                         null,
                         { nodes: name, slots: node$jscomp$0, pendingTasks: 0 },
-                        fallback,
+                        props,
                         -1,
                         parentBoundary,
-                        props.fallbackState,
+                        resumedBoundary.fallbackState,
                         fallbackAbortSet,
                         [key[0], "Suspense Fallback", key[2]],
                         getSuspenseFallbackFormatContext(
@@ -6753,4 +6758,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.3.0-canary-fa50caf5-20251107";
+exports.version = "19.3.0-canary-52684925-20251110";

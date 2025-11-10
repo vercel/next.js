@@ -5891,22 +5891,22 @@
                 parentSegment = task.blockedSegment,
                 fallback = props.fallback,
                 content = props.children,
-                fallbackAbortSet = new Set();
-              var newBoundary = createSuspenseBoundary(
-                request,
-                task.row,
-                fallbackAbortSet,
-                null,
-                !1
-              );
-              var boundarySegment = createPendingSegment(
-                request,
-                parentSegment.chunks.length,
-                newBoundary,
-                task.formatContext,
-                !1,
-                !1
-              );
+                fallbackAbortSet = new Set(),
+                newBoundary = createSuspenseBoundary(
+                  request,
+                  task.row,
+                  fallbackAbortSet,
+                  null,
+                  !1
+                ),
+                boundarySegment = createPendingSegment(
+                  request,
+                  parentSegment.chunks.length,
+                  newBoundary,
+                  task.formatContext,
+                  !1,
+                  !1
+                );
               parentSegment.children.push(boundarySegment);
               parentSegment.lastPushedText = !1;
               var contentRootSegment = createPendingSegment(
@@ -6349,20 +6349,20 @@
                 previousReplaySet = task.replay,
                 parentBoundary = task.blockedBoundary,
                 parentHoistableState = task.hoistableState,
-                content = props.children,
-                fallback = props.fallback,
-                fallbackAbortSet = new Set();
-              props = createSuspenseBoundary(
-                replay,
-                task.row,
-                fallbackAbortSet,
-                null,
-                !1
-              );
-              props.parentFlushed = !0;
-              props.rootSegmentID = request;
-              task.blockedBoundary = props;
-              task.hoistableState = props.contentState;
+                content = props.children;
+              props = props.fallback;
+              var fallbackAbortSet = new Set(),
+                resumedBoundary = createSuspenseBoundary(
+                  replay,
+                  task.row,
+                  fallbackAbortSet,
+                  null,
+                  !1
+                );
+              resumedBoundary.parentFlushed = !0;
+              resumedBoundary.rootSegmentID = request;
+              task.blockedBoundary = resumedBoundary;
+              task.hoistableState = resumedBoundary.contentState;
               task.keyPath = keyPath;
               task.formatContext = getSuspenseContentFormatContext(
                 replay.resumableState,
@@ -6380,13 +6380,16 @@
                     "Couldn't find all resumable slots by key/index during replaying. The tree doesn't match so React will fallback to client rendering."
                   );
                 task.replay.pendingTasks--;
-                if (0 === props.pendingTasks && props.status === PENDING) {
-                  props.status = COMPLETED;
-                  replay.completedBoundaries.push(props);
+                if (
+                  0 === resumedBoundary.pendingTasks &&
+                  resumedBoundary.status === PENDING
+                ) {
+                  resumedBoundary.status = COMPLETED;
+                  replay.completedBoundaries.push(resumedBoundary);
                   break a;
                 }
               } catch (error) {
-                (props.status = CLIENT_RENDERED),
+                (resumedBoundary.status = CLIENT_RENDERED),
                   (childNodes = getThrownInfo(task.componentStack)),
                   (childSlots = logRecoverableError(
                     replay,
@@ -6395,14 +6398,14 @@
                     task.debugTask
                   )),
                   encodeErrorForBoundary(
-                    props,
+                    resumedBoundary,
                     childSlots,
                     error,
                     childNodes,
                     !1
                   ),
                   task.replay.pendingTasks--,
-                  replay.clientRenderedBoundaries.push(props);
+                  replay.clientRenderedBoundaries.push(resumedBoundary);
               } finally {
                 (task.blockedBoundary = parentBoundary),
                   (task.hoistableState = parentHoistableState),
@@ -6415,10 +6418,10 @@
                 replay,
                 null,
                 { nodes: name, slots: node, pendingTasks: 0 },
-                fallback,
+                props,
                 -1,
                 parentBoundary,
-                props.fallbackState,
+                resumedBoundary.fallbackState,
                 fallbackAbortSet,
                 [keyPath[0], "Suspense Fallback", keyPath[2]],
                 getSuspenseFallbackFormatContext(
@@ -10026,5 +10029,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.3.0-canary-fa50caf5-20251107";
+    exports.version = "19.3.0-canary-52684925-20251110";
   })();

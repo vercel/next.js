@@ -1129,7 +1129,7 @@ function createRuntimePrefetchTransformStream(
         controller.enqueue(replace)
         // If there are bytes in the currentChunk after the match enqueue them
         if (currentIndex + searchLen < currentChunk.length) {
-          controller.enqueue(currentChunk.subarray(currentIndex + searchLen))
+          controller.enqueue(currentChunk.slice(currentIndex + searchLen))
         }
         // If we have a next chunk we enqueue it now
         if (nextChunk) {
