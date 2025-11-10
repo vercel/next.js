@@ -50,10 +50,9 @@ pub async fn get_app_client_references_chunks(
             //     .client_references
             //     .iter()
             //     .map(|client_reference| async move {
-            //         let client_reference_ty = client_reference.ty();
             //         Ok((
-            //             client_reference_ty,
-            //             match client_reference_ty {
+            //             client_reference.ty,
+            //             match client_reference.ty {
             //                 ClientReferenceType::EcmascriptClientReference(
             //                     ecmascript_client_reference,
             //                 ) => {
@@ -141,13 +140,13 @@ pub async fn get_app_client_references_chunks(
                     .or_default();
             }
             for client_reference in app_client_references.client_references.iter() {
-                if let Some(server_component) = client_reference.server_component() {
+                if let Some(server_component) = client_reference.server_component {
                     client_references_by_server_component
                         .entry(server_component)
                         .or_default()
-                        .push(client_reference.ty());
+                        .push(client_reference.ty);
                 } else {
-                    framework_reference_types.push(client_reference.ty());
+                    framework_reference_types.push(client_reference.ty);
                 }
             }
             // Framework components need to go into first layout segment

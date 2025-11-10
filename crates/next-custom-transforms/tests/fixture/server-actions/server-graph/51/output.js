@@ -10,8 +10,7 @@ export const $$RSC_SERVER_ACTION_1 = async function $$RSC_SERVER_ACTION_0(a, b, 
 registerServerReference($$RSC_SERVER_ACTION_1, "7090b5db271335765a4b0eab01f044b381b5ebd5cd", null);
 export default $$RSC_SERVER_ACTION_1;
 Object["defineProperty"]($$RSC_SERVER_ACTION_0, "name", {
-    value: "default",
-    writable: false
+    value: "default"
 });
 export const $$RSC_SERVER_ACTION_2 = async function foo(a, b) {
     return <div>

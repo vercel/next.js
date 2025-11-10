@@ -588,7 +588,7 @@ async function generateCacheEntryImpl(
   // though, until React awaits the promise so that React's request store (ALS)
   // is available when the function is invoked. This allows us, for example, to
   // capture logs so that we can later replay them.
-  const resultPromise = createLazyResult(() => fn.apply(null, args))
+  const resultPromise = createLazyResult(fn.bind(null, ...args))
 
   let errors: Array<unknown> = []
 

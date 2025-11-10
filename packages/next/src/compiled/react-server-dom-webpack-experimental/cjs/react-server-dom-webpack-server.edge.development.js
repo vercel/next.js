@@ -1001,7 +1001,6 @@
       model,
       bundlerConfig,
       onError,
-      onPostpone,
       onAllReady,
       onFatalError,
       identifierPrefix,
@@ -1048,8 +1047,6 @@
       this.identifierCount = 1;
       this.taintCleanupQueue = cleanupQueue;
       this.onError = void 0 === onError ? defaultErrorHandler : onError;
-      this.onPostpone =
-        void 0 === onPostpone ? defaultPostponeHandler : onPostpone;
       this.onAllReady = onAllReady;
       this.onFatalError = onFatalError;
       this.pendingDebugChunks = 0;
@@ -1096,7 +1093,6 @@
       bundlerConfig,
       onError,
       identifierPrefix,
-      onPostpone,
       temporaryReferences,
       environmentName,
       filterStackFrame,
@@ -1108,7 +1104,6 @@
         model,
         bundlerConfig,
         onError,
-        onPostpone,
         noop,
         noop,
         identifierPrefix,
@@ -1125,7 +1120,6 @@
       onFatalError,
       onError,
       identifierPrefix,
-      onPostpone,
       temporaryReferences,
       environmentName,
       filterStackFrame,
@@ -1137,7 +1131,6 @@
         model,
         bundlerConfig,
         onError,
-        onPostpone,
         onAllReady,
         onFatalError,
         identifierPrefix,
@@ -2097,9 +2090,6 @@
             ? "$-Infinity"
             : "$NaN";
     }
-    function serializeRowHeader(tag, id) {
-      return id.toString(16) + ":" + tag;
-    }
     function encodeReferenceChunk(request, id, reference) {
       request = stringify(reference);
       id = id.toString(16) + ":" + request + "\n";
@@ -2403,20 +2393,15 @@
         task.implicitSlot = prevImplicitSlot;
         request.pendingChunks++;
         prevKeyPath = request.nextChunkId++;
-        "object" === typeof key &&
-        null !== key &&
-        key.$$typeof === REACT_POSTPONE_TYPE
-          ? (logPostpone(request, key.message, task),
-            emitPostponeChunk(request, prevKeyPath, key))
-          : ((prevImplicitSlot = logRecoverableError(request, key, task)),
-            emitErrorChunk(
-              request,
-              prevKeyPath,
-              prevImplicitSlot,
-              key,
-              !1,
-              task.debugOwner
-            ));
+        prevImplicitSlot = logRecoverableError(request, key, task);
+        emitErrorChunk(
+          request,
+          prevKeyPath,
+          prevImplicitSlot,
+          key,
+          !1,
+          task.debugOwner
+        );
         return parent
           ? serializeLazyID(prevKeyPath)
           : serializeByValueID(prevKeyPath);
@@ -2757,29 +2742,6 @@
           describeObjectForErrorMessage(parent, parentPropertyName)
       );
     }
-    function logPostpone(request, reason, task) {
-      var prevRequest = currentRequest;
-      currentRequest = null;
-      try {
-        var onPostpone = request.onPostpone;
-        null !== task
-          ? supportsRequestStorage
-            ? requestStorage.run(
-                void 0,
-                callWithDebugContextInDEV,
-                request,
-                task,
-                onPostpone,
-                reason
-              )
-            : callWithDebugContextInDEV(request, task, onPostpone, reason)
-          : supportsRequestStorage
-            ? requestStorage.run(void 0, onPostpone, reason)
-            : onPostpone(reason);
-      } finally {
-        currentRequest = prevRequest;
-      }
-    }
     function logRecoverableError(request, error, task) {
       var prevRequest = currentRequest;
       currentRequest = null;
@@ -2822,25 +2784,6 @@
       request.cacheController.abort(
         Error("The render was aborted due to a fatal error.", { cause: error })
       );
-    }
-    function emitPostponeChunk(request, id, postponeInstance) {
-      var reason = "",
-        env = request.environmentName();
-      try {
-        reason = String(postponeInstance.message);
-        var stack = filterStackTrace(
-          request,
-          parseStackTrace(postponeInstance, 0)
-        );
-      } catch (x) {
-        stack = [];
-      }
-      id =
-        serializeRowHeader("P", id) +
-        stringify({ reason: reason, stack: stack, env: env }) +
-        "\n";
-      id = stringToChunk(id);
-      request.completedErrorChunks.push(id);
     }
     function serializeErrorValue(request, error) {
       var name = "Error",
@@ -2896,7 +2839,7 @@
         env: env,
         owner: error
       };
-      id = serializeRowHeader("E", id) + stringify(digest) + "\n";
+      id = id.toString(16) + ":E" + stringify(digest) + "\n";
       id = stringToChunk(id);
       debug
         ? request.completedDebugChunks.push(id)
@@ -2904,7 +2847,7 @@
     }
     function emitImportChunk(request, id, clientReferenceMetadata, debug) {
       clientReferenceMetadata = stringify(clientReferenceMetadata);
-      id = serializeRowHeader("I", id) + clientReferenceMetadata + "\n";
+      id = id.toString(16) + ":I" + clientReferenceMetadata + "\n";
       id = stringToChunk(id);
       debug
         ? request.completedDebugChunks.push(id)
@@ -2928,19 +2871,15 @@
       var json = serializeDebugModel(request, 500, debugInfo);
       null !== request.debugDestination
         ? '"' === json[0] && "$" === json[1]
-          ? ((id = serializeRowHeader("D", id) + json + "\n"),
+          ? ((id = id.toString(16) + ":D" + json + "\n"),
             request.completedRegularChunks.push(stringToChunk(id)))
           : ((debugInfo = request.nextChunkId++),
             (json = debugInfo.toString(16) + ":" + json + "\n"),
             request.pendingDebugChunks++,
             request.completedDebugChunks.push(stringToChunk(json)),
-            (id =
-              serializeRowHeader("D", id) +
-              '"$' +
-              debugInfo.toString(16) +
-              '"\n'),
+            (id = id.toString(16) + ':D"$' + debugInfo.toString(16) + '"\n'),
             request.completedRegularChunks.push(stringToChunk(id)))
-        : ((id = serializeRowHeader("D", id) + json + "\n"),
+        : ((id = id.toString(16) + ":D" + json + "\n"),
           request.completedRegularChunks.push(stringToChunk(id)));
     }
     function outlineComponentInfo(request, componentInfo) {
@@ -3543,13 +3482,9 @@
           (json = timestamp.toString(16) + ":" + json + "\n"),
           request.pendingDebugChunks++,
           request.completedDebugChunks.push(stringToChunk(json)),
-          (id =
-            serializeRowHeader("D", id) +
-            '"$' +
-            timestamp.toString(16) +
-            '"\n'),
+          (id = id.toString(16) + ':D"$' + timestamp.toString(16) + '"\n'),
           request.completedRegularChunks.push(stringToChunk(id)))
-        : ((id = serializeRowHeader("D", id) + json + "\n"),
+        : ((id = id.toString(16) + ":D" + json + "\n"),
           request.completedRegularChunks.push(stringToChunk(id)));
     }
     function markOperationEndTime(request, task, timestamp) {
@@ -3609,17 +3544,8 @@
     function erroredTask(request, task, error) {
       task.timed && markOperationEndTime(request, task, performance.now());
       task.status = 4;
-      if (
-        "object" === typeof error &&
-        null !== error &&
-        error.$$typeof === REACT_POSTPONE_TYPE
-      )
-        logPostpone(request, error.message, task),
-          emitPostponeChunk(request, task.id, error);
-      else {
-        var digest = logRecoverableError(request, error, task);
-        emitErrorChunk(request, task.id, digest, error, !1, task.debugOwner);
-      }
+      var digest = logRecoverableError(request, error, task);
+      emitErrorChunk(request, task.id, digest, error, !1, task.debugOwner);
       request.abortableTasks.delete(task);
       callOnAllReadyIfReady(request);
     }
@@ -3952,23 +3878,7 @@
                 setTimeout(function () {
                   return finishHalt(request, abortableTasks);
                 }, 0);
-            else if (
-              "object" === typeof reason &&
-              null !== reason &&
-              reason.$$typeof === REACT_POSTPONE_TYPE
-            ) {
-              logPostpone(request, reason.message, null);
-              var errorId = request.nextChunkId++;
-              request.fatalError = errorId;
-              request.pendingChunks++;
-              emitPostponeChunk(request, errorId, reason);
-              abortableTasks.forEach(function (task) {
-                return abortTask(task, request, errorId);
-              });
-              setTimeout(function () {
-                return finishAbort(request, abortableTasks, errorId);
-              }, 0);
-            } else {
+            else {
               var error =
                   void 0 === reason
                     ? Error(
@@ -3982,15 +3892,15 @@
                         )
                       : reason,
                 digest = logRecoverableError(request, error, null),
-                _errorId2 = request.nextChunkId++;
-              request.fatalError = _errorId2;
+                errorId = request.nextChunkId++;
+              request.fatalError = errorId;
               request.pendingChunks++;
-              emitErrorChunk(request, _errorId2, digest, error, !1, null);
+              emitErrorChunk(request, errorId, digest, error, !1, null);
               abortableTasks.forEach(function (task) {
-                return abortTask(task, request, _errorId2);
+                return abortTask(task, request, errorId);
               });
               setTimeout(function () {
-                return finishAbort(request, abortableTasks, _errorId2);
+                return finishAbort(request, abortableTasks, errorId);
               }, 0);
             }
           else {
@@ -4863,7 +4773,6 @@
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
-      REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
@@ -5270,7 +5179,6 @@
         ReactSharedInternalsServer.TaintRegistryByteLengths,
       TaintRegistryPendingRequests =
         ReactSharedInternalsServer.TaintRegistryPendingRequests,
-      defaultPostponeHandler = noop,
       currentRequest = null,
       canEmitDebugInfo = !1,
       serializedSize = 0,
@@ -5434,7 +5342,6 @@
           reject,
           options ? options.onError : void 0,
           options ? options.identifierPrefix : void 0,
-          options ? options.onPostpone : void 0,
           options ? options.temporaryReferences : void 0,
           options ? options.environmentName : void 0,
           options ? options.filterStackFrame : void 0,
@@ -5491,7 +5398,6 @@
           webpackMap,
           options ? options.onError : void 0,
           options ? options.identifierPrefix : void 0,
-          options ? options.onPostpone : void 0,
           options ? options.temporaryReferences : void 0,
           options ? options.environmentName : void 0,
           options ? options.filterStackFrame : void 0,

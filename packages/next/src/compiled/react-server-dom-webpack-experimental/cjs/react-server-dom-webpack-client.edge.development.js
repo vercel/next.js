@@ -1684,9 +1684,6 @@
           100
         )));
     }
-    function createErrorChunk(response, error) {
-      return new ReactPromise("rejected", null, error);
-    }
     function filterDebugInfo(response, value) {
       if (null !== response._debugEndTime) {
         response = response._debugEndTime - performance.timeOrigin;
@@ -2117,7 +2114,7 @@
         chunk = chunks.get(id);
       chunk ||
         ((chunk = response._closed
-          ? createErrorChunk(response, response._closedReason)
+          ? new ReactPromise("rejected", null, response._closedReason)
           : createPendingChunk(response)),
         chunks.set(id, chunk));
       return chunk;
@@ -4459,7 +4456,7 @@
           chunk
             ? (resolveChunkDebugInfo(response, streamState, chunk),
               triggerErrorOnChunk(response, chunk, stringDecoder))
-            : ((buffer = createErrorChunk(response, stringDecoder)),
+            : ((buffer = new ReactPromise("rejected", null, stringDecoder)),
               resolveChunkDebugInfo(response, streamState, buffer),
               tag.set(id, buffer));
           break;
@@ -4519,26 +4516,6 @@
           (response = response._chunks.get(id)) &&
             "fulfilled" === response.status &&
             response.reason.close("" === buffer ? '"$undefined"' : buffer);
-          break;
-        case 80:
-          buffer = JSON.parse(buffer);
-          buffer = buildFakeCallStack(
-            response,
-            buffer.stack,
-            buffer.env,
-            !1,
-            Error.bind(null, buffer.reason || "")
-          );
-          tag = response._debugRootTask;
-          tag = null != tag ? tag.run(buffer) : buffer();
-          tag.$$typeof = REACT_POSTPONE_TYPE;
-          buffer = response._chunks;
-          (chunk = buffer.get(id))
-            ? (resolveChunkDebugInfo(response, streamState, chunk),
-              triggerErrorOnChunk(response, chunk, tag))
-            : ((tag = createErrorChunk(response, tag)),
-              resolveChunkDebugInfo(response, streamState, tag),
-              buffer.set(id, tag));
           break;
         default:
           if ("" === buffer) {
@@ -4613,7 +4590,7 @@
                 owner = initializingHandler;
                 initializingHandler = owner.parent;
                 if (owner.errored) {
-                  stack = createErrorChunk(response, owner.reason);
+                  stack = new ReactPromise("rejected", null, owner.reason);
                   initializeElement(response, value, null);
                   owner = {
                     name: getComponentNameFromType(value.type) || "",
@@ -4827,7 +4804,6 @@
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
-      REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,

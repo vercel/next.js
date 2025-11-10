@@ -3,13 +3,11 @@ import { waitForRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('use-cache-segment-configs', () => {
-  const { next, skipped, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, skipped, isNextDev, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
     skipDeployment: true,
   })
-
-  const isRspack = !!process.env.NEXT_RSPACK
 
   if (skipped) {
     return
