@@ -92,7 +92,7 @@ function parseUrlForAppDir(
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
-      if (dirent.isDirectory(dirPath) && !dirent.isSymbolicLink()) {
+      if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
         res.push(
           ...parseUrlForAppDir(
             urlprefix + dirent.name + '/',
