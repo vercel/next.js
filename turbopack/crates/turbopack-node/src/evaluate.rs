@@ -18,6 +18,7 @@ use turbopack_core::{
     context::AssetContext,
     error::PrettyPrintError,
     file_source::FileSource,
+    ident::AssetIdent,
     issue::{
         Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
         StyledString,
@@ -72,9 +73,12 @@ async fn emit_evaluate_pool_assets_operation(
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
 ) -> Result<Vc<EmittedEvaluatePoolAssets>> {
-    let entries = &entries.await?.0;
+    let EvaluateEntries {
+        entries,
+        main_entry_ident,
+    } = &*entries.await?;
 
-    let module_path = entries.last().unwrap().ident().path().await?;
+    let module_path = main_entry_ident.path().await?;
     let file_name = module_path.file_name();
     let file_name = if file_name.ends_with(".js") {
         Cow::Borrowed(file_name)
@@ -330,7 +334,10 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
 }
 
 #[turbo_tasks::value]
-pub struct EvaluateEntries(Vec<ResolvedVc<Box<dyn EvaluatableAsset + 'static>>>);
+pub struct EvaluateEntries {
+    entries: Vec<ResolvedVc<Box<dyn EvaluatableAsset + 'static>>>,
+    main_entry_ident: ResolvedVc<AssetIdent>,
+}
 
 #[turbo_tasks::value_impl]
 impl EvaluateEntries {
@@ -338,7 +345,7 @@ impl EvaluateEntries {
     pub async fn graph_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         Ok(Vc::cell(vec![ChunkGroupEntry::Entry(
             self.await?
-                .0
+                .entries
                 .iter()
                 .cloned()
                 .map(ResolvedVc::upcast)
@@ -406,13 +413,14 @@ pub async fn get_evaluate_entries(
         entries
     };
 
-    Ok(EvaluateEntries(
-        runtime_entries
+    Ok(EvaluateEntries {
+        entries: runtime_entries
             .iter()
             .copied()
             .chain(iter::once(ResolvedVc::try_downcast(entry_module).unwrap()))
             .collect(),
-    )
+        main_entry_ident: module_asset.ident().to_resolved().await?,
+    }
     .cell())
 }
 
