@@ -650,20 +650,25 @@ describe('next/font', () => {
       // Get all stylesheets
       const stylesheets = await browser.eval(`
         Array.from(document.styleSheets)
-          .map(sheet => {
+          .flatMap(sheet => {
             try {
               return Array.from(sheet.cssRules || sheet.rules || [])
                 .map(rule => rule.cssText)
-                .join('\\n')
             } catch (e) {
               return ''
             }
           })
-          .join('\\n')
       `)
 
       // Check that the custom declaration is included in the CSS
-      expect(stylesheets).toContain('ascent-override: 90%')
+      expect(stylesheets).toContainEqual(
+        expect.stringContaining('ascent-override: 90%;')
+      )
+
+      // Check that the custom declaration is included in the CSS and overrides the default family
+      expect(stylesheets).toContainEqual(
+        expect.stringContaining('font-family: foobar;')
+      )
     })
   })
 })

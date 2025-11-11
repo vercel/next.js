@@ -319,6 +319,27 @@ export const installTemplate = async ({
     packageJson.devDependencies = sorted(packageJson.devDependencies);
   }
 
+  if (packageManager === "pnpm") {
+    const pnpmWorkspaceYaml = [
+      // required for v9, v10 doesn't need it anymore
+      "packages:",
+      "  - .",
+      // v10 setting without counterpart in v9
+      "ignoredBuiltDependencies:",
+      // Sharp has prebuilt binaries for the platforms next-swc has binaries.
+      // If it needs to build binaries from source, next-swc wouldn't work either.
+      // See https://sharp.pixelplumbing.com/install/#:~:text=When%20using%20pnpm%2C%20add%20sharp%20to%20ignoredBuiltDependencies%20to%20silence%20warnings
+      "  - sharp",
+      // Not needed for pnpm: https://github.com/unrs/unrs-resolver/issues/193#issuecomment-3295510146
+      "  - unrs-resolver",
+      "",
+    ].join(os.EOL);
+    await fs.writeFile(
+      path.join(root, "pnpm-workspace.yaml"),
+      pnpmWorkspaceYaml,
+    );
+  }
+
   await fs.writeFile(
     path.join(root, "package.json"),
     JSON.stringify(packageJson, null, 2) + os.EOL,

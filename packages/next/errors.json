@@ -905,5 +905,7 @@
   "904": "The file \"%s\" must export a function, either as a default export or as a named \"%s\" export.",
   "905": "Page \"%s\" cannot use \\`export const unstable_prefetch = ...\\` without enabling \\`cacheComponents\\`.",
   "906": "Bindings not loaded yet, but they are being loaded, did you forget to await?",
-  "907": "bindings not loaded yet.  Either call `loadBindings` to wait for them to be available or ensure that `installBindings` has already been called."
+  "907": "bindings not loaded yet.  Either call `loadBindings` to wait for them to be available or ensure that `installBindings` has already been called.",
+  "908": "Invalid flags should be run as node detached-flush dev ./path-to/project [eventsFile]",
+  "909": "Failed to load SWC binary for %s/%s, see more info here: https://nextjs.org/docs/messages/failed-loading-swc"
 }
