@@ -214,7 +214,6 @@ describe('Error overlay - RSC build errors', () => {
     'useSyncExternalStore',
     'useTransition',
     'useOptimistic',
-    'useActionState',
   ]
   for (const api of invalidReactServerApis) {
     it(`should error when ${api} from react is used in server component`, async () => {
@@ -233,6 +232,16 @@ describe('Error overlay - RSC build errors', () => {
       )
     })
   }
+
+  it('should allow useActionState in server component', async () => {
+    await using sandbox = await createSandbox(
+      next,
+      undefined,
+      '/server-with-errors/react-apis/useactionstate'
+    )
+    const { session } = sandbox
+    await session.assertNoRedbox()
+  })
 
   const invalidReactDomServerApis = [
     'flushSync',
