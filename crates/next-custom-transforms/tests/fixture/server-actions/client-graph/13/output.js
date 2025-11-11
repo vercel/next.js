@@ -1,0 +1,9 @@
+/* __next_internal_action_entry_do_not_use__ {"ff1acff246876a467753785a92d1f95ac6fe32c9b9":"Other","ff27fadf3eeb97c777cea9f14a407b5c0b42ac65bb":"aliased","ff438bb59117ff1af890c80ca3e39d9e888fc93033":"wrapped","ff7f03edbc83b6cc7e5ccc12da8fecf25146585bb7":"getCachedData","ff84effee663e5ce4e0948b55df129a8df904c67aa":"Sync","ff85cca0cc8341c33fcca0288c72a60d67cbda2eee":"getCachedStuff","ff8fa22f08e492db15701f58a1458cc4ebf782f855":"getData","ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d":"default"} */ import { createServerReference, callServer, findSourceMapURL } from "private-next-rsc-action-client-wrapper";
+export var getData = /*#__PURE__*/ createServerReference("ff8fa22f08e492db15701f58a1458cc4ebf782f855", callServer, void 0, findSourceMapURL, "getData");
+export var getCachedData = /*#__PURE__*/ createServerReference("ff7f03edbc83b6cc7e5ccc12da8fecf25146585bb7", callServer, void 0, findSourceMapURL, "getCachedData");
+export var aliased = /*#__PURE__*/ createServerReference("ff27fadf3eeb97c777cea9f14a407b5c0b42ac65bb", callServer, void 0, findSourceMapURL, "aliased");
+export var Sync = /*#__PURE__*/ createServerReference("ff84effee663e5ce4e0948b55df129a8df904c67aa", callServer, void 0, findSourceMapURL, "Sync");
+export var wrapped = /*#__PURE__*/ createServerReference("ff438bb59117ff1af890c80ca3e39d9e888fc93033", callServer, void 0, findSourceMapURL, "wrapped");
+export default /*#__PURE__*/ createServerReference("ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", callServer, void 0, findSourceMapURL, "default");
+export var Other = /*#__PURE__*/ createServerReference("ff1acff246876a467753785a92d1f95ac6fe32c9b9", callServer, void 0, findSourceMapURL, "Other");
+export var getCachedStuff = /*#__PURE__*/ createServerReference("ff85cca0cc8341c33fcca0288c72a60d67cbda2eee", callServer, void 0, findSourceMapURL, "getCachedStuff");
