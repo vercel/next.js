@@ -621,7 +621,11 @@ export class Blah extends Head {
         configWithoutCustomExtensions,
         { filename: 'foo.js' }
       )
-      assert.notEqual(report, undefined, 'Should detect pages with default extensions.')
+      assert.notEqual(
+        report,
+        undefined,
+        'Should detect pages with default extensions.'
+      )
     })
   })
 })
