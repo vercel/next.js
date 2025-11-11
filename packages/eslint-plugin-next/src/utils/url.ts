@@ -37,7 +37,11 @@ function parseUrlForPages(
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
         res.push(
-          ...parseUrlForPages(urlprefix + dirent.name + '/', dirPath, pageExtensions)
+          ...parseUrlForPages(
+            urlprefix + dirent.name + '/',
+            dirPath,
+            pageExtensions
+          )
         )
       }
     }
@@ -77,9 +81,13 @@ function parseUrlForAppDir(
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
-      if (dirent.isDirectory(dirPath) && !dirent.isSymbolicLink()) {
+      if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
         res.push(
-          ...parseUrlForAppDir(urlprefix + dirent.name + '/', dirPath, pageExtensions)
+          ...parseUrlForAppDir(
+            urlprefix + dirent.name + '/',
+            dirPath,
+            pageExtensions
+          )
         )
       }
     }
@@ -193,7 +201,9 @@ export function getUrlFromAppDirectory(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
-        .map((directory) => parseUrlForAppDir(urlPrefix, directory, pageExtensions))
+        .map((directory) =>
+          parseUrlForAppDir(urlPrefix, directory, pageExtensions)
+        )
         .flat()
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
