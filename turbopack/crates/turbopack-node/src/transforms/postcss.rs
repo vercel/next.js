@@ -6,7 +6,6 @@ use turbo_tasks::{
     Completion, Completions, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, Vc,
     fxindexmap, trace::TraceRawVcs,
 };
-use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_fs::{
     File, FileContent, FileSystemEntryType, FileSystemPath, json::parse_json_with_source_context,
 };
@@ -519,7 +518,7 @@ impl PostCssTransformedAsset {
         })
         .await?;
 
-        let SingleValue::Single(val) = config_value.try_into_single().await? else {
+        let Some(val) = &*config_value else {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessPostCssResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
@@ -527,7 +526,7 @@ impl PostCssTransformedAsset {
             }
             .cell());
         };
-        let processed_css: PostCssProcessingResult = parse_json_with_source_context(val.to_str()?)
+        let processed_css: PostCssProcessingResult = parse_json_with_source_context(val)
             .context("Unable to deserializate response from PostCSS transform operation")?;
 
         // TODO handle SourceMap

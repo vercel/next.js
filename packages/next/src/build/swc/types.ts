@@ -231,6 +231,8 @@ export interface UpdateInfo {
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
 
+  writeAnalyzeData(appDirOnly: boolean): Promise<TurbopackResult<void>>
+
   writeAllEntrypointsToDisk(
     appDirOnly: boolean
   ): Promise<TurbopackResult<Partial<RawEntrypoints>>>

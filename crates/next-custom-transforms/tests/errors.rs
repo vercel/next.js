@@ -2,12 +2,12 @@ use std::{iter::FromIterator, path::PathBuf};
 
 use next_custom_transforms::transforms::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
-    dynamic::{next_dynamic, NextDynamicMode},
-    fonts::{next_font_loaders, Config as FontLoaderConfig},
+    dynamic::{NextDynamicMode, next_dynamic},
+    fonts::{Config as FontLoaderConfig, next_font_loaders},
     next_ssg::next_ssg,
     react_server_components::server_components,
-    server_actions::{self, server_actions, ServerActionsMode},
-    strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
+    server_actions::{self, ServerActionsMode, server_actions},
+    strip_page_exports::{ExportFilter, next_transform_strip_page_exports},
 };
 use rustc_hash::FxHashSet;
 use swc_core::{
@@ -17,7 +17,7 @@ use swc_core::{
         parser::{EsSyntax, Syntax},
         transforms::{
             base::resolver,
-            testing::{test_fixture, FixtureTestConfig},
+            testing::{FixtureTestConfig, test_fixture},
         },
     },
 };
@@ -90,24 +90,32 @@ fn next_ssg_errors(input: PathBuf) {
 }
 
 #[fixture("tests/errors/react-server-components/**/input.js")]
+#[fixture("tests/errors/react-server-components/**/page.js")]
+#[fixture("tests/errors/react-server-components/**/route.js")]
 fn react_server_components_errors(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
     let cache_components_enabled = input.iter().any(|s| s.to_str() == Some("cache-components"));
     let use_cache_enabled = input.iter().any(|s| s.to_str() == Some("use-cache"));
+
+    let app_dir = input
+        .iter()
+        .position(|s| s.to_str() == Some("app-dir"))
+        .map(|pos| input.iter().take(pos + 1).collect());
+
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
         &|tr| {
             server_components(
-                FileName::Real(PathBuf::from("/some-project/src/page.js")).into(),
+                FileName::Real(input.clone()).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer,
                     cache_components_enabled,
                     use_cache_enabled,
                 }),
                 tr.comments.as_ref().clone(),
-                None,
+                app_dir.clone(),
             )
         },
         &input,

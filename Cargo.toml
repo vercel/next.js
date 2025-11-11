@@ -308,7 +308,6 @@ turbo-tasks-fetch = { path = "turbopack/crates/turbo-tasks-fetch" }
 turbo-tasks-fs = { path = "turbopack/crates/turbo-tasks-fs" }
 turbo-tasks-hash = { path = "turbopack/crates/turbo-tasks-hash" }
 turbo-tasks-macros = { path = "turbopack/crates/turbo-tasks-macros" }
-turbo-tasks-macros-shared = { path = "turbopack/crates/turbo-tasks-macros-shared" }
 turbo-tasks-testing = { path = "turbopack/crates/turbo-tasks-testing" }
 turbopack = { path = "turbopack/crates/turbopack" }
 turbopack-bench = { path = "turbopack/crates/turbopack-bench" }
@@ -317,6 +316,7 @@ turbopack-cli-utils = { path = "turbopack/crates/turbopack-cli-utils" }
 turbopack-core = { path = "turbopack/crates/turbopack-core" }
 turbopack-create-test-app = { path = "turbopack/crates/turbopack-create-test-app" }
 turbopack-css = { path = "turbopack/crates/turbopack-css" }
+turbopack-analyze = { path = "turbopack/crates/turbopack-analyze" }
 turbopack-browser = { path = "turbopack/crates/turbopack-browser" }
 turbopack-dev-server = { path = "turbopack/crates/turbopack-dev-server" }
 turbopack-ecmascript = { path = "turbopack/crates/turbopack-ecmascript" }
@@ -370,13 +370,14 @@ tungstenite = "0.20.1"
 allsorts = { version = "0.14.0", default-features = false, features = [
   "flate2_rust",
 ] }
-anyhow = "1.0.98"
+anyhow = "1.0.100"
 async-compression = { version = "0.3.13", default-features = false, features = [
   "gzip",
   "tokio",
 ] }
 async-trait = "0.1.64"
 bitfield = "0.18.0"
+byteorder = "1.5.0"
 bytes = "1.1.0"
 bytes-str = "0.2.7"
 chrono = "0.4.23"

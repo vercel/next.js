@@ -15,6 +15,15 @@ import { Bundler, GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
 const nextjsReactPeerVersion = "19.2.0";
+function sorted(obj: Record<string, string>) {
+  return Object.keys(obj)
+    .sort()
+    .reduce((acc: Record<string, string>, key) => {
+      acc[key] = obj[key];
+
+      return acc;
+    }, {});
+}
 
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
@@ -300,6 +309,15 @@ export const installTemplate = async ({
 
   const devDeps = Object.keys(packageJson.devDependencies).length;
   if (!devDeps) delete packageJson.devDependencies;
+
+  // Sort dependencies and devDependencies alphabetically
+  if (packageJson.dependencies) {
+    packageJson.dependencies = sorted(packageJson.dependencies);
+  }
+
+  if (packageJson.devDependencies) {
+    packageJson.devDependencies = sorted(packageJson.devDependencies);
+  }
 
   await fs.writeFile(
     path.join(root, "package.json"),

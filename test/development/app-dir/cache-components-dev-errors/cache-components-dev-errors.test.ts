@@ -9,7 +9,7 @@ import {
 import { outdent } from 'outdent'
 
 describe('Cache Components Dev Errors', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { isTurbopack, next, isRspack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -150,6 +150,26 @@ describe('Cache Components Dev Errors', () => {
            Ecmascript file had an error
            > 1 | export const revalidate = 10
                |              ^^^^^^^^^^",
+             "stack": [],
+           }
+          `)
+        } else if (isRspack) {
+          await expect(browser).toDisplayRedbox(`
+           {
+             "description": "  × Module build failed:",
+             "environmentLabel": null,
+             "label": "Build Error",
+             "source": "./app/page.tsx
+             × Module build failed:
+             ╰─▶   × Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+                   │    ,-[1:1]
+                   │  1 | export const revalidate = 10
+                   │    :              ^^^^^^^^^^
+                   │  2 | export default function Page() {
+                   │  3 |   return (
+                   │  4 |     <div>Hello World</div>
+                   │    \`----
+                   │",
              "stack": [],
            }
           `)

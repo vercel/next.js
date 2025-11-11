@@ -8,6 +8,7 @@ related:
     - app/api-reference/directives/use-cache-private
     - app/api-reference/config/next-config-js/cacheComponents
     - app/api-reference/config/next-config-js/cacheLife
+    - app/api-reference/config/next-config-js/cacheHandlers
     - app/api-reference/functions/cacheTag
     - app/api-reference/functions/cacheLife
     - app/api-reference/functions/revalidateTag
@@ -207,7 +208,7 @@ Very rarely, for compliance requirements where certain data must never be cached
 
 ### Server-side caching
 
-On the **server**, cache entries are stored in-memory and respect the `revalidate` and `expire` times from your `cacheLife` configuration.
+On the **server**, cache entries are stored in-memory and respect the `revalidate` and `expire` times from your `cacheLife` configuration. You can customize the cache storage by configuring [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers) in your `next.config.js` file.
 
 ### Client-side caching
 

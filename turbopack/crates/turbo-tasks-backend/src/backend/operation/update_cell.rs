@@ -58,14 +58,11 @@ impl UpdateCellOperation {
 
         let mut task = ctx.task(task_id, TaskDataCategory::All);
 
-        let is_stateful = task.has_key(&CachedDataItemKey::Stateful {});
         // We need to detect recomputation, because here the content has not actually changed (even
         // if it's not equal to the old content, as not all values implement Eq). We have to
         // assume that tasks are deterministic and pure.
-        let assume_unchanged = !ctx.should_track_dependencies()
-            || (!task.has_key(&CachedDataItemKey::Dirty {})
-            // This is a hack for the streaming hack. Stateful tasks are never recomputed, so this forces invalidation for them in case of this hack.
-            && !is_stateful);
+        let assume_unchanged =
+            !ctx.should_track_dependencies() || !task.has_key(&CachedDataItemKey::Dirty {});
 
         let old_content = get!(task, CellData { cell });
 
