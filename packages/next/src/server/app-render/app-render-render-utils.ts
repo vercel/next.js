@@ -1,4 +1,8 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
+import {
+  startBufferingImmediates,
+  stopBufferingImmediates,
+} from './buffered-set-immediate.external'
 
 /**
  * This is a utility function to make scheduling sequential tasks that run back to back easier.
@@ -16,6 +20,7 @@ export function scheduleInSequentialTasks<R>(
     return new Promise((resolve, reject) => {
       let pendingResult: R | Promise<R>
       setTimeout(() => {
+        startBufferingImmediates()
         try {
           pendingResult = render()
         } catch (err) {
@@ -23,6 +28,7 @@ export function scheduleInSequentialTasks<R>(
         }
       }, 0)
       setTimeout(() => {
+        stopBufferingImmediates()
         followup()
         resolve(pendingResult)
       }, 0)
@@ -48,6 +54,7 @@ export function pipelineInSequentialTasks<A, B, C>(
     return new Promise((resolve, reject) => {
       let oneResult: A
       setTimeout(() => {
+        startBufferingImmediates()
         try {
           oneResult = one()
         } catch (err) {
@@ -85,6 +92,7 @@ export function pipelineInSequentialTasks<A, B, C>(
 
       // We wait a task before resolving/rejecting
       const fourId = setTimeout(() => {
+        stopBufferingImmediates()
         resolve(threeResult)
       }, 0)
     })

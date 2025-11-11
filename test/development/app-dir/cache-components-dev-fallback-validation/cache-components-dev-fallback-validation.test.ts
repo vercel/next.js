@@ -69,11 +69,11 @@ describe('Cache Components Fallback Validation', () => {
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
-       > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
-           |                          ^",
+         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (13:26) @ Page
+       > 13 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
+            |                          ^",
          "stack": [
-           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
+           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (13:26)",
            "ReportValidation <anonymous>",
          ],
        }
@@ -98,11 +98,11 @@ describe('Cache Components Fallback Validation', () => {
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
-       > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
-           |                          ^",
+         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (13:26) @ Page
+       > 13 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
+            |                          ^",
          "stack": [
-           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
+           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (13:26)",
            "ReportValidation <anonymous>",
          ],
        }
@@ -130,11 +130,11 @@ describe('Cache Components Fallback Validation', () => {
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
-       > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
-           |                          ^",
+         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (13:26) @ Page
+       > 13 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
+            |                          ^",
          "stack": [
-           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
+           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (13:26)",
            "ReportValidation <anonymous>",
          ],
        }
@@ -159,11 +159,11 @@ describe('Cache Components Fallback Validation', () => {
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
-       > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
-           |                          ^",
+         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (13:26) @ Page
+       > 13 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
+            |                          ^",
          "stack": [
-           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
+           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (13:26)",
            "ReportValidation <anonymous>",
          ],
        }
@@ -191,11 +191,11 @@ describe('Cache Components Fallback Validation', () => {
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
-       > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
-           |                          ^",
+         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (13:26) @ Page
+       > 13 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
+            |                          ^",
          "stack": [
-           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
+           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (13:26)",
            "ReportValidation <anonymous>",
          ],
        }
@@ -220,11 +220,11 @@ describe('Cache Components Fallback Validation', () => {
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
          "label": "Blocking Route",
-         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
-       > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
-           |                          ^",
+         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (13:26) @ Page
+       > 13 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
+            |                          ^",
          "stack": [
-           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
+           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (13:26)",
            "ReportValidation <anonymous>",
          ],
        }

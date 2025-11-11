@@ -913,5 +913,6 @@
   "912": "Unexpected stream chunk while in Before stage",
   "913": "getFlightStream should always receive a ReadableStream when using the edge runtime",
   "914": "nodeStreamFromReadableStream cannot be used in the edge runtime",
-  "915": "createNodeStreamFromChunks cannot be used in the edge runtime"
+  "915": "createNodeStreamFromChunks cannot be used in the edge runtime",
+  "916": "The \"callback\" argument must be of type function. Received %s"
 }

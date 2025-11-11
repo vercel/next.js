@@ -17,3 +17,5 @@ import './node-environment-extensions/random'
 import './node-environment-extensions/date'
 import './node-environment-extensions/web-crypto'
 import './node-environment-extensions/node-crypto'
+import { install } from './app-render/buffered-set-immediate.external'
+install()

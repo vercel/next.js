@@ -86,11 +86,23 @@ export class StagedRenderingController {
     // so we want a slightly different flow.
     // See the implementation of `abandonRenderImpl` for more explanation.
     if (this.mayAbandon) {
+      console.log(
+        '========= initial render: abandoning due to sync IO ========='
+      )
+      console.log(
+        `current stage: ${RenderStage[this.currentStage]}, error: ${reason.message}`
+      )
       return this.abandonRenderImpl()
     }
 
     // If we're in the final render, we cannot abandon it. We need to advance to the Dynamic stage
     // and capture the interruption reason.
+    console.log(
+      '========= final render: advancing stage to Dynamic due to sync IO ========='
+    )
+    console.log(
+      `current stage: ${RenderStage[this.currentStage]}, error: ${reason.message}`
+    )
     switch (this.currentStage) {
       case RenderStage.Static: {
         this.staticInterruptReason = reason
@@ -198,6 +210,7 @@ export class StagedRenderingController {
 
   /** Fire the `onStage` listeners for the runtime stage and unblock any promises waiting for it. */
   private resolveRuntimeStage() {
+    console.log('[staged-rendering] resolving runtime stage')
     const runtimeListeners = this.runtimeStageListeners
     for (let i = 0; i < runtimeListeners.length; i++) {
       runtimeListeners[i]()
@@ -208,6 +221,7 @@ export class StagedRenderingController {
 
   /** Fire the `onStage` listeners for the dynamic stage and unblock any promises waiting for it. */
   private resolveDynamicStage() {
+    console.log('[staged-rendering] resolving dynamic stage')
     const dynamicListeners = this.dynamicStageListeners
     for (let i = 0; i < dynamicListeners.length; i++) {
       dynamicListeners[i]()

@@ -3243,11 +3243,18 @@ async function renderWithRestartOnCacheMissInDev(
   // where sync IO does not cause aborts, so it's okay if it happens before render.
   const initialRscPayload = await getPayload(requestStore)
 
+  console.log('\n\n##########################################################')
+  console.log(
+    `[app-render] :: rendering ${requestStore.url.pathname} (${ctx.workStore.route})\n`
+  )
   const maybeInitialServerStream = await workUnitAsyncStorage.run(
     requestStore,
     () =>
       pipelineInSequentialTasks(
         () => {
+          console.log(
+            '=================== [initial] Static ==================='
+          )
           // Static stage
           initialStageController.advanceStage(RenderStage.Static)
 
@@ -3285,6 +3292,9 @@ async function renderWithRestartOnCacheMissInDev(
 
           if (initialStageController.currentStage === RenderStage.Abandoned) {
             // If we abandoned the render in the static stage, we won't proceed further.
+            console.log(
+              '[app-render] initial render was abandoned due to sync IO in the static stage'
+            )
             return null
           }
 
@@ -3296,9 +3306,16 @@ async function renderWithRestartOnCacheMissInDev(
             // Regardless of whether we are going to abandon this
             // render we need the unblock runtime b/c it's essential
             // filling caches.
+            console.log(
+              '[app-render] abandoning initial render due to a cache miss in the static stage'
+            )
             initialStageController.abandonRender()
             return null
           }
+
+          console.log(
+            '=================== [initial] Runtime ==================='
+          )
 
           initialStageController.advanceStage(RenderStage.Runtime)
           return stream
@@ -3309,6 +3326,14 @@ async function renderWithRestartOnCacheMissInDev(
             stream === null ||
             initialStageController.currentStage === RenderStage.Abandoned
           ) {
+            if (
+              stream !== null &&
+              initialStageController.currentStage === RenderStage.Abandoned
+            ) {
+              console.log(
+                '[app-render] initial render was abandoned due to sync IO in the runtime stage'
+              )
+            }
             // If we abandoned the render in the static or runtime stage, we won't proceed further.
             return null
           }
@@ -3318,10 +3343,16 @@ async function renderWithRestartOnCacheMissInDev(
           // We won't advance the stage, and thus leave dynamic APIs hanging,
           // because they won't be cached anyway, so it'd be wasted work.
           if (cacheSignal.hasPendingReads()) {
+            console.log(
+              '[app-render] abandoning initial render due to a cache miss in the runtime stage'
+            )
             initialStageController.abandonRender()
             return null
           }
 
+          console.log(
+            '=================== [initial] Dynamic ==================='
+          )
           // Regardless of whether we are going to abandon this
           // render we need the unblock runtime b/c it's essential
           // filling caches.
@@ -3363,6 +3394,8 @@ async function renderWithRestartOnCacheMissInDev(
 
   await cacheSignal.cacheReady()
   initialReactController.abort()
+
+  console.log('*********** restarting render ***********')
 
   //===============================================
   // Final render (restarted)
@@ -3411,6 +3444,7 @@ async function renderWithRestartOnCacheMissInDev(
   const finalServerStream = await workUnitAsyncStorage.run(requestStore, () =>
     pipelineInSequentialTasks(
       () => {
+        console.log('=================== [final] Static ===================')
         // Static stage
         finalStageController.advanceStage(RenderStage.Static)
 
@@ -3437,11 +3471,23 @@ async function renderWithRestartOnCacheMissInDev(
         return continuationStream
       },
       (stream) => {
+        if (finalStageController.currentStage !== RenderStage.Static) {
+          console.log(
+            `[app-render] stage was advanced to ${RenderStage[finalStageController.currentStage]} before reaching the runtime stage`
+          )
+        }
+        console.log('=================== [final] Runtime ===================')
         // Runtime stage
         finalStageController.advanceStage(RenderStage.Runtime)
         return stream
       },
       (stream) => {
+        if (finalStageController.currentStage !== RenderStage.Runtime) {
+          console.log(
+            `[app-render] stage was advanced to ${RenderStage[finalStageController.currentStage]} before reaching the dynamic stage`
+          )
+        }
+        console.log('=================== [final] Dynamic ===================')
         // Dynamic stage
         finalStageController.advanceStage(RenderStage.Dynamic)
         return stream
@@ -3649,6 +3695,38 @@ async function spawnStaticShellValidationInDev(
     renderOpts,
     workStore,
   } = ctx
+
+  {
+    const logChunks = (chunks: Array<Uint8Array>) => {
+      const textDecoder = new TextDecoder()
+      for (const chunk of chunks) {
+        console.log(textDecoder.decode(chunk))
+      }
+    }
+    console.log(`Static chunks (${staticServerChunks.length})`)
+    console.log('------------------------')
+    logChunks(staticServerChunks)
+    console.log('------------------------')
+
+    const runtimeOnlyChunks = runtimeServerChunks.slice(
+      staticServerChunks.length
+    )
+    console.log('\n')
+    console.log(`Runtime chunks (${runtimeOnlyChunks.length})`)
+    console.log('------------------------')
+    logChunks(runtimeOnlyChunks)
+    console.log('------------------------')
+
+    const dynamicOnlyChunks = dynamicServerChunks.slice(
+      runtimeServerChunks.length
+    )
+    console.log('\n')
+    console.log(`Dynamic chunks (${dynamicOnlyChunks.length})`)
+    console.log('------------------------')
+    logChunks(dynamicOnlyChunks)
+    console.log('------------------------')
+    console.log('\n\n')
+  }
 
   const { allowEmptyStaticShell = false } = renderOpts
 
