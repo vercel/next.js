@@ -12,15 +12,19 @@ related:
 
 ## Proxy
 
+> **Good to know**: Starting with Next.js 16, Middleware is now called Proxy to better reflect its purpose. The functionality remains the same.
+
 Proxy allows you to run code before a request is completed. Then, based on the incoming request, you can modify the response by rewriting, redirecting, modifying the request or response headers, or responding directly.
 
 ### Use cases
 
 Some common scenarios where Proxy is effective include:
 
-- Quick redirects after reading parts of the incoming request
-- Rewriting to different pages based on A/B tests or experiments
 - Modifying headers for all pages or a subset of pages
+- Rewriting to different pages based on A/B tests or experiments
+- Programmatic redirects based on incoming request properties
+
+For simple redirects, consider using the [`redirects`](/docs/app/api-reference/config/next-config-js/redirects) configuration in `next.config.ts` first. Proxy should be used when you need access to request data or more complex logic.
 
 Proxy is _not_ intended for slow data fetching. While Proxy can be helpful for [optimistic checks](/docs/app/guides/authentication#optimistic-checks-with-proxy-optional) such as permission-based redirects, it should not be used as a full session management or authorization solution.
 
