@@ -16,7 +16,8 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    CollectiblesSource, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::css::{CssModuleAsset, ModuleCssAsset};
@@ -75,6 +76,25 @@ impl NextDynamicGraph {
         async move {
             let data = &*self.data.await?;
             let graph = &*self.graph.await?;
+            // println!(
+            //     "get {:?} {} {:#?} {:#?} {:#?}",
+            //     entry,
+            //     entry.ident().to_string().await?,
+            //     data.keys()
+            //         .map(|m| m.ident().to_string())
+            //         .try_join()
+            //         .await?,
+            //     graph
+            //         .entry_modules()
+            //         .map(|m| m.ident().to_string())
+            //         .try_join()
+            //         .await?,
+            //     graph
+            //         .enumerate_nodes()
+            //         .map(|n| n.1.module().ident().to_string())
+            //         .try_join()
+            //         .await?
+            // );
 
             #[derive(Clone, PartialEq, Eq)]
             enum VisitState {

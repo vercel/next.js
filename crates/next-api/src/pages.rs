@@ -30,8 +30,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, fxindexmap,
-    fxindexset, trace::TraceRawVcs,
+    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault,
+    ValueToString, Vc, fxindexmap, fxindexset, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -51,7 +51,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::{AssetIdent, Layer},
-    module::Module,
+    module::{Module, OptionModule},
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
@@ -664,6 +664,40 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
+    async fn app_client_module(self: Vc<Self>) -> Result<Vc<OptionModule>> {
+        let this = self.await?;
+        if this.pathname == "/_app" || this.pathname == "/_document" {
+            Ok(Vc::cell(None))
+        } else {
+            let item = this.pages_structure.await?.app;
+            let source = Vc::upcast(FileSource::new(item.file_path().owned().await?));
+
+            let page_loader = create_page_loader_entry_module(
+                Vc::upcast(this.pages_project.client_module_context()),
+                source,
+                rcstr!("/_app"),
+            )
+            .to_resolved()
+            .await?;
+            if matches!(
+                *this.pages_project.project().next_mode().await?,
+                NextMode::Development
+            ) && let Some(chunkable) = ResolvedVc::try_downcast(page_loader)
+            {
+                return Ok(Vc::cell(Some(ResolvedVc::upcast(
+                    HmrEntryModule::new(
+                        AssetIdent::from_path(item.await?.base_path.clone()),
+                        *chunkable,
+                    )
+                    .to_resolved()
+                    .await?,
+                ))));
+            }
+            Ok(Vc::cell(Some(page_loader)))
+        }
+    }
+
+    #[turbo_tasks::function]
     async fn client_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         let this = self.await?;
         let page_loader = create_page_loader_entry_module(
@@ -715,7 +749,12 @@ impl PageEndpoint {
     async fn client_module_graph(self: Vc<Self>) -> Result<Vc<ModuleGraph>> {
         let this = self.await?;
         let project = this.pages_project.project();
-        let evaluatable_assets = self.client_evaluatable_assets();
+        let mut evaluatable_assets = self.client_evaluatable_assets();
+        if let Some(module) = &*self.app_client_module().await? {
+            let evaluatable_module = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(*module)
+                .context("expected an evaluateable asset")?;
+            evaluatable_assets = evaluatable_assets.with_entry(*evaluatable_module);
+        }
         Ok(project.module_graph_for_modules(evaluatable_assets))
     }
 
@@ -732,8 +771,8 @@ impl PageEndpoint {
             let mut graphs = vec![];
             let mut visited_modules = VisitedModules::empty();
             for module in [
-                ssr_chunk_module.document_module,
-                ssr_chunk_module.app_module,
+                ssr_chunk_module.document_ssr_module,
+                ssr_chunk_module.app_ssr_module,
             ]
             .into_iter()
             .flatten()
@@ -858,8 +897,8 @@ impl PageEndpoint {
                     .module();
                 InternalSsrChunkModule {
                     ssr_module: ssr_module.to_resolved().await?,
-                    app_module: None,
-                    document_module: None,
+                    app_ssr_module: None,
+                    document_ssr_module: None,
                     // /_app and /_document are always rendered for Node.js for this case. For edge
                     // they're included in the page bundle.
                     runtime: NextRuntime::NodeJs,
@@ -881,8 +920,8 @@ impl PageEndpoint {
 
                 InternalSsrChunkModule {
                     ssr_module: modules.ssr_module,
-                    app_module: modules.app_module,
-                    document_module: modules.document_module,
+                    app_ssr_module: modules.app_ssr_module,
+                    document_ssr_module: modules.document_ssr_module,
                     runtime,
                     regions: config.preferred_region.clone(),
                 }
@@ -901,8 +940,8 @@ impl PageEndpoint {
                 .await?;
                 InternalSsrChunkModule {
                     ssr_module: modules.ssr_module,
-                    app_module: modules.app_module,
-                    document_module: modules.document_module,
+                    app_ssr_module: modules.app_ssr_module,
+                    document_ssr_module: modules.document_ssr_module,
                     runtime,
                     regions: config.preferred_region.clone(),
                 }
@@ -925,8 +964,8 @@ impl PageEndpoint {
 
             let InternalSsrChunkModule {
                 ssr_module,
-                app_module,
-                document_module,
+                app_ssr_module,
+                document_ssr_module,
                 runtime,
                 ref regions,
             } = *self.internal_ssr_chunk_module().await?;
@@ -937,7 +976,7 @@ impl PageEndpoint {
             // moment, which only needs the client graph anyway.
             let ssr_module_graph = self.ssr_module_graph();
 
-            let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
+            let dynamic_import_entries = if let PageEndpointType::Html = this.ty {
                 let client_availability_info = self.client_chunk_group().await?.availability_info;
 
                 let client_module_graph = self.client_module_graph();
@@ -950,12 +989,12 @@ impl PageEndpoint {
                 // We only validate the global css imports when there is not a `app` folder at the
                 // root of the project.
                 if project.app_project().await?.is_none() {
-                    // We recreate the app_module here because the one provided from the
+                    // We recreate the app_ssr_module here because the one provided from the
                     // `internal_ssr_chunk_module` is not the same as the one
                     // provided from the `client_module_graph`. There can be cases where
-                    // the `app_module` is None, and we are processing the `pages/_app.js` file
+                    // the `app_ssr_module` is None, and we are processing the `pages/_app.js` file
                     // as a page rather than the app module.
-                    let app_module = project
+                    let app_ssr_module = project
                         .pages_project()
                         .client_module_context()
                         .process(
@@ -969,33 +1008,61 @@ impl PageEndpoint {
                         .module();
 
                     global_information
-                        .validate_pages_css_imports(self.client_module(), app_module)
+                        .validate_pages_css_imports(self.client_module(), app_ssr_module)
                         .await?;
                 }
 
-                let next_dynamic_imports = global_information
-                    .get_next_dynamic_imports_for_endpoint(self.client_module())
-                    .await?;
-                Some((next_dynamic_imports, client_availability_info))
+                // if this.pathname == "/" {
+                //     println!(
+                //         "{} {:#?}",
+                //         this.pathname,
+                //         client_module_graph.read_graphs().await?.get_ids().await?
+                //     );
+                // }
+                // next/dynamic imports are written into a per-page manifest, which also needs to
+                // list the imports in _app.
+                let mut chunks = DynamicImportedChunks::value_default();
+                for module in [
+                    self.app_client_module().await?.map(|m| *m),
+                    Some(self.client_module()),
+                ]
+                .into_iter()
+                .flatten()
+                {
+                    let next_dynamic_imports = global_information
+                        .get_next_dynamic_imports_for_endpoint(module)
+                        .await?;
+                    // if this.pathname == "/" || this.pathname == "/_app" {
+                    //     println!(
+                    //         "next_dynamic_imports: {:?} {:?} {:?} {:?}",
+                    //         this.pathname,
+                    //         module,
+                    //         module.ident().to_string().await?,
+                    //         next_dynamic_imports
+                    //             .iter()
+                    //             .map(|m| m.0.ident().to_string())
+                    //             .try_join()
+                    //             .await?
+                    //     );
+                    // }
+                    chunks = chunks.concatenate(
+                        *collect_next_dynamic_chunks(
+                            self.client_module_graph(),
+                            project.client_chunking_context(),
+                            next_dynamic_imports,
+                            NextDynamicChunkAvailability::AvailabilityInfo(
+                                client_availability_info,
+                            ),
+                        )
+                        .await?,
+                    );
+                }
+                chunks
             } else {
-                None
-            };
-
-            let dynamic_import_entries = if let Some((
-                next_dynamic_imports,
-                client_availability_info,
-            )) = next_dynamic_imports
-            {
-                collect_next_dynamic_chunks(
-                    self.client_module_graph(),
-                    project.client_chunking_context(),
-                    next_dynamic_imports,
-                    NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
-                )
-                .await?
-            } else {
-                DynamicImportedChunks::default().resolved_cell()
-            };
+                DynamicImportedChunks::value_default()
+            }
+            .to_resolved()
+            .await?;
 
             let chunking_context: Vc<Box<dyn ChunkingContext>> = match runtime {
                 NextRuntime::NodeJs => Vc::upcast(node_chunking_context),
@@ -1005,7 +1072,11 @@ impl PageEndpoint {
             let mut current_chunks = OutputAssets::empty();
             let mut current_referenced_assets = OutputAssets::empty();
             let mut current_availability_info = AvailabilityInfo::Root;
-            for layout in [document_module, app_module].iter().flatten().copied() {
+            for layout in [document_ssr_module, app_ssr_module]
+                .iter()
+                .flatten()
+                .copied()
+            {
                 let span = tracing::trace_span!(
                     "layout segment",
                     name = display(layout.ident().to_string().await?)
@@ -1577,8 +1648,8 @@ impl PageEndpoint {
 #[turbo_tasks::value]
 pub struct InternalSsrChunkModule {
     pub ssr_module: ResolvedVc<Box<dyn Module>>,
-    pub app_module: Option<ResolvedVc<Box<dyn Module>>>,
-    pub document_module: Option<ResolvedVc<Box<dyn Module>>>,
+    pub app_ssr_module: Option<ResolvedVc<Box<dyn Module>>>,
+    pub document_ssr_module: Option<ResolvedVc<Box<dyn Module>>>,
     pub runtime: NextRuntime,
     pub regions: Option<Vec<RcStr>>,
 }
@@ -1701,8 +1772,8 @@ impl Endpoint for PageEndpoint {
         let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
 
         let shared_entries = [
-            ssr_chunk_module.document_module,
-            ssr_chunk_module.app_module,
+            ssr_chunk_module.document_ssr_module,
+            ssr_chunk_module.app_ssr_module,
         ];
 
         let modules = shared_entries

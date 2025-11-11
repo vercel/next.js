@@ -26,8 +26,8 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
+    ValueDefault, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{
@@ -106,6 +106,23 @@ pub struct DynamicImportedChunks(
         (ResolvedVc<ModuleId>, ResolvedVc<OutputAssets>),
     >,
 );
+
+#[turbo_tasks::value_impl]
+impl DynamicImportedChunks {
+    #[turbo_tasks::function]
+    pub async fn concatenate(&self, other: Vc<Self>) -> Result<Vc<Self>> {
+        let mut chunks = self.0.clone();
+        chunks.extend(other.await?.iter().map(|(k, v)| (*k, *v)));
+        Ok(Vc::cell(chunks))
+    }
+}
+#[turbo_tasks::value_impl]
+impl ValueDefault for DynamicImportedChunks {
+    #[turbo_tasks::function]
+    fn value_default() -> Vc<Self> {
+        Self::default().cell()
+    }
+}
 
 #[derive(
     Clone, PartialEq, Eq, ValueDebugFormat, Serialize, Deserialize, TraceRawVcs, NonLocalValue,

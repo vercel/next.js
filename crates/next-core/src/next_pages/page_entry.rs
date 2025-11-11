@@ -25,8 +25,8 @@ use crate::{
 #[turbo_tasks::value]
 pub struct PageSsrEntryModule {
     pub ssr_module: ResolvedVc<Box<dyn Module>>,
-    pub app_module: Option<ResolvedVc<Box<dyn Module>>>,
-    pub document_module: Option<ResolvedVc<Box<dyn Module>>>,
+    pub app_ssr_module: Option<ResolvedVc<Box<dyn Module>>>,
+    pub document_ssr_module: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
 #[turbo_tasks::function]
@@ -127,7 +127,7 @@ pub async fn create_page_ssr_entry_module(
 
     let pages_structure_ref = pages_structure.await?;
 
-    let (app_module, document_module) = if is_page {
+    let (app_ssr_module, document_ssr_module) = if is_page {
         // We process the document and app modules in the same context and reference type.
         let document_module = process_global_item(
             *pages_structure_ref.document,
@@ -184,8 +184,8 @@ pub async fn create_page_ssr_entry_module(
 
     Ok(PageSsrEntryModule {
         ssr_module: ssr_module.to_resolved().await?,
-        app_module,
-        document_module,
+        app_ssr_module,
+        document_ssr_module,
     }
     .cell())
 }
