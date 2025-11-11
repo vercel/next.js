@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::{
+    common::util::take::Take,
     ecma::{
         ast::{BinExpr, Expr},
         visit::{AstParentKind, fields::BinExprField},
@@ -32,22 +33,18 @@ impl ReplaceParentWithChild {
         let to_replace_with = *self.path.last().unwrap();
         let visitor = create_visitor!(parent_path, visit_mut_expr, |parent_expr: &mut Expr| {
             let child = match parent_expr {
-                Expr::Bin(BinExpr {
-                    box left,
-                    box right,
-                    ..
-                }) => {
+                Expr::Bin(BinExpr { left, right, .. }) => {
                     let AstParentKind::BinExpr(field) = to_replace_with else {
                         panic!("invalid path");
                     };
                     let child = match field {
-                        BinExprField::Left => left.clone(),
-                        BinExprField::Right => right.clone(),
+                        BinExprField::Left => left.take(),
+                        BinExprField::Right => right.take(),
                         _ => {
                             panic!("Can only replace with expression children, got {field:?}");
                         }
                     };
-                    quote!("(\"TURBOPACK simplified expression\", $e)" as Expr, e: Expr = child)
+                    quote!("(\"TURBOPACK simplified expression\", $e)" as Expr, e: Expr = *child)
                 }
                 _ => todo!("only binary expressions are supported so far"),
             };
