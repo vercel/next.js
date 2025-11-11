@@ -319,10 +319,14 @@ export const installTemplate = async ({
     packageJson.devDependencies = sorted(packageJson.devDependencies);
   }
 
-  /* For pnpm v10+ x-ref: https://github.com/vercel/next.js/issues/83158 */
   if (packageManager === "pnpm") {
+    // TODO: This is a v9 setting that still works in v10. Use pnpm-workspace.yaml
+    // when v10 is used
     packageJson.pnpm = {
-      onlyBuiltDependencies: ["sharp"],
+      // Sharp has prebuilt binaries for the platforms next-swc has binaries.
+      // If it needs to build binaries from source, next-swc wouldn't work either.
+      // See https://sharp.pixelplumbing.com/install/#:~:text=When%20using%20pnpm%2C%20add%20sharp%20to%20ignoredBuiltDependencies%20to%20silence%20warnings
+      neverBuiltDependencies: ["sharp"],
     };
   }
 
