@@ -323,18 +323,18 @@ impl AggregatedDataUpdate {
             );
 
             if !aggregated_update.is_zero() {
-                let dirty_state = task.dirty_state();
+                let dirtyness_and_session = task.dirtyness_and_session();
                 let task_id = task.id();
                 update!(task, AggregatedDirtyContainerCount, |old: Option<
                     DirtyContainerCount,
                 >| {
                     let mut new = old.unwrap_or_default();
-                    if let Some(dirty_state) = dirty_state {
-                        new.update_with_dirty_state(&dirty_state);
+                    if let Some((dirtyness, clean_in_session)) = dirtyness_and_session {
+                        new.update_with_dirtyness_and_session(dirtyness, clean_in_session);
                     }
                     let aggregated_update = new.update_count(&aggregated_update);
-                    if let Some(dirty_state) = dirty_state {
-                        new.undo_update_with_dirty_state(&dirty_state);
+                    if let Some((dirtyness, clean_in_session)) = dirtyness_and_session {
+                        new.undo_update_with_dirtyness_and_session(dirtyness, clean_in_session);
                     }
                     if !aggregated_update.is_zero() {
                         result.dirty_container_update = Some((task_id, aggregated_update));

@@ -257,15 +257,6 @@ impl DirtyContainerCount {
         diff
     }
 
-    /// Applies a dirty state to the count. Returns an aggregated count that represents the change.
-    pub fn update_with_dirty_state(&mut self, dirty: &DirtyState) -> DirtyContainerCount {
-        if let Some(clean_in_session) = dirty.clean_in_session {
-            self.update_session_dependent(clean_in_session, 1)
-        } else {
-            self.update(1)
-        }
-    }
-
     /// Applies a dirtyness to the count. Returns an aggregated count that represents the change.
     pub fn update_with_dirtyness_and_session(
         &mut self,
@@ -276,16 +267,6 @@ impl DirtyContainerCount {
             self.update_session_dependent(session_id, 1)
         } else {
             self.update(1)
-        }
-    }
-
-    /// Undoes the effect of a dirty state on the count. Returns an aggregated count that represents
-    /// the change.
-    pub fn undo_update_with_dirty_state(&mut self, dirty: &DirtyState) -> DirtyContainerCount {
-        if let Some(clean_in_session) = dirty.clean_in_session {
-            self.update_session_dependent(clean_in_session, -1)
-        } else {
-            self.update(-1)
         }
     }
 
@@ -301,18 +282,6 @@ impl DirtyContainerCount {
         } else {
             self.update(-1)
         }
-    }
-
-    /// Replaces the old dirty state with the new one. Returns an aggregated count that represents
-    /// the change.
-    pub fn replace_dirty_state(
-        &mut self,
-        old: &DirtyState,
-        new: &DirtyState,
-    ) -> DirtyContainerCount {
-        let mut diff = self.undo_update_with_dirty_state(old);
-        diff.update_count(&self.update_with_dirty_state(new));
-        diff
     }
 
     /// Replaces the old dirtyness with the new one. Returns an aggregated count that represents
@@ -462,19 +431,16 @@ mod dirty_container_count_tests {
     }
 
     #[test]
-    fn test_update_with_dirty_state() {
+    fn test_update_with_dirtyness_and_session() {
         let mut count = DirtyContainerCount::default();
-        let dirty = DirtyState {
-            clean_in_session: None,
-        };
-        let diff = count.update_with_dirty_state(&dirty);
+        let diff = count.update_with_dirtyness_and_session(Dirtyness::Dirty, None);
         assert!(!count.is_zero());
         assert_eq!(count.get(SESSION_1), 1);
         assert_eq!(diff.get(SESSION_1), 1);
         assert_eq!(count.get(SESSION_2), 1);
         assert_eq!(diff.get(SESSION_2), 1);
 
-        let diff = count.undo_update_with_dirty_state(&dirty);
+        let diff = count.undo_update_with_dirtyness_and_session(Dirtyness::Dirty, None);
         assert!(count.is_zero());
         assert_eq!(count.get(SESSION_1), 0);
         assert_eq!(diff.get(SESSION_1), -1);
@@ -482,17 +448,16 @@ mod dirty_container_count_tests {
         assert_eq!(diff.get(SESSION_2), -1);
 
         let mut count = DirtyContainerCount::default();
-        let dirty = DirtyState {
-            clean_in_session: Some(SESSION_1),
-        };
-        let diff = count.update_with_dirty_state(&dirty);
+        let diff =
+            count.update_with_dirtyness_and_session(Dirtyness::SessionDependent, Some(SESSION_1));
         assert!(!count.is_zero());
         assert_eq!(count.get(SESSION_1), 0);
         assert_eq!(diff.get(SESSION_1), 0);
         assert_eq!(count.get(SESSION_2), 1);
         assert_eq!(diff.get(SESSION_2), 1);
 
-        let diff = count.undo_update_with_dirty_state(&dirty);
+        let diff = count
+            .undo_update_with_dirtyness_and_session(Dirtyness::SessionDependent, Some(SESSION_1));
         assert!(count.is_zero());
         assert_eq!(count.get(SESSION_1), 0);
         assert_eq!(diff.get(SESSION_1), 0);
@@ -501,16 +466,15 @@ mod dirty_container_count_tests {
     }
 
     #[test]
-    fn test_replace_dirty_state() {
+    fn test_replace_dirtyness_and_session() {
         let mut count = DirtyContainerCount::default();
-        let old = DirtyState {
-            clean_in_session: None,
-        };
-        let new = DirtyState {
-            clean_in_session: Some(SESSION_1),
-        };
-        count.update_with_dirty_state(&old);
-        let diff = count.replace_dirty_state(&old, &new);
+        count.update_with_dirtyness_and_session(Dirtyness::Dirty, None);
+        let diff = count.replace_dirtyness_and_session(
+            Dirtyness::Dirty,
+            None,
+            Dirtyness::SessionDependent,
+            Some(SESSION_1),
+        );
         assert!(!count.is_zero());
         assert_eq!(count.get(SESSION_1), 0);
         assert_eq!(diff.get(SESSION_1), -1);
@@ -518,14 +482,13 @@ mod dirty_container_count_tests {
         assert_eq!(diff.get(SESSION_2), 0);
 
         let mut count = DirtyContainerCount::default();
-        let old = DirtyState {
-            clean_in_session: Some(SESSION_1),
-        };
-        let new = DirtyState {
-            clean_in_session: None,
-        };
-        count.update_with_dirty_state(&old);
-        let diff = count.replace_dirty_state(&old, &new);
+        count.update_with_dirtyness_and_session(Dirtyness::SessionDependent, Some(SESSION_1));
+        let diff = count.replace_dirtyness_and_session(
+            Dirtyness::SessionDependent,
+            Some(SESSION_1),
+            Dirtyness::Dirty,
+            None,
+        );
         assert!(!count.is_zero());
         assert_eq!(count.get(SESSION_1), 1);
         assert_eq!(diff.get(SESSION_1), 1);

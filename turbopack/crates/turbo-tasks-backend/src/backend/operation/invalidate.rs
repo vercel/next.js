@@ -14,8 +14,8 @@ use crate::{
         storage::{get, get_mut, remove},
     },
     data::{
-        CachedDataItem, CachedDataItemKey, CachedDataItemValue, DirtyState, Dirtyness,
-        InProgressState, InProgressStateInner,
+        CachedDataItem, CachedDataItemKey, CachedDataItemValue, Dirtyness, InProgressState,
+        InProgressStateInner,
     },
 };
 
@@ -294,9 +294,8 @@ pub fn make_task_dirty_internal(
     .entered();
 
     let should_schedule = {
-        let aggregated_update = dirty_container.update_with_dirty_state(&DirtyState {
-            clean_in_session: None,
-        });
+        let aggregated_update =
+            dirty_container.update_with_dirtyness_and_session(Dirtyness::Dirty, None);
         if !aggregated_update.is_zero() {
             queue.extend(AggregationUpdateJob::data_update(
                 &mut task,
