@@ -76,7 +76,6 @@ struct ModuleImports {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ModuleDirective {
-    None,
     UseClient,
     UseServer,
     UseCache,
@@ -134,7 +133,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
 
         module.visit_with(&mut validator);
 
-        let is_client_entry = validator.module_directive == ModuleDirective::UseClient;
+        let is_client_entry = validator.module_directive == Some(ModuleDirective::UseClient);
         let export_names = validator.export_names;
 
         self.remove_top_level_directive(module);
@@ -366,7 +365,7 @@ fn collect_module_info(
     app_dir: &Option<PathBuf>,
     filepath: &str,
     module: &Module,
-) -> (ModuleDirective, Vec<ModuleImports>, Vec<Atom>) {
+) -> (Option<ModuleDirective>, Vec<ModuleImports>, Vec<Atom>) {
     let mut imports: Vec<ModuleImports> = vec![];
     let mut finished_directives = false;
     let mut is_client_entry = false;
@@ -566,13 +565,13 @@ fn collect_module_info(
     });
 
     let directive = if is_client_entry {
-        ModuleDirective::UseClient
+        Some(ModuleDirective::UseClient)
     } else if is_action_file {
-        ModuleDirective::UseServer
+        Some(ModuleDirective::UseServer)
     } else if is_cache_file {
-        ModuleDirective::UseCache
+        Some(ModuleDirective::UseCache)
     } else {
-        ModuleDirective::None
+        None
     };
 
     (directive, imports, export_names)
@@ -590,7 +589,7 @@ struct ReactServerComponentValidator {
     deprecated_apis_mapping: FxHashMap<&'static str, Vec<&'static str>>,
     invalid_client_imports: Vec<Atom>,
     invalid_client_lib_apis_mapping: FxHashMap<&'static str, Vec<&'static str>>,
-    pub module_directive: ModuleDirective,
+    pub module_directive: Option<ModuleDirective>,
     pub export_names: Vec<Atom>,
     imports: ImportMap,
 }
@@ -609,7 +608,7 @@ impl ReactServerComponentValidator {
             use_cache_enabled,
             filepath: filename,
             app_dir,
-            module_directive: ModuleDirective::None,
+            module_directive: None,
             export_names: vec![],
             // react -> [apis]
             // react-dom -> [apis]
@@ -1052,7 +1051,7 @@ impl Visit for ReactServerComponentValidator {
         self.export_names = export_names;
 
         if self.is_react_server_layer {
-            if directive == ModuleDirective::UseClient {
+            if directive == Some(ModuleDirective::UseClient) {
                 return;
             } else {
                 // Only assert server graph if file's bundle target is "server", e.g.
@@ -1067,7 +1066,9 @@ impl Visit for ReactServerComponentValidator {
             // and bundle target is "client" e.g.
             // * client components pages
             // * pages bundles on browser layer
-            if directive != ModuleDirective::UseServer && directive != ModuleDirective::UseCache {
+            if directive != Some(ModuleDirective::UseServer)
+                && directive != Some(ModuleDirective::UseCache)
+            {
                 self.assert_client_graph(&imports);
                 self.assert_invalid_api(module, true);
             }
