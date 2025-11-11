@@ -25,7 +25,7 @@ use crate::{
     backing_storage::BackingStorage,
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemType, CachedDataItemValue,
-        CachedDataItemValueRef, CachedDataItemValueRefMut, DirtyState, Dirtyness,
+        CachedDataItemValueRef, CachedDataItemValueRefMut, Dirtyness,
     },
 };
 
@@ -415,6 +415,12 @@ pub trait TaskGuard: Debug {
     fn invalidate_serialization(&mut self);
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>>;
     fn is_immutable(&self) -> bool;
+    fn is_dirty(&self, session_id: SessionId) -> bool {
+        get!(self, Dirty).is_some_and(|dirtyness| match dirtyness {
+            Dirtyness::Dirty => true,
+            Dirtyness::SessionDependent => get!(self, CleanInSession).copied() != Some(session_id),
+        })
+    }
     fn dirtyness_and_session(&self) -> Option<(Dirtyness, Option<SessionId>)> {
         match get!(self, Dirty)? {
             Dirtyness::Dirty => Some((Dirtyness::Dirty, None)),
@@ -422,21 +428,6 @@ pub trait TaskGuard: Debug {
                 Dirtyness::SessionDependent,
                 get!(self, CleanInSession).copied(),
             )),
-        }
-    }
-    fn dirty_state(&self) -> Option<DirtyState> {
-        match get!(self, Dirty)? {
-            Dirtyness::Dirty => Some(DirtyState {
-                clean_in_session: None,
-            }),
-            Dirtyness::SessionDependent => match get!(self, CleanInSession) {
-                None => Some(DirtyState {
-                    clean_in_session: None,
-                }),
-                Some(session) => Some(DirtyState {
-                    clean_in_session: Some(*session),
-                }),
-            },
         }
     }
 }

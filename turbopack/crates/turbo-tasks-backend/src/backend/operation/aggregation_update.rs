@@ -1209,7 +1209,7 @@ impl AggregationUpdateQueue {
     ) {
         let session_id = ctx.session_id();
         // Task need to be scheduled if it's dirty or doesn't have output
-        let dirty = task.dirty_state().map_or(false, |d| d.get(session_id));
+        let dirty = task.is_dirty(session_id);
         let should_schedule = if dirty {
             Some(TaskExecutionReason::ActivateDirty)
         } else if !task.has_key(&CachedDataItemKey::Output {}) {

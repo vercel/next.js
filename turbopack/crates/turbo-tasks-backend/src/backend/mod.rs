@@ -567,9 +567,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 }
             }
 
-            let is_dirty = task
-                .dirty_state()
-                .map_or(false, |dirty_state| dirty_state.get(self.session_id));
+            let is_dirty = task.is_dirty(self.session_id);
 
             // Check the dirty count of the root node
             let dirty_tasks = get!(task, AggregatedDirtyContainerCount)
@@ -625,9 +623,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             visited: &mut FxHashSet<TaskId>,
                         ) -> String {
                             let task = ctx.task(task_id, TaskDataCategory::Data);
-                            let is_dirty = task
-                                .dirty_state()
-                                .map_or(false, |dirty_state| dirty_state.get(ctx.session_id()));
+                            let is_dirty = task.is_dirty(ctx.session_id());
                             let in_progress =
                                 get!(task, InProgress).map_or("not in progress", |p| match p {
                                     InProgressState::InProgress(_) => "in progress",
@@ -2905,9 +2901,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
-        let is_dirty = task
-            .dirty_state()
-            .map_or(false, |dirty| dirty.get(self.session_id));
+        let is_dirty = task.is_dirty(self.session_id);
         let has_dirty_containers = get!(task, AggregatedDirtyContainerCount)
             .map_or(false, |dirty_containers| {
                 dirty_containers.get(self.session_id) > 0
@@ -3000,9 +2994,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     }
                 }
 
-                let is_dirty = task
-                    .dirty_state()
-                    .is_some_and(|dirty| dirty.get(self.session_id));
+                let is_dirty = task.is_dirty(self.session_id);
                 let has_dirty_container = get!(task, AggregatedDirtyContainerCount)
                     .is_some_and(|count| count.get(self.session_id) > 0);
                 let should_be_in_upper = is_dirty || has_dirty_container;

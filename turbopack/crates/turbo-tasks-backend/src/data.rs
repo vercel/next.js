@@ -149,17 +149,6 @@ pub enum Dirtyness {
     SessionDependent,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DirtyState {
-    pub clean_in_session: Option<SessionId>,
-}
-
-impl DirtyState {
-    pub fn get(&self, session: SessionId) -> bool {
-        self.clean_in_session != Some(session)
-    }
-}
-
 fn add_with_diff(v: &mut i32, u: i32) -> i32 {
     let old = *v;
     *v += u;
