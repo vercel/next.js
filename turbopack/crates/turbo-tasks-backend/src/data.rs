@@ -144,6 +144,12 @@ transient_traits!(ActivenessState);
 impl Eq for ActivenessState {}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum Dirtyness {
+    Dirty,
+    SessionDependent,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DirtyState {
     pub clean_in_session: Option<SessionId>,
 }
@@ -260,11 +266,38 @@ impl DirtyContainerCount {
         }
     }
 
+    /// Applies a dirtyness to the count. Returns an aggregated count that represents the change.
+    pub fn update_with_dirtyness_and_session(
+        &mut self,
+        dirtyness: Dirtyness,
+        clean_in_session: Option<SessionId>,
+    ) -> DirtyContainerCount {
+        if let (Dirtyness::SessionDependent, Some(session_id)) = (dirtyness, clean_in_session) {
+            self.update_session_dependent(session_id, 1)
+        } else {
+            self.update(1)
+        }
+    }
+
     /// Undoes the effect of a dirty state on the count. Returns an aggregated count that represents
     /// the change.
     pub fn undo_update_with_dirty_state(&mut self, dirty: &DirtyState) -> DirtyContainerCount {
         if let Some(clean_in_session) = dirty.clean_in_session {
             self.update_session_dependent(clean_in_session, -1)
+        } else {
+            self.update(-1)
+        }
+    }
+
+    /// Undoes the effect of a dirtyness on the count. Returns an aggregated count that represents
+    /// the change.
+    pub fn undo_update_with_dirtyness_and_session(
+        &mut self,
+        dirtyness: Dirtyness,
+        clean_in_session: Option<SessionId>,
+    ) -> DirtyContainerCount {
+        if let (Dirtyness::SessionDependent, Some(session_id)) = (dirtyness, clean_in_session) {
+            self.update_session_dependent(session_id, -1)
         } else {
             self.update(-1)
         }
@@ -279,6 +312,23 @@ impl DirtyContainerCount {
     ) -> DirtyContainerCount {
         let mut diff = self.undo_update_with_dirty_state(old);
         diff.update_count(&self.update_with_dirty_state(new));
+        diff
+    }
+
+    /// Replaces the old dirtyness with the new one. Returns an aggregated count that represents
+    /// the change.
+    pub fn replace_dirtyness_and_session(
+        &mut self,
+        old_dirtyness: Dirtyness,
+        old_clean_in_session: Option<SessionId>,
+        new_dirtyness: Dirtyness,
+        new_clean_in_session: Option<SessionId>,
+    ) -> DirtyContainerCount {
+        let mut diff =
+            self.undo_update_with_dirtyness_and_session(old_dirtyness, old_clean_in_session);
+        diff.update_count(
+            &self.update_with_dirtyness_and_session(new_dirtyness, new_clean_in_session),
+        );
         diff
     }
 
@@ -563,7 +613,10 @@ pub enum CachedDataItem {
 
     // State
     Dirty {
-        value: DirtyState,
+        value: Dirtyness,
+    },
+    CleanInSession {
+        value: SessionId,
     },
 
     // Children
@@ -695,6 +748,7 @@ impl CachedDataItem {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItem::Dirty { .. } => true,
+            CachedDataItem::CleanInSession { .. } => true,
             CachedDataItem::Child { task, .. } => !task.is_transient(),
             CachedDataItem::CellData { .. } => true,
             CachedDataItem::CellTypeMaxIndex { .. } => true,
@@ -777,6 +831,7 @@ impl CachedDataItem {
             | Self::Output { .. }
             | Self::AggregationNumber { .. }
             | Self::Dirty { .. }
+            | Self::CleanInSession { .. }
             | Self::Follower { .. }
             | Self::Child { .. }
             | Self::Upper { .. }
@@ -811,6 +866,7 @@ impl CachedDataItemKey {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItemKey::Dirty { .. } => true,
+            CachedDataItemKey::CleanInSession { .. } => true,
             CachedDataItemKey::Child { task, .. } => !task.is_transient(),
             CachedDataItemKey::CellData { .. } => true,
             CachedDataItemKey::CellTypeMaxIndex { .. } => true,
@@ -861,6 +917,7 @@ impl CachedDataItemType {
             | Self::Output { .. }
             | Self::AggregationNumber { .. }
             | Self::Dirty { .. }
+            | Self::CleanInSession { .. }
             | Self::Follower { .. }
             | Self::Child { .. }
             | Self::Upper { .. }
@@ -887,6 +944,7 @@ impl CachedDataItemType {
             Self::Output
             | Self::Collectible
             | Self::Dirty
+            | Self::CleanInSession
             | Self::Child
             | Self::CellData
             | Self::CellTypeMaxIndex

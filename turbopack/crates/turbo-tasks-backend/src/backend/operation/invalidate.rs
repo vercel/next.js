@@ -11,11 +11,11 @@ use crate::{
                 AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
             },
         },
-        storage::{get, get_mut},
+        storage::{get, get_mut, remove},
     },
     data::{
-        CachedDataItem, CachedDataItemKey, CachedDataItemValue, DirtyState, InProgressState,
-        InProgressStateInner,
+        CachedDataItem, CachedDataItemKey, CachedDataItemValue, DirtyState, Dirtyness,
+        InProgressState, InProgressStateInner,
     },
 };
 
@@ -232,15 +232,11 @@ pub fn make_task_dirty_internal(
         *stale = true;
     }
     let old = task.insert(CachedDataItem::Dirty {
-        value: DirtyState {
-            clean_in_session: None,
-        },
+        value: Dirtyness::Dirty,
     });
     let mut dirty_container = match old {
         Some(CachedDataItemValue::Dirty {
-            value: DirtyState {
-                clean_in_session: None,
-            },
+            value: Dirtyness::Dirty,
         }) => {
             #[cfg(feature = "trace_task_dirty")]
             let _span = tracing::trace_span!(
@@ -254,16 +250,30 @@ pub fn make_task_dirty_internal(
             return;
         }
         Some(CachedDataItemValue::Dirty {
-            value: DirtyState {
-                clean_in_session: Some(session_id),
-            },
+            value: Dirtyness::SessionDependent,
         }) => {
-            // Got dirty in that one session only
-            let mut dirty_container = get!(task, AggregatedDirtyContainerCount)
-                .cloned()
-                .unwrap_or_default();
-            dirty_container.update_session_dependent(session_id, 1);
-            dirty_container
+            let old = remove!(task, CleanInSession);
+            match old {
+                None => {
+                    #[cfg(feature = "trace_task_dirty")]
+                    let _span = tracing::trace_span!(
+                        "session-dependent task already dirty",
+                        name = ctx.get_task_description(task_id),
+                        cause = %TaskDirtyCauseInContext::new(&cause, ctx)
+                    )
+                    .entered();
+                    // already dirty
+                    return;
+                }
+                Some(session_id) => {
+                    // Got dirty in that one session only
+                    let mut dirty_container = get!(task, AggregatedDirtyContainerCount)
+                        .cloned()
+                        .unwrap_or_default();
+                    dirty_container.update_session_dependent(session_id, 1);
+                    dirty_container
+                }
+            }
         }
         None => {
             // Get dirty for all sessions

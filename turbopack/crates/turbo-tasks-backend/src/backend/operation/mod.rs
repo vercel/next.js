@@ -20,12 +20,12 @@ use crate::{
     backend::{
         OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
         TurboTasksBackendJob,
-        storage::{SpecificTaskDataCategory, StorageWriteGuard, iter_many},
+        storage::{SpecificTaskDataCategory, StorageWriteGuard, get, iter_many},
     },
     backing_storage::BackingStorage,
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemType, CachedDataItemValue,
-        CachedDataItemValueRef, CachedDataItemValueRefMut,
+        CachedDataItemValueRef, CachedDataItemValueRefMut, DirtyState, Dirtyness,
     },
 };
 
@@ -415,6 +415,30 @@ pub trait TaskGuard: Debug {
     fn invalidate_serialization(&mut self);
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>>;
     fn is_immutable(&self) -> bool;
+    fn dirtyness_and_session(&self) -> Option<(Dirtyness, Option<SessionId>)> {
+        match get!(self, Dirty)? {
+            Dirtyness::Dirty => Some((Dirtyness::Dirty, None)),
+            Dirtyness::SessionDependent => Some((
+                Dirtyness::SessionDependent,
+                get!(self, CleanInSession).copied(),
+            )),
+        }
+    }
+    fn dirty_state(&self) -> Option<DirtyState> {
+        match get!(self, Dirty)? {
+            Dirtyness::Dirty => Some(DirtyState {
+                clean_in_session: None,
+            }),
+            Dirtyness::SessionDependent => match get!(self, CleanInSession) {
+                None => Some(DirtyState {
+                    clean_in_session: None,
+                }),
+                Some(session) => Some(DirtyState {
+                    clean_in_session: Some(*session),
+                }),
+            },
+        }
+    }
 }
 
 pub struct TaskGuardImpl<'a, B: BackingStorage> {
