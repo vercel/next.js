@@ -142,7 +142,7 @@ async function UserCard({
 }
 
 // Invalid - class instance
-async function UserCard({ user }: { user: UserClass }) {
+async function UserProfile({ user }: { user: UserClass }) {
   'use cache'
   // Error: Cannot serialize class instance
   return <div>{user.name}</div>

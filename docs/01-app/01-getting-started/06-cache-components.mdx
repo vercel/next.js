@@ -157,7 +157,7 @@ The fallback (`<p>Loading...</p>`) is included in the static shell, and the cont
 
 In the snippet above, the prerendering step ends at the `fetch` request. The `fetch` request is not started, and any code after it is not executed.
 
-> **Good to know**: For external I/O that doesn't change frequently, you can use `use cache` to include the dynamic data in the static shell instead of streaming it. See the [at build time](#at-build-time) section for an example.
+> **Good to know**: For external I/O that doesn't change frequently, you can use `use cache` to include the dynamic data in the static shell instead of streaming it. See the [during prerendering](#during-prerendering) section for an example.
 
 ### Runtime data
 
@@ -197,7 +197,7 @@ export default async function Page(props) {
 
 Use [`connection()`](/docs/app/api-reference/functions/connection) if you need to defer to request time without accessing any of the runtime APIs above.
 
-> **Good to know**: Runtime data cannot be cached with `use cache` because it requires request context. Components that access runtime APIs must always be wrapped in `<Suspense>`. However, you can extract values from runtime data and pass them as arguments to cached functions. See the [at runtime](#at-runtime) section for an example.
+> **Good to know**: Runtime data cannot be cached with `use cache` because it requires request context. Components that access runtime APIs must always be wrapped in `<Suspense>`. However, you can extract values from runtime data and pass them as arguments to cached functions. See the [with runtime data](#with-runtime-data) section for an example.
 
 ### Non-deterministic operations
 
