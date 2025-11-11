@@ -74,6 +74,7 @@ struct ModuleImports {
     specifiers: Vec<(Atom, Span)>,
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ModuleDirective {
     UseClient,
