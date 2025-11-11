@@ -1,5 +1,4 @@
 /* __next_internal_action_entry_do_not_use__ {"0095ef8ede0a8a4c822fcbdb018cb264731cb15281":"actionA"} */ import { registerServerReference } from "private-next-rsc-server-reference";
-import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 export type X = string;
 // @ts-ignore -- that file does not exist
 export { type A } from './a';
