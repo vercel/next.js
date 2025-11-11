@@ -85,6 +85,21 @@ pub enum ConditionalKind {
 }
 
 impl ConditionalKind {
+    fn is_empty(&self) -> bool {
+        match self {
+            ConditionalKind::If { then: block }
+            | ConditionalKind::Else { r#else: block }
+            | ConditionalKind::Labeled { body: block } => block.effects.is_empty(),
+            ConditionalKind::IfElse { then, r#else, .. }
+            | ConditionalKind::Ternary { then, r#else, .. } => then.is_empty() && r#else.is_empty(),
+            ConditionalKind::And { rhs_effects, .. }
+            | ConditionalKind::Or { rhs_effects, .. }
+            | ConditionalKind::NullishCoalescing { rhs_effects, .. } => rhs_effects.is_empty(),
+            ConditionalKind::IfElseMultiple { then, r#else, .. } => {
+                then.iter().chain(r#else.iter()).all(|b| b.is_empty())
+            }
+        }
+    }
     /// Normalizes all contained values.
     pub fn normalize(&mut self) {
         match self {
@@ -2658,7 +2673,7 @@ impl Analyzer<'_> {
         {
             return;
         }
-        let condition = Box::new(self.eval_context.eval(test));
+        let condition = self.eval_context.eval(test);
         if condition.is_unknown() {
             if let Some(mut then) = then {
                 self.effects.append(&mut then.effects);
@@ -2668,6 +2683,7 @@ impl Analyzer<'_> {
             }
             return;
         }
+        let condition = Box::new(condition);
         match (early_return_when_true, early_return_when_false) {
             (true, false) => {
                 self.early_return_stack.push(EarlyReturn::Conditional {
@@ -2695,20 +2711,21 @@ impl Analyzer<'_> {
             }
             (false, false) | (true, true) => {
                 let kind = match (then, r#else) {
-                    (Some(then), Some(r#else)) => ConditionalKind::IfElse { then, r#else },
-                    (Some(then), None) => ConditionalKind::If { then },
-                    (None, Some(r#else)) => ConditionalKind::Else { r#else },
-                    (None, None) => {
-                        // No effects, ignore
-                        return;
-                    }
+                    (Some(then), Some(r#else)) => Some(ConditionalKind::IfElse { then, r#else }),
+                    (Some(then), None) => Some(ConditionalKind::If { then }),
+                    (None, Some(r#else)) => Some(ConditionalKind::Else { r#else }),
+                    (None, None) => None,
                 };
-                self.add_effect(Effect::Conditional {
-                    condition,
-                    kind: Box::new(kind),
-                    ast_path: as_parent_path_with(ast_path, condition_ast_kind),
-                    span,
-                });
+                if let Some(kind) = kind
+                    && !kind.is_empty()
+                {
+                    self.add_effect(Effect::Conditional {
+                        condition,
+                        kind: Box::new(kind),
+                        ast_path: as_parent_path_with(ast_path, condition_ast_kind),
+                        span,
+                    });
+                }
                 if early_return_when_false && early_return_when_true {
                     self.early_return_stack.push(EarlyReturn::Always {
                         prev_effects: take(&mut self.effects),
@@ -2727,6 +2744,9 @@ impl Analyzer<'_> {
         span: Span,
         mut cond_kind: ConditionalKind,
     ) {
+        if cond_kind.is_empty() {
+            return;
+        }
         let condition = self.eval_context.eval(test);
         if condition.is_unknown() {
             match &mut cond_kind {
