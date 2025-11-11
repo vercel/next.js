@@ -10,6 +10,7 @@ const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
+const withCustomExtensions = path.join(__dirname, 'with-custom-extensions')
 
 const linters = {
   withoutPages: new Linter({
@@ -26,6 +27,10 @@ const linters = {
   }),
   withCustomPages: new Linter({
     cwd: withCustomPagesDir,
+    configType: 'eslintrc',
+  }),
+  withCustomExtensions: new Linter({
+    cwd: withCustomExtensions,
     configType: 'eslintrc',
   }),
 }
@@ -70,6 +75,16 @@ const linterConfigWithNestedContentRootDirDirectory = {
     next: {
       rootDir: path.join(withNestedPagesDir, 'demos/with-nextjs'),
     },
+  },
+}
+const linterConfigWithCustomExtensions = {
+  ...linterConfig,
+  rules: {
+    'no-html-link-for-pages': [
+      2,
+      path.join(withCustomExtensions, 'pages'),
+      ['page.tsx', 'page.ts', 'mdx'],
+    ],
   },
 }
 
@@ -494,5 +509,119 @@ describe('no-html-link-for-pages', function () {
       report.message,
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
+  })
+
+  // Custom pageExtensions tests
+  describe('with custom pageExtensions', function () {
+    const invalidHomeLink = `
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/'>Homepage</a>
+      </div>
+    );
+  }
+}
+`
+    const invalidAboutLink = `
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/about'>About</a>
+      </div>
+    );
+  }
+}
+`
+    const invalidBlogLink = `
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/blog'>Blog</a>
+      </div>
+    );
+  }
+}
+`
+    const validIgnoredLink = `
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/ignored'>Ignored</a>
+      </div>
+    );
+  }
+}
+`
+
+    it('detects pages with .page.tsx extension', function () {
+      const [report] = linters.withCustomExtensions.verify(
+        invalidHomeLink,
+        linterConfigWithCustomExtensions,
+        { filename: 'foo.js' }
+      )
+      assert.notEqual(report, undefined, 'No lint errors found.')
+      assert.equal(
+        report.message,
+        'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+      )
+    })
+
+    it('detects pages with .page.ts extension', function () {
+      const [report] = linters.withCustomExtensions.verify(
+        invalidAboutLink,
+        linterConfigWithCustomExtensions,
+        { filename: 'foo.js' }
+      )
+      assert.notEqual(report, undefined, 'No lint errors found.')
+      assert.equal(
+        report.message,
+        'Do not use an `<a>` element to navigate to `/about/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+      )
+    })
+
+    it('detects pages with .mdx extension', function () {
+      const [report] = linters.withCustomExtensions.verify(
+        invalidBlogLink,
+        linterConfigWithCustomExtensions,
+        { filename: 'foo.js' }
+      )
+      assert.notEqual(report, undefined, 'No lint errors found.')
+      assert.equal(
+        report.message,
+        'Do not use an `<a>` element to navigate to `/blog/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+      )
+    })
+
+    it('does not detect pages with default .tsx extension when custom extensions are specified', function () {
+      const report = linters.withCustomExtensions.verify(
+        validIgnoredLink,
+        linterConfigWithCustomExtensions,
+        { filename: 'foo.js' }
+      )
+      assert.deepEqual(report, [], 'Should not find any lint errors.')
+    })
+
+    it('maintains backward compatibility when pageExtensions not specified', function () {
+      const configWithoutCustomExtensions = {
+        ...linterConfig,
+        rules: {
+          'no-html-link-for-pages': [
+            2,
+            path.join(withCustomPagesDir, 'custom-pages'),
+          ],
+        },
+      }
+      const [report] = linters.withCustomPages.verify(
+        invalidStaticCode,
+        configWithoutCustomExtensions,
+        { filename: 'foo.js' }
+      )
+      assert.notEqual(report, undefined, 'Should detect pages with default extensions.')
+    })
   })
 })

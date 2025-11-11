@@ -60,6 +60,42 @@ In some cases, you may also need to configure this rule directly by providing a 
 }
 ```
 
+#### `pageExtensions`
+
+If you've configured custom [page extensions](/docs/pages/api-reference/config/next-config-js/pageExtensions) in your `next.config.js`, you should also configure the ESLint rule to recognize these extensions.
+
+This accepts an array of file extensions (without the leading dot).
+
+**Example with custom extensions:**
+
+```json filename="eslint.config.json"
+{
+  "rules": {
+    "@next/next/no-html-link-for-pages": [
+      "error",
+      "packages/my-app/pages/",
+      ["page.tsx", "page.ts", "mdx"]
+    ]
+  }
+}
+```
+
+If `pageExtensions` is not specified, the rule defaults to `['tsx', 'ts', 'jsx', 'js']`.
+
+**With both options:**
+
+```json filename="eslint.config.json"
+{
+  "rules": {
+    "@next/next/no-html-link-for-pages": [
+      "error",
+      "packages/my-app/pages/",
+      ["page.tsx", "page.ts", "mdx"]
+    ]
+  }
+}
+```
+
 ## Useful Links
 
 - [next/link API Reference](/docs/pages/api-reference/components/link)
