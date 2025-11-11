@@ -2431,7 +2431,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 }
                 AggregationUpdateJob::data_update(
                     &mut task,
-                    AggregatedDataUpdate::new().dirty_container_update(task_id, aggregated_update),
+                    AggregatedDataUpdate::new().dirty_container_update(
+                        task_id,
+                        aggregated_update.count,
+                        aggregated_update.session_dependent_clean(),
+                    ),
                 )
             } else {
                 None

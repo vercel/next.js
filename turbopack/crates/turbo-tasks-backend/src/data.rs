@@ -171,6 +171,20 @@ pub struct DirtyContainerCount {
 }
 
 impl DirtyContainerCount {
+    pub fn from_session_dependent_clean(
+        count: i32,
+        session_dependent_clean: Option<(SessionId, i32)>,
+    ) -> DirtyContainerCount {
+        DirtyContainerCount {
+            count,
+            count_in_session: session_dependent_clean.map(|(s, c)| (s, count - c)),
+        }
+    }
+
+    pub fn session_dependent_clean(&self) -> Option<(SessionId, i32)> {
+        self.count_in_session.map(|(s, c)| (s, self.count - c))
+    }
+
     /// Get the count for a specific session. It's only expected to be asked for the current
     /// session, since old session counts might be dropped.
     pub fn get(&self, session: SessionId) -> i32 {
