@@ -1257,6 +1257,7 @@ function runTests({ dev }) {
       expect(normalizeManifest(manifest, [[buildId, 'BUILD_ID']]))
         .toMatchInlineSnapshot(`
        {
+         "appType": "pages",
          "basePath": "",
          "caseSensitive": false,
          "dataRoutes": [

@@ -435,6 +435,7 @@ type ManifestDataRoute = {
 export type RoutesManifest = {
   version: number
   pages404: boolean
+  appType: 'app' | 'pages' | 'hybrid'
   basePath: string
   redirects: Array<ManifestRedirectRoute>
   rewrites: {
@@ -923,6 +924,7 @@ export default async function build(
   NextBuildContext.isCompileMode = isCompileMode
   NextBuildContext.analyze = experimentalAnalyze
   const buildStartTime = Date.now()
+  let appType: RoutesManifest['appType']
 
   let loadedConfig: NextConfigComplete | undefined
   try {
@@ -1076,6 +1078,14 @@ export default async function build(
 
       const publicDir = path.join(dir, 'public')
       const { pagesDir, appDir } = findPagesDir(dir)
+
+      if (pagesDir && appDir) {
+        appType = 'hybrid'
+      } else if (pagesDir) {
+        appType = 'pages'
+      } else if (appDir) {
+        appType = 'app'
+      }
 
       if (!appDirOnly && !pagesDir) {
         appDirOnly = true
@@ -1619,6 +1629,7 @@ export default async function build(
           return {
             version: 3,
             pages404: true,
+            appType,
             caseSensitive: !!config.experimental.caseSensitiveRoutes,
             basePath: config.basePath,
             redirects: redirects.map((r) =>
