@@ -1,4 +1,4 @@
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, isNextDev, nextTestSetup } from 'e2e-utils'
 import {
   findPort,
   getFullUrl,
@@ -12,13 +12,18 @@ import fs from 'fs-extra'
 import os from 'os'
 
 describe('app-dir action body finalize with nodejs middleware and output-standalone', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     overrideFiles: {
       'middleware.js': new FileRef(join(__dirname, 'middleware-node.js')),
     },
     skipStart: true,
+    skipDeployment: true,
   })
+
+  if (isNextDev || skipped) {
+    return it('should skip', () => {})
+  }
 
   let server: any
   let appPort: number
