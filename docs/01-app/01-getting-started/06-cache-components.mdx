@@ -15,22 +15,16 @@ related:
 
 > **Good to know:** Cache Components is an opt-in feature. Enable it by setting the `cacheComponents` flag to `true` in your Next config file. See [Enabling Cache Components](#enabling-cache-components) for more details.
 
-Cache Components lets you build pages that load instantly while still showing fresh, personalized content. You get fine-grained control over what content is rendered and how long it's cached, from build time to request time, giving you both speed and flexibility.
+Cache Components lets you mix static, cached, and streaming content in a single route, giving you the speed of static sites with the flexibility of dynamic rendering.
 
-## Cache Components
+Traditionally, server-rendered applications force a choice between static pages (fast but can't show personalized data) and dynamic pages (fresh but slow). With Cache Components, Next.js treats all routes as dynamic by default and eliminates this tradeoff by prerendering a static HTML shell at build time.
 
-When developing server rendered applications, you have to balance two approaches:
+During prerendering, as long as components don't access network resources, certain system APIs, or require an incoming request to render, their output is **automatically added to the static shell**. Otherwise, you must choose how to handle them:
 
-- **Fully static pages** load fast but can't show personalized or real-time data
-- **Fully dynamic pages** show fresh data but render everything on each request, leads to slower page loads
+- Defer to request time, showing fallback UI until the content is ready, or
+- Cache the result to include it in the static shell (if no request data is needed)
 
-However, in practice most pages contain a mix of content types, ranging from static to personalized or real-time data.
-
-Cache Components uses **Partial Prerendering**, React `Suspense` boundaries and Next.js `use cache` directives, to let you compose these different content types into a single page.
-
-- **Partial Prerendering**: At build time, Next.js generates a static HTML shell that includes static content, cached content, and fallback UI for dynamic sections
-- **`use cache` directive** : Lets you cache content that doesn't change frequently, so it can be included in the static HTML shell alongside static content, avoiding the need for runtime fetching
-- **Streaming** with `Suspense`: For work that can't complete at build time, defines fallback UI that shows instantly as part of the static HTML shell, while the actual content streams in as it becomes ready
+Caching can be applied at the component or function level, while fallback UI can be defined around any subtree, which means you can compose static, cached, and streaming content within a single route.
 
 <Image
   alt="Partially re-rendered Product Page showing static nav and product information, and dynamic cart and recommended products"
@@ -52,7 +46,7 @@ The result is a page that responds instantly with a fast static shell, while dyn
 
 > **🎥 Watch:** Why PPR and how it works → [YouTube (10 minutes)](https://www.youtube.com/watch?v=MTcPrTIBkpA).
 
-## Understanding the Prerendering Flow
+## How rendering works with Cache Components
 
 Next.js attempts to prerender everything during the build phase. When it encounters work that cannot complete during prerendering (like `fetch()`, `cookies()`, etc.), that work is deferred to request time:
 
@@ -63,13 +57,15 @@ Next.js attempts to prerender everything during the build phase. When it encount
 
 Dynamic parts must be explicitly wrapped in `<Suspense>`, or you can use [`use cache`](/docs/app/api-reference/directives/use-cache) to include them in the static shell instead of streaming. If you forget, you'll see an [`Uncached data was accessed outside of <Suspense>`](https://nextjs.org/docs/messages/blocking-route) error during development, and builds will fail.
 
+This rendering strategy is called **Partial Prerendering**.
+
 ## Prerendered content
 
-Operations like immediately resolved promises, synchronous I/O, module imports, and pure computations can complete during the build step. Components using only these operations have their rendered output included in the static HTML shell.
+During prerendering, components that only use immediately resolved promises, synchronous file system reads, module imports, and pure computations are rendered completely.
 
-The static shell is the prerendered HTML that's sent immediately when the page is requested. This means the browser receives fully rendered content right away. During the static shell generation, Next.js also creates a serialized representation of the component tree called the [RSC Payload](/docs/app/getting-started/server-and-client-components#on-the-server), which enables fast client-side navigation between routes.
+Their rendered output becomes part of the **static shell**: prerendered HTML for initial page loads and a serialized [RSC Payload](/docs/app/getting-started/server-and-client-components#on-the-server) for client-side navigation. The browser receives fully rendered content instantly, whether the user navigates directly to the URL or transitions from another page.
 
-In the snippet below, the `Page` component requires no special handling. Because all operations complete at build time, the entire page rendered output is the static shell.
+In the snippet below, the `Page` component requires no special handling. Because all operations complete at build time, the page's rendered output is included in the static shell. When both the layout and page prerender successfully, the entire route is the static shell.
 
 ```tsx filename="page.tsx"
 import fs from 'node:fs'
@@ -78,7 +74,7 @@ export default async function Page() {
   // Immediately resolved promise
   const data = await new Promise((resolve) => resolve('foo'))
 
-  // Synchronous I/O
+  // Synchronous file system read
   const content = fs.readFileSync('./config.json', 'utf-8')
 
   // Module imports
@@ -103,10 +99,10 @@ export default async function Page() {
 
 > **Good to know**: You can verify that a route was fully prerendered by checking the build output summary. Alternatively see what content was added to the static shell of any page by viewing the page source in your browser.
 
-When your components perform work that can't complete at build time, Cache Components requires you to explicitly choose how to handle it:
+When your components make network requests, use async file operations or timeouts, access request data (cookies, headers), or generate random values, you must explicitly choose how to handle it:
 
-- **Stream at request time**: [Define `<Suspense>` fallback UI](#rendering-at-request-time) to be included in the static shell while the actual content streams in
-- **Include in static shell**: [Use the `use cache` directive](#during-prerendering) for content that doesn't change frequently
+- **Render at request time**: [Define `<Suspense>` fallback UI](#rendering-at-request-time) to be included in the static shell while the actual content streams in
+- **Prerender and include in static shell**: [Use the `use cache` directive](#during-prerendering) for content that doesn't change frequently
 
 ## Rendering at request time
 
@@ -116,7 +112,7 @@ With Suspense boundaries, multiple dynamic sections can render in parallel rathe
 
 ### Dynamic content
 
-Operations that perform external I/O, like `fetch()` requests, database queries, or async file system operations, cannot complete at build time and defer to request time:
+When your components execute operations that depend on external systems (network requests, database queries) or use async file operations, their content cannot be included in the static shell and must be resolved at request time:
 
 ```tsx filename="page.tsx"
 import { Suspense } from 'react'
@@ -124,16 +120,16 @@ import fs from 'node:fs/promises'
 import { setTimeout } from 'node:timers/promise'
 
 async function Example() {
-  // External I/O (fetch)
+  // Network request
   const data = await fetch('https://api.example.com/data')
 
-  // External I/O Database queries
+  // Database query
   const users = await db.query('SELECT * FROM users')
 
-  // External I/O File system access
+  // Async file system operation
   const file = await fs.readFile('..', 'utf-8')
 
-  // Simulating I/O
+  // Simulating external system delay
   await setTimeout(100) // from 'node:timers/promise'
 
   return <div>Not in the static shell</div>
@@ -153,11 +149,13 @@ export default async function Page(props) {
 }
 ```
 
-The fallback (`<p>Loading...</p>`) is included in the static shell, and the content is fetched at request time.
+During prerendering, Next.js stops at the `fetch` request. The request itself is not started, and any code after it is not executed.
 
-In the snippet above, the prerendering step ends at the `fetch` request. The `fetch` request is not started, and any code after it is not executed.
+The fallback (`<p>Loading...</p>`) is included in the static shell, while the component's content streams at request time.
 
-> **Good to know**: For external I/O that doesn't change frequently, you can use `use cache` to include the dynamic data in the static shell instead of streaming it. See the [during prerendering](#during-prerendering) section for an example.
+In this example, since all operations (network request, database query, file read, and timeout) run sequentially within the same component, the content won't appear until they all complete.
+
+> **Good to know**: For dynamic content that doesn't change frequently, you can use `use cache` to include the dynamic data in the static shell instead of streaming it. See the [during prerendering](#during-prerendering) section for an example.
 
 ### Runtime data
 
