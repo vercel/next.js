@@ -388,6 +388,12 @@ export interface ExperimentalConfig {
   optimizeServerReact?: boolean
 
   /**
+   * Displays an indicator when a React Transition has no other indicator rendered.
+   * This includes displaying an indicator on client-side navigations.
+   */
+  transitionIndicator?: boolean
+
+  /**
    * A target memory limit for turbo, in bytes.
    */
   turbopackMemoryLimit?: number
@@ -1515,6 +1521,7 @@ export const defaultConfig = Object.freeze({
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
+    transitionIndicator: false,
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,

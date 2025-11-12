@@ -70,6 +70,7 @@ function HistoryUpdater({
       renderedSearch,
     }
 
+    // TODO: Use Navigation API if available
     const historyState = {
       ...(pushRef.preserveCustomHistoryState ? window.history.state : {}),
       // Identifier is shortened intentionally.
@@ -328,6 +329,7 @@ function Router({
       _unused: string,
       url?: string | URL | null
     ): void {
+      // TODO: Warn when Navigation API is available (navigation.navigate() should be used)
       // Avoid a loop when Next.js internals trigger pushState/replaceState
       if (data?.__NA || data?._N) {
         return originalPushState(data, _unused, url)
@@ -352,6 +354,7 @@ function Router({
       _unused: string,
       url?: string | URL | null
     ): void {
+      // TODO: Warn when Navigation API is available (navigation.navigate() should be used)
       // Avoid a loop when Next.js internals trigger pushState/replaceState
       if (data?.__NA || data?._N) {
         return originalReplaceState(data, _unused, url)

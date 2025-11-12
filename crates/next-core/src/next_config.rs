@@ -870,6 +870,7 @@ pub struct ExperimentalConfig {
     /// Enables source maps generation for the server production bundle.
     server_source_maps: Option<bool>,
     swc_trace_profiling: Option<bool>,
+    transition_indicator: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
 
@@ -1672,6 +1673,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_taint(&self) -> Vc<bool> {
         Vc::cell(self.experimental.taint.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_transition_indicator(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.transition_indicator.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
