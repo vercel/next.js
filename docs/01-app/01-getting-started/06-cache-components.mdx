@@ -56,7 +56,7 @@ The result is a page that responds instantly with a fast static shell, while dyn
 
 Next.js attempts to prerender everything during the build phase. When it encounters work that cannot complete during prerendering (like `fetch()`, `cookies()`, etc.), that work is deferred to request time:
 
-1. **Prerendering starts**: Next.js tries to render the entire page
+1. **Prerendering starts**: Next.js tries to render the entire route
 2. **Hits dynamic work**: Cannot complete at build time
 3. **Requires fallback**: Must be wrapped in `<Suspense>` to define the fallback UI to use in the static shell
 4. **Result**: Static shell with clearly defined dynamic sections
@@ -101,7 +101,7 @@ export default async function Page() {
 }
 ```
 
-> **Good to know**: You can verify that a page was fully prerendered by checking the build output summary. Alternatively see what content was added to the static shell of any page by viewing the page source in your browser.
+> **Good to know**: You can verify that a route was fully prerendered by checking the build output summary. Alternatively see what content was added to the static shell of any page by viewing the page source in your browser.
 
 When your components perform work that can't complete at build time, Cache Components requires you to explicitly choose how to handle it:
 
