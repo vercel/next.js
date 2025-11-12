@@ -191,6 +191,7 @@ The example below shows how to override the default `"days"` cache profile:
 const nextConfig = {
   cacheComponents: true,
   cacheLife: {
+    // Override the 'days' profile
     days: {
       stale: 3600, // 1 hour
       revalidate: 900, // 15 minutes
@@ -200,22 +201,6 @@ const nextConfig = {
 }
 
 export default nextConfig
-```
-
-You can also override the preset profiles by using the same name:
-
-```ts filename="next.config.ts"
-const nextConfig = {
-  cacheComponents: true,
-  cacheLife: {
-    // Override the 'days' profile
-    days: {
-      stale: 3600, // 1 hour
-      revalidate: 900, // 15 minutes
-      expire: 86400, // 1 day
-    },
-  },
-}
 ```
 
 ### Inline cache profiles
