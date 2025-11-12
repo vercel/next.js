@@ -239,6 +239,9 @@ pub struct EcmascriptOptionsContext {
     /// Specifies how Source Maps are handled.
     pub source_maps: SourceMapsType,
 
+    /// Whether to allow accessing exports info via `__webpack_exports_info__`.
+    pub enable_exports_info_inlining: bool,
+
     // TODO should this be a part of Environment instead?
     pub inline_helpers: bool,
 

@@ -5,6 +5,7 @@ pub mod constant_condition;
 pub mod constant_value;
 pub mod dynamic_expression;
 pub mod esm;
+pub mod exports_info;
 pub mod external_module;
 pub mod ident;
 pub mod member;
@@ -149,6 +150,7 @@ use crate::{
             EsmBinding, UrlRewriteBehavior, base::EsmAssetReferences,
             module_id::EsmModuleIdAssetReference,
         },
+        exports_info::{ExportsInfoBinding, ExportsInfoRef},
         ident::IdentReplacement,
         member::MemberReplacement,
         node::{FilePathModuleReference, PackageJsonReference},
@@ -441,6 +443,9 @@ struct AnalysisState<'a> {
     // There can be many references to import.meta, but only the first should hoist
     // the object allocation.
     first_import_meta: bool,
+    // There can be many references to __webpack_exports_info__, but only the first should hoist
+    // the object allocation.
+    first_webpack_exports_info: bool,
     tree_shaking_mode: Option<TreeShakingMode>,
     import_externals: bool,
     ignore_dynamic_requests: bool,
@@ -978,6 +983,7 @@ async fn analyze_ecmascript_module_internal(
             fun_args_values: Default::default(),
             var_cache: Default::default(),
             first_import_meta: true,
+            first_webpack_exports_info: true,
             tree_shaking_mode: options.tree_shaking_mode,
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
@@ -1304,6 +1310,15 @@ async fn analyze_ecmascript_module_internal(
                         analyze_mode.is_code_gen(),
                         "unexpected Effect::FreeVar in tracing mode"
                     );
+
+                    if options.enable_exports_info_inlining && var == "__webpack_exports_info__" {
+                        if analysis_state.first_webpack_exports_info {
+                            analysis_state.first_webpack_exports_info = false;
+                            analysis.add_code_gen(ExportsInfoBinding::new());
+                        }
+                        analysis.add_code_gen(ExportsInfoRef::new(ast_path.into()));
+                        continue;
+                    }
 
                     // FreeVar("require") might be turbopackIgnore-d
                     if !analysis_state
