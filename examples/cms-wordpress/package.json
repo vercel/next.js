@@ -8,6 +8,7 @@
     "codegen": "graphql-codegen --config codegen.ts && node ./add-ts-nocheck.js"
   },
   "dependencies": {
+    "@next/env": "latest",
     "graphql": "^16.9.0",
     "graphql-tag": "^2.12.6",
     "next": "latest",
