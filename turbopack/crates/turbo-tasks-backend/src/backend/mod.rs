@@ -27,8 +27,8 @@ use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
 use turbo_tasks::{
     CellId, FxDashMap, FxIndexMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
-    ReadOutputOptions, ReadTracking, SessionId, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId,
-    TraitTypeId, TurboTasksBackendApi, ValueTypeId,
+    ReadOutputOptions, ReadTracking, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId,
+    TurboTasksBackendApi, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
         TransientTaskType, TurboTasksExecutionError, TypedCellContent, VerificationMode,
@@ -180,7 +180,6 @@ struct TurboTasksBackendInner<B: BackingStorage> {
     options: BackendOptions,
 
     start_time: Instant,
-    session_id: SessionId,
 
     persisted_task_id_factory: IdFactoryWithReuse<TaskId>,
     transient_task_id_factory: IdFactoryWithReuse<TaskId>,
@@ -254,9 +253,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         Self {
             options,
             start_time: Instant::now(),
-            session_id: backing_storage
-                .next_session_id()
-                .expect("Failed get session id"),
             persisted_task_id_factory: IdFactoryWithReuse::new(
                 next_task_id,
                 TaskId::try_from(TRANSIENT_TASK_BIT - 1).unwrap(),
@@ -293,10 +289,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> impl ExecuteContext<'a> {
         ExecuteContextImpl::new(self, turbo_tasks)
-    }
-
-    fn session_id(&self) -> SessionId {
-        self.session_id
     }
 
     /// # Safety
@@ -1196,7 +1188,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let _span = tracing::info_span!(parent: parent_span, "persist", reason = reason).entered();
         {
             if let Err(err) = self.backing_storage.save_snapshot(
-                self.session_id,
                 suspended_operations,
                 persisted_task_cache_log,
                 task_snapshots,

@@ -14,7 +14,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{FxIndexMap, KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
+use turbo_tasks::{FxIndexMap, KeyValuePair, TaskId, TurboTasksBackendApi};
 
 use crate::{
     backend::{
@@ -51,7 +51,6 @@ pub trait ExecuteContext<'e>: Sized {
     fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'l, Self>
     where
         'e: 'l;
-    fn session_id(&self) -> SessionId;
     fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl;
     fn is_once_task(&self, task_id: TaskId) -> bool;
     fn task_pair(
@@ -179,10 +178,6 @@ where
             backend: self.backend,
             turbo_tasks: self.turbo_tasks,
         }
-    }
-
-    fn session_id(&self) -> SessionId {
-        self.backend.session_id()
     }
 
     fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl {
