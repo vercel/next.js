@@ -27,7 +27,6 @@ describe('app-dir refresh', () => {
       const newServerTimestamp = await browser
         .elementById('server-timestamp')
         .text()
-      console.log({ newServerTimestamp, initialServerTimestamp })
       expect(newServerTimestamp).not.toBe(initialServerTimestamp)
       expect(Number(newServerTimestamp)).toBeGreaterThan(
         Number(initialServerTimestamp)

@@ -1,6 +1,9 @@
 import { triggerRefresh } from './actions'
+import { connection } from 'next/server'
 
 export default function Page() {
+  connection()
+
   const timestamp = performance.now()
 
   return (
