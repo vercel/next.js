@@ -324,6 +324,14 @@ impl AggregatedDataUpdate {
         should_track_activeness: bool,
         queue: &mut AggregationUpdateQueue,
     ) -> AggregatedDataUpdate {
+        fn before_after_to_diff_value(before: bool, after: bool) -> i32 {
+            match (before, after) {
+                (true, false) => -1,
+                (false, true) => 1,
+                _ => 0,
+            }
+        }
+
         let Self {
             dirty_container_update,
             collectibles_update,
@@ -341,36 +349,25 @@ impl AggregatedDataUpdate {
                 }
             }
 
+            // Update AggregatedDirtyContainer and compute aggregated update
             let mut aggregated_count_update = 0;
-            let mut aggregated_current_session_clean_update = 0;
-            let old_aggregated_dirty_container_count;
-            let new_aggregated_dirty_container_count;
-            let old_current_session_clean_count;
-            let new_current_session_clean_count;
-
+            let old_dirty_container_count;
+            let new_dirty_container_count;
             if count != 0 {
-                new_aggregated_dirty_container_count = update_count_and_get!(
+                new_dirty_container_count = update_count_and_get!(
                     task,
                     AggregatedDirtyContainer {
                         task: dirty_container_id
                     },
                     count
                 );
-                old_aggregated_dirty_container_count = new_aggregated_dirty_container_count - count;
-                match (
-                    old_aggregated_dirty_container_count > 0,
-                    new_aggregated_dirty_container_count > 0,
-                ) {
-                    (true, false) => {
-                        aggregated_count_update = -1;
-                    }
-                    (false, true) => {
-                        aggregated_count_update = 1;
-                    }
-                    _ => {}
-                }
+                old_dirty_container_count = new_dirty_container_count - count;
+                aggregated_count_update = before_after_to_diff_value(
+                    old_dirty_container_count > 0,
+                    new_dirty_container_count > 0,
+                );
             } else {
-                new_aggregated_dirty_container_count = get!(
+                new_dirty_container_count = get!(
                     task,
                     AggregatedDirtyContainer {
                         task: dirty_container_id
@@ -378,11 +375,14 @@ impl AggregatedDataUpdate {
                 )
                 .copied()
                 .unwrap_or_default();
-                old_aggregated_dirty_container_count = new_aggregated_dirty_container_count;
+                old_dirty_container_count = new_dirty_container_count;
             }
 
+            // Update AggregatedSessionDependentCleanContainer
+            let old_container_current_session_clean_count;
+            let new_container_current_session_clean_count;
             if *current_session_clean_update != 0 {
-                new_current_session_clean_count = update_count_and_get!(
+                new_container_current_session_clean_count = update_count_and_get!(
                     task,
                     AggregatedSessionDependentCleanContainer {
                         task: dirty_container_id,
@@ -390,10 +390,10 @@ impl AggregatedDataUpdate {
                     },
                     *current_session_clean_update
                 );
-                old_current_session_clean_count =
-                    new_current_session_clean_count - *current_session_clean_update;
+                old_container_current_session_clean_count =
+                    new_container_current_session_clean_count - *current_session_clean_update;
             } else {
-                new_current_session_clean_count = get!(
+                new_container_current_session_clean_count = get!(
                     task,
                     AggregatedSessionDependentCleanContainer {
                         task: dirty_container_id,
@@ -402,22 +402,17 @@ impl AggregatedDataUpdate {
                 )
                 .copied()
                 .unwrap_or_default();
-                old_current_session_clean_count = new_current_session_clean_count;
+                old_container_current_session_clean_count =
+                    new_container_current_session_clean_count;
             }
 
-            let was_clean = old_aggregated_dirty_container_count > 0
-                && old_aggregated_dirty_container_count - old_current_session_clean_count <= 0;
-            let is_clean = new_aggregated_dirty_container_count > 0
-                && new_aggregated_dirty_container_count - new_current_session_clean_count <= 0;
-            match (was_clean, is_clean) {
-                (true, false) => {
-                    aggregated_current_session_clean_update = -1;
-                }
-                (false, true) => {
-                    aggregated_current_session_clean_update = 1;
-                }
-                _ => {}
-            }
+            // compute aggregated update
+            let was_container_clean = old_dirty_container_count > 0
+                && old_dirty_container_count - old_container_current_session_clean_count <= 0;
+            let is_container_clean = new_dirty_container_count > 0
+                && new_dirty_container_count - new_container_current_session_clean_count <= 0;
+            let aggregated_current_session_clean_update =
+                before_after_to_diff_value(was_container_clean, is_container_clean);
 
             let aggregated_update = DirtyContainerCount::from_current_session_clean(
                 aggregated_count_update,
