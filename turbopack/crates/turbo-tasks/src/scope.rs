@@ -195,8 +195,17 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
         assert!(index < self.results.len(), "Too many tasks spawned");
         let result_cell: &Mutex<Option<R>> = &self.results[index];
 
+        let turbo_tasks = self.turbo_tasks.clone();
         let f: Box<dyn FnOnce() + Send + 'scope> = Box::new(|| {
-            let result = f();
+            let result = {
+                if let Some(turbo_tasks) = turbo_tasks {
+                    // Ensure that the turbo tasks context is maintained across the job.
+                    turbo_tasks_scope(turbo_tasks, f)
+                } else {
+                    // If no turbo tasks context is available, just run the job.
+                    f()
+                }
+            };
             *result_cell.lock() = Some(result);
         });
         let f: *mut (dyn FnOnce() + Send + 'scope) = Box::into_raw(f);
@@ -210,7 +219,6 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
         // SAFETY: We just called `Box::into_raw`.
         let f = unsafe { Box::from_raw(f) };
 
-        let turbo_tasks = self.turbo_tasks.clone();
         let span = self.span.clone();
 
         self.inner.remaining_tasks.fetch_add(1, Ordering::Relaxed);
@@ -223,15 +231,7 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
             // Spawn a worker task that will process that tasks and potentially more.
             self.handle.spawn(async move {
                 let _span = span.entered();
-                if let Some(turbo_tasks) = turbo_tasks {
-                    // Ensure that the turbo tasks context is maintained across the worker.
-                    turbo_tasks_scope(turbo_tasks, || {
-                        inner.worker(index, f);
-                    });
-                } else {
-                    // If no turbo tasks context is available, just run the worker.
-                    inner.worker(index, f);
-                }
+                inner.worker(index, f);
             });
         } else {
             // Queue the task to be processed by a worker task.

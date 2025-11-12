@@ -187,7 +187,7 @@ impl ServerNftJsonAsset {
         let cache_handlers = self
             .project
             .next_config()
-            .experimental_cache_handlers(project_path.clone())
+            .cache_handlers(project_path.clone())
             .await?;
 
         // These are used by packages/next/src/server/require-hook.ts

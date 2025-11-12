@@ -55,7 +55,7 @@ import {
   extractInfoFromServerReferenceId,
   omitUnusedArgs,
 } from '../../../../shared/lib/server-reference-info'
-import { revalidateEntireCache } from '../../segment-cache'
+import { revalidateEntireCache } from '../../segment-cache/cache'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -375,11 +375,11 @@ export function serverActionReducer(
 
         // The server sent back RSC data for the server action, so we need to apply it to the cache.
         if (cacheNodeSeedData !== null) {
-          const rsc = cacheNodeSeedData[1]
+          const rsc = cacheNodeSeedData[0]
           const cache: CacheNode = createEmptyCacheNode()
           cache.rsc = rsc
           cache.prefetchRsc = null
-          cache.loading = cacheNodeSeedData[3]
+          cache.loading = cacheNodeSeedData[2]
           fillLazyItemsTillLeafWithHead(
             navigatedAt,
             cache,
@@ -415,14 +415,19 @@ export function serverActionReducer(
         // the component that called the action as the error boundary will remount the tree.
         // The status code doesn't matter here as the action handler will have already sent
         // a response with the correct status code.
-        reject(
-          getRedirectError(
-            hasBasePath(redirectHref)
-              ? removeBasePath(redirectHref)
-              : redirectHref,
-            redirectType || RedirectType.push
-          )
+        const redirectError = getRedirectError(
+          hasBasePath(redirectHref)
+            ? removeBasePath(redirectHref)
+            : redirectHref,
+          redirectType || RedirectType.push
         )
+        // We mark the error as handled because we don't want the redirect to be tried later by
+        // the RedirectBoundary, in case the user goes back and `Activity` triggers the redirect
+        // again, as it's run within an effect.
+        // We don't actually need the RedirectBoundary to do a router.push because we already
+        // have all the necessary RSC data to render the new page within a single roundtrip.
+        ;(redirectError as any).handled = true
+        reject(redirectError)
       } else {
         resolve(actionResult)
       }

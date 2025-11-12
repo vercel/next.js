@@ -455,6 +455,25 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
   workStore: WorkStore,
   requestStore: RequestStore
 ): Promise<Params> {
+  if (requestStore.asyncApiPromises && hasFallbackParams) {
+    // We wrap each instance of params in a `new Promise()`, because deduping
+    // them across requests doesn't work anyway and this let us show each
+    // await a different set of values. This is important when all awaits
+    // are in third party which would otherwise track all the way to the
+    // internal params.
+    const sharedParamsParent = requestStore.asyncApiPromises.sharedParamsParent
+    const promise: Promise<Params> = new Promise((resolve, reject) => {
+      sharedParamsParent.then(() => resolve(underlyingParams), reject)
+    })
+    // @ts-expect-error
+    promise.displayName = 'params'
+    return instrumentParamsPromiseWithDevWarnings(
+      underlyingParams,
+      promise,
+      workStore
+    )
+  }
+
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
     return cachedParams
@@ -472,6 +491,20 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     : // We don't want to force an environment transition when this params is not part of the fallback params set
       Promise.resolve(underlyingParams)
 
+  const proxiedPromise = instrumentParamsPromiseWithDevWarnings(
+    underlyingParams,
+    promise,
+    workStore
+  )
+  CachedParams.set(underlyingParams, proxiedPromise)
+  return proxiedPromise
+}
+
+function instrumentParamsPromiseWithDevWarnings(
+  underlyingParams: Params,
+  promise: Promise<Params>,
+  workStore: WorkStore
+): Promise<Params> {
   // Track which properties we should warn for.
   const proxiedProperties = new Set<string>()
 
@@ -484,7 +517,7 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     }
   })
 
-  const proxiedPromise = new Proxy(promise, {
+  return new Proxy(promise, {
     get(target, prop, receiver) {
       if (typeof prop === 'string') {
         if (
@@ -509,9 +542,6 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
       return Reflect.ownKeys(target)
     },
   })
-
-  CachedParams.set(underlyingParams, proxiedPromise)
-  return proxiedPromise
 }
 
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(

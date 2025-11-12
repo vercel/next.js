@@ -1,4 +1,4 @@
-use std::{fmt::Debug, hash::Hash, pin::Pin};
+use std::{any::Any, fmt::Debug, hash::Hash, pin::Pin};
 
 use anyhow::Result;
 use futures::Future;
@@ -105,32 +105,21 @@ fn resolve_functor_impl<T: MagicAny + TaskInput>(value: &dyn MagicAny) -> Resolv
 
 #[cfg(debug_assertions)]
 #[inline(never)]
-pub fn debug_downcast_args_error_msg(expected: &str, actual: &dyn MagicAny) -> String {
-    format!(
-        "Invalid argument type, expected {expected} got {}",
-        (*actual).magic_type_name()
-    )
+pub fn debug_downcast_args_error_msg(expected: &str, actual: &str) -> String {
+    format!("Invalid argument type, expected {expected} got {actual}")
 }
 
 pub fn downcast_args_owned<T: MagicAny>(args: Box<dyn MagicAny>) -> Box<T> {
-    #[allow(unused_variables)]
-    args.downcast::<T>()
-        .map_err(|args| {
-            #[cfg(debug_assertions)]
-            return debug_downcast_args_error_msg(std::any::type_name::<T>(), &*args);
-            #[cfg(not(debug_assertions))]
-            return anyhow::anyhow!("Invalid argument type");
-        })
-        .unwrap()
-}
+    #[cfg(debug_assertions)]
+    let args_type_name = args.magic_type_name();
 
-pub fn downcast_args_ref<T: MagicAny>(args: &dyn MagicAny) -> &T {
-    args.downcast_ref::<T>()
-        .ok_or_else(|| {
+    (args as Box<dyn Any>)
+        .downcast::<T>()
+        .map_err(|_args| {
             #[cfg(debug_assertions)]
             return anyhow::anyhow!(debug_downcast_args_error_msg(
                 std::any::type_name::<T>(),
-                args
+                args_type_name,
             ));
             #[cfg(not(debug_assertions))]
             return anyhow::anyhow!("Invalid argument type");
@@ -138,12 +127,19 @@ pub fn downcast_args_ref<T: MagicAny>(args: &dyn MagicAny) -> &T {
         .unwrap()
 }
 
-#[derive(Debug)]
-pub struct FunctionMeta {
-    /// Does not run the function as a task, and instead runs it inside the parent task using
-    /// task-local state. The function call itself will not be cached, but cells will be created on
-    /// the parent task.
-    pub local: bool,
+pub fn downcast_args_ref<T: MagicAny>(args: &dyn MagicAny) -> &T {
+    (args as &dyn Any)
+        .downcast_ref::<T>()
+        .ok_or_else(|| {
+            #[cfg(debug_assertions)]
+            return anyhow::anyhow!(debug_downcast_args_error_msg(
+                std::any::type_name::<T>(),
+                args.magic_type_name(),
+            ));
+            #[cfg(not(debug_assertions))]
+            return anyhow::anyhow!("Invalid argument type");
+        })
+        .unwrap()
 }
 
 /// A native (rust) turbo-tasks function. It's used internally by
@@ -151,8 +147,6 @@ pub struct FunctionMeta {
 pub struct NativeFunction {
     /// A readable name of the function that is used to reporting purposes.
     pub(crate) name: &'static str,
-
-    pub(crate) function_meta: FunctionMeta,
 
     pub(crate) arg_meta: ArgMeta,
 
@@ -169,7 +163,6 @@ impl Debug for NativeFunction {
         f.debug_struct("NativeFunction")
             .field("name", &self.name)
             .field("global_name", &self.global_name)
-            .field("function_meta", &self.function_meta)
             .finish_non_exhaustive()
     }
 }
@@ -178,7 +171,6 @@ impl NativeFunction {
     pub fn new_function<Mode, Inputs>(
         name: &'static str,
         global_name: &'static str,
-        function_meta: FunctionMeta,
         implementation: impl IntoTaskFn<Mode, Inputs>,
     ) -> Self
     where
@@ -187,7 +179,6 @@ impl NativeFunction {
         Self {
             name,
             global_name,
-            function_meta,
             arg_meta: ArgMeta::new::<Inputs>(),
             implementation: Box::new(implementation.into_task_fn()),
         }
@@ -196,7 +187,6 @@ impl NativeFunction {
     pub fn new_method_without_this<Mode, Inputs, I>(
         name: &'static str,
         global_name: &'static str,
-        function_meta: FunctionMeta,
         arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
         implementation: I,
     ) -> Self
@@ -207,7 +197,6 @@ impl NativeFunction {
         Self {
             name,
             global_name,
-            function_meta,
             arg_meta: if let Some((filter_owned, filter_and_resolve)) = arg_filter {
                 ArgMeta::with_filter_trait_call::<Inputs>(filter_owned, filter_and_resolve)
             } else {
@@ -220,7 +209,6 @@ impl NativeFunction {
     pub fn new_method<Mode, This, Inputs, I>(
         name: &'static str,
         global_name: &'static str,
-        function_meta: FunctionMeta,
         arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
         implementation: I,
     ) -> Self
@@ -232,7 +220,6 @@ impl NativeFunction {
         Self {
             name,
             global_name,
-            function_meta,
             arg_meta: if let Some((filter_owned, filter_and_resolve)) = arg_filter {
                 ArgMeta::with_filter_trait_call::<Inputs>(filter_owned, filter_and_resolve)
             } else {
@@ -254,7 +241,6 @@ impl NativeFunction {
         let flags = match persistence {
             TaskPersistence::Persistent => "",
             TaskPersistence::Transient => "transient",
-            TaskPersistence::Local => "local",
         };
         tracing::trace_span!(
             "turbo_tasks::function",
@@ -264,13 +250,8 @@ impl NativeFunction {
         )
     }
 
-    pub fn resolve_span(&'static self, persistence: TaskPersistence) -> Span {
-        let flags = match persistence {
-            TaskPersistence::Persistent => "",
-            TaskPersistence::Transient => "transient",
-            TaskPersistence::Local => "local",
-        };
-        tracing::trace_span!("turbo_tasks::resolve_call", name = self.name, flags = flags)
+    pub fn resolve_span(&'static self) -> Span {
+        tracing::trace_span!("turbo_tasks::resolve_call", name = self.name)
     }
 }
 impl PartialEq for NativeFunction {

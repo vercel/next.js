@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { waitFor } from 'next-test-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
@@ -7,7 +8,7 @@ describe('runtime prefetching', () => {
     files: __dirname,
   })
   if (isNextDev) {
-    it('disabled in development', () => {})
+    it('is skipped', () => {})
     return
   }
 
@@ -115,14 +116,6 @@ describe('runtime prefetching', () => {
       )
 
       await browser.back()
-
-      // Reveal the link to the second page again. It should not be prefetched again
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-link-accordion="/${prefix}/dynamic-params/456"]`
-        )
-        await linkToggle.click()
-      }, 'no-requests')
 
       // Navigate to the other page
       await act(async () => {
@@ -233,14 +226,6 @@ describe('runtime prefetching', () => {
       if (!isNextDeploy) {
         await browser.back()
 
-        // Reveal the link to the second page again. It should not be prefetched again
-        await act(async () => {
-          const linkToggle = await browser.elementByCss(
-            `input[data-link-accordion="/with-root-param/de/${prefix}/root-params"]`
-          )
-          await linkToggle.click()
-        }, 'no-requests')
-
         // Navigate to the other page
         await act(async () => {
           await act(
@@ -347,14 +332,6 @@ describe('runtime prefetching', () => {
       )
 
       await browser.back()
-
-      // Reveal the link to the second page again. It should not be prefetched again
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-link-accordion="/${prefix}/search-params?searchParam=456"]`
-        )
-        await linkToggle.click()
-      }, 'no-requests')
 
       // Navigate to the other page
       await act(
@@ -495,23 +472,9 @@ describe('runtime prefetching', () => {
       // Go back to the previous page
       await browser.back()
 
-      // Reveal the link again to trigger a runtime prefetch for the new value of the cookie
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-link-accordion="/${prefix}/cookies"]`
-        )
-        await linkToggle.click()
-      }, [
-        // Should allow reading dynamic params
-        {
-          includes: 'Cookie: updatedValue',
-        },
-        // Should not prefetch the dynamic content
-        {
-          includes: 'Dynamic content',
-          block: 'reject',
-        },
-      ])
+      // wait a tick before navigating
+      // TODO: Why does this need to be so long when deployed? What other signal do we have that we can wait on?
+      await waitFor(2000)
 
       // Navigate to the page
       await act(async () => {
@@ -749,7 +712,8 @@ describe('runtime prefetching', () => {
     )
   })
 
-  describe('cache stale time handling', () => {
+  // TODO (runtime-prefetching): link-level opt-in has been removed. These tests need to be updated to use the segment configuration.
+  describe.skip('cache stale time handling', () => {
     it.each([
       {
         // If a cache has an expiration time under 5min (DYNAMIC_EXPIRE), we omit it from static prerenders.
@@ -1030,7 +994,8 @@ describe('runtime prefetching', () => {
     })
   })
 
-  describe('errors', () => {
+  // TODO (runtime-prefetching): link-level opt-in has been removed. These tests need to be updated to use the segment configuration.
+  describe.skip('errors', () => {
     it.each([
       {
         description: 'when sync IO is used after awaiting cookies()',

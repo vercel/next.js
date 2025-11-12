@@ -6,7 +6,6 @@ use turbo_tasks::{
     Completion, Completions, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, Vc,
     fxindexmap, trace::TraceRawVcs,
 };
-use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_fs::{
     File, FileContent, FileSystemEntryType, FileSystemPath, json::parse_json_with_source_context,
 };
@@ -16,6 +15,7 @@ use turbopack_core::{
     context::{AssetContext, ProcessResult},
     file_source::FileSource,
     ident::AssetIdent,
+    module_graph::ModuleGraph,
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{FindContextFileResult, find_context_file_or_package_key, options::ImportMapping},
     source::Source,
@@ -30,7 +30,7 @@ use super::{
     webpack::WebpackLoaderContext,
 };
 use crate::{
-    embed_js::embed_file_path, execution_context::ExecutionContext,
+    embed_js::embed_file_path, evaluate::get_evaluate_entries, execution_context::ExecutionContext,
     transforms::webpack::evaluate_webpack_loader,
 };
 
@@ -486,10 +486,16 @@ impl PostCssTransformedAsset {
             .await?;
 
         let postcss_executor =
-            postcss_executor(*evaluate_context, project_path.clone(), config_path)
-                .module()
-                .to_resolved()
-                .await?;
+            postcss_executor(*evaluate_context, project_path.clone(), config_path).module();
+
+        let entries = get_evaluate_entries(postcss_executor, *evaluate_context, None)
+            .to_resolved()
+            .await?;
+
+        let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false)
+            .to_resolved()
+            .await?;
+
         let css_fs_path = self.source.ident().path();
 
         // We need to get a path relative to the project because the postcss loader
@@ -503,12 +509,12 @@ impl PostCssTransformedAsset {
             };
 
         let config_value = evaluate_webpack_loader(WebpackLoaderContext {
-            module_asset: postcss_executor,
+            entries,
             cwd: project_path.clone(),
             env: *env,
             context_source_for_issue: self.source,
-            asset_context: evaluate_context,
             chunking_context: *chunking_context,
+            module_graph,
             resolve_options_context: None,
             args: vec![
                 ResolvedVc::cell(content.into()),
@@ -519,7 +525,7 @@ impl PostCssTransformedAsset {
         })
         .await?;
 
-        let SingleValue::Single(val) = config_value.try_into_single().await? else {
+        let Some(val) = &*config_value else {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessPostCssResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
@@ -527,7 +533,7 @@ impl PostCssTransformedAsset {
             }
             .cell());
         };
-        let processed_css: PostCssProcessingResult = parse_json_with_source_context(val.to_str()?)
+        let processed_css: PostCssProcessingResult = parse_json_with_source_context(val)
             .context("Unable to deserializate response from PostCSS transform operation")?;
 
         // TODO handle SourceMap

@@ -153,9 +153,9 @@ pub async fn get_edge_resolve_options_context(
         custom_conditions.push(rcstr!("react-server"));
     };
 
-    if *next_config.enable_cache_components().await? {
-        custom_conditions.push(rcstr!("next-js"));
-    };
+    // Edge runtime is disabled for projects with Cache Components enabled except for Middleware
+    // but Middleware doesn't have all Next.js APIs so we omit the "next-js" condition for all edge
+    // entrypoints
 
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().owned().await?),

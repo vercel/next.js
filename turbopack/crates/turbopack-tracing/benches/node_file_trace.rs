@@ -80,7 +80,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                 let input = input_fs.root().await?.join(&input)?;
 
                 let input_dir = input.parent().parent();
-                let output_fs: Vc<NullFileSystem> = NullFileSystem.into();
+                let output_fs: Vc<NullFileSystem> = NullFileSystem.cell();
                 let output_dir = output_fs.root().owned().await?;
 
                 let source = FileSource::new(input);

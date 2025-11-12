@@ -1,5 +1,4 @@
 #![feature(once_cell_try)]
-#![feature(new_zeroed_alloc)]
 #![feature(get_mut_unchecked)]
 #![feature(sync_unsafe_cell)]
 #![feature(iter_collect_into)]

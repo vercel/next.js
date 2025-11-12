@@ -27,14 +27,12 @@ import { checkIsOnDemandRevalidate } from '../../server/api-utils'
 import { CloseController } from '../../server/web/web-on-close'
 
 declare const incrementalCacheHandler: any
+declare const nextConfig: NextConfigComplete
 // OPTIONAL_IMPORT:incrementalCacheHandler
+// INJECT:nextConfig
 
 // Initialize the cache handlers interface.
-initializeCacheHandlers()
-
-// injected by the loader afterwards.
-declare const nextConfig: NextConfigComplete
-// INJECT:nextConfig
+initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
@@ -160,7 +158,6 @@ async function requestHandler(
         isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
-        clientSegmentCache: Boolean(nextConfig.experimental.clientSegmentCache),
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
@@ -173,7 +170,8 @@ async function requestHandler(
       incrementalCache: await pageRouteModule.getIncrementalCache(
         baseReq,
         nextConfig,
-        prerenderManifest
+        prerenderManifest,
+        true
       ),
 
       waitUntil: event.waitUntil.bind(event),

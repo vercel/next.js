@@ -395,10 +395,6 @@ async function exportAppImpl(
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
       staleTimes: nextConfig.experimental.staleTimes,
-      clientSegmentCache:
-        nextConfig.experimental.clientSegmentCache === 'client-only'
-          ? 'client-only'
-          : Boolean(nextConfig.experimental.clientSegmentCache),
       clientParamParsingOrigins:
         nextConfig.experimental.clientParamParsingOrigins,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
@@ -645,13 +641,15 @@ async function exportAppImpl(
   if (totalExportPaths > 0) {
     const progress = createProgress(
       totalExportPaths,
-      options.statusMessage || 'Exporting'
+      options.statusMessage ??
+        `Exporting using ${options.numWorkers} worker${options.numWorkers > 1 ? 's' : ''}`
     )
 
     worker = createStaticWorker(nextConfig, {
       debuggerPortOffset: getNextBuildDebuggerPortOffset({
         kind: 'export-page',
       }),
+      numberOfWorkers: options.numWorkers,
       progress,
     })
 

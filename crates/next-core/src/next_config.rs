@@ -10,7 +10,7 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fetch::FetchClient;
+use turbo_tasks_fetch::FetchClientConfig;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
     ConditionItem, ConditionPath, LoaderRuleItem, WebpackRules,
@@ -86,7 +86,7 @@ pub struct NextConfig {
     cache_max_memory_size: Option<f64>,
     /// custom path to a cache handler to use
     cache_handler: Option<RcStr>,
-
+    cache_handlers: Option<FxIndexMap<RcStr, RcStr>>,
     env: FxIndexMap<String, JsonValue>,
     experimental: ExperimentalConfig,
     images: ImageConfig,
@@ -156,6 +156,18 @@ pub struct NextConfig {
     use_file_system_public_routes: bool,
     cache_components: Option<bool>,
     webpack: Option<serde_json::Value>,
+}
+
+#[turbo_tasks::value_impl]
+impl NextConfig {
+    #[turbo_tasks::function]
+    pub fn with_production_browser_source_maps(&self) -> Vc<Self> {
+        Self {
+            production_browser_source_maps: true,
+            ..self.clone()
+        }
+        .cell()
+    }
 }
 
 #[derive(
@@ -823,7 +835,6 @@ pub struct ExperimentalConfig {
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     after: Option<bool>,
     app_document_preloading: Option<bool>,
-    cache_handlers: Option<FxIndexMap<RcStr, RcStr>>,
     cache_life: Option<FxIndexMap<String, CacheLifeProfile>>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
@@ -852,12 +863,7 @@ pub struct ExperimentalConfig {
     /// Automatically apply the "modularize_imports" optimization to imports of
     /// the specified packages.
     optimize_package_imports: Option<Vec<RcStr>>,
-    /// Using this feature will enable the `react@experimental` for the `app`
-    /// directory.
-    ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
-    #[serde(rename = "routerBFCache")]
-    router_bfcache: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
@@ -951,53 +957,6 @@ fn test_cache_life_profiles_invalid() {
         result.is_err(),
         "Deserialization should fail due to invalid 'stale' value type"
     );
-}
-
-#[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
-)]
-#[serde(rename_all = "lowercase")]
-pub enum ExperimentalPartialPrerenderingIncrementalValue {
-    Incremental,
-}
-
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs, NonLocalValue, OperationValue,
-)]
-#[serde(untagged)]
-pub enum ExperimentalPartialPrerendering {
-    Boolean(bool),
-    Incremental(ExperimentalPartialPrerenderingIncrementalValue),
-}
-
-#[test]
-fn test_parse_experimental_partial_prerendering() {
-    let json = serde_json::json!({
-        "ppr": "incremental"
-    });
-    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
-    assert_eq!(
-        config.ppr,
-        Some(ExperimentalPartialPrerendering::Incremental(
-            ExperimentalPartialPrerenderingIncrementalValue::Incremental
-        ))
-    );
-
-    let json = serde_json::json!({
-        "ppr": true
-    });
-    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
-    assert_eq!(
-        config.ppr,
-        Some(ExperimentalPartialPrerendering::Boolean(true))
-    );
-
-    // Expect if we provide a random string, it will fail.
-    let json = serde_json::json!({
-        "ppr": "random"
-    });
-    let config = serde_json::from_value::<ExperimentalConfig>(json);
-    assert!(config.is_err());
 }
 
 #[derive(
@@ -1603,11 +1562,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn experimental_cache_handlers(
-        &self,
-        project_path: FileSystemPath,
-    ) -> Result<Vc<FileSystemPathVec>> {
-        if let Some(handlers) = &self.experimental.cache_handlers {
+    pub fn cache_handlers(&self, project_path: FileSystemPath) -> Result<Vc<FileSystemPathVec>> {
+        if let Some(handlers) = &self.cache_handlers {
             Ok(Vc::cell(
                 handlers
                     .values()
@@ -1714,22 +1670,6 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_ppr(&self) -> Vc<bool> {
-        Vc::cell(
-            self.experimental
-                .ppr
-                .as_ref()
-                .map(|ppr| match ppr {
-                    ExperimentalPartialPrerendering::Incremental(
-                        ExperimentalPartialPrerenderingIncrementalValue::Incremental,
-                    ) => true,
-                    ExperimentalPartialPrerendering::Boolean(b) => *b,
-                })
-                .unwrap_or(false),
-        )
-    }
-
-    #[turbo_tasks::function]
     pub fn enable_taint(&self) -> Vc<bool> {
         Vc::cell(self.experimental.taint.unwrap_or(false))
     }
@@ -1765,7 +1705,7 @@ impl NextConfig {
     pub fn cache_kinds(&self) -> Vc<CacheKinds> {
         let mut cache_kinds = CacheKinds::default();
 
-        if let Some(handlers) = self.experimental.cache_handlers.as_ref() {
+        if let Some(handlers) = self.cache_handlers.as_ref() {
             cache_kinds.extend(handlers.keys().cloned());
         }
 
@@ -1914,7 +1854,10 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn fetch_client(&self, env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<FetchClient>> {
+    pub async fn fetch_client(
+        &self,
+        env: Vc<Box<dyn ProcessEnv>>,
+    ) -> Result<Vc<FetchClientConfig>> {
         // Support both an env var and the experimental flag to provide more flexibility to
         // developers on locked down systems, depending on if they want to configure this on a
         // per-system or per-project basis.
@@ -1928,7 +1871,7 @@ impl NextConfig {
             })
             .or(self.experimental.turbopack_use_system_tls_certs)
             .unwrap_or(false);
-        Ok(FetchClient {
+        Ok(FetchClientConfig {
             tls_built_in_webpki_certs: !use_system_tls_certs,
             tls_built_in_native_certs: use_system_tls_certs,
         }

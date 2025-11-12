@@ -70,8 +70,20 @@ export interface RequestStore extends CommonWorkUnitStore {
   usedDynamic?: boolean
   devFallbackParams?: OpaqueFallbackRouteParams | null
   stagedRendering?: StagedRenderingController | null
+  asyncApiPromises?: DevAsyncApiPromises
   cacheSignal?: CacheSignal | null
   prerenderResumeDataCache?: PrerenderResumeDataCache | null
+}
+
+type DevAsyncApiPromises = {
+  cookies: Promise<ReadonlyRequestCookies>
+  mutableCookies: Promise<ReadonlyRequestCookies>
+  headers: Promise<ReadonlyHeaders>
+
+  sharedParamsParent: Promise<string>
+  sharedSearchParamsParent: Promise<string>
+
+  connection: Promise<undefined>
 }
 
 /**
@@ -195,11 +207,6 @@ interface PrerenderStoreModernCommon
    * subsequent dynamic render.
    */
   readonly hmrRefreshHash: string | undefined
-
-  /**
-   * Only available in dev mode.
-   */
-  readonly captureOwnerStack: undefined | (() => string | null)
 }
 
 interface StaticPrerenderStoreCommon {

@@ -16,7 +16,7 @@ use turbopack::{
 };
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, MangleType, MinifyType, SourceMapsType,
+        ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, SourceMapsType,
         module_id_strategies::ModuleIdStrategy,
     },
     compile_time_defines,
@@ -214,7 +214,10 @@ pub async fn get_server_resolve_options_context(
         custom_conditions.push(rcstr!("react-server"));
     };
 
-    if *next_config.enable_cache_components().await? {
+    if *next_config.enable_cache_components().await?
+        // Middleware shouldn't use the "next-js" condition because it doesn't have all Next.js APIs available
+        && !matches!(ty, ServerContextType::Middleware { .. } |  ServerContextType::Instrumentation { .. })
+    {
         custom_conditions.push(rcstr!("next-js"));
     };
 
@@ -1057,9 +1060,12 @@ pub async fn get_server_chunking_context_with_client_assets(
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?);
 
-    if next_mode.is_development() {
-        builder = builder.use_file_source_map_uris();
+    builder = builder.source_map_source_type(if next_mode.is_development() {
+        SourceMapSourceType::AbsoluteFileUri
     } else {
+        SourceMapSourceType::RelativeUri
+    });
+    if next_mode.is_production() {
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
@@ -1139,9 +1145,10 @@ pub async fn get_server_chunking_context(
     .debug_ids(*debug_ids.await?);
 
     if next_mode.is_development() {
-        builder = builder.use_file_source_map_uris()
+        builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);
     } else {
         builder = builder
+            .source_map_source_type(SourceMapSourceType::RelativeUri)
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {

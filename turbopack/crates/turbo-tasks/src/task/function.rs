@@ -172,10 +172,13 @@ macro_rules! task_inputs_impl {
 /// gives the compiler more chances to dedupe monomorphized code across small functions with less
 /// typevars.
 fn get_args<T: MagicAny + Clone>(arg: &dyn MagicAny) -> Result<T> {
-    let value = arg.downcast_ref::<T>().cloned();
+    let value = (arg as &dyn std::any::Any).downcast_ref::<T>().cloned();
     #[cfg(debug_assertions)]
     return anyhow::Context::with_context(value, || {
-        crate::native_function::debug_downcast_args_error_msg(std::any::type_name::<T>(), arg)
+        crate::native_function::debug_downcast_args_error_msg(
+            std::any::type_name::<T>(),
+            arg.magic_type_name(),
+        )
     });
     #[cfg(not(debug_assertions))]
     return anyhow::Context::context(value, "Invalid argument type");
@@ -183,10 +186,6 @@ fn get_args<T: MagicAny + Clone>(arg: &dyn MagicAny) -> Result<T> {
 
 // Helper function for `task_fn_impl!()`
 async fn output_try_into_non_local_raw_vc(output: impl TaskOutput) -> Result<RawVc> {
-    // TODO: Potential future optimization: If we know we're inside a local task, we can avoid
-    // calling `to_non_local()` here, which might let us avoid constructing a non-local cell for the
-    // local task's return value. Flattening chains of `RawVc::LocalOutput` may still be useful to
-    // reduce traversal later.
     output.try_into_raw_vc()?.to_non_local().await
 }
 

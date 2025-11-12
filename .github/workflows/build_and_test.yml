@@ -33,14 +33,13 @@ jobs:
         id: docs-change
         run: |
           echo "DOCS_ONLY<<EOF" >> $GITHUB_OUTPUT;
-          echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'false')" >> $GITHUB_OUTPUT;
+          echo "$(node scripts/run-for-change.mjs --not --type docs --exec echo 'false')" >> $GITHUB_OUTPUT;
           echo 'EOF' >> $GITHUB_OUTPUT
 
       - name: check for release
         id: is-release
         run: |
-          RELEASE_CHECK=$(node ./scripts/check-is-release.js 2> /dev/null || :)
-          if [[ $RELEASE_CHECK == "new-release" || $RELEASE_CHECK == v* ]];
+          if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) == v* ]];
             then
               echo "IS_RELEASE=true" >> $GITHUB_OUTPUT
             else
@@ -195,7 +194,7 @@ jobs:
   devlow-bench:
     name: Run devlow benchmarks
     needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && github.event_name != 'pull_request' }}
 
     strategy:
       fail-fast: false
@@ -764,6 +763,7 @@ jobs:
         node run-tests.js \
           test/e2e/app-dir/app/index.test.ts \
           test/e2e/app-dir/app-edge/app-edge.test.ts \
+          test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts \
           test/development/app-dir/segment-explorer/segment-explorer.test.ts
       stepName: 'test-dev-windows'
       runs_on_labels: '["windows","self-hosted","x64"]'
@@ -790,8 +790,8 @@ jobs:
         node run-tests.js \
           --concurrency 4 \
           test/production/pages-dir/production/test/index.test.ts \
-          test/integration/css-client-nav/test/index.test.js \
-          test/integration/rewrites-has-condition/test/index.test.js \
+          test/integration/css-client-nav/test/index.test.ts \
+          test/integration/rewrites-has-condition/test/index.test.ts \
           test/integration/create-next-app/index.test.ts \
           test/integration/create-next-app/package-manager/pnpm.test.ts
       stepName: 'test-integration-windows'
@@ -821,7 +821,8 @@ jobs:
           test/e2e/app-dir/app/index.test.ts \
           test/e2e/app-dir/app-edge/app-edge.test.ts \
           test/e2e/app-dir/metadata-edge/index.test.ts \
-          test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts
+          test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts \
+          test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts
       stepName: 'test-prod-windows'
       runs_on_labels: '["windows","self-hosted","x64"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'

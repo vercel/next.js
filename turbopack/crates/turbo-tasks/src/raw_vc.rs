@@ -241,16 +241,18 @@ impl RawVc {
     /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
     /// resolution, because the returned `RawVc` can be a `TaskOutput`.
     pub(crate) async fn to_non_local(self) -> Result<RawVc> {
-        let tt = turbo_tasks();
-        let mut current = self;
-        loop {
-            match current {
-                RawVc::LocalOutput(execution_id, local_task_id, ..) => {
-                    current = read_local_output(&*tt, execution_id, local_task_id).await?;
-                }
-                non_local => return Ok(non_local),
+        Ok(match self {
+            RawVc::LocalOutput(execution_id, local_task_id, ..) => {
+                let tt = turbo_tasks();
+                let local_output = read_local_output(&*tt, execution_id, local_task_id).await?;
+                debug_assert!(
+                    !matches!(local_output, RawVc::LocalOutput(_, _, _)),
+                    "a LocalOutput cannot point at other LocalOutputs"
+                );
+                local_output
             }
-        }
+            non_local => non_local,
+        })
     }
 
     pub(crate) fn connect(&self) {

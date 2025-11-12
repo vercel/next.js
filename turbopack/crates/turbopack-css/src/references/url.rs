@@ -2,6 +2,7 @@ use std::convert::Infallible;
 
 use anyhow::Result;
 use lightningcss::{
+    stylesheet::StyleSheet,
     values::url::Url,
     visit_types,
     visitor::{Visit, Visitor},
@@ -18,9 +19,9 @@ use turbopack_core::{
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
 };
 
-use crate::{StyleSheetLike, embed::CssEmbed};
+use crate::embed::CssEmbed;
 
-#[turbo_tasks::value(into = "new")]
+#[turbo_tasks::value]
 pub enum ReferencedAsset {
     Some(ResolvedVc<Box<dyn OutputAsset>>),
     None,
@@ -63,7 +64,7 @@ impl UrlAssetReference {
                     .to_resolved()
                     .await?,
             )
-            .into());
+            .cell());
         }
         Ok(ReferencedAsset::cell(ReferencedAsset::None))
     }
@@ -101,26 +102,30 @@ pub async fn resolve_url_reference(
     url: Vc<UrlAssetReference>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<Option<RcStr>>> {
-    let context_path = chunking_context.chunk_root_path().await?;
-
     if let ReferencedAsset::Some(asset) = &*url.get_referenced_asset(chunking_context).await? {
         let path = asset.path().await?;
-        let relative_path = context_path
-            .get_relative_path_to(&path)
-            .unwrap_or_else(|| format!("/{}", path.path).into());
 
-        return Ok(Vc::cell(Some(relative_path)));
+        let url_path = if *chunking_context
+            .should_use_absolute_url_references()
+            .await?
+        {
+            format!("/{}", path.path).into()
+        } else {
+            let context_path = chunking_context.chunk_root_path().await?;
+            context_path
+                .get_relative_path_to(&path)
+                .unwrap_or_else(|| format!("/{}", path.path).into())
+        };
+
+        return Ok(Vc::cell(Some(url_path)));
     }
 
     Ok(Vc::cell(None))
 }
 
-pub fn replace_url_references(
-    ss: &mut StyleSheetLike<'static, 'static>,
-    urls: &FxHashMap<RcStr, RcStr>,
-) {
+pub fn replace_url_references<'i, 'o>(ss: &mut StyleSheet<'i, 'o>, urls: &FxHashMap<RcStr, RcStr>) {
     let mut replacer = AssetReferenceReplacer { urls };
-    ss.0.visit(&mut replacer).unwrap();
+    ss.visit(&mut replacer).unwrap();
 }
 
 struct AssetReferenceReplacer<'a> {

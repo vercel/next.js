@@ -1,8 +1,6 @@
 module.exports = {
-  experimental: {
-    cacheComponents: true,
-    cacheHandlers: {
-      custom: require.resolve('next/dist/server/lib/cache-handlers/default.external'),
-    },
+  cacheComponents: true,
+  cacheHandlers: {
+    custom: require.resolve('next/dist/server/lib/cache-handlers/default.external'),
   },
 }

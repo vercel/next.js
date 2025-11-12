@@ -32,12 +32,12 @@ pub async fn get_middleware_module(
     asset_context: Vc<Box<dyn AssetContext>>,
     project_root: FileSystemPath,
     userland_module: ResolvedVc<Box<dyn Module>>,
+    is_proxy: bool,
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_MIDDLEWARE_MODULE";
 
     // Determine if this is a proxy file by checking the module path
     let userland_path = userland_module.ident().path().await?;
-    let is_proxy = userland_path.file_stem() == Some("proxy");
     let (file_type, function_name, page_path) = if is_proxy {
         ("Proxy", "proxy", "/proxy")
     } else {
@@ -91,11 +91,7 @@ pub async fn get_middleware_module(
     let source = load_next_js_template(
         "middleware.js",
         project_root,
-        &[
-            ("VAR_USERLAND", INNER),
-            ("VAR_DEFINITION_PAGE", page_path),
-            ("VAR_MODULE_RELATIVE_PATH", userland_path.path.as_str()),
-        ],
+        &[("VAR_USERLAND", INNER), ("VAR_DEFINITION_PAGE", page_path)],
         &[],
         &[],
     )
@@ -126,7 +122,7 @@ struct MiddlewareMissingExportIssue {
 impl Issue for MiddlewareMissingExportIssue {
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.into()
+        IssueStage::Transform.cell()
     }
 
     fn severity(&self) -> IssueSeverity {
@@ -139,23 +135,48 @@ impl Issue for MiddlewareMissingExportIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        let file_name = self.file_path.file_name();
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        let title_text = format!(
+            "{} is missing expected function export name",
+            self.file_type
+        );
 
-        StyledString::Line(vec![
-            StyledString::Text(rcstr!("The ")),
-            StyledString::Code(self.file_type.clone()),
-            StyledString::Text(rcstr!(" file \"")),
-            StyledString::Code(format!("./{}", file_name).into()),
-            StyledString::Text(rcstr!("\" must export a function named ")),
-            StyledString::Code(format!("`{}`", self.function_name).into()),
-            StyledString::Text(rcstr!(" or a default function.")),
-        ])
-        .cell()
+        Ok(StyledString::Text(title_text.into()).cell())
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(None)
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        let type_description = if self.file_type == "Proxy" {
+            "proxy (previously called middleware)"
+        } else {
+            "middleware"
+        };
+
+        let migration_bullet = if self.file_type == "Proxy" {
+            "- You are migrating from `middleware` to `proxy`, but haven't updated the exported \
+             function.\n"
+        } else {
+            ""
+        };
+
+        // Rest of the message goes in description to avoid formatIssue indentation
+        let description_text = format!(
+            "This function is what Next.js runs for every request handled by this {}.\n\n\
+             Why this happens:\n\
+             {}\
+             - The file exists but doesn't export a function.\n\
+             - The export is not a function (e.g., an object or constant).\n\
+             - There's a syntax error preventing the export from being recognized.\n\n\
+             To fix it:\n\
+             - Ensure this file has either a default or \"{}\" function export.\n\n\
+             Learn more: https://nextjs.org/docs/messages/middleware-to-proxy",
+            type_description,
+            migration_bullet,
+            self.function_name
+        );
+
+        Ok(Vc::cell(Some(
+            StyledString::Text(description_text.into()).resolved_cell(),
+        )))
     }
 }

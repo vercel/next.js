@@ -3,10 +3,10 @@ import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
 describe('segment cache (staleness)', () => {
-  const { next, isNextDev, isNextDeploy } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
-  if (isNextDev || isNextDeploy) {
+  if (isNextDev) {
     test('disabled in development / deployment', () => {})
     return
   }
@@ -187,10 +187,6 @@ describe('segment cache (staleness)', () => {
     await page.clock.setFixedTime(startDate + 29 * 1000)
 
     await act(async () => {
-      const toggle = await browser.elementByCss(
-        'input[data-link-accordion="/dynamic"]'
-      )
-      await toggle.click()
       const link = await browser.elementByCss('a[href="/dynamic"]')
       await link.click()
       // The next page is immediately rendered
@@ -207,10 +203,6 @@ describe('segment cache (staleness)', () => {
 
     await act(
       async () => {
-        const toggle = await browser.elementByCss(
-          'input[data-link-accordion="/dynamic"]'
-        )
-        await toggle.click()
         const link = await browser.elementByCss('a[href="/dynamic"]')
         await link.click()
       },

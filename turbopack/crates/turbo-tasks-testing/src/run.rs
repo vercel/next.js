@@ -1,4 +1,4 @@
-use std::{fmt::Debug, future::Future, sync::Arc};
+use std::{env, fmt::Debug, future::Future, sync::Arc};
 
 use anyhow::Result;
 use turbo_tasks::{TurboTasksApi, trace::TraceRawVcs};
@@ -98,22 +98,28 @@ where
     F: Future<Output = Result<T>> + Send + 'static,
     T: Debug + PartialEq + Eq + TraceRawVcs + Send + 'static,
 {
+    let single_run = env::var("SINGLE_RUN").is_ok();
     let name = closure_to_name(&fut);
     let tt = registration.create_turbo_tasks(&name, true);
     println!("Run #1 (without cache)");
     let start = std::time::Instant::now();
     let first = fut(tt.clone()).await?;
     println!("Run #1 took {:?}", start.elapsed());
-    for i in 2..10 {
-        println!("Run #{i} (with memory cache, same TurboTasks instance)");
-        let start = std::time::Instant::now();
-        let second = fut(tt.clone()).await?;
-        println!("Run #{i} took {:?}", start.elapsed());
-        assert_eq!(first, second);
+    if !single_run {
+        for i in 2..10 {
+            println!("Run #{i} (with memory cache, same TurboTasks instance)");
+            let start = std::time::Instant::now();
+            let second = fut(tt.clone()).await?;
+            println!("Run #{i} took {:?}", start.elapsed());
+            assert_eq!(first, second);
+        }
     }
     let start = std::time::Instant::now();
     tt.stop_and_wait().await;
     println!("Stopping TurboTasks took {:?}", start.elapsed());
+    if single_run {
+        return Ok(());
+    }
     for i in 10..20 {
         let tt = registration.create_turbo_tasks(&name, false);
         println!("Run #{i} (with filesystem cache if available, new TurboTasks instance)");
