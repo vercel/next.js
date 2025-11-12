@@ -1,5 +1,14 @@
 /// <reference types="node" />
 
+declare namespace webpack {
+  interface Context {
+    resolve(dependency: string): string | number
+    keys(): Array<string>
+    id: string | number
+    (dependency: string): unknown
+  }
+}
+
 // Extend the NodeJS namespace with Next.js-defined properties
 declare namespace NodeJS {
   // only for rust, see https://github.com/napi-rs/napi-rs/issues/1630
@@ -21,6 +30,15 @@ declare namespace NodeJS {
   interface ProcessEnv {
     // TODO: Should be optional and possibly undefined
     readonly NODE_ENV: 'development' | 'production' | 'test'
+  }
+
+  interface Require {
+    context(
+      request: string,
+      includeSubdirectories?: boolean,
+      filter?: RegExp,
+      mode?: 'sync' | 'eager' | 'weak' | 'lazy' | 'lazy-once'
+    ): webpack.Context
   }
 }
 
