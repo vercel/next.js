@@ -253,10 +253,8 @@ pub fn make_task_dirty_internal(
             value: Dirtyness::SessionDependent,
         }) => {
             // It was a session-dependent dirty before, so we need to remove that clean count
-            let old = remove!(task, CleanInSession);
-            if let Some(session_id) = old
-                && session_id == ctx.session_id()
-            {
+            let was_current_session_clean = remove!(task, CurrentSessionClean).is_some();
+            if was_current_session_clean {
                 // There was a clean count for a session. If it was the current session, we need to
                 // propagate that change.
                 (true, true)
@@ -285,14 +283,10 @@ pub fn make_task_dirty_internal(
     let dirty_container_count = get!(task, AggregatedDirtyContainerCount)
         .copied()
         .unwrap_or_default();
-    let current_session_clean_container_count = get!(
-        task,
-        AggregatedSessionDependentCleanContainerCount {
-            session_id: ctx.session_id(),
-        }
-    )
-    .copied()
-    .unwrap_or_default();
+    let current_session_clean_container_count =
+        get!(task, AggregatedCurrentSessionCleanContainerCount)
+            .copied()
+            .unwrap_or_default();
 
     #[cfg(feature = "trace_task_dirty")]
     let _span = tracing::trace_span!(

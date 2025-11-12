@@ -415,49 +415,40 @@ pub trait TaskGuard: Debug {
     fn invalidate_serialization(&mut self);
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>>;
     fn is_immutable(&self) -> bool;
-    fn is_dirty(&self, session_id: SessionId) -> bool {
+    fn is_dirty(&self) -> bool {
         get!(self, Dirty).is_some_and(|dirtyness| match dirtyness {
             Dirtyness::Dirty => true,
-            Dirtyness::SessionDependent => get!(self, CleanInSession).copied() != Some(session_id),
+            Dirtyness::SessionDependent => get!(self, CurrentSessionClean).is_none(),
         })
     }
-    fn dirtyness_and_session(&self) -> Option<(Dirtyness, Option<SessionId>)> {
+    fn dirtyness_and_session(&self) -> Option<(Dirtyness, bool)> {
         match get!(self, Dirty)? {
-            Dirtyness::Dirty => Some((Dirtyness::Dirty, None)),
+            Dirtyness::Dirty => Some((Dirtyness::Dirty, false)),
             Dirtyness::SessionDependent => Some((
                 Dirtyness::SessionDependent,
-                get!(self, CleanInSession).copied(),
+                get!(self, CurrentSessionClean).is_some(),
             )),
         }
     }
     /// Returns (is_dirty, is_clean_in_current_session)
-    fn dirty(&self, session_id: SessionId) -> (bool, bool) {
+    fn dirty(&self) -> (bool, bool) {
         match get!(self, Dirty) {
             None => (false, false),
             Some(Dirtyness::Dirty) => (true, false),
-            Some(Dirtyness::SessionDependent) => (
-                true,
-                get!(self, CleanInSession).copied() == Some(session_id),
-            ),
+            Some(Dirtyness::SessionDependent) => (true, get!(self, CurrentSessionClean).is_some()),
         }
     }
-    fn dirty_containers(&self, session_id: SessionId) -> impl Iterator<Item = TaskId> {
-        self.dirty_containers_with_count(session_id)
+    fn dirty_containers(&self) -> impl Iterator<Item = TaskId> {
+        self.dirty_containers_with_count()
             .map(|(task_id, _)| task_id)
     }
-    fn dirty_containers_with_count(
-        &self,
-        session_id: SessionId,
-    ) -> impl Iterator<Item = (TaskId, i32)> {
+    fn dirty_containers_with_count(&self) -> impl Iterator<Item = (TaskId, i32)> {
         iter_many!(self, AggregatedDirtyContainer { task } count => (task, *count)).filter(
             move |&(task_id, count)| {
                 if count > 0 {
                     let clean_count = get!(
                         self,
-                        AggregatedSessionDependentCleanContainer {
-                            task: task_id,
-                            session_id
-                        }
+                        AggregatedCurrentSessionCleanContainer { task: task_id }
                     )
                     .copied()
                     .unwrap_or_default();
@@ -469,19 +460,16 @@ pub trait TaskGuard: Debug {
         )
     }
 
-    fn has_dirty_containers(&self, session_id: SessionId) -> bool {
+    fn has_dirty_containers(&self) -> bool {
         let dirty_count = get!(self, AggregatedDirtyContainerCount)
             .copied()
             .unwrap_or_default();
         if dirty_count <= 0 {
             return false;
         }
-        let clean_count = get!(
-            self,
-            AggregatedSessionDependentCleanContainerCount { session_id }
-        )
-        .copied()
-        .unwrap_or_default();
+        let clean_count = get!(self, AggregatedCurrentSessionCleanContainerCount)
+            .copied()
+            .unwrap_or_default();
         dirty_count > clean_count
     }
 }

@@ -1,8 +1,8 @@
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    CellId, KeyValuePair, SessionId, TaskExecutionReason, TaskId, TraitTypeId,
-    TypedSharedReference, ValueTypeId,
+    CellId, KeyValuePair, TaskExecutionReason, TaskId, TraitTypeId, TypedSharedReference,
+    ValueTypeId,
     backend::TurboTasksExecutionError,
     event::{Event, EventListener},
     registry,
@@ -228,8 +228,9 @@ pub enum CachedDataItem {
     Dirty {
         value: Dirtyness,
     },
-    CleanInSession {
-        value: SessionId,
+    #[serde(skip)]
+    CurrentSessionClean {
+        value: (),
     },
 
     // Children
@@ -296,9 +297,9 @@ pub enum CachedDataItem {
         task: TaskId,
         value: i32,
     },
-    AggregatedSessionDependentCleanContainer {
+    #[serde(skip)]
+    AggregatedCurrentSessionCleanContainer {
         task: TaskId,
-        session_id: SessionId,
         value: i32,
     },
     AggregatedCollectible {
@@ -308,8 +309,8 @@ pub enum CachedDataItem {
     AggregatedDirtyContainerCount {
         value: i32,
     },
-    AggregatedSessionDependentCleanContainerCount {
-        session_id: SessionId,
+    #[serde(skip)]
+    AggregatedCurrentSessionCleanContainerCount {
         value: i32,
     },
 
@@ -370,7 +371,7 @@ impl CachedDataItem {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItem::Dirty { .. } => true,
-            CachedDataItem::CleanInSession { .. } => true,
+            CachedDataItem::CurrentSessionClean { .. } => false,
             CachedDataItem::Child { task, .. } => !task.is_transient(),
             CachedDataItem::CellData { .. } => true,
             CachedDataItem::CellTypeMaxIndex { .. } => true,
@@ -384,14 +385,12 @@ impl CachedDataItem {
             CachedDataItem::Follower { task, .. } => !task.is_transient(),
             CachedDataItem::Upper { task, .. } => !task.is_transient(),
             CachedDataItem::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
-            CachedDataItem::AggregatedSessionDependentCleanContainer { task, .. } => {
-                !task.is_transient()
-            }
+            CachedDataItem::AggregatedCurrentSessionCleanContainer { .. } => false,
             CachedDataItem::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItem::AggregatedDirtyContainerCount { .. } => true,
-            CachedDataItem::AggregatedSessionDependentCleanContainerCount { .. } => true,
+            CachedDataItem::AggregatedCurrentSessionCleanContainerCount { .. } => false,
             CachedDataItem::Stateful { .. } => true,
             CachedDataItem::HasInvalidator { .. } => true,
             CachedDataItem::Immutable { .. } => true,
@@ -457,15 +456,12 @@ impl CachedDataItem {
             | Self::Output { .. }
             | Self::AggregationNumber { .. }
             | Self::Dirty { .. }
-            | Self::CleanInSession { .. }
             | Self::Follower { .. }
             | Self::Child { .. }
             | Self::Upper { .. }
             | Self::AggregatedDirtyContainer { .. }
-            | Self::AggregatedSessionDependentCleanContainer { .. }
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. }
-            | Self::AggregatedSessionDependentCleanContainerCount { .. }
             | Self::Stateful { .. }
             | Self::HasInvalidator { .. }
             | Self::Immutable { .. }
@@ -475,6 +471,9 @@ impl CachedDataItem {
             | Self::OutdatedOutputDependency { .. }
             | Self::OutdatedCellDependency { .. }
             | Self::OutdatedCollectiblesDependency { .. }
+            | Self::CurrentSessionClean { .. }
+            | Self::AggregatedCurrentSessionCleanContainer { .. }
+            | Self::AggregatedCurrentSessionCleanContainerCount { .. }
             | Self::InProgressCell { .. }
             | Self::InProgress { .. }
             | Self::Activeness { .. } => TaskDataCategory::All,
@@ -494,7 +493,7 @@ impl CachedDataItemKey {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItemKey::Dirty { .. } => true,
-            CachedDataItemKey::CleanInSession { .. } => true,
+            CachedDataItemKey::CurrentSessionClean { .. } => false,
             CachedDataItemKey::Child { task, .. } => !task.is_transient(),
             CachedDataItemKey::CellData { .. } => true,
             CachedDataItemKey::CellTypeMaxIndex { .. } => true,
@@ -508,14 +507,12 @@ impl CachedDataItemKey {
             CachedDataItemKey::Follower { task, .. } => !task.is_transient(),
             CachedDataItemKey::Upper { task, .. } => !task.is_transient(),
             CachedDataItemKey::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
-            CachedDataItemKey::AggregatedSessionDependentCleanContainer { task, .. } => {
-                !task.is_transient()
-            }
+            CachedDataItemKey::AggregatedCurrentSessionCleanContainer { .. } => false,
             CachedDataItemKey::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItemKey::AggregatedDirtyContainerCount { .. } => true,
-            CachedDataItemKey::AggregatedSessionDependentCleanContainerCount { .. } => true,
+            CachedDataItemKey::AggregatedCurrentSessionCleanContainerCount { .. } => false,
             CachedDataItemKey::Stateful { .. } => true,
             CachedDataItemKey::HasInvalidator { .. } => true,
             CachedDataItemKey::Immutable { .. } => true,
@@ -549,15 +546,12 @@ impl CachedDataItemType {
             | Self::Output { .. }
             | Self::AggregationNumber { .. }
             | Self::Dirty { .. }
-            | Self::CleanInSession { .. }
             | Self::Follower { .. }
             | Self::Child { .. }
             | Self::Upper { .. }
             | Self::AggregatedDirtyContainer { .. }
-            | Self::AggregatedSessionDependentCleanContainer { .. }
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. }
-            | Self::AggregatedSessionDependentCleanContainerCount { .. }
             | Self::Stateful { .. }
             | Self::HasInvalidator { .. }
             | Self::Immutable { .. }
@@ -567,6 +561,9 @@ impl CachedDataItemType {
             | Self::OutdatedOutputDependency { .. }
             | Self::OutdatedCellDependency { .. }
             | Self::OutdatedCollectiblesDependency { .. }
+            | Self::CurrentSessionClean { .. }
+            | Self::AggregatedCurrentSessionCleanContainer { .. }
+            | Self::AggregatedCurrentSessionCleanContainerCount { .. }
             | Self::InProgressCell { .. }
             | Self::InProgress { .. }
             | Self::Activeness { .. } => TaskDataCategory::All,
@@ -578,7 +575,6 @@ impl CachedDataItemType {
             Self::Output
             | Self::Collectible
             | Self::Dirty
-            | Self::CleanInSession
             | Self::Child
             | Self::CellData
             | Self::CellTypeMaxIndex
@@ -592,10 +588,8 @@ impl CachedDataItemType {
             | Self::Follower
             | Self::Upper
             | Self::AggregatedDirtyContainer
-            | Self::AggregatedSessionDependentCleanContainer
             | Self::AggregatedCollectible
             | Self::AggregatedDirtyContainerCount
-            | Self::AggregatedSessionDependentCleanContainerCount
             | Self::Stateful
             | Self::HasInvalidator
             | Self::Immutable => true,
@@ -603,6 +597,9 @@ impl CachedDataItemType {
             Self::Activeness
             | Self::InProgress
             | Self::InProgressCell
+            | Self::CurrentSessionClean
+            | Self::AggregatedCurrentSessionCleanContainer
+            | Self::AggregatedCurrentSessionCleanContainerCount
             | Self::OutdatedCollectible
             | Self::OutdatedOutputDependency
             | Self::OutdatedCellDependency
