@@ -17,6 +17,10 @@ describe('app-dir action body finalize with nodejs middleware and output-standal
     overrideFiles: {
       'middleware.js': new FileRef(join(__dirname, 'middleware-node.js')),
     },
+    dependencies: {
+      nanoid: '4.0.1',
+      'server-only': 'latest',
+    },
     skipStart: true,
     skipDeployment: true,
   })
