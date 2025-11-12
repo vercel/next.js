@@ -147,10 +147,16 @@ impl RawVc {
         }
     }
 
-    pub(crate) fn into_read(self) -> ReadRawVcFuture {
+    pub(crate) fn into_read(self, is_transient_cell: bool) -> ReadRawVcFuture {
         // returns a custom future to have something concrete and sized
         // this avoids boxing in IntoFuture
-        ReadRawVcFuture::new(self)
+        ReadRawVcFuture::new(self, Some(is_transient_cell))
+    }
+
+    pub(crate) fn into_read_determine_is_transient_cell(self) -> ReadRawVcFuture {
+        // returns a custom future to have something concrete and sized
+        // this avoids boxing in IntoFuture
+        ReadRawVcFuture::new(self, None)
     }
 
     pub(crate) async fn resolve_trait(
@@ -193,15 +199,26 @@ impl RawVc {
                         .map_err(|source| ResolveTypeError::TaskError { source })?;
                 }
                 RawVc::TaskCell(task, index) => {
-                    let content = read_task_cell(&*tt, task, index, ReadCellOptions::default())
-                        .await
-                        .map_err(|source| ResolveTypeError::ReadError { source })?;
-                    if let TypedCellContent(value_type, CellContent(Some(_))) = content {
-                        return Ok(if conditional(value_type).0 {
-                            Some(RawVc::TaskCell(task, index))
-                        } else {
-                            None
-                        });
+                    let (ok, value_type) = conditional(index.type_id);
+                    if !ok {
+                        return Ok(None);
+                    }
+                    let value_type =
+                        value_type.unwrap_or_else(|| registry::get_value_type(index.type_id));
+                    let content = read_task_cell(
+                        &*tt,
+                        task,
+                        index,
+                        ReadCellOptions {
+                            is_transient_cell: !value_type.is_serializable(),
+                            final_read_hint: false,
+                            tracking: ReadTracking::default(),
+                        },
+                    )
+                    .await
+                    .map_err(|source| ResolveTypeError::ReadError { source })?;
+                    if let TypedCellContent(_, CellContent(Some(_))) = content {
+                        return Ok(Some(RawVc::TaskCell(task, index)));
                     } else {
                         return Err(ResolveTypeError::NoContent);
                     }
@@ -362,15 +379,20 @@ pub struct ReadRawVcFuture {
     current: RawVc,
     read_output_options: ReadOutputOptions,
     read_cell_options: ReadCellOptions,
+    determine_is_transient_cell: bool,
     listener: Option<EventListener>,
 }
 
 impl ReadRawVcFuture {
-    pub(crate) fn new(vc: RawVc) -> Self {
+    pub(crate) fn new(vc: RawVc, is_transient_cell: Option<bool>) -> Self {
         ReadRawVcFuture {
             current: vc,
             read_output_options: ReadOutputOptions::default(),
-            read_cell_options: ReadCellOptions::default(),
+            read_cell_options: ReadCellOptions {
+                is_transient_cell: is_transient_cell.unwrap_or(false),
+                ..Default::default()
+            },
+            determine_is_transient_cell: is_transient_cell.is_none(),
             listener: None,
         }
     }
@@ -441,6 +463,11 @@ impl Future for ReadRawVcFuture {
                         }
                     }
                     RawVc::TaskCell(task, index) => {
+                        if this.determine_is_transient_cell {
+                            let value_type = registry::get_value_type(index.type_id);
+                            this.read_cell_options.is_transient_cell =
+                                !value_type.is_serializable();
+                        }
                         let read_result =
                             tt.try_read_task_cell(task, index, this.read_cell_options);
                         match read_result {

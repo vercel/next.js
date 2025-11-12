@@ -5,7 +5,6 @@ use turbo_tasks::{
     ValueTypeId,
     backend::TurboTasksExecutionError,
     event::{Event, EventListener},
-    registry,
 };
 
 use crate::{
@@ -244,6 +243,10 @@ pub enum CachedDataItem {
         cell: CellId,
         value: TypedSharedReference,
     },
+    TransientCellData {
+        cell: CellId,
+        value: TypedSharedReference,
+    },
     CellTypeMaxIndex {
         cell_type: ValueTypeId,
         value: u32,
@@ -364,6 +367,14 @@ pub enum CachedDataItem {
 }
 
 impl CachedDataItem {
+    pub fn cell_data(is_transient: bool, cell: CellId, value: TypedSharedReference) -> Self {
+        if is_transient {
+            CachedDataItem::TransientCellData { cell, value }
+        } else {
+            CachedDataItem::CellData { cell, value }
+        }
+    }
+
     pub fn is_persistent(&self) -> bool {
         match self {
             CachedDataItem::Output { value } => value.is_transient(),
@@ -374,6 +385,7 @@ impl CachedDataItem {
             CachedDataItem::CurrentSessionClean { .. } => false,
             CachedDataItem::Child { task, .. } => !task.is_transient(),
             CachedDataItem::CellData { .. } => true,
+            CachedDataItem::TransientCellData { .. } => false,
             CachedDataItem::CellTypeMaxIndex { .. } => true,
             CachedDataItem::OutputDependency { target, .. } => !target.is_transient(),
             CachedDataItem::CellDependency { target, .. } => !target.task.is_transient(),
@@ -471,6 +483,7 @@ impl CachedDataItem {
             | Self::OutdatedOutputDependency { .. }
             | Self::OutdatedCellDependency { .. }
             | Self::OutdatedCollectiblesDependency { .. }
+            | Self::TransientCellData { .. }
             | Self::CurrentSessionClean { .. }
             | Self::AggregatedCurrentSessionCleanContainer { .. }
             | Self::AggregatedCurrentSessionCleanContainerCount { .. }
@@ -486,6 +499,14 @@ impl CachedDataItem {
 }
 
 impl CachedDataItemKey {
+    pub fn cell_data(is_transient: bool, cell: CellId) -> Self {
+        if is_transient {
+            CachedDataItemKey::TransientCellData { cell }
+        } else {
+            CachedDataItemKey::CellData { cell }
+        }
+    }
+
     pub fn is_persistent(&self) -> bool {
         match self {
             CachedDataItemKey::Output { .. } => true,
@@ -496,6 +517,7 @@ impl CachedDataItemKey {
             CachedDataItemKey::CurrentSessionClean { .. } => false,
             CachedDataItemKey::Child { task, .. } => !task.is_transient(),
             CachedDataItemKey::CellData { .. } => true,
+            CachedDataItemKey::TransientCellData { .. } => false,
             CachedDataItemKey::CellTypeMaxIndex { .. } => true,
             CachedDataItemKey::OutputDependency { target, .. } => !target.is_transient(),
             CachedDataItemKey::CellDependency { target, .. } => !target.task.is_transient(),
@@ -561,6 +583,7 @@ impl CachedDataItemType {
             | Self::OutdatedOutputDependency { .. }
             | Self::OutdatedCellDependency { .. }
             | Self::OutdatedCollectiblesDependency { .. }
+            | Self::TransientCellData { .. }
             | Self::CurrentSessionClean { .. }
             | Self::AggregatedCurrentSessionCleanContainer { .. }
             | Self::AggregatedCurrentSessionCleanContainerCount { .. }
@@ -600,6 +623,7 @@ impl CachedDataItemType {
             | Self::CurrentSessionClean
             | Self::AggregatedCurrentSessionCleanContainer
             | Self::AggregatedCurrentSessionCleanContainerCount
+            | Self::TransientCellData
             | Self::OutdatedCollectible
             | Self::OutdatedOutputDependency
             | Self::OutdatedCellDependency
@@ -621,9 +645,6 @@ impl CachedDataItemValueRef<'_> {
     pub fn is_persistent(&self) -> bool {
         match self {
             CachedDataItemValueRef::Output { value } => !value.is_transient(),
-            CachedDataItemValueRef::CellData { value } => {
-                registry::get_value_type(value.type_id).is_serializable()
-            }
             _ => true,
         }
     }

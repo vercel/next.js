@@ -15,7 +15,7 @@ use crate::{
             AggregationUpdateQueue, ExecuteContext, Operation, TaskGuard,
             invalidate::make_task_dirty_internal,
         },
-        storage::{get, get_many, remove},
+        storage::{get_many, remove},
     },
     data::{CachedDataItem, CachedDataItemKey, CellRef},
 };
@@ -24,12 +24,14 @@ use crate::{
 #[allow(clippy::large_enum_variant)]
 pub enum UpdateCellOperation {
     InvalidateWhenCellDependency {
+        is_transient_cell: bool,
         cell_ref: CellRef,
         dependent_tasks: SmallVec<[TaskId; 4]>,
         content: Option<TypedSharedReference>,
         queue: AggregationUpdateQueue,
     },
     FinalCellChange {
+        is_transient_cell: bool,
         cell_ref: CellRef,
         content: Option<TypedSharedReference>,
         queue: AggregationUpdateQueue,
@@ -46,6 +48,7 @@ impl UpdateCellOperation {
         task_id: TaskId,
         cell: CellId,
         content: CellContent,
+        is_transient_cell: bool,
         #[cfg(feature = "verify_determinism")] verification_mode: VerificationMode,
         #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
         mut ctx: impl ExecuteContext,
@@ -64,7 +67,7 @@ impl UpdateCellOperation {
         let assume_unchanged =
             !ctx.should_track_dependencies() || !task.has_key(&CachedDataItemKey::Dirty {});
 
-        let old_content = get!(task, CellData { cell });
+        let old_content = task.get_cell_data(is_transient_cell, cell);
 
         if assume_unchanged {
             if old_content.is_some() {
@@ -115,12 +118,14 @@ impl UpdateCellOperation {
                 // tasks and after that set the new cell content. When the cell content is unset,
                 // readers will wait for it to be set via InProgressCell.
 
-                let old_content = task.remove(&CachedDataItemKey::CellData { cell });
+                let old_content =
+                    task.remove(&CachedDataItemKey::cell_data(is_transient_cell, cell));
 
                 drop(task);
                 drop(old_content);
 
                 UpdateCellOperation::InvalidateWhenCellDependency {
+                    is_transient_cell,
                     cell_ref: CellRef {
                         task: task_id,
                         cell,
@@ -138,12 +143,13 @@ impl UpdateCellOperation {
         // So we can just update the cell content.
 
         let old_content = if let Some(new_content) = content {
-            task.insert(CachedDataItem::CellData {
+            task.insert(CachedDataItem::cell_data(
+                is_transient_cell,
                 cell,
-                value: new_content,
-            })
+                new_content,
+            ))
         } else {
-            task.remove(&CachedDataItemKey::CellData { cell })
+            task.remove(&CachedDataItemKey::cell_data(is_transient_cell, cell))
         };
 
         let in_progress_cell = remove!(task, InProgressCell { cell });
@@ -163,6 +169,7 @@ impl Operation for UpdateCellOperation {
             ctx.operation_suspend_point(&self);
             match self {
                 UpdateCellOperation::InvalidateWhenCellDependency {
+                    is_transient_cell,
                     cell_ref,
                     ref mut dependent_tasks,
                     ref mut content,
@@ -203,6 +210,7 @@ impl Operation for UpdateCellOperation {
                     }
                     if dependent_tasks.is_empty() {
                         self = UpdateCellOperation::FinalCellChange {
+                            is_transient_cell,
                             cell_ref,
                             content: take(content),
                             queue: take(queue),
@@ -210,6 +218,7 @@ impl Operation for UpdateCellOperation {
                     }
                 }
                 UpdateCellOperation::FinalCellChange {
+                    is_transient_cell,
                     cell_ref: CellRef { task, cell },
                     content,
                     ref mut queue,
@@ -217,10 +226,7 @@ impl Operation for UpdateCellOperation {
                     let mut task = ctx.task(task, TaskDataCategory::Data);
 
                     if let Some(content) = content {
-                        task.add_new(CachedDataItem::CellData {
-                            cell,
-                            value: content,
-                        })
+                        task.add_new(CachedDataItem::cell_data(is_transient_cell, cell, content));
                     }
 
                     let in_progress_cell = remove!(task, InProgressCell { cell });

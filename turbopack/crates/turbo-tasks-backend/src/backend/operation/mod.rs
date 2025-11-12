@@ -14,13 +14,15 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{FxIndexMap, KeyValuePair, TaskId, TurboTasksBackendApi};
+use turbo_tasks::{
+    CellId, FxIndexMap, KeyValuePair, TaskId, TurboTasksBackendApi, TypedSharedReference,
+};
 
 use crate::{
     backend::{
         OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
         TurboTasksBackendJob,
-        storage::{SpecificTaskDataCategory, StorageWriteGuard, get, iter_many},
+        storage::{SpecificTaskDataCategory, StorageWriteGuard, get, iter_many, remove},
     },
     backing_storage::BackingStorage,
     data::{
@@ -466,6 +468,28 @@ pub trait TaskGuard: Debug {
             .copied()
             .unwrap_or_default();
         dirty_count > clean_count
+    }
+    fn remove_cell_data(
+        &mut self,
+        is_transient_cell: bool,
+        cell: CellId,
+    ) -> Option<TypedSharedReference> {
+        if is_transient_cell {
+            remove!(self, TransientCellData { cell })
+        } else {
+            remove!(self, CellData { cell })
+        }
+    }
+    fn get_cell_data(
+        &self,
+        is_transient_cell: bool,
+        cell: CellId,
+    ) -> Option<&TypedSharedReference> {
+        if is_transient_cell {
+            get!(self, TransientCellData { cell })
+        } else {
+            get!(self, CellData { cell })
+        }
     }
 }
 

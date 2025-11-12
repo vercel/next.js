@@ -3,6 +3,7 @@ use crate::{ReadConsistency, ReadTracking};
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ReadCellOptions {
     pub tracking: ReadTracking,
+    pub is_transient_cell: bool,
     pub final_read_hint: bool,
 }
 
