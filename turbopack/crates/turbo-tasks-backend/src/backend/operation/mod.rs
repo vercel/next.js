@@ -475,20 +475,23 @@ pub trait TaskGuard: Debug {
         cell: CellId,
     ) -> Option<TypedSharedReference> {
         if is_transient_cell {
-            remove!(self, TransientCellData { cell })
+            remove!(self, TransientCellData { cell }).map(|sr| sr.into_typed(cell.type_id))
         } else {
             remove!(self, CellData { cell })
         }
     }
-    fn get_cell_data(
-        &self,
-        is_transient_cell: bool,
-        cell: CellId,
-    ) -> Option<&TypedSharedReference> {
+    fn get_cell_data(&self, is_transient_cell: bool, cell: CellId) -> Option<TypedSharedReference> {
         if is_transient_cell {
-            get!(self, TransientCellData { cell })
+            get!(self, TransientCellData { cell }).map(|sr| sr.clone().into_typed(cell.type_id))
         } else {
-            get!(self, CellData { cell })
+            get!(self, CellData { cell }).cloned()
+        }
+    }
+    fn has_cell_data(&self, is_transient_cell: bool, cell: CellId) -> bool {
+        if is_transient_cell {
+            self.has_key(&CachedDataItemKey::TransientCellData { cell })
+        } else {
+            self.has_key(&CachedDataItemKey::CellData { cell })
         }
     }
 }

@@ -1,8 +1,8 @@
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    CellId, KeyValuePair, TaskExecutionReason, TaskId, TraitTypeId, TypedSharedReference,
-    ValueTypeId,
+    CellId, KeyValuePair, SharedReference, TaskExecutionReason, TaskId, TraitTypeId,
+    TypedSharedReference, ValueTypeId,
     backend::TurboTasksExecutionError,
     event::{Event, EventListener},
 };
@@ -243,9 +243,10 @@ pub enum CachedDataItem {
         cell: CellId,
         value: TypedSharedReference,
     },
+    #[serde(skip)]
     TransientCellData {
         cell: CellId,
-        value: TypedSharedReference,
+        value: SharedReference,
     },
     CellTypeMaxIndex {
         cell_type: ValueTypeId,
@@ -369,7 +370,10 @@ pub enum CachedDataItem {
 impl CachedDataItem {
     pub fn cell_data(is_transient: bool, cell: CellId, value: TypedSharedReference) -> Self {
         if is_transient {
-            CachedDataItem::TransientCellData { cell, value }
+            CachedDataItem::TransientCellData {
+                cell,
+                value: value.into_untyped(),
+            }
         } else {
             CachedDataItem::CellData { cell, value }
         }

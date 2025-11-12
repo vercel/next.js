@@ -841,7 +841,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let content = if final_read_hint {
             task.remove_cell_data(is_transient_cell, cell)
         } else if let Some(content) = task.get_cell_data(is_transient_cell, cell) {
-            let content = content.clone();
             Some(content)
         } else {
             None
@@ -2615,7 +2614,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut ctx = self.execute_context(turbo_tasks);
         let task = ctx.task(task_id, TaskDataCategory::Data);
         if let Some(content) = task.get_cell_data(options.is_transient_cell, cell) {
-            Ok(CellContent(Some(content.reference.clone())).into_typed(cell.type_id))
+            debug_assert!(content.type_id == cell.type_id, "Cell type ID mismatch");
+            Ok(CellContent(Some(content.reference)).into_typed(cell.type_id))
         } else {
             Ok(CellContent(None).into_typed(cell.type_id))
         }

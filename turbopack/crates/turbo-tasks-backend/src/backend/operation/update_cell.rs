@@ -67,10 +67,9 @@ impl UpdateCellOperation {
         let assume_unchanged =
             !ctx.should_track_dependencies() || !task.has_key(&CachedDataItemKey::Dirty {});
 
-        let old_content = task.get_cell_data(is_transient_cell, cell);
-
         if assume_unchanged {
-            if old_content.is_some() {
+            let has_old_content = task.has_cell_data(is_transient_cell, cell);
+            if has_old_content {
                 // Never update cells when recomputing if they already have a value.
                 // It's not expected that content changes during recomputation.
 
@@ -78,7 +77,7 @@ impl UpdateCellOperation {
                 #[cfg(feature = "verify_determinism")]
                 if !is_stateful
                     && matches!(verification_mode, VerificationMode::EqualityCheck)
-                    && content.as_ref() != old_content
+                    && content != task.get_cell_data(is_transient_cell, cell)
                 {
                     let task_description = ctx.get_task_description(task_id);
                     let cell_type = turbo_tasks::registry::get_value_type(cell.type_id).global_name;
