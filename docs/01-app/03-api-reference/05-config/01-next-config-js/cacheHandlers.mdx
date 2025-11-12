@@ -91,7 +91,7 @@ Returns a `CacheEntry` object if found, or `undefined` if not found or expired.
 Your `get` method should retrieve the cache entry from storage, check if it has expired based on the `revalidate` time, and return `undefined` for missing or expired entries.
 
 ```js
-class CacheHandler {
+const cacheHandler = {
   async get(cacheKey, softTags) {
     const entry = cache.get(cacheKey)
     if (!entry) return undefined
@@ -127,7 +127,7 @@ Returns `Promise<void>`.
 Your `set` method must await the `pendingEntry` promise before storing it, since the cache entry may still be generating when this method is called. Once resolved, store the entry in your cache system.
 
 ```js
-class CacheHandler {
+const cacheHandler = {
   async set(cacheKey, pendingEntry) {
     // Wait for the entry to be ready
     const entry = await pendingEntry
@@ -153,7 +153,7 @@ Returns `Promise<void>`.
 For in-memory caches, this can be a no-op. For distributed caches, use this to sync tag state from an external service or database before processing requests.
 
 ```js
-class CacheHandler {
+const cacheHandler = {
   async refreshTags() {
     // For in-memory cache, no action needed
     // For distributed cache, sync tag state from external service
@@ -182,7 +182,7 @@ Returns:
 If you're not tracking tag revalidation timestamps, return `0`. Otherwise, find the most recent revalidation timestamp across all the provided tags. Return `Infinity` if you prefer to handle soft tag checking in the `get` method.
 
 ```js
-class CacheHandler {
+const cacheHandler = {
   async getExpiration(tags) {
     // Return 0 if not tracking tag revalidation
     return 0
@@ -213,7 +213,7 @@ Returns `Promise<void>`.
 When tags are revalidated, your handler should invalidate all cache entries that have any of those tags. Iterate through your cache and remove entries whose tags match the provided list.
 
 ```js
-class CacheHandler {
+const cacheHandler = {
   async updateTags(tags, durations) {
     // Invalidate all cache entries with matching tags
     for (const [key, entry] of cache.entries()) {
@@ -264,7 +264,7 @@ Here's a minimal implementation using a `Map` for storage. This example demonstr
 const cache = new Map()
 const pendingSets = new Map()
 
-module.exports = class MemoryCacheHandler {
+module.exports = {
   async get(cacheKey, softTags) {
     // Wait for any pending set operation to complete
     const pendingPromise = pendingSets.get(cacheKey)
@@ -333,7 +333,7 @@ For durable storage like Redis or a database, you'll need to serialize the cache
 ```js filename="cache-handlers/redis-handler.js"
 const { createClient } = require('redis')
 
-module.exports = class RedisCacheHandler {
+module.exports = {
   constructor() {
     this.client = createClient({ url: process.env.REDIS_URL })
     this.client.connect()
