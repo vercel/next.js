@@ -1226,17 +1226,19 @@ async fn directory_tree_to_loader_tree_internal(
 
         if let Some(subtree) = subtree {
             if let Some(key) = parallel_route_key {
-                let is_inside_catchall = app_page.is_catchall();
-
                 // Validate that parallel routes (except "children") have a default.js file.
-                // Skip this validation if the slot is UNDER a catch-all route (i.e., the
-                // parallel route is a child of a catch-all segment).
+                // This validation matches the webpack loader's logic but is implemented
+                // differently due to Turbopack's single-pass recursive processing.
+
+                // Check if we're inside a catch-all route (i.e., the parallel route is a child
+                // of a catch-all segment). Only skip validation if the slot is UNDER a catch-all.
                 // For example:
                 //   /[...catchAll]/@slot - is_inside_catchall = true (skip validation) ✓
                 //   /@slot/[...catchAll] - is_inside_catchall = false (require default) ✓
                 // The catch-all provides fallback behavior, so default.js is not required.
-                //
-                // Also skip validation if this is a leaf segment (no child routes).
+                let is_inside_catchall = app_page.is_catchall();
+
+                // Check if this is a leaf segment (no child routes).
                 // Leaf segments don't need default.js because there are no child routes
                 // that could cause the parallel slot to unmatch. For example:
                 //   /repo-overview/@slot/page with no child routes - is_leaf_segment = true (skip
@@ -1245,10 +1247,23 @@ async fn directory_tree_to_loader_tree_internal(
                 // This also handles route groups correctly by filtering them out.
                 let is_leaf_segment = !has_child_routes(directory_tree);
 
+                // Turbopack-specific: Check if the parallel slot has matching child routes.
+                // In webpack, this is checked implicitly via the two-phase processing:
+                // slots with content are processed first and skip validation in the second phase.
+                // In Turbopack's single-pass approach, we check directly if the slot has child
+                // routes. If the slot has child routes that match the parent's
+                // child routes, it can render content for those routes and doesn't
+                // need a default. For example:
+                //   /parent/@slot/page + /parent/@slot/child + /parent/child - slot_has_children =
+                // true (skip validation) ✓   /parent/@slot/page + /parent/child (no
+                // @slot/child) - slot_has_children = false (require default) ✓
+                let slot_has_children = has_child_routes(subdirectory);
+
                 if key != "children"
                     && subdirectory.modules.default.is_none()
                     && !is_inside_catchall
                     && !is_leaf_segment
+                    && !slot_has_children
                 {
                     missing_default_parallel_route_issue(
                         app_dir.clone(),
@@ -1295,12 +1310,11 @@ async fn directory_tree_to_loader_tree_internal(
 
     // make sure we don't have a match for other slots if there's an intercepting route match
     // we only check subtrees as the current level could trigger `is_intercepting`
-    let has_intercepting_parallel_route = tree
+    if tree
         .parallel_routes
         .iter()
-        .any(|(_, parallel_tree)| parallel_tree.is_intercepting());
-
-    if has_intercepting_parallel_route {
+        .any(|(_, parallel_tree)| parallel_tree.is_intercepting())
+    {
         let mut keys_to_replace = Vec::new();
 
         for (key, parallel_tree) in &tree.parallel_routes {
@@ -1340,12 +1354,6 @@ async fn directory_tree_to_loader_tree_internal(
                 .emit();
             }
 
-            // For slots being replaced due to interception, use null default if EITHER:
-            // 1. The app_page path contains interception markers, OR
-            // 2. Any parallel route contains interception (checked above)
-            let is_in_interception_context =
-                app_page.contains_interception() || has_intercepting_parallel_route;
-
             tree.parallel_routes.insert(
                 key.clone(),
                 default_route_tree(
@@ -1354,7 +1362,7 @@ async fn directory_tree_to_loader_tree_internal(
                     app_page.clone(),
                     default,
                     key.clone(),
-                    is_in_interception_context,
+                    for_app_path.clone(),
                 )
                 .await?,
             );
@@ -1363,28 +1371,19 @@ async fn directory_tree_to_loader_tree_internal(
 
     if tree.parallel_routes.is_empty() {
         if modules.default.is_some() || current_level_is_parallel_route {
-            let is_in_interception_context =
-                app_page.contains_interception() || has_intercepting_parallel_route;
-
             tree = default_route_tree(
                 app_dir.clone(),
                 global_metadata,
                 app_page.clone(),
                 modules.default.clone(),
                 rcstr!("children"),
-                is_in_interception_context,
+                for_app_path.clone(),
             )
             .await?;
         } else {
             return Ok(None);
         }
     } else if tree.parallel_routes.get("children").is_none() {
-        // When creating a children default, use null default if EITHER:
-        // 1. The app_page path contains interception markers, OR
-        // 2. Any parallel route contains interception (computed earlier)
-        let is_in_interception_context =
-            app_page.contains_interception() || has_intercepting_parallel_route;
-
         tree.parallel_routes.insert(
             rcstr!("children"),
             default_route_tree(
@@ -1393,7 +1392,7 @@ async fn directory_tree_to_loader_tree_internal(
                 app_page.clone(),
                 modules.default.clone(),
                 rcstr!("children"),
-                is_in_interception_context,
+                for_app_path.clone(),
             )
             .await?,
         );
@@ -1416,7 +1415,7 @@ async fn default_route_tree(
     app_page: AppPage,
     default_component: Option<FileSystemPath>,
     slot_name: RcStr,
-    is_in_interception_context: bool,
+    for_app_path: AppPath,
 ) -> Result<AppPageLoaderTree> {
     Ok(AppPageLoaderTree {
         page: app_page.clone(),
@@ -1428,14 +1427,9 @@ async fn default_route_tree(
                 ..Default::default()
             }
         } else {
-            // When we host applications on Vercel, the status code affects the
-            // underlying behavior of the route, which when we are missing the
-            // children slot of an interception route, will yield a full 404
-            // response for the RSC request instead. For this reason, we expect
-            // that if a default file is missing when we're rendering an
-            // interception route, we instead always render null for the default
-            // slot to avoid the full 404 response.
-            let default_file = if is_in_interception_context && slot_name == "children" {
+            let contains_interception = for_app_path.contains_interception();
+
+            let default_file = if contains_interception && slot_name == "children" {
                 "dist/client/components/builtin/default-null.js"
             } else {
                 "dist/client/components/builtin/default.js"
