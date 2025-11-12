@@ -74,7 +74,7 @@ impl NextDynamicGraph {
         let span = tracing::info_span!("collect next/dynamic imports for endpoint");
         async move {
             let data = &*self.data.await?;
-            let graph = &*self.graph.await?;
+            let graph = self.graph.await?;
 
             #[derive(Clone, PartialEq, Eq)]
             enum VisitState {
@@ -96,48 +96,56 @@ impl NextDynamicGraph {
 
             // module -> the client reference entry (if any)
             let mut state_map = FxHashMap::default();
-            graph.traverse_edges_from_entries(entries, |parent_info, node| {
-                let module = node.module;
-                let Some((parent_node, _)) = parent_info else {
-                    state_map.insert(module, VisitState::Entry);
-                    return GraphTraversalAction::Continue;
-                };
-                let parent_module = parent_node.module;
-
-                let module_type = data.get(&module);
-                let parent_state = state_map.get(&parent_module).unwrap().clone();
-                let parent_client_reference =
-                    if let Some(DynamicImportEntriesMapType::ClientReference(module)) = module_type
-                    {
-                        Some(ClientReferenceType::EcmascriptClientReference(*module))
-                    } else if let VisitState::InClientReference(ty) = parent_state {
-                        Some(ty)
-                    } else {
-                        None
+            graph.read().traverse_edges_from_entries_dfs(
+                entries,
+                &mut (),
+                |parent_info, node, _| {
+                    let module = node;
+                    let Some((parent_node, _)) = parent_info else {
+                        state_map.insert(module, VisitState::Entry);
+                        return Ok(GraphTraversalAction::Continue);
                     };
+                    let parent_module = parent_node;
 
-                match module_type {
-                    Some(DynamicImportEntriesMapType::DynamicEntry(dynamic_entry)) => {
-                        result.push((*dynamic_entry, parent_client_reference));
+                    let module_type = data.get(&module);
+                    let parent_state = state_map.get(&parent_module).unwrap().clone();
+                    let parent_client_reference =
+                        if let Some(DynamicImportEntriesMapType::ClientReference(module)) =
+                            module_type
+                        {
+                            Some(ClientReferenceType::EcmascriptClientReference(*module))
+                        } else if let VisitState::InClientReference(ty) = parent_state {
+                            Some(ty)
+                        } else {
+                            None
+                        };
 
-                        state_map.insert(module, parent_state);
-                        GraphTraversalAction::Skip
-                    }
-                    Some(DynamicImportEntriesMapType::ClientReference(client_reference)) => {
-                        state_map.insert(
-                            module,
-                            VisitState::InClientReference(
-                                ClientReferenceType::EcmascriptClientReference(*client_reference),
-                            ),
-                        );
-                        GraphTraversalAction::Continue
-                    }
-                    None => {
-                        state_map.insert(module, parent_state);
-                        GraphTraversalAction::Continue
-                    }
-                }
-            })?;
+                    Ok(match module_type {
+                        Some(DynamicImportEntriesMapType::DynamicEntry(dynamic_entry)) => {
+                            result.push((*dynamic_entry, parent_client_reference));
+
+                            state_map.insert(module, parent_state);
+                            GraphTraversalAction::Skip
+                        }
+                        Some(DynamicImportEntriesMapType::ClientReference(client_reference)) => {
+                            state_map.insert(
+                                module,
+                                VisitState::InClientReference(
+                                    ClientReferenceType::EcmascriptClientReference(
+                                        *client_reference,
+                                    ),
+                                ),
+                            );
+                            GraphTraversalAction::Continue
+                        }
+                        None => {
+                            state_map.insert(module, parent_state);
+                            GraphTraversalAction::Continue
+                        }
+                    })
+                },
+                |_, _, _| Ok(()),
+            )?;
             Ok(Vc::cell(result))
         }
         .instrument(span)
@@ -184,7 +192,7 @@ impl ServerActionsGraph {
                 Cow::Borrowed(data)
             } else {
                 // The graph contains the whole app, traverse and collect all reachable imports.
-                let graph = &*self.graph.await?;
+                let graph = self.graph.await?;
 
                 if !graph.has_entry_module(entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
@@ -192,11 +200,17 @@ impl ServerActionsGraph {
                 }
 
                 let mut result = FxIndexMap::default();
-                graph.traverse_from_entry(entry, |node| {
-                    if let Some(node_data) = data.get(&node.module) {
-                        result.insert(node.module, *node_data);
-                    }
-                })?;
+                graph.read().traverse_nodes_from_entries_dfs(
+                    vec![entry],
+                    &mut result,
+                    |node, result| {
+                        if let Some(node_data) = data.get(&node) {
+                            result.insert(node, *node_data);
+                        }
+                        Ok(GraphTraversalAction::Continue)
+                    },
+                    |_, _| Ok(()),
+                )?;
                 Cow::Owned(result)
             };
 
@@ -274,7 +288,7 @@ impl ClientReferencesGraph {
         let span = tracing::info_span!("collect client references for endpoint");
         async move {
             let data = &*self.data.await?;
-            let graph = &*self.graph.await?;
+            let graph = self.graph.await?;
 
             let entries = if !self.is_single_page {
                 if !graph.has_entry_module(entry) {
@@ -293,12 +307,13 @@ impl ClientReferencesGraph {
 
             let mut server_components = FxIndexSet::default();
 
+            let graph = graph.read();
             // Perform a DFS traversal to find all server components included by this page.
-            graph.traverse_nodes_from_entries(
+            graph.traverse_nodes_from_entries_dfs(
                 entries,
                 &mut (),
                 |node, _| {
-                    let module_type = data.get(&node.module);
+                    let module_type = data.get(&node);
                     Ok(match module_type {
                         Some(
                             ClientManifestEntryType::EcmascriptClientReference { .. }
@@ -310,14 +325,14 @@ impl ClientReferencesGraph {
                 },
                 |node, _| {
                     if let Some(server_util_module) =
-                        ResolvedVc::try_downcast_type::<NextServerUtilityModule>(node.module)
+                        ResolvedVc::try_downcast_type::<NextServerUtilityModule>(node)
                     {
                         // Server utility used by the template, not a server component
                         server_utils.insert(server_util_module);
                         return Ok(());
                     }
 
-                    let module_type = data.get(&node.module);
+                    let module_type = data.get(&node);
 
                     let ty = match module_type {
                         Some(ClientManifestEntryType::EcmascriptClientReference {
@@ -350,11 +365,11 @@ impl ClientReferencesGraph {
             // necessarily rendered at the same time (not-found, or parallel routes), we need to
             // determine the order of client references individually for each server component.
             for sc in server_components.iter().copied() {
-                graph.traverse_nodes_from_entries(
+                graph.traverse_nodes_from_entries_dfs(
                     std::iter::once(ResolvedVc::upcast(sc)),
                     &mut (),
                     |node, _| {
-                        let module = node.module;
+                        let module = node;
                         let module_type = data.get(&module);
 
                         Ok(match module_type {
@@ -366,7 +381,7 @@ impl ClientReferencesGraph {
                         })
                     },
                     |node, _| {
-                        let module = node.module;
+                        let module = node;
                         if let Some(server_util_module) =
                             ResolvedVc::try_downcast_type::<NextServerUtilityModule>(module)
                         {
@@ -506,7 +521,7 @@ async fn validate_pages_css_imports(
     entry: Vc<Box<dyn Module>>,
     app_module: ResolvedVc<Box<dyn Module>>,
 ) -> Result<()> {
-    let graph = &*graph.await?;
+    let graph = graph.await?;
     let entry = entry.to_resolved().await?;
 
     let entries = if !is_single_page {
@@ -521,47 +536,52 @@ async fn validate_pages_css_imports(
 
     let mut candidates = vec![];
 
-    graph.traverse_edges_from_entries(entries, |parent_info, node| {
-        let module = node.module;
+    graph.read().traverse_edges_from_entries_dfs(
+        entries,
+        &mut (),
+        |parent_info, node, _| {
+            let module = node;
 
-        // If we're at a root node, there is nothing importing this module and we can skip
-        // any further validations.
-        let Some((parent_node, _)) = parent_info else {
-            return GraphTraversalAction::Continue;
-        };
-        let parent_module = parent_node.module;
+            // If we're at a root node, there is nothing importing this module and we can skip
+            // any further validations.
+            let Some((parent_node, _)) = parent_info else {
+                return Ok(GraphTraversalAction::Continue);
+            };
+            let parent_module = parent_node;
 
-        // Importing CSS from _app.js is always allowed.
-        if parent_module == app_module {
-            return GraphTraversalAction::Continue;
-        }
+            // Importing CSS from _app.js is always allowed.
+            if parent_module == app_module {
+                return Ok(GraphTraversalAction::Continue);
+            }
 
-        // If the module being imported isn't a global css module, there is nothing to validate.
-        let module_is_global_css =
-            ResolvedVc::try_downcast_type::<CssModuleAsset>(module).is_some();
+            // If the module being imported isn't a global css module, there is nothing to validate.
+            let module_is_global_css =
+                ResolvedVc::try_downcast_type::<CssModuleAsset>(module).is_some();
 
-        if !module_is_global_css {
-            return GraphTraversalAction::Continue;
-        }
+            if !module_is_global_css {
+                return Ok(GraphTraversalAction::Continue);
+            }
 
-        let parent_is_css_module = ResolvedVc::try_downcast_type::<ModuleCssAsset>(parent_module)
-            .is_some()
-            || ResolvedVc::try_downcast_type::<CssModuleAsset>(parent_module).is_some();
+            let parent_is_css_module =
+                ResolvedVc::try_downcast_type::<ModuleCssAsset>(parent_module).is_some()
+                    || ResolvedVc::try_downcast_type::<CssModuleAsset>(parent_module).is_some();
 
-        // We also always allow .module css/scss/sass files to import global css files as well.
-        if parent_is_css_module {
-            return GraphTraversalAction::Continue;
-        }
+            // We also always allow .module css/scss/sass files to import global css files as well.
+            if parent_is_css_module {
+                return Ok(GraphTraversalAction::Continue);
+            }
 
-        // If all of the above invariants have been checked, we look to see if the parent module is
-        // the same as the app module. If it isn't we know it isn't a valid place to import global
-        // css.
-        if parent_module != app_module {
-            candidates.push(CssGlobalImportIssue::new(parent_module, module))
-        }
+            // If all of the above invariants have been checked, we look to see if the parent module
+            // is the same as the app module. If it isn't we know it isn't a valid place
+            // to import global css.
+            if parent_module != app_module {
+                candidates.push(CssGlobalImportIssue::new(parent_module, module))
+            }
 
-        GraphTraversalAction::Continue
-    })?;
+            Ok(GraphTraversalAction::Continue)
+        },
+        |_, _, _| Ok(()),
+    )?;
 
     candidates
         .into_iter()

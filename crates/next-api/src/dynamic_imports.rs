@@ -35,7 +35,7 @@ use turbopack_core::{
         availability_info::AvailabilityInfo,
     },
     module::Module,
-    module_graph::{ModuleGraph, SingleModuleGraph, SingleModuleGraphModuleNode},
+    module_graph::{ModuleGraph, SingleModuleGraph},
     output::OutputAssets,
 };
 
@@ -125,9 +125,7 @@ pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<Dynamic
     let actions = graph
         .await?
         .iter_nodes()
-        .map(|node| async move {
-            let SingleModuleGraphModuleNode { module } = node;
-
+        .map(|module| async move {
             if module
                 .ident()
                 .await?
@@ -135,20 +133,20 @@ pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<Dynamic
                 .as_ref()
                 .is_some_and(|layer| layer.name() == "app-client" || layer.name() == "client")
                 && let Some(dynamic_entry_module) =
-                    ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(*module)
+                    ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(module)
             {
                 return Ok(Some((
-                    *module,
+                    module,
                     DynamicImportEntriesMapType::DynamicEntry(dynamic_entry_module),
                 )));
             }
             // TODO add this check once these modules have the correct layer
             // if layer.is_some_and(|layer| &**layer == "app-rsc") {
             if let Some(client_reference_module) =
-                ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(*module)
+                ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module)
             {
                 return Ok(Some((
-                    *module,
+                    module,
                     DynamicImportEntriesMapType::ClientReference(client_reference_module),
                 )));
             }

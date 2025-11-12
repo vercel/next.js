@@ -6285,34 +6285,27 @@
                 parentSegment = task.blockedSegment,
                 fallback = props.fallback,
                 content = props.children,
-                fallbackAbortSet = new Set();
-              var newBoundary =
-                task.formatContext.insertionMode < HTML_MODE
-                  ? createSuspenseBoundary(
-                      request,
-                      task.row,
-                      fallbackAbortSet,
-                      {
+                fallbackAbortSet = new Set(),
+                newBoundary = createSuspenseBoundary(
+                  request,
+                  task.row,
+                  fallbackAbortSet,
+                  task.formatContext.insertionMode < HTML_MODE
+                    ? {
                         content: createPreambleState(),
                         fallback: createPreambleState()
-                      },
-                      !1
-                    )
-                  : createSuspenseBoundary(
-                      request,
-                      task.row,
-                      fallbackAbortSet,
-                      null,
-                      !1
-                    );
-              var boundarySegment = createPendingSegment(
-                request,
-                parentSegment.chunks.length,
-                newBoundary,
-                task.formatContext,
-                !1,
-                !1
-              );
+                      }
+                    : null,
+                  !1
+                ),
+                boundarySegment = createPendingSegment(
+                  request,
+                  parentSegment.chunks.length,
+                  newBoundary,
+                  task.formatContext,
+                  !1,
+                  !1
+                );
               parentSegment.children.push(boundarySegment);
               parentSegment.lastPushedText = !1;
               var contentRootSegment = createPendingSegment(
@@ -6752,32 +6745,25 @@
                 previousReplaySet = task.replay,
                 parentBoundary = task.blockedBoundary,
                 parentHoistableState = task.hoistableState,
-                content = props.children,
-                fallback = props.fallback,
-                fallbackAbortSet = new Set();
-              props =
-                task.formatContext.insertionMode < HTML_MODE
-                  ? createSuspenseBoundary(
-                      replay,
-                      task.row,
-                      fallbackAbortSet,
-                      {
+                content = props.children;
+              props = props.fallback;
+              var fallbackAbortSet = new Set(),
+                resumedBoundary = createSuspenseBoundary(
+                  replay,
+                  task.row,
+                  fallbackAbortSet,
+                  task.formatContext.insertionMode < HTML_MODE
+                    ? {
                         content: createPreambleState(),
                         fallback: createPreambleState()
-                      },
-                      !1
-                    )
-                  : createSuspenseBoundary(
-                      replay,
-                      task.row,
-                      fallbackAbortSet,
-                      null,
-                      !1
-                    );
-              props.parentFlushed = !0;
-              props.rootSegmentID = request;
-              task.blockedBoundary = props;
-              task.hoistableState = props.contentState;
+                      }
+                    : null,
+                  !1
+                );
+              resumedBoundary.parentFlushed = !0;
+              resumedBoundary.rootSegmentID = request;
+              task.blockedBoundary = resumedBoundary;
+              task.hoistableState = resumedBoundary.contentState;
               task.keyPath = keyPath;
               task.formatContext = getSuspenseContentFormatContext(
                 replay.resumableState,
@@ -6795,13 +6781,16 @@
                     "Couldn't find all resumable slots by key/index during replaying. The tree doesn't match so React will fallback to client rendering."
                   );
                 task.replay.pendingTasks--;
-                if (0 === props.pendingTasks && props.status === PENDING) {
-                  props.status = COMPLETED;
-                  replay.completedBoundaries.push(props);
+                if (
+                  0 === resumedBoundary.pendingTasks &&
+                  resumedBoundary.status === PENDING
+                ) {
+                  resumedBoundary.status = COMPLETED;
+                  replay.completedBoundaries.push(resumedBoundary);
                   break a;
                 }
               } catch (error) {
-                (props.status = CLIENT_RENDERED),
+                (resumedBoundary.status = CLIENT_RENDERED),
                   (childNodes = getThrownInfo(task.componentStack)),
                   (childSlots = logRecoverableError(
                     replay,
@@ -6810,14 +6799,14 @@
                     task.debugTask
                   )),
                   encodeErrorForBoundary(
-                    props,
+                    resumedBoundary,
                     childSlots,
                     error,
                     childNodes,
                     !1
                   ),
                   task.replay.pendingTasks--,
-                  replay.clientRenderedBoundaries.push(props);
+                  replay.clientRenderedBoundaries.push(resumedBoundary);
               } finally {
                 (task.blockedBoundary = parentBoundary),
                   (task.hoistableState = parentHoistableState),
@@ -6830,10 +6819,10 @@
                 replay,
                 null,
                 { nodes: name, slots: node, pendingTasks: 0 },
-                fallback,
+                props,
                 -1,
                 parentBoundary,
-                props.fallbackState,
+                resumedBoundary.fallbackState,
                 fallbackAbortSet,
                 [keyPath[0], "Suspense Fallback", keyPath[2]],
                 getSuspenseFallbackFormatContext(
@@ -9030,11 +9019,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-fa50caf5-20251107" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-52684925-20251110" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-fa50caf5-20251107\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-52684925-20251110\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react"),
@@ -10832,5 +10821,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.3.0-canary-fa50caf5-20251107";
+    exports.version = "19.3.0-canary-52684925-20251110";
   })();

@@ -15,7 +15,7 @@ pub async fn compute_export_usage_info(
     let mut used_exports = FxHashMap::<_, ModuleExportUsageInfo>::default();
     let graph = graph.read_graphs().await?;
     graph.traverse_all_edges_unordered(|(_, ref_data), target| {
-        let e = used_exports.entry(target.module).or_default();
+        let e = used_exports.entry(target).or_default();
 
         e.add(&ref_data.export);
 
@@ -40,7 +40,8 @@ pub async fn compute_export_usage_info(
             // rare.  For vercel-site on 8/22/2025 there were 106 cycles covering 800 modules
             // (or 1.2% of all modules).  So with this analysis we could potentially drop 80% of
             // the cycle breaker modules.
-            circuit_breakers.extend(cycle.iter().map(|n| n.module));
+            circuit_breakers.extend(cycle.iter().map(|n| **n));
+            Ok(())
         },
     )?;
 

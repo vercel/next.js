@@ -164,6 +164,7 @@ pub fn server_actions<C: Comments>(
         reference_index: 0,
         in_module_level: true,
         should_track_names: false,
+        has_server_reference_with_bound_args: false,
 
         names: Default::default(),
         declared_idents: Default::default(),
@@ -228,6 +229,7 @@ struct ServerActions<C: Comments> {
     reference_index: u32,
     in_module_level: bool,
     should_track_names: bool,
+    has_server_reference_with_bound_args: bool,
 
     names: Vec<Name>,
     declared_idents: Vec<Ident>,
@@ -569,6 +571,7 @@ impl<C: Comments> ServerActions<C> {
         if ids_from_closure.is_empty() {
             Box::new(action_ident.clone().into())
         } else {
+            self.has_server_reference_with_bound_args = true;
             Box::new(bind_args_to_ident(
                 action_ident.clone(),
                 ids_from_closure
@@ -697,6 +700,7 @@ impl<C: Comments> ServerActions<C> {
         if ids_from_closure.is_empty() {
             Box::new(action_ident.clone().into())
         } else {
+            self.has_server_reference_with_bound_args = true;
             Box::new(bind_args_to_ident(
                 action_ident.clone(),
                 ids_from_closure
@@ -784,6 +788,7 @@ impl<C: Comments> ServerActions<C> {
         if bound_args.is_empty() {
             Box::new(cache_ident.clone().into())
         } else {
+            self.has_server_reference_with_bound_args = true;
             Box::new(bind_args_to_ident(
                 cache_ident.clone(),
                 bound_args,
@@ -859,6 +864,7 @@ impl<C: Comments> ServerActions<C> {
         if bound_args.is_empty() {
             Box::new(cache_ident.clone().into())
         } else {
+            self.has_server_reference_with_bound_args = true;
             Box::new(bind_args_to_ident(
                 cache_ident.clone(),
                 bound_args,
@@ -2051,37 +2057,42 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 phase: Default::default(),
             })));
 
-            // Encryption and decryption only happens on the server layer.
-            // import { encryptActionBoundArgs, decryptActionBoundArgs } from
-            // 'private-next-rsc-action-encryption'
-            new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                span: DUMMY_SP,
-                specifiers: vec![
-                    ImportSpecifier::Named(ImportNamedSpecifier {
-                        span: DUMMY_SP,
-                        local: quote_ident!("encryptActionBoundArgs").into(),
-                        imported: None,
-                        is_type_only: false,
-                    }),
-                    ImportSpecifier::Named(ImportNamedSpecifier {
-                        span: DUMMY_SP,
-                        local: quote_ident!("decryptActionBoundArgs").into(),
-                        imported: None,
-                        is_type_only: false,
-                    }),
-                ],
-                src: Box::new(Str {
-                    span: DUMMY_SP,
-                    value: atom!("private-next-rsc-action-encryption"),
-                    raw: None,
-                }),
-                type_only: false,
-                with: None,
-                phase: Default::default(),
-            })));
+            let mut import_count = 1;
 
-            // Make it the first item
-            new.rotate_right(2);
+            // Encryption and decryption only happens when there are bound arguments.
+            if self.has_server_reference_with_bound_args {
+                // import { encryptActionBoundArgs, decryptActionBoundArgs } from
+                // 'private-next-rsc-action-encryption'
+                new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                    span: DUMMY_SP,
+                    specifiers: vec![
+                        ImportSpecifier::Named(ImportNamedSpecifier {
+                            span: DUMMY_SP,
+                            local: quote_ident!("encryptActionBoundArgs").into(),
+                            imported: None,
+                            is_type_only: false,
+                        }),
+                        ImportSpecifier::Named(ImportNamedSpecifier {
+                            span: DUMMY_SP,
+                            local: quote_ident!("decryptActionBoundArgs").into(),
+                            imported: None,
+                            is_type_only: false,
+                        }),
+                    ],
+                    src: Box::new(Str {
+                        span: DUMMY_SP,
+                        value: atom!("private-next-rsc-action-encryption"),
+                        raw: None,
+                    }),
+                    type_only: false,
+                    with: None,
+                    phase: Default::default(),
+                })));
+                import_count += 1;
+            }
+
+            // Make them the first items
+            new.rotate_right(import_count);
         }
 
         if self.has_action || self.has_cache {

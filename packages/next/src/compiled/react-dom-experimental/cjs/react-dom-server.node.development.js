@@ -6436,34 +6436,27 @@
                 fallback = props.fallback,
                 content = props.children,
                 defer = !0 === props.defer,
-                fallbackAbortSet = new Set();
-              var newBoundary =
-                task.formatContext.insertionMode < HTML_MODE
-                  ? createSuspenseBoundary(
-                      request,
-                      task.row,
-                      fallbackAbortSet,
-                      {
+                fallbackAbortSet = new Set(),
+                newBoundary = createSuspenseBoundary(
+                  request,
+                  task.row,
+                  fallbackAbortSet,
+                  task.formatContext.insertionMode < HTML_MODE
+                    ? {
                         content: createPreambleState(),
                         fallback: createPreambleState()
-                      },
-                      defer
-                    )
-                  : createSuspenseBoundary(
-                      request,
-                      task.row,
-                      fallbackAbortSet,
-                      null,
-                      defer
-                    );
-              var boundarySegment = createPendingSegment(
-                request,
-                parentSegment.chunks.length,
-                newBoundary,
-                task.formatContext,
-                !1,
-                !1
-              );
+                      }
+                    : null,
+                  defer
+                ),
+                boundarySegment = createPendingSegment(
+                  request,
+                  parentSegment.chunks.length,
+                  newBoundary,
+                  task.formatContext,
+                  !1,
+                  !1
+                );
               parentSegment.children.push(boundarySegment);
               parentSegment.lastPushedText = !1;
               var contentRootSegment = createPendingSegment(
@@ -6904,32 +6897,25 @@
                 parentBoundary = task.blockedBoundary,
                 parentHoistableState = task.hoistableState,
                 content = props.children,
-                fallback = props.fallback;
-              var resumedBoundary = !0 === props.defer;
+                fallback = props.fallback,
+                defer = !0 === props.defer;
               props = new Set();
-              resumedBoundary =
+              defer = createSuspenseBoundary(
+                replay,
+                task.row,
+                props,
                 task.formatContext.insertionMode < HTML_MODE
-                  ? createSuspenseBoundary(
-                      replay,
-                      task.row,
-                      props,
-                      {
-                        content: createPreambleState(),
-                        fallback: createPreambleState()
-                      },
-                      resumedBoundary
-                    )
-                  : createSuspenseBoundary(
-                      replay,
-                      task.row,
-                      props,
-                      null,
-                      resumedBoundary
-                    );
-              resumedBoundary.parentFlushed = !0;
-              resumedBoundary.rootSegmentID = request;
-              task.blockedBoundary = resumedBoundary;
-              task.hoistableState = resumedBoundary.contentState;
+                  ? {
+                      content: createPreambleState(),
+                      fallback: createPreambleState()
+                    }
+                  : null,
+                defer
+              );
+              defer.parentFlushed = !0;
+              defer.rootSegmentID = request;
+              task.blockedBoundary = defer;
+              task.hoistableState = defer.contentState;
               task.keyPath = keyPath;
               task.formatContext = getSuspenseContentFormatContext(
                 replay.resumableState,
@@ -6947,16 +6933,13 @@
                     "Couldn't find all resumable slots by key/index during replaying. The tree doesn't match so React will fallback to client rendering."
                   );
                 task.replay.pendingTasks--;
-                if (
-                  0 === resumedBoundary.pendingTasks &&
-                  resumedBoundary.status === PENDING
-                ) {
-                  resumedBoundary.status = COMPLETED;
-                  replay.completedBoundaries.push(resumedBoundary);
+                if (0 === defer.pendingTasks && defer.status === PENDING) {
+                  defer.status = COMPLETED;
+                  replay.completedBoundaries.push(defer);
                   break a;
                 }
               } catch (error) {
-                (resumedBoundary.status = CLIENT_RENDERED),
+                (defer.status = CLIENT_RENDERED),
                   (childNodes = getThrownInfo(task.componentStack)),
                   (childSlots = logRecoverableError(
                     replay,
@@ -6965,14 +6948,14 @@
                     task.debugTask
                   )),
                   encodeErrorForBoundary(
-                    resumedBoundary,
+                    defer,
                     childSlots,
                     error,
                     childNodes,
                     !1
                   ),
                   task.replay.pendingTasks--,
-                  replay.clientRenderedBoundaries.push(resumedBoundary);
+                  replay.clientRenderedBoundaries.push(defer);
               } finally {
                 (task.blockedBoundary = parentBoundary),
                   (task.hoistableState = parentHoistableState),
@@ -6988,7 +6971,7 @@
                 fallback,
                 -1,
                 parentBoundary,
-                resumedBoundary.fallbackState,
+                defer.fallbackState,
                 props,
                 [keyPath[0], "Suspense Fallback", keyPath[2]],
                 getSuspenseFallbackFormatContext(
@@ -9291,11 +9274,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-fa50caf5-20251107" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-52684925-20251110" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-fa50caf5-20251107\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-52684925-20251110\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -11416,5 +11399,5 @@
         }
       };
     };
-    exports.version = "19.3.0-experimental-fa50caf5-20251107";
+    exports.version = "19.3.0-experimental-52684925-20251110";
   })();
