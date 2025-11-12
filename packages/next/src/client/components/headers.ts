@@ -2,13 +2,19 @@ import {
   type ReadonlyRequestCookies,
   RequestCookiesAdapter,
 } from '../../server/web/spec-extension/adapters/request-cookies'
-import { HeadersAdapter } from '../../server/web/spec-extension/adapters/headers'
+import {
+  HeadersAdapter,
+  type ReadonlyHeaders,
+} from '../../server/web/spec-extension/adapters/headers'
 import { RequestCookies } from '../../server/web/spec-extension/cookies'
 import { actionAsyncStorage } from './action-async-storage.external'
 import { DraftMode } from './draft-mode'
 import { trackDynamicDataAccessed } from '../../server/app-render/dynamic-rendering'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 import { getExpectedRequestStore } from './request-async-storage.external'
+
+export type UnsafeUnwrappedHeaders = ReadonlyHeaders
+export type UnsafeUnwrappedCookies = ReadonlyRequestCookies
 
 /**
  * This function allows you to read the HTTP incoming request headers in
