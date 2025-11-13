@@ -245,6 +245,86 @@ impl Effect {
             Effect::Unreachable { .. } => {}
         }
     }
+
+    /// Returns all JsValues referened by this effect. (Intended for debugging purposes.)
+    pub fn values(&self) -> Vec<&JsValue> {
+        match self {
+            Effect::Call { func, args, .. } => {
+                let mut result = vec![&**func];
+                result.extend(args.iter().flat_map(|arg| {
+                    match arg {
+                        EffectArg::Value(val) => vec![val],
+                        EffectArg::Closure(func, block) => std::iter::once(func)
+                            .chain(block.effects.iter().flat_map(|e| e.values()))
+                            .collect(),
+                        EffectArg::Spread => vec![],
+                    }
+                }));
+                result
+            }
+            Effect::MemberCall {
+                obj, prop, args, ..
+            } => {
+                let mut result = vec![&**obj, &**prop];
+                result.extend(args.iter().flat_map(|arg| {
+                    match arg {
+                        EffectArg::Value(val) => vec![val],
+                        EffectArg::Closure(func, block) => std::iter::once(func)
+                            .chain(block.effects.iter().flat_map(|e| e.values()))
+                            .collect(),
+                        EffectArg::Spread => vec![],
+                    }
+                }));
+                result
+            }
+            Effect::Conditional {
+                condition, kind, ..
+            } => {
+                let mut result = vec![&**condition];
+                match &**kind {
+                    ConditionalKind::If { then: block }
+                    | ConditionalKind::Else { r#else: block }
+                    | ConditionalKind::And { expr: block, .. }
+                    | ConditionalKind::Or { expr: block, .. }
+                    | ConditionalKind::NullishCoalescing { expr: block, .. }
+                    | ConditionalKind::Labeled { body: block } => {
+                        result.extend(block.effects.iter().flat_map(|e| e.values()));
+                    }
+                    ConditionalKind::IfElse { then, r#else, .. }
+                    | ConditionalKind::Ternary { then, r#else, .. } => {
+                        result.extend(
+                            then.effects
+                                .iter()
+                                .chain(r#else.effects.iter())
+                                .flat_map(|e| e.values()),
+                        );
+                    }
+                    ConditionalKind::IfElseMultiple { then, r#else, .. } => {
+                        result.extend(
+                            then.iter()
+                                .flat_map(|b| b.effects.iter().flat_map(|e| e.values()))
+                                .chain(
+                                    r#else
+                                        .iter()
+                                        .flat_map(|b| b.effects.iter().flat_map(|e| e.values())),
+                                ),
+                        );
+                    }
+                };
+                result
+            }
+            Effect::Member { obj, prop, .. } => {
+                vec![obj, prop]
+            }
+            Effect::TypeOf { arg, .. } => {
+                vec![arg]
+            }
+            Effect::FreeVar { .. }
+            | Effect::ImportedBinding { .. }
+            | Effect::ImportMeta { .. }
+            | Effect::Unreachable { .. } => vec![],
+        }
+    }
 }
 
 pub enum AssignmentScope {

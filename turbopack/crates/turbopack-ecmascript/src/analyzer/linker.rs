@@ -22,16 +22,23 @@ where
     RF: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
     F: 'a + Fn(JsValue) -> RF + Sync,
 {
+    // use tracing::Instrument;
+    // let span = tracing::trace_span!("link", steps = tracing::field::Empty);
     val.normalize();
-    let (val, steps) = link_internal_iterative(
-        graph,
-        val,
-        early_visitor,
-        visitor,
-        fun_args_values,
-        var_cache,
-    )
+    let (val, steps) = async {
+        link_internal_iterative(
+            graph,
+            val,
+            early_visitor,
+            visitor,
+            fun_args_values,
+            var_cache,
+        )
+        .await
+    }
+    // .instrument(span.clone())
     .await?;
+    // span.record("steps", steps);
     Ok((val, steps))
 }
 
