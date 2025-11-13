@@ -117,6 +117,8 @@ module.exports = {
 }
 ```
 
+When using `npm link` where the package linked is outside of the project root, those files would not be resolved. For that case you can set the root to the parent directory of both the project and the linked package.
+
 ### Configuring webpack loaders
 
 If you need loader support beyond what's built in, many webpack loaders already work with Turbopack. There are currently some limitations:
