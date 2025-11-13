@@ -75,7 +75,7 @@ use crate::{
     dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
     font::FontManifest,
     loadable_manifest::create_react_loadable_manifest,
-    module_graph::get_global_information_for_endpoint,
+    module_graph::{ClientReferencesGraphs, NextDynamicGraphs, ServerActionsGraphs},
     nft_json::NftJsonAsset,
     paths::{
         all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
@@ -1253,22 +1253,22 @@ impl AppEndpoint {
             (AvailabilityInfo::Root, vec![])
         };
 
-        let global_information = get_global_information_for_endpoint(
-            *module_graphs.base,
-            *project.per_page_module_graph().await?,
-        );
-        let next_dynamic_imports = global_information
-            .get_next_dynamic_imports_for_endpoint(*rsc_entry)
-            .await?;
+        let per_page_module_graph = *project.per_page_module_graph().await?;
 
-        let client_references = global_information
-            .get_client_references_for_endpoint(
-                *rsc_entry,
-                matches!(this.ty, AppEndpointType::Page { .. }),
-                project.next_mode().await?.is_production(),
-            )
-            .to_resolved()
-            .await?;
+        let next_dynamic_imports =
+            NextDynamicGraphs::new(*module_graphs.base, per_page_module_graph)
+                .get_next_dynamic_imports_for_endpoint(*rsc_entry)
+                .await?;
+
+        let client_references =
+            ClientReferencesGraphs::new(*module_graphs.base, per_page_module_graph)
+                .get_client_references_for_endpoint(
+                    *rsc_entry,
+                    matches!(this.ty, AppEndpointType::Page { .. }),
+                    project.next_mode().await?.is_production(),
+                )
+                .to_resolved()
+                .await?;
 
         let client_references_chunks = get_app_client_references_chunks(
             *client_references,
@@ -1395,13 +1395,14 @@ impl AppEndpoint {
             }
         }
 
-        let actions = global_information.get_server_actions_for_endpoint(
-            *rsc_entry,
-            match runtime {
-                NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
-                NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
-            },
-        );
+        let actions = ServerActionsGraphs::new(*module_graphs.base, per_page_module_graph)
+            .get_server_actions_for_endpoint(
+                *rsc_entry,
+                match runtime {
+                    NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
+                    NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
+                },
+            );
 
         let server_action_manifest = create_server_actions_manifest(
             actions,
@@ -2074,7 +2075,7 @@ impl Endpoint for AppEndpoint {
         let rsc_entry = app_entry.rsc_entry;
         let runtime = app_entry.config.await?.runtime.unwrap_or_default();
 
-        let actions = get_global_information_for_endpoint(
+        let actions = ServerActionsGraphs::new(
             graph,
             *this.app_project.project().per_page_module_graph().await?,
         )

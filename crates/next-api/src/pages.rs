@@ -71,7 +71,7 @@ use crate::{
     },
     font::FontManifest,
     loadable_manifest::create_react_loadable_manifest,
-    module_graph::get_global_information_for_endpoint,
+    module_graph::{NextDynamicGraphs, validate_pages_css_imports},
     nft_json::NftJsonAsset,
     paths::{
         all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
@@ -941,11 +941,7 @@ impl PageEndpoint {
                 let client_availability_info = self.client_chunk_group().await?.availability_info;
 
                 let client_module_graph = self.client_module_graph();
-
-                let global_information = get_global_information_for_endpoint(
-                    client_module_graph,
-                    *project.per_page_module_graph().await?,
-                );
+                let per_page_module_graph = *project.per_page_module_graph().await?;
 
                 // We only validate the global css imports when there is not a `app` folder at the
                 // root of the project.
@@ -968,14 +964,19 @@ impl PageEndpoint {
                         .await?
                         .module();
 
-                    global_information
-                        .validate_pages_css_imports(self.client_module(), app_module)
-                        .await?;
+                    validate_pages_css_imports(
+                        client_module_graph,
+                        per_page_module_graph,
+                        self.client_module(),
+                        app_module,
+                    )
+                    .await?;
                 }
 
-                let next_dynamic_imports = global_information
-                    .get_next_dynamic_imports_for_endpoint(self.client_module())
-                    .await?;
+                let next_dynamic_imports =
+                    NextDynamicGraphs::new(client_module_graph, per_page_module_graph)
+                        .get_next_dynamic_imports_for_endpoint(self.client_module())
+                        .await?;
                 Some((next_dynamic_imports, client_availability_info))
             } else {
                 None
