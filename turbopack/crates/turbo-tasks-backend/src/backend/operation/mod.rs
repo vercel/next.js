@@ -430,6 +430,33 @@ pub trait TaskGuard: Debug {
             )),
         }
     }
+    fn dirty_containers(&self, session_id: SessionId) -> impl Iterator<Item = TaskId> {
+        self.dirty_containers_with_count(session_id)
+            .map(|(task_id, _)| task_id)
+    }
+    fn dirty_containers_with_count(
+        &self,
+        session_id: SessionId,
+    ) -> impl Iterator<Item = (TaskId, i32)> {
+        iter_many!(self, AggregatedDirtyContainer { task } count => (task, *count)).filter(
+            move |&(task_id, count)| {
+                if count > 0 {
+                    let clean_count = get!(
+                        self,
+                        AggregatedSessionDependentCleanContainer {
+                            task: task_id,
+                            session_id
+                        }
+                    )
+                    .copied()
+                    .unwrap_or_default();
+                    count > clean_count
+                } else {
+                    false
+                }
+            },
+        )
+    }
 }
 
 pub struct TaskGuardImpl<'a, B: BackingStorage> {

@@ -28,7 +28,9 @@ use crate::{
     backend::{
         TaskDataCategory, get_mut, get_mut_or_insert_with,
         operation::{ExecuteContext, Operation, TaskGuard, invalidate::make_task_dirty},
-        storage::{count, get, get_many, iter_many, remove, update, update_count},
+        storage::{
+            count, get, get_many, iter_many, remove, update, update_count, update_count_and_get,
+        },
     },
     data::{
         ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
@@ -327,34 +329,100 @@ impl AggregatedDataUpdate {
             collectibles_update,
         } = self;
         let mut result = Self::default();
-        if let &Some((dirty_container_id, count, session_dependent_clean_update)) =
+        if let &Some((dirty_container_id, count, current_session_clean_update)) =
             dirty_container_update
         {
             if should_track_activeness {
                 // When a dirty container count is increased and the task is considered as active
                 // we need to schedule the dirty tasks in the new dirty container
-                let current_session_update = count - *session_dependent_clean_update;
+                let current_session_update = count - *current_session_clean_update;
                 if current_session_update > 0 && task.has_key(&CachedDataItemKey::Activeness {}) {
                     queue.push_find_and_schedule_dirty(dirty_container_id)
                 }
             }
 
-            let mut aggregated_update = DirtyContainerCount::default();
-            update!(
-                task,
-                AggregatedDirtyContainer {
-                    task: dirty_container_id
-                },
-                |old: Option<DirtyContainerCount>| {
-                    let mut new = old.unwrap_or_default();
-                    aggregated_update =
-                        new.update_count(&DirtyContainerCount::from_current_session_clean(
-                            count,
-                            current_session_id,
-                            *session_dependent_clean_update,
-                        ));
-                    (!new.is_zero()).then_some(new)
+            let mut aggregated_count_update = 0;
+            let mut aggregated_current_session_clean_update = 0;
+            let old_aggregated_dirty_container_count;
+            let new_aggregated_dirty_container_count;
+            let old_current_session_clean_count;
+            let new_current_session_clean_count;
+
+            if count != 0 {
+                new_aggregated_dirty_container_count = update_count_and_get!(
+                    task,
+                    AggregatedDirtyContainer {
+                        task: dirty_container_id
+                    },
+                    count
+                );
+                old_aggregated_dirty_container_count = new_aggregated_dirty_container_count - count;
+                match (
+                    old_aggregated_dirty_container_count > 0,
+                    new_aggregated_dirty_container_count > 0,
+                ) {
+                    (true, false) => {
+                        aggregated_count_update = -1;
+                    }
+                    (false, true) => {
+                        aggregated_count_update = 1;
+                    }
+                    _ => {}
                 }
+            } else {
+                new_aggregated_dirty_container_count = get!(
+                    task,
+                    AggregatedDirtyContainer {
+                        task: dirty_container_id
+                    }
+                )
+                .copied()
+                .unwrap_or_default();
+                old_aggregated_dirty_container_count = new_aggregated_dirty_container_count;
+            }
+
+            if *current_session_clean_update != 0 {
+                new_current_session_clean_count = update_count_and_get!(
+                    task,
+                    AggregatedSessionDependentCleanContainer {
+                        task: dirty_container_id,
+                        session_id: current_session_id
+                    },
+                    *current_session_clean_update
+                );
+                old_current_session_clean_count =
+                    new_current_session_clean_count - *current_session_clean_update;
+            } else {
+                new_current_session_clean_count = get!(
+                    task,
+                    AggregatedSessionDependentCleanContainer {
+                        task: dirty_container_id,
+                        session_id: current_session_id
+                    }
+                )
+                .copied()
+                .unwrap_or_default();
+                old_current_session_clean_count = new_current_session_clean_count;
+            }
+
+            let was_clean = old_aggregated_dirty_container_count > 0
+                && old_aggregated_dirty_container_count - old_current_session_clean_count <= 0;
+            let is_clean = new_aggregated_dirty_container_count > 0
+                && new_aggregated_dirty_container_count - new_current_session_clean_count <= 0;
+            match (was_clean, is_clean) {
+                (true, false) => {
+                    aggregated_current_session_clean_update = -1;
+                }
+                (false, true) => {
+                    aggregated_current_session_clean_update = 1;
+                }
+                _ => {}
+            }
+
+            let aggregated_update = DirtyContainerCount::from_current_session_clean(
+                aggregated_count_update,
+                current_session_id,
+                aggregated_current_session_clean_update,
             );
 
             if !aggregated_update.is_zero() {
@@ -1273,7 +1341,7 @@ impl AggregationUpdateQueue {
         // this would already be scheduled by the `Activeness`
         let is_active_until_clean = get!(task, Activeness).is_some_and(|a| a.active_until_clean);
         if !is_active_until_clean {
-            let mut dirty_containers = iter_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => task).peekable();
+            let mut dirty_containers = task.dirty_containers(session_id).peekable();
             let is_empty = dirty_containers.peek().is_none();
             if !is_empty || dirty {
                 self.extend_find_and_schedule_dirty(dirty_containers);

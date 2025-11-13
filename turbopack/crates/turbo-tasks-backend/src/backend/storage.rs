@@ -1096,6 +1096,38 @@ macro_rules! update_count {
     };
 }
 
+macro_rules! update_count_and_get {
+    ($task:ident, $key:ident $input:tt, -$update:expr) => {{
+        let update = $update;
+        let mut new = 0;
+        $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
+            let old = old.unwrap_or(0);
+            new = old - update;
+            (new != 0).then_some(new)
+        });
+        new
+    }};
+    ($task:ident, $key:ident $input:tt, $update:expr) => {
+        match $update {
+            update => {
+                let mut new = 0;
+                $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
+                    let old = old.unwrap_or(0);
+                    new = old + update;
+                    (new != 0).then_some(new)
+                });
+                new
+            }
+        }
+    };
+    ($task:ident, $key:ident, -$update:expr) => {
+        $crate::backend::storage::update_count_and_get!($task, $key {}, -$update)
+    };
+    ($task:ident, $key:ident, $update:expr) => {
+        $crate::backend::storage::update_count_and_get!($task, $key {}, $update)
+    };
+}
+
 macro_rules! remove {
     ($task:ident, $key:ident $input:tt) => {{
         #[allow(unused_imports)]
@@ -1122,6 +1154,7 @@ pub(crate) use iter_many;
 pub(crate) use remove;
 pub(crate) use update;
 pub(crate) use update_count;
+pub(crate) use update_count_and_get;
 
 pub struct SnapshotGuard<'l> {
     storage: &'l Storage,

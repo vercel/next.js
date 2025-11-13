@@ -653,7 +653,12 @@ pub enum CachedDataItem {
     // Aggregated Data
     AggregatedDirtyContainer {
         task: TaskId,
-        value: DirtyContainerCount,
+        value: i32,
+    },
+    AggregatedSessionDependentCleanContainer {
+        task: TaskId,
+        session_id: SessionId,
+        value: i32,
     },
     AggregatedCollectible {
         collectible: CollectibleRef,
@@ -734,6 +739,9 @@ impl CachedDataItem {
             CachedDataItem::Follower { task, .. } => !task.is_transient(),
             CachedDataItem::Upper { task, .. } => !task.is_transient(),
             CachedDataItem::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
+            CachedDataItem::AggregatedSessionDependentCleanContainer { task, .. } => {
+                !task.is_transient()
+            }
             CachedDataItem::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
             }
@@ -808,6 +816,7 @@ impl CachedDataItem {
             | Self::Child { .. }
             | Self::Upper { .. }
             | Self::AggregatedDirtyContainer { .. }
+            | Self::AggregatedSessionDependentCleanContainer { .. }
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. }
             | Self::Stateful { .. }
@@ -852,6 +861,9 @@ impl CachedDataItemKey {
             CachedDataItemKey::Follower { task, .. } => !task.is_transient(),
             CachedDataItemKey::Upper { task, .. } => !task.is_transient(),
             CachedDataItemKey::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
+            CachedDataItemKey::AggregatedSessionDependentCleanContainer { task, .. } => {
+                !task.is_transient()
+            }
             CachedDataItemKey::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
             }
@@ -894,6 +906,7 @@ impl CachedDataItemType {
             | Self::Child { .. }
             | Self::Upper { .. }
             | Self::AggregatedDirtyContainer { .. }
+            | Self::AggregatedSessionDependentCleanContainer { .. }
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. }
             | Self::Stateful { .. }
@@ -930,6 +943,7 @@ impl CachedDataItemType {
             | Self::Follower
             | Self::Upper
             | Self::AggregatedDirtyContainer
+            | Self::AggregatedSessionDependentCleanContainer
             | Self::AggregatedCollectible
             | Self::AggregatedDirtyContainerCount
             | Self::Stateful
