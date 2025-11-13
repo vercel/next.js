@@ -88,6 +88,12 @@ so for now, simply ensuring coordination is enough.
 
 let cannotGuaranteeAtomicTimers = false
 
+function warnAboutTimers() {
+  console.warn(
+    "Next.js cannot guarantee that Cache Components will run as expected due to the current runtime's implementation of `setTimeout()`.\nPlease report a github issue here: https://github.com/vercel/next.js/issues/new/"
+  )
+}
+
 /**
  * Allows scheduling multiple timers (equivalent to `setTimeout(cb, delayMs)`)
  * that are guaranteed to run in the same iteration of the event loop.
@@ -102,14 +108,47 @@ export function createAtomicTimerGroup(delayMs = 0) {
     )
   } else {
     let firstTimerIdleStart: number | null = null
+    let didFirstTimerRun = false
+
+    // As a sanity check, we schedule an immediate from the first timeout
+    // to check if the execution was interrupted.
+    let didImmediateRun = false
+    function runFirstCallback(callback: () => void) {
+      didFirstTimerRun = true
+      setImmediate(() => {
+        didImmediateRun = true
+      })
+      return callback()
+    }
+
+    function runSubsequentCallback(callback: () => void) {
+      if (didImmediateRun) {
+        // If the immediate managed to run between the timers, then we're not
+        // able to provide the guarantees that we're supposed to
+        cannotGuaranteeAtomicTimers = true
+        warnAboutTimers()
+      }
+      return callback()
+    }
 
     return function scheduleTimeout(callback: () => void) {
-      const timer = setTimeout(callback, delayMs)
+      if (didFirstTimerRun) {
+        throw new InvariantError(
+          'Cannot schedule more timers into a group that already executed'
+        )
+      }
+
       if (cannotGuaranteeAtomicTimers) {
         // We already tried patching some timers, and it didn't work.
         // No point trying again.
-        return timer
+        return setTimeout(callback, delayMs)
       }
+
+      const timer = setTimeout(
+        firstTimerIdleStart === null ? runFirstCallback : runSubsequentCallback,
+        delayMs,
+        callback
+      )
 
       // NodeJS timers to have a `_idleStart` property, but it doesn't exist e.g. in Bun.
       // If it's not present, we'll warn and try to continue.
@@ -125,10 +164,8 @@ export function createAtomicTimerGroup(delayMs = 0) {
             timer._idleStart = firstTimerIdleStart
           }
         } else {
-          console.warn(
-            "Next.js cannot guarantee that Cache Components will run as expected due to the current runtime's implementation of `setTimeout()`.\nPlease report a github issue here: https://github.com/vercel/next.js/issues/new/"
-          )
           cannotGuaranteeAtomicTimers = true
+          warnAboutTimers()
         }
       } catch (err) {
         // This should never fail in current Node, but it might start failing in the future.
