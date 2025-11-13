@@ -25,7 +25,7 @@ use crate::{
     backing_storage::BackingStorage,
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemType, CachedDataItemValue,
-        CachedDataItemValueRef, CachedDataItemValueRefMut, Dirtyness,
+        CachedDataItemValueRef, CachedDataItemValueRefMut, DirtyContainerCount, Dirtyness,
     },
 };
 
@@ -467,6 +467,12 @@ pub trait TaskGuard: Debug {
                 }
             },
         )
+    }
+
+    fn dirty_container_count(&self) -> DirtyContainerCount {
+        get!(self, AggregatedDirtyContainerCount)
+            .cloned()
+            .unwrap_or_default()
     }
 }
 
