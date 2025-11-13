@@ -679,6 +679,38 @@ export function getResolveRoutes(
                 )
 
                 if (curLocaleResult.detectedLocale) {
+                  // Check if this path could be an App Router route with dynamic locale segment
+                  // If so, we should NOT strip the locale prefix because App Router needs it
+                  // to populate the dynamic [lang] parameter (GitHub Issue #86048)
+                  let shouldStripLocale = true
+
+                  if (fsChecker.appFiles.size > 0) {
+                    const {
+                      couldMatchAppRouterLocaleRoute,
+                      getAppRoutePatterns,
+                    } = (require('../i18n/detect-app-router-locale-route') as typeof import('../i18n/detect-app-router-locale-route'))
+
+                    const appRoutePatterns = getAppRoutePatterns(
+                      fsChecker.appFiles
+                    )
+
+                    // Check if the pathname with locale could match an App Router route
+                    if (
+                      couldMatchAppRouterLocaleRoute(
+                        parsedUrl.pathname || '',
+                        appRoutePatterns
+                      )
+                    ) {
+                      shouldStripLocale = false
+                    }
+                  }
+
+                  if (shouldStripLocale) {
+                    // This is a Pages Router path, strip the locale as usual
+                    parsedUrl.pathname = curLocaleResult.pathname
+                  }
+                  // else: Keep the full path with locale for App Router
+
                   addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
                 }
               }
