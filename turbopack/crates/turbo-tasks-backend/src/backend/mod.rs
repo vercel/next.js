@@ -840,10 +840,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let content = if final_read_hint {
             task.remove_cell_data(is_transient_cell, cell)
-        } else if let Some(content) = task.get_cell_data(is_transient_cell, cell) {
-            Some(content)
         } else {
-            None
+            task.get_cell_data(is_transient_cell, cell)
         };
         if let Some(content) = content {
             if tracking.should_track(false) {
