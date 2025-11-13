@@ -229,7 +229,7 @@ Using the `delete()` method:
 
 import { cookies } from 'next/headers'
 
-export async function delete(data) {
+export async function deleteCookie(data) {
   (await cookies()).delete('name')
 }
 ```
@@ -239,7 +239,7 @@ export async function delete(data) {
 
 import { cookies } from 'next/headers'
 
-export async function delete(data) {
+export async function deleteCookie(data) {
   (await cookies()).delete('name')
 }
 ```
@@ -251,7 +251,7 @@ Setting a new cookie with the same name and an empty value:
 
 import { cookies } from 'next/headers'
 
-export async function delete(data) {
+export async function deleteCookie(data) {
   (await cookies()).set('name', '')
 }
 ```
@@ -261,7 +261,7 @@ export async function delete(data) {
 
 import { cookies } from 'next/headers'
 
-export async function delete(data) {
+export async function deleteCookie(data) {
   (await cookies()).set('name', '')
 }
 ```
@@ -273,7 +273,7 @@ Setting the `maxAge` to 0 will immediately expire a cookie. `maxAge` accepts a v
 
 import { cookies } from 'next/headers'
 
-export async function delete(data) {
+export async function deleteCookie(data) {
   (await cookies()).set('name', 'value', { maxAge: 0 })
 }
 ```
@@ -283,9 +283,8 @@ export async function delete(data) {
 
 import { cookies } from 'next/headers'
 
-export async function delete(data) {
+export async function deleteCookie(data) {
   (await cookies()).set('name', 'value', { maxAge: 0 })
-``
 }
 ```
 
