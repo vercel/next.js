@@ -302,7 +302,7 @@ pub fn make_task_dirty_internal(
                 AggregatedDataUpdate::new().dirty_container_update(
                     task_id,
                     aggregated_update.count,
-                    aggregated_update.session_dependent_clean(),
+                    aggregated_update.current_session_clean(ctx.session_id()),
                 ),
             ));
         }
