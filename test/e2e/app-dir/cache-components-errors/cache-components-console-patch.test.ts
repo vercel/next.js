@@ -45,11 +45,9 @@ describe('Cache Components Errors', () => {
           expect(output).toContain('GET / 200')
           const snapshot = output.slice(0, output.indexOf('GET / 200')).trim()
 
-          expect(snapshot).toMatchInlineSnapshot(`
-           "[<timestamp>] This is a console log from a server component page
-           [<timestamp>] This is a console log from a server component page
-           [<timestamp>] This is a console log from a server component page"
-          `)
+          expect(snapshot).toMatchInlineSnapshot(
+            `"[<timestamp>] This is a console log from a server component page"`
+          )
         })
       } else {
         it('does not fail the build for Sync IO if console.log is patched to call new Date() internally', async () => {

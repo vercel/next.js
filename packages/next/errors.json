@@ -907,5 +907,17 @@
   "906": "Bindings not loaded yet, but they are being loaded, did you forget to await?",
   "907": "bindings not loaded yet.  Either call `loadBindings` to wait for them to be available or ensure that `installBindings` has already been called.",
   "908": "Invalid flags should be run as node detached-flush dev ./path-to/project [eventsFile]",
-  "909": "Failed to load SWC binary for %s/%s, see more info here: https://nextjs.org/docs/messages/failed-loading-swc"
+  "909": "Failed to load SWC binary for %s/%s, see more info here: https://nextjs.org/docs/messages/failed-loading-swc",
+  "910": "Route \"%s\" did not produce a static shell and Next.js was unable to determine a reason.",
+  "911": "The next-server runtime is not available in Edge runtime.",
+  "912": "`abandonRender` called on a stage controller that cannot be abandoned.",
+  "913": "Expected debug stream to be a ReadableStream",
+  "914": "Expected debug stream to be a Readable",
+  "915": "Unexpected stream chunk in Before stage",
+  "916": "Unexpected stream chunk while in Before stage",
+  "917": "getFlightStream should always receive a ReadableStream when using the edge runtime",
+  "918": "nodeStreamFromReadableStream cannot be used in the edge runtime",
+  "919": "createNodeStreamFromChunks cannot be used in the edge runtime",
+  "920": "install() was not called",
+  "921": "The \"callback\" argument must be of type function. Received %s"
 }

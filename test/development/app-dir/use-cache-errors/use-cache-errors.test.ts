@@ -74,7 +74,7 @@ describe('use-cache-errors', () => {
         await expect(browser).toDisplayRedbox(`
          {
            "description": "kaputt!",
-           "environmentLabel": "Prerender",
+           "environmentLabel": "Cache",
            "label": "Runtime Error",
            "source": "app/anonymous/page.tsx (4:11) @ eval
          > 4 |     throw new Error('kaputt!')

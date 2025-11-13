@@ -1,4 +1,5 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { runPendingImmediatesAfterCurrentTask } from './fast-set-immediate.external'
 
 /**
  * This is a utility function to make scheduling sequential tasks that run back to back easier.
@@ -16,6 +17,7 @@ export function scheduleInSequentialTasks<R>(
     return new Promise((resolve, reject) => {
       let pendingResult: R | Promise<R>
       setTimeout(() => {
+        runPendingImmediatesAfterCurrentTask()
         try {
           pendingResult = render()
         } catch (err) {
@@ -38,7 +40,7 @@ export function scheduleInSequentialTasks<R>(
 export function pipelineInSequentialTasks<A, B, C>(
   one: () => A,
   two: (a: A) => B,
-  three: (b: B) => C | Promise<C>
+  three: (b: B) => C
 ): Promise<C> {
   if (process.env.NEXT_RUNTIME === 'edge') {
     throw new InvariantError(
@@ -46,37 +48,48 @@ export function pipelineInSequentialTasks<A, B, C>(
     )
   } else {
     return new Promise((resolve, reject) => {
-      let oneResult: A | undefined = undefined
+      let oneResult: A
       setTimeout(() => {
+        runPendingImmediatesAfterCurrentTask()
         try {
           oneResult = one()
         } catch (err) {
           clearTimeout(twoId)
           clearTimeout(threeId)
+          clearTimeout(fourId)
           reject(err)
         }
       }, 0)
 
-      let twoResult: B | undefined = undefined
+      let twoResult: B
       const twoId = setTimeout(() => {
+        runPendingImmediatesAfterCurrentTask()
         // if `one` threw, then this timeout would've been cleared,
         // so if we got here, we're guaranteed to have a value.
         try {
           twoResult = two(oneResult!)
         } catch (err) {
           clearTimeout(threeId)
+          clearTimeout(fourId)
           reject(err)
         }
       }, 0)
 
+      let threeResult: C
       const threeId = setTimeout(() => {
         // if `two` threw, then this timeout would've been cleared,
         // so if we got here, we're guaranteed to have a value.
         try {
-          resolve(three(twoResult!))
+          threeResult = three(twoResult!)
         } catch (err) {
+          clearTimeout(fourId)
           reject(err)
         }
+      }, 0)
+
+      // We wait a task before resolving/rejecting
+      const fourId = setTimeout(() => {
+        resolve(threeResult)
       }, 0)
     })
   }
