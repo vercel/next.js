@@ -51,6 +51,7 @@ import {
   CACHE_ONE_YEAR,
   HTML_CONTENT_TYPE_HEADER,
   NEXT_CACHE_TAGS_HEADER,
+  NEXT_RESUME_HEADER,
 } from '../../lib/constants'
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
@@ -121,6 +122,10 @@ export async function handler(
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }
+  const isMinimalMode = Boolean(
+    process.env.MINIMAL_MODE || getRequestMeta(req, 'minimalMode')
+  )
+
   let srcPage = 'VAR_DEFINITION_PAGE'
 
   // turbopack doesn't normalize `/index` in the page name
@@ -134,10 +139,6 @@ export async function handler(
   }
   const multiZoneDraftMode = process.env
     .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
-
-  const isMinimalMode = Boolean(
-    process.env.MINIMAL_MODE || getRequestMeta(req, 'minimalMode')
-  )
 
   const prepareResult = await routeModule.prepare(req, res, {
     srcPage,
@@ -218,6 +219,25 @@ export async function handler(
   const couldSupportPPR: boolean = checkIsAppPPREnabled(
     nextConfig.experimental.ppr
   )
+
+  if (
+    !getRequestMeta(req, 'postponed') &&
+    couldSupportPPR &&
+    req.headers[NEXT_RESUME_HEADER] === '1' &&
+    req.method === 'POST'
+  ) {
+    // Decode the postponed state from the request body, it will come as
+    // an array of buffers, so collect them and then concat them to form
+    // the string.
+
+    const body: Array<Buffer> = []
+    for await (const chunk of req) {
+      body.push(chunk)
+    }
+    const postponed = Buffer.concat(body).toString('utf8')
+
+    addRequestMeta(req, 'postponed', postponed)
+  }
 
   // When enabled, this will allow the use of the `?__nextppronly` query to
   // enable debugging of the static shell.
