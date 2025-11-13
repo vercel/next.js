@@ -18,7 +18,7 @@
 
 Used by some of the world's largest companies, Next.js enables you to create full-stack web applications by extending the latest React features, and integrating powerful Rust-based JavaScript tooling for the fastest builds.
 
-- Visit our [Learn Next.js](https://nextjs.org/learn) course to get started with Next.js.
+- Visit our [Learn Next.js](https://nextjs.org/learn) course to get started with Next.js today.
 - Visit the [Next.js Showcase](https://nextjs.org/showcase) to see more sites built with Next.js.
 
 ## Documentation
@@ -29,7 +29,7 @@ Visit [https://nextjs.org/docs](https://nextjs.org/docs) to view the full docume
 
 The Next.js community can be found on [GitHub Discussions](https://github.com/vercel/next.js/discussions) where you can ask questions, voice ideas, and share your projects with other people.
 
-To chat with other community members you can join the Next.js [Discord](https://nextjs.org/discord) server.
+To chat with other community members, you can join the Next.js [Discord](https://nextjs.org/discord) server.
 
 Do note that our [Code of Conduct](https://github.com/vercel/next.js/blob/canary/CODE_OF_CONDUCT.md) applies to all Next.js community channels. Users are **highly encouraged** to read and adhere to it to avoid repercussions.
 
