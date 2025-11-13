@@ -1,15 +1,12 @@
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import {
-  formatIssue,
-  isPersistentCachingEnabled,
-  isRelevantWarning,
-} from '../../shared/lib/turbopack/utils'
+import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
-import { createDefineEnv, loadBindings } from '../swc'
+import { createDefineEnv, getBindingsSync } from '../swc'
+import { installBindings } from '../swc/install-bindings'
 import {
-  rawEntrypointsToEntrypoints,
   handleRouteType,
+  rawEntrypointsToEntrypoints,
 } from '../handle-entrypoints'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import { promises as fs } from 'fs'
@@ -20,8 +17,9 @@ import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
 import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers } from '../utils'
+import { getSupportedBrowsers, printBuildErrors } from '../utils'
 import { normalizePath } from '../../lib/normalize-path'
+import type { RawEntrypoints, TurbopackResult } from '../swc/types'
 
 export async function turbopackBuild(): Promise<{
   duration: number
@@ -41,17 +39,16 @@ export async function turbopackBuild(): Promise<{
   const previewProps = NextBuildContext.previewProps!
   const hasRewrites = NextBuildContext.hasRewrites!
   const rewrites = NextBuildContext.rewrites!
-  const appDirOnly = NextBuildContext.appDirOnly!
   const noMangling = NextBuildContext.noMangling!
   const currentNodeJsVersion = process.versions.node
 
   const startTime = process.hrtime()
-  const bindings = await loadBindings(config?.experimental?.useWasmBinary)
+  const bindings = getBindingsSync() // our caller should have already loaded these
   const dev = false
 
   const supportedBrowsers = getSupportedBrowsers(dir, dev)
 
-  const persistentCaching = isPersistentCachingEnabled(config)
+  const persistentCaching = isFileSystemCacheEnabledForBuild(config)
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
   const project = await bindings.turbo.createProject(
     {
@@ -104,17 +101,30 @@ export async function turbopackBuild(): Promise<{
     })
     await fs.writeFile(
       path.join(distDir, 'package.json'),
-      JSON.stringify(
-        {
-          type: 'commonjs',
-        },
-        null,
-        2
-      )
+      '{"type": "commonjs"}'
     )
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    let appDirOnly = NextBuildContext.appDirOnly!
     const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
+    printBuildErrors(entrypoints, dev)
+
+    let routes = entrypoints.routes
+    if (!routes) {
+      // This should never ever happen, there should be an error issue, or the bindings call should
+      // have thrown.
+      throw new Error(`Turbopack build failed`)
+    }
+
+    const hasPagesEntries = Array.from(routes.values()).some((route) => {
+      if (route.type === 'page' || route.type === 'page-api') {
+        return true
+      }
+      return false
+    })
+    // If there's no pages entries, then we are in app-dir-only mode
+    if (!hasPagesEntries) {
+      appDirOnly = true
+    }
 
     const manifestLoader = new TurbopackManifestLoader({
       buildId,
@@ -122,35 +132,11 @@ export async function turbopackBuild(): Promise<{
       encryptionKey,
     })
 
-    const topLevelErrors = []
-    const topLevelWarnings = []
-    for (const issue of entrypoints.issues) {
-      if (issue.severity === 'error' || issue.severity === 'fatal') {
-        topLevelErrors.push(formatIssue(issue))
-      } else if (isRelevantWarning(issue)) {
-        topLevelWarnings.push(formatIssue(issue))
-      }
-    }
+    const currentEntrypoints = await rawEntrypointsToEntrypoints(
+      entrypoints as TurbopackResult<RawEntrypoints>
+    )
 
-    if (topLevelWarnings.length > 0) {
-      console.warn(
-        `Turbopack build encountered ${
-          topLevelWarnings.length
-        } warnings:\n${topLevelWarnings.join('\n')}`
-      )
-    }
-
-    if (topLevelErrors.length > 0) {
-      throw new Error(
-        `Turbopack build failed with ${
-          topLevelErrors.length
-        } errors:\n${topLevelErrors.join('\n')}`
-      )
-    }
-
-    const currentEntrypoints = await rawEntrypointsToEntrypoints(entrypoints)
-
-    const promises: Promise<any>[] = []
+    const promises: Promise<void>[] = []
 
     if (!appDirOnly) {
       for (const [page, route] of currentEntrypoints.page) {
@@ -202,11 +188,15 @@ export async function turbopackBuild(): Promise<{
         )),
     ])
 
-    await manifestLoader.writeManifests({
+    manifestLoader.writeManifests({
       devRewrites: undefined,
       productionRewrites: rewrites,
       entrypoints: currentEntrypoints,
     })
+
+    if (NextBuildContext.analyze) {
+      await project.writeAnalyzeData(appDirOnly)
+    }
 
     const shutdownPromise = project.shutdown()
 
@@ -225,17 +215,21 @@ export async function turbopackBuild(): Promise<{
 let shutdownPromise: Promise<void> | undefined
 export async function workerMain(workerData: {
   buildContext: typeof NextBuildContext
-}): Promise<Awaited<ReturnType<typeof turbopackBuild>>> {
+}): Promise<
+  Omit<Awaited<ReturnType<typeof turbopackBuild>>, 'shutdownPromise'>
+> {
   // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, workerData.buildContext)
 
   /// load the config because it's not serializable
-  NextBuildContext.config = await loadConfig(
+  const config = (NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
     NextBuildContext.dir!,
-    { debugPrerender: NextBuildContext.debugPrerender }
-  )
-
+    {
+      debugPrerender: NextBuildContext.debugPrerender,
+      reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+    }
+  ))
   // Matches handling in build/index.ts
   // https://github.com/vercel/next.js/blob/84f347fc86f4efc4ec9f13615c215e4b9fb6f8f0/packages/next/src/build/index.ts#L815-L818
   // Ensures the `config.distDir` option is matched.
@@ -248,10 +242,24 @@ export async function workerMain(workerData: {
     distDir: NextBuildContext.config.distDir,
   })
   setGlobal('telemetry', telemetry)
+  // Install bindings early so we can access synchronously later
+  await installBindings(config.experimental?.useWasmBinary)
 
-  const result = await turbopackBuild()
-  shutdownPromise = result.shutdownPromise
-  return result
+  try {
+    const {
+      shutdownPromise: resultShutdownPromise,
+      buildTraceContext,
+      duration,
+    } = await turbopackBuild()
+    shutdownPromise = resultShutdownPromise
+    return {
+      buildTraceContext,
+      duration,
+    }
+  } finally {
+    // Always flush telemetry before worker exits (waits for async operations like setTimeout in debug mode)
+    await telemetry.flush()
+  }
 }
 
 export async function waitForShutdown(): Promise<void> {

@@ -20,7 +20,7 @@ use turbopack_core::{
 
 use crate::{
     embed_js::next_js_fs, next_config::NextConfig, next_import_map::get_next_package,
-    next_manifests::MiddlewareMatcher, next_shared::webpack_rules::WebpackLoaderBuiltinCondition,
+    next_manifests::ProxyMatcher, next_shared::webpack_rules::WebpackLoaderBuiltinCondition,
 };
 
 const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
@@ -232,7 +232,7 @@ impl NextRuntime {
 #[derive(PartialEq, Eq, Clone, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub enum MiddlewareMatcherKind {
     Str(String),
-    Matcher(MiddlewareMatcher),
+    Matcher(ProxyMatcher),
 }
 
 /// Loads a next.js template, replaces `replacements` and `injections` and makes
@@ -249,7 +249,7 @@ pub async fn load_next_js_template(
     let content = file_content_rope(template_path.read()).await?;
     let content = content.to_str()?;
 
-    let package_root = &*get_next_package(project_path).await?;
+    let package_root = get_next_package(project_path).await?;
 
     let content = expand_next_js_template(
         &content,

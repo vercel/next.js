@@ -19,6 +19,7 @@ no_fast_stale = []
 verify_serialization = []
 verify_aggregation_graph = []
 verify_immutable = []
+verify_determinism = []
 trace_aggregation_update = []
 trace_find_and_schedule = []
 trace_task_completion = []
@@ -30,7 +31,7 @@ anyhow = { workspace = true }
 arc-swap = { version = "1.7.1" }
 auto-hash-map = { workspace = true }
 bitfield = { workspace = true }
-byteorder = "1.5.0"
+byteorder = { workspace = true }
 dashmap = { workspace = true, features = ["raw-api"]}
 either = { workspace = true }
 hashbrown = { workspace = true, features = ["raw"] }

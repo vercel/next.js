@@ -446,7 +446,6 @@ describe('app dir - navigation', () => {
           .elementByCss('button')
           .click()
           .waitForElementByCss('#result-page')
-        // eslint-disable-next-line jest/no-standalone-expect
         expect(await browser.elementByCss('#result-page').text()).toBe(
           'Result Page'
         )

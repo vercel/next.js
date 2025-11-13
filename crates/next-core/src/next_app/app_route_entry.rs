@@ -40,7 +40,7 @@ pub async fn get_app_route_entry(
     let config = if let Some(original_segment_config) = original_segment_config {
         let mut segment_config = segment_from_source.owned().await?;
         segment_config.apply_parent_config(&*original_segment_config.await?);
-        segment_config.into()
+        segment_config.cell()
     } else {
         segment_from_source
     };
@@ -60,8 +60,8 @@ pub async fn get_app_route_entry(
     let inner = rcstr!("INNER_APP_ROUTE");
 
     let output_type: &str = next_config
+        .output()
         .await?
-        .output
         .as_ref()
         .map(|o| match o {
             OutputType::Standalone => "\"standalone\"",
@@ -102,7 +102,7 @@ pub async fn get_app_route_entry(
 
     let mut rsc_entry = module_asset_context
         .process(
-            Vc::upcast(virtual_source),
+            virtual_source,
             ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();
@@ -153,7 +153,7 @@ async fn wrap_edge_route(
 
     let wrapped = asset_context
         .process(
-            Vc::upcast(source),
+            source,
             ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();

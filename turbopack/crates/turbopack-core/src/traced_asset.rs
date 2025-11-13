@@ -50,6 +50,6 @@ impl OutputAsset for TracedAsset {
 impl Asset for TracedAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        panic!("TracedAsset::content() should never be called");
+        self.module.content()
     }
 }

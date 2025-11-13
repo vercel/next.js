@@ -1,6 +1,5 @@
 import type { LRUCache } from '../server/lib/lru-cache'
 
-/* eslint-disable no-redeclare */
 export function withPromiseCache<K, V>(
   cache: LRUCache<Promise<V>>,
   fn: (value: K) => Promise<V>

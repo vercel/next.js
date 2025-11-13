@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../shared'
-import { unstable_cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
 export default async function Page() {
   return (
@@ -21,7 +21,7 @@ export default async function Page() {
 
 async function ShortLivedCache() {
   'use cache'
-  unstable_cacheLife({
+  cacheLife({
     stale: 60, // > RUNTIME_PREFETCH_DYNAMIC_STALE
     revalidate: 2 * 60,
     expire: 3 * 60, // < DYNAMIC_EXPIRE

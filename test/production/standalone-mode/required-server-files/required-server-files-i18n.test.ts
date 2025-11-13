@@ -62,9 +62,6 @@ describe('required server files i18n', () => {
           locales: ['en', 'fr'],
           defaultLocale: 'en',
         },
-        eslint: {
-          ignoreDuringBuilds: true,
-        },
         output: 'standalone',
         async rewrites() {
           return [
@@ -164,7 +161,7 @@ describe('required server files i18n', () => {
     expect(Array.isArray(requiredFilesManifest.files)).toBe(true)
     expect(Array.isArray(requiredFilesManifest.ignore)).toBe(true)
     expect(requiredFilesManifest.files.length).toBeGreaterThan(0)
-    expect(requiredFilesManifest.ignore.length).toBeGreaterThan(0)
+    expect(requiredFilesManifest.ignore.length).toBe(0)
     expect(typeof requiredFilesManifest.config.configFile).toBe('undefined')
     expect(typeof requiredFilesManifest.config.trailingSlash).toBe('boolean')
     expect(typeof requiredFilesManifest.appDir).toBe('string')

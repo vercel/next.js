@@ -584,10 +584,10 @@ impl ResolvedMap {
                     request,
                 )
                 .await?
-                .into());
+                .cell());
             }
         }
-        Ok(ImportMapResult::NoEntry.into())
+        Ok(ImportMapResult::NoEntry.cell())
     }
 }
 
@@ -621,6 +621,8 @@ pub struct ResolveOptions {
     pub enable_typescript_with_output_extension: bool,
     /// Warn instead of error for resolve errors
     pub loose_errors: bool,
+    /// Collect affecting sources for each resolve result.  Useful for tracing.
+    pub collect_affecting_sources: bool,
     /// Whether to parse data URIs into modules (as opposed to keeping them as externals)
     pub parse_data_uris: bool,
 
@@ -645,7 +647,7 @@ impl ResolveOptions {
                 .to_resolved()
                 .await?,
         );
-        Ok(resolve_options.into())
+        Ok(resolve_options.cell())
     }
 
     /// Returns a new [Vc<ResolveOptions>] with its fallback import map extended
@@ -667,7 +669,7 @@ impl ResolveOptions {
             } else {
                 Some(extended_import_map)
             };
-        Ok(resolve_options.into())
+        Ok(resolve_options.cell())
     }
 
     /// Overrides the extensions used for resolving
@@ -675,7 +677,7 @@ impl ResolveOptions {
     pub async fn with_extensions(self: Vc<Self>, extensions: Vec<RcStr>) -> Result<Vc<Self>> {
         let mut resolve_options = self.owned().await?;
         resolve_options.extensions = extensions;
-        Ok(resolve_options.into())
+        Ok(resolve_options.cell())
     }
 
     /// Overrides the fully_specified flag for resolving
@@ -706,7 +708,7 @@ pub async fn resolve_modules_options(
         modules: options.modules.clone(),
         extensions: options.extensions.clone(),
     }
-    .into())
+    .cell())
 }
 
 #[turbo_tasks::value_trait]

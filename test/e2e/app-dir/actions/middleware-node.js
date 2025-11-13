@@ -11,7 +11,7 @@ export async function middleware(req) {
 }
 
 /**
- * @type {import('next/server').MiddlewareConfig}
+ * @type {import('next/server').ProxyConfig}
  */
 export const config = {
   runtime: 'nodejs',

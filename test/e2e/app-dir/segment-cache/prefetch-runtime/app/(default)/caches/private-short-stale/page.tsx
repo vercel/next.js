@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../shared'
-import { unstable_cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
 export default async function Page() {
   return (
@@ -20,7 +20,7 @@ export default async function Page() {
 
 async function CachedButShortLived() {
   'use cache: private'
-  unstable_cacheLife({
+  cacheLife({
     stale: 5,
     // the rest of the settings don't matter for private caches,
     // because they are not persisted server-side

@@ -23,7 +23,6 @@ use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::CodeGens,
     export::Liveness,
-    parse::ParseResult,
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
         esm::{EsmExport, EsmExports, base::EsmAssetReferences},
@@ -212,7 +211,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
         let (part_references, esm_references) = self.await?.specific_references().await?;
 
         Ok(EcmascriptModuleContentOptions {
-            parsed: ParseResult::empty().to_resolved().await?,
+            parsed: None,
             module: ResolvedVc::upcast(self),
             specified_module_type: SpecifiedModuleType::EcmaScript,
             chunking_context,

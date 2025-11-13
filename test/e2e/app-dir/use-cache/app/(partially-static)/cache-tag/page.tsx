@@ -1,5 +1,5 @@
 import React from 'react'
-import { unstable_cacheTag as cacheTag } from 'next/cache'
+import { cacheTag } from 'next/cache'
 import { RevalidateButtons } from './buttons'
 
 async function getCachedWithTag({

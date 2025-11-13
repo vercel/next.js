@@ -1,4 +1,4 @@
-import { cookies, type UnsafeUnwrappedCookies } from 'next/headers'
+import { cookies } from 'next/headers'
 
 export default async function Page() {
   return (
@@ -14,7 +14,8 @@ export default async function Page() {
 }
 
 async function CookiesReadingComponent() {
-  const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+  // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+  const token = (cookies() as any).get('token')
 
   return (
     <div>

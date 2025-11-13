@@ -52,6 +52,5 @@
             ),
         ],
         span: 8..9,
-        in_try: false,
     },
 ]

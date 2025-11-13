@@ -1,6 +1,4 @@
-*arrow function 1213* = (...) => __webpack_require__(???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+*arrow function 1213* = (...) => __webpack_require__(moduleId)
 
 *arrow function 131* = (...) => undefined
 
@@ -22,7 +20,7 @@ _req = arguments[0]
 
 exports = ({} | undefined)
 
-handler = (...) => undefined
+handler = (...) => Promise<undefined>
 
 hello = await(promises_namespaceObject["readFile"]("./hello.txt", "utf-8"))
 

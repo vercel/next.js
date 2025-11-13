@@ -8,9 +8,8 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Vc};
-use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
-use turbo_tasks_fetch::{FetchClient, HttpResponseBody};
+use turbo_tasks_fetch::{FetchClientConfig, HttpResponseBody};
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystem, FileSystemPath,
     json::parse_json_with_source_context,
@@ -22,6 +21,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::Layer,
     issue::{IssueExt, IssueSeverity, StyledString},
+    module_graph::ModuleGraph,
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ResolveResult,
@@ -32,7 +32,9 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_node::{
-    debug::should_debug, evaluate::evaluate, execution_context::ExecutionContext,
+    debug::should_debug,
+    evaluate::{evaluate, get_evaluate_entries},
+    execution_context::ExecutionContext,
 };
 
 use self::{
@@ -146,7 +148,7 @@ impl NextFontGoogleReplacer {
 impl ImportMappingReplacement for NextFontGoogleReplacer {
     #[turbo_tasks::function]
     fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
-        ReplacedImportMapping::Ignore.into()
+        ReplacedImportMapping::Ignore.cell()
     }
 
     /// Intercepts requests for `next/font/google/target.css` and returns a
@@ -166,14 +168,14 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
             fragment: _,
         } = request
         else {
-            return Ok(ImportMapResult::NoEntry.into());
+            return Ok(ImportMapResult::NoEntry.cell());
         };
 
         let this = &*self.await?;
         if can_use_next_font(this.project_path.clone(), query).await? {
             Ok(self.import_map_result(query.clone()))
         } else {
-            Ok(ImportMapResult::NoEntry.into())
+            Ok(ImportMapResult::NoEntry.cell())
         }
     }
 }
@@ -183,7 +185,7 @@ pub struct NextFontGoogleCssModuleReplacer {
     project_path: FileSystemPath,
     execution_context: ResolvedVc<ExecutionContext>,
     next_mode: ResolvedVc<NextMode>,
-    fetch_client: ResolvedVc<FetchClient>,
+    fetch_client: ResolvedVc<FetchClientConfig>,
 }
 
 #[turbo_tasks::value_impl]
@@ -193,7 +195,7 @@ impl NextFontGoogleCssModuleReplacer {
         project_path: FileSystemPath,
         execution_context: ResolvedVc<ExecutionContext>,
         next_mode: ResolvedVc<NextMode>,
-        fetch_client: ResolvedVc<FetchClient>,
+        fetch_client: ResolvedVc<FetchClientConfig>,
     ) -> Vc<Self> {
         Self::cell(NextFontGoogleCssModuleReplacer {
             project_path,
@@ -338,7 +340,7 @@ impl NextFontGoogleCssModuleReplacer {
 impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
     #[turbo_tasks::function]
     fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
-        ReplacedImportMapping::Ignore.into()
+        ReplacedImportMapping::Ignore.cell()
     }
 
     /// Intercepts requests for the css module made by the virtual JavaScript
@@ -376,13 +378,16 @@ struct NextFontGoogleFontFileOptions {
 #[turbo_tasks::value(shared)]
 pub struct NextFontGoogleFontFileReplacer {
     project_path: FileSystemPath,
-    fetch_client: ResolvedVc<FetchClient>,
+    fetch_client: ResolvedVc<FetchClientConfig>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextFontGoogleFontFileReplacer {
     #[turbo_tasks::function]
-    pub fn new(project_path: FileSystemPath, fetch_client: ResolvedVc<FetchClient>) -> Vc<Self> {
+    pub fn new(
+        project_path: FileSystemPath,
+        fetch_client: ResolvedVc<FetchClientConfig>,
+    ) -> Vc<Self> {
         Self::cell(NextFontGoogleFontFileReplacer {
             project_path,
             fetch_client,
@@ -670,7 +675,7 @@ fn font_file_options_from_query_map(query: &RcStr) -> Result<NextFontGoogleFontF
 }
 
 async fn fetch_real_stylesheet(
-    fetch_client: Vc<FetchClient>,
+    fetch_client: Vc<FetchClientConfig>,
     stylesheet_url: RcStr,
     css_virtual_path: FileSystemPath,
 ) -> Result<Option<Vc<RcStr>>> {
@@ -680,7 +685,7 @@ async fn fetch_real_stylesheet(
 }
 
 async fn fetch_from_google_fonts(
-    fetch_client: Vc<FetchClient>,
+    fetch_client: Vc<FetchClientConfig>,
     url: RcStr,
     virtual_path: FileSystemPath,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
@@ -750,25 +755,26 @@ async fn get_mock_stylesheet(
         )
         .module();
 
+    let entries = get_evaluate_entries(mocked_response_asset, asset_context, None);
+    let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false);
+
     let root = mock_fs.root().owned().await?;
     let val = evaluate(
-        mocked_response_asset,
+        entries,
         root,
         *env,
         loader_source,
-        asset_context,
         *chunking_context,
-        None,
+        module_graph,
         vec![],
         Completion::immutable(),
         should_debug("next_font::google"),
     )
     .await?;
 
-    match &val.try_into_single().await? {
-        SingleValue::Single(val) => {
-            let val: FxHashMap<RcStr, Option<RcStr>> =
-                parse_json_with_source_context(val.to_str()?)?;
+    match &*val {
+        Some(val) => {
+            let val: FxHashMap<RcStr, Option<RcStr>> = parse_json_with_source_context(val)?;
             Ok(val
                 .get(&stylesheet_url)
                 .context("url not found")?

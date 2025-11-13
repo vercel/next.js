@@ -122,7 +122,6 @@ function parseNode(atRule: any, key: any) {
     media = valueParser.stringify(mediaNodes).trim().toLowerCase()
   }
 
-  // eslint-disable-next-line consistent-return
   return { atRule, prefix, url, media, isRequestable }
 }
 
@@ -188,13 +187,11 @@ const plugin = (options: any = {}) => {
 
                 atRule.remove()
 
-                // eslint-disable-next-line consistent-return
                 return { url: resolvedUrl, media, prefix, isRequestable }
               }
 
               atRule.remove()
 
-              // eslint-disable-next-line consistent-return
               return { url, media, prefix, isRequestable }
             })
           )
@@ -205,7 +202,6 @@ const plugin = (options: any = {}) => {
             const resolvedAtRule = resolvedAtRules[index]
 
             if (!resolvedAtRule) {
-              // eslint-disable-next-line no-continue
               continue
             }
 
@@ -214,7 +210,6 @@ const plugin = (options: any = {}) => {
             if (!isRequestable) {
               options.api.push({ url, media, index })
 
-              // eslint-disable-next-line no-continue
               continue
             }
 

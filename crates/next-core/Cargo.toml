@@ -35,6 +35,7 @@ remove_console = { workspace = true }
 itertools = { workspace = true }
 percent-encoding = "2.3.1"
 serde_path_to_error = { workspace = true }
+swc_sourcemap = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "base",

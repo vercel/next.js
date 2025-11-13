@@ -56,6 +56,49 @@ function GenericErrorDescription({ error }: { error: Error }) {
   )
 }
 
+function BlockingPageLoadErrorDescription() {
+  return (
+    <div className="nextjs__blocking_page_load_error_description">
+      <h3 className="nextjs__blocking_page_load_error_description_title">
+        Uncached data was accessed outside of {'<Suspense>'}
+      </h3>
+      <p>
+        This delays the entire page from rendering, resulting in a slow user
+        experience. Next.js uses this error to ensure your app loads instantly
+        on every navigation.
+      </p>
+      <h4>To fix this, you can either:</h4>
+      <p className="nextjs__blocking_page_load_error_fix_option">
+        <strong>Wrap the component in a {'<Suspense>'} boundary.</strong> This
+        allows Next.js to stream its contents to the user as soon as it's ready,
+        without blocking the rest of the app.
+      </p>
+      <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
+        or
+      </h4>
+      <p className="nextjs__blocking_page_load_error_fix_option">
+        <strong>
+          Move the asynchronous await into a Cache Component (
+          <code>"use cache"</code>)
+        </strong>
+        . This allows Next.js to statically prerender the component as part of
+        the HTML document, so it's instantly visible to the user.
+      </p>
+      <p>
+        Note that request-specific information &mdash; such as params, cookies,
+        and headers &mdash; is not available during static prerendering, so must
+        be wrapped in {'<Suspense>'}.
+      </p>
+      <p>
+        Learn more:{' '}
+        <a href="https://nextjs.org/docs/messages/blocking-route">
+          https://nextjs.org/docs/messages/blocking-route
+        </a>
+      </p>
+    </div>
+  )
+}
+
 export function getErrorTypeLabel(
   error: Error,
   type: ReadyRuntimeError['type']
@@ -64,6 +107,12 @@ export function getErrorTypeLabel(
     return `Recoverable ${error.name}`
   }
   if (type === 'console') {
+    const isBlockingPageLoadError = error.message.includes(
+      'https://nextjs.org/docs/messages/blocking-route'
+    )
+    if (isBlockingPageLoadError) {
+      return 'Blocking Route'
+    }
     return `Console ${error.name}`
   }
   return `Runtime ${error.name}`
@@ -82,7 +131,6 @@ export function useErrorDetails(
   notes: string | null
   reactOutputComponentDiff: string | null
 } {
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- compiler bug
   return useMemo(() => {
     if (error === undefined) {
       return noErrorDetails
@@ -150,7 +198,6 @@ export function Errors({
     return frames[firstFirstPartyFrameIndex] ?? null
   }, [frames])
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- compiler bug
   const generateErrorInfo = useCallback(() => {
     if (!activeError) return ''
 
@@ -239,6 +286,8 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
       errorMessage={
         hydrationWarning ? (
           <HydrationErrorDescription message={hydrationWarning} />
+        ) : errorType === 'Blocking Route' ? (
+          <BlockingPageLoadErrorDescription />
         ) : (
           <GenericErrorDescription error={error} />
         )
@@ -350,5 +399,17 @@ export const styles = `
   }
   .error-overlay-notes-container p {
     white-space: pre-wrap;
+  }
+  .nextjs__blocking_page_load_error_description {
+    color: var(--color-stack-notes);
+  }
+  .nextjs__blocking_page_load_error_description_title {
+    color: var(--color-title-color);
+  }
+  .nextjs__blocking_page_load_error_fix_option {
+    background-color: var(--color-background-200);
+    padding: 14px;
+    border-radius: var(--rounded-md-2);
+    border: 1px solid var(--color-gray-alpha-400);
   }
 `

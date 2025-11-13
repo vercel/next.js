@@ -174,20 +174,7 @@ impl OutputAsset for PageLoaderAsset {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let chunks = self.await?.page_chunks.await?;
-
-        let mut references = Vec::with_capacity(chunks.len());
-        for &chunk in chunks.iter() {
-            references.push(chunk);
-        }
-
-        // We don't need to strip the client relative prefix, because we won't be using
-        // these reference paths with `__turbopack_load__`.
-        for chunk_data in &*self.chunks_data(FileSystemPathOption::none()).await? {
-            references.extend(chunk_data.references().await?.iter().copied());
-        }
-
-        Ok(Vc::cell(references))
+        Ok(*self.await?.page_chunks)
     }
 }
 

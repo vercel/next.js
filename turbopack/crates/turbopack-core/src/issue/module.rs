@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
@@ -10,13 +10,31 @@ use crate::{
     source::Source,
 };
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value]
 pub struct ModuleIssue {
     pub ident: ResolvedVc<AssetIdent>,
     pub title: ResolvedVc<StyledString>,
     pub description: ResolvedVc<StyledString>,
     // TODO(PACK-4879): make this mandatory and drop `ident`
     pub source: Option<IssueSource>,
+}
+#[turbo_tasks::value_impl]
+impl ModuleIssue {
+    #[turbo_tasks::function]
+    pub fn new(
+        ident: ResolvedVc<AssetIdent>,
+        title: RcStr,
+        description: RcStr,
+        source: Option<IssueSource>,
+    ) -> Vc<Self> {
+        ModuleIssue {
+            ident,
+            title: StyledString::Text(title).resolved_cell(),
+            description: StyledString::Text(description).resolved_cell(),
+            source,
+        }
+        .cell()
+    }
 }
 
 #[turbo_tasks::value_impl]

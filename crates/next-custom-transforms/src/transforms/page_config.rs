@@ -15,14 +15,6 @@ pub fn page_config(is_development: bool, is_page_file: bool) -> impl Pass {
     })
 }
 
-pub fn page_config_test() -> impl Pass {
-    fold_pass(PageConfig {
-        in_test: true,
-        is_page_file: true,
-        ..Default::default()
-    })
-}
-
 #[derive(Debug, Default)]
 struct PageConfig {
     drop_bundle: bool,
@@ -89,29 +81,7 @@ impl Fold for PageConfig {
                                 if let PropOrSpread::Prop(prop) = prop {
                                     if let Prop::KeyValue(kv) = &**prop {
                                         match &kv.key {
-                                            PropName::Ident(ident) => {
-                                                if &ident.sym == "amp" {
-                                                    if let Expr::Lit(Lit::Bool(Bool {
-                                                        value,
-                                                        ..
-                                                    })) = &*kv.value
-                                                    {
-                                                        if *value && self.is_page_file {
-                                                            self.drop_bundle = true;
-                                                        }
-                                                    } else if let Expr::Lit(Lit::Str(_)) =
-                                                        &*kv.value
-                                                    {
-                                                        // Do not replace
-                                                        // bundle
-                                                    } else {
-                                                        self.handle_error(
-                                                            "Invalid value found.",
-                                                            export.span,
-                                                        );
-                                                    }
-                                                }
-                                            }
+                                            PropName::Ident(_) => {}
                                             _ => {
                                                 self.handle_error(
                                                     "Invalid property found.",

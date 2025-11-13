@@ -103,8 +103,7 @@ export function useFlightStream<T>(
 export function createInlinedDataReadableStream(
   flightStream: ReadableStream<Uint8Array>,
   nonce: string | undefined,
-  formState: unknown | null,
-  requestId: string
+  formState: unknown | null
 ): ReadableStream<Uint8Array> {
   const startScriptTag = nonce
     ? `<script nonce=${JSON.stringify(nonce)}>`
@@ -117,12 +116,7 @@ export function createInlinedDataReadableStream(
     type: 'bytes',
     start(controller) {
       try {
-        writeInitialInstructions(
-          controller,
-          startScriptTag,
-          formState,
-          requestId
-        )
+        writeInitialInstructions(controller, startScriptTag, formState)
       } catch (error) {
         // during encoding or enqueueing forward the error downstream
         controller.error(error)
@@ -166,17 +160,11 @@ export function createInlinedDataReadableStream(
 function writeInitialInstructions(
   controller: ReadableStreamDefaultController,
   scriptStart: string,
-  formState: unknown | null,
-  requestId: string
+  formState: unknown | null
 ) {
   let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
     JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
   )})`
-
-  if (process.env.NODE_ENV !== 'production') {
-    // The request ID is only needed in development mode.
-    scriptContents = `self.__next_r=${JSON.stringify(requestId)};${scriptContents}`
-  }
 
   if (formState != null) {
     scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(

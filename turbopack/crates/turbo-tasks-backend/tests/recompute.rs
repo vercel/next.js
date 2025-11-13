@@ -4,13 +4,13 @@
 
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, State, Vc};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn recompute() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let input = ChangingInput {
             state: State::new(1),
         }
@@ -60,7 +60,7 @@ async fn recompute() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn immutable_analysis() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let input = ChangingInput {
             state: State::new(1),
         }

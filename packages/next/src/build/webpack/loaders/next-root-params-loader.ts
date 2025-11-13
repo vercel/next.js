@@ -3,7 +3,7 @@ import * as path from 'node:path'
 import * as fs from 'node:fs/promises'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
-import { getSegmentParam } from '../../../server/app-render/get-segment-param'
+import { getSegmentParam } from '../../../shared/lib/router/utils/get-segment-param'
 
 export type RootParamsLoaderOpts = {
   appDir: string

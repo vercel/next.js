@@ -174,7 +174,7 @@ impl AmdDefineWithDependenciesCodeGen {
                         pattern_mapping: PatternMapping::resolve_request(
                             **request,
                             *self.origin,
-                            Vc::upcast(chunking_context),
+                            chunking_context,
                             cjs_resolve(
                                 *self.origin,
                                 **request,

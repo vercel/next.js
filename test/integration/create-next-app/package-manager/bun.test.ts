@@ -49,6 +49,7 @@ describe('create-next-app with package manager bun', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          '--no-react-compiler',
         ],
         nextTgzFilename,
         {
@@ -78,6 +79,7 @@ describe('create-next-app with package manager bun', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          '--no-react-compiler',
         ],
         nextTgzFilename,
         {

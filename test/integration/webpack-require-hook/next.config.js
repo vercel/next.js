@@ -1,7 +1,4 @@
 module.exports = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   webpack(config) {
     console.log('Initialized config')
     if (

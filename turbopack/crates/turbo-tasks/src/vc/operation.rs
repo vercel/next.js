@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 pub use turbo_tasks_macros::OperationValue;
 
 use crate::{
-    CollectiblesSource, RawVc, ReadVcFuture, ResolvedVc, TaskInput, Upcast, Vc, VcValueTrait,
+    CollectiblesSource, RawVc, ReadVcFuture, ResolvedVc, TaskInput, UpcastStrict, Vc, VcValueTrait,
     VcValueType, marker_trait::impl_auto_marker_trait, trace::TraceRawVcs,
 };
 
@@ -94,7 +94,7 @@ impl<T: ?Sized> OperationVc<T> {
     #[inline(always)]
     pub fn upcast<K>(vc: Self) -> OperationVc<K>
     where
-        T: Upcast<K>,
+        T: UpcastStrict<K>,
         K: VcValueTrait + ?Sized,
     {
         OperationVc {
@@ -236,6 +236,10 @@ impl<T> CollectiblesSource for OperationVc<T>
 where
     T: ?Sized,
 {
+    fn drop_collectibles<Vt: VcValueTrait>(self) {
+        self.node.node.drop_collectibles::<Vt>();
+    }
+
     fn take_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
         self.node.node.take_collectibles()
     }

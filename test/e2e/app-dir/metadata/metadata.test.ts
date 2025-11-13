@@ -337,6 +337,14 @@ describe('app dir - metadata', () => {
         'https://outerspace.com/huozhi.png'
       )
     })
+
+    it('should handle metadataBase as url string', async () => {
+      const url$ = await next.render$('/metadata-base/url-string')
+
+      expect(url$('link[rel="canonical"]').attr('href')).toBe(
+        'https://example.com/case/metadata-base/url-string'
+      )
+    })
   })
 
   describe('opengraph', () => {
@@ -680,7 +688,9 @@ describe('app dir - metadata', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('content-type')).toBe('image/x-icon')
       expect(res.headers.get('cache-control')).toBe(
-        isNextDev ? 'no-cache, no-store' : 'public, max-age=0, must-revalidate'
+        isNextDev
+          ? 'no-store, must-revalidate'
+          : 'public, max-age=0, must-revalidate'
       )
     })
 
@@ -693,18 +703,25 @@ describe('app dir - metadata', () => {
       expect(resAppleIcon.status).toBe(200)
       expect(resAppleIcon.headers.get('content-type')).toBe('image/png')
       expect(resAppleIcon.headers.get('cache-control')).toBe(
-        isNextDev ? 'no-cache, no-store' : 'public, max-age=0, must-revalidate'
+        isNextDev
+          ? 'no-store, must-revalidate'
+          : 'public, max-age=0, must-revalidate'
       )
       expect(resIcon.status).toBe(200)
       expect(resIcon.headers.get('content-type')).toBe('image/png')
       expect(resIcon.headers.get('cache-control')).toBe(
-        isNextDev ? 'no-cache, no-store' : 'public, max-age=0, must-revalidate'
+        isNextDev
+          ? 'no-store, must-revalidate'
+          : 'public, max-age=0, must-revalidate'
       )
     })
 
     it('should support root dir robots.txt', async () => {
       const res = await next.fetch('/robots.txt')
-      expect(res.headers.get('content-type')).toBe('text/plain')
+      expect(res.headers.get('content-type')).toBe(
+        // In dev, sendStatic() is used to send static files, which adds MIME type.
+        isNextDev ? 'text/plain; charset=UTF-8' : 'text/plain'
+      )
       expect(await res.text()).toContain('User-Agent: *\nDisallow:')
       const invalidRobotsResponse = await next.fetch('/title/robots.txt')
       expect(invalidRobotsResponse.status).toBe(404)

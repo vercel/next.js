@@ -1,0 +1,6 @@
+.main {
+  background: url('https://github.com/vercel/next.js/raw/canary/test/e2e/url-imports/public/vercel.png');
+  background-size: contain;
+  width: 300px;
+  height: 300px;
+}

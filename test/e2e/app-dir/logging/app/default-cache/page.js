@@ -1,4 +1,4 @@
-import { revalidateTag } from 'next/cache'
+import { updateTag } from 'next/cache'
 
 export const fetchCache = 'default-cache'
 
@@ -80,7 +80,7 @@ function RevalidateForm() {
     <form
       action={async () => {
         'use server'
-        revalidateTag('test-tag')
+        updateTag('test-tag')
       }}
     >
       <button id="revalidate-button">Revalidate</button>

@@ -1,7 +1,7 @@
 import { useDevOverlayContext } from '../../dev-overlay.browser'
 import { useClickOutsideAndEscape } from '../components/errors/dev-tools-indicator/utils'
 import {
-  experimental_useEffectEvent as useEffectEvent,
+  useEffectEvent,
   useLayoutEffect,
   useRef,
   createContext,
@@ -145,7 +145,6 @@ export const DevtoolMenu = ({
 
   useLayoutEffect(() => {
     menuRef.current?.focus() // allows keydown to be captured
-    // eslint-disable-next-line react-hooks/rules-of-hooks -- eprh bug
     fireInitialSelectMenuItem()
   }, [])
 

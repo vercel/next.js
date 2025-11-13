@@ -100,7 +100,8 @@ describe('back/forward cache', () => {
     expect(await counterDisplay2AfterNav.text()).toBe('Count: 9')
   })
 
-  it('React state is preserved when navigating back to a page with different search params than before ', async () => {
+  // FIXME: Flaky test: https://vercel.slack.com/archives/C07CJPHL49E/p1758009379720479
+  it.skip('React state is preserved when navigating back to a page with different search params than before ', async () => {
     const browser = await next.browser('/page/1')
 
     // Accumulate some state on page 1.

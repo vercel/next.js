@@ -194,7 +194,10 @@ function instantiateModule(
     // This can happen if modules incorrectly handle HMR disposes/updates,
     // e.g. when they keep a `setTimeout` around which still executes old code
     // and contains e.g. a `require("something")` call.
-    factoryNotAvailable(id, sourceType, sourceData)
+    throw new Error(
+      factoryNotAvailableMessage(id, sourceType, sourceData) +
+        ' It might have been deleted in an HMR update.'
+    )
   }
 
   const hotData = moduleHotData.get(id)!

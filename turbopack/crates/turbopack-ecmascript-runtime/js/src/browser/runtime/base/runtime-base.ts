@@ -106,11 +106,11 @@ const availableModules: Map<ModuleId, Promise<any> | true> = new Map()
 
 const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
 
-function factoryNotAvailable(
+function factoryNotAvailableMessage(
   moduleId: ModuleId,
   sourceType: SourceType,
   sourceData: SourceData
-): never {
+): string {
   let instantiationReason
   switch (sourceType) {
     case SourceType.Runtime:
@@ -128,9 +128,7 @@ function factoryNotAvailable(
         (sourceType) => `Unknown source type: ${sourceType}`
       )
   }
-  throw new Error(
-    `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`
-  )
+  return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`
 }
 
 function loadChunk(

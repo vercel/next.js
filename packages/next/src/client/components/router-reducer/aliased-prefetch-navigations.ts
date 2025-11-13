@@ -31,6 +31,7 @@ export function handleAliasedPrefetchEntry(
   state: ReadonlyReducerState,
   flightData: string | NormalizedFlightData[],
   url: URL,
+  renderedSearch: string,
   mutable: Mutable
 ) {
   let currentTree = state.tree
@@ -83,8 +84,8 @@ export function handleAliasedPrefetchEntry(
     // loading state and not the actual parallel route seed data.
     if (isRootRender && seedData) {
       // Fill in the cache with the new loading / rsc data
-      const rsc = seedData[1]
-      const loading = seedData[3]
+      const rsc = seedData[0]
+      const loading = seedData[2]
       newCache.loading = loading
       newCache.rsc = rsc
 
@@ -140,6 +141,7 @@ export function handleAliasedPrefetchEntry(
   }
 
   mutable.patchedTree = currentTree
+  mutable.renderedSearch = renderedSearch
   mutable.cache = currentCache
   mutable.canonicalUrl = href
   mutable.hashFragment = url.hash
@@ -151,8 +153,8 @@ export function handleAliasedPrefetchEntry(
 function hasLoadingComponentInSeedData(seedData: CacheNodeSeedData | null) {
   if (!seedData) return false
 
-  const parallelRoutes = seedData[2]
-  const loading = seedData[3]
+  const parallelRoutes = seedData[1]
+  const loading = seedData[2]
 
   if (loading) {
     return true
@@ -185,15 +187,15 @@ function fillNewTreeWithOnlyLoadingSegments(
     const cacheKey = createRouterCacheKey(segmentForParallelRoute)
 
     const parallelSeedData =
-      cacheNodeSeedData !== null && cacheNodeSeedData[2][key] !== undefined
-        ? cacheNodeSeedData[2][key]
+      cacheNodeSeedData !== null && cacheNodeSeedData[1][key] !== undefined
+        ? cacheNodeSeedData[1][key]
         : null
 
     let newCacheNode: CacheNode
     if (parallelSeedData !== null) {
       // New data was sent from the server.
-      const rsc = parallelSeedData[1]
-      const loading = parallelSeedData[3]
+      const rsc = parallelSeedData[0]
+      const loading = parallelSeedData[2]
       newCacheNode = {
         lazyData: null,
         // copy the layout but null the page segment as that's not meant to be used

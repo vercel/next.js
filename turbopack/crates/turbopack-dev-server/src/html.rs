@@ -15,7 +15,7 @@ use turbopack_core::{
     },
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     version::{Version, VersionedContent},
 };
 
@@ -49,7 +49,7 @@ impl OutputAsset for DevHtmlAsset {
 
     #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Vc<OutputAssets> {
-        self.chunks()
+        self.chunk_group().all_assets()
     }
 }
 
@@ -116,7 +116,7 @@ impl DevHtmlAsset {
         let this = self.await?;
         let context_path = this.path.parent();
         let mut chunk_paths = vec![];
-        for chunk in &*self.chunks().await? {
+        for chunk in &*self.chunk_group().await?.assets.await? {
             let chunk_path = &*chunk.path().await?;
             if let Some(relative_path) = context_path.get_path_to(chunk_path) {
                 chunk_paths.push(format!("/{relative_path}").into());
@@ -127,8 +127,8 @@ impl DevHtmlAsset {
     }
 
     #[turbo_tasks::function]
-    async fn chunks(&self) -> Result<Vc<OutputAssets>> {
-        let all_assets = self
+    async fn chunk_group(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let all_chunk_groups = self
             .entries
             .iter()
             .map(|entry| async move {
@@ -139,7 +139,7 @@ impl DevHtmlAsset {
                     runtime_entries,
                 } = entry;
 
-                let assets = if let Some(runtime_entries) = runtime_entries {
+                let asset_with_referenced = if let Some(runtime_entries) = runtime_entries {
                     let runtime_entries =
                         if let Some(evaluatable) = ResolvedVc::try_downcast(chunkable_module) {
                             runtime_entries
@@ -149,36 +149,50 @@ impl DevHtmlAsset {
                         } else {
                             runtime_entries
                         };
-                    chunking_context.evaluated_chunk_group_assets(
-                        chunkable_module.ident(),
-                        ChunkGroup::Entry(
-                            runtime_entries
-                                .await?
-                                .iter()
-                                .map(|v| ResolvedVc::upcast(*v))
-                                .collect(),
-                        ),
-                        *module_graph,
-                        AvailabilityInfo::Root,
-                    )
+                    chunking_context
+                        .evaluated_chunk_group_assets(
+                            chunkable_module.ident(),
+                            ChunkGroup::Entry(
+                                runtime_entries
+                                    .await?
+                                    .iter()
+                                    .map(|v| ResolvedVc::upcast(*v))
+                                    .collect(),
+                            ),
+                            *module_graph,
+                            AvailabilityInfo::Root,
+                        )
+                        .await?
                 } else {
-                    chunking_context.root_chunk_group_assets(
-                        chunkable_module.ident(),
-                        ChunkGroup::Entry(vec![ResolvedVc::upcast(chunkable_module)]),
-                        *module_graph,
-                    )
+                    chunking_context
+                        .root_chunk_group_assets(
+                            chunkable_module.ident(),
+                            ChunkGroup::Entry(vec![ResolvedVc::upcast(chunkable_module)]),
+                            *module_graph,
+                        )
+                        .await?
                 };
 
-                assets.await
+                Ok((
+                    asset_with_referenced.assets.await?,
+                    asset_with_referenced.referenced_assets.await?,
+                ))
             })
             .try_join()
-            .await?
-            .iter()
-            .flatten()
-            .copied()
-            .collect();
+            .await?;
 
-        Ok(Vc::cell(all_assets))
+        let mut all_assets = Vec::new();
+        let mut all_referenced_assets = Vec::new();
+        for (asset, referenced_asset) in all_chunk_groups {
+            all_assets.extend(asset);
+            all_referenced_assets.extend(referenced_asset);
+        }
+
+        Ok(OutputAssetsWithReferenced {
+            assets: ResolvedVc::cell(all_assets),
+            referenced_assets: ResolvedVc::cell(all_referenced_assets),
+        }
+        .cell())
     }
 }
 

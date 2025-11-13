@@ -1,3 +1,6 @@
+import type { NonStaticRenderStage } from './app-render/staged-rendering'
+import type { RequestStore } from './app-render/work-unit-async-storage.external'
+
 export function isHangingPromiseRejectionError(
   err: unknown
 ): err is HangingPromiseRejectionError {
@@ -73,7 +76,19 @@ export function makeHangingPromise<T>(
 
 function ignoreReject() {}
 
-export function makeDevtoolsIOAwarePromise<T>(underlying: T): Promise<T> {
+export function makeDevtoolsIOAwarePromise<T>(
+  underlying: T,
+  requestStore: RequestStore,
+  stage: NonStaticRenderStage
+): Promise<T> {
+  if (requestStore.stagedRendering) {
+    // We resolve each stage in a timeout, so React DevTools will pick this up as IO.
+    return requestStore.stagedRendering.delayUntilStage(
+      stage,
+      undefined,
+      underlying
+    )
+  }
   // in React DevTools if we resolve in a setTimeout we will observe
   // the promise resolution as something that can suspend a boundary or root.
   return new Promise<T>((resolve) => {

@@ -38,7 +38,7 @@ pub async fn main_inner(
     }
 
     let project = tt
-        .run_once(async {
+        .run(async {
             let project = ProjectContainer::new(rcstr!("next-build-test"), options.dev);
             let project = project.to_resolved().await?;
             project.initialize(options).await?;
@@ -47,9 +47,7 @@ pub async fn main_inner(
         .await?;
 
     tracing::info!("collecting endpoints");
-    let entrypoints = tt
-        .run_once(async move { project.entrypoints().await })
-        .await?;
+    let entrypoints = tt.run(async move { project.entrypoints().await }).await?;
 
     let mut routes = if let Some(files) = files {
         tracing::info!("building only the files:");
@@ -170,7 +168,7 @@ pub async fn render_routes(
 
             let memory = TurboMalloc::memory_usage();
 
-            tt.run_once({
+            tt.run({
                 let name = name.clone();
                 async move {
                     match route {
@@ -259,7 +257,7 @@ async fn hmr(
     tracing::info!("HMR...");
     let session = TransientInstance::new(());
     let idents = tt
-        .run_once(async move { project.hmr_identifiers().await })
+        .run(async move { project.hmr_identifiers().await })
         .await?;
     let start = Instant::now();
     for ident in idents {

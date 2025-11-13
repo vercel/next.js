@@ -1,6 +1,6 @@
 'use cache'
 
-import { unstable_cacheTag as cacheTag } from 'next/cache'
+import { cacheTag } from 'next/cache'
 import { Suspense } from 'react'
 
 const TEST_DATA_SERVICE_URL = process.env.TEST_DATA_SERVICE_URL

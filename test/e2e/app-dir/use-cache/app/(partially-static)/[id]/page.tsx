@@ -1,8 +1,8 @@
-import { unstable_cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
 async function getCachedRandom(n: number) {
   'use cache'
-  unstable_cacheLife('weeks')
+  cacheLife('weeks')
   return String(Math.ceil(Math.random() * n))
 }
 

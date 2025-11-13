@@ -1,4 +1,4 @@
-import { getSegmentParam } from '../../../server/app-render/get-segment-param'
+import { getSegmentParam } from '../../../shared/lib/router/utils/get-segment-param'
 import type AppPageRouteModule from '../../../server/route-modules/app-page/module'
 import {
   isAppPageRouteModule,

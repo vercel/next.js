@@ -106,13 +106,13 @@ b#7 = (
 - *12* unsupported expression
   ⚠️  This value might have side effects
 
-bitRotateLeft = (...) => ???*0*
+bitRotateLeft (const after eval) = (...) => ???*0*
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
 bytes = (arguments[0] | new FreeVar(Array)(msg["length"]))
 
-bytesToWords = (...) => output
+bytesToWords (const after eval) = (...) => output
 
 c#15 = arguments[2]
 
@@ -272,30 +272,30 @@ lsw = (???*0* + ???*1*)
 - *1* unsupported expression
   ⚠️  This value might have side effects
 
-md5 = (...) => md5ToHexEncodedArray(wordsToMd5(bytesToWords(bytes), ???*0*))
+md5 (const after eval) = (...) => md5ToHexEncodedArray(wordsToMd5(bytesToWords(bytes), ???*0*))
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-md5ToHexEncodedArray = (...) => output
+md5ToHexEncodedArray (const after eval) = (...) => output
 
-md5cmn = (...) => safeAdd(
+md5cmn (const after eval) = (...) => safeAdd(
     bitRotateLeft(safeAdd(safeAdd(a, q), safeAdd(x, t)), s),
     b
 )
 
-md5ff = (...) => md5cmn(???*0*, a, b, x, s, t)
+md5ff (const after eval) = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-md5gg = (...) => md5cmn(???*0*, a, b, x, s, t)
+md5gg (const after eval) = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-md5hh = (...) => md5cmn(???*0*, a, b, x, s, t)
+md5hh (const after eval) = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-md5ii = (...) => md5cmn(???*0*, a, b, x, s, t)
+md5ii (const after eval) = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
@@ -346,7 +346,7 @@ s#17 = arguments[5]
 
 s#18 = arguments[5]
 
-safeAdd = (...) => ???*0*
+safeAdd (const after eval) = (...) => ???*0*
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
@@ -360,7 +360,7 @@ t#17 = arguments[6]
 
 t#18 = arguments[6]
 
-wordsToMd5 = (...) => [a, b, c, d]
+wordsToMd5 (const after eval) = (...) => [a, b, c, d]
 
 x#12 = arguments[0]
 

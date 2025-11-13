@@ -8,7 +8,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     css::chunk::CssChunkType,
     module_options::{
-        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule, TypeofWindow,
+        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule,
         TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
     },
     resolve_options_context::ResolveOptionsContext,
@@ -19,8 +19,8 @@ use turbopack_browser::{
 };
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType,
-        module_id_strategies::ModuleIdStrategy,
+        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapSourceType,
+        SourceMapsType, module_id_strategies::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
@@ -28,7 +28,7 @@ use turbopack_core::{
     module_graph::export_usage::OptionExportUsageInfo,
     resolve::{parse::Request, pattern::Pattern},
 };
-use turbopack_ecmascript::chunk::EcmascriptChunkType;
+use turbopack_ecmascript::{AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType};
 use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -98,18 +98,18 @@ pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     define_env: Vc<OptionEnvMap>,
 ) -> Result<Vc<CompileTimeInfo>> {
-    let environment = BrowserEnvironment {
-        dom: true,
-        web_worker: false,
-        service_worker: false,
-        browserslist_query: browserslist_query.to_owned(),
-    }
-    .resolved_cell();
-
     CompileTimeInfo::builder(
-        Environment::new(ExecutionEnvironment::Browser(environment), *environment)
-            .to_resolved()
-            .await?,
+        Environment::new(ExecutionEnvironment::Browser(
+            BrowserEnvironment {
+                dom: true,
+                web_worker: false,
+                service_worker: false,
+                browserslist_query: browserslist_query.to_owned(),
+            }
+            .resolved_cell(),
+        ))
+        .to_resolved()
+        .await?,
     )
     .defines(next_client_defines(define_env).to_resolved().await?)
     .free_var_references(next_client_free_vars(define_env).to_resolved().await?)
@@ -150,7 +150,12 @@ pub async fn get_client_resolve_options_context(
         get_next_client_resolved_map(project_path.clone(), project_path.clone(), *mode.await?)
             .to_resolved()
             .await?;
-    let custom_conditions = mode.await?.custom_resolve_conditions().collect();
+    let mut custom_conditions: Vec<_> = mode.await?.custom_resolve_conditions().collect();
+
+    if *next_config.enable_cache_components().await? {
+        custom_conditions.push(rcstr!("next-js"));
+    };
+
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().owned().await?),
         custom_conditions,
@@ -274,7 +279,7 @@ pub async fn get_client_module_options_context(
     let tree_shaking_mode_for_foreign_code = *next_config
         .tree_shaking_mode_for_foreign_code(next_mode.is_development())
         .await?;
-    let css_target_browsers = env.css_runtime_versions();
+    let target_browsers = env.runtime_versions();
 
     let mut next_client_rules =
         get_next_client_transforms_rules(next_config, ty.clone(), mode, false, encryption_key)
@@ -287,7 +292,7 @@ pub async fn get_client_module_options_context(
         get_relay_transform_rule(next_config, project_path.clone()).await?,
         get_emotion_transform_rule(next_config).await?,
         get_styled_components_transform_rule(next_config).await?,
-        get_styled_jsx_transform_rule(next_config, css_target_browsers).await?,
+        get_styled_jsx_transform_rule(next_config, target_browsers).await?,
         get_react_remove_properties_transform_rule(next_config).await?,
         get_remove_console_transform_rule(next_config).await?,
     ]
@@ -337,6 +342,14 @@ pub async fn get_client_module_options_context(
         enable_postcss_transform,
         side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
         keep_last_successful_parse: next_mode.is_development(),
+        analyze_mode: if next_mode.is_development() {
+            AnalyzeMode::CodeGeneration
+        } else {
+            // Technically, this doesn't need to tracing for the client context. But this will
+            // result in more cache hits for the analysis for modules which are loaded for both ssr
+            // and client
+            AnalyzeMode::CodeGenerationAndTracing
+        },
         ..Default::default()
     };
 
@@ -404,7 +417,7 @@ pub struct ClientChunkingContextOptions {
     pub root_path: FileSystemPath,
     pub client_root: FileSystemPath,
     pub client_root_to_root_path: RcStr,
-    pub asset_prefix: Vc<Option<RcStr>>,
+    pub asset_prefix: Vc<RcStr>,
     pub chunk_suffix_path: Vc<Option<RcStr>>,
     pub environment: Vc<Environment>,
     pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
@@ -413,6 +426,8 @@ pub struct ClientChunkingContextOptions {
     pub source_maps: Vc<bool>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub debug_ids: Vc<bool>,
+    pub should_use_absolute_url_references: Vc<bool>,
 }
 
 #[turbo_tasks::function]
@@ -433,11 +448,13 @@ pub async fn get_client_chunking_context(
         source_maps,
         no_mangling,
         scope_hoisting,
+        debug_ids,
+        should_use_absolute_url_references,
     } = options;
 
     let next_mode = mode.await?;
     let asset_prefix = asset_prefix.owned().await?;
-    let chunk_suffix_path = chunk_suffix_path.owned().await?;
+    let chunk_suffix_path = chunk_suffix_path.to_resolved().await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
         client_root.clone(),
@@ -448,7 +465,7 @@ pub async fn get_client_chunking_context(
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
-    .chunk_base_path(asset_prefix.clone())
+    .chunk_base_path(Some(asset_prefix.clone()))
     .chunk_suffix_path(chunk_suffix_path)
     .minify_type(if *minify.await? {
         MinifyType::Minify {
@@ -462,15 +479,17 @@ pub async fn get_client_chunking_context(
     } else {
         SourceMapsType::None
     })
-    .asset_base_path(asset_prefix)
+    .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .export_usage(*export_usage.await?)
-    .module_id_strategy(module_id_strategy.to_resolved().await?);
+    .module_id_strategy(module_id_strategy.to_resolved().await?)
+    .debug_ids(*debug_ids.await?)
+    .should_use_absolute_url_references(*should_use_absolute_url_references.await?);
 
     if next_mode.is_development() {
         builder = builder
             .hot_module_replacement()
-            .use_file_source_map_uris()
+            .source_map_source_type(SourceMapSourceType::AbsoluteFileUri)
             .dynamic_chunk_content_loading(true);
     } else {
         builder = builder

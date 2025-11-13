@@ -9,7 +9,9 @@ use turbopack_core::{
     chunk::SourceMapsType, compile_time_info::CompileTimeInfo, condition::ContextCondition,
     environment::Environment, resolve::options::ImportMapping,
 };
-use turbopack_ecmascript::{TreeShakingMode, references::esm::UrlRewriteBehavior};
+use turbopack_ecmascript::{
+    AnalyzeMode, TreeShakingMode, TypeofWindow, references::esm::UrlRewriteBehavior,
+};
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
     execution_context::ExecutionContext,
@@ -106,13 +108,6 @@ impl WebpackLoaderBuiltinConditionSet for EmptyWebpackLoaderBuiltinConditionSet 
 pub enum DecoratorsKind {
     Legacy,
     Ecma,
-}
-
-/// The types when replacing `typeof window` with a constant.
-#[derive(Copy, Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
-pub enum TypeofWindow {
-    Object,
-    Undefined,
 }
 
 /// Configuration options for the decorators transform.
@@ -214,7 +209,7 @@ pub struct ModuleOptionsContext {
 
     /// Whether the modules in this context are never chunked/codegen-ed, but only used for
     /// tracing.
-    pub is_tracing: bool,
+    pub analyze_mode: AnalyzeMode,
 
     pub placeholder_for_future_extensions: (),
 }
@@ -223,6 +218,9 @@ pub struct ModuleOptionsContext {
 #[derive(Clone, Default)]
 #[serde(default)]
 pub struct EcmascriptOptionsContext {
+    // TODO this should just be handled via CompileTimeInfo FreeVarReferences, but then it
+    // (currently) wouldn't be possible to have different replacement values in user code vs
+    // node_modules.
     pub enable_typeof_window_inlining: Option<TypeofWindow>,
     pub enable_jsx: Option<ResolvedVc<JsxTransformOptions>>,
     /// Follow type references and resolve declaration files in additional to
@@ -240,6 +238,9 @@ pub struct EcmascriptOptionsContext {
     pub ignore_dynamic_requests: bool,
     /// Specifies how Source Maps are handled.
     pub source_maps: SourceMapsType,
+
+    // TODO should this be a part of Environment instead?
+    pub inline_helpers: bool,
 
     pub placeholder_for_future_extensions: (),
 }

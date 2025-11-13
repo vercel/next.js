@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(req: NextRequest) {
   console.log(req.url.toString())
 
-  revalidateTag(req.nextUrl.searchParams.get('tag') || '')
+  revalidateTag(req.nextUrl.searchParams.get('tag') || '', 'expireNow')
 
   return NextResponse.json({ success: true })
 }

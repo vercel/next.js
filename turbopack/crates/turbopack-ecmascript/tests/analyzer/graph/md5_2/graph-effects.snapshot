@@ -73,7 +73,6 @@
             ),
         ],
         span: 30..37,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -242,7 +241,6 @@
             ),
         ],
         span: 59..82,
-        in_try: false,
     },
     FreeVar {
         var: "require",
@@ -324,7 +322,6 @@
             ),
         ],
         span: 59..66,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -487,7 +484,6 @@
             ),
         ],
         span: 99..106,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -656,7 +652,6 @@
             ),
         ],
         span: 131..153,
-        in_try: false,
     },
     FreeVar {
         var: "require",
@@ -738,7 +733,6 @@
             ),
         ],
         span: 131..138,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -930,7 +924,6 @@
             ),
         ],
         span: 252..271,
-        in_try: false,
     },
     FreeVar {
         var: "String",
@@ -1023,7 +1016,6 @@
             ),
         ],
         span: 275..281,
-        in_try: false,
     },
     Conditional {
         condition: Binary(
@@ -1167,7 +1159,6 @@
                             ),
                         ],
                         span: 306..322,
-                        in_try: false,
                     },
                     Conditional {
                         condition: Logical(
@@ -1336,7 +1327,6 @@
                                             ),
                                         ],
                                         span: 357..374,
-                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -1681,7 +1671,6 @@
                                             ),
                                         ],
                                         span: 408..426,
-                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -1987,7 +1976,6 @@
                             ),
                         ],
                         span: 291..436,
-                        in_try: false,
                     },
                 ],
                 range: Exact(
@@ -2345,7 +2333,6 @@
                                             ),
                                         ],
                                         span: 489..515,
-                                        in_try: false,
                                     },
                                     Member {
                                         obj: Member(
@@ -2484,7 +2471,6 @@
                                             ),
                                         ],
                                         span: 489..510,
-                                        in_try: false,
                                     },
                                     Member {
                                         obj: FreeVar(
@@ -2619,7 +2605,6 @@
                                             ),
                                         ],
                                         span: 489..504,
-                                        in_try: false,
                                     },
                                     FreeVar {
                                         var: "Array",
@@ -2751,7 +2736,6 @@
                                             ),
                                         ],
                                         span: 489..494,
-                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: Member(
@@ -3119,7 +3103,6 @@
                                             ),
                                         ],
                                         span: 545..558,
-                                        in_try: false,
                                     },
                                     FreeVar {
                                         var: "Array",
@@ -3239,7 +3222,6 @@
                                             ),
                                         ],
                                         span: 545..550,
-                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: FreeVar(
@@ -3524,7 +3506,6 @@
                                                             ),
                                                         ],
                                                         span: 579..595,
-                                                        in_try: false,
                                                     },
                                                     MemberCall {
                                                         obj: Variable(
@@ -3839,7 +3820,6 @@
                                             ),
                                         ],
                                         span: 540..598,
-                                        in_try: false,
                                     },
                                 ],
                                 range: Exact(
@@ -4017,7 +3997,6 @@
                             ),
                         ],
                         span: 448..598,
-                        in_try: false,
                     },
                 ],
                 range: Exact(
@@ -4183,7 +4162,6 @@
             ),
         ],
         span: 248..598,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -4299,7 +4277,6 @@
             ),
         ],
         span: 655..673,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -4530,7 +4507,6 @@
             ),
         ],
         span: 696..710,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -4635,7 +4611,6 @@
             ),
         ],
         span: 860..868,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -4756,7 +4731,6 @@
             ),
         ],
         span: 885..889,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -4916,7 +4890,6 @@
             ),
         ],
         span: 905..909,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -5076,7 +5049,6 @@
             ),
         ],
         span: 919..923,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -5236,7 +5208,6 @@
             ),
         ],
         span: 962..966,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -5396,7 +5367,6 @@
             ),
         ],
         span: 977..981,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -5502,7 +5472,6 @@
             ),
         ],
         span: 1037..1047,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -5620,7 +5589,6 @@
             ),
         ],
         span: 1073..1104,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -5727,7 +5695,6 @@
             ),
         ],
         span: 1152..1159,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -5834,7 +5801,6 @@
             ),
         ],
         span: 1174..1181,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -5941,7 +5907,6 @@
             ),
         ],
         span: 1196..1203,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -6048,7 +6013,6 @@
             ),
         ],
         span: 1218..1225,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -6153,7 +6117,6 @@
             ),
         ],
         span: 1254..1262,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -6294,7 +6257,6 @@
             ),
         ],
         span: 1377..1385,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -6627,7 +6589,6 @@
             ),
         ],
         span: 1430..1438,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -6960,7 +6921,6 @@
             ),
         ],
         span: 1484..1492,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -7295,7 +7255,6 @@
             ),
         ],
         span: 1537..1545,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -7628,7 +7587,6 @@
             ),
         ],
         span: 1592..1600,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -7961,7 +7919,6 @@
             ),
         ],
         span: 1645..1653,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -8296,7 +8253,6 @@
             ),
         ],
         span: 1699..1707,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -8629,7 +8585,6 @@
             ),
         ],
         span: 1754..1762,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -8962,7 +8917,6 @@
             ),
         ],
         span: 1807..1815,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -9297,7 +9251,6 @@
             ),
         ],
         span: 1860..1868,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -9630,7 +9583,6 @@
             ),
         ],
         span: 1915..1924,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -9963,7 +9915,6 @@
             ),
         ],
         span: 1966..1975,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -10296,7 +10247,6 @@
             ),
         ],
         span: 2022..2031,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -10631,7 +10581,6 @@
             ),
         ],
         span: 2076..2085,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -10964,7 +10913,6 @@
             ),
         ],
         span: 2130..2139,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -11297,7 +11245,6 @@
             ),
         ],
         span: 2186..2195,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -11632,7 +11579,6 @@
             ),
         ],
         span: 2242..2250,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -11965,7 +11911,6 @@
             ),
         ],
         span: 2295..2303,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -12298,7 +12243,6 @@
             ),
         ],
         span: 2349..2358,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -12633,7 +12577,6 @@
             ),
         ],
         span: 2403..2411,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -12966,7 +12909,6 @@
             ),
         ],
         span: 2457..2465,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -13299,7 +13241,6 @@
             ),
         ],
         span: 2510..2519,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -13634,7 +13575,6 @@
             ),
         ],
         span: 2562..2571,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -13967,7 +13907,6 @@
             ),
         ],
         span: 2617..2625,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -14300,7 +14239,6 @@
             ),
         ],
         span: 2671..2679,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -14635,7 +14573,6 @@
             ),
         ],
         span: 2723..2732,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -14968,7 +14905,6 @@
             ),
         ],
         span: 2778..2786,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -15301,7 +15237,6 @@
             ),
         ],
         span: 2832..2840,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -15636,7 +15571,6 @@
             ),
         ],
         span: 2886..2895,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -15969,7 +15903,6 @@
             ),
         ],
         span: 2941..2949,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -16302,7 +16235,6 @@
             ),
         ],
         span: 2993..3001,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -16637,7 +16569,6 @@
             ),
         ],
         span: 3047..3056,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -16970,7 +16901,6 @@
             ),
         ],
         span: 3104..3112,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -17303,7 +17233,6 @@
             ),
         ],
         span: 3154..3162,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -17636,7 +17565,6 @@
             ),
         ],
         span: 3209..3218,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -17971,7 +17899,6 @@
             ),
         ],
         span: 3264..3273,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -18304,7 +18231,6 @@
             ),
         ],
         span: 3318..3326,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -18637,7 +18563,6 @@
             ),
         ],
         span: 3372..3380,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -18972,7 +18897,6 @@
             ),
         ],
         span: 3426..3434,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -19305,7 +19229,6 @@
             ),
         ],
         span: 3480..3489,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -19638,7 +19561,6 @@
             ),
         ],
         span: 3536..3545,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -19973,7 +19895,6 @@
             ),
         ],
         span: 3589..3597,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -20306,7 +20227,6 @@
             ),
         ],
         span: 3643..3651,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -20639,7 +20559,6 @@
             ),
         ],
         span: 3697..3705,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -20974,7 +20893,6 @@
             ),
         ],
         span: 3749..3757,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -21307,7 +21225,6 @@
             ),
         ],
         span: 3802..3811,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -21640,7 +21557,6 @@
             ),
         ],
         span: 3857..3866,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -21975,7 +21891,6 @@
             ),
         ],
         span: 3911..3919,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -22308,7 +22223,6 @@
             ),
         ],
         span: 3966..3974,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -22641,7 +22555,6 @@
             ),
         ],
         span: 4019..4027,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -22976,7 +22889,6 @@
             ),
         ],
         span: 4073..4082,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -23309,7 +23221,6 @@
             ),
         ],
         span: 4129..4137,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -23642,7 +23553,6 @@
             ),
         ],
         span: 4182..4191,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -23977,7 +23887,6 @@
             ),
         ],
         span: 4236..4244,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -24310,7 +24219,6 @@
             ),
         ],
         span: 4291..4300,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -24643,7 +24551,6 @@
             ),
         ],
         span: 4344..4352,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -24976,7 +24883,6 @@
             ),
         ],
         span: 4399..4407,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -25311,7 +25217,6 @@
             ),
         ],
         span: 4452..4461,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -25644,7 +25549,6 @@
             ),
         ],
         span: 4506..4514,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -25977,7 +25881,6 @@
             ),
         ],
         span: 4561..4570,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -26312,7 +26215,6 @@
             ),
         ],
         span: 4616..4624,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -26645,7 +26547,6 @@
             ),
         ],
         span: 4669..4678,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -26978,7 +26879,6 @@
             ),
         ],
         span: 4725..4733,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -27313,7 +27213,6 @@
             ),
         ],
         span: 4778..4786,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -27613,7 +27512,6 @@
             ),
         ],
         span: 4940..4952,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -27905,7 +27803,6 @@
             ),
         ],
         span: 5003..5010,
-        in_try: false,
     },
     Unreachable {
         start_ast_path: [
@@ -28061,7 +27958,6 @@
             ),
         ],
         span: 5153..5160,
-        in_try: false,
     },
     Unreachable {
         start_ast_path: [
@@ -28217,7 +28113,6 @@
             ),
         ],
         span: 5303..5310,
-        in_try: false,
     },
     Unreachable {
         start_ast_path: [
@@ -28373,7 +28268,6 @@
             ),
         ],
         span: 5444..5451,
-        in_try: false,
     },
     Unreachable {
         start_ast_path: [
@@ -28529,7 +28423,6 @@
             ),
         ],
         span: 5620..5634,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -28609,7 +28502,6 @@
             ),
         ],
         span: 5643..5658,
-        in_try: false,
     },
     Member {
         obj: FreeVar(
@@ -28686,7 +28578,6 @@
             ),
         ],
         span: 5668..5682,
-        in_try: false,
     },
     FreeVar {
         var: "module",
@@ -28760,104 +28651,6 @@
             ),
         ],
         span: 5668..5674,
-        in_try: false,
-    },
-    FreeVar {
-        var: "undefined",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Paren,
-            ),
-            ParenExpr(
-                Expr,
-            ),
-            Expr(
-                Fn,
-            ),
-            FnExpr(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            BlockStmt(
-                Stmts(
-                    7,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Fn,
-            ),
-            FnExpr(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            BlockStmt(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                If,
-            ),
-            IfStmt(
-                Test,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Left,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Right,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 5735..5744,
-        in_try: false,
     },
     Conditional {
         condition: Logical(
@@ -28873,8 +28666,8 @@
                         ),
                     ),
                     StrictEqual,
-                    FreeVar(
-                        "undefined",
+                    Constant(
+                        Undefined,
                     ),
                 ),
                 Binary(
@@ -28990,7 +28783,6 @@
                             ),
                         ],
                         span: 5782..5787,
-                        in_try: false,
                     },
                     Call {
                         func: FreeVar(
@@ -29268,7 +29060,6 @@
             ),
         ],
         span: 5719..5819,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -29382,7 +29173,6 @@
             ),
         ],
         span: 5843..5861,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -29752,7 +29542,6 @@
             ),
         ],
         span: 5908..5923,
-        in_try: false,
     },
     Conditional {
         condition: Logical(
@@ -29987,7 +29776,6 @@
                             ),
                         ],
                         span: 5963..5979,
-                        in_try: false,
                     },
                     Conditional {
                         condition: Logical(
@@ -30137,7 +29925,6 @@
                                             ),
                                         ],
                                         span: 5988..6005,
-                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -30470,7 +30257,6 @@
                                             ),
                                         ],
                                         span: 6027..6043,
-                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -30776,7 +30562,6 @@
                             ),
                         ],
                         span: 5952..6056,
-                        in_try: false,
                     },
                 ],
                 range: Exact(
@@ -30950,7 +30735,6 @@
             ),
         ],
         span: 5897..6056,
-        in_try: false,
     },
     Unreachable {
         start_ast_path: [

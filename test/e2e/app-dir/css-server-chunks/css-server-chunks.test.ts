@@ -19,7 +19,7 @@ describe('css-server-chunks', () => {
     expect((await next.fetch('/pages')).status).toBe(200)
 
     let clientChunks = (
-      await fs.readdir(path.join(next.testDir, '.next', 'static'), {
+      await fs.readdir(path.join(next.testDir, next.distDir, 'static'), {
         recursive: true,
       })
     ).filter((f) => f.endsWith('.js') || f.endsWith('.css'))
@@ -29,11 +29,12 @@ describe('css-server-chunks', () => {
 
     let serverChunks = (
       await Promise.all(
-        ['.next/server/app', '.next/server/pages'].map((d) =>
-          fs.readdir(path.join(next.testDir, d), {
-            recursive: true,
-            encoding: 'utf8',
-          })
+        [`${next.distDir}/server/app`, `${next.distDir}/server/pages`].map(
+          (d) =>
+            fs.readdir(path.join(next.testDir, d), {
+              recursive: true,
+              encoding: 'utf8',
+            })
         )
       )
     )

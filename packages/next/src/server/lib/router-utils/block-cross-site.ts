@@ -85,7 +85,7 @@ export const blockCrossSite = (
   // ensure websocket requests from allowed origin
   const rawOrigin = req.headers['origin']
 
-  if (rawOrigin) {
+  if (rawOrigin && rawOrigin !== 'null') {
     const parsedOrigin = parseUrl(rawOrigin)
 
     if (parsedOrigin) {

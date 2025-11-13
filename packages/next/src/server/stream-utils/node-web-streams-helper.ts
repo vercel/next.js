@@ -11,6 +11,13 @@ import {
 } from './uint8array-helpers'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
 import { insertBuildIdComment } from '../../shared/lib/segment-cache/output-export-prefetch-encoding'
+import {
+  RSC_HEADER,
+  NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  NEXT_RSC_UNION_QUERY,
+} from '../../client/components/app-router-headers'
+import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
 
 function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying
@@ -422,6 +429,66 @@ function createHeadInsertionTransformStream(
   })
 }
 
+function createClientResumeScriptInsertionTransformStream(): TransformStream<
+  Uint8Array,
+  Uint8Array
+> {
+  const segmentPath = '/_full'
+  const cacheBustingHeader = computeCacheBustingSearchParam(
+    '1', //            headers[NEXT_ROUTER_PREFETCH_HEADER]
+    '/_full', //       headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]
+    undefined, //      headers[NEXT_ROUTER_STATE_TREE_HEADER]
+    undefined //       headers[NEXT_URL]
+  )
+  const searchStr = `${NEXT_RSC_UNION_QUERY}=${cacheBustingHeader}`
+  const NEXT_CLIENT_RESUME_SCRIPT = `<script>__NEXT_CLIENT_RESUME=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'}})</script>`
+
+  let didAlreadyInsert = false
+  return new TransformStream({
+    transform(chunk, controller) {
+      if (didAlreadyInsert) {
+        // Already inserted the script into the head. Pass through.
+        controller.enqueue(chunk)
+        return
+      }
+      // TODO (@Ethan-Arrowood): Replace the generic `indexOfUint8Array` method with something finely tuned for the subset of things actually being checked for.
+      const headClosingTagIndex = indexOfUint8Array(
+        chunk,
+        ENCODED_TAGS.CLOSED.HEAD
+      )
+
+      if (headClosingTagIndex === -1) {
+        // In fully static rendering or non PPR rendering cases:
+        // `/head>` will always be found in the chunk in first chunk rendering.
+        controller.enqueue(chunk)
+        return
+      }
+
+      const encodedInsertion = encoder.encode(NEXT_CLIENT_RESUME_SCRIPT)
+      // Get the total count of the bytes in the chunk and the insertion
+      // e.g.
+      // chunk = <head><meta charset="utf-8"></head>
+      // insertion = <script>...</script>
+      // output = <head><meta charset="utf-8"> [ <script>...</script> ] </head>
+      const insertedHeadContent = new Uint8Array(
+        chunk.length + encodedInsertion.length
+      )
+      // Append the first part of the chunk, before the head tag
+      insertedHeadContent.set(chunk.slice(0, headClosingTagIndex))
+      // Append the server inserted content
+      insertedHeadContent.set(encodedInsertion, headClosingTagIndex)
+      // Append the rest of the chunk
+      insertedHeadContent.set(
+        chunk.slice(headClosingTagIndex),
+        headClosingTagIndex + encodedInsertion.length
+      )
+
+      controller.enqueue(insertedHeadContent)
+      didAlreadyInsert = true
+    },
+  })
+}
+
 // Suffix after main body content - scripts before </body>,
 // but wait for the major chunks to be enqueued.
 function createDeferredSuffixStream(
@@ -820,6 +887,42 @@ export async function continueStaticPrerender(
       )
       // Insert generated tags to head
       .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
+      // Transform metadata
+      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
+      // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
+      .pipeThrough(
+        createFlightDataInjectionTransformStream(inlinedDataStream, true)
+      )
+      // Close tags should always be deferred to the end
+      .pipeThrough(createMoveSuffixStream())
+  )
+}
+
+export async function continueStaticFallbackPrerender(
+  prerenderStream: ReadableStream<Uint8Array>,
+  {
+    inlinedDataStream,
+    getServerInsertedHTML,
+    getServerInsertedMetadata,
+    isBuildTimePrerendering,
+    buildId,
+  }: ContinueStaticPrerenderOptions
+) {
+  // Same as `continueStaticPrerender`, but also inserts an additional script
+  // to instruct the client to start fetching the hydration data as early
+  // as possible.
+  return (
+    prerenderStream
+      // Buffer everything to avoid flushing too frequently
+      .pipeThrough(createBufferedTransformStream())
+      // Add build id comment to start of the HTML document (in export mode)
+      .pipeThrough(
+        createPrefetchCommentStream(isBuildTimePrerendering, buildId)
+      )
+      // Insert generated tags to head
+      .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
+      // Insert the client resume script into the head
+      .pipeThrough(createClientResumeScriptInsertionTransformStream())
       // Transform metadata
       .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML

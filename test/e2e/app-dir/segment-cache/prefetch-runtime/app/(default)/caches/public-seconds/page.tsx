@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../shared'
-import { unstable_cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
 export default async function Page() {
   return (
@@ -21,7 +21,7 @@ export default async function Page() {
 
 async function ShortLivedCache() {
   'use cache'
-  unstable_cacheLife('seconds')
+  cacheLife('seconds')
   await cachedDelay([__filename])
 
   return (

@@ -26,6 +26,7 @@ pub(crate) struct EcmascriptBuildNodeEntryChunk {
     other_chunks: ResolvedVc<OutputAssets>,
     evaluatable_assets: ResolvedVc<EvaluatableAssets>,
     exported_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    referenced_output_assets: ResolvedVc<OutputAssets>,
     module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<NodeJsChunkingContext>,
 }
@@ -39,6 +40,7 @@ impl EcmascriptBuildNodeEntryChunk {
         other_chunks: ResolvedVc<OutputAssets>,
         evaluatable_assets: ResolvedVc<EvaluatableAssets>,
         exported_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        referenced_output_assets: ResolvedVc<OutputAssets>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<NodeJsChunkingContext>,
     ) -> Vc<Self> {
@@ -47,6 +49,7 @@ impl EcmascriptBuildNodeEntryChunk {
             other_chunks,
             evaluatable_assets,
             exported_module,
+            referenced_output_assets,
             module_graph,
             chunking_context,
         }
@@ -66,19 +69,14 @@ impl EcmascriptBuildNodeEntryChunk {
                 path
             } else {
                 bail!(
-                    "cannot find a relative path from the chunk ({}) to the runtime chunk ({})",
-                    chunk_path.to_string(),
-                    runtime_path.to_string(),
+                    "cannot find a relative path from the chunk ({chunk_path}) to the runtime \
+                     chunk ({runtime_path})",
                 );
             };
         let chunk_public_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
             path
         } else {
-            bail!(
-                "chunk path ({}) is not in output root ({})",
-                chunk_path.to_string(),
-                output_root.to_string()
-            );
+            bail!("chunk path ({chunk_path}) is not in output root ({output_root})");
         };
 
         let mut code = CodeBuilder::default();
@@ -189,8 +187,11 @@ impl OutputAsset for EcmascriptBuildNodeEntryChunk {
         }
 
         let other_chunks = this.other_chunks.await?;
-        for &other_chunk in &*other_chunks {
-            references.push(ResolvedVc::upcast(other_chunk));
+        references.extend(other_chunks.iter().copied());
+
+        let referenced_output_assets = this.referenced_output_assets.await?;
+        for &referenced_output_asset in &*referenced_output_assets {
+            references.push(referenced_output_asset);
         }
 
         Ok(Vc::cell(references))

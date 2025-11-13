@@ -1,7 +1,6 @@
 import { cliLog } from './log'
 
 export function injectRequestContext() {
-  // eslint-disable-next-line no-undef
   const _globalThis = globalThis
 
   /** @type {import('next/dist/server/after/builtin-request-context').BuiltinRequestContext} */
