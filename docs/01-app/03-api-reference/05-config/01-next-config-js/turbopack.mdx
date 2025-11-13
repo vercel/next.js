@@ -119,7 +119,9 @@ module.exports = {
 }
 ```
 
-When using `npm link` where the package linked is outside of the project root, those files would not be resolved. For that case you can set the root to the parent directory of both the project and the linked package.
+To resolve files from linked dependencies outside the project root (via `npm link`, `yarn link`, `pnpm link`, etc.), you must configure the `turbopack.root` to the parent directory of both the project and the linked dependencies.
+
+While this expands the scope of filesystem watching, it's typically only necessary during development when actively working on linked packages.
 
 ### Configuring webpack loaders
 
