@@ -124,7 +124,7 @@ async function DynamicContent() {
   const file = await fs.readFile('..', 'utf-8')
 
   // Simulating external system delay
-  await setTimeout(100) // from 'node:timers/promise'
+  await setTimeout(100) // from 'node:timers/promises'
 
   return <div>Not in the static shell</div>
 }
