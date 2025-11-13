@@ -734,7 +734,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 let _span = tracing::trace_span!(
                     "add output dependency",
                     task = %task_id,
-                    dependent_task = %reader
+                    dependent_task = ?reader
                 )
                 .entered();
                 let _ = task.add(CachedDataItem::OutputDependent {
@@ -2155,7 +2155,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 "invalidate output dependency",
                 task = %task_id,
                 dependent_task = %dependent_task_id,
-                result = Empty,
+                result = tracing::field::Empty,
             )
             .entered();
             if ctx.is_once_task(dependent_task_id) {
