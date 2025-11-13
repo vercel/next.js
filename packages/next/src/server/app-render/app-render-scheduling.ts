@@ -107,6 +107,7 @@ export function createAtomicTimerGroup(delayMs = 0) {
       'createAtomicTimerGroup cannot be called in the edge runtime'
     )
   } else {
+    let isFirstCallback = true
     let firstTimerIdleStart: number | null = null
     let didFirstTimerRun = false
 
@@ -115,18 +116,22 @@ export function createAtomicTimerGroup(delayMs = 0) {
     let didImmediateRun = false
     function runFirstCallback(callback: () => void) {
       didFirstTimerRun = true
-      setImmediate(() => {
-        didImmediateRun = true
-      })
+      if (!cannotGuaranteeAtomicTimers) {
+        setImmediate(() => {
+          didImmediateRun = true
+        })
+      }
       return callback()
     }
 
     function runSubsequentCallback(callback: () => void) {
-      if (didImmediateRun) {
-        // If the immediate managed to run between the timers, then we're not
-        // able to provide the guarantees that we're supposed to
-        cannotGuaranteeAtomicTimers = true
-        warnAboutTimers()
+      if (!cannotGuaranteeAtomicTimers) {
+        if (didImmediateRun) {
+          // If the immediate managed to run between the timers, then we're not
+          // able to provide the guarantees that we're supposed to
+          cannotGuaranteeAtomicTimers = true
+          warnAboutTimers()
+        }
       }
       return callback()
     }
@@ -138,17 +143,18 @@ export function createAtomicTimerGroup(delayMs = 0) {
         )
       }
 
-      if (cannotGuaranteeAtomicTimers) {
-        // We already tried patching some timers, and it didn't work.
-        // No point trying again.
-        return setTimeout(callback, delayMs)
-      }
-
       const timer = setTimeout(
-        firstTimerIdleStart === null ? runFirstCallback : runSubsequentCallback,
+        isFirstCallback ? runFirstCallback : runSubsequentCallback,
         delayMs,
         callback
       )
+      isFirstCallback = false
+
+      if (cannotGuaranteeAtomicTimers) {
+        // We already tried patching some timers, and it didn't work.
+        // No point trying again.
+        return timer
+      }
 
       // NodeJS timers to have a `_idleStart` property, but it doesn't exist e.g. in Bun.
       // If it's not present, we'll warn and try to continue.
