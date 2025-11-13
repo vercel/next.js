@@ -430,6 +430,17 @@ pub trait TaskGuard: Debug {
             )),
         }
     }
+    /// Returns (is_dirty, is_clean_in_current_session)
+    fn dirty(&self, session_id: SessionId) -> (bool, bool) {
+        match get!(self, Dirty) {
+            None => (false, false),
+            Some(Dirtyness::Dirty) => (true, false),
+            Some(Dirtyness::SessionDependent) => (
+                true,
+                get!(self, CleanInSession).copied() == Some(session_id),
+            ),
+        }
+    }
     fn dirty_containers(&self, session_id: SessionId) -> impl Iterator<Item = TaskId> {
         self.dirty_containers_with_count(session_id)
             .map(|(task_id, _)| task_id)

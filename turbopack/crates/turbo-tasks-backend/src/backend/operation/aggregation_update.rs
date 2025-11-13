@@ -273,23 +273,23 @@ impl AggregatedDataUpdate {
                 collectibles_update.push((collectible, 1));
             }
         }
-        if let Some((dirtyness, clean_in_session)) = task.dirtyness_and_session() {
-            dirty_container_count.update_with_dirtyness_and_session(dirtyness, clean_in_session);
+        let mut dirty_count = dirty_container_count.count;
+        let mut current_session_clean_count =
+            dirty_container_count.current_session_clean(current_session_id);
+        let (dirty, current_session_clean) = task.dirty(current_session_id);
+        if dirty {
+            dirty_count += 1;
+        }
+        if current_session_clean {
+            current_session_clean_count += 1;
         }
 
         let mut result = Self::new().collectibles_update(collectibles_update);
-        if !dirty_container_count.is_zero() {
+        if dirty_count > 0 {
             result = result.dirty_container_update(
                 task.id(),
-                if dirty_container_count.count > 0 {
-                    1
-                } else {
-                    0
-                },
-                if dirty_container_count.count > 0
-                    && dirty_container_count.current_session_clean(current_session_id)
-                        >= dirty_container_count.count
-                {
+                if dirty_count > 0 { 1 } else { 0 },
+                if dirty_count > 0 && dirty_count - current_session_clean_count <= 0 {
                     1
                 } else {
                     0
