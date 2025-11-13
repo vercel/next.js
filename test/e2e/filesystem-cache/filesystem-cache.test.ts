@@ -4,9 +4,10 @@ import { waitFor } from 'next-test-utils'
 describe('filesystem-caching', () => {
   process.env.NEXT_PUBLIC_ENV_VAR = 'hello world'
   // Make it easier to run in development, test directories are cleared between runs already so this is safe.
-  process.env.TURBO_ENGINE_DISABLE_VERSIONING = '1'
+  process.env.TURBO_ENGINE_IGNORE_DIRTY = '1'
   // decrease the idle timeout to make the test more reliable
   process.env.TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS = '1000'
+  process.env.ENABLE_CACHING = '1'
   const { skipped, next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
@@ -47,7 +48,6 @@ describe('filesystem-caching', () => {
   }
 
   it('should filesystem cache loaders', async () => {
-    process.env.ENABLE_CACHING = '1'
     let appTimestamp, unchangedTimestamp, appClientTimestamp, pagesTimestamp
     {
       const browser = await next.browser('/')
@@ -214,6 +214,7 @@ describe('filesystem-caching', () => {
   for (const cacheEnabled of [true, false]) {
     describe(`with cache ${cacheEnabled ? 'enabled' : 'disabled'}`, () => {
       beforeAll(() => {
+        // Next is always started with caching, but this can disable it for the followup restarts
         process.env.ENABLE_CACHING = cacheEnabled ? '1' : '0'
       })
       for (const [name, changes] of combinations) {
