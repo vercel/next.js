@@ -1118,11 +1118,9 @@ async fn analyze_ecmascript_module_internal(
                                 .extend($effects.into_iter().map(Action::Effect).rev())
                         };
                     }
-                    macro_rules! replace_with_left {
+                    macro_rules! replace_with_condition {
                         ($path:ident) => {
-                            if analyze_mode.is_code_gen() && !condition_has_side_effects {
-                                $path.pop();
-                                $path.push(AstParentKind::BinExpr(BinExprField::Left));
+                            if analyze_mode.is_code_gen() {
                                 analysis.add_code_gen(ReplaceParentWithChild::new(AstPath($path)));
                             }
                         };
@@ -1219,7 +1217,7 @@ async fn analyze_ecmascript_module_internal(
                             }
                             Some(false) => {
                                 // The condition value needs to stay since it's used
-                                replace_with_left!(condition_ast_path);
+                                replace_with_condition!(condition_ast_path);
                             }
                             None => {
                                 active_effects!(rhs_effects);
@@ -1227,7 +1225,7 @@ async fn analyze_ecmascript_module_internal(
                         },
                         ConditionalKind::Or { rhs_effects } => match condition.is_truthy() {
                             Some(true) => {
-                                replace_with_left!(condition_ast_path);
+                                replace_with_condition!(condition_ast_path);
                             }
                             Some(false) => {
                                 replace_with_right!(condition_ast_path);
@@ -1244,7 +1242,7 @@ async fn analyze_ecmascript_module_internal(
                                     active_effects!(rhs_effects);
                                 }
                                 Some(false) => {
-                                    replace_with_left!(condition_ast_path);
+                                    replace_with_condition!(condition_ast_path);
                                 }
                                 None => {
                                     active_effects!(rhs_effects);

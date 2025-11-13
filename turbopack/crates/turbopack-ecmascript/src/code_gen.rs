@@ -200,7 +200,7 @@ pub enum CodeGen {
     RequireContextAssetReferenceCodeGen(RequireContextAssetReferenceCodeGen),
     UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen),
     WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen),
-    ReplaceBinaryExpressionWithFirstChild(ReplaceParentWithChild),
+    ReplaceParentWithChild(ReplaceParentWithChild),
 }
 
 impl CodeGen {
@@ -233,7 +233,7 @@ impl CodeGen {
             Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::ReplaceBinaryExpressionWithFirstChild(v) => v.code_generation(),
+            Self::ReplaceParentWithChild(v) => v.code_generation(),
         }
     }
 }
