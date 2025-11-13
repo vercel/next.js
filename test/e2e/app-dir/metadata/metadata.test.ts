@@ -193,6 +193,10 @@ describe('app dir - metadata', () => {
         type: 'application/rss+xml',
         href: 'https://example.com/blog.rss',
       })
+      await matchDom('link', 'title="v1.0"', {
+        rel: 'alternate',
+        href: 'https://example.com/1.0',
+      })
       await matchDom('link', 'hreflang="en-US"', {
         rel: 'alternate',
         href: 'https://example.com/alternates/en-US',
@@ -205,6 +209,14 @@ describe('app dir - metadata', () => {
         rel: 'alternate',
         href: 'https://example.com/mobile',
       })
+    })
+
+    it('should not contain type when types key is empty for alternate', async () => {
+      const browser = await next.browser('/alternates')
+      const html = await browser.eval(
+        `document.querySelector('link[rel="alternate"][title="v1.0"]').outerHTML;`
+      )
+      expect(html).not.toContain('type')
     })
 
     it('should relative canonical url', async () => {
