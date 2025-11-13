@@ -1,4 +1,5 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { createAtomicTimerGroup } from './app-render-scheduling'
 
 /**
  * This is a utility function to make scheduling sequential tasks that run back to back easier.
@@ -14,18 +15,21 @@ export function scheduleInSequentialTasks<R>(
     )
   } else {
     return new Promise((resolve, reject) => {
+      const scheduleTimeout = createAtomicTimerGroup()
+
       let pendingResult: R | Promise<R>
-      setTimeout(() => {
+      scheduleTimeout(() => {
         try {
           pendingResult = render()
         } catch (err) {
           reject(err)
         }
-      }, 0)
-      setTimeout(() => {
+      })
+
+      scheduleTimeout(() => {
         followup()
         resolve(pendingResult)
-      }, 0)
+      })
     })
   }
 }
@@ -46,8 +50,10 @@ export function pipelineInSequentialTasks<A, B, C>(
     )
   } else {
     return new Promise((resolve, reject) => {
+      const scheduleTimeout = createAtomicTimerGroup()
+
       let oneResult: A | undefined = undefined
-      setTimeout(() => {
+      scheduleTimeout(() => {
         try {
           oneResult = one()
         } catch (err) {
@@ -55,10 +61,10 @@ export function pipelineInSequentialTasks<A, B, C>(
           clearTimeout(threeId)
           reject(err)
         }
-      }, 0)
+      })
 
       let twoResult: B | undefined = undefined
-      const twoId = setTimeout(() => {
+      const twoId = scheduleTimeout(() => {
         // if `one` threw, then this timeout would've been cleared,
         // so if we got here, we're guaranteed to have a value.
         try {
@@ -67,9 +73,9 @@ export function pipelineInSequentialTasks<A, B, C>(
           clearTimeout(threeId)
           reject(err)
         }
-      }, 0)
+      })
 
-      const threeId = setTimeout(() => {
+      const threeId = scheduleTimeout(() => {
         // if `two` threw, then this timeout would've been cleared,
         // so if we got here, we're guaranteed to have a value.
         try {
@@ -77,7 +83,7 @@ export function pipelineInSequentialTasks<A, B, C>(
         } catch (err) {
           reject(err)
         }
-      }, 0)
+      })
     })
   }
 }
