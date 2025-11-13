@@ -111,7 +111,7 @@ For example the `DynamicContent` component below uses multiple operations that a
 ```tsx filename="page.tsx"
 import { Suspense } from 'react'
 import fs from 'node:fs/promises'
-import { setTimeout } from 'node:timers/promise'
+import { setTimeout } from 'node:timers/promises'
 
 async function DynamicContent() {
   // Network request
