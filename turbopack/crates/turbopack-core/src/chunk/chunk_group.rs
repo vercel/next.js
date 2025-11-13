@@ -205,17 +205,6 @@ pub struct ChunkGroupContentOptions {
 }
 
 /// Computes the content of a chunk group.
-///
-/// ### Parameters:
-/// - module_graph: the module graph
-/// - chunk_group_entries: the entries of the chunk group
-/// - availability_info: the availability info of the chunk group
-/// - can_split_async: indicates whether async modules can be split into separate chunks
-/// - update_availability_info: indicates whether to return a new availability info which includes
-///   all chunk items.
-/// - should_trace: indicates whether traced modules should be collected
-/// - should_merge_modules: indicates whether module merging is enabled
-/// - batching_config: the batching config to use
 pub async fn chunk_group_content(
     module_graph: Vc<ModuleGraph>,
     chunk_group_entries: impl IntoIterator<
