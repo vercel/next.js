@@ -1,5 +1,7 @@
 import type { AnalyzeData } from './analyze-data'
 import { layoutTreemap } from './layout-treemap'
+import { SpecialModule } from './types'
+import { getSpecialModuleType } from './utils'
 
 export interface LayoutRect {
   x: number
@@ -18,6 +20,7 @@ export interface LayoutNode extends LayoutNodeInfo {
   size: number
   rect: LayoutRect
   type: 'file' | 'directory' | 'collapsed-directory'
+  specialModuleType: SpecialModule | null
   titleBarHeight?: number
   children?: LayoutNode[]
   itemCount?: number
@@ -141,6 +144,7 @@ function computeTreemapLayoutFromAnalyzeInternal(
       type: 'file',
       rect,
       sourceIndex,
+      specialModuleType: getSpecialModuleType(analyzeData, sourceIndex),
       ...analyzeData.getSourceFlags(sourceIndex),
     }
   }
@@ -178,6 +182,7 @@ function computeTreemapLayoutFromAnalyzeInternal(
       itemCount: countDescendants(sourceIndex),
       children: [],
       sourceIndex,
+      specialModuleType: null,
     }
   }
 
@@ -211,6 +216,7 @@ function computeTreemapLayoutFromAnalyzeInternal(
       titleBarHeight,
       children: [],
       sourceIndex,
+      specialModuleType: null,
     }
   }
 
@@ -240,6 +246,7 @@ function computeTreemapLayoutFromAnalyzeInternal(
     titleBarHeight,
     children: layoutChildren,
     sourceIndex,
+    specialModuleType: null,
   }
 }
 
