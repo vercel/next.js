@@ -44,47 +44,38 @@ _describe(
       tmpFolder = path.join(os.tmpdir(), 'next-standalone-' + Date.now())
       await fs.mkdirp(tmpFolder)
 
-      try {
-        await next.build()
-        await next.patchFile(
-          '.next/standalone/node_modules/next/dist/server/body-streams.js',
-          (content) => {
-            if (!content) {
-              throw new Error(
-                'body-streams.js file not found in standalone build'
-              )
-            }
-            return content.replace(
-              'async finalize () {',
-              'async finalize () { \nawait new Promise((resolve) => setTimeout(resolve, (Math.random() * 1000) + 1000));\n'
-            )
-          }
-        )
+      await next.build()
+      await next.patchFile(
+        '.next/standalone/node_modules/next/dist/server/body-streams.js',
+        (content) => {
+          return content.replace(
+            'async finalize () {',
+            'async finalize () { \nawait new Promise((resolve) => setTimeout(resolve, (Math.random() * 1000) + 1000));\n'
+          )
+        }
+      )
 
-        const distFolder = path.join(tmpFolder, 'test')
-        await fs.move(path.join(next.testDir, '.next/standalone'), distFolder)
-        await fs.move(
-          path.join(next.testDir, '.next/static'),
-          path.join(distFolder, '.next/static')
-        )
+      const distFolder = path.join(tmpFolder, 'test')
+      await fs.move(path.join(next.testDir, '.next/standalone'), distFolder)
+      await fs.move(
+        path.join(next.testDir, '.next/static'),
+        path.join(distFolder, '.next/static')
+      )
 
-        const testServer = path.join(distFolder, 'server.js')
-        appPort = await findPort()
-        server = await initNextServerScript(
-          testServer,
-          /- Local:/,
-          {
-            ...process.env,
-            PORT: appPort.toString(),
-          },
-          undefined,
-          {
-            cwd: distFolder,
-          }
-        )
-      } catch (err) {
-        throw err
-      }
+      const testServer = path.join(distFolder, 'server.js')
+      appPort = await findPort()
+      server = await initNextServerScript(
+        testServer,
+        /- Local:/,
+        {
+          ...process.env,
+          PORT: appPort.toString(),
+        },
+        undefined,
+        {
+          cwd: distFolder,
+        }
+      )
     })
 
     afterAll(async () => {

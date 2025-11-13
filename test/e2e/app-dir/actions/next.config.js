@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
-  // output: 'standalone',
   productionBrowserSourceMaps: true,
   logging: {
     fetches: {},
