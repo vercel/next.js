@@ -285,7 +285,7 @@ export default async function Layout({ children }: { children: ReactNode }) {
 }
 ```
 
-```jsx filename="app/page.tsx" switcher
+```jsx filename="app/layout.tsx" switcher
 'use cache'
 
 export default async function Layout({ children }) {
@@ -462,7 +462,7 @@ export default async function Page() {
     await db.update(...)
   }
 
-  return <CacheComponent performUpdate={performUpdate} />
+  return <CachedComponent performUpdate={performUpdate} />
 }
 
 async function CachedComponent({
@@ -486,7 +486,7 @@ export default async function Page() {
     await db.update(...)
   }
 
-  return <CacheComponent performUpdate={performUpdate} />
+  return <CachedComponent performUpdate={performUpdate} />
 }
 
 async function CachedComponent({ performUpdate }) {
