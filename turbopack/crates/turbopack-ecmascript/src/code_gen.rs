@@ -16,6 +16,7 @@ use turbopack_core::{chunk::ChunkingContext, reference::ModuleReference};
 
 use crate::{
     ScopeHoistingContext,
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     references::{
         AstPath,
         amd::AmdDefineWithDependenciesCodeGen,
@@ -31,6 +32,7 @@ use crate::{
             dynamic::EsmAsyncAssetReferenceCodeGen, module_id::EsmModuleIdAssetReferenceCodeGen,
             url::UrlAssetReferenceCodeGen,
         },
+        exports_info::{ExportsInfoBinding, ExportsInfoRef},
         ident::IdentReplacement,
         member::MemberReplacement,
         require_context::RequireContextAssetReferenceCodeGen,
@@ -181,6 +183,8 @@ pub enum CodeGen {
     DynamicExpression(DynamicExpression),
     EsmBinding(EsmBinding),
     EsmModuleItem(EsmModuleItem),
+    ExportsInfoBinding(ExportsInfoBinding),
+    ExportsInfoRef(ExportsInfoRef),
     IdentReplacement(IdentReplacement),
     ImportMetaBinding(ImportMetaBinding),
     ImportMetaRef(ImportMetaRef),
@@ -200,6 +204,8 @@ impl CodeGen {
         &self,
         ctx: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        exports: ResolvedVc<EcmascriptExports>,
     ) -> Result<CodeGeneration> {
         match self {
             Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(ctx).await,
@@ -209,6 +215,8 @@ impl CodeGen {
             Self::DynamicExpression(v) => v.code_generation(ctx).await,
             Self::EsmBinding(v) => v.code_generation(ctx, scope_hoisting_context).await,
             Self::EsmModuleItem(v) => v.code_generation(ctx).await,
+            Self::ExportsInfoBinding(v) => v.code_generation(ctx, module, exports).await,
+            Self::ExportsInfoRef(v) => v.code_generation(ctx).await,
             Self::IdentReplacement(v) => v.code_generation(ctx).await,
             Self::ImportMetaBinding(v) => v.code_generation(ctx).await,
             Self::ImportMetaRef(v) => v.code_generation(ctx).await,

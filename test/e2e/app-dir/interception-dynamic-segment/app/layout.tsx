@@ -5,8 +5,14 @@ export default function Layout(props: {
   return (
     <html>
       <body>
-        <div id="children">{props.children}</div>
-        <div id="modal">{props.modal}</div>
+        <div id="children">
+          <div>CHILDREN SLOT:</div>
+          {props.children}
+        </div>
+        <div id="modal">
+          <div>MODAL SLOT:</div>
+          {props.modal}
+        </div>
       </body>
     </html>
   )
