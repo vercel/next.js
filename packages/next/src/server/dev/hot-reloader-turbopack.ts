@@ -1,5 +1,6 @@
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
+import * as inspector from 'inspector'
 import { join, extname, relative } from 'path'
 import { pathToFileURL } from 'url'
 
@@ -78,7 +79,6 @@ import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-serv
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { ModernSourceMapPayload } from '../lib/source-maps'
-import { getNodeDebugType, getParsedNodeOptions } from '../lib/utils'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
@@ -814,15 +814,14 @@ export async function createHotReloaderTurbopack(
   }
 
   let devtoolsFrontendUrl: string | undefined
-  const nodeOptions = getParsedNodeOptions()
-  const nodeDebugType = getNodeDebugType(nodeOptions)
-  if (nodeDebugType) {
-    const debugPort = process.debugPort
+  const inspectorURLRaw = inspector.url()
+  if (inspectorURLRaw !== undefined) {
+    const inspectorURL = new URL(inspectorURLRaw)
+
     let debugInfo
     try {
-      // It requires to use 127.0.0.1 instead of localhost for server-side fetching.
       const debugInfoList = await fetch(
-        `http://127.0.0.1:${debugPort}/json/list`
+        `http://${inspectorURL.host}/json/list`
       ).then((res) => res.json())
       debugInfo = debugInfoList[0]
     } catch {}
