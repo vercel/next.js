@@ -271,7 +271,8 @@ impl MiddlewareEndpoint {
             let wasm_paths_from_root =
                 get_wasm_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
 
-            let all_assets = get_asset_paths_from_root(&node_root_value, &output_assets).await?;
+            let all_assets =
+                get_asset_paths_from_root(&node_root_value, &edge_all_assets.await?).await?;
 
             let regions = if let Some(regions) = config.preferred_region.as_ref() {
                 if regions.len() == 1 {
