@@ -86,7 +86,7 @@ However, I'm not confident we know all the side effects of doing this,
 so for now, simply ensuring coordination is enough.
 */
 
-let cannotGuaranteeAtomicTimers = false
+let shouldAttemptPatching = true
 
 function warnAboutTimers() {
   console.warn(
@@ -116,7 +116,7 @@ export function createAtomicTimerGroup(delayMs = 0) {
     let didImmediateRun = false
     function runFirstCallback(callback: () => void) {
       didFirstTimerRun = true
-      if (!cannotGuaranteeAtomicTimers) {
+      if (shouldAttemptPatching) {
         setImmediate(() => {
           didImmediateRun = true
         })
@@ -125,11 +125,11 @@ export function createAtomicTimerGroup(delayMs = 0) {
     }
 
     function runSubsequentCallback(callback: () => void) {
-      if (!cannotGuaranteeAtomicTimers) {
+      if (shouldAttemptPatching) {
         if (didImmediateRun) {
           // If the immediate managed to run between the timers, then we're not
           // able to provide the guarantees that we're supposed to
-          cannotGuaranteeAtomicTimers = true
+          shouldAttemptPatching = false
           warnAboutTimers()
         }
       }
@@ -150,7 +150,7 @@ export function createAtomicTimerGroup(delayMs = 0) {
       )
       isFirstCallback = false
 
-      if (cannotGuaranteeAtomicTimers) {
+      if (!shouldAttemptPatching) {
         // We already tried patching some timers, and it didn't work.
         // No point trying again.
         return timer
@@ -170,7 +170,7 @@ export function createAtomicTimerGroup(delayMs = 0) {
             timer._idleStart = firstTimerIdleStart
           }
         } else {
-          cannotGuaranteeAtomicTimers = true
+          shouldAttemptPatching = false
           warnAboutTimers()
         }
       } catch (err) {
@@ -182,7 +182,8 @@ export function createAtomicTimerGroup(delayMs = 0) {
             { cause: err }
           )
         )
-        cannotGuaranteeAtomicTimers = true
+        shouldAttemptPatching = false
+        warnAboutTimers()
       }
 
       return timer
