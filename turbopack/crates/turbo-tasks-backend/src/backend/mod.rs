@@ -1946,21 +1946,27 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let old_counters: FxHashMap<_, _> =
             get_many!(task, CellTypeMaxIndex { cell_type } max_index => (cell_type, *max_index));
         let mut counters_to_remove = old_counters.clone();
-        for (&cell_type, &max_index) in cell_counters.iter() {
-            if let Some(old_max_index) = counters_to_remove.remove(&cell_type) {
-                if old_max_index != max_index {
-                    task.insert(CachedDataItem::CellTypeMaxIndex {
+
+        task.extend(
+            CachedDataItemType::CellTypeMaxIndex,
+            cell_counters.iter().filter_map(|(&cell_type, &max_index)| {
+                if let Some(old_max_index) = counters_to_remove.remove(&cell_type) {
+                    if old_max_index != max_index {
+                        Some(CachedDataItem::CellTypeMaxIndex {
+                            cell_type,
+                            value: max_index,
+                        })
+                    } else {
+                        None
+                    }
+                } else {
+                    Some(CachedDataItem::CellTypeMaxIndex {
                         cell_type,
                         value: max_index,
-                    });
+                    })
                 }
-            } else {
-                task.add_new(CachedDataItem::CellTypeMaxIndex {
-                    cell_type,
-                    value: max_index,
-                });
-            }
-        }
+            }),
+        );
         for (cell_type, _) in counters_to_remove {
             task.remove(&CachedDataItemKey::CellTypeMaxIndex { cell_type });
         }
