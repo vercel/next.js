@@ -225,7 +225,7 @@ function startServer(dir: string, port: number): Promise<void> {
 
     server.on('error', onError)
 
-    server.listen(port, () => {
+    server.listen(port, 'localhost', () => {
       const address = server.address()
       if (address == null) {
         reject(new Error('Unable to get server address'))
