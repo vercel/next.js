@@ -121,11 +121,20 @@ export function runInstallation(
   options: { cwd: string }
 ) {
   try {
-    execa.sync(packageManager, ['install'], {
-      cwd: options.cwd,
-      stdio: 'inherit',
-      shell: true,
-    })
+    execa.sync(
+      packageManager,
+      [
+        'install',
+        // In case NODE_ENV=production is set, we still want dev dependencies to
+        // be installed. Otherwise we won't be able to check for peer dependencies.
+        '--production=false',
+      ],
+      {
+        cwd: options.cwd,
+        stdio: 'inherit',
+        shell: true,
+      }
+    )
   } catch (error) {
     throw new Error('Failed to install dependencies', { cause: error })
   }
