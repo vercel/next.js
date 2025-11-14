@@ -349,14 +349,12 @@ impl Module for EcmascriptModulePartAsset {
 
     #[turbo_tasks::function]
     async fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
+        &self,
         side_effect_free_packages: Vc<Glob>,
     ) -> Result<Vc<bool>> {
-        let this = self.await?;
-
-        match this.part {
+        match self.part {
             ModulePart::Exports | ModulePart::Export(..) => Ok(Vc::cell(true)),
-            _ => Ok(this
+            _ => Ok(self
                 .full_module
                 .is_marked_as_side_effect_free(side_effect_free_packages)),
         }
