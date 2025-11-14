@@ -617,8 +617,9 @@ export async function handleAction({
           type: 'done',
           result: await generateFlight(req, ctx, requestStore, {
             actionResult: promise,
-            // We didn't execute an action, so no revalidations could have occurred. We can skip rendering the page.
-            skipFlight: true,
+            // We didn't execute an action, so no revalidations could have
+            // occurred. We can skip rendering the page.
+            skipPageRendering: true,
             temporaryReferences,
           }),
         }
@@ -1022,11 +1023,17 @@ export async function handleAction({
             actionId!
           ]
 
+        // If the page was not revalidated, or if the action was forwarded from
+        // another worker, we can skip rendering the page.
+        const skipPageRendering =
+          !workStore.pathWasRevalidated || actionWasForwarded
+
         const returnVal = await executeActionAndPrepareForRender(
           actionHandler,
           boundActionArguments,
           workStore,
-          requestStore
+          requestStore,
+          skipPageRendering
         ).finally(() => {
           addRevalidationHeader(res, { workStore, requestStore })
         })
@@ -1035,9 +1042,14 @@ export async function handleAction({
         if (isFetchAction) {
           const actionResult = await generateFlight(req, ctx, requestStore, {
             actionResult: Promise.resolve(returnVal),
-            // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
-            skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,
+            skipPageRendering,
             temporaryReferences,
+            // If we skip page rendering, we need to ensure pending revalidates
+            // are awaited before closing the response. Otherwise, this will be
+            // done after rendering the page.
+            waitUntil: skipPageRendering
+              ? executeRevalidates(workStore)
+              : undefined,
           })
 
           return {
@@ -1101,7 +1113,7 @@ export async function handleAction({
         return {
           type: 'done',
           result: await generateFlight(req, ctx, requestStore, {
-            skipFlight: false,
+            skipPageRendering: false,
             actionResult: promise,
             temporaryReferences,
           }),
@@ -1139,7 +1151,8 @@ export async function handleAction({
         result: await generateFlight(req, ctx, requestStore, {
           actionResult: promise,
           // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
-          skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,
+          skipPageRendering:
+            !workStore.pathWasRevalidated || actionWasForwarded,
           temporaryReferences,
         }),
       }
@@ -1156,7 +1169,8 @@ async function executeActionAndPrepareForRender<
   action: TFn,
   args: Parameters<TFn>,
   workStore: WorkStore,
-  requestStore: RequestStore
+  requestStore: RequestStore,
+  skipPageRendering: boolean = false
 ): Promise<Awaited<ReturnType<TFn>>> {
   requestStore.phase = 'action'
   try {
@@ -1164,21 +1178,25 @@ async function executeActionAndPrepareForRender<
       action.apply(null, args)
     )
   } finally {
-    requestStore.phase = 'render'
+    if (!skipPageRendering) {
+      requestStore.phase = 'render'
 
-    // When we switch to the render phase, cookies() will return
-    // `workUnitStore.cookies` instead of `workUnitStore.userspaceMutableCookies`.
-    // We want the render to see any cookie writes that we performed during the action,
-    // so we need to update the immutable cookies to reflect the changes.
-    synchronizeMutableCookies(requestStore)
+      // When we switch to the render phase, cookies() will return
+      // `workUnitStore.cookies` instead of
+      // `workUnitStore.userspaceMutableCookies`. We want the render to see any
+      // cookie writes that we performed during the action, so we need to update
+      // the immutable cookies to reflect the changes.
+      synchronizeMutableCookies(requestStore)
 
-    // The server action might have toggled draft mode, so we need to reflect
-    // that in the work store to be up-to-date for subsequent rendering.
-    workStore.isDraftMode = requestStore.draftMode.isEnabled
+      // The server action might have toggled draft mode, so we need to reflect
+      // that in the work store to be up-to-date for subsequent rendering.
+      workStore.isDraftMode = requestStore.draftMode.isEnabled
 
-    // If the action called revalidateTag/revalidatePath, then that might affect data used by the subsequent render,
-    // so we need to make sure all revalidations are applied before that
-    await executeRevalidates(workStore)
+      // If the action called revalidateTag/revalidatePath, then that might
+      // affect data used by the subsequent render, so we need to make sure all
+      // revalidations are applied before that
+      await executeRevalidates(workStore)
+    }
   }
 }
 
