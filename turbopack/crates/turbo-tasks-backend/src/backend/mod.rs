@@ -1672,48 +1672,45 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
             if self.should_track_dependencies() {
                 // Make all dependencies outdated
-                enum Dep {
-                    CurrentCell(CellRef),
-                    CurrentOutput(TaskId),
-                    OutdatedCell(CellRef),
-                    OutdatedOutput(TaskId),
+                let outdated_cell_dependencies_to_add =
+                    iter_many!(task, CellDependency { target } => target)
+                        .collect::<SmallVec<[_; 8]>>();
+                let outdated_cell_dependencies_to_remove =
+                    iter_many!(task, OutdatedCellDependency { target } => target)
+                        .filter(|&target| {
+                            !task.has_key(&CachedDataItemKey::CellDependency { target })
+                        })
+                        .collect::<SmallVec<[_; 8]>>();
+                task.extend(
+                    CachedDataItemType::OutdatedCellDependency,
+                    outdated_cell_dependencies_to_add
+                        .into_iter()
+                        .map(|target| CachedDataItem::OutdatedCellDependency { target, value: () }),
+                );
+                for target in outdated_cell_dependencies_to_remove {
+                    task.remove(&CachedDataItemKey::OutdatedCellDependency { target });
                 }
-                let dependencies = iter_many!(task, CellDependency { target } => Dep::CurrentCell(target))
-                    .chain(iter_many!(task, OutputDependency { target } => Dep::CurrentOutput(target)))
-                    .chain(iter_many!(task, OutdatedCellDependency { target } => Dep::OutdatedCell(target)))
-                    .chain(iter_many!(task, OutdatedOutputDependency { target } => Dep::OutdatedOutput(target)))
-                    .collect::<Vec<_>>();
-                for dep in dependencies {
-                    match dep {
-                        Dep::CurrentCell(cell) => {
-                            let _ = task.add(CachedDataItem::OutdatedCellDependency {
-                                target: cell,
-                                value: (),
-                            });
-                        }
-                        Dep::CurrentOutput(output) => {
-                            let _ = task.add(CachedDataItem::OutdatedOutputDependency {
-                                target: output,
-                                value: (),
-                            });
-                        }
-                        Dep::OutdatedCell(cell) => {
-                            if !task.has_key(&CachedDataItemKey::CellDependency { target: cell }) {
-                                task.remove(&CachedDataItemKey::OutdatedCellDependency {
-                                    target: cell,
-                                });
-                            }
-                        }
-                        Dep::OutdatedOutput(output) => {
-                            if !task
-                                .has_key(&CachedDataItemKey::OutputDependency { target: output })
-                            {
-                                task.remove(&CachedDataItemKey::OutdatedOutputDependency {
-                                    target: output,
-                                });
-                            }
-                        }
-                    }
+
+                let outdated_output_dependencies_to_add =
+                    iter_many!(task, OutputDependency { target } => target)
+                        .collect::<SmallVec<[_; 8]>>();
+                let outdated_output_dependencies_to_remove =
+                    iter_many!(task, OutdatedOutputDependency { target } => target)
+                        .filter(|&target| {
+                            !task.has_key(&CachedDataItemKey::OutputDependency { target })
+                        })
+                        .collect::<SmallVec<[_; 8]>>();
+                task.extend(
+                    CachedDataItemType::OutdatedOutputDependency,
+                    outdated_output_dependencies_to_add
+                        .into_iter()
+                        .map(|target| CachedDataItem::OutdatedOutputDependency {
+                            target,
+                            value: (),
+                        }),
+                );
+                for target in outdated_output_dependencies_to_remove {
+                    task.remove(&CachedDataItemKey::OutdatedOutputDependency { target });
                 }
             }
         }
