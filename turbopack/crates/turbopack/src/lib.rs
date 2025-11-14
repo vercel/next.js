@@ -84,8 +84,14 @@ async fn apply_module_type(
     css_import_context: Option<ResolvedVc<ImportContext>>,
     runtime_code: bool,
 ) -> Result<Vc<ProcessResult>> {
+    let tree_shaking_mode = module_asset_context
+        .module_options_context()
+        .await?
+        .tree_shaking_mode;
+    let is_evaluation = matches!(&part, Some(ModulePart::Evaluation));
+
     let module_type = &*module_type.await?;
-    Ok(ProcessResult::Module(match module_type {
+    let module = match module_type {
         ModuleType::Ecmascript {
             preprocess,
             main,
@@ -166,10 +172,11 @@ async fn apply_module_type(
             if runtime_code {
                 ResolvedVc::upcast(module)
             } else {
-                let options_value = options.await?;
-                if options_value.tree_shaking_mode.is_some()
-                    && matches!(&part, Some(ModulePart::Evaluation))
-                {
+                // Check side effect free on the intermediate module before following reexports
+                // This can skip the module earlier and could skip more modules than only doing it
+                // at the end. Also we avoid parsing/analyzing the module in this
+                // case, because we would need to parse/analyze it for reexports.
+                if tree_shaking_mode.is_some() && is_evaluation {
                     // If we are tree shaking, skip the evaluation part if the module is marked as
                     // side effect free.
                     let side_effect_free_packages = module_asset_context
@@ -185,7 +192,7 @@ async fn apply_module_type(
                     }
                 }
 
-                match options_value.tree_shaking_mode {
+                match tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
                         Vc::upcast(EcmascriptModulePartAsset::select_part(
                             *module,
@@ -301,8 +308,25 @@ async fn apply_module_type(
                 .to_resolved()
                 .await?
         }
-    })
-    .cell())
+    };
+
+    if tree_shaking_mode.is_some() && is_evaluation {
+        // If we are tree shaking, skip the evaluation part if the module is marked as
+        // side effect free.
+        let side_effect_free_packages = module_asset_context
+            .side_effect_free_packages()
+            .resolve()
+            .await?;
+
+        if *module
+            .is_marked_as_side_effect_free(side_effect_free_packages)
+            .await?
+        {
+            return Ok(ProcessResult::Ignore.cell());
+        }
+    }
+
+    Ok(ProcessResult::Module(module).cell())
 }
 
 async fn apply_reexport_tree_shaking(
@@ -549,7 +573,8 @@ async fn process_default_internal(
         _ => None,
     };
 
-    for (i, rule) in options.await?.rules.iter().enumerate() {
+    let options_value = options.await?;
+    for (i, rule) in options_value.rules.iter().enumerate() {
         if has_type_attribute && current_module_type.is_some() {
             continue;
         }
@@ -712,7 +737,7 @@ async fn process_default_internal(
         return Ok(ProcessResult::Unknown(current_source).cell());
     };
 
-    apply_module_type(
+    let module = apply_module_type(
         current_source,
         module_asset_context,
         module_type.cell(),
@@ -725,7 +750,9 @@ async fn process_default_internal(
         },
         matches!(reference_type, ReferenceType::Runtime),
     )
-    .await
+    .await?;
+
+    Ok(module)
 }
 
 #[turbo_tasks::function]
