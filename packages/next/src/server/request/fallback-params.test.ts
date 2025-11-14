@@ -499,6 +499,32 @@ describe('getFallbackRouteParams', () => {
       // locale should not be a fallback param because 'en' is static
       expect(result!.has('locale')).toBe(false)
     })
+
+    it('should handle a partially static intercepting route', () => {
+      // Tree: /[locale]/(.)photo/[photoId] but page is /en/(.)photo/[photoId]
+      const loaderTree = createLoaderTree(
+        '',
+        {},
+        createLoaderTree('[locale]', {
+          modal: createLoaderTree(
+            '(.)photo',
+            {},
+            createLoaderTree('[photoId]')
+          ),
+        })
+      )
+      const routeModule = createMockRouteModule(loaderTree)
+      const result = getFallbackRouteParams(
+        '/en/(.)photo/[photoId]',
+        routeModule
+      )
+
+      expect(result).not.toBeNull()
+      expect(result!.size).toBe(1)
+      expect(result!.has('photoId')).toBe(true)
+      // locale should not be a fallback param because 'en' is static
+      expect(result!.has('locale')).toBe(false)
+    })
   })
 
   describe('Edge Cases', () => {
@@ -554,12 +580,15 @@ describe('getFallbackRouteParams', () => {
         sidebar: createLoaderTree('[[...optional]]'),
       })
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams('/[[...optional]]', routeModule)
 
+      let result = getFallbackRouteParams('/[[...optional]]', routeModule)
       expect(result).not.toBeNull()
       expect(result!.size).toBe(1)
       expect(result!.has('optional')).toBe(true)
       expect(result!.get('optional')?.[1]).toBe('oc') // optional-catchall
+
+      result = getFallbackRouteParams('/sidebar/is/real', routeModule)
+      expect(result).toBeNull()
     })
   })
 })

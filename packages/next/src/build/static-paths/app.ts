@@ -27,6 +27,7 @@ import { getParamProperties } from '../../shared/lib/router/utils/get-segment-pa
 import { throwEmptyGenerateStaticParamsError } from '../../shared/lib/errors/empty-generate-static-params-error'
 import type { AppRouteModule } from '../../server/route-modules/app-route/module.compiled'
 import type { NormalizedAppRoute } from '../../shared/lib/router/routes/app'
+import { interceptionPrefixFromParamType } from '../../shared/lib/router/utils/interception-prefix-from-param-type'
 
 /**
  * Filters out duplicate parameters from a list of parameters.
@@ -644,30 +645,7 @@ function createReplacements(
   // Determine the prefix to use for the interception marker.
   let prefix: string
   if (segment.paramType) {
-    switch (segment.paramType) {
-      case 'catchall-intercepted-(.)':
-      case 'dynamic-intercepted-(.)':
-        prefix = '(.)'
-        break
-      case 'catchall-intercepted-(..)(..)':
-      case 'dynamic-intercepted-(..)(..)':
-        prefix = '(..)(..)'
-        break
-      case 'catchall-intercepted-(..)':
-      case 'dynamic-intercepted-(..)':
-        prefix = '(..)'
-        break
-      case 'catchall-intercepted-(...)':
-      case 'dynamic-intercepted-(...)':
-        prefix = '(...)'
-        break
-      case 'catchall':
-      case 'dynamic':
-      case 'optional-catchall':
-      default:
-        prefix = ''
-        break
-    }
+    prefix = interceptionPrefixFromParamType(segment.paramType) ?? ''
   } else {
     prefix = ''
   }
@@ -811,7 +789,7 @@ export async function buildAppStaticPaths({
     // dynamicParams set to false.
     if (
       segment.paramName &&
-      segment.isDynamicSegment &&
+      segment.paramType &&
       segment.config?.dynamicParams === false
     ) {
       for (const params of routeParams) {
@@ -828,7 +806,8 @@ export async function buildAppStaticPaths({
     }
 
     if (
-      segment.isDynamicSegment &&
+      segment.paramName &&
+      segment.paramType &&
       typeof segment.generateStaticParams !== 'function'
     ) {
       lastDynamicSegmentHadGenerateStaticParams = false

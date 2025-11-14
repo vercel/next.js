@@ -1,12 +1,10 @@
-import {
-  extractPathnameRouteParamSegmentsFromLoaderTree,
-  resolveRouteParamsFromTree,
-} from '../../build/static-paths/utils'
+import { resolveRouteParamsFromTree } from '../../build/static-paths/utils'
 import type { FallbackRouteParam } from '../../build/static-paths/types'
 import type { DynamicParamTypesShort } from '../../shared/lib/app-router-types'
 import { dynamicParamTypes } from '../app-render/get-short-dynamic-param-type'
 import type AppPageRouteModule from '../route-modules/app-page/module'
 import { parseAppRoute } from '../../shared/lib/router/routes/app'
+import { extractPathnameRouteParamSegmentsFromLoaderTree } from '../../build/static-paths/app/extract-pathname-route-param-segments-from-loader-tree'
 
 export type OpaqueFallbackRouteParamValue = [
   /**
@@ -94,7 +92,7 @@ export function getFallbackRouteParams(
   // Extract the pathname-contributing segments from the loader tree. This
   // mirrors the logic in buildAppStaticPaths where we determine which segments
   // actually contribute to the pathname.
-  const pathnameRouteParamSegments =
+  const { pathnameRouteParamSegments, params } =
     extractPathnameRouteParamSegmentsFromLoaderTree(
       routeModule.userland.loaderTree,
       route
@@ -111,13 +109,11 @@ export function getFallbackRouteParams(
   // fallbackRouteParams array to add any route params that are
   // unknown at request time.
   //
-  // We pass an empty params object because we don't have any static param
-  // values at runtime (unlike during build where we have generateStaticParams).
   // The page parameter contains placeholders like [slug], which helps
   // resolveRouteParamsFromTree determine which params are unknown.
   resolveRouteParamsFromTree(
     routeModule.userland.loaderTree,
-    {}, // No static params known at runtime
+    params, // Static params extracted from the page
     route, // The page pattern with placeholders
     fallbackRouteParams // Will be mutated to add route params
   )
