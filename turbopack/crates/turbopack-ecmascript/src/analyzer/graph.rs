@@ -35,7 +35,7 @@ use crate::{
     utils::{AstPathRange, unparen},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct EffectsBlock {
     pub effects: Vec<Effect>,
     pub range: AstPathRange,
@@ -47,7 +47,7 @@ impl EffectsBlock {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum ConditionalKind {
     /// The blocks of an `if` statement without an `else` block.
     If { then: Box<EffectsBlock> },
@@ -117,7 +117,7 @@ impl ConditionalKind {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum EffectArg {
     Value(JsValue),
     Closure(JsValue, Box<EffectsBlock>),
@@ -140,7 +140,7 @@ impl EffectArg {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Effect {
     /// Some condition which affects which effects might be executed. If the
     /// condition evaluates to some compile-time constant, we can use that
