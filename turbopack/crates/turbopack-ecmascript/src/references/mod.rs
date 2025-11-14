@@ -1687,939 +1687,6 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         })
         .collect::<Vec<_>>();
 
-    async fn handle_well_known_function_call<'a, F, Fut>(
-        func: WellKnownFunctionKind,
-        new: bool,
-        linked_args: &F,
-        handler: &Handler,
-        span: Span,
-        ignore_dynamic_requests: bool,
-        analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
-        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        compile_time_info: ResolvedVc<CompileTimeInfo>,
-        url_rewrite_behavior: Option<UrlRewriteBehavior>,
-        source: ResolvedVc<Box<dyn Source>>,
-        ast_path: &[AstParentKind],
-        in_try: bool,
-        state: &'a AnalysisState<'a>,
-        collect_affecting_sources: bool,
-    ) -> Result<()>
-    where
-        F: Fn() -> Fut,
-        Fut: Future<Output = Result<&'a Vec<JsValue>>>,
-    {
-        fn explain_args(args: &[JsValue]) -> (String, String) {
-            JsValue::explain_args(args, 10, 2)
-        }
-
-        let get_traced_project_dir = async || -> Result<FileSystemPath> {
-            // readFileSync("./foo") should always be relative to the project root, but this is
-            // dangerous inside of node_modules as it can cause a lot of false positives in the
-            // tracing, if some package does `path.join(dynamic)`, it would include
-            // everything from the project root as well.
-            //
-            // Also, when there's no cwd set (i.e. in a tracing-specific module context, as we
-            // shouldn't assume a `process.cwd()` for all of node_modules), fallback to
-            // the source file directory. This still allows relative file accesses, just
-            // not from the project root.
-            if state.allow_project_root_tracing
-                && let Some(cwd) = compile_time_info.environment().cwd().owned().await?
-            {
-                Ok(cwd)
-            } else {
-                Ok(source.ident().path().await?.parent())
-            }
-        };
-
-        let get_issue_source =
-            || IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32());
-        if new {
-            match func {
-                WellKnownFunctionKind::URLConstructor => {
-                    let args = linked_args().await?;
-                    if let [
-                        url,
-                        JsValue::Member(
-                            _,
-                            box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                            box JsValue::Constant(super::analyzer::ConstantValue::Str(meta_prop)),
-                        ),
-                    ] = &args[..]
-                        && meta_prop.as_str() == "url"
-                    {
-                        let pat = js_value_to_pattern(url);
-                        if !pat.has_constant_parts() {
-                            let (args, hints) = explain_args(args);
-                            handler.span_warn_with_code(
-                                span,
-                                &format!("new URL({args}) is very dynamic{hints}",),
-                                DiagnosticId::Lint(
-                                    errors::failed_to_analyze::ecmascript::NEW_URL_IMPORT_META
-                                        .to_string(),
-                                ),
-                            );
-                            if ignore_dynamic_requests {
-                                return Ok(());
-                            }
-                        }
-                        analysis.add_reference_code_gen(
-                            UrlAssetReference::new(
-                                origin,
-                                Request::parse(pat).to_resolved().await?,
-                                *compile_time_info.environment().rendering().await?,
-                                issue_source(source, span),
-                                in_try,
-                                url_rewrite_behavior.unwrap_or(UrlRewriteBehavior::Relative),
-                            ),
-                            ast_path.to_vec().into(),
-                        );
-                    }
-                    return Ok(());
-                }
-                WellKnownFunctionKind::WorkerConstructor => {
-                    let args = linked_args().await?;
-                    if let Some(url @ JsValue::Url(_, JsValueUrlKind::Relative)) = args.first() {
-                        let pat = js_value_to_pattern(url);
-                        if !pat.has_constant_parts() {
-                            let (args, hints) = explain_args(args);
-                            handler.span_warn_with_code(
-                                span,
-                                &format!("new Worker({args}) is very dynamic{hints}",),
-                                DiagnosticId::Lint(
-                                    errors::failed_to_analyze::ecmascript::NEW_WORKER.to_string(),
-                                ),
-                            );
-                            if ignore_dynamic_requests {
-                                return Ok(());
-                            }
-                        }
-
-                        if *compile_time_info.environment().rendering().await? == Rendering::Client
-                        {
-                            analysis.add_reference_code_gen(
-                                WorkerAssetReference::new(
-                                    origin,
-                                    Request::parse(pat).to_resolved().await?,
-                                    issue_source(source, span),
-                                    in_try,
-                                ),
-                                ast_path.to_vec().into(),
-                            );
-                        }
-
-                        return Ok(());
-                    }
-                    // Ignore (e.g. dynamic parameter or string literal), just as Webpack does
-                    return Ok(());
-                }
-                WellKnownFunctionKind::NodeWorkerConstructor
-                    if analysis.analyze_mode.is_tracing() =>
-                {
-                    // Only for tracing, not for bundling (yet?)
-                    let args = linked_args().await?;
-                    if !args.is_empty() {
-                        let pat = js_value_to_pattern(&args[0]);
-                        if !pat.has_constant_parts() {
-                            let (args, hints) = explain_args(args);
-                            handler.span_warn_with_code(
-                                span,
-                                &format!("new Worker({args}) is very dynamic{hints}",),
-                                DiagnosticId::Lint(
-                                    errors::failed_to_analyze::ecmascript::NEW_WORKER.to_string(),
-                                ),
-                            );
-                            if ignore_dynamic_requests {
-                                return Ok(());
-                            }
-                        }
-                        analysis.add_reference(
-                            FilePathModuleReference::new(
-                                origin.asset_context(),
-                                get_traced_project_dir().await?,
-                                Pattern::new(pat),
-                                collect_affecting_sources,
-                                get_issue_source(),
-                            )
-                            .to_resolved()
-                            .await?,
-                        );
-                        return Ok(());
-                    }
-                    let (args, hints) = explain_args(args);
-                    handler.span_warn_with_code(
-                        span,
-                        &format!("new Worker({args}) is not statically analyze-able{hints}",),
-                        DiagnosticId::Error(
-                            errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
-                        ),
-                    );
-                    // Ignore (e.g. dynamic parameter or string literal)
-                    return Ok(());
-                }
-                _ => {}
-            }
-
-            return Ok(());
-        }
-
-        match func {
-            WellKnownFunctionKind::Import => {
-                let args = linked_args().await?;
-                if args.len() == 1 || args.len() == 2 {
-                    let pat = js_value_to_pattern(&args[0]);
-                    let options = args.get(1);
-                    let import_annotations = options
-                        .and_then(|options| {
-                            if let JsValue::Object { parts, .. } = options {
-                                parts.iter().find_map(|part| {
-                                    if let ObjectPart::KeyValue(
-                                        JsValue::Constant(super::analyzer::ConstantValue::Str(key)),
-                                        value,
-                                    ) = part
-                                        && key.as_str() == "with"
-                                    {
-                                        return Some(value);
-                                    }
-                                    None
-                                })
-                            } else {
-                                None
-                            }
-                        })
-                        .and_then(ImportAnnotations::parse_dynamic)
-                        .unwrap_or_default();
-                    if !pat.has_constant_parts() {
-                        let (args, hints) = explain_args(args);
-                        handler.span_warn_with_code(
-                            span,
-                            &format!("import({args}) is very dynamic{hints}",),
-                            DiagnosticId::Lint(
-                                errors::failed_to_analyze::ecmascript::DYNAMIC_IMPORT.to_string(),
-                            ),
-                        );
-                        if ignore_dynamic_requests {
-                            analysis.add_code_gen(DynamicExpression::new_promise(
-                                ast_path.to_vec().into(),
-                            ));
-                            return Ok(());
-                        }
-                    }
-                    analysis.add_reference_code_gen(
-                        EsmAsyncAssetReference::new(
-                            origin,
-                            Request::parse(pat).to_resolved().await?,
-                            issue_source(source, span),
-                            import_annotations,
-                            in_try,
-                            state.import_externals,
-                        ),
-                        ast_path.to_vec().into(),
-                    );
-                    return Ok(());
-                }
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!("import({args}) is not statically analyze-able{hints}",),
-                    DiagnosticId::Error(
-                        errors::failed_to_analyze::ecmascript::DYNAMIC_IMPORT.to_string(),
-                    ),
-                )
-            }
-            WellKnownFunctionKind::Require => {
-                let args = linked_args().await?;
-                if args.len() == 1 {
-                    let pat = js_value_to_pattern(&args[0]);
-                    if !pat.has_constant_parts() {
-                        let (args, hints) = explain_args(args);
-                        handler.span_warn_with_code(
-                            span,
-                            &format!("require({args}) is very dynamic{hints}",),
-                            DiagnosticId::Lint(
-                                errors::failed_to_analyze::ecmascript::REQUIRE.to_string(),
-                            ),
-                        );
-                        if ignore_dynamic_requests {
-                            analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
-                            return Ok(());
-                        }
-                    }
-                    analysis.add_reference_code_gen(
-                        CjsRequireAssetReference::new(
-                            origin,
-                            Request::parse(pat).to_resolved().await?,
-                            issue_source(source, span),
-                            in_try,
-                        ),
-                        ast_path.to_vec().into(),
-                    );
-                    return Ok(());
-                }
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!("require({args}) is not statically analyze-able{hints}",),
-                    DiagnosticId::Error(errors::failed_to_analyze::ecmascript::REQUIRE.to_string()),
-                )
-            }
-            WellKnownFunctionKind::Define => {
-                analyze_amd_define(
-                    source,
-                    analysis,
-                    origin,
-                    handler,
-                    span,
-                    ast_path,
-                    linked_args().await?,
-                    in_try,
-                )
-                .await?;
-            }
-
-            WellKnownFunctionKind::RequireResolve => {
-                let args = linked_args().await?;
-                if args.len() == 1 || args.len() == 2 {
-                    // TODO error TP1003 require.resolve(???*0*, {"paths": [???*1*]}) is not
-                    // statically analyze-able with ignore_dynamic_requests =
-                    // true
-                    let pat = js_value_to_pattern(&args[0]);
-                    if !pat.has_constant_parts() {
-                        let (args, hints) = explain_args(args);
-                        handler.span_warn_with_code(
-                            span,
-                            &format!("require.resolve({args}) is very dynamic{hints}",),
-                            DiagnosticId::Lint(
-                                errors::failed_to_analyze::ecmascript::REQUIRE_RESOLVE.to_string(),
-                            ),
-                        );
-                        if ignore_dynamic_requests {
-                            analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
-                            return Ok(());
-                        }
-                    }
-                    analysis.add_reference_code_gen(
-                        CjsRequireResolveAssetReference::new(
-                            origin,
-                            Request::parse(pat).to_resolved().await?,
-                            issue_source(source, span),
-                            in_try,
-                        ),
-                        ast_path.to_vec().into(),
-                    );
-                    return Ok(());
-                }
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!("require.resolve({args}) is not statically analyze-able{hints}",),
-                    DiagnosticId::Error(
-                        errors::failed_to_analyze::ecmascript::REQUIRE_RESOLVE.to_string(),
-                    ),
-                )
-            }
-
-            WellKnownFunctionKind::RequireContext => {
-                let args = linked_args().await?;
-                let options = match parse_require_context(args) {
-                    Ok(options) => options,
-                    Err(err) => {
-                        let (args, hints) = explain_args(args);
-                        handler.span_err_with_code(
-                            span,
-                            &format!(
-                                "require.context({args}) is not statically analyze-able: {}{hints}",
-                                PrettyPrintError(&err)
-                            ),
-                            DiagnosticId::Error(
-                                errors::failed_to_analyze::ecmascript::REQUIRE_CONTEXT.to_string(),
-                            ),
-                        );
-                        return Ok(());
-                    }
-                };
-
-                analysis.add_reference_code_gen(
-                    RequireContextAssetReference::new(
-                        source,
-                        origin,
-                        options.dir,
-                        options.include_subdirs,
-                        options.filter.cell(),
-                        Some(issue_source(source, span)),
-                        in_try,
-                    )
-                    .await?,
-                    ast_path.to_vec().into(),
-                );
-            }
-
-            WellKnownFunctionKind::FsReadMethod(name) if analysis.analyze_mode.is_tracing() => {
-                let args = linked_args().await?;
-                if !args.is_empty() {
-                    let pat = js_value_to_pattern(&args[0]);
-                    if !pat.has_constant_parts() {
-                        let (args, hints) = explain_args(args);
-                        handler.span_warn_with_code(
-                            span,
-                            &format!("fs.{name}({args}) is very dynamic{hints}",),
-                            DiagnosticId::Lint(
-                                errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
-                            ),
-                        );
-                        if ignore_dynamic_requests {
-                            return Ok(());
-                        }
-                    }
-                    analysis.add_reference(
-                        FileSourceReference::new(
-                            get_traced_project_dir().await?,
-                            Pattern::new(pat),
-                            collect_affecting_sources,
-                            get_issue_source(),
-                        )
-                        .to_resolved()
-                        .await?,
-                    );
-                    return Ok(());
-                }
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!("fs.{name}({args}) is not statically analyze-able{hints}",),
-                    DiagnosticId::Error(
-                        errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
-                    ),
-                )
-            }
-
-            WellKnownFunctionKind::PathResolve(..) if analysis.analyze_mode.is_tracing() => {
-                let parent_path = origin.origin_path().owned().await?.parent();
-                let args = linked_args().await?;
-
-                let linked_func_call = state
-                    .link_value(
-                        JsValue::call(
-                            Box::new(JsValue::WellKnownFunction(
-                                WellKnownFunctionKind::PathResolve(Box::new(
-                                    parent_path.path.as_str().into(),
-                                )),
-                            )),
-                            args.clone(),
-                        ),
-                        ImportAttributes::empty_ref(),
-                    )
-                    .await?;
-
-                let pat = js_value_to_pattern(&linked_func_call);
-                if !pat.has_constant_parts() {
-                    let (args, hints) = explain_args(args);
-                    handler.span_warn_with_code(
-                        span,
-                        &format!("path.resolve({args}) is very dynamic{hints}",),
-                        DiagnosticId::Lint(
-                            errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
-                        ),
-                    );
-                    if ignore_dynamic_requests {
-                        return Ok(());
-                    }
-                }
-                analysis.add_reference(
-                    DirAssetReference::new(
-                        get_traced_project_dir().await?,
-                        Pattern::new(pat),
-                        get_issue_source(),
-                    )
-                    .to_resolved()
-                    .await?,
-                );
-                return Ok(());
-            }
-
-            WellKnownFunctionKind::PathJoin if analysis.analyze_mode.is_tracing() => {
-                let context_path = source.ident().path().await?;
-                // ignore path.join in `node-gyp`, it will includes too many files
-                if context_path.path.contains("node_modules/node-gyp") {
-                    return Ok(());
-                }
-                let args = linked_args().await?;
-                let linked_func_call = state
-                    .link_value(
-                        JsValue::call(
-                            Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin)),
-                            args.clone(),
-                        ),
-                        ImportAttributes::empty_ref(),
-                    )
-                    .await?;
-                let pat = js_value_to_pattern(&linked_func_call);
-                if !pat.has_constant_parts() {
-                    let (args, hints) = explain_args(args);
-                    handler.span_warn_with_code(
-                        span,
-                        &format!("path.join({args}) is very dynamic{hints}",),
-                        DiagnosticId::Lint(
-                            errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
-                        ),
-                    );
-                    if ignore_dynamic_requests {
-                        return Ok(());
-                    }
-                }
-                analysis.add_reference(
-                    DirAssetReference::new(
-                        get_traced_project_dir().await?,
-                        Pattern::new(pat),
-                        get_issue_source(),
-                    )
-                    .to_resolved()
-                    .await?,
-                );
-                return Ok(());
-            }
-            WellKnownFunctionKind::ChildProcessSpawnMethod(name)
-                if analysis.analyze_mode.is_tracing() =>
-            {
-                let args = linked_args().await?;
-
-                // Is this specifically `spawn(process.argv[0], ['-e', ...])`?
-                if is_invoking_node_process_eval(args) {
-                    return Ok(());
-                }
-
-                if !args.is_empty() {
-                    let mut show_dynamic_warning = false;
-                    let pat = js_value_to_pattern(&args[0]);
-                    if pat.is_match_ignore_dynamic("node") && args.len() >= 2 {
-                        let first_arg =
-                            JsValue::member(Box::new(args[1].clone()), Box::new(0_f64.into()));
-                        let first_arg = state
-                            .link_value(first_arg, ImportAttributes::empty_ref())
-                            .await?;
-                        let pat = js_value_to_pattern(&first_arg);
-                        let dynamic = !pat.has_constant_parts();
-                        if dynamic {
-                            show_dynamic_warning = true;
-                        }
-                        if !dynamic || !ignore_dynamic_requests {
-                            analysis.add_reference(
-                                CjsAssetReference::new(
-                                    *origin,
-                                    Request::parse(pat),
-                                    issue_source(source, span),
-                                    in_try,
-                                )
-                                .to_resolved()
-                                .await?,
-                            );
-                        }
-                    }
-                    let dynamic = !pat.has_constant_parts();
-                    if dynamic {
-                        show_dynamic_warning = true;
-                    }
-                    if !dynamic || !ignore_dynamic_requests {
-                        analysis.add_reference(
-                            FileSourceReference::new(
-                                get_traced_project_dir().await?,
-                                Pattern::new(pat),
-                                collect_affecting_sources,
-                                IssueSource::from_swc_offsets(
-                                    source,
-                                    span.lo.to_u32(),
-                                    span.hi.to_u32(),
-                                ),
-                            )
-                            .to_resolved()
-                            .await?,
-                        );
-                    }
-                    if show_dynamic_warning {
-                        let (args, hints) = explain_args(args);
-                        handler.span_warn_with_code(
-                            span,
-                            &format!("child_process.{name}({args}) is very dynamic{hints}",),
-                            DiagnosticId::Lint(
-                                errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN
-                                    .to_string(),
-                            ),
-                        );
-                    }
-                    return Ok(());
-                }
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!("child_process.{name}({args}) is not statically analyze-able{hints}",),
-                    DiagnosticId::Error(
-                        errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN.to_string(),
-                    ),
-                )
-            }
-            WellKnownFunctionKind::ChildProcessFork if analysis.analyze_mode.is_tracing() => {
-                let args = linked_args().await?;
-                if !args.is_empty() {
-                    let first_arg = &args[0];
-                    let pat = js_value_to_pattern(first_arg);
-                    if !pat.has_constant_parts() {
-                        let (args, hints) = explain_args(args);
-                        handler.span_warn_with_code(
-                            span,
-                            &format!("child_process.fork({args}) is very dynamic{hints}",),
-                            DiagnosticId::Lint(
-                                errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN
-                                    .to_string(),
-                            ),
-                        );
-                        if ignore_dynamic_requests {
-                            return Ok(());
-                        }
-                    }
-                    analysis.add_reference(
-                        CjsAssetReference::new(
-                            *origin,
-                            Request::parse(pat),
-                            issue_source(source, span),
-                            in_try,
-                        )
-                        .to_resolved()
-                        .await?,
-                    );
-                    return Ok(());
-                }
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!("child_process.fork({args}) is not statically analyze-able{hints}",),
-                    DiagnosticId::Error(
-                        errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN.to_string(),
-                    ),
-                )
-            }
-            WellKnownFunctionKind::NodePreGypFind if analysis.analyze_mode.is_tracing() => {
-                use turbopack_resolve::node_native_binding::NodePreGypConfigReference;
-
-                let args = linked_args().await?;
-                if args.len() == 1 {
-                    let first_arg = &args[0];
-                    let pat = js_value_to_pattern(first_arg);
-                    if !pat.has_constant_parts() {
-                        let (args, hints) = explain_args(args);
-                        handler.span_warn_with_code(
-                            span,
-                            &format!("node-pre-gyp.find({args}) is very dynamic{hints}",),
-                            DiagnosticId::Lint(
-                                errors::failed_to_analyze::ecmascript::NODE_PRE_GYP_FIND
-                                    .to_string(),
-                            ),
-                        );
-                        // Always ignore this dynamic request
-                        return Ok(());
-                    }
-                    analysis.add_reference(
-                        NodePreGypConfigReference::new(
-                            origin.origin_path().await?.parent(),
-                            Pattern::new(pat),
-                            compile_time_info.environment().compile_target(),
-                            collect_affecting_sources,
-                        )
-                        .to_resolved()
-                        .await?,
-                    );
-                    return Ok(());
-                }
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!(
-                        "require('@mapbox/node-pre-gyp').find({args}) is not statically \
-                         analyze-able{hints}",
-                    ),
-                    DiagnosticId::Error(
-                        errors::failed_to_analyze::ecmascript::NODE_PRE_GYP_FIND.to_string(),
-                    ),
-                )
-            }
-            WellKnownFunctionKind::NodeGypBuild if analysis.analyze_mode.is_tracing() => {
-                use turbopack_resolve::node_native_binding::NodeGypBuildReference;
-
-                let args = linked_args().await?;
-                if args.len() == 1 {
-                    let first_arg = state
-                        .link_value(args[0].clone(), ImportAttributes::empty_ref())
-                        .await?;
-                    if let Some(s) = first_arg.as_str() {
-                        // TODO this resolving should happen within Vc<NodeGypBuildReference>
-                        let current_context = origin
-                            .origin_path()
-                            .await?
-                            .root()
-                            .await?
-                            .join(s.trim_start_matches("/ROOT/"))?;
-                        analysis.add_reference(
-                            NodeGypBuildReference::new(
-                                current_context,
-                                collect_affecting_sources,
-                                compile_time_info.environment().compile_target(),
-                            )
-                            .to_resolved()
-                            .await?,
-                        );
-                        return Ok(());
-                    }
-                }
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!(
-                        "require('node-gyp-build')({args}) is not statically analyze-able{hints}",
-                    ),
-                    DiagnosticId::Error(
-                        errors::failed_to_analyze::ecmascript::NODE_GYP_BUILD.to_string(),
-                    ),
-                )
-            }
-            WellKnownFunctionKind::NodeBindings if analysis.analyze_mode.is_tracing() => {
-                use turbopack_resolve::node_native_binding::NodeBindingsReference;
-
-                let args = linked_args().await?;
-                if args.len() == 1 {
-                    let first_arg = state
-                        .link_value(args[0].clone(), ImportAttributes::empty_ref())
-                        .await?;
-                    if let Some(s) = first_arg.as_str() {
-                        analysis.add_reference(
-                            NodeBindingsReference::new(
-                                origin.origin_path().owned().await?,
-                                s.into(),
-                                collect_affecting_sources,
-                            )
-                            .to_resolved()
-                            .await?,
-                        );
-                        return Ok(());
-                    }
-                }
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!("require('bindings')({args}) is not statically analyze-able{hints}",),
-                    DiagnosticId::Error(
-                        errors::failed_to_analyze::ecmascript::NODE_BINDINGS.to_string(),
-                    ),
-                )
-            }
-            WellKnownFunctionKind::NodeExpressSet if analysis.analyze_mode.is_tracing() => {
-                let args = linked_args().await?;
-                if args.len() == 2
-                    && let Some(s) = args.first().and_then(|arg| arg.as_str())
-                {
-                    let pkg_or_dir = args.get(1).unwrap();
-                    let pat = js_value_to_pattern(pkg_or_dir);
-                    if !pat.has_constant_parts() {
-                        let (args, hints) = explain_args(args);
-                        handler.span_warn_with_code(
-                            span,
-                            &format!("require('express')().set({args}) is very dynamic{hints}",),
-                            DiagnosticId::Lint(
-                                errors::failed_to_analyze::ecmascript::NODE_EXPRESS.to_string(),
-                            ),
-                        );
-                        // Always ignore this dynamic request
-                        return Ok(());
-                    }
-                    match s {
-                        "views" => {
-                            if let Pattern::Constant(p) = &pat {
-                                let abs_pattern = if p.starts_with("/ROOT/") {
-                                    pat
-                                } else {
-                                    let linked_func_call = state
-                                        .link_value(
-                                            JsValue::call(
-                                                Box::new(JsValue::WellKnownFunction(
-                                                    WellKnownFunctionKind::PathJoin,
-                                                )),
-                                                vec![
-                                                    JsValue::FreeVar(atom!("__dirname")),
-                                                    pkg_or_dir.clone(),
-                                                ],
-                                            ),
-                                            ImportAttributes::empty_ref(),
-                                        )
-                                        .await?;
-                                    js_value_to_pattern(&linked_func_call)
-                                };
-                                analysis.add_reference(
-                                    DirAssetReference::new(
-                                        get_traced_project_dir().await?,
-                                        Pattern::new(abs_pattern),
-                                        get_issue_source(),
-                                    )
-                                    .to_resolved()
-                                    .await?,
-                                );
-                                return Ok(());
-                            }
-                        }
-                        "view engine" => {
-                            if let Some(pkg) = pkg_or_dir.as_str() {
-                                if pkg != "html" {
-                                    let pat = js_value_to_pattern(pkg_or_dir);
-                                    analysis.add_reference(
-                                        CjsAssetReference::new(
-                                            *origin,
-                                            Request::parse(pat),
-                                            issue_source(source, span),
-                                            in_try,
-                                        )
-                                        .to_resolved()
-                                        .await?,
-                                    );
-                                }
-                                return Ok(());
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!(
-                        "require('express')().set({args}) is not statically analyze-able{hints}",
-                    ),
-                    DiagnosticId::Error(
-                        errors::failed_to_analyze::ecmascript::NODE_EXPRESS.to_string(),
-                    ),
-                )
-            }
-            WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir
-                if analysis.analyze_mode.is_tracing() =>
-            {
-                let args = linked_args().await?;
-                if let Some(p) = args.first().and_then(|arg| arg.as_str()) {
-                    let abs_pattern = if p.starts_with("/ROOT/") {
-                        Pattern::Constant(format!("{p}/intl").into())
-                    } else {
-                        let linked_func_call = state
-                            .link_value(
-                                JsValue::call(
-                                    Box::new(JsValue::WellKnownFunction(
-                                        WellKnownFunctionKind::PathJoin,
-                                    )),
-                                    vec![
-                                        JsValue::FreeVar(atom!("__dirname")),
-                                        p.into(),
-                                        atom!("intl").into(),
-                                    ],
-                                ),
-                                ImportAttributes::empty_ref(),
-                            )
-                            .await?;
-                        js_value_to_pattern(&linked_func_call)
-                    };
-                    analysis.add_reference(
-                        DirAssetReference::new(
-                            get_traced_project_dir().await?,
-                            Pattern::new(abs_pattern),
-                            get_issue_source(),
-                        )
-                        .to_resolved()
-                        .await?,
-                    );
-                    return Ok(());
-                }
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!(
-                        "require('strong-globalize').SetRootDir({args}) is not statically \
-                         analyze-able{hints}",
-                    ),
-                    DiagnosticId::Error(
-                        errors::failed_to_analyze::ecmascript::NODE_GYP_BUILD.to_string(),
-                    ),
-                )
-            }
-            WellKnownFunctionKind::NodeResolveFrom if analysis.analyze_mode.is_tracing() => {
-                let args = linked_args().await?;
-                if args.len() == 2 && args.get(1).and_then(|arg| arg.as_str()).is_some() {
-                    analysis.add_reference(
-                        CjsAssetReference::new(
-                            *origin,
-                            Request::parse(js_value_to_pattern(&args[1])),
-                            issue_source(source, span),
-                            in_try,
-                        )
-                        .to_resolved()
-                        .await?,
-                    );
-                    return Ok(());
-                }
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!(
-                        "require('resolve-from')({args}) is not statically analyze-able{hints}",
-                    ),
-                    DiagnosticId::Error(
-                        errors::failed_to_analyze::ecmascript::NODE_RESOLVE_FROM.to_string(),
-                    ),
-                )
-            }
-            WellKnownFunctionKind::NodeProtobufLoad if analysis.analyze_mode.is_tracing() => {
-                let args = linked_args().await?;
-                if args.len() == 2
-                    && let Some(JsValue::Object { parts, .. }) = args.get(1)
-                {
-                    let context_dir = get_traced_project_dir().await?;
-                    let resolved_dirs = parts
-                        .iter()
-                        .filter_map(|object_part| match object_part {
-                            ObjectPart::KeyValue(
-                                JsValue::Constant(key),
-                                JsValue::Array { items: dirs, .. },
-                            ) if key.as_str() == Some("includeDirs") => {
-                                Some(dirs.iter().filter_map(|dir| dir.as_str()))
-                            }
-                            _ => None,
-                        })
-                        .flatten()
-                        .map(|dir| {
-                            DirAssetReference::new(
-                                context_dir.clone(),
-                                Pattern::new(Pattern::Constant(dir.into())),
-                                get_issue_source(),
-                            )
-                            .to_resolved()
-                        })
-                        .try_join()
-                        .await?;
-
-                    for resolved_dir_ref in resolved_dirs {
-                        analysis.add_reference(resolved_dir_ref);
-                    }
-
-                    return Ok(());
-                }
-                let (args, hints) = explain_args(args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!(
-                        "require('@grpc/proto-loader').load({args}) is not statically \
-                         analyze-able{hints}",
-                    ),
-                    DiagnosticId::Error(
-                        errors::failed_to_analyze::ecmascript::NODE_PROTOBUF_LOADER.to_string(),
-                    ),
-                )
-            }
-            _ => {}
-        };
-        Ok(())
-    }
-
     // Create a OnceCell to cache linked args across multiple calls
     let linked_args_cache = OnceCell::new();
 
@@ -2692,6 +1759,925 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
     Ok(())
 }
 
+async fn handle_well_known_function_call<'a, F, Fut>(
+    func: WellKnownFunctionKind,
+    new: bool,
+    linked_args: &F,
+    handler: &Handler,
+    span: Span,
+    ignore_dynamic_requests: bool,
+    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    compile_time_info: ResolvedVc<CompileTimeInfo>,
+    url_rewrite_behavior: Option<UrlRewriteBehavior>,
+    source: ResolvedVc<Box<dyn Source>>,
+    ast_path: &[AstParentKind],
+    in_try: bool,
+    state: &'a AnalysisState<'a>,
+    collect_affecting_sources: bool,
+) -> Result<()>
+where
+    F: Fn() -> Fut,
+    Fut: Future<Output = Result<&'a Vec<JsValue>>>,
+{
+    fn explain_args(args: &[JsValue]) -> (String, String) {
+        JsValue::explain_args(args, 10, 2)
+    }
+
+    let get_traced_project_dir = async || -> Result<FileSystemPath> {
+        // readFileSync("./foo") should always be relative to the project root, but this is
+        // dangerous inside of node_modules as it can cause a lot of false positives in the
+        // tracing, if some package does `path.join(dynamic)`, it would include
+        // everything from the project root as well.
+        //
+        // Also, when there's no cwd set (i.e. in a tracing-specific module context, as we
+        // shouldn't assume a `process.cwd()` for all of node_modules), fallback to
+        // the source file directory. This still allows relative file accesses, just
+        // not from the project root.
+        if state.allow_project_root_tracing
+            && let Some(cwd) = compile_time_info.environment().cwd().owned().await?
+        {
+            Ok(cwd)
+        } else {
+            Ok(source.ident().path().await?.parent())
+        }
+    };
+
+    let get_issue_source =
+        || IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32());
+    if new {
+        match func {
+            WellKnownFunctionKind::URLConstructor => {
+                let args = linked_args().await?;
+                if let [
+                    url,
+                    JsValue::Member(
+                        _,
+                        box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
+                        box JsValue::Constant(super::analyzer::ConstantValue::Str(meta_prop)),
+                    ),
+                ] = &args[..]
+                    && meta_prop.as_str() == "url"
+                {
+                    let pat = js_value_to_pattern(url);
+                    if !pat.has_constant_parts() {
+                        let (args, hints) = explain_args(args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("new URL({args}) is very dynamic{hints}",),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyze::ecmascript::NEW_URL_IMPORT_META
+                                    .to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                    }
+                    analysis.add_reference_code_gen(
+                        UrlAssetReference::new(
+                            origin,
+                            Request::parse(pat).to_resolved().await?,
+                            *compile_time_info.environment().rendering().await?,
+                            issue_source(source, span),
+                            in_try,
+                            url_rewrite_behavior.unwrap_or(UrlRewriteBehavior::Relative),
+                        ),
+                        ast_path.to_vec().into(),
+                    );
+                }
+                return Ok(());
+            }
+            WellKnownFunctionKind::WorkerConstructor => {
+                let args = linked_args().await?;
+                if let Some(url @ JsValue::Url(_, JsValueUrlKind::Relative)) = args.first() {
+                    let pat = js_value_to_pattern(url);
+                    if !pat.has_constant_parts() {
+                        let (args, hints) = explain_args(args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("new Worker({args}) is very dynamic{hints}",),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyze::ecmascript::NEW_WORKER.to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                    }
+
+                    if *compile_time_info.environment().rendering().await? == Rendering::Client {
+                        analysis.add_reference_code_gen(
+                            WorkerAssetReference::new(
+                                origin,
+                                Request::parse(pat).to_resolved().await?,
+                                issue_source(source, span),
+                                in_try,
+                            ),
+                            ast_path.to_vec().into(),
+                        );
+                    }
+
+                    return Ok(());
+                }
+                // Ignore (e.g. dynamic parameter or string literal), just as Webpack does
+                return Ok(());
+            }
+            WellKnownFunctionKind::NodeWorkerConstructor if analysis.analyze_mode.is_tracing() => {
+                // Only for tracing, not for bundling (yet?)
+                let args = linked_args().await?;
+                if !args.is_empty() {
+                    let pat = js_value_to_pattern(&args[0]);
+                    if !pat.has_constant_parts() {
+                        let (args, hints) = explain_args(args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("new Worker({args}) is very dynamic{hints}",),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyze::ecmascript::NEW_WORKER.to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                    }
+                    analysis.add_reference(
+                        FilePathModuleReference::new(
+                            origin.asset_context(),
+                            get_traced_project_dir().await?,
+                            Pattern::new(pat),
+                            collect_affecting_sources,
+                            get_issue_source(),
+                        )
+                        .to_resolved()
+                        .await?,
+                    );
+                    return Ok(());
+                }
+                let (args, hints) = explain_args(args);
+                handler.span_warn_with_code(
+                    span,
+                    &format!("new Worker({args}) is not statically analyze-able{hints}",),
+                    DiagnosticId::Error(
+                        errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
+                    ),
+                );
+                // Ignore (e.g. dynamic parameter or string literal)
+                return Ok(());
+            }
+            _ => {}
+        }
+
+        return Ok(());
+    }
+
+    match func {
+        WellKnownFunctionKind::Import => {
+            let args = linked_args().await?;
+            if args.len() == 1 || args.len() == 2 {
+                let pat = js_value_to_pattern(&args[0]);
+                let options = args.get(1);
+                let import_annotations = options
+                    .and_then(|options| {
+                        if let JsValue::Object { parts, .. } = options {
+                            parts.iter().find_map(|part| {
+                                if let ObjectPart::KeyValue(
+                                    JsValue::Constant(super::analyzer::ConstantValue::Str(key)),
+                                    value,
+                                ) = part
+                                    && key.as_str() == "with"
+                                {
+                                    return Some(value);
+                                }
+                                None
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .and_then(ImportAnnotations::parse_dynamic)
+                    .unwrap_or_default();
+                if !pat.has_constant_parts() {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!("import({args}) is very dynamic{hints}",),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::DYNAMIC_IMPORT.to_string(),
+                        ),
+                    );
+                    if ignore_dynamic_requests {
+                        analysis
+                            .add_code_gen(DynamicExpression::new_promise(ast_path.to_vec().into()));
+                        return Ok(());
+                    }
+                }
+                analysis.add_reference_code_gen(
+                    EsmAsyncAssetReference::new(
+                        origin,
+                        Request::parse(pat).to_resolved().await?,
+                        issue_source(source, span),
+                        import_annotations,
+                        in_try,
+                        state.import_externals,
+                    ),
+                    ast_path.to_vec().into(),
+                );
+                return Ok(());
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!("import({args}) is not statically analyze-able{hints}",),
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::DYNAMIC_IMPORT.to_string(),
+                ),
+            )
+        }
+        WellKnownFunctionKind::Require => {
+            let args = linked_args().await?;
+            if args.len() == 1 {
+                let pat = js_value_to_pattern(&args[0]);
+                if !pat.has_constant_parts() {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!("require({args}) is very dynamic{hints}",),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::REQUIRE.to_string(),
+                        ),
+                    );
+                    if ignore_dynamic_requests {
+                        analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        return Ok(());
+                    }
+                }
+                analysis.add_reference_code_gen(
+                    CjsRequireAssetReference::new(
+                        origin,
+                        Request::parse(pat).to_resolved().await?,
+                        issue_source(source, span),
+                        in_try,
+                    ),
+                    ast_path.to_vec().into(),
+                );
+                return Ok(());
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!("require({args}) is not statically analyze-able{hints}",),
+                DiagnosticId::Error(errors::failed_to_analyze::ecmascript::REQUIRE.to_string()),
+            )
+        }
+        WellKnownFunctionKind::Define => {
+            analyze_amd_define(
+                source,
+                analysis,
+                origin,
+                handler,
+                span,
+                ast_path,
+                linked_args().await?,
+                in_try,
+            )
+            .await?;
+        }
+
+        WellKnownFunctionKind::RequireResolve => {
+            let args = linked_args().await?;
+            if args.len() == 1 || args.len() == 2 {
+                // TODO error TP1003 require.resolve(???*0*, {"paths": [???*1*]}) is not
+                // statically analyze-able with ignore_dynamic_requests =
+                // true
+                let pat = js_value_to_pattern(&args[0]);
+                if !pat.has_constant_parts() {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!("require.resolve({args}) is very dynamic{hints}",),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::REQUIRE_RESOLVE.to_string(),
+                        ),
+                    );
+                    if ignore_dynamic_requests {
+                        analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        return Ok(());
+                    }
+                }
+                analysis.add_reference_code_gen(
+                    CjsRequireResolveAssetReference::new(
+                        origin,
+                        Request::parse(pat).to_resolved().await?,
+                        issue_source(source, span),
+                        in_try,
+                    ),
+                    ast_path.to_vec().into(),
+                );
+                return Ok(());
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!("require.resolve({args}) is not statically analyze-able{hints}",),
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::REQUIRE_RESOLVE.to_string(),
+                ),
+            )
+        }
+
+        WellKnownFunctionKind::RequireContext => {
+            let args = linked_args().await?;
+            let options = match parse_require_context(args) {
+                Ok(options) => options,
+                Err(err) => {
+                    let (args, hints) = explain_args(args);
+                    handler.span_err_with_code(
+                        span,
+                        &format!(
+                            "require.context({args}) is not statically analyze-able: {}{hints}",
+                            PrettyPrintError(&err)
+                        ),
+                        DiagnosticId::Error(
+                            errors::failed_to_analyze::ecmascript::REQUIRE_CONTEXT.to_string(),
+                        ),
+                    );
+                    return Ok(());
+                }
+            };
+
+            analysis.add_reference_code_gen(
+                RequireContextAssetReference::new(
+                    source,
+                    origin,
+                    options.dir,
+                    options.include_subdirs,
+                    options.filter.cell(),
+                    Some(issue_source(source, span)),
+                    in_try,
+                )
+                .await?,
+                ast_path.to_vec().into(),
+            );
+        }
+
+        WellKnownFunctionKind::FsReadMethod(name) if analysis.analyze_mode.is_tracing() => {
+            let args = linked_args().await?;
+            if !args.is_empty() {
+                let pat = js_value_to_pattern(&args[0]);
+                if !pat.has_constant_parts() {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!("fs.{name}({args}) is very dynamic{hints}",),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
+                        ),
+                    );
+                    if ignore_dynamic_requests {
+                        return Ok(());
+                    }
+                }
+                analysis.add_reference(
+                    FileSourceReference::new(
+                        get_traced_project_dir().await?,
+                        Pattern::new(pat),
+                        collect_affecting_sources,
+                        get_issue_source(),
+                    )
+                    .to_resolved()
+                    .await?,
+                );
+                return Ok(());
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!("fs.{name}({args}) is not statically analyze-able{hints}",),
+                DiagnosticId::Error(errors::failed_to_analyze::ecmascript::FS_METHOD.to_string()),
+            )
+        }
+
+        WellKnownFunctionKind::PathResolve(..) if analysis.analyze_mode.is_tracing() => {
+            let parent_path = origin.origin_path().owned().await?.parent();
+            let args = linked_args().await?;
+
+            let linked_func_call = state
+                .link_value(
+                    JsValue::call(
+                        Box::new(JsValue::WellKnownFunction(
+                            WellKnownFunctionKind::PathResolve(Box::new(
+                                parent_path.path.as_str().into(),
+                            )),
+                        )),
+                        args.clone(),
+                    ),
+                    ImportAttributes::empty_ref(),
+                )
+                .await?;
+
+            let pat = js_value_to_pattern(&linked_func_call);
+            if !pat.has_constant_parts() {
+                let (args, hints) = explain_args(args);
+                handler.span_warn_with_code(
+                    span,
+                    &format!("path.resolve({args}) is very dynamic{hints}",),
+                    DiagnosticId::Lint(
+                        errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
+                    ),
+                );
+                if ignore_dynamic_requests {
+                    return Ok(());
+                }
+            }
+            analysis.add_reference(
+                DirAssetReference::new(
+                    get_traced_project_dir().await?,
+                    Pattern::new(pat),
+                    get_issue_source(),
+                )
+                .to_resolved()
+                .await?,
+            );
+            return Ok(());
+        }
+
+        WellKnownFunctionKind::PathJoin if analysis.analyze_mode.is_tracing() => {
+            let context_path = source.ident().path().await?;
+            // ignore path.join in `node-gyp`, it will includes too many files
+            if context_path.path.contains("node_modules/node-gyp") {
+                return Ok(());
+            }
+            let args = linked_args().await?;
+            let linked_func_call = state
+                .link_value(
+                    JsValue::call(
+                        Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin)),
+                        args.clone(),
+                    ),
+                    ImportAttributes::empty_ref(),
+                )
+                .await?;
+            let pat = js_value_to_pattern(&linked_func_call);
+            if !pat.has_constant_parts() {
+                let (args, hints) = explain_args(args);
+                handler.span_warn_with_code(
+                    span,
+                    &format!("path.join({args}) is very dynamic{hints}",),
+                    DiagnosticId::Lint(
+                        errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
+                    ),
+                );
+                if ignore_dynamic_requests {
+                    return Ok(());
+                }
+            }
+            analysis.add_reference(
+                DirAssetReference::new(
+                    get_traced_project_dir().await?,
+                    Pattern::new(pat),
+                    get_issue_source(),
+                )
+                .to_resolved()
+                .await?,
+            );
+            return Ok(());
+        }
+        WellKnownFunctionKind::ChildProcessSpawnMethod(name)
+            if analysis.analyze_mode.is_tracing() =>
+        {
+            let args = linked_args().await?;
+
+            // Is this specifically `spawn(process.argv[0], ['-e', ...])`?
+            if is_invoking_node_process_eval(args) {
+                return Ok(());
+            }
+
+            if !args.is_empty() {
+                let mut show_dynamic_warning = false;
+                let pat = js_value_to_pattern(&args[0]);
+                if pat.is_match_ignore_dynamic("node") && args.len() >= 2 {
+                    let first_arg =
+                        JsValue::member(Box::new(args[1].clone()), Box::new(0_f64.into()));
+                    let first_arg = state
+                        .link_value(first_arg, ImportAttributes::empty_ref())
+                        .await?;
+                    let pat = js_value_to_pattern(&first_arg);
+                    let dynamic = !pat.has_constant_parts();
+                    if dynamic {
+                        show_dynamic_warning = true;
+                    }
+                    if !dynamic || !ignore_dynamic_requests {
+                        analysis.add_reference(
+                            CjsAssetReference::new(
+                                *origin,
+                                Request::parse(pat),
+                                issue_source(source, span),
+                                in_try,
+                            )
+                            .to_resolved()
+                            .await?,
+                        );
+                    }
+                }
+                let dynamic = !pat.has_constant_parts();
+                if dynamic {
+                    show_dynamic_warning = true;
+                }
+                if !dynamic || !ignore_dynamic_requests {
+                    analysis.add_reference(
+                        FileSourceReference::new(
+                            get_traced_project_dir().await?,
+                            Pattern::new(pat),
+                            collect_affecting_sources,
+                            IssueSource::from_swc_offsets(
+                                source,
+                                span.lo.to_u32(),
+                                span.hi.to_u32(),
+                            ),
+                        )
+                        .to_resolved()
+                        .await?,
+                    );
+                }
+                if show_dynamic_warning {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!("child_process.{name}({args}) is very dynamic{hints}",),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN.to_string(),
+                        ),
+                    );
+                }
+                return Ok(());
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!("child_process.{name}({args}) is not statically analyze-able{hints}",),
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN.to_string(),
+                ),
+            )
+        }
+        WellKnownFunctionKind::ChildProcessFork if analysis.analyze_mode.is_tracing() => {
+            let args = linked_args().await?;
+            if !args.is_empty() {
+                let first_arg = &args[0];
+                let pat = js_value_to_pattern(first_arg);
+                if !pat.has_constant_parts() {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!("child_process.fork({args}) is very dynamic{hints}",),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN.to_string(),
+                        ),
+                    );
+                    if ignore_dynamic_requests {
+                        return Ok(());
+                    }
+                }
+                analysis.add_reference(
+                    CjsAssetReference::new(
+                        *origin,
+                        Request::parse(pat),
+                        issue_source(source, span),
+                        in_try,
+                    )
+                    .to_resolved()
+                    .await?,
+                );
+                return Ok(());
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!("child_process.fork({args}) is not statically analyze-able{hints}",),
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN.to_string(),
+                ),
+            )
+        }
+        WellKnownFunctionKind::NodePreGypFind if analysis.analyze_mode.is_tracing() => {
+            use turbopack_resolve::node_native_binding::NodePreGypConfigReference;
+
+            let args = linked_args().await?;
+            if args.len() == 1 {
+                let first_arg = &args[0];
+                let pat = js_value_to_pattern(first_arg);
+                if !pat.has_constant_parts() {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!("node-pre-gyp.find({args}) is very dynamic{hints}",),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::NODE_PRE_GYP_FIND.to_string(),
+                        ),
+                    );
+                    // Always ignore this dynamic request
+                    return Ok(());
+                }
+                analysis.add_reference(
+                    NodePreGypConfigReference::new(
+                        origin.origin_path().await?.parent(),
+                        Pattern::new(pat),
+                        compile_time_info.environment().compile_target(),
+                        collect_affecting_sources,
+                    )
+                    .to_resolved()
+                    .await?,
+                );
+                return Ok(());
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!(
+                    "require('@mapbox/node-pre-gyp').find({args}) is not statically \
+                     analyze-able{hints}",
+                ),
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::NODE_PRE_GYP_FIND.to_string(),
+                ),
+            )
+        }
+        WellKnownFunctionKind::NodeGypBuild if analysis.analyze_mode.is_tracing() => {
+            use turbopack_resolve::node_native_binding::NodeGypBuildReference;
+
+            let args = linked_args().await?;
+            if args.len() == 1 {
+                let first_arg = state
+                    .link_value(args[0].clone(), ImportAttributes::empty_ref())
+                    .await?;
+                if let Some(s) = first_arg.as_str() {
+                    // TODO this resolving should happen within Vc<NodeGypBuildReference>
+                    let current_context = origin
+                        .origin_path()
+                        .await?
+                        .root()
+                        .await?
+                        .join(s.trim_start_matches("/ROOT/"))?;
+                    analysis.add_reference(
+                        NodeGypBuildReference::new(
+                            current_context,
+                            collect_affecting_sources,
+                            compile_time_info.environment().compile_target(),
+                        )
+                        .to_resolved()
+                        .await?,
+                    );
+                    return Ok(());
+                }
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                    span,
+                    &format!(
+                        "require('node-gyp-build')({args}) is not statically analyze-able{hints}",
+                    ),
+                    DiagnosticId::Error(
+                        errors::failed_to_analyze::ecmascript::NODE_GYP_BUILD.to_string(),
+                    ),
+                )
+        }
+        WellKnownFunctionKind::NodeBindings if analysis.analyze_mode.is_tracing() => {
+            use turbopack_resolve::node_native_binding::NodeBindingsReference;
+
+            let args = linked_args().await?;
+            if args.len() == 1 {
+                let first_arg = state
+                    .link_value(args[0].clone(), ImportAttributes::empty_ref())
+                    .await?;
+                if let Some(s) = first_arg.as_str() {
+                    analysis.add_reference(
+                        NodeBindingsReference::new(
+                            origin.origin_path().owned().await?,
+                            s.into(),
+                            collect_affecting_sources,
+                        )
+                        .to_resolved()
+                        .await?,
+                    );
+                    return Ok(());
+                }
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!("require('bindings')({args}) is not statically analyze-able{hints}",),
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::NODE_BINDINGS.to_string(),
+                ),
+            )
+        }
+        WellKnownFunctionKind::NodeExpressSet if analysis.analyze_mode.is_tracing() => {
+            let args = linked_args().await?;
+            if args.len() == 2
+                && let Some(s) = args.first().and_then(|arg| arg.as_str())
+            {
+                let pkg_or_dir = args.get(1).unwrap();
+                let pat = js_value_to_pattern(pkg_or_dir);
+                if !pat.has_constant_parts() {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!("require('express')().set({args}) is very dynamic{hints}",),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::NODE_EXPRESS.to_string(),
+                        ),
+                    );
+                    // Always ignore this dynamic request
+                    return Ok(());
+                }
+                match s {
+                    "views" => {
+                        if let Pattern::Constant(p) = &pat {
+                            let abs_pattern = if p.starts_with("/ROOT/") {
+                                pat
+                            } else {
+                                let linked_func_call = state
+                                    .link_value(
+                                        JsValue::call(
+                                            Box::new(JsValue::WellKnownFunction(
+                                                WellKnownFunctionKind::PathJoin,
+                                            )),
+                                            vec![
+                                                JsValue::FreeVar(atom!("__dirname")),
+                                                pkg_or_dir.clone(),
+                                            ],
+                                        ),
+                                        ImportAttributes::empty_ref(),
+                                    )
+                                    .await?;
+                                js_value_to_pattern(&linked_func_call)
+                            };
+                            analysis.add_reference(
+                                DirAssetReference::new(
+                                    get_traced_project_dir().await?,
+                                    Pattern::new(abs_pattern),
+                                    get_issue_source(),
+                                )
+                                .to_resolved()
+                                .await?,
+                            );
+                            return Ok(());
+                        }
+                    }
+                    "view engine" => {
+                        if let Some(pkg) = pkg_or_dir.as_str() {
+                            if pkg != "html" {
+                                let pat = js_value_to_pattern(pkg_or_dir);
+                                analysis.add_reference(
+                                    CjsAssetReference::new(
+                                        *origin,
+                                        Request::parse(pat),
+                                        issue_source(source, span),
+                                        in_try,
+                                    )
+                                    .to_resolved()
+                                    .await?,
+                                );
+                            }
+                            return Ok(());
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!("require('express')().set({args}) is not statically analyze-able{hints}",),
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::NODE_EXPRESS.to_string(),
+                ),
+            )
+        }
+        WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir
+            if analysis.analyze_mode.is_tracing() =>
+        {
+            let args = linked_args().await?;
+            if let Some(p) = args.first().and_then(|arg| arg.as_str()) {
+                let abs_pattern = if p.starts_with("/ROOT/") {
+                    Pattern::Constant(format!("{p}/intl").into())
+                } else {
+                    let linked_func_call = state
+                        .link_value(
+                            JsValue::call(
+                                Box::new(JsValue::WellKnownFunction(
+                                    WellKnownFunctionKind::PathJoin,
+                                )),
+                                vec![
+                                    JsValue::FreeVar(atom!("__dirname")),
+                                    p.into(),
+                                    atom!("intl").into(),
+                                ],
+                            ),
+                            ImportAttributes::empty_ref(),
+                        )
+                        .await?;
+                    js_value_to_pattern(&linked_func_call)
+                };
+                analysis.add_reference(
+                    DirAssetReference::new(
+                        get_traced_project_dir().await?,
+                        Pattern::new(abs_pattern),
+                        get_issue_source(),
+                    )
+                    .to_resolved()
+                    .await?,
+                );
+                return Ok(());
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!(
+                    "require('strong-globalize').SetRootDir({args}) is not statically \
+                     analyze-able{hints}",
+                ),
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::NODE_GYP_BUILD.to_string(),
+                ),
+            )
+        }
+        WellKnownFunctionKind::NodeResolveFrom if analysis.analyze_mode.is_tracing() => {
+            let args = linked_args().await?;
+            if args.len() == 2 && args.get(1).and_then(|arg| arg.as_str()).is_some() {
+                analysis.add_reference(
+                    CjsAssetReference::new(
+                        *origin,
+                        Request::parse(js_value_to_pattern(&args[1])),
+                        issue_source(source, span),
+                        in_try,
+                    )
+                    .to_resolved()
+                    .await?,
+                );
+                return Ok(());
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!("require('resolve-from')({args}) is not statically analyze-able{hints}",),
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::NODE_RESOLVE_FROM.to_string(),
+                ),
+            )
+        }
+        WellKnownFunctionKind::NodeProtobufLoad if analysis.analyze_mode.is_tracing() => {
+            let args = linked_args().await?;
+            if args.len() == 2
+                && let Some(JsValue::Object { parts, .. }) = args.get(1)
+            {
+                let context_dir = get_traced_project_dir().await?;
+                let resolved_dirs = parts
+                    .iter()
+                    .filter_map(|object_part| match object_part {
+                        ObjectPart::KeyValue(
+                            JsValue::Constant(key),
+                            JsValue::Array { items: dirs, .. },
+                        ) if key.as_str() == Some("includeDirs") => {
+                            Some(dirs.iter().filter_map(|dir| dir.as_str()))
+                        }
+                        _ => None,
+                    })
+                    .flatten()
+                    .map(|dir| {
+                        DirAssetReference::new(
+                            context_dir.clone(),
+                            Pattern::new(Pattern::Constant(dir.into())),
+                            get_issue_source(),
+                        )
+                        .to_resolved()
+                    })
+                    .try_join()
+                    .await?;
+
+                for resolved_dir_ref in resolved_dirs {
+                    analysis.add_reference(resolved_dir_ref);
+                }
+
+                return Ok(());
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!(
+                    "require('@grpc/proto-loader').load({args}) is not statically \
+                     analyze-able{hints}",
+                ),
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::NODE_PROTOBUF_LOADER.to_string(),
+                ),
+            )
+        }
+        _ => {}
+    };
+    Ok(())
+}
 async fn handle_member(
     ast_path: &[AstParentKind],
     link_obj: impl Future<Output = Result<JsValue>> + Send + Sync,
