@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    common::{Spanned, util::take::Take},
+    common::util::take::Take,
     ecma::{
         ast::{BinExpr, Expr},
         visit::{AstParentKind, fields::BinExprField},
