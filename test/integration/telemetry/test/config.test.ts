@@ -260,7 +260,7 @@ describe('config telemetry', () => {
         }
       )
 
-      it('emits telemetry for usage of `experimental/cacheComponents`', async () => {
+      it('emits telemetry for usage of `cacheComponents`', async () => {
         await fs.rename(
           path.join(appDir, 'next.config.cache-components'),
           path.join(appDir, 'next.config.js')
@@ -281,7 +281,7 @@ describe('config telemetry', () => {
           'NEXT_BUILD_FEATURE_USAGE'
         )
         expect(events).toContainEqual({
-          featureName: 'experimental/cacheComponents',
+          featureName: 'cacheComponents',
           invocationCount: 1,
         })
       })
