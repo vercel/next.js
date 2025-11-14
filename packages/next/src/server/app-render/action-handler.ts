@@ -730,12 +730,13 @@ export async function handleAction({
                 // Only warn if it's a server action, otherwise skip for other post requests
                 warnBadServerActionRequest()
 
-                const actionReturnedState =
+                const { returnVal: actionReturnedState } =
                   await executeActionAndPrepareForRender(
                     action as () => Promise<unknown>,
                     [],
                     workStore,
-                    requestStore
+                    requestStore,
+                    actionWasForwarded
                   )
 
                 const formState = await decodeFormState(
@@ -924,12 +925,13 @@ export async function handleAction({
                 // Only warn if it's a server action, otherwise skip for other post requests
                 warnBadServerActionRequest()
 
-                const actionReturnedState =
+                const { returnVal: actionReturnedState } =
                   await executeActionAndPrepareForRender(
                     action as () => Promise<unknown>,
                     [],
                     workStore,
-                    requestStore
+                    requestStore,
+                    actionWasForwarded
                   )
 
                 const formState = await decodeFormState(
@@ -1023,20 +1025,16 @@ export async function handleAction({
             actionId!
           ]
 
-        // If the page was not revalidated, or if the action was forwarded from
-        // another worker, we can skip rendering the page.
-        const skipPageRendering =
-          !workStore.pathWasRevalidated || actionWasForwarded
-
-        const returnVal = await executeActionAndPrepareForRender(
-          actionHandler,
-          boundActionArguments,
-          workStore,
-          requestStore,
-          skipPageRendering
-        ).finally(() => {
-          addRevalidationHeader(res, { workStore, requestStore })
-        })
+        const { returnVal, skipPageRendering } =
+          await executeActionAndPrepareForRender(
+            actionHandler,
+            boundActionArguments,
+            workStore,
+            requestStore,
+            actionWasForwarded
+          ).finally(() => {
+            addRevalidationHeader(res, { workStore, requestStore })
+          })
 
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {
@@ -1170,13 +1168,24 @@ async function executeActionAndPrepareForRender<
   args: Parameters<TFn>,
   workStore: WorkStore,
   requestStore: RequestStore,
-  skipPageRendering: boolean = false
-): Promise<Awaited<ReturnType<TFn>>> {
+  actionWasForwarded: boolean
+): Promise<{
+  returnVal: Awaited<ReturnType<TFn>>
+  skipPageRendering: boolean
+}> {
   requestStore.phase = 'action'
+  let skipPageRendering = actionWasForwarded
+
   try {
-    return await workUnitAsyncStorage.run(requestStore, () =>
+    const returnVal = await workUnitAsyncStorage.run(requestStore, () =>
       action.apply(null, args)
     )
+
+    // If the page was not revalidated, or if the action was forwarded from
+    // another worker, we can skip rendering the page.
+    skipPageRendering ||= !workStore.pathWasRevalidated
+
+    return { returnVal, skipPageRendering }
   } finally {
     if (!skipPageRendering) {
       requestStore.phase = 'render'
