@@ -2428,9 +2428,11 @@ impl VisitAstPath for Analyzer<'_> {
         self.effects.append(&mut block);
         self.effects.append(&mut handler);
         if let Some(finalizer) = stmt.finalizer.as_ref() {
-            let mut ast_path =
-                ast_path.with_guard(AstParentNodeRef::TryStmt(stmt, TryStmtField::Finalizer));
-            finalizer.visit_with_ast_path(self, &mut ast_path);
+            {
+                let mut ast_path =
+                    ast_path.with_guard(AstParentNodeRef::TryStmt(stmt, TryStmtField::Finalizer));
+                finalizer.visit_with_ast_path(self, &mut ast_path);
+            }
             // If a finally block early returns the parent block does too.
             if self.end_early_return_block() {
                 self.early_return_stack.push(EarlyReturn::Always {

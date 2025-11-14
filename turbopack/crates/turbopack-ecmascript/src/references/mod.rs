@@ -220,7 +220,7 @@ type CodeGenCollection = Vec<CodeGen>;
 
 /// A temporary analysis result builder to pass around, to be turned into an
 /// `Vc<AnalyzeEcmascriptModuleResult>` eventually.
-pub struct AnalyzeEcmascriptModuleResultBuilder {
+struct AnalyzeEcmascriptModuleResultBuilder {
     analyze_mode: AnalyzeMode,
 
     references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
@@ -240,10 +240,12 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
     successful: bool,
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     has_side_effect_free_directive: bool,
+    #[cfg(debug_assertions)]
+    ident: RcStr,
 }
 
 impl AnalyzeEcmascriptModuleResultBuilder {
-    pub fn new(analyze_mode: AnalyzeMode) -> Self {
+    fn new(analyze_mode: AnalyzeMode) -> Self {
         Self {
             analyze_mode,
             references: Default::default(),
@@ -258,6 +260,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             successful: false,
             source_map: None,
             has_side_effect_free_directive: false,
+            #[cfg(debug_assertions)]
+            ident: Default::default(),
         }
     }
 
@@ -305,8 +309,9 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 let (index, added) = self.code_gens.insert_full(code_gen.into());
                 debug_assert!(
                     added,
-                    "Duplicate code gen added: {:?}",
-                    self.code_gens.get_index(index)
+                    "Duplicate code gen added: {:?} in {}",
+                    self.code_gens.get_index(index).unwrap(),
+                    self.ident
                 );
             }
             #[cfg(not(debug_assertions))]
@@ -553,8 +558,11 @@ async fn analyze_ecmascript_module_internal(
     let analyze_mode = options.analyze_mode;
 
     let origin = ResolvedVc::upcast::<Box<dyn ResolveOrigin>>(module);
-    let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new(analyze_mode);
     let path = &*origin.origin_path().await?;
+    let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new(analyze_mode);
+    if cfg!(debug_assertions) {
+        analysis.ident = source.ident().to_string().owned().await?;
+    }
 
     // Is this a typescript file that requires analyzing type references?
     let analyze_types = match &ty {
