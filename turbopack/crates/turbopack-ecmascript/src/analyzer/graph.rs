@@ -2437,7 +2437,7 @@ impl VisitAstPath for Analyzer<'_> {
             if self.end_early_return_block() {
                 self.early_return_stack.push(EarlyReturn::Always {
                     prev_effects: take(&mut self.effects),
-                    start_ast_path: as_parent_path(&ast_path),
+                    start_ast_path: as_parent_path(ast_path),
                 });
             }
         };
