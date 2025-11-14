@@ -126,7 +126,6 @@ const AppSegmentConfigSchema = z.object({
 
   /**
    * How this segment should be prefetched.
-   * (only applicable when `clientSegmentCache` is enabled)
    */
   unstable_prefetch: PrefetchSchema.optional(),
 
@@ -224,7 +223,6 @@ export type AppSegmentConfig = {
 
   /**
    * How this segment should be prefetched.
-   * (only applicable when `clientSegmentCache` is enabled)
    */
   unstable_prefetch?: Prefetch
 

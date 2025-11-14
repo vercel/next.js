@@ -19,8 +19,8 @@ use turbopack_browser::{
 };
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType,
-        module_id_strategies::ModuleIdStrategy,
+        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapSourceType,
+        SourceMapsType, module_id_strategies::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
@@ -489,7 +489,7 @@ pub async fn get_client_chunking_context(
     if next_mode.is_development() {
         builder = builder
             .hot_module_replacement()
-            .use_file_source_map_uris()
+            .source_map_source_type(SourceMapSourceType::AbsoluteFileUri)
             .dynamic_chunk_content_loading(true);
     } else {
         builder = builder

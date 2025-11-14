@@ -356,6 +356,17 @@ impl<T> Iterator for Chunk<T> {
             None
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
+}
+
+impl<T> ExactSizeIterator for Chunk<T> {
+    fn len(&self) -> usize {
+        self.end - self.index
+    }
 }
 
 impl<T> Drop for Chunk<T> {

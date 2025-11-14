@@ -7,7 +7,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     source::Source,
 };
 use turbopack_ecmascript::{
@@ -106,15 +106,20 @@ struct StaticUrlJsChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for StaticUrlJsChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
+        OutputAssetsWithReferenced::from_assets(Vc::cell(vec![ResolvedVc::upcast(
+            self.static_asset,
+        )]))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for StaticUrlJsChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
         self.module.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<OutputAssets> {
-        Vc::cell(vec![ResolvedVc::upcast(self.static_asset)])
     }
 
     #[turbo_tasks::function]

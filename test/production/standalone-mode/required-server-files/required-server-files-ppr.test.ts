@@ -55,10 +55,7 @@ describe.skip('required server files app router', () => {
       },
       nextConfig: {
         cacheHandler: './cache-handler.js',
-        experimental: {
-          cacheComponents: true,
-          clientSegmentCache: true,
-        },
+        cacheComponents: true,
         output: 'standalone',
       },
     })

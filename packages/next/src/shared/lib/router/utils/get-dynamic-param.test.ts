@@ -64,12 +64,12 @@ describe('getDynamicParam', () => {
       const params: Params = {}
 
       expect(() => {
-        getDynamicParam(params, 'slug', 'di', null)
+        getDynamicParam(params, 'slug', 'di(..)(..)', null)
       }).toThrow(InvariantError)
       expect(() => {
-        getDynamicParam(params, 'slug', 'di', null)
+        getDynamicParam(params, 'slug', 'di(..)(..)', null)
       }).toThrow(
-        'Invariant: Missing value for segment key: "slug" with dynamic param type: di. This is a bug in Next.js.'
+        'Invariant: Missing value for segment key: "slug" with dynamic param type: di(..)(..). This is a bug in Next.js.'
       )
     })
   })
@@ -113,13 +113,13 @@ describe('getDynamicParam', () => {
 
     it('should handle catchall intercepted (ci) with array values', () => {
       const params: Params = { path: ['photo', '123'] }
-      const result = getDynamicParam(params, 'path', 'ci', null)
+      const result = getDynamicParam(params, 'path', 'ci(..)(..)', null)
 
       expect(result).toEqual({
         param: 'path',
         value: ['photo', '123'],
-        type: 'ci',
-        treeSegment: ['path', 'photo/123', 'ci'],
+        type: 'ci(..)(..)',
+        treeSegment: ['path', 'photo/123', 'ci(..)(..)'],
       })
     })
 

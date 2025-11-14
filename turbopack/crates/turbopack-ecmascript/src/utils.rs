@@ -197,12 +197,17 @@ pub fn module_value_to_well_known_object(module_value: &ModuleValue) -> Option<J
         }
         "node:fs" | "fs" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
         "node:child_process" | "child_process" => {
-            JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess)
+            JsValue::WellKnownObject(WellKnownObjectKind::ChildProcessModule)
         }
         "node:os" | "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
-        "node:process" | "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
+        "node:process" | "process" => {
+            JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule)
+        }
         "node:url" | "url" => JsValue::WellKnownObject(WellKnownObjectKind::UrlModule),
         "node:module" | "module" => JsValue::WellKnownObject(WellKnownObjectKind::ModuleModule),
+        "node:worker_threads" | "worker_threads" => {
+            JsValue::WellKnownObject(WellKnownObjectKind::WorkerThreadsModule)
+        }
         "node-pre-gyp" | "@mapbox/node-pre-gyp" => {
             JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp)
         }

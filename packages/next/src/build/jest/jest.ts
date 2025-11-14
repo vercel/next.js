@@ -5,7 +5,8 @@ import { PHASE_TEST } from '../../shared/lib/constants'
 import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
 import { findPagesDir } from '../../lib/find-pages-dir'
-import { loadBindings, lockfilePatchPromise } from '../swc'
+import { lockfilePatchPromise } from '../swc'
+import { installBindings } from '../swc/install-bindings'
 import type { JestTransformerConfig } from '../swc/jest-transformer'
 import type { Config } from '@jest/types'
 
@@ -96,7 +97,7 @@ export default function nextJest(options: { dir?: string } = {}) {
           : customJestConfig) ?? {}
 
       // eagerly load swc bindings instead of waiting for transform calls
-      await loadBindings(nextConfig?.experimental?.useWasmBinary)
+      await installBindings(nextConfig?.experimental?.useWasmBinary)
 
       if (lockfilePatchPromise.cur) {
         await lockfilePatchPromise.cur

@@ -6,13 +6,11 @@ import path from 'path'
 import { outdent } from 'outdent'
 
 describe('ReactRefreshLogBox app', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
     patchFileDelay: 1000,
   })
-
-  const isRspack = !!process.env.NEXT_RSPACK
 
   test('should strip whitespace correctly with newline', async () => {
     await using sandbox = await createSandbox(next)
@@ -891,7 +889,6 @@ describe('ReactRefreshLogBox app', () => {
        }
       `)
     }
-    // Do not highlight example.com but do highlight nextjs.org
     expect(
       await session.evaluate(
         () =>
@@ -900,7 +897,7 @@ describe('ReactRefreshLogBox app', () => {
             .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
             .length
       )
-    ).toBe(1)
+    ).toBe(2)
     expect(
       await session.evaluate(
         () =>
@@ -924,7 +921,7 @@ describe('ReactRefreshLogBox app', () => {
               ) as any
           ).href
       )
-    ).toBe(null)
+    ).toBe('http://example.com/')
   })
 
   // TODO-APP: Catch errors that happen before useEffect
@@ -1443,7 +1440,7 @@ describe('ReactRefreshLogBox app', () => {
          × Module not found: Can't resolve 'non-existing-module' in '<FIXME-project-root>/app'
           ╭────
         1 │ import "non-existing-module";
-          ·        ─────────────────────
+          · ─────────────────────────────
           ╰────
        Import trace for requested module:
        ./app/module.js

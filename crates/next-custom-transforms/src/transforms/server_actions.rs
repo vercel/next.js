@@ -164,6 +164,7 @@ pub fn server_actions<C: Comments>(
         reference_index: 0,
         in_module_level: true,
         should_track_names: false,
+        has_server_reference_with_bound_args: false,
 
         names: Default::default(),
         declared_idents: Default::default(),
@@ -228,6 +229,7 @@ struct ServerActions<C: Comments> {
     reference_index: u32,
     in_module_level: bool,
     should_track_names: bool,
+    has_server_reference_with_bound_args: bool,
 
     names: Vec<Name>,
     declared_idents: Vec<Ident>,
@@ -569,6 +571,7 @@ impl<C: Comments> ServerActions<C> {
         if ids_from_closure.is_empty() {
             Box::new(action_ident.clone().into())
         } else {
+            self.has_server_reference_with_bound_args = true;
             Box::new(bind_args_to_ident(
                 action_ident.clone(),
                 ids_from_closure
@@ -697,6 +700,7 @@ impl<C: Comments> ServerActions<C> {
         if ids_from_closure.is_empty() {
             Box::new(action_ident.clone().into())
         } else {
+            self.has_server_reference_with_bound_args = true;
             Box::new(bind_args_to_ident(
                 action_ident.clone(),
                 ids_from_closure
@@ -733,8 +737,7 @@ impl<C: Comments> ServerActions<C> {
         }
 
         let cache_name: Atom = self.gen_cache_ident();
-        let cache_ident = private_ident!(Span::dummy_with_cmt(), cache_name.clone());
-        let export_name: Atom = cache_name;
+        let export_name: Atom = cache_name.clone();
 
         let reference_id = self.generate_server_reference_id(&export_name, true, Some(&new_params));
 
@@ -760,54 +763,17 @@ impl<C: Comments> ServerActions<C> {
             }),
         };
 
-        let inner_fn = Box::new(Expr::Fn(FnExpr {
-            ident: None,
-            function: Box::new(Function {
-                params: new_params.clone(),
-                body: inner_fn_body,
-                span: arrow.span,
-                is_generator: false,
-                is_async: true,
-                ..Default::default()
-            }),
-        }));
-
-        // Wrap with $$reactCache__(function foo() { return $$cache__(...) })
-        let wrapper_fn = wrap_cache_expr(
+        let cache_ident = create_and_hoist_cache_function(
             cache_kind.as_str(),
-            reference_id.as_str(),
+            reference_id.clone(),
             ids_from_closure.len(),
-            inner_fn,
+            cache_name,
             self.arrow_or_fn_expr_ident.clone(),
+            new_params.clone(),
+            inner_fn_body,
             arrow.span,
+            &mut self.hoisted_extra_items,
         );
-
-        // Create the export: export var $$RSC_SERVER_CACHE_0 = ...
-        self.hoisted_extra_items
-            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                span: DUMMY_SP,
-                decl: VarDecl {
-                    kind: VarDeclKind::Var,
-                    decls: vec![VarDeclarator {
-                        span: arrow.span,
-                        name: Pat::Ident(cache_ident.clone().into()),
-                        init: Some(wrapper_fn),
-                        definite: false,
-                    }],
-                    ..Default::default()
-                }
-                .into(),
-            })));
-
-        self.hoisted_extra_items
-            .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                span: DUMMY_SP,
-                expr: Box::new(annotate_ident_as_server_reference(
-                    cache_ident.clone(),
-                    reference_id.clone(),
-                    arrow.span,
-                )),
-            })));
 
         if let Some(Ident { sym, .. }) = &self.arrow_or_fn_expr_ident {
             assign_name_to_ident(&cache_ident, sym.as_str(), &mut self.hoisted_extra_items);
@@ -822,6 +788,7 @@ impl<C: Comments> ServerActions<C> {
         if bound_args.is_empty() {
             Box::new(cache_ident.clone().into())
         } else {
+            self.has_server_reference_with_bound_args = true;
             Box::new(bind_args_to_ident(
                 cache_ident.clone(),
                 bound_args,
@@ -855,7 +822,6 @@ impl<C: Comments> ServerActions<C> {
         }
 
         let cache_name: Atom = self.gen_cache_ident();
-        let cache_ident = private_ident!(Span::dummy_with_cmt(), cache_name.clone());
 
         let reference_id = self.generate_server_reference_id(&cache_name, true, Some(&new_params));
 
@@ -871,53 +837,17 @@ impl<C: Comments> ServerActions<C> {
         let function_body = function.body.take();
         let function_span = function.span;
 
-        let inner_fn = Box::new(Expr::Fn(FnExpr {
-            ident: fn_name.clone(),
-            function: Box::new(Function {
-                params: new_params.clone(),
-                body: function_body,
-                span: function_span,
-                is_async: true,
-                ..function.take()
-            }),
-        }));
-
-        // Wrap with $$reactCache__(function foo() { return $$cache__(...) })
-        let wrapper_fn = wrap_cache_expr(
+        let cache_ident = create_and_hoist_cache_function(
             cache_kind.as_str(),
-            reference_id.as_str(),
+            reference_id.clone(),
             ids_from_closure.len(),
-            inner_fn,
+            cache_name,
             fn_name.clone(),
+            new_params.clone(),
+            function_body,
             function_span,
+            &mut self.hoisted_extra_items,
         );
-
-        // Create the export: export var $$RSC_SERVER_CACHE_0 = ...
-        self.hoisted_extra_items
-            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                span: DUMMY_SP,
-                decl: VarDecl {
-                    kind: VarDeclKind::Var,
-                    decls: vec![VarDeclarator {
-                        span: function_span,
-                        name: Pat::Ident(cache_ident.clone().into()),
-                        init: Some(wrapper_fn),
-                        definite: false,
-                    }],
-                    ..Default::default()
-                }
-                .into(),
-            })));
-
-        self.hoisted_extra_items
-            .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                span: DUMMY_SP,
-                expr: Box::new(annotate_ident_as_server_reference(
-                    cache_ident.clone(),
-                    reference_id.clone(),
-                    function_span,
-                )),
-            })));
 
         if let Some(Ident { sym, .. }) = fn_name {
             assign_name_to_ident(&cache_ident, sym.as_str(), &mut self.hoisted_extra_items);
@@ -934,6 +864,7 @@ impl<C: Comments> ServerActions<C> {
         if bound_args.is_empty() {
             Box::new(cache_ident.clone().into())
         } else {
+            self.has_server_reference_with_bound_args = true;
             Box::new(bind_args_to_ident(
                 cache_ident.clone(),
                 bound_args,
@@ -2126,37 +2057,42 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 phase: Default::default(),
             })));
 
-            // Encryption and decryption only happens on the server layer.
-            // import { encryptActionBoundArgs, decryptActionBoundArgs } from
-            // 'private-next-rsc-action-encryption'
-            new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                span: DUMMY_SP,
-                specifiers: vec![
-                    ImportSpecifier::Named(ImportNamedSpecifier {
-                        span: DUMMY_SP,
-                        local: quote_ident!("encryptActionBoundArgs").into(),
-                        imported: None,
-                        is_type_only: false,
-                    }),
-                    ImportSpecifier::Named(ImportNamedSpecifier {
-                        span: DUMMY_SP,
-                        local: quote_ident!("decryptActionBoundArgs").into(),
-                        imported: None,
-                        is_type_only: false,
-                    }),
-                ],
-                src: Box::new(Str {
-                    span: DUMMY_SP,
-                    value: atom!("private-next-rsc-action-encryption"),
-                    raw: None,
-                }),
-                type_only: false,
-                with: None,
-                phase: Default::default(),
-            })));
+            let mut import_count = 1;
 
-            // Make it the first item
-            new.rotate_right(2);
+            // Encryption and decryption only happens when there are bound arguments.
+            if self.has_server_reference_with_bound_args {
+                // import { encryptActionBoundArgs, decryptActionBoundArgs } from
+                // 'private-next-rsc-action-encryption'
+                new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                    span: DUMMY_SP,
+                    specifiers: vec![
+                        ImportSpecifier::Named(ImportNamedSpecifier {
+                            span: DUMMY_SP,
+                            local: quote_ident!("encryptActionBoundArgs").into(),
+                            imported: None,
+                            is_type_only: false,
+                        }),
+                        ImportSpecifier::Named(ImportNamedSpecifier {
+                            span: DUMMY_SP,
+                            local: quote_ident!("decryptActionBoundArgs").into(),
+                            imported: None,
+                            is_type_only: false,
+                        }),
+                    ],
+                    src: Box::new(Str {
+                        span: DUMMY_SP,
+                        value: atom!("private-next-rsc-action-encryption"),
+                        raw: None,
+                    }),
+                    type_only: false,
+                    with: None,
+                    phase: Default::default(),
+                })));
+                import_count += 1;
+            }
+
+            // Make them the first items
+            new.rotate_right(import_count);
         }
 
         if self.has_action || self.has_cache {
@@ -2412,46 +2348,77 @@ fn retain_names_from_declared_idents(
     *child_names = retained_names;
 }
 
-fn wrap_cache_expr(
+#[allow(clippy::too_many_arguments)]
+fn create_and_hoist_cache_function(
     cache_kind: &str,
-    reference_id: &str,
+    reference_id: Atom,
     bound_args_length: usize,
-    inner_fn: Box<Expr>,
+    cache_name: Atom,
     fn_ident: Option<Ident>,
+    params: Vec<Param>,
+    body: Option<BlockStmt>,
     original_span: Span,
-) -> Box<Expr> {
+    hoisted_extra_items: &mut Vec<ModuleItem>,
+) -> Ident {
+    let cache_ident = private_ident!(Span::dummy_with_cmt(), cache_name.clone());
+    let inner_fn_name: Atom = format!("{}_INNER", cache_name).into();
+    let inner_fn_ident = private_ident!(Span::dummy_with_cmt(), inner_fn_name);
+
+    let inner_fn_expr = FnExpr {
+        ident: fn_ident.clone(),
+        function: Box::new(Function {
+            params,
+            body,
+            span: original_span,
+            is_generator: false,
+            is_async: true,
+            ..Default::default()
+        }),
+    };
+
+    hoisted_extra_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
+        span: original_span,
+        kind: VarDeclKind::Const,
+        declare: false,
+        decls: vec![VarDeclarator {
+            span: original_span,
+            name: Pat::Ident(BindingIdent {
+                id: inner_fn_ident.clone(),
+                type_ann: None,
+            }),
+            init: Some(Box::new(Expr::Fn(inner_fn_expr))),
+            definite: false,
+        }],
+        ..Default::default()
+    })))));
+
+    // For anonymous functions, set the name property to an empty string to
+    // avoid leaking the internal variable name in stack traces.
+    if fn_ident.is_none() {
+        assign_name_to_ident(&inner_fn_ident, "", hoisted_extra_items);
+    }
+
     let cache_call = CallExpr {
         span: original_span,
         callee: quote_ident!("$$cache__").as_callee(),
         args: vec![
-            ExprOrSpread {
-                spread: None,
-                expr: Box::new(cache_kind.into()),
-            },
-            ExprOrSpread {
-                spread: None,
-                expr: Box::new(reference_id.into()),
-            },
-            ExprOrSpread {
-                spread: None,
-                expr: Box::new(Expr::Lit(Lit::Num(Number {
-                    span: DUMMY_SP,
-                    value: bound_args_length as f64,
-                    raw: None,
-                }))),
-            },
-            inner_fn.as_arg(),
-            ExprOrSpread {
-                spread: None,
-                expr: Box::new(Expr::Ident(private_ident!(DUMMY_SP, "arguments"))),
-            },
+            Box::new(Expr::from(cache_kind)).as_arg(),
+            Box::new(Expr::from(reference_id.as_str())).as_arg(),
+            Box::new(Expr::Lit(Lit::Num(Number {
+                span: DUMMY_SP,
+                value: bound_args_length as f64,
+                raw: None,
+            })))
+            .as_arg(),
+            Box::new(Expr::Ident(inner_fn_ident)).as_arg(),
+            Box::new(Expr::Ident(private_ident!(DUMMY_SP, "arguments"))).as_arg(),
         ],
         ..Default::default()
     };
 
     // This wrapper function ensures that we have a user-space call stack frame.
-    let wrapper_fn = Box::new(Expr::Fn(FnExpr {
-        ident: fn_ident,
+    let wrapper_fn_expr = Box::new(Expr::Fn(FnExpr {
+        ident: fn_ident.clone(),
         function: Box::new(Function {
             body: Some(BlockStmt {
                 span: DUMMY_SP,
@@ -2466,11 +2433,37 @@ fn wrap_cache_expr(
         }),
     }));
 
-    Box::new(Expr::Call(CallExpr {
+    let wrapper_fn = Box::new(Expr::Call(CallExpr {
         callee: quote_ident!("$$reactCache__").as_callee(),
-        args: vec![wrapper_fn.as_arg()],
+        args: vec![wrapper_fn_expr.as_arg()],
         ..Default::default()
-    }))
+    }));
+
+    hoisted_extra_items.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+        span: DUMMY_SP,
+        decl: VarDecl {
+            kind: VarDeclKind::Var,
+            decls: vec![VarDeclarator {
+                span: original_span,
+                name: Pat::Ident(cache_ident.clone().into()),
+                init: Some(wrapper_fn),
+                definite: false,
+            }],
+            ..Default::default()
+        }
+        .into(),
+    })));
+
+    hoisted_extra_items.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+        span: DUMMY_SP,
+        expr: Box::new(annotate_ident_as_server_reference(
+            cache_ident.clone(),
+            reference_id,
+            original_span,
+        )),
+    })));
+
+    cache_ident
 }
 
 fn create_var_declarator(ident: &Ident, extra_items: &mut Vec<ModuleItem>) {
@@ -2494,11 +2487,11 @@ fn assign_name_to_ident(ident: &Ident, name: &str, extra_items: &mut Vec<ModuleI
         // WORKAROUND for https://github.com/microsoft/TypeScript/issues/61165
         // This should just be
         //
-        //   "Object.defineProperty($action, \"name\", { value: $name, writable: false });"
+        //   "Object.defineProperty($action, \"name\", { value: $name });"
         //
         // but due to the above typescript bug, `Object.defineProperty` calls are typechecked incorrectly
         // in js files, and it can cause false positives when typechecking our fixture files.
-        "Object[\"defineProperty\"]($action, \"name\", { value: $name, writable: false });"
+        "Object[\"defineProperty\"]($action, \"name\", { value: $name });"
             as ModuleItem,
         action: Ident = ident.clone(),
         name: Expr = name.into(),

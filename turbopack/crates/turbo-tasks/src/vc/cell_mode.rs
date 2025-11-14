@@ -1,7 +1,10 @@
 use std::{any::type_name, marker::PhantomData};
 
 use super::{read::VcRead, traits::VcValueType};
-use crate::{RawVc, Vc, manager::find_cell_by_type, task::shared_reference::TypedSharedReference};
+use crate::{
+    RawVc, Vc, backend::VerificationMode, manager::find_cell_by_type,
+    task::shared_reference::TypedSharedReference,
+};
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 type VcReadRepr<T> = <<T as VcValueType>::Read as VcRead<T>>::Repr;
@@ -37,7 +40,10 @@ where
 {
     fn cell(inner: VcReadTarget<T>) -> Vc<T> {
         let cell = find_cell_by_type(T::get_value_type_id());
-        cell.update(<T::Read as VcRead<T>>::target_to_value(inner));
+        cell.update(
+            <T::Read as VcRead<T>>::target_to_value(inner),
+            VerificationMode::Skip,
+        );
         Vc {
             node: cell.into(),
             _t: PhantomData,
@@ -47,7 +53,7 @@ where
     fn raw_cell(content: TypedSharedReference) -> RawVc {
         debug_assert_repr::<T>(&content);
         let cell = find_cell_by_type(content.type_id);
-        cell.update_with_shared_reference(content.reference);
+        cell.update_with_shared_reference(content.reference, VerificationMode::Skip);
         cell.into()
     }
 }

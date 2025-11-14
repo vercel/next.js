@@ -99,6 +99,8 @@ describe('adapter-config', () => {
       } else {
         expect(output.pathname).toStartWith('/docs/_next/static')
       }
+      // ensure / -> /index normalizing is correct
+      expect(output.pathname.includes('/.')).toBe(false)
 
       const stats = await fs.promises.stat(output.filePath)
       expect(stats.isFile()).toBe(true)
@@ -118,11 +120,26 @@ describe('adapter-config', () => {
         expect(typeof prerenderOutput.config.bypassToken).toBe('string')
         expect(Array.isArray(prerenderOutput.config.allowHeader)).toBe(true)
         expect(Array.isArray(prerenderOutput.config.allowQuery)).toBe(true)
+        // ensure / -> /index normalizing is correct
+        expect(prerenderOutput.pathname.includes('/.')).toBe(false)
       } catch (err) {
         require('console').error(`invalid prerender ${prerenderOutput.id}`, err)
         throw err
       }
     }
+
+    const indexPrerender = prerenderOutputs.find(
+      (item) => item.pathname === '/docs'
+    )
+
+    expect(indexPrerender?.fallback?.initialHeaders).toEqual({
+      'content-type': 'text/html; charset=utf-8',
+      vary: 'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch',
+      'x-next-cache-tags': '_N_T_/layout,_N_T_/page,_N_T_/,_N_T_/index',
+      'x-nextjs-prerender': '1',
+      'x-nextjs-stale-time': '300',
+    })
+    expect(indexPrerender?.fallback?.initialRevalidate).toBe(false)
 
     for (const route of nodeOutputs) {
       try {
@@ -130,6 +147,8 @@ describe('adapter-config', () => {
         expect(route.config).toBeObject()
         expect(route.pathname).toBeString()
         expect(route.runtime).toBe('nodejs')
+        // ensure / -> /index normalizing is correct
+        expect(route.pathname.includes('/.')).toBe(false)
 
         const stats = await fs.promises.stat(route.filePath)
         expect(stats.isFile()).toBe(true)
@@ -154,6 +173,8 @@ describe('adapter-config', () => {
         expect(route.id).toBeString()
         expect(route.config).toBeObject()
         expect(route.pathname).toBeString()
+        // ensure / -> /index normalizing is correct
+        expect(route.pathname.includes('/.')).toBe(false)
         expect(route.runtime).toBe('edge')
         expect(route.config.env).toEqual(
           expect.objectContaining({

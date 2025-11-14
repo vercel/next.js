@@ -10,6 +10,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     source::Source,
 };
 
@@ -43,6 +44,14 @@ impl Module for InlinedBytesJsModule {
             .ident()
             .with_modifier(rcstr!("static bytes in ecmascript"))
     }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(
+        self: Vc<Self>,
+        _side_effect_free_packages: Vc<Glob>,
+    ) -> Vc<bool> {
+        Vc::cell(true)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -74,11 +83,6 @@ impl EcmascriptChunkPlaceable for InlinedBytesJsModule {
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.cell()
     }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(&self, _side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(true)
-    }
 }
 
 #[turbo_tasks::value]
@@ -86,6 +90,9 @@ struct InlinedBytesJsChunkItem {
     module: ResolvedVc<InlinedBytesJsModule>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for InlinedBytesJsChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for InlinedBytesJsChunkItem {

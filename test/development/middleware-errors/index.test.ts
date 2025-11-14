@@ -3,11 +3,10 @@ import stripAnsi from 'strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('middleware - development errors', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
     patchFileDelay: 500,
   })
-  const isRspack = !!process.env.NEXT_RSPACK
 
   beforeEach(async () => {
     await next.stop()

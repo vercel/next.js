@@ -237,6 +237,7 @@ export type McpToolName =
   | 'mcp/get_logs'
   | 'mcp/get_page_metadata'
   | 'mcp/get_project_metadata'
+  | 'mcp/get_routes'
   | 'mcp/get_server_action_by_id'
 
 export type EventMcpToolUsage = {

@@ -8,10 +8,6 @@ use syn::{
     parse_macro_input, parse_quote,
     spanned::Spanned,
 };
-use turbo_tasks_macros_shared::{
-    get_cast_to_fat_pointer_ident, get_inherent_impl_function_ident, get_path_ident,
-    get_trait_impl_function_ident, get_type_ident, is_self_used,
-};
 
 use crate::{
     func::{
@@ -19,6 +15,11 @@ use crate::{
         split_function_attributes,
     },
     global_name::global_name,
+    ident::{
+        get_cast_to_fat_pointer_ident, get_inherent_impl_function_ident, get_path_ident,
+        get_trait_impl_function_ident, get_type_ident,
+    },
+    self_filter::is_self_used,
 };
 
 struct ValueImplArguments {
@@ -96,7 +97,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         FunctionArguments::default()
                     }
                 };
-                let local = func_args.local.is_some();
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
                 let Some(turbo_fn) =
@@ -119,7 +119,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     is_method: turbo_fn.is_method(),
                     is_self_used,
                     filter_trait_call_args: None, // not a trait method
-                    local,
                 };
 
                 let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
@@ -208,7 +207,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         continue;
                     }
                 };
-                let local = func_args.local.is_some();
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
                 let Some(turbo_fn) =
@@ -245,7 +243,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     is_method: turbo_fn.is_method(),
                     is_self_used,
                     filter_trait_call_args: turbo_fn.filter_trait_call_args(),
-                    local,
                 };
 
                 let native_function_ident =

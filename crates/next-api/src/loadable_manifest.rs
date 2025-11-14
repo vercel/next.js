@@ -23,7 +23,7 @@ pub async fn create_react_loadable_manifest(
     let mut loadable_manifest: FxIndexMap<String, LoadableManifest> = FxIndexMap::default();
 
     for (_, (module_id, chunk_output)) in dynamic_import_entries.into_iter() {
-        let chunk_output = chunk_output.await?;
+        let chunk_output = chunk_output.primary_assets().await?;
 
         let id = &*module_id.await?;
 

@@ -164,6 +164,14 @@ impl RopeBuilder {
         self.uncommitted.push_bytes(bytes);
     }
 
+    /// Reserve additional capacity for owned bytes in the Rope.
+    ///
+    /// This is useful to call before multiple `push_bytes` calls to avoid
+    /// multiple allocations.
+    pub fn reserve_bytes(&mut self, additional: usize) {
+        self.uncommitted.reserve_bytes(additional);
+    }
+
     /// Push static lifetime bytes into the Rope.
     ///
     /// This is more efficient than pushing owned bytes, because the internal
@@ -302,6 +310,24 @@ impl Uncommitted {
                 *self = Self::Owned(v);
             }
             Self::Owned(v) => v.extend(bytes),
+        }
+    }
+
+    /// Reserves additional capacity for owned bytes, converting the current
+    /// representation to an Owned if it's not already.
+    fn reserve_bytes(&mut self, additional: usize) {
+        match self {
+            Self::None => {
+                *self = Self::Owned(Vec::with_capacity(additional));
+            }
+            Self::Static(s) => {
+                let mut v = Vec::with_capacity(s.len() + additional);
+                v.extend_from_slice(s);
+                *self = Self::Owned(v);
+            }
+            Self::Owned(v) => {
+                v.reserve(additional);
+            }
         }
     }
 

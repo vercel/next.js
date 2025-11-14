@@ -16,6 +16,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::{ModuleGraph, export_usage::ModuleExportUsageInfo},
+    output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
     reference_type::ReferenceType,
     resolve::ModuleResolveResult,
@@ -290,6 +291,9 @@ struct EcmascriptClientReferenceProxyChunkItem {
     inner_chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for EcmascriptClientReferenceProxyChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for EcmascriptClientReferenceProxyChunkItem {

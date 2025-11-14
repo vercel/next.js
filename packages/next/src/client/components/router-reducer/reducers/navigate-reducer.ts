@@ -13,10 +13,10 @@ import { handleMutable } from '../handle-mutable'
 
 import {
   navigate as navigateUsingSegmentCache,
-  NavigationResultTag,
   type NavigationResult,
-  getStaleTimeMs,
-} from '../../segment-cache'
+} from '../../segment-cache/navigation'
+import { NavigationResultTag } from '../../segment-cache/types'
+import { getStaleTimeMs } from '../../segment-cache/cache'
 
 // These values are set by `define-env-plugin` (based on `nextConfig.experimental.staleTimes`)
 // and default to 5 minutes (static) / 0 seconds (dynamic)

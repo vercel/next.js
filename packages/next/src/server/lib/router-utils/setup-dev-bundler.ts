@@ -8,6 +8,7 @@ import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
 import { createDefineEnv } from '../../../build/swc'
+import { installBindings } from '../../../build/swc/install-bindings'
 import fs from 'fs'
 import url from 'url'
 import path from 'path'
@@ -371,6 +372,7 @@ async function startWatcher(
     const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
+    let initialWatchTime = performance.now() + performance.timeOrigin
     wp.on('aggregated', async () => {
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
@@ -445,14 +447,21 @@ async function startWatcher(
         const meta = knownFiles.get(fileName)
 
         const watchTime = fileWatchTimes.get(fileName)
+        const nextWatchTime = meta?.timestamp
         // If the file is showing up for the first time or the meta.timestamp is changed since last time
-        const watchTimeChange =
-          watchTime === undefined ||
-          (watchTime && watchTime !== meta?.timestamp)
-        fileWatchTimes.set(fileName, meta?.timestamp)
+        // Files that were created before we started watching are not considered changed.
+        // If any file was created by Next.js while booting, we assume those changes
+        // are handled in the bootstrap phase.
+        // Files that existed before we booted should be handled during bootstrapping.
+        const fileChanged =
+          (watchTime === undefined &&
+            (nextWatchTime === undefined ||
+              nextWatchTime >= initialWatchTime)) ||
+          (watchTime && watchTime !== nextWatchTime)
+        fileWatchTimes.set(fileName, nextWatchTime)
 
         if (envFiles.includes(fileName)) {
-          if (watchTimeChange) {
+          if (fileChanged) {
             envChange = true
           }
           continue
@@ -462,7 +471,7 @@ async function startWatcher(
           if (fileName.endsWith('tsconfig.json')) {
             enabledTypeScript = true
           }
-          if (watchTimeChange) {
+          if (fileChanged) {
             tsconfigChange = true
           }
           continue
@@ -1272,7 +1281,7 @@ export async function setupDevBundler(opts: SetupOpts) {
   const isSrcDir = path
     .relative(opts.dir, opts.pagesDir || opts.appDir || '')
     .startsWith('src')
-
+  await installBindings(opts.nextConfig.experimental?.useWasmBinary)
   const result = await startWatcher({
     ...opts,
     isSrcDir,

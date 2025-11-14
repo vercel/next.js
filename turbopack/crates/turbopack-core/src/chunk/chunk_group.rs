@@ -6,7 +6,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 
 use super::{
-    Chunk, ChunkGroupContent, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkingContext,
+    Chunk, ChunkGroupContent, ChunkItemWithAsyncModuleInfo, ChunkingContext,
     availability_info::AvailabilityInfo, chunking::make_chunks,
 };
 use crate::{
@@ -25,7 +25,10 @@ use crate::{
         },
         module_batches::{BatchingConfig, ModuleBatchesGraphEdge},
     },
-    output::{OutputAsset, OutputAssets},
+    output::{
+        OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsReferences,
+        OutputAssetsWithReferenced,
+    },
     reference::ModuleReference,
     traced_asset::TracedAsset,
 };
@@ -33,6 +36,7 @@ use crate::{
 pub struct MakeChunkGroupResult {
     pub chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
     pub referenced_output_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
+    pub references: Vec<ResolvedVc<Box<dyn OutputAssetsReference>>>,
     pub availability_info: AvailabilityInfo,
 }
 
@@ -123,14 +127,7 @@ pub async fn make_chunk_group(
         })
     });
 
-    // And also add output assets referenced by async chunk loaders
-    let async_loader_references = async_loaders
-        .iter()
-        .map(|&loader| loader.references())
-        .try_join()
-        .await?;
-
-    let mut referenced_output_assets = traced_modules
+    let referenced_output_assets = traced_modules
         .into_iter()
         .map(|module| async move {
             Ok(ResolvedVc::upcast(
@@ -141,13 +138,6 @@ pub async fn make_chunk_group(
         .await?;
 
     chunk_items.extend(async_loader_chunk_items);
-    referenced_output_assets.reserve(
-        async_loader_references
-            .iter()
-            .map(|r| r.len())
-            .sum::<usize>(),
-    );
-    referenced_output_assets.extend(async_loader_references.into_iter().flatten());
 
     // Pass chunk items to chunking algorithm
     let chunks = make_chunks(
@@ -162,13 +152,14 @@ pub async fn make_chunk_group(
     Ok(MakeChunkGroupResult {
         chunks,
         referenced_output_assets,
+        references: ResolvedVc::upcast_vec(async_loaders),
         availability_info,
     })
 }
 
 pub async fn references_to_output_assets(
     references: impl IntoIterator<Item = &ResolvedVc<Box<dyn ModuleReference>>>,
-) -> Result<Vc<OutputAssets>> {
+) -> Result<Vc<OutputAssetsWithReferenced>> {
     let output_assets = references
         .into_iter()
         .map(|reference| reference.resolve_reference().primary_output_assets())
@@ -180,9 +171,13 @@ pub async fn references_to_output_assets(
         .flatten()
         .copied()
         .filter(|&asset| set.insert(asset))
-        .map(|asset| *asset)
         .collect::<Vec<_>>();
-    Ok(OutputAssets::new(output_assets))
+    Ok(OutputAssetsWithReferenced {
+        assets: ResolvedVc::cell(output_assets),
+        referenced_assets: OutputAssets::empty_resolved(),
+        references: OutputAssetsReferences::empty_resolved(),
+    }
+    .cell())
 }
 
 pub async fn chunk_group_content(

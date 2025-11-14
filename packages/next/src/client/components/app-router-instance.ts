@@ -16,9 +16,9 @@ import { startTransition } from 'react'
 import { isThenable } from '../../shared/lib/is-thenable'
 import {
   FetchStrategy,
-  prefetch as prefetchWithSegmentCache,
   type PrefetchTaskFetchStrategy,
-} from './segment-cache'
+} from './segment-cache/types'
+import { prefetch as prefetchWithSegmentCache } from './segment-cache/prefetch'
 import { dispatchAppRouterAction } from './use-action-queue'
 import { addBasePath } from '../add-base-path'
 import { isExternalURL } from './app-router-utils'

@@ -279,8 +279,6 @@ export interface ExperimentalConfig {
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
-  clientSegmentCache?: boolean | 'client-only'
-
   /**
    * The origins that are allowed to write the rewritten headers when
    * performing a non-relative rewrite. When undefined, no non-relative
@@ -388,6 +386,12 @@ export interface ExperimentalConfig {
    * Optimize React APIs for server builds.
    */
   optimizeServerReact?: boolean
+
+  /**
+   * Displays an indicator when a React Transition has no other indicator rendered.
+   * This includes displaying an indicator on client-side navigations.
+   */
+  transitionIndicator?: boolean
 
   /**
    * A target memory limit for turbo, in bytes.
@@ -1455,7 +1459,6 @@ export const defaultConfig = Object.freeze({
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    clientSegmentCache: true,
     clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
     preloadEntriesOnStart: true,
@@ -1518,6 +1521,7 @@ export const defaultConfig = Object.freeze({
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
+    transitionIndicator: false,
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,

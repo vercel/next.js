@@ -111,9 +111,6 @@ export function getPrerenderOutput(
         )
         .replace(/at \d+ \(/, replaceNumericModuleId)
         .replace(/digest: '\d+'/, "digest: '<error-digest>'")
-        // TODO(veil): Bundler protocols should not appear in stack frames.
-        .replace('webpack:///', 'bundler:///')
-        .replace('turbopack:///[project]/', 'bundler:///')
 
       lines.push(convertModuleFunctionSequenceExpression(line))
     }

@@ -417,7 +417,10 @@ export async function startServer(
                     >
                   | undefined
                 if (telemetry) {
-                  await telemetry.flush()
+                  // Use flushDetached to avoid blocking process exit
+                  // Each process writes to a unique file (_events_${pid}.json)
+                  // to avoid race conditions with the parent process
+                  telemetry.flushDetached('dev', dir)
                 }
               } catch (_) {
                 // Ignore telemetry errors during cleanup

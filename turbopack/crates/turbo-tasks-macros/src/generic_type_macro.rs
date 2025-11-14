@@ -2,9 +2,11 @@ use proc_macro::TokenStream;
 use quote::quote;
 use rustc_hash::FxHashSet;
 use syn::{GenericParam, Lifetime, Type, parse_macro_input, spanned::Spanned, visit_mut::VisitMut};
-use turbo_tasks_macros_shared::{GenericTypeInput, get_type_ident};
 
-use crate::{global_name::global_name, value_macro::value_type_and_register};
+use crate::{
+    generic_type_input::GenericTypeInput, global_name::global_name, ident::get_type_ident,
+    value_macro::value_type_and_register,
+};
 
 pub fn generic_type(input: TokenStream) -> TokenStream {
     let mut input = parse_macro_input!(input as GenericTypeInput);

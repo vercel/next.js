@@ -6,10 +6,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
     file_source::FileSource,
-    issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
-    },
+    issue::IssueSource,
     raw_module::RawModule,
     reference::ModuleReference,
     resolve::{
@@ -18,6 +15,9 @@ use turbopack_core::{
         resolve_raw,
     },
 };
+
+use crate::references::util::check_and_emit_too_many_matches_warning;
+
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct FileSourceReference {
@@ -233,82 +233,5 @@ impl ValueToString for DirAssetReference {
         Ok(Vc::cell(
             format!("directory assets {}", self.path.to_string().await?,).into(),
         ))
-    }
-}
-
-/// If a pattern resolves to more than 10000 results, it's likely a mistake so issue a warning.
-const TOO_MANY_MATCHES_LIMIT: usize = 10000;
-
-async fn check_and_emit_too_many_matches_warning(
-    result: Vc<ModuleResolveResult>,
-    issue_source: IssueSource,
-    context_dir: FileSystemPath,
-    pattern: ResolvedVc<Pattern>,
-) -> Result<()> {
-    let num_matches = result.await?.primary.len();
-    if num_matches > TOO_MANY_MATCHES_LIMIT {
-        TooManyMatchesWarning {
-            source: issue_source,
-            context_dir,
-            num_matches,
-            pattern,
-        }
-        .resolved_cell()
-        .emit();
-    }
-    Ok(())
-}
-
-#[turbo_tasks::value(shared)]
-struct TooManyMatchesWarning {
-    source: IssueSource,
-    context_dir: FileSystemPath,
-    num_matches: usize,
-    pattern: ResolvedVc<Pattern>,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for TooManyMatchesWarning {
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
-        Ok(StyledString::Text(
-            format!(
-                "The file pattern {pattern} matches {num_matches} files in {context_dir}",
-                pattern = self.pattern.to_string().await?,
-                context_dir = self.context_dir.value_to_string().await?,
-                num_matches = self.num_matches
-            )
-            .into(),
-        )
-        .cell())
-    }
-
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(rcstr!(
-                "Overly broad patterns can lead to build performance issues and over bundling."
-            ))
-            .resolved_cell(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    async fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
-    }
-
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Resolve.cell()
-    }
-
-    fn severity(&self) -> IssueSeverity {
-        IssueSeverity::Warning
-    }
-
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
     }
 }

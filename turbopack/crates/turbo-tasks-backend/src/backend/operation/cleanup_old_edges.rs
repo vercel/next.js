@@ -182,6 +182,13 @@ impl Operation for CleanupOldEdgesOperation {
                                 }
                             }
                             OutdatedEdge::OutputDependency(output_task_id) => {
+                                #[cfg(feature = "trace_task_output_dependencies")]
+                                let _span = tracing::trace_span!(
+                                    "remove output dependency",
+                                    task = %output_task_id,
+                                    dependent_task = %task_id
+                                )
+                                .entered();
                                 {
                                     let mut task = ctx.task(output_task_id, TaskDataCategory::Data);
                                     task.remove(&CachedDataItemKey::OutputDependent {

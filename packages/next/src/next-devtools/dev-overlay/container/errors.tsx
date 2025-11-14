@@ -29,12 +29,18 @@ interface ErrorsProps extends ErrorBaseProps {
   onClose: () => void
 }
 
-function isNextjsLink(text: string): boolean {
-  return text.startsWith('https://nextjs.org')
+function matchLinkType(text: string): string | null {
+  if (text.startsWith('https://nextjs.org')) {
+    return 'nextjs-link'
+  }
+  if (text.startsWith('https://') || text.startsWith('http://')) {
+    return 'external-link'
+  }
+  return null
 }
 
 function HydrationErrorDescription({ message }: { message: string }) {
-  return <HotlinkedText text={message} matcher={isNextjsLink} />
+  return <HotlinkedText text={message} matcher={matchLinkType} />
 }
 
 function GenericErrorDescription({ error }: { error: Error }) {
@@ -51,7 +57,7 @@ function GenericErrorDescription({ error }: { error: Error }) {
 
   return (
     <>
-      <HotlinkedText text={message} matcher={isNextjsLink} />
+      <HotlinkedText text={message} matcher={matchLinkType} />
     </>
   )
 }
@@ -411,5 +417,8 @@ export const styles = `
     padding: 14px;
     border-radius: var(--rounded-md-2);
     border: 1px solid var(--color-gray-alpha-400);
+  }
+  .external-link, .external-link:hover {
+    color:inherit;
   }
 `

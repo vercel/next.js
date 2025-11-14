@@ -129,6 +129,8 @@ describe('app dir - prefetching (custom staleTime)', () => {
 
   it('should not re-fetch cached data when navigating back to a route group', async () => {
     let act: ReturnType<typeof createRouterAct>
+    // Just installing so that the page doesn't automatically move past dynamic stale time
+    createTimeController()
     const browser = await next.browser('/prefetch-auto-route-groups', {
       beforePageLoad(page) {
         act = createRouterAct(page)

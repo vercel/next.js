@@ -784,7 +784,7 @@ export class NextInstance {
     const responsePromise = new Promise<Response>((resolve, reject) => {
       const timer = setTimeout(() => {
         reject(`Timed out waiting for the response of ${url}`)
-      }, 10_000)
+      }, 30_000)
 
       resolveResponse = (response: Response) => {
         clearTimeout(timer)
