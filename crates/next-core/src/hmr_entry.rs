@@ -69,6 +69,11 @@ impl Module for HmrEntryModule {
                 .await?,
         )]))
     }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
+        Vc::cell(false)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -103,11 +108,6 @@ impl EcmascriptChunkPlaceable for HmrEntryModule {
     #[turbo_tasks::function]
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
         EcmascriptExports::None.cell()
-    }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(false)
     }
 }
 

@@ -43,6 +43,11 @@ impl Module for InlinedBytesJsModule {
             .ident()
             .with_modifier(rcstr!("static bytes in ecmascript"))
     }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(&self, _side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
+        Vc::cell(true)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -73,11 +78,6 @@ impl EcmascriptChunkPlaceable for InlinedBytesJsModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.cell()
-    }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(&self, _side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(true)
     }
 }
 
