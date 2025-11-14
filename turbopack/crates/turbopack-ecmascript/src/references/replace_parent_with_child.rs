@@ -36,30 +36,25 @@ impl ReplaceParentWithChild {
         let AstParentKind::BinExpr(field) = to_replace_with else {
             panic!("invalid path, must point at a BinExpr not a {to_replace_with:?}");
         };
-        let visitor = create_visitor!(
-            exact,
-            parent_path,
-            visit_mut_expr,
-            |parent_expr: &mut Expr| {
-                match parent_expr {
-                    Expr::Bin(BinExpr { left, right, .. }) => {
-                        let child = match field {
-                            BinExprField::Left => left.take(),
-                            BinExprField::Right => right.take(),
-                            _ => {
-                                panic!("Can only replace with expression children, got {field:?}");
-                            }
-                        };
-                        *parent_expr = quote!("(\"TURBOPACK simplified expression\", $e)" as Expr, e: Expr = *child);
-                    }
+        let visitor = create_visitor!(parent_path, visit_mut_expr, |parent_expr: &mut Expr| {
+            match parent_expr {
+                Expr::Bin(BinExpr { left, right, .. }) => {
+                    let child = match field {
+                        BinExprField::Left => left.take(),
+                        BinExprField::Right => right.take(),
+                        _ => {
+                            panic!("Can only replace with expression children, got {field:?}");
+                        }
+                    };
+                    *parent_expr = quote!("(\"TURBOPACK simplified expression\", $e)" as Expr, e: Expr = *child);
+                }
 
-                    _ => {
-                        // do nothing, the AST must have been modified and our operator or child
-                        // removed.
-                    }
-                };
-            }
-        );
+                _ => {
+                    // do nothing, the AST must have been modified and our operator or child
+                    // removed.
+                }
+            };
+        });
 
         Ok(CodeGeneration::visitors(vec![visitor]))
     }
