@@ -419,10 +419,10 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
         module_graph.traverse_all_edges_unordered(|(parent_node, reference), node| {
             match reference.chunking_type {
                 ChunkingType::Async => {
-                    all_async_edges.insert((parent_node.module, node.module));
+                    all_async_edges.insert((parent_node, node));
                 }
                 _ => {
-                    all_edges.insert((parent_node.module, node.module));
+                    all_edges.insert((parent_node, node));
                 }
             }
             Ok(())

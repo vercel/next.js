@@ -230,6 +230,7 @@ import {
   writeValidatorFile,
 } from '../server/lib/router-utils/route-types-utils'
 import { Lockfile } from './lockfile'
+import { validateAppPaths } from './validate-app-paths'
 
 type Fallback = null | boolean | string
 
@@ -435,6 +436,7 @@ type ManifestDataRoute = {
 export type RoutesManifest = {
   version: number
   pages404: boolean
+  appType: 'app' | 'pages' | 'hybrid'
   basePath: string
   redirects: Array<ManifestRedirectRoute>
   rewrites: {
@@ -871,6 +873,9 @@ async function writeFullyStaticExport(
   configOutDir: string,
   nextBuildSpan: Span,
   appDirOnly: boolean
+  // TODO: Reusing the worker seems to break finding if it's `.html` or a JS page.
+  // Because writeFullyStaticExport is called after `exportApp` has been called before
+  // worker: StaticWorker | undefined
 ): Promise<void> {
   const exportApp = (require('../export') as typeof import('../export'))
     .default as typeof import('../export').default
@@ -887,6 +892,7 @@ async function writeFullyStaticExport(
       appDirOnly,
     },
     nextBuildSpan
+    // worker
   )
 }
 
@@ -923,8 +929,10 @@ export default async function build(
   NextBuildContext.isCompileMode = isCompileMode
   NextBuildContext.analyze = experimentalAnalyze
   const buildStartTime = Date.now()
+  let appType: RoutesManifest['appType']
 
   let loadedConfig: NextConfigComplete | undefined
+  let staticWorker: StaticWorker
   try {
     const nextBuildSpan = trace('next-build', undefined, {
       buildMode: experimentalBuildMode,
@@ -1076,6 +1084,14 @@ export default async function build(
 
       const publicDir = path.join(dir, 'public')
       const { pagesDir, appDir } = findPagesDir(dir)
+
+      if (pagesDir && appDir) {
+        appType = 'hybrid'
+      } else if (pagesDir) {
+        appType = 'pages'
+      } else if (appDir) {
+        appType = 'app'
+      }
 
       if (!appDirOnly && !pagesDir) {
         appDirOnly = true
@@ -1391,6 +1407,13 @@ export default async function build(
       }
 
       const appPaths = Array.from(appPageKeys)
+
+      // Validate that the app paths are valid. This is currently duplicating
+      // the logic from packages/next/src/shared/lib/router/utils/sorted-routes.ts
+      // but is instead specifically focused on code that can be shared
+      // eventually with the development code.
+      validateAppPaths(appPaths)
+
       // Interception routes are modelled as beforeFiles rewrites
       rewrites.beforeFiles.push(
         ...generateInterceptionRoutesRewrites(appPaths, config.basePath)
@@ -1619,6 +1642,7 @@ export default async function build(
           return {
             version: 3,
             pages404: true,
+            appType,
             caseSensitive: !!config.experimental.caseSensitiveRoutes,
             basePath: config.basePath,
             redirects: redirects.map((r) =>
@@ -1966,7 +1990,7 @@ export default async function build(
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-      const worker = createStaticWorker(config, {
+      staticWorker = createStaticWorker(config, {
         numberOfWorkers,
         debuggerPortOffset: -1,
       })
@@ -2004,7 +2028,7 @@ export default async function build(
           nonStaticErrorPageSpan.traceAsyncFn(
             async () =>
               hasCustomErrorPage &&
-              (await worker.hasCustomGetInitialProps({
+              (await staticWorker.hasCustomGetInitialProps({
                 page: '/_error',
                 distDir,
                 checkingApp: false,
@@ -2015,7 +2039,7 @@ export default async function build(
         const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
           async () =>
             hasCustomErrorPage &&
-            worker.isPageStatic({
+            staticWorker.isPageStatic({
               dir,
               page: '/_error',
               distDir,
@@ -2037,7 +2061,7 @@ export default async function build(
         const appPageToCheck = '/_app'
 
         const customAppGetInitialPropsPromise = hasUserPagesRoutes
-          ? worker.hasCustomGetInitialProps({
+          ? staticWorker.hasCustomGetInitialProps({
               page: appPageToCheck,
               distDir,
               checkingApp: true,
@@ -2046,7 +2070,7 @@ export default async function build(
           : Promise.resolve(false)
 
         const namedExportsPromise = hasUserPagesRoutes
-          ? worker.getDefinedNamedExports({
+          ? staticWorker.getDefinedNamedExports({
               page: appPageToCheck,
               distDir,
               sriEnabled,
@@ -2226,7 +2250,7 @@ export default async function build(
                         checkPageSpan.traceChild('is-page-static')
                       let workerResult = await isPageStaticSpan.traceAsyncFn(
                         () => {
-                          return worker.isPageStatic({
+                          return staticWorker.isPageStatic({
                             dir,
                             page,
                             originalAppPath,
@@ -3078,7 +3102,8 @@ export default async function build(
               numWorkers: numberOfWorkers,
               appDirOnly,
             },
-            nextBuildSpan
+            nextBuildSpan,
+            staticWorker
           )
 
           // If there was no result, there's nothing more to do.
@@ -4007,8 +4032,12 @@ export default async function build(
         buildTracesSpinner = createSpinner('Collecting build traces')
       }
 
-      // ensure the worker is not left hanging
-      worker.end()
+      // When output: export we want to end the worker later as it's still used for writeFullyStaticExport
+      if (config.output !== 'export') {
+        // ensure the worker is not left hanging
+        staticWorker?.end()
+        staticWorker = undefined! // Reset staticWorker to make sure it does not end in `finally`
+      }
 
       const analysisEnd = process.hrtime(analysisBegin)
       telemetry.record(
@@ -4183,6 +4212,11 @@ export default async function build(
       }
 
       if (config.output === 'export') {
+        // TODO: When writeFullyStaticExport doesn't fail when staticWorker is passed moved this after writeFullyStaticExport.
+        // End the worker here when it's output: export.
+        staticWorker.end()
+        staticWorker = undefined! // Reset staticWorker to make sure it does not end in `finally`
+
         await nextBuildSpan
           .traceChild('output-export-full-static-export')
           .traceAsyncFn(async () => {
@@ -4193,6 +4227,7 @@ export default async function build(
               configOutDir,
               nextBuildSpan,
               appDirOnly
+              // staticWorker
             )
           })
       }
@@ -4300,6 +4335,10 @@ export default async function build(
     }
     throw e
   } finally {
+    // @ts-expect-error Existence of staticWorker is checked here intentionally.
+    if (staticWorker) {
+      staticWorker.end()
+    }
     // Ensure we wait for lockfile patching if present
     await lockfilePatchPromise.cur
 

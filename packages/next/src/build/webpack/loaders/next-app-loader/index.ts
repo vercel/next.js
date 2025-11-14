@@ -35,9 +35,11 @@ import {
 import { getFilesInDir } from '../../../../lib/get-files-in-dir'
 import type { PageExtensions } from '../../../page-extensions-type'
 import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../../client/components/builtin/default'
+import { PARALLEL_ROUTE_DEFAULT_NULL_PATH } from '../../../../client/components/builtin/default-null'
 import type { Compilation } from 'webpack'
 import { createAppRouteCode } from './create-app-route-code'
 import { MissingDefaultParallelRouteError } from '../../../../shared/lib/errors/missing-default-parallel-route-error'
+import { isInterceptionRouteAppPath } from '../../../../shared/lib/router/utils/interception-routes'
 
 import { normalizePathSep } from '../../../../shared/lib/page-path/normalize-path-sep'
 import { installBindings } from '../../../swc/install-bindings'
@@ -558,7 +560,18 @@ async function createTreeCodeFromPath(
         let defaultPath = await resolver(`${fullSegmentPath}/default`)
         if (!defaultPath) {
           if (adjacentParallelSegment === 'children') {
-            defaultPath = PARALLEL_ROUTE_DEFAULT_PATH
+            // When we host applications on Vercel, the status code affects the
+            // underlying behavior of the route, which when we are missing the
+            // children slot of an interception route, will yield a full 404
+            // response for the RSC request instead. For this reason, we expect
+            // that if a default file is missing when we're rendering an
+            // interception route, we instead always render null for the default
+            // slot to avoid the full 404 response.
+            if (isInterceptionRouteAppPath(page)) {
+              defaultPath = PARALLEL_ROUTE_DEFAULT_NULL_PATH
+            } else {
+              defaultPath = PARALLEL_ROUTE_DEFAULT_PATH
+            }
           } else {
             // Check if we're inside a catch-all route (i.e., the parallel route is a child
             // of a catch-all segment). Only skip validation if the slot is UNDER a catch-all.

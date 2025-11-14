@@ -270,6 +270,8 @@ pub struct EcmascriptOptions {
     // node_modules.
     /// Whether to replace `typeof window` with some constant value.
     pub enable_typeof_window_inlining: Option<TypeofWindow>,
+    /// Whether to allow accessing exports info via `__webpack_exports_info__`.
+    pub enable_exports_info_inlining: bool,
 
     pub inline_helpers: bool,
 }
@@ -1025,7 +1027,14 @@ impl EcmascriptModuleContentOptions {
             let code_gens = code_generation
                 .await?
                 .iter()
-                .map(|c| c.code_generation(**chunking_context, scope_hoisting_context))
+                .map(|c| {
+                    c.code_generation(
+                        **chunking_context,
+                        scope_hoisting_context,
+                        *module,
+                        *exports,
+                    )
+                })
                 .try_join()
                 .await?;
 
