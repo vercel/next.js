@@ -560,7 +560,8 @@ async fn analyze_ecmascript_module_internal(
     let origin = ResolvedVc::upcast::<Box<dyn ResolveOrigin>>(module);
     let path = &*origin.origin_path().await?;
     let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new(analyze_mode);
-    if cfg!(debug_assertions) {
+    #[cfg(debug_assertions)]
+    {
         analysis.ident = source.ident().to_string().owned().await?;
     }
 
