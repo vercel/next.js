@@ -5,7 +5,7 @@ const linkRegex = /https?:\/\/[^\s/$.?#].[^\s)'"]*/i
 
 export const HotlinkedText: React.FC<{
   text: string
-  matcher?: (text: string) => boolean
+  matcher?: (text: string) => string | null
 }> = function HotlinkedText(props) {
   const { text, matcher } = props
 
@@ -24,17 +24,27 @@ export const HotlinkedText: React.FC<{
                 if (linkRegex.test(rawPart)) {
                   const link = linkRegex.exec(rawPart)!
                   const href = link[0]
-                  // If link matcher is present but the link doesn't match, don't turn it into a link
-                  if (typeof matcher === 'function' && !matcher(href)) {
-                    return (
-                      <React.Fragment key={`link-${outerIndex}-${index}`}>
-                        {rawPart}
-                      </React.Fragment>
-                    )
+                  // If link matcher is present, check if it returns a className
+                  let linkClassName: string | null = null
+                  if (typeof matcher === 'function') {
+                    linkClassName = matcher(href)
+                    // If matcher returns null, don't turn it into a link
+                    if (linkClassName === null) {
+                      return (
+                        <React.Fragment key={`link-${outerIndex}-${index}`}>
+                          {rawPart}
+                        </React.Fragment>
+                      )
+                    }
                   }
                   return (
                     <React.Fragment key={`link-${outerIndex}-${index}`}>
-                      <a href={href} target="_blank" rel="noreferrer noopener">
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className={linkClassName || undefined}
+                      >
                         {rawPart}
                       </a>
                     </React.Fragment>

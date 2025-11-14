@@ -1500,6 +1500,7 @@ const runTests = (isDev = false) => {
         ])
       ).toMatchInlineSnapshot(`
        {
+         "appType": "pages",
          "basePath": "",
          "caseSensitive": true,
          "dataRoutes": [

@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
 import { browserConfigWithFixedTime, fastForwardTo } from './test-utils'
 import path from 'path'
+import { Playwright } from 'next-webdriver'
 
 describe('app dir client cache with parallel routes', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -12,6 +13,18 @@ describe('app dir client cache with parallel routes', () => {
     // dev doesn't support prefetch={true}
     it('should skip dev', () => {})
     return
+  }
+
+  async function reveal(browser: Playwright, href: string) {
+    // Get the reveal element and scroll it into view.
+    const reveal = await browser.elementByCss(`[data-link-accordion="${href}"]`)
+    await reveal.scrollIntoViewIfNeeded()
+
+    // Click the reveal element to reveal the content.
+    await reveal.click()
+
+    // Return the anchor link element.
+    return browser.elementByCss(`a[href="${href}"]`)
   }
 
   describe('prefetch={true}', () => {
@@ -27,11 +40,7 @@ describe('app dir client cache with parallel routes', () => {
       // Reveal the link to trigger prefetch and wait for it to complete
       const link = await act(
         async () => {
-          const reveal = await browser.elementByCss(
-            '[data-link-accordion="/0"]'
-          )
-          await reveal.click()
-          return await browser.elementByCss('[href="/0"]')
+          return reveal(browser, '/0')
         },
         { includes: 'random-number' }
       )
@@ -55,11 +64,8 @@ describe('app dir client cache with parallel routes', () => {
       // Toggle the link, assert on the prefetch content
       const link = await act(
         async () => {
-          const reveal = await browser.elementByCss(
-            '[data-link-accordion="/0"]'
-          )
-          await reveal.click()
-          return await browser.elementByCss('[href="/0"]')
+          await reveal(browser, '/0')
+          return browser.elementByCss('[href="/0"]')
         },
         { includes: 'random-number' }
       )
@@ -68,15 +74,13 @@ describe('app dir client cache with parallel routes', () => {
       const randomNumber = await act(async () => {
         await link.click()
         await browser.waitForElementByCss('#random-number')
-        return await browser.elementByCss('#random-number').text()
+        return browser.elementByCss('#random-number').text()
       }, 'no-requests')
 
       // Toggle the home link, assert on the homepage content
       const homeLink = await act(
         async () => {
-          const reveal = await browser.elementByCss('[data-link-accordion="/"]')
-          await reveal.click()
-          return await browser.elementByCss('[href="/"]')
+          return reveal(browser, '/')
         },
         { includes: 'home-page' }
       )
@@ -89,22 +93,18 @@ describe('app dir client cache with parallel routes', () => {
 
       // Toggle the link to the other page again, navigate, assert no requests (because it's cached)
       const number = await act(async () => {
-        const reveal = await browser.elementByCss('[data-link-accordion="/0"]')
-        await reveal.click()
-        const link = await browser.elementByCss('[href="/0"]')
+        const link = await reveal(browser, '/0')
         await link.click()
         await browser.waitForElementByCss('#random-number')
-        return await browser.elementByCss('#random-number').text()
+        return browser.elementByCss('#random-number').text()
       }, 'no-requests')
 
       expect(number).toBe(randomNumber)
 
       // Navigate back home
       await act(async () => {
-        const reveal = await browser.elementByCss('[data-link-accordion="/"]')
-        await reveal.click()
-        const homeLink = await browser.elementByCss('[href="/"]')
-        await homeLink.click()
+        const link = await reveal(browser, '/')
+        await link.click()
         await browser.waitForElementByCss('#home-page')
       }, 'no-requests')
 
@@ -114,11 +114,7 @@ describe('app dir client cache with parallel routes', () => {
       // Toggle the link to the other page again, assert on prefetch content
       const linkAfterExpiry = await act(
         async () => {
-          const reveal = await browser.elementByCss(
-            '[data-link-accordion="/0"]'
-          )
-          await reveal.click()
-          return await browser.elementByCss('[href="/0"]')
+          return reveal(browser, '/0')
         },
         { includes: 'random-number' }
       )
@@ -127,7 +123,7 @@ describe('app dir client cache with parallel routes', () => {
       const newNumber = await act(async () => {
         await linkAfterExpiry.click()
         await browser.waitForElementByCss('#random-number')
-        return await browser.elementByCss('#random-number').text()
+        return browser.elementByCss('#random-number').text()
       }, 'no-requests')
 
       expect(newNumber).not.toBe(randomNumber)

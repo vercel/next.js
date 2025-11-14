@@ -12,8 +12,7 @@ use crate::{
     },
     module::Module,
     module_graph::{
-        GraphTraversalAction, ModuleGraph, RefData, SingleModuleGraphModuleNode,
-        chunk_group_info::RoaringBitmapWrapper,
+        GraphTraversalAction, ModuleGraph, RefData, chunk_group_info::RoaringBitmapWrapper,
     },
     resolve::ExportUsage,
 };
@@ -99,11 +98,11 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 |parent, node| {
                     if let Some((parent, _)) = parent {
                         let parent_depth = *module_depth
-                            .get(&parent.module)
+                            .get(&parent)
                             .context("Module depth not found")?;
-                        module_depth.entry(node.module).or_insert(parent_depth + 1);
+                        module_depth.entry(node).or_insert(parent_depth + 1);
                     } else {
-                        module_depth.insert(node.module, 0);
+                        module_depth.insert(node, 0);
                     };
 
                     Ok(GraphTraversalAction::Continue)
@@ -125,8 +124,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let mergeable = graphs
             .iter()
             .flat_map(|g| g.iter_nodes())
-            .map(async |n| {
-                let module = n.module;
+            .map(async |module| {
                 if let Some(mergeable) =
                     ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module)
                     && *mergeable.is_mergeable().await?
@@ -150,22 +148,22 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 .map(|e| Ok((*e, -*module_depth.get(e).context("Module depth not found")?)))
                 .collect::<Result<Vec<_>>>()?,
             &mut (),
-            |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ RefData)>,
-             node: &'_ SingleModuleGraphModuleNode,
+            |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData)>,
+             node: ResolvedVc<Box<dyn Module>>,
              _|
              -> Result<GraphTraversalAction> {
                 // On the down traversal, establish which edges are mergeable and set the list
                 // indices.
                 let (parent_module, hoisted) = parent_info.map_or((None, false), |(node, ty)| {
                     (
-                        Some(node.module),
+                        Some(node),
                         match &ty.chunking_type {
                             ChunkingType::Parallel { hoisted, .. } => *hoisted,
                             _ => false,
                         },
                     )
                 });
-                let module = node.module;
+                let module = node;
 
                 Ok(if parent_module.is_some_and(|p| p == module) {
                     // A self-reference
@@ -181,9 +179,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
                     // A hoisted reference from a mergeable module to a non-async mergeable
                     // module, inherit bitmaps from parent.
-                    module_merged_groups.entry(node.module).or_default();
+                    module_merged_groups.entry(node).or_default();
                     let [Some(parent_merged_groups), Some(current_merged_groups)] =
-                        module_merged_groups.get_disjoint_mut([&parent_module, &node.module])
+                        module_merged_groups.get_disjoint_mut([&parent_module, &node])
                     else {
                         // All modules are inserted in the previous iteration
                         bail!("unreachable except for eventual consistency");
@@ -227,7 +225,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 // Invert the ordering here. High priority values get visited first, and we want to
                 // visit the low-depth nodes first, as we are propagating bitmaps downwards.
                 Ok(-*module_depth
-                    .get(&successor.module)
+                    .get(&successor)
                     .context("Module depth not found")?)
             },
         )?;
@@ -332,7 +330,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                             &mut (),
                             |parent_info, node, _| {
                                 if parent_info.is_none_or(|(_, r)| r.chunking_type.is_parallel())
-                                    && visited.insert(node.module)
+                                    && visited.insert(node)
                                 {
                                     Ok(GraphTraversalAction::Continue)
                                 } else {
@@ -340,7 +338,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                                 }
                             },
                             |parent_info, node, _| {
-                                let module = node.module;
+                                let module = node;
                                 let bitmap = module_merged_groups
                                     .get(&module)
                                     .context("every module should have a bitmap at this point")?;
@@ -383,15 +381,14 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                                 }
 
                                 if let Some((parent, _)) = parent_info {
-                                    let same_bitmap =
-                                        module_merged_groups.get(&parent.module).unwrap()
-                                            == module_merged_groups.get(&module).unwrap();
+                                    let same_bitmap = module_merged_groups.get(&parent).unwrap()
+                                        == module_merged_groups.get(&module).unwrap();
 
                                     if same_bitmap {
                                         intra_group_references_rev
                                             .entry(module)
                                             .or_default()
-                                            .insert(parent.module);
+                                            .insert(parent);
                                     }
                                 }
                                 Ok(())
@@ -469,22 +466,22 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             &mut (),
             |_, _, _| Ok(GraphTraversalAction::Continue),
             |parent_info, node, _| {
-                let module = node.module;
+                let module = node;
 
                 if let Some((parent, _)) = parent_info {
-                    let same_bitmap = module_merged_groups.get(&parent.module).unwrap()
+                    let same_bitmap = module_merged_groups.get(&parent).unwrap()
                         == module_merged_groups.get(&module).unwrap();
 
                     if same_bitmap {
                         intra_group_references
-                            .entry(parent.module)
+                            .entry(parent)
                             .or_default()
                             .insert(module);
                     }
                 }
 
                 if parent_info.is_none_or(|(parent, _)| {
-                    module_merged_groups.get(&parent.module).unwrap()
+                    module_merged_groups.get(&parent).unwrap()
                         != module_merged_groups.get(&module).unwrap()
                 }) {
                     // This module needs to be exposed:

@@ -1,5 +1,4 @@
 /* __next_internal_action_entry_do_not_use__ {"c0dd5bb6fef67f5ab84327f5164ac2c3111a159337":"$$RSC_SERVER_CACHE_0"} */ import { registerServerReference } from "private-next-rsc-server-reference";
-import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 import { cache as $$reactCache__ } from "react";
 import React from 'react';

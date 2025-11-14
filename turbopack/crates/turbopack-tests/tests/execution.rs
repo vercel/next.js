@@ -403,6 +403,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
                 import_externals: true,
+                enable_exports_info_inlining: true,
                 ..Default::default()
             },
             environment: Some(env),
