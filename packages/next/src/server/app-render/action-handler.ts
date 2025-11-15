@@ -1200,7 +1200,7 @@ async function executeActionAndPrepareForRender<
 
       // If the action called revalidateTag/revalidatePath, then that might
       // affect data used by the subsequent render, so we need to make sure all
-      // revalidations are applied before that
+      // revalidations are applied before that.
       await executeRevalidates(workStore)
     }
   }

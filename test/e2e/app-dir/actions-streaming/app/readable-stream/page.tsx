@@ -31,7 +31,7 @@ export default function Page() {
   }
 
   return (
-    <div style={{ marginTop: '1rem' }}>
+    <div>
       <button disabled={isStreaming} onClick={handleClick} id="stream-button">
         {isStreaming ? 'Streaming...' : 'Start Stream'}
       </button>

@@ -31,7 +31,6 @@ describe('actions-streaming', () => {
           expect(await browser.elementByCss('h3').text()).toBe(
             'Received 50 chunks'
           )
-
           expect(await browser.elementById('stream-button').text()).toBe(
             'Start Stream'
           )

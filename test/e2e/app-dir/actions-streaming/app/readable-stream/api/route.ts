@@ -12,7 +12,6 @@ export async function GET() {
         await setTimeout(100)
         controller.enqueue(encoder.encode(loremIpsum))
       }
-
       controller.close()
     },
   })
