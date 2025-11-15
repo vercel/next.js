@@ -169,13 +169,20 @@ unsafe impl GlobalAlloc for TurboMalloc {
                 return base_alloc().alloc(layout);
             }
 
-            IN_ALLOCATOR = true;
+            struct AllocatorGuard;
+            impl Drop for AllocatorGuard {
+                fn drop(&mut self) {
+                    unsafe { IN_ALLOCATOR = false; }
+                }
+            }
+            
+            unsafe { IN_ALLOCATOR = true; }
+            let _guard = AllocatorGuard;
             let ret = base_alloc().alloc(layout);
             if !ret.is_null() {
                 let size = base_alloc_size(ret, layout);
                 add(size);
             }
-            IN_ALLOCATOR = false;
             ret
         }
     }
