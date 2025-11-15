@@ -176,7 +176,7 @@ unsafe impl GlobalAlloc for TurboMalloc {
                 }
             }
             
-            unsafe { IN_ALLOCATOR = true; }
+            IN_ALLOCATOR = true;
             let _guard = AllocatorGuard;
             let ret = base_alloc().alloc(layout);
             if !ret.is_null() {
