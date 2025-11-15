@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   getRedboxDescription,
   getRedboxSource,
 } from 'next-test-utils'
@@ -40,7 +40,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/app-code/react-dom-server-browser-explicit'
     )
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     if (isTurbopack) {
       expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
         "{
@@ -108,7 +108,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/app-code/react-dom-server-edge-explicit'
     )
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     if (isTurbopack) {
       expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
         "{
@@ -258,7 +258,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/app-code/react-dom-server-node-explicit'
     )
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
@@ -315,7 +315,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/app-code/react-dom-server-node-implicit'
     )
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
@@ -398,7 +398,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/library-code/react-dom-server-browser-explicit'
     )
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
@@ -455,7 +455,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/library-code/react-dom-server-edge-explicit'
     )
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     if (isTurbopack) {
       expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
         "{
@@ -527,7 +527,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/library-code/react-dom-server-edge-implicit'
     )
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     if (isTurbopack) {
       expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
         "{
@@ -599,7 +599,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/library-code/react-dom-server-node-explicit'
     )
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
@@ -656,7 +656,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/library-code/react-dom-server-node-implicit'
     )
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),

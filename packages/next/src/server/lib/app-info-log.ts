@@ -1,4 +1,5 @@
 import { loadEnvConfig } from '@next/env'
+import * as inspector from 'inspector'
 import * as Log from '../../build/output/log'
 import { bold, purple, strikethrough } from '../../lib/picocolors'
 import {
@@ -50,10 +51,19 @@ export function logStartInfo({
     )}${versionSuffix}`
   )
   if (appUrl) {
-    Log.bootstrap(`- Local:        ${appUrl}`)
+    Log.bootstrap(`- Local:         ${appUrl}`)
   }
   if (networkUrl) {
-    Log.bootstrap(`- Network:      ${networkUrl}`)
+    Log.bootstrap(`- Network:       ${networkUrl}`)
+  }
+  const inspectorUrl = inspector.url()
+  if (inspectorUrl) {
+    // Could also parse this port from the inspector URL.
+    // process.debugPort will always be defined even if the process is not being inspected.
+    // The full URL seems noisy as far as I can tell.
+    // Node.js will print the full URL anyway.
+    const debugPort = process.debugPort
+    Log.bootstrap(`- Debugger port: ${debugPort}`)
   }
   if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
 

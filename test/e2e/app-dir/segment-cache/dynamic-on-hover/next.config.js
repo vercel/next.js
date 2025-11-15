@@ -4,7 +4,6 @@
 const nextConfig = {
   cacheComponents: true,
   experimental: {
-    clientSegmentCache: true,
     dynamicOnHover: true,
   },
 }

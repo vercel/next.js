@@ -6,12 +6,7 @@ use std::{
 
 use anyhow::Result;
 use patricia_tree::PatriciaMap;
-use serde::{
-    Deserialize, Deserializer, Serialize, Serializer,
-    de::{MapAccess, Visitor},
-    ser::SerializeMap,
-};
-use serde_bytes::{ByteBuf, Bytes};
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue,
@@ -29,7 +24,8 @@ use super::pattern::Pattern;
 ///
 /// If the pattern does not have a wildcard character, it will only match the
 /// exact string, and return the template as-is.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct AliasMap<T> {
     map: PatriciaMap<BTreeMap<AliasKey, T>>,
 }
@@ -54,63 +50,6 @@ where
 }
 
 impl<T> Eq for AliasMap<T> where T: Eq {}
-
-impl<T> Serialize for AliasMap<T>
-where
-    T: Serialize,
-{
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut map = serializer.serialize_map(Some(self.map.len()))?;
-        for (prefix, value) in self.map.iter() {
-            let key = ByteBuf::from(prefix);
-            map.serialize_entry(&key, value)?;
-        }
-        map.end()
-    }
-}
-
-struct AliasMapVisitor<T> {
-    marker: std::marker::PhantomData<T>,
-}
-
-impl<'de, T> Visitor<'de> for AliasMapVisitor<T>
-where
-    T: Deserialize<'de>,
-{
-    type Value = AliasMap<T>;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("a map of alias patterns to templates")
-    }
-
-    fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
-    where
-        M: MapAccess<'de>,
-    {
-        let mut map = AliasMap::new();
-        while let Some((key, value)) = access.next_entry::<&Bytes, _>()? {
-            map.map.insert(key, value);
-        }
-        Ok(map)
-    }
-}
-
-impl<'a, T> Deserialize<'a> for AliasMap<T>
-where
-    T: Deserialize<'a>,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'a>,
-    {
-        deserializer.deserialize_map(AliasMapVisitor {
-            marker: std::marker::PhantomData,
-        })
-    }
-}
 
 impl<T> TraceRawVcs for AliasMap<T>
 where
@@ -392,7 +331,7 @@ impl<'a, T> IntoIterator for &'a AliasMap<T> {
 ///
 /// [PATTERN_KEY_COMPARE]: https://nodejs.org/api/esm.html#resolver-algorithm-specification
 pub struct AliasMapIntoIter<T> {
-    iter: patricia_tree::map::IntoIter<BTreeMap<AliasKey, T>>,
+    iter: patricia_tree::map::IntoIter<Vec<u8>, BTreeMap<AliasKey, T>>,
     current_prefix_iterator: Option<AliasMapIntoIterItem<T>>,
 }
 
@@ -457,7 +396,7 @@ impl<T> Iterator for AliasMapIntoIter<T> {
 ///
 /// [PATTERN_KEY_COMPARE]: https://nodejs.org/api/esm.html#resolver-algorithm-specification
 pub struct AliasMapIter<'a, T> {
-    iter: patricia_tree::map::Iter<'a, BTreeMap<AliasKey, T>>,
+    iter: patricia_tree::map::Iter<'a, Vec<u8>, BTreeMap<AliasKey, T>>,
     current_prefix_iterator: Option<AliasMapIterItem<'a, T>>,
 }
 

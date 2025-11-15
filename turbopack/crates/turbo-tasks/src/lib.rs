@@ -131,8 +131,9 @@ pub use value::{TransientInstance, TransientValue};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{
     Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
-    Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead,
-    VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
+    Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellNewMode,
+    VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType,
+    VcValueTypeCast,
 };
 
 pub type SliceMap<K, V> = Box<[(K, V)]>;
@@ -189,7 +190,7 @@ macro_rules! fxindexset {
 /// ```
 /// # #![feature(arbitrary_self_types)]
 //  # #![feature(arbitrary_self_types_pointers)]
-/// #[turbo_tasks::value(transparent, into = "shared")]
+/// #[turbo_tasks::value(transparent, shared)]
 /// struct Foo(Vec<u32>);
 /// ```
 ///
@@ -199,7 +200,7 @@ macro_rules! fxindexset {
 /// by setting the [`VcValueType::CellMode`] associated type.
 ///
 /// - **`"new"`:** Always overrides the value in the cell, invalidating all dependent tasks.
-/// - **`"shared"` *(default)*:** Compares with the existing value in the cell, before overriding it.
+/// - **`"compare"` *(default)*:** Compares with the existing value in the cell, before overriding it.
 ///   Requires the value to implement [`Eq`].
 ///
 /// Avoiding unnecessary invalidation is important to reduce downstream recomputation of tasks that
@@ -211,30 +212,10 @@ macro_rules! fxindexset {
 ///
 /// ## `eq = "..."`
 ///
-/// By default, we `#[derive(PartialEq, Eq)]`. [`Eq`] is required by `cell = "shared"`. This
+/// By default, we `#[derive(PartialEq, Eq)]`. [`Eq`] is required by `cell = "compare"`. This
 /// argument allows overriding that default implementation behavior.
 ///
 /// - **`"manual"`:** Prevents deriving [`Eq`] and [`PartialEq`] so you can do it manually.
-///
-/// ## `into = "..."`
-///
-/// This macro always implements a `.cell()` method on your type with the signature:
-///
-/// ```ignore
-/// /// Wraps the value in a cell.
-/// fn cell(self) -> Vc<Self>;
-/// ```
-///
-/// This argument controls the visibility of the `.cell()` method, as well as whether a
-/// [`From<T> for Vc<T>`][From] implementation is generated.
-///
-/// - **`"new"` or `"shared"`:** Exposes both `.cell()` and [`From`]/[`Into`] implementations. Both
-///   of these values (`"new"` or `"shared"`) do the same thing (for legacy reasons).
-/// - **`"none"` *(default)*:** Makes `.cell()` private and prevents implementing [`From`]/[`Into`].
-///
-/// You should use the default value of `"none"` when providing your own public constructor methods.
-///
-/// The naming of this field and it's values are due to legacy reasons.
 ///
 /// ## `serialization = "..."`
 ///
@@ -248,8 +229,7 @@ macro_rules! fxindexset {
 ///
 /// ## `shared`
 ///
-/// Sets both `cell = "shared"` *(already the default)* and `into = "shared"`, exposing the
-/// `.cell()` method and adding a [`From`]/[`Into`] implementation.
+/// Makes the `cell()` method public so everyone can use it.
 ///
 /// ## `transparent`
 ///

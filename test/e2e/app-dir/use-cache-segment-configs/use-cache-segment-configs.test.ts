@@ -1,15 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox } from 'next-test-utils'
+import { waitForRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('use-cache-segment-configs', () => {
-  const { next, skipped, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, skipped, isNextDev, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
     skipDeployment: true,
   })
-
-  const isRspack = !!process.env.NEXT_RSPACK
 
   if (skipped) {
     return
@@ -19,7 +17,7 @@ describe('use-cache-segment-configs', () => {
     if (isNextDev) {
       const browser = await next.browser('/runtime')
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
 
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`

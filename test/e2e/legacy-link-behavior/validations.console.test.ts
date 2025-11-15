@@ -1,5 +1,5 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox } from 'next-test-utils'
+import { waitForNoRedbox } from 'next-test-utils'
 
 describe('Validations for <Link legacyBehavior>', () => {
   const { next, isNextDeploy } = nextTestSetup({
@@ -117,7 +117,7 @@ describe('Validations for <Link legacyBehavior>', () => {
           )
 
           if (isNextDev) {
-            await assertNoRedbox(browser)
+            await waitForNoRedbox(browser)
           } else {
             expect(newConsoleOutput()).toEqual('')
           }
@@ -129,7 +129,7 @@ describe('Validations for <Link legacyBehavior>', () => {
           )
 
           if (isNextDev) {
-            await assertNoRedbox(browser)
+            await waitForNoRedbox(browser)
           } else {
             expect(newConsoleOutput()).toEqual('')
           }
@@ -188,7 +188,7 @@ describe('Validations for <Link legacyBehavior>', () => {
         )
 
         if (isNextDev) {
-          await assertNoRedbox(browser)
+          await waitForNoRedbox(browser)
         } else {
           expect(newConsoleOutput()).toEqual('')
         }
@@ -233,7 +233,7 @@ describe('Validations for <Link legacyBehavior>', () => {
           )
 
           if (isNextDev) {
-            await assertNoRedbox(browser)
+            await waitForNoRedbox(browser)
           } else {
             expect(newConsoleOutput()).toEqual('')
           }
@@ -245,7 +245,7 @@ describe('Validations for <Link legacyBehavior>', () => {
           )
 
           if (isNextDev) {
-            await assertNoRedbox(browser)
+            await waitForNoRedbox(browser)
           } else {
             expect(newConsoleOutput()).toEqual('')
           }
@@ -320,7 +320,7 @@ describe('Validations for <Link legacyBehavior>', () => {
       const browser = await next.browser('/validations/client/child-component')
 
       if (isNextDev) {
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
       } else {
         expect(newConsoleOutput()).toEqual('')
       }

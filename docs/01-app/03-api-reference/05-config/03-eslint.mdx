@@ -6,7 +6,16 @@ description: Learn how to use and configure the ESLint plugin to catch common is
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-Next.js provides an ESLint plugin, [`@next/eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next), already bundled within the base configuration that makes it possible to catch common issues and problems in a Next.js application.
+Next.js provides an ESLint configuration package, [`eslint-config-next`](https://www.npmjs.com/package/eslint-config-next), that makes it easy to catch common issues in your application. It includes the [`@next/eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next) plugin along with recommended rule-sets from [`eslint-plugin-react`](https://www.npmjs.com/package/eslint-plugin-react) and [`eslint-plugin-react-hooks`](https://www.npmjs.com/package/eslint-plugin-react-hooks).
+
+The package provides two main configurations:
+
+- **`eslint-config-next`**: Base configuration with Next.js, React, and React Hooks rules. Supports both JavaScript and TypeScript files.
+- **`eslint-config-next/core-web-vitals`**: Includes everything from the base config, plus upgrades rules that impact [Core Web Vitals](https://web.dev/vitals/) from warnings to errors. Recommended for most projects.
+
+Additionally, for TypeScript projects:
+
+- **`eslint-config-next/typescript`**: Adds TypeScript-specific linting rules from [`typescript-eslint`](https://typescript-eslint.io/). Use this alongside the base or core-web-vitals config.
 
 ## Setup ESLint
 
@@ -71,7 +80,7 @@ Get linting working quickly with the ESLint CLI (flat config):
 
 ## Reference
 
-Recommended rule-sets from the following ESLint plugins are all used within `eslint-config-next`:
+The `eslint-config-next` package includes the `recommended` rule-sets from the following ESLint plugins:
 
 - [`eslint-plugin-react`](https://www.npmjs.com/package/eslint-plugin-react)
 - [`eslint-plugin-react-hooks`](https://www.npmjs.com/package/eslint-plugin-react-hooks)
@@ -79,7 +88,7 @@ Recommended rule-sets from the following ESLint plugins are all used within `esl
 
 ### Rules
 
-The full set of rules is as follows:
+The `@next/eslint-plugin-next` rules included are:
 
 | Enabled in recommended config | Rule                                                                                                                     | Description                                                                                                      |
 | :---------------------------: | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
@@ -128,6 +137,7 @@ import eslintNextPlugin from '@next/eslint-plugin-next'
 
 const eslintConfig = defineConfig([
   {
+    files: ['**/*.{js,jsx,ts,tsx}'],
     plugins: {
       next: eslintNextPlugin,
     },
@@ -136,12 +146,6 @@ const eslintConfig = defineConfig([
         rootDir: 'packages/my-app/',
       },
     },
-    files: [
-      // ...files
-    ],
-    ignores: [
-      // ...ignores
-    ],
   },
 ])
 
@@ -181,7 +185,7 @@ export default eslintConfig
 
 ### With Core Web Vitals
 
-Enable the `next/core-web-vitals` rule set by extending it in your ESLint config.
+Enable the `eslint-config-next/core-web-vitals` configuration in your ESLint config.
 
 ```js filename="eslint.config.mjs"
 import { defineConfig, globalIgnores } from 'eslint/config'
@@ -202,13 +206,13 @@ const eslintConfig = defineConfig([
 export default eslintConfig
 ```
 
-`next/core-web-vitals` updates `@next/eslint-plugin-next` to error on a number of rules that are warnings by default if they affect [Core Web Vitals](https://web.dev/vitals/).
+`eslint-config-next/core-web-vitals` upgrades certain lint rules in `@next/eslint-plugin-next` from warnings to errors to help improve your [Core Web Vitals](https://web.dev/vitals/) metrics.
 
-> The `next/core-web-vitals` entry point is automatically included for new applications built with [Create Next App](/docs/app/api-reference/cli/create-next-app).
+> The `eslint-config-next/core-web-vitals` configuration is automatically included for new applications built with [Create Next App](/docs/app/api-reference/cli/create-next-app).
 
 ### With TypeScript
 
-In addition to the Next.js ESLint rules, `create-next-app --typescript` will also add TypeScript-specific lint rules with `next/typescript` to your config:
+In addition to the Next.js ESLint rules, `create-next-app --typescript` will also add TypeScript-specific lint rules with `eslint-config-next/typescript` to your config:
 
 ```js filename="eslint.config.mjs"
 import { defineConfig, globalIgnores } from 'eslint/config'
@@ -296,34 +300,25 @@ module.exports = {
 }
 ```
 
-### Migrating existing config
+## Migrating existing config
 
-If you already have ESLint configured in your application, we recommend extending from this plugin directly instead of including `eslint-config-next` unless a few conditions are met.
+If you already have ESLint configured in your application, there are two approaches to integrate Next.js linting rules, depending on your setup.
 
-#### Recommended plugin ruleset
+#### Using the plugin directly
 
-If the following conditions are true:
+Use `@next/eslint-plugin-next` directly if you have any of the following already configured:
 
-- You have one or more of the following plugins already installed (either separately or through a different config such as `airbnb` or `react-app`):
+- Conflicting plugins installed separately or through another config (such as `airbnb` or `react-app`):
   - `react`
   - `react-hooks`
   - `jsx-a11y`
   - `import`
-- You've defined specific `parserOptions` that are different from how Babel is configured within Next.js (this is not recommended unless you have [customized your Babel configuration](/docs/pages/guides/babel))
-- You have `eslint-plugin-import` installed with Node.js and/or TypeScript [resolvers](https://github.com/benmosher/eslint-plugin-import#resolvers) defined to handle imports
+- Custom `parserOptions` different from Next.js defaults (only if you have [customized your Babel configuration](/docs/pages/guides/babel))
+- `eslint-plugin-import` with custom Node.js and/or TypeScript [resolvers](https://github.com/benmosher/eslint-plugin-import#resolvers)
 
-Then we recommend either removing these settings if you prefer how these properties have been configured within [`eslint-config-next`](https://github.com/vercel/next.js/blob/canary/packages/eslint-config-next/index.js) or extending directly from the Next.js ESLint plugin instead:
+In these cases, use `@next/eslint-plugin-next` directly to avoid conflicts:
 
-```js
-module.exports = {
-  extends: [
-    //...
-    'plugin:@next/next/recommended',
-  ],
-}
-```
-
-The plugin can be installed normally in your project:
+First, install the plugin:
 
 ```bash package="pnpm"
 pnpm add -D @next/eslint-plugin-next
@@ -341,28 +336,49 @@ yarn add --dev @next/eslint-plugin-next
 bun add -d @next/eslint-plugin-next
 ```
 
-This eliminates the risk of collisions or errors that can occur due to importing the same plugin or parser across multiple configurations.
-
-#### Additional configurations
-
-If you already use a separate ESLint configuration and want to include `eslint-config-next`, ensure that it is extended last after other configurations. For example:
+Then add it to your ESLint config:
 
 ```js filename="eslint.config.mjs"
-import { defineConfig, globalIgnores } from 'eslint/config'
+import { defineConfig } from 'eslint/config'
 import nextPlugin from '@next/eslint-plugin-next'
 
 const eslintConfig = defineConfig([
-  nextPlugin.configs['core-web-vitals'],
-  // List of ignore patterns.
-  globalIgnores([]),
+  // Your other configurations...
+  {
+    files: ['**/*.{js,jsx,ts,tsx}'],
+    plugins: {
+      '@next/next': nextPlugin,
+    },
+    rules: {
+      ...nextPlugin.configs.recommended.rules,
+    },
+  },
 ])
 
 export default eslintConfig
 ```
 
-The `next` configuration already handles setting default values for the `parser`, `plugins` and `settings` properties. There is no need to manually re-declare any of these properties unless you need a different configuration for your use case.
+This approach eliminates the risk of collisions or errors that can occur when the same plugins or parsers are imported across multiple configurations.
 
-If you include any other shareable configurations, **you will need to make sure that these properties are not overwritten or modified**. Otherwise, we recommend removing any configurations that share behavior with the `next` configuration or extending directly from the Next.js ESLint plugin as mentioned above.
+#### Adding to existing config
+
+If you're adding Next.js to an existing ESLint setup, spread the Next.js config into your array:
+
+```js filename="eslint.config.mjs"
+import nextConfig from 'eslint-config-next/core-web-vitals'
+// Your other config imports...
+
+const eslintConfig = [
+  // Your other configurations...
+  ...nextConfig,
+]
+
+export default eslintConfig
+```
+
+When you spread `...nextConfig`, you're adding multiple config objects that include file patterns, plugins, rules, ignores, and parser settings. ESLint applies configs in order, so later rules can override earlier ones for matching files.
+
+> **Good to know:** This approach works well for straightforward setups. If you have a complex existing config with specific file patterns or plugin configurations that conflict, consider using the plugin directly (as shown above) for more granular control.
 
 | Version   | Changes                                                                                                                                                                                                             |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

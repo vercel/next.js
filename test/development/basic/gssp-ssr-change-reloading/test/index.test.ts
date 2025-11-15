@@ -3,7 +3,7 @@
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
-import { assertNoRedbox, check } from 'next-test-utils'
+import { waitForNoRedbox, check } from 'next-test-utils'
 import { NextInstance } from 'e2e-utils'
 
 const installCheckVisible = (browser) => {
@@ -292,7 +292,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
       `)
 
       await next.patchFile(page, originalContent)
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     } finally {
       await next.patchFile(page, originalContent)
     }
@@ -333,7 +333,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
       expect(next.cliOutput).toMatch(/custom oops/)
 
       await next.patchFile(page, originalContent)
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     } finally {
       await next.patchFile(page, originalContent)
     }

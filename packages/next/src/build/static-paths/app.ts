@@ -596,7 +596,10 @@ export function resolveParallelRouteParams(
         switch (paramType) {
           case 'catchall':
           case 'optional-catchall':
-          case 'catchall-intercepted':
+          case 'catchall-intercepted-(..)(..)':
+          case 'catchall-intercepted-(.)':
+          case 'catchall-intercepted-(..)':
+          case 'catchall-intercepted-(...)':
             // If there are any non-parallel fallback route segments, we can't use the
             // pathname to derive the value because it's not complete. We can make
             // this assumption because routes are resolved left to right.
@@ -658,7 +661,10 @@ export function resolveParallelRouteParams(
             break
 
           case 'dynamic':
-          case 'dynamic-intercepted':
+          case 'dynamic-intercepted-(..)(..)':
+          case 'dynamic-intercepted-(.)':
+          case 'dynamic-intercepted-(..)':
+          case 'dynamic-intercepted-(...)':
             // For regular dynamic parameters, take the segment at this depth
             if (depth < pathSegments.length) {
               const pathSegment = pathSegments[depth]

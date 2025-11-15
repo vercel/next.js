@@ -6,11 +6,10 @@ type Opaque<K, T> = T & { __brand: K }
 
 export type SegmentRequestKeyPart = Opaque<'SegmentRequestKeyPart', string>
 export type SegmentRequestKey = Opaque<'SegmentRequestKey', string>
-export type SegmentCacheKeyPart = Opaque<'SegmentCacheKeyPart', string>
-export type SegmentCacheKey = Opaque<'SegmentCacheKey', string>
 
 export const ROOT_SEGMENT_REQUEST_KEY = '' as SegmentRequestKey
-export const ROOT_SEGMENT_CACHE_KEY = '' as SegmentCacheKey
+
+export const HEAD_REQUEST_KEY = '/_head' as SegmentRequestKey
 
 export function createSegmentRequestKeyPart(
   segment: FlightRouterStateSegment
@@ -66,30 +65,6 @@ export function appendSegmentRequestKeyPart(
       ? childRequestKeyPart
       : `@${encodeToFilesystemAndURLSafeString(parallelRouteKey)}/${childRequestKeyPart}`
   return (parentRequestKey + '/' + slotKey) as SegmentRequestKey
-}
-
-export function createSegmentCacheKeyPart(
-  requestKeyPart: SegmentRequestKeyPart,
-  segment: FlightRouterStateSegment
-): SegmentCacheKeyPart {
-  if (typeof segment === 'string') {
-    return requestKeyPart as any as SegmentCacheKeyPart
-  }
-  const paramValue = segment[1]
-  const safeValue = encodeToFilesystemAndURLSafeString(paramValue)
-  return (requestKeyPart + '$' + safeValue) as SegmentCacheKeyPart
-}
-
-export function appendSegmentCacheKeyPart(
-  parentSegmentKey: SegmentCacheKey,
-  parallelRouteKey: string,
-  childCacheKeyPart: SegmentCacheKeyPart
-): SegmentCacheKey {
-  const slotKey =
-    parallelRouteKey === 'children'
-      ? childCacheKeyPart
-      : `@${encodeToFilesystemAndURLSafeString(parallelRouteKey)}/${childCacheKeyPart}`
-  return (parentSegmentKey + '/' + slotKey) as SegmentCacheKey
 }
 
 // Define a regex pattern to match the most common characters found in a route

@@ -5,7 +5,7 @@ use turbopack_core::{
     chunk::{ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunksData},
     ident::AssetIdent,
     module::Module,
-    output::OutputAssets,
+    output::{OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 use super::chunk_asset::ManifestAsyncModule;
@@ -60,7 +60,15 @@ impl EcmascriptChunkItem for ManifestChunkItem {
             inner_code: code.into(),
             ..Default::default()
         }
-        .into())
+        .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for ManifestChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
+        self.manifest.chunk_group()
     }
 }
 
@@ -74,11 +82,6 @@ impl ChunkItem for ManifestChunkItem {
     #[turbo_tasks::function]
     fn content_ident(&self) -> Vc<AssetIdent> {
         self.manifest.content_ident()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<OutputAssets> {
-        self.manifest.chunk_group().all_assets()
     }
 
     #[turbo_tasks::function]

@@ -75,6 +75,7 @@ import { formatExpire, formatRevalidate } from './output/format'
 import type { AppRouteRouteModule } from '../server/route-modules/app-route/module'
 import { formatIssue, isRelevantWarning } from '../shared/lib/turbopack/utils'
 import type { TurbopackResult } from './swc/types'
+import type { FunctionsConfigManifest } from './index'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -274,6 +275,7 @@ export async function printTreeView(
     pagesDir,
     pageExtensions,
     middlewareManifest,
+    functionsConfigManifest,
     useStaticPages404,
     hasGSPAndRevalidateZero,
   }: {
@@ -281,6 +283,7 @@ export async function printTreeView(
     pageExtensions: PageExtensions
     buildManifest: BuildManifest
     middlewareManifest: MiddlewareManifest
+    functionsConfigManifest: FunctionsConfigManifest
     useStaticPages404: boolean
     hasGSPAndRevalidateZero: Set<string>
   }
@@ -533,8 +536,12 @@ export async function printTreeView(
     list: lists.pages,
   })
 
-  const middlewareInfo = middlewareManifest.middleware?.['/']
-  if (middlewareInfo?.files.length > 0) {
+  if (
+    middlewareManifest.middleware?.['/']?.files.length > 0 ||
+    // 'nodejs' runtime middleware or proxy is set to
+    // functions-config-manifest instead of middleware-manifest.
+    functionsConfigManifest.functions?.['/_middleware']
+  ) {
     messages.push([])
     messages.push(['ƒ Proxy (Middleware)'])
   }

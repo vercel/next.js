@@ -198,9 +198,6 @@ export function getDefineEnv({
       clientRouterFilters?.staticFilter ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_D_FILTER':
       clientRouterFilters?.dynamicFilter ?? false,
-    'process.env.__NEXT_CLIENT_SEGMENT_CACHE': Boolean(
-      config.experimental.clientSegmentCache
-    ),
     'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
       config.experimental.validateRSCRequestHeaders
     ),
@@ -331,6 +328,8 @@ export function getDefineEnv({
       (config.experimental.turbopackFileSystemCacheForDev ?? false),
     'process.env.__NEXT_REACT_DEBUG_CHANNEL':
       config.experimental.reactDebugChannel ?? false,
+    'process.env.__NEXT_TRANSITION_INDICATOR':
+      config.experimental.transitionIndicator ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}

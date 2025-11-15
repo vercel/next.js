@@ -1574,10 +1574,6 @@ export default class NextNodeServer extends BaseServer<
           functionsConfig?.functions?.['/_middleware']
         ) {
           // if used with top level await, this will be a promise
-          // Try loading middleware.js first, then proxy.js. Instead
-          // of mapping proxy to middleware as the entry, just fallback
-          // to proxy.
-          // TODO: Remove this once we handle as the single entrypoint.
           return require(
             join(
               /* turbopackIgnore: true */ this.distDir,
@@ -1754,7 +1750,7 @@ export default class NextNodeServer extends BaseServer<
         })
       } finally {
         if (hasRequestBody) {
-          requestData.body.finalize()
+          await requestData.body.finalize()
         }
       }
     } else {

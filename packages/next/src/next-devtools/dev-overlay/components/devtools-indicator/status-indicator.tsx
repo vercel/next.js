@@ -158,6 +158,7 @@ export function StatusIndicator({ status, onClick }: StatusIndicatorProps) {
       </style>
       <button
         data-indicator-status
+        data-nextjs-dev-tools-button
         onClick={onClick}
         aria-label="Open Next.js Dev Tools"
       >

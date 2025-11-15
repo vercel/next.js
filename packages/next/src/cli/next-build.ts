@@ -10,13 +10,14 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
-import { parseBundlerArgs } from '../lib/bundler'
+import { Bundler, parseBundlerArgs } from '../lib/bundler'
 import {
   resolveBuildPaths,
   parseBuildPathsInput,
 } from '../lib/resolve-build-paths'
 
 export type NextBuildOptions = {
+  experimentalAnalyze?: boolean
   debug?: boolean
   debugPrerender?: boolean
   profile?: boolean
@@ -38,6 +39,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   process.on('SIGINT', () => process.exit(130))
 
   const {
+    experimentalAnalyze,
     debug,
     debugPrerender,
     experimentalDebugMemoryUsage,
@@ -52,6 +54,14 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   let traceUploadUrl: string | undefined
   if (experimentalUploadTrace && !process.env.NEXT_TRACE_UPLOAD_DISABLED) {
     traceUploadUrl = experimentalUploadTrace
+  }
+
+  const bundler = parseBundlerArgs(options)
+
+  if (experimentalAnalyze && bundler !== Bundler.Turbopack) {
+    printAndExit(
+      '--experimental-analyze is only compatible with the Turbopack bundler.'
+    )
   }
 
   if (!mangling) {
@@ -85,8 +95,6 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  const bundler = parseBundlerArgs(options)
-
   // Resolve selective build paths
   let resolvedAppPaths: string[] | undefined
   let resolvedPagePaths: string[] | undefined
@@ -110,6 +118,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
 
   return build(
     dir,
+    experimentalAnalyze,
     profile,
     debug || Boolean(process.env.NEXT_DEBUG_BUILD),
     debugPrerender,

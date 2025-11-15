@@ -98,6 +98,8 @@ If you have a loader that is critically dependent upon one of these features ple
 
 Turbopack uses the root directory to resolve modules. Files outside of the project root are not resolved.
 
+The reason files are not resolved outside of the project root is to improve cache validation, reduce filesystem watching overhead, and reduce the number of resolving steps needed.
+
 Next.js automatically detects the root directory of your project. It does so by looking for one of these files:
 
 - `pnpm-lock.yaml`
@@ -116,6 +118,10 @@ module.exports = {
   },
 }
 ```
+
+To resolve files from linked dependencies outside the project root (via `npm link`, `yarn link`, `pnpm link`, etc.), you must configure the `turbopack.root` to the parent directory of both the project and the linked dependencies.
+
+While this expands the scope of filesystem watching, it's typically only necessary during development when actively working on linked packages.
 
 ### Configuring webpack loaders
 

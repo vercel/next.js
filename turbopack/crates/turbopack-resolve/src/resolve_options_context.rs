@@ -112,7 +112,7 @@ impl ResolveOptionsContext {
                 .to_resolved()
                 .await?,
         );
-        Ok(resolve_options_context.into())
+        Ok(resolve_options_context.cell())
     }
 
     /// Returns a new [Vc<ResolveOptionsContext>] with its fallback import map
@@ -133,7 +133,7 @@ impl ResolveOptionsContext {
                 .to_resolved()
                 .await?,
         );
-        Ok(resolve_options_context.into())
+        Ok(resolve_options_context.cell())
     }
 }
 

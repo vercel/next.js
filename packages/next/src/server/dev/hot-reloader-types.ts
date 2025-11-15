@@ -229,11 +229,7 @@ export interface NextJsHotReloaderInterface {
    * and App Router clients that don't have Cache Components enabled.
    */
   sendToLegacyClients(action: HmrMessageSentToBrowser): void
-  setCacheStatus(
-    status: ServerCacheStatus,
-    htmlRequestId: string,
-    requestId: string
-  ): void
+  setCacheStatus(status: ServerCacheStatus, htmlRequestId: string): void
   setReactDebugChannel(
     debugChannel: ReactDebugChannelForBrowser,
     htmlRequestId: string,

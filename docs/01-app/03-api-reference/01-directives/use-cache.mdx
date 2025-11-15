@@ -8,6 +8,7 @@ related:
     - app/api-reference/directives/use-cache-private
     - app/api-reference/config/next-config-js/cacheComponents
     - app/api-reference/config/next-config-js/cacheLife
+    - app/api-reference/config/next-config-js/cacheHandlers
     - app/api-reference/functions/cacheTag
     - app/api-reference/functions/cacheLife
     - app/api-reference/functions/revalidateTag
@@ -83,14 +84,14 @@ Any non-serializable arguments, props, or closed-over values will turn into refe
 For example, a cached function can take in JSX as a `children` prop and return `<div>{children}</div>`, but it won't be able to introspect the actual `children` object. This allows you to nest uncached content inside a cached component.
 
 ```tsx filename="app/ui/cached-component.tsx" switcher
-function CachedComponent({ children }: { children: ReactNode }) {
+async function CachedComponent({ children }: { children: ReactNode }) {
   'use cache'
   return <div>{children}</div>
 }
 ```
 
 ```jsx filename="app/ui/cached-component.js" switcher
-function CachedComponent({ children }) {
+async function CachedComponent({ children }) {
   'use cache'
   return <div>{children}</div>
 }
@@ -112,7 +113,7 @@ This means `use cache` cannot be used with [runtime data](/docs/app/getting-star
 
 ## `use cache` at runtime
 
-On the **server**, the cache entries of individual components or functions will be cached in-memory.
+On the **server**, the cache entries of individual components or functions will be cached in-memory by default. You can customize the cache storage by configuring [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers) in your `next.config.js` file.
 
 Then, on the **client**, any content returned from the server cache will be stored in the browser's memory for the duration of the session or until [revalidated](#during-revalidation).
 
@@ -136,7 +137,7 @@ To pre-render an entire route, add `use cache` to the top of **both** the `layou
 ```tsx filename="app/layout.tsx" switcher
 'use cache'
 
-export default function Layout({ children }: { children: ReactNode }) {
+export default async function Layout({ children }: { children: ReactNode }) {
   return <div>{children}</div>
 }
 ```
@@ -144,7 +145,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 ```jsx filename="app/page.tsx" switcher
 'use cache'
 
-export default function Layout({ children }) {
+export default async function Layout({ children }) {
   return <div>{children}</div>
 }
 ```
@@ -159,7 +160,7 @@ async function Users() {
   // loop through users
 }
 
-export default function Page() {
+export default async function Page() {
   return (
     <main>
       <Users />
@@ -176,7 +177,7 @@ async function Users() {
   // loop through users
 }
 
-export default function Page() {
+export default async function Page() {
   return (
     <main>
       <Users />

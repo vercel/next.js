@@ -19,7 +19,7 @@ describe('fallback-shells', () => {
       }
 
       // If we didn't use the fallback shell, then we didn't postpone the
-      // response and therefore shouldn't have sent the postponed header.
+      // response, and therefore shouldn't have sent the postponed header.
       expect(headers['x-nextjs-postponed']).not.toBe('1')
     })
   })

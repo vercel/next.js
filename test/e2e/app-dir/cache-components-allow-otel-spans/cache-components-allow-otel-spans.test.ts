@@ -4,6 +4,9 @@ describe('hello-world', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     dependencies: require('./package.json').dependencies,
+    // This test sometimes takes longer than the default timeout, extending it bit longer
+    // to avoid flakiness.
+    startServerTimeout: 15_000,
   })
 
   if (isNextDev) {

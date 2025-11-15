@@ -7,7 +7,7 @@ use turbo_tasks_fs::FileSystemPath;
 use crate::{
     asset::{Asset, AssetContent},
     module::Module,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     reference::referenced_modules_and_affecting_sources,
 };
 
@@ -38,18 +38,9 @@ impl RebasedAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for RebasedAsset {
+impl OutputAssetsReference for RebasedAsset {
     #[turbo_tasks::function]
-    async fn path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(FileSystemPath::rebase(
-            self.module.ident().path().owned().await?,
-            self.input_dir.clone(),
-            self.output_dir.clone(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
+    async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
         let references = referenced_modules_and_affecting_sources(*self.module)
             .await?
             .iter()
@@ -62,7 +53,21 @@ impl OutputAsset for RebasedAsset {
             })
             .try_join()
             .await?;
-        Ok(Vc::cell(references))
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
+            references,
+        )))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for RebasedAsset {
+    #[turbo_tasks::function]
+    async fn path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(FileSystemPath::rebase(
+            self.module.ident().path().owned().await?,
+            self.input_dir.clone(),
+            self.output_dir.clone(),
+        ))
     }
 }
 

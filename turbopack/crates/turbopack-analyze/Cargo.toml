@@ -1,0 +1,27 @@
+[package]
+name = "turbopack-analyze"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+autobenches = false
+
+[lib]
+bench = false
+
+[dependencies]
+anyhow = { workspace = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbopack-core = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+turbo-tasks-testing = { workspace = true }
+turbo-tasks-backend = { workspace = true }
+
+[lints]
+workspace = true

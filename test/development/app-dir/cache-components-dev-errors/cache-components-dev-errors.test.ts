@@ -1,16 +1,15 @@
 import stripAnsi from 'strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertNoRedbox,
-  assertNoErrorToast,
+  waitForNoRedbox,
+  waitForNoErrorToast,
   hasErrorToast,
   retry,
 } from 'next-test-utils'
-import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
 describe('Cache Components Dev Errors', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { isTurbopack, next, isRspack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -45,7 +44,7 @@ describe('Cache Components Dev Errors', () => {
     })
 
     await browser.elementByCss("[href='/error']").click()
-    await assertNoErrorToast(browser)
+    await waitForNoErrorToast(browser)
 
     await browser.loadPage(`${next.url}/error`)
 
@@ -128,67 +127,74 @@ describe('Cache Components Dev Errors', () => {
   })
 
   it('should clear segment errors after correcting them', async () => {
-    await using sandbox = await createSandbox(
-      next,
-      new Map([
-        [
-          'app/page.tsx',
-          outdent`
-          export const revalidate = 10
-          export default function Page() {
-            return (
-              <div>Hello World</div>
-            );
-          }
-        `,
-        ],
-      ])
-    )
-    const { browser, session } = sandbox
-    if (isTurbopack) {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "Ecmascript file had an error",
-         "environmentLabel": null,
-         "label": "Build Error",
-         "source": "./app/page.tsx (1:14)
-       Ecmascript file had an error
-       > 1 | export const revalidate = 10
-           |              ^^^^^^^^^^",
-         "stack": [],
-       }
-      `)
-    } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "  x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
-         "environmentLabel": null,
-         "label": "Build Error",
-         "source": "./app/page.tsx
-       Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
-          ,-[1:1]
-        1 | export const revalidate = 10
-          :              ^^^^^^^^^^
-        2 | export default function Page() {
-        3 |   return (
-        4 |     <div>Hello World</div>
-          \`----",
-         "stack": [],
-       }
-      `)
-    }
-
-    await session.patch(
+    let browser: any
+    await next.patchFile(
       'app/page.tsx',
       outdent`
+      export const revalidate = 10
       export default function Page() {
         return (
           <div>Hello World</div>
         );
       }
-    `
+    `,
+      async () => {
+        browser = await next.browser('/')
+        if (isTurbopack) {
+          await expect(browser).toDisplayRedbox(`
+           {
+             "description": "Ecmascript file had an error",
+             "environmentLabel": null,
+             "label": "Build Error",
+             "source": "./app/page.tsx (1:14)
+           Ecmascript file had an error
+           > 1 | export const revalidate = 10
+               |              ^^^^^^^^^^",
+             "stack": [],
+           }
+          `)
+        } else if (isRspack) {
+          await expect(browser).toDisplayRedbox(`
+           {
+             "description": "  × Module build failed:",
+             "environmentLabel": null,
+             "label": "Build Error",
+             "source": "./app/page.tsx
+             × Module build failed:
+             ╰─▶   × Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+                   │    ,-[1:1]
+                   │  1 | export const revalidate = 10
+                   │    :              ^^^^^^^^^^
+                   │  2 | export default function Page() {
+                   │  3 |   return (
+                   │  4 |     <div>Hello World</div>
+                   │    \`----
+                   │",
+             "stack": [],
+           }
+          `)
+        } else {
+          await expect(browser).toDisplayRedbox(`
+           {
+             "description": "  x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
+             "environmentLabel": null,
+             "label": "Build Error",
+             "source": "./app/page.tsx
+           Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+              ,-[1:1]
+            1 | export const revalidate = 10
+              :              ^^^^^^^^^^
+            2 | export default function Page() {
+            3 |   return (
+            4 |     <div>Hello World</div>
+              \`----",
+             "stack": [],
+           }
+          `)
+        }
+      }
     )
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 })

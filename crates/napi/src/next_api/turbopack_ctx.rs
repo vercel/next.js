@@ -12,6 +12,7 @@ use std::{
 use anyhow::Result;
 use either::Either;
 use napi::{JsFunction, threadsafe_function::ThreadsafeFunction};
+use napi_derive::napi;
 use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use serde::Serialize;

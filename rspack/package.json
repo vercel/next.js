@@ -1,6 +1,6 @@
 {
   "name": "@next/rspack-core",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://nextjs.org",
   "bugs": {
     "url": "https://github.com/vercel/next.js/issues"
@@ -28,7 +28,7 @@
     "change-npm-name": "node ./change-npm-name.js"
   },
   "dependencies": {
-    "@rspack/core": "1.5.0",
+    "@rspack/core": "1.6.0",
     "@next/rspack-binding": "workspace:*"
   }
 }

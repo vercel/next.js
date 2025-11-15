@@ -1,7 +1,7 @@
 import { join } from 'path'
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   getBrowserBodyText,
   getRedboxHeader,
   getRedboxDescription,
@@ -156,7 +156,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
       join('pages', 'hmr', 'about2.js'),
       (content) => content.replace('</div>', 'div'),
       async () => {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         const source = next.normalizeTestDirContent(
           await getRedboxSource(browser)
         )
@@ -247,7 +247,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           // Ensure dev server has time to break:
           await new Promise((resolve) => setTimeout(resolve, 2000))
 
-          await assertHasRedbox(browser)
+          await waitForRedbox(browser)
           expect(await getRedboxSource(browser)).toContain(
             "Expected '</', got '<eof>'"
           )
@@ -275,7 +275,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
       join('pages', 'hmr', 'about3.js'),
       (content) => content.replace('export', 'aa=20;\nexport'),
       async () => {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(/aa is not defined/)
       }
     )
@@ -304,7 +304,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           'throw new Error("an-expected-error");\nreturn'
         ),
       async () => {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxSource(browser)).toMatch(/an-expected-error/)
       }
     )
@@ -333,7 +333,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           'export default {};\nexport const fn ='
         ),
       async () => {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
           `"The default export is not a React Component in page: "/hmr/about5""`
         )
@@ -364,7 +364,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           'export default () => /search/;\nexport const fn ='
         ),
       async () => {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         // TODO: Replace this when webpack 5 is the default
         expect(await getRedboxHeader(browser)).toMatch(
           `Objects are not valid as a React child (found: [object RegExp]). If you meant to render a collection of children, use an array instead.`
@@ -397,7 +397,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         'export default undefined;\nexport const fn ='
       ),
       async () => {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
           `"The default export is not a React Component in page: "/hmr/about7""`
         )
@@ -409,7 +409,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         /This is the about page/
       )
     })
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 
   it('should recover after webpack parse error in an imported file', async () => {
@@ -429,7 +429,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           'import "../../components/parse-error.xyz"\nexport default'
         ),
       async () => {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch('Build Error')
 
         if (process.env.IS_TURBOPACK_TEST) {
@@ -486,7 +486,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         /This is the about page/
       )
     })
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 
   it('should recover after loader parse error in an imported file', async () => {
@@ -506,7 +506,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           'import "../../components/parse-error.js"\nexport default'
         ),
       async () => {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch('Build Error')
         let redboxSource = await getRedboxSource(browser)
 
@@ -585,7 +585,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         /This is the about page/
       )
     })
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 
   it('should recover from errors in getInitialProps in client', async () => {
@@ -594,7 +594,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
     const errorContent = await next.readFile(erroredPage)
     await browser.elementByCss('#error-in-gip-link').click()
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
       `"an-expected-error-in-gip"`
     )
@@ -626,7 +626,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
 
   it('should recover after an error reported via SSR', async () => {
     const browser = await next.browser(basePath + '/hmr/error-in-gip')
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
       `"an-expected-error-in-gip"`
     )

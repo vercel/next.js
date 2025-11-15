@@ -110,13 +110,14 @@ describe('next-lint-to-eslint-cli', () => {
         'utf8'
       )
       expect(actualConfig).toMatchInlineSnapshot(`
-       "import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+       "import next from "eslint-config-next";
+       import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
        import nextTypescript from "eslint-config-next/typescript";
        import { defineConfig } from 'eslint/config'
        import foo from 'foo'
        import bar from 'bar'
 
-       const eslintConfig = defineConfig([...nextCoreWebVitals, ...nextTypescript, foo, bar, {
+       const eslintConfig = defineConfig([...next, ...nextCoreWebVitals, ...nextTypescript, foo, bar, {
          ignores: [
            'node_modules/**',
            '.next/**',
@@ -309,7 +310,10 @@ describe('next-lint-to-eslint-cli', () => {
 
   describe('flat-config-flat-compat-with-other-compat', () => {
     it('should replace FlatCompat config with direct imports while preserving other configs', () => {
-      const testDir = path.join(fixturesDir, 'flat-config-flat-compat-with-other-compat')
+      const testDir = path.join(
+        fixturesDir,
+        'flat-config-flat-compat-with-other-compat'
+      )
       // Check BEFORE state
       const beforeConfig = fs.readFileSync(
         path.join(testDir, 'eslint.config.mjs'),
@@ -413,6 +417,8 @@ describe('next-lint-to-eslint-cli', () => {
          "root": true,
          "extends": [
            "next/core-web-vitals",
+           "next",
+           "next/typescript",
            "turbo",
            "prettier",
            "plugin:tailwindcss/recommended"
@@ -491,7 +497,9 @@ describe('next-lint-to-eslint-cli', () => {
       )
       expect(actualConfig).toMatchInlineSnapshot(`
        "import { defineConfig, globalIgnores } from "eslint/config";
+       import next from "eslint-config-next";
        import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+       import nextTypescript from "eslint-config-next/typescript";
        import tailwindcss from "eslint-plugin-tailwindcss";
        import tsParser from "@typescript-eslint/parser";
        import path from "node:path";
@@ -518,6 +526,8 @@ describe('next-lint-to-eslint-cli', () => {
        ]), {
            extends: [
                ...nextCoreWebVitals,
+               ...next,
+               ...nextTypescript,
                ...compat.extends("turbo"),
                ...compat.extends("prettier"),
                ...compat.extends("plugin:tailwindcss/recommended")

@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxHeader, retry } from 'next-test-utils'
+import { waitForRedbox, getRedboxHeader, retry } from 'next-test-utils'
 
 describe('revalidateTag-rsc', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
@@ -28,7 +28,7 @@ describe('revalidateTag-rsc', () => {
       await browser.elementByCss('#revalidate-via-page').click()
 
       if (isNextDev) {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         await expect(getRedboxHeader(browser)).resolves.toContain(
           'Route /revalidate_via_page used "revalidateTag data"'
         )

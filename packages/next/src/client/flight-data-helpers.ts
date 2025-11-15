@@ -9,7 +9,7 @@ import type {
   InitialRSCPayload,
 } from '../shared/lib/app-router-types'
 import { PAGE_SEGMENT_KEY } from '../shared/lib/segment'
-import type { NormalizedSearch } from './components/segment-cache'
+import type { NormalizedSearch } from './components/segment-cache/cache-key'
 import {
   getCacheKeyForDynamicParam,
   parseDynamicParamFromURLPart,
@@ -118,7 +118,6 @@ export function createInitialRSCPayloadFromFallbackPrerender(
     ],
     m: fallbackInitialRSCPayload.m,
     G: fallbackInitialRSCPayload.G,
-    s: fallbackInitialRSCPayload.s,
     S: fallbackInitialRSCPayload.S,
   }
 }

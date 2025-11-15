@@ -155,7 +155,13 @@ if (document.readyState === 'loading') {
 }
 
 const nextServerDataLoadingGlobal = (self.__next_f = self.__next_f || [])
+
+// Consume all buffered chunks and clear the global data array right after to release memory.
+// Otherwise it will be retained indefinitely.
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
+nextServerDataLoadingGlobal.length = 0
+
+// Patch its push method so subsequent chunks are handled (but not actually pushed to the array).
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
 const readable = new ReadableStream({
@@ -264,14 +270,17 @@ function Root({ children }: React.PropsWithChildren<{}>) {
   return children
 }
 
-function onDefaultTransitionIndicator() {
-  // TODO: Compose default with user-configureable (e.g. nprogress)
-  // TODO: Use React's default once we figure out hanging indicators: https://codesandbox.io/p/sandbox/charming-moon-hktkp6?file=%2Fsrc%2Findex.js%3A106%2C30
+const enableTransitionIndicator = process.env.__NEXT_TRANSITION_INDICATOR
+
+function noDefaultTransitionIndicator() {
   return () => {}
 }
 
 const reactRootOptions: ReactDOMClient.RootOptions = {
-  onDefaultTransitionIndicator: onDefaultTransitionIndicator,
+  onDefaultTransitionIndicator: enableTransitionIndicator
+    ? // TODO: Compose default with user-configureable (e.g. nprogress)
+      undefined
+    : noDefaultTransitionIndicator,
   onRecoverableError,
   onCaughtError,
   onUncaughtError,

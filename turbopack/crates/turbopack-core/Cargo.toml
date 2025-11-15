@@ -16,6 +16,7 @@ workspace = true
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
+bitfield = { workspace = true }
 browserslist-rs = { workspace = true }
 bytes-str = { workspace = true }
 const_format = { workspace = true }
@@ -23,7 +24,7 @@ data-encoding = { workspace = true }
 either = { workspace = true }
 indexmap = { workspace = true }
 once_cell = { workspace = true }
-patricia_tree = "0.5.5"
+patricia_tree = { version = "0.10.1", features = ["serde"] }
 petgraph = { workspace = true, features = ["serde-1"] }
 roaring = { workspace = true, features = ["serde"] }
 ref-cast = "1.0.20"

@@ -208,6 +208,7 @@ impl ModuleOptions {
                     import_externals,
                     esm_url_rewrite_behavior,
                     enable_typeof_window_inlining,
+                    enable_exports_info_inlining,
                     source_maps: ecmascript_source_maps,
                     inline_helpers,
                     ..
@@ -283,6 +284,7 @@ impl ModuleOptions {
             keep_last_successful_parse,
             analyze_mode,
             enable_typeof_window_inlining,
+            enable_exports_info_inlining,
             inline_helpers,
             ..Default::default()
         };
