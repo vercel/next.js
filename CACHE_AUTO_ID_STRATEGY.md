@@ -57,20 +57,45 @@ async function getUser(id: number) {
 **목표**: ID를 **절대** 직접 지정하지 않음
 
 ```typescript
-// 목표 문법
+// 목표 문법: "use cache" 디렉티브 (권장)
 async function getUser(id: number) {
   'use cache'
   // 캐시 ID 자동 생성
 }
 
-// 또는 데코레이터 (미래)
-class UserService {
-  @cache
-  async getUser(id: number) {
-    // ...
-  }
+const getUserPosts = async (userId: number) => {
+  'use cache'
+  // 화살표 함수도 지원
 }
 ```
+
+**왜 디렉티브를 사용하는가?** (의도적인 설계 선택)
+
+1. **표준 JavaScript 문법**
+   - 디렉티브는 ECMAScript 표준 (Stage 4)
+   - `"use strict"`, `"use client"`, `"use server"` 등과 동일한 패턴
+   - 모든 JavaScript 엔진이 이해 (파싱 오류 없음)
+
+2. **빌드 도구 선택적**
+   - 문자열 리터럴이므로 런타임에도 감지 가능
+   - 빌드 플러그인 없이도 동작 (런타임 폴백)
+   - 점진적 최적화 가능
+
+3. **함수 형태 무관**
+   - 일반 함수 선언 ✅
+   - 화살표 함수 ✅
+   - 함수 표현식 ✅
+   - 메서드 (클래스/객체) ✅
+   - 익명 함수 ✅
+
+4. **Next.js 완벽 호환**
+   - Next.js의 `"use cache"`와 100% 동일한 문법
+   - 마이그레이션 시 코드 변경 0%
+
+5. **명확한 의도 표현**
+   - 함수 본문 첫 줄에 위치
+   - 코드 리뷰 시 즉시 인식 가능
+   - 함수 전체가 캐시됨을 명시적으로 선언
 
 ### 2. 고유성 보장
 
