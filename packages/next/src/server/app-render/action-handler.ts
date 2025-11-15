@@ -730,17 +730,16 @@ export async function handleAction({
                 // Only warn if it's a server action, otherwise skip for other post requests
                 warnBadServerActionRequest()
 
-                const { returnVal: actionReturnedState } =
-                  await executeActionAndPrepareForRender(
-                    action as () => Promise<unknown>,
-                    [],
-                    workStore,
-                    requestStore,
-                    actionWasForwarded
-                  )
+                const { actionResult } = await executeActionAndPrepareForRender(
+                  action as () => Promise<unknown>,
+                  [],
+                  workStore,
+                  requestStore,
+                  actionWasForwarded
+                )
 
                 const formState = await decodeFormState(
-                  actionReturnedState,
+                  actionResult,
                   formData,
                   serverModuleMap
                 )
@@ -925,17 +924,16 @@ export async function handleAction({
                 // Only warn if it's a server action, otherwise skip for other post requests
                 warnBadServerActionRequest()
 
-                const { returnVal: actionReturnedState } =
-                  await executeActionAndPrepareForRender(
-                    action as () => Promise<unknown>,
-                    [],
-                    workStore,
-                    requestStore,
-                    actionWasForwarded
-                  )
+                const { actionResult } = await executeActionAndPrepareForRender(
+                  action as () => Promise<unknown>,
+                  [],
+                  workStore,
+                  requestStore,
+                  actionWasForwarded
+                )
 
                 const formState = await decodeFormState(
-                  actionReturnedState,
+                  actionResult,
                   formData,
                   serverModuleMap
                 )
@@ -1025,7 +1023,7 @@ export async function handleAction({
             actionId!
           ]
 
-        const { returnVal, skipPageRendering } =
+        const { actionResult, skipPageRendering } =
           await executeActionAndPrepareForRender(
             actionHandler,
             boundActionArguments,
@@ -1038,21 +1036,19 @@ export async function handleAction({
 
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {
-          const actionResult = await generateFlight(req, ctx, requestStore, {
-            actionResult: Promise.resolve(returnVal),
-            skipPageRendering,
-            temporaryReferences,
-            // If we skip page rendering, we need to ensure pending revalidates
-            // are awaited before closing the response. Otherwise, this will be
-            // done after rendering the page.
-            waitUntil: skipPageRendering
-              ? executeRevalidates(workStore)
-              : undefined,
-          })
-
           return {
             type: 'done',
-            result: actionResult,
+            result: await generateFlight(req, ctx, requestStore, {
+              actionResult: Promise.resolve(actionResult),
+              skipPageRendering,
+              temporaryReferences,
+              // If we skip page rendering, we need to ensure pending
+              // revalidates are awaited before closing the response. Otherwise,
+              // this will be done after rendering the page.
+              waitUntil: skipPageRendering
+                ? executeRevalidates(workStore)
+                : undefined,
+            }),
           }
         } else {
           // TODO: this shouldn't be reachable, because all non-fetch codepaths return early.
@@ -1148,7 +1144,8 @@ export async function handleAction({
         type: 'done',
         result: await generateFlight(req, ctx, requestStore, {
           actionResult: promise,
-          // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
+          // If the page was not revalidated, or if the action was forwarded
+          // from another worker, we can skip rendering the page.
           skipPageRendering:
             !workStore.pathWasRevalidated || actionWasForwarded,
           temporaryReferences,
@@ -1170,14 +1167,14 @@ async function executeActionAndPrepareForRender<
   requestStore: RequestStore,
   actionWasForwarded: boolean
 ): Promise<{
-  returnVal: Awaited<ReturnType<TFn>>
+  actionResult: Awaited<ReturnType<TFn>>
   skipPageRendering: boolean
 }> {
   requestStore.phase = 'action'
   let skipPageRendering = actionWasForwarded
 
   try {
-    const returnVal = await workUnitAsyncStorage.run(requestStore, () =>
+    const actionResult = await workUnitAsyncStorage.run(requestStore, () =>
       action.apply(null, args)
     )
 
@@ -1185,7 +1182,7 @@ async function executeActionAndPrepareForRender<
     // another worker, we can skip rendering the page.
     skipPageRendering ||= !workStore.pathWasRevalidated
 
-    return { returnVal, skipPageRendering }
+    return { actionResult, skipPageRendering }
   } finally {
     if (!skipPageRendering) {
       requestStore.phase = 'render'
