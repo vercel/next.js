@@ -39,11 +39,11 @@ export default function Page() {
       {chunks && (
         <>
           <h3>Received {chunks.length} chunks</h3>
-          <div id="chunks">
+          <ol id="chunks">
             {chunks.map((chunk, i) => (
-              <div key={i}>{chunk}</div>
+              <li key={i}>{chunk}</li>
             ))}
-          </div>
+          </ol>
         </>
       )}
     </div>

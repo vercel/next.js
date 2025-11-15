@@ -10,7 +10,7 @@ export async function GET() {
     async start(controller) {
       for (let i = 0; i < 50; i++) {
         await setTimeout(100)
-        controller.enqueue(encoder.encode(`${i} ${loremIpsum}`))
+        controller.enqueue(encoder.encode(loremIpsum))
       }
 
       controller.close()
