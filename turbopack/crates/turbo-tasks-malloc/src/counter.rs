@@ -1,5 +1,3 @@
-// /home/hp/new4/next.js/turbopack/crates/turbo-tasks-malloc/src/counter.rs
-
 use std::{
     cell::UnsafeCell,
     ptr::NonNull,
