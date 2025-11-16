@@ -10,7 +10,7 @@ use turbopack_core::{
     chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
 };
 use turbopack_ecmascript::utils::StringifyJs;
@@ -120,19 +120,9 @@ impl ValueToString for EcmascriptBuildNodeRuntimeChunk {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
+impl OutputAssetsReference for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
-    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
-        let ident = self.ident_for_path();
-
-        Ok(this
-            .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         let mut references = vec![];
 
@@ -144,7 +134,22 @@ impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
             references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?))
         }
 
-        Ok(Vc::cell(references))
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
+            references,
+        )))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
+    #[turbo_tasks::function]
+    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        let ident = self.ident_for_path();
+
+        Ok(this
+            .chunking_context
+            .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
     }
 }
 

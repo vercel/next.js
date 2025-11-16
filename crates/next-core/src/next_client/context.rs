@@ -510,6 +510,7 @@ pub async fn get_client_chunking_context(
                 },
             )
             .use_content_hashing(ContentHashing::Direct { length: 16 })
+            .nested_async_availability(true)
             .module_merging(*scope_hoisting.await?);
     }
 

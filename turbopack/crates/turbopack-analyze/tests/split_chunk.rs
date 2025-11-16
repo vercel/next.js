@@ -12,7 +12,7 @@ use turbopack_analyze::split_chunk::{ChunkPart, ChunkPartRange, split_output_ass
 use turbopack_core::{
     asset::{Asset, AssetContent},
     code_builder::{Code, CodeBuilder},
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
 };
 
@@ -101,6 +101,9 @@ async fn split_chunk() {
 struct TestAsset {
     code: ResolvedVc<Code>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for TestAsset {}
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for TestAsset {

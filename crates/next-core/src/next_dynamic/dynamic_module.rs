@@ -10,6 +10,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::{ModuleReferences, SingleChunkableModuleReference},
     resolve::ExportUsage,
 };
@@ -130,6 +131,9 @@ struct NextDynamicEntryChunkItem {
     module_graph: ResolvedVc<ModuleGraph>,
     inner: ResolvedVc<NextDynamicEntryModule>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for NextDynamicEntryChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for NextDynamicEntryChunkItem {

@@ -2,6 +2,11 @@ import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 import { DebugRenderKind } from '../../../../shared'
 
+export const unstable_prefetch = {
+  mode: 'runtime',
+  samples: [{ cookies: [] }],
+}
+
 export default async function Page() {
   return (
     <main>

@@ -439,6 +439,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             let MakeChunkGroupResult {
                 chunks,
                 referenced_output_assets,
+                references,
                 availability_info,
             } = make_chunk_group(
                 modules,
@@ -457,6 +458,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
                 referenced_assets: ResolvedVc::cell(referenced_output_assets),
+                references: ResolvedVc::cell(references),
                 availability_info,
             }
             .cell())
@@ -489,6 +491,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             let MakeChunkGroupResult {
                 chunks,
                 mut referenced_output_assets,
+                references,
                 availability_info,
             } = make_chunk_group(
                 entries,
@@ -520,6 +523,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                     evaluatable_assets,
                     *module,
                     Vc::cell(referenced_output_assets),
+                    Vc::cell(references),
                     module_graph,
                     *self,
                 )

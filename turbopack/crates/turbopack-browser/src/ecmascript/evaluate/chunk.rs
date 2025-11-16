@@ -17,7 +17,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
 };
 use turbopack_ecmascript::{
@@ -243,21 +243,9 @@ impl ValueToString for EcmascriptBrowserEvaluateChunk {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for EcmascriptBrowserEvaluateChunk {
+impl OutputAssetsReference for EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
-    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
-        let ident = self.ident_for_path();
-        Ok(this.chunking_context.chunk_path(
-            Some(Vc::upcast(self)),
-            ident,
-            Some(rcstr!("turbopack")),
-            rcstr!(".js"),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         let mut references = Vec::new();
 
@@ -272,7 +260,24 @@ impl OutputAsset for EcmascriptBrowserEvaluateChunk {
 
         references.extend(this.other_chunks.await?.iter().copied());
 
-        Ok(Vc::cell(references))
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
+            references,
+        )))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for EcmascriptBrowserEvaluateChunk {
+    #[turbo_tasks::function]
+    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        let ident = self.ident_for_path();
+        Ok(this.chunking_context.chunk_path(
+            Some(Vc::upcast(self)),
+            ident,
+            Some(rcstr!("turbopack")),
+            rcstr!(".js"),
+        ))
     }
 }
 

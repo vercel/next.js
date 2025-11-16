@@ -19,7 +19,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingType,
     module::Module,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference::all_assets_from_entries,
 };
 
@@ -567,6 +567,9 @@ impl Asset for AnalyzeDataOutputAsset {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for AnalyzeDataOutputAsset {}
+
+#[turbo_tasks::value_impl]
 impl OutputAsset for AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath> {
@@ -600,6 +603,9 @@ impl Asset for ModulesDataOutputAsset {
         AssetContent::file(file_content)
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for ModulesDataOutputAsset {}
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for ModulesDataOutputAsset {

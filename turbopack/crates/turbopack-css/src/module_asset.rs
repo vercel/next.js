@@ -18,6 +18,7 @@ use turbopack_core::{
     },
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
@@ -286,6 +287,9 @@ struct ModuleChunkItem {
     module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for ModuleChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for ModuleChunkItem {

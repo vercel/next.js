@@ -11,6 +11,7 @@ use turbopack_core::{
     ident::{AssetIdent, Layer},
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     raw_module::RawModule,
     reference::{ModuleReference, ModuleReferences, TracedModuleReference},
     reference_type::ReferenceType,
@@ -297,6 +298,14 @@ impl Module for CachedExternalModule {
                 || self.external_type == CachedExternalType::Script,
         ))
     }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(
+        self: Vc<Self>,
+        _side_effect_free_packages: Vc<Glob>,
+    ) -> Vc<bool> {
+        Vc::cell(false)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -356,14 +365,6 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
             },
         )
     }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        _side_effect_free_packages: Vc<Glob>,
-    ) -> Vc<bool> {
-        Vc::cell(false)
-    }
 }
 
 #[turbo_tasks::value]
@@ -371,6 +372,9 @@ pub struct CachedExternalModuleChunkItem {
     module: ResolvedVc<CachedExternalModule>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for CachedExternalModuleChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for CachedExternalModuleChunkItem {
@@ -406,6 +410,7 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
     fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Vc<EcmascriptChunkItemContent> {
         let async_module_options = self
             .module
