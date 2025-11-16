@@ -1750,7 +1750,7 @@ export default class NextNodeServer extends BaseServer<
         })
       } finally {
         if (hasRequestBody) {
-          requestData.body.finalize()
+          await requestData.body.finalize()
         }
       }
     } else {

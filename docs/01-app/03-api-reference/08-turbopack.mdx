@@ -110,6 +110,14 @@ Turbopack in Next.js has **zero-configuration** for the common use cases. Below 
 
 There are a number of non-trivial behavior differences between webpack and Turbopack that are important to be aware of when migrating an application. Generally, these are less of a concern for new applications.
 
+### Filesystem Root
+
+Turbopack uses the root directory to resolve modules. Files outside of the project root are not resolved.
+
+For example, when linking dependencies outside the project root (via `npm link`, `yarn link`, `pnpm link`, etc.), those linked files will not be resolved by default. To resolve these files, you must configure the root option to the parent directory of both the project and the linked dependencies.
+
+You can configure the filesystem root using [turbopack.root](/docs/app/api-reference/config/next-config-js/turbopack#root-directory) option in `next.config.js`.
+
 ### CSS Module Ordering
 
 Turbopack will follow JS import order to order [CSS modules](/docs/app/getting-started/css#css-modules) which are not otherwise ordered. For example:

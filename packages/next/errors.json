@@ -907,5 +907,22 @@
   "906": "Bindings not loaded yet, but they are being loaded, did you forget to await?",
   "907": "bindings not loaded yet.  Either call `loadBindings` to wait for them to be available or ensure that `installBindings` has already been called.",
   "908": "Invalid flags should be run as node detached-flush dev ./path-to/project [eventsFile]",
-  "909": "Failed to load SWC binary for %s/%s, see more info here: https://nextjs.org/docs/messages/failed-loading-swc"
+  "909": "Failed to load SWC binary for %s/%s, see more info here: https://nextjs.org/docs/messages/failed-loading-swc",
+  "910": "Optional route parameters are not yet supported (\"%s\") in route \"%s\".",
+  "911": "You cannot use both a required and optional catch-all route at the same level in route \"%s\".",
+  "912": "Ambiguous app routes detected:\\n\\n%s\\n\\nThese routes cannot be distinguished from each other when matching URLs. Please ensure that dynamic segments have unique patterns or use different static segments.",
+  "913": "Optional catch-all must be the last part of the URL in route \"%s\".",
+  "914": "You cannot have the same slug name \"%s\" repeat within a single dynamic path in route \"%s\".",
+  "915": "Detected a three-dot character ('…') at ('%s') in route \"%s\". Did you mean ('...')?",
+  "916": "Segment names may not start or end with extra brackets ('%s') in route \"%s\".",
+  "917": "You cannot define a route with the same specificity as an optional catch-all route (\"%s\" and \"%s/[[...%s]]\").",
+  "918": "Catch-all must be the last part of the URL in route \"%s\".",
+  "919": "You cannot have the slug names \"%s\" and \"%s\" differ only by non-word symbols within a single dynamic path in route \"%s\".",
+  "920": "Segment names may not start with erroneous periods ('%s') in route \"%s\".",
+  "921": "Detected a three-dot character ('…') in parameter \"%s\" in route \"%s\". Did you mean ('...')?",
+  "922": "Parameter names cannot be empty in route \"%s\".",
+  "923": "%s is being parsed as a normalized route, but it has a route group or parallel route segment.",
+  "924": "Invalid interception route: %s",
+  "925": "You cannot define a route with the same specificity as an optional catch-all route (\"%s\" and \"/[[...%s]]\").",
+  "926": "Optional route parameters are not yet supported (\"[%s]\") in route \"%s\"."
 }

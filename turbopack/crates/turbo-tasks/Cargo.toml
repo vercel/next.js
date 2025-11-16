@@ -12,6 +12,7 @@ bench = false
 default = []
 tokio_tracing = ["tokio/tracing"]
 hanging_detection = []
+task_id_details = []
 
 # TODO(bgw): This feature is here to unblock turning on local tasks by default. It's only turned on
 # in unit tests. This will be removed very soon.

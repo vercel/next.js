@@ -5,7 +5,7 @@ use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     source::Source,
 };
 #[turbo_tasks::value]
@@ -30,6 +30,9 @@ impl StaticOutputAsset {
         })
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for StaticOutputAsset {}
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for StaticOutputAsset {

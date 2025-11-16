@@ -3,6 +3,11 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../shared'
 import { ErrorBoundary } from '../../../../components/error-boundary'
 
+export const unstable_prefetch = {
+  mode: 'runtime',
+  samples: [{ cookies: [] }],
+}
+
 export default async function Page() {
   return (
     <main>

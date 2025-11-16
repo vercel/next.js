@@ -16,6 +16,7 @@ workspace = true
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
+bitfield = { workspace = true }
 browserslist-rs = { workspace = true }
 bytes-str = { workspace = true }
 const_format = { workspace = true }

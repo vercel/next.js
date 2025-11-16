@@ -1,11 +1,12 @@
 use anyhow::Result;
-use next_core::{all_assets_from_entries, next_manifests::NextFontManifest};
+use next_core::next_manifests::NextFontManifest;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference},
+    reference::all_assets_from_entries,
 };
 
 use crate::paths::get_font_paths_from_root;
@@ -21,6 +22,9 @@ pub struct FontManifest {
     pub client_assets: ResolvedVc<OutputAssets>,
     pub app_dir: bool,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for FontManifest {}
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for FontManifest {

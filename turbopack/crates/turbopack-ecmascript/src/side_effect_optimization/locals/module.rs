@@ -66,6 +66,12 @@ impl Module for EcmascriptModuleLocalsModule {
             Ok(Vc::cell(false))
         }
     }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(&self, side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
+        self.module
+            .is_marked_as_side_effect_free(side_effect_free_packages)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -162,12 +168,6 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())
-    }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(&self, side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
-        self.module
-            .is_marked_as_side_effect_free(side_effect_free_packages)
     }
 
     #[turbo_tasks::function]

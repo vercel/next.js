@@ -41,7 +41,7 @@ mod transform_options;
 pub mod url_node;
 pub mod util;
 
-pub use emit::{all_assets_from_entries, emit_all_assets, emit_assets};
+pub use emit::{emit_all_assets, emit_assets};
 pub use next_edge::context::{
     get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
     get_edge_compile_time_info, get_edge_resolve_options_context,

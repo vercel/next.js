@@ -24,6 +24,8 @@ trace_aggregation_update = []
 trace_find_and_schedule = []
 trace_task_completion = []
 trace_task_dirty = []
+trace_task_output_dependencies = []
+trace_task_details = []
 lmdb = ["dep:lmdb-rkv"]
 
 [dependencies]
