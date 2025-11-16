@@ -22,7 +22,12 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
 
+    - name: Install pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
+
     - name: Build
       run: |
-        npm install
+        pnpm install
         npx webpack
