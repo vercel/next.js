@@ -145,7 +145,7 @@ export const imageConfigDefault: ImageConfigComplete = {
   domains: [],
   disableStaticImages: false,
   minimumCacheTTL: 14400, // 4 hours
-  formats: ['image/webp'],
+  formats: ['image/avif', 'image/webp'],
   maximumRedirects: 3,
   dangerouslyAllowLocalIP: false,
   dangerouslyAllowSVG: false,
