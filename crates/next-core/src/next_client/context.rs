@@ -14,7 +14,7 @@ use turbopack::{
     resolve_options_context::ResolveOptionsContext,
 };
 use turbopack_browser::{
-    BrowserChunkingContext, ContentHashing, CurrentChunkMethod,
+    BrowserChunkingContext, ChunkSuffix, ContentHashing, CurrentChunkMethod,
     react_refresh::assert_can_resolve_react_refresh,
 };
 use turbopack_core::{
@@ -414,7 +414,7 @@ pub struct ClientChunkingContextOptions {
     pub client_root: FileSystemPath,
     pub client_root_to_root_path: RcStr,
     pub asset_prefix: Vc<RcStr>,
-    pub chunk_suffix_path: Vc<Option<RcStr>>,
+    pub chunk_suffix: Vc<ChunkSuffix>,
     pub environment: Vc<Environment>,
     pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
     pub export_usage: Vc<OptionExportUsageInfo>,
@@ -437,7 +437,7 @@ pub async fn get_client_chunking_context(
         client_root,
         client_root_to_root_path,
         asset_prefix,
-        chunk_suffix_path,
+        chunk_suffix,
         environment,
         module_id_strategy,
         export_usage,
@@ -452,7 +452,7 @@ pub async fn get_client_chunking_context(
 
     let next_mode = mode.await?;
     let asset_prefix = asset_prefix.owned().await?;
-    let chunk_suffix_path = chunk_suffix_path.to_resolved().await?;
+    let chunk_suffix = chunk_suffix.to_resolved().await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
         client_root.clone(),
@@ -464,7 +464,7 @@ pub async fn get_client_chunking_context(
         next_mode.runtime_type(),
     )
     .chunk_base_path(Some(asset_prefix.clone()))
-    .chunk_suffix_path(chunk_suffix_path)
+    .chunk_suffix(chunk_suffix)
     .minify_type(if *minify.await? {
         MinifyType::Minify {
             mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
