@@ -86,9 +86,9 @@ impl OptionAsyncModule {
 struct AsyncModuleIdents(FxIndexSet<(String, AstSyntaxContext)>);
 
 async fn get_inherit_async_referenced_asset(
-    r: Vc<Box<dyn ModuleReference>>,
+    r: ResolvedVc<Box<dyn ModuleReference>>,
 ) -> Result<Option<ReadRef<ReferencedAsset>>> {
-    let Some(r) = Vc::try_resolve_downcast::<Box<dyn ChunkableModuleReference>>(r).await? else {
+    let Some(r) = ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(r) else {
         return Ok(None);
     };
     let Some(ty) = &*r.chunking_type().await? else {
@@ -123,7 +123,7 @@ impl AsyncModule {
             .await?
             .iter()
             .map(|r| async {
-                let Some(referenced_asset) = get_inherit_async_referenced_asset(**r).await? else {
+                let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await? else {
                     return Ok(None);
                 };
                 Ok(match &*referenced_asset {
@@ -174,8 +174,7 @@ impl AsyncModule {
                     .await?
                     .iter()
                     .map(|r| async {
-                        let Some(referenced_asset) =
-                            get_inherit_async_referenced_asset(**r).await?
+                        let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await?
                         else {
                             return Ok(false);
                         };

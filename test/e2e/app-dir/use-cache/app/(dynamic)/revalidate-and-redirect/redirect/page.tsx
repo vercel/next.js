@@ -1,4 +1,4 @@
-import { revalidatePath, revalidateTag } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 export default function Page() {
@@ -9,7 +9,7 @@ export default function Page() {
         formAction={async () => {
           'use server'
 
-          revalidateTag('revalidate-and-redirect')
+          updateTag('revalidate-and-redirect')
           redirect('/revalidate-and-redirect')
         }}
       >

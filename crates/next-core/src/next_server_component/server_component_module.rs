@@ -11,6 +11,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::ModuleReferences,
 };
 use turbopack_ecmascript::{
@@ -100,9 +101,10 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
         );
 
         let mut exports = BTreeMap::new();
+        let default = rcstr!("default");
         exports.insert(
-            "default".into(),
-            EsmExport::ImportedBinding(module_reference, "default".into(), false),
+            default.clone(),
+            EsmExport::ImportedBinding(module_reference, default, false),
         );
 
         Ok(EcmascriptExports::EsmExports(
@@ -124,15 +126,15 @@ struct NextServerComponentChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for NextServerComponentChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for NextServerComponentChunkItem {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let inner = self.inner.await?;
 
-        let module_id = inner
-            .module
-            .chunk_item_id(Vc::upcast(*self.chunking_context))
-            .await?;
+        let module_id = inner.module.chunk_item_id(*self.chunking_context).await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 r#"

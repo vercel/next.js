@@ -6,14 +6,15 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
 };
 
 use super::asset::EcmascriptModulePartAsset;
 use crate::{
-    EcmascriptAnalyzable,
+    EcmascriptAnalyzableExt,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
-        EcmascriptChunkPlaceable, EcmascriptChunkType,
+        EcmascriptChunkPlaceable, EcmascriptChunkType, item::RewriteSourcePath,
     },
     references::async_module::AsyncModuleOptions,
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
@@ -42,6 +43,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
     async fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let analyze = self.module.analyze();
         let analyze_ref = analyze.await?;
@@ -60,6 +62,9 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for EcmascriptModulePartChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for EcmascriptModulePartChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
@@ -68,7 +73,7 @@ impl ChunkItem for EcmascriptModulePartChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -90,6 +95,9 @@ pub(super) struct SideEffectsModuleChunkItem {
     pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for SideEffectsModuleChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for SideEffectsModuleChunkItem {
@@ -166,10 +174,9 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
         Ok(EcmascriptChunkItemContent {
             inner_code: code,
             source_map: None,
-            rewrite_source_path: None,
+            rewrite_source_path: RewriteSourcePath::None,
             options: EcmascriptChunkItemOptions {
                 strict: true,
-                exports: true,
                 async_module: if has_top_level_await {
                     Some(AsyncModuleOptions {
                         has_top_level_await: true,

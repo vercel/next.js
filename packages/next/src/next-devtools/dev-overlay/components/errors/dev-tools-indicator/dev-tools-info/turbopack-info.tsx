@@ -1,6 +1,4 @@
-import { DevToolsInfo, type DevToolsInfoPropsCore } from './dev-tools-info'
 import { CopyButton } from '../../../copy-button'
-import type { HTMLProps } from 'react'
 
 export function TurbopackInfoBody(props: React.ComponentProps<'div'>) {
   return (
@@ -91,20 +89,6 @@ export function TurbopackInfoBody(props: React.ComponentProps<'div'>) {
         </div>
       </div>
     </>
-  )
-}
-
-export function TurbopackInfo(
-  props: DevToolsInfoPropsCore & HTMLProps<HTMLDivElement>
-) {
-  return (
-    <DevToolsInfo
-      title="Turbopack"
-      learnMoreLink="https://nextjs.org/docs/app/api-reference/turbopack"
-      {...props}
-    >
-      <TurbopackInfoBody />
-    </DevToolsInfo>
   )
 }
 

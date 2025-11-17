@@ -1,7 +1,7 @@
 import { headers } from 'next/headers'
 
 export default async function Page({ params }) {
-  const data = headers()
+  const data = await headers()
 
   return (
     <>

@@ -1,5 +1,4 @@
-import type { ComponentProps, HTMLProps, RefObject } from 'react'
-import { DevToolsInfo } from './dev-tools-info'
+import type { ComponentProps } from 'react'
 
 function StaticRouteContent({
   routerType,
@@ -127,39 +126,6 @@ export function RouteInfoBody({
     <StaticRouteContent routerType={routerType} {...props} />
   ) : (
     <DynamicRouteContent routerType={routerType} {...props} />
-  )
-}
-
-export function RouteInfo({
-  isOpen,
-  close,
-  routerType,
-  routeType,
-  triggerRef,
-  ...props
-}: {
-  isOpen: boolean
-  close: () => void
-  routerType: 'pages' | 'app'
-  routeType: 'Static' | 'Dynamic'
-  triggerRef: RefObject<HTMLButtonElement | null>
-} & HTMLProps<HTMLDivElement>) {
-  const isStaticRoute = routeType === 'Static'
-
-  const learnMore = isStaticRoute
-    ? learnMoreLink[routerType].static
-    : learnMoreLink[routerType].dynamic
-  return (
-    <DevToolsInfo
-      title={`${routeType} Route`}
-      learnMoreLink={learnMore}
-      close={close}
-      isOpen={isOpen}
-      triggerRef={triggerRef}
-      {...props}
-    >
-      <RouteInfoBody routerType={routerType} isStaticRoute={isStaticRoute} />
-    </DevToolsInfo>
   )
 }
 

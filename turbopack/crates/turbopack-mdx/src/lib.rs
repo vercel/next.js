@@ -11,8 +11,8 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
     issue::{
-        Issue, IssueDescriptionExt, IssueExt, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
+        Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
+        StyledString,
     },
     source::Source,
     source_pos::SourcePos,
@@ -117,20 +117,9 @@ impl Source for MdxTransformedAsset {
 #[turbo_tasks::value_impl]
 impl Asset for MdxTransformedAsset {
     #[turbo_tasks::function]
-    async fn content(self: ResolvedVc<Self>) -> Result<Vc<AssetContent>> {
-        let this = self.await?;
-        Ok(*transform_process_operation(self)
-            .issue_file_path(this.source.ident().path().owned().await?, "MDX processing")
-            .await?
-            .connect()
-            .await?
-            .content)
+    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        Ok(*self.process().await?.content)
     }
-}
-
-#[turbo_tasks::function(operation)]
-fn transform_process_operation(asset: ResolvedVc<MdxTransformedAsset>) -> Vc<MdxTransformResult> {
-    asset.process()
 }
 
 #[turbo_tasks::value_impl]
@@ -283,12 +272,4 @@ impl Issue for MdxIssue {
             StyledString::Text(self.reason.clone()).resolved_cell(),
         ))
     }
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

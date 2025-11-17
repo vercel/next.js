@@ -67,7 +67,6 @@ pub async fn get_browser_runtime_code(
             runtime_backend_code.push("browser/runtime/dom/dev-backend-dom.ts");
         }
         (ChunkLoading::Dom, RuntimeType::Production) => {
-            // TODO
             runtime_backend_code.push("browser/runtime/dom/runtime-backend-dom.ts");
         }
 
@@ -164,8 +163,8 @@ pub async fn get_browser_runtime_code(
             code,
             r#"
             const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS || [];
-            chunkListsToRegister.forEach(registerChunkList);
             globalThis.TURBOPACK_CHUNK_LISTS = {{ push: registerChunkList }};
+            chunkListsToRegister.forEach(registerChunkList);
         "#
         )?;
     }

@@ -12,7 +12,7 @@ import {
 import { parseStack, type StackFrame } from './lib/parse-stack'
 import { getOriginalCodeFrame } from '../next-devtools/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
-import { dim } from '../lib/picocolors'
+import { dim, italic } from '../lib/picocolors'
 
 type FindSourceMapPayload = (
   sourceURL: string
@@ -196,9 +196,16 @@ function getSourcemappedFrameIfPossible(
     }
     sourceMapPayload = maybeSourceMapPayload
     try {
+      // Pass the source map URL as the second parameter so that the consumer
+      // can resolve relative paths in the source map's `sources` array.
+      // This is a guess!  Turbopack places .map files as siblings to the chunks so this is sufficient to compute
+      // relative paths but is actually wrong (the chunk and sourcemap have different content hashes).
+      // We are using the node API to read the sourcemap and it doesn't give us access to the URI.
+      const sourceMapURL = sourceURL + '.map'
       sourceMapConsumer = new SyncSourceMapConsumer(
-        // @ts-expect-error -- Module.SourceMap['version'] is number but SyncSourceMapConsumer wants a string
-        sourceMapPayload
+        sourceMapPayload,
+        // @ts-expect-error: our typings don't include this parameter but it is here.
+        sourceMapURL
       )
     } catch (cause) {
       // We should not log an actual error instance here because that will re-enter
@@ -416,6 +423,17 @@ function parseAndSourceMap(
     }
   }
 
+  if (sourceMappedStack === '' && sourceMappedFrames.length > 0) {
+    // The `at` marker is important so that Node.js doesn't add square brackets
+    // around the stringified error i.e. this results in
+    // Error: message
+    //   at <ignore-listed frames>
+    // instead of
+    // [Error: message
+    //   at <ignore-listed frames>]
+    sourceMappedStack = '\n    at ' + italic('ignore-listed frames')
+  }
+
   return (
     errorName +
     ': ' +
@@ -460,7 +478,6 @@ export function patchErrorInspectNodeJS(
   errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
 
   // @ts-expect-error -- TODO upstream types
-  // eslint-disable-next-line no-extend-native -- We're not extending but overriding.
   errorConstructor.prototype[inspectSymbol] = function (
     depth: number,
     inspectOptions: util.InspectOptions,
@@ -501,7 +518,6 @@ export function patchErrorInspectEdgeLite(
   errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
 
   // @ts-expect-error -- TODO upstream types
-  // eslint-disable-next-line no-extend-native -- We're not extending but overriding.
   errorConstructor.prototype[inspectSymbol] = function ({
     format,
   }: {

@@ -128,7 +128,7 @@ impl ModuleReference for TsReferenceTypeAssetReference {
         type_resolve(
             *self.origin,
             Request::module(
-                self.module.clone(),
+                self.module.clone().into(),
                 RcStr::default().into(),
                 RcStr::default(),
                 RcStr::default(),

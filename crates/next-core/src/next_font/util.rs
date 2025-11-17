@@ -1,4 +1,7 @@
+use std::sync::LazyLock;
+
 use anyhow::{Context, Result};
+use regex::Regex;
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::ResolvedVc;
@@ -78,9 +81,10 @@ pub(crate) async fn can_use_next_font(project_path: FileSystemPath, query: &RcSt
             .0,
     )?;
 
-    let document_re = lazy_regex::regex!("^(src/)?_document\\.[^/]+$");
+    static DOCUMENT_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new("^(src/)?_document\\.[^/]+$").unwrap());
     let path = project_path.join(&request.path)?;
-    let can_use = !document_re.is_match(&request.path);
+    let can_use = !DOCUMENT_RE.is_match(&request.path);
     if !can_use {
         NextFontIssue {
             path: path.clone(),

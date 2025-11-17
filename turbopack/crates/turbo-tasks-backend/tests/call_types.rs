@@ -4,13 +4,13 @@
 
 use anyhow::Result;
 use turbo_tasks::Vc;
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn functions() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         assert_eq!(*fn_plain().await?, 42);
         assert_eq!(*fn_arg(43).await?, 43);
         assert_eq!(*fn_vc_arg(Vc::cell(44)).await?, 44);
@@ -53,9 +53,9 @@ async fn async_fn_vc_arg(n: Vc<u32>) -> Result<Vc<u32>> {
     Ok(Vc::cell(*n.await?))
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn methods() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         assert_eq!(*Value::static_method().await?, 42);
         assert_eq!(*Value::async_static_method().await?, 42);
 
@@ -106,9 +106,9 @@ impl Value {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn trait_methods() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         assert_eq!(*Value::static_trait_method().await?, 42);
         assert_eq!(*Value::async_static_trait_method().await?, 42);
 

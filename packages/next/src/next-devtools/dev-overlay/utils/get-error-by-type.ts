@@ -1,7 +1,6 @@
 import type { SupportedErrorEvent } from '../container/runtime-error/render-error'
 import { getOriginalStackFrames } from '../../shared/stack-frame'
 import type { OriginalStackFrame } from '../../shared/stack-frame'
-import type { ComponentStackFrame } from './parse-component-stack'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import React from 'react'
 
@@ -9,14 +8,15 @@ export type ReadyRuntimeError = {
   id: number
   runtime: true
   error: Error & { environmentName?: string }
-  frames: OriginalStackFrame[] | (() => Promise<OriginalStackFrame[]>)
-  componentStackFrames?: ComponentStackFrame[]
+  frames:
+    | readonly OriginalStackFrame[]
+    | (() => Promise<readonly OriginalStackFrame[]>)
   type: 'runtime' | 'console' | 'recoverable'
 }
 
 export const useFrames = (
   error: ReadyRuntimeError | null
-): OriginalStackFrame[] => {
+): readonly OriginalStackFrame[] => {
   if (!error) return []
 
   if ('use' in React) {
@@ -28,7 +28,7 @@ export const useFrames = (
       )
     }
 
-    return React.use((frames as () => Promise<OriginalStackFrame[]>)())
+    return React.use((frames as () => Promise<readonly OriginalStackFrame[]>)())
   } else {
     if (!Array.isArray(error.frames)) {
       throw new Error(
@@ -63,9 +63,6 @@ export async function getErrorByType(
         )
       }),
     }
-    if (event.componentStackFrames !== undefined) {
-      readyRuntimeError.componentStackFrames = event.componentStackFrames
-    }
     return readyRuntimeError
   } else {
     const readyRuntimeError: ReadyRuntimeError = {
@@ -76,9 +73,6 @@ export async function getErrorByType(
         getErrorSource(event.error),
         isAppDir
       ),
-    }
-    if (event.componentStackFrames !== undefined) {
-      readyRuntimeError.componentStackFrames = event.componentStackFrames
     }
     return readyRuntimeError
   }

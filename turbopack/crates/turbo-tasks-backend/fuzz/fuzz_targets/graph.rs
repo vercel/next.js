@@ -13,11 +13,6 @@ mod graph;
 // cargo fuzz run fuzz_graph -- -timeout=3 -print_pcs=1 -print_funcs=999999 -print_final_stats=1
 // add --jobs=6 -workers=6 for parallel fuzzing
 
-fuzz_target!(init: { register(); init(); }, |data: Vec<TaskSpec>| {
+fuzz_target!(init: { init(); }, |data: Vec<TaskSpec>| {
     graph::run(data);
 });
-
-pub fn register() {
-    turbo_tasks::register();
-    include!(concat!(env!("OUT_DIR"), "/register_fuzz_graph.rs"));
-}

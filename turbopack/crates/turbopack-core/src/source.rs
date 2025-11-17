@@ -17,5 +17,3 @@ pub struct OptionSource(Option<ResolvedVc<Box<dyn Source>>>);
 
 #[turbo_tasks::value(transparent)]
 pub struct Sources(Vec<ResolvedVc<Box<dyn Source>>>);
-
-// TODO All Vc::try_resolve_downcast::<Box<dyn Source>> calls should be removed

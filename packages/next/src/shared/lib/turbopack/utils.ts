@@ -7,14 +7,10 @@ import type {
 
 import { bold, green, magenta, red } from '../../../lib/picocolors'
 import isInternal from '../is-internal'
-import {
-  decodeMagicIdentifier,
-  MAGIC_IDENTIFIER_REGEX,
-} from '../magic-identifier'
+import { deobfuscateText } from '../magic-identifier'
 import type { EntryKey } from './entry-key'
 import * as Log from '../../../build/output/log'
 import type { NextConfigComplete } from '../../../server/config-shared'
-import loadJsConfig from '../../../build/load-jsconfig'
 
 type IssueKey = `${Issue['severity']}-${Issue['filePath']}-${string}-${string}`
 export type IssuesMap = Map<IssueKey, Issue>
@@ -51,14 +47,6 @@ export function getIssueKey(issue: Issue): IssueKey {
   return `${issue.severity}-${issue.filePath}-${JSON.stringify(
     issue.title
   )}-${JSON.stringify(issue.description)}`
-}
-
-export async function getTurbopackJsConfig(
-  dir: string,
-  nextConfig: NextConfigComplete
-) {
-  const { jsConfig } = await loadJsConfig(dir, nextConfig)
-  return jsConfig ?? { compilerOptions: {} }
 }
 
 export function processIssues(
@@ -172,7 +160,7 @@ export function formatIssue(issue: Issue) {
       message +=
         "To use Next.js' built-in Sass support, you first need to install `sass`.\n"
       message += 'Run `npm i sass` or `yarn add sass` inside your workspace.\n'
-      message += '\nLearn more: https://nextjs.org/docs/messages/install-sass'
+      message += '\nLearn more: https://nextjs.org/docs/messages/install-sass\n'
     } else {
       message += renderStyledStringToErrorAnsi(description) + '\n\n'
     }
@@ -297,23 +285,20 @@ function isNodeModulesIssue(issue: Issue): boolean {
 }
 
 export function renderStyledStringToErrorAnsi(string: StyledString): string {
-  function decodeMagicIdentifiers(str: string): string {
-    return str.replaceAll(MAGIC_IDENTIFIER_REGEX, (ident) => {
-      try {
-        return magenta(`{${decodeMagicIdentifier(ident)}}`)
-      } catch (e) {
-        return magenta(`{${ident} (decoding failed: ${e})}`)
-      }
-    })
+  function applyDeobfuscation(str: string): string {
+    // Use shared deobfuscate function and apply magenta color to identifiers
+    const deobfuscated = deobfuscateText(str)
+    // Color any {...} wrapped identifiers with magenta
+    return deobfuscated.replace(/\{([^}]+)\}/g, (match) => magenta(match))
   }
 
   switch (string.type) {
     case 'text':
-      return decodeMagicIdentifiers(string.value)
+      return applyDeobfuscation(string.value)
     case 'strong':
-      return bold(red(decodeMagicIdentifiers(string.value)))
+      return bold(red(applyDeobfuscation(string.value)))
     case 'code':
-      return green(decodeMagicIdentifiers(string.value))
+      return green(applyDeobfuscation(string.value))
     case 'line':
       return string.value.map(renderStyledStringToErrorAnsi).join('')
     case 'stack':
@@ -323,8 +308,14 @@ export function renderStyledStringToErrorAnsi(string: StyledString): string {
   }
 }
 
-export function isPersistentCachingEnabled(
+export function isFileSystemCacheEnabledForDev(
   config: NextConfigComplete
 ): boolean {
-  return config.experimental?.turbopackPersistentCaching || false
+  return config.experimental?.turbopackFileSystemCacheForDev || false
+}
+
+export function isFileSystemCacheEnabledForBuild(
+  config: NextConfigComplete
+): boolean {
+  return config.experimental?.turbopackFileSystemCacheForBuild || false
 }

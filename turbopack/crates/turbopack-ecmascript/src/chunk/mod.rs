@@ -10,7 +10,7 @@ use std::fmt::Write;
 
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
     chunk::{Chunk, ChunkItem, ChunkItems, ChunkingContext, ModuleIds},
@@ -19,7 +19,7 @@ use turbopack_core::{
         Introspectable, IntrospectableChildren, module::IntrospectableModule,
         utils::children_from_output_assets,
     },
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAssetsReference, OutputAssetsWithReferenced},
     server_fs::ServerFileSystem,
 };
 
@@ -63,6 +63,48 @@ impl EcmascriptChunk {
     pub fn entry_ids(self: Vc<Self>) -> Vc<ModuleIds> {
         // TODO return something useful
         Vc::cell(Default::default())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for EcmascriptChunk {
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let content = self.content.await?;
+        let references = content
+            .chunk_items
+            .iter()
+            .map(async |with_info| {
+                let r = with_info.references().await?;
+                Ok((
+                    r.assets.await?,
+                    r.referenced_assets.await?,
+                    r.references.await?,
+                ))
+            })
+            .try_join()
+            .await?;
+        Ok(OutputAssetsWithReferenced {
+            assets: ResolvedVc::cell(
+                references
+                    .iter()
+                    .flat_map(|(assets, _, _)| assets.into_iter().copied())
+                    .collect(),
+            ),
+            referenced_assets: ResolvedVc::cell(
+                references
+                    .iter()
+                    .flat_map(|(_, referenced_assets, _)| referenced_assets.into_iter().copied())
+                    .collect(),
+            ),
+            references: ResolvedVc::cell(
+                references
+                    .iter()
+                    .flat_map(|(_, _, references)| references.into_iter().copied())
+                    .collect(),
+            ),
+        }
+        .cell())
     }
 }
 
@@ -124,20 +166,7 @@ impl Chunk for EcmascriptChunk {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
-    }
-
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
-        let content = self.content.await?;
-        let mut referenced_output_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = content
-            .chunk_items
-            .iter()
-            .map(async |with_info| Ok(with_info.references().await?.into_iter().copied()))
-            .try_flat_join()
-            .await?;
-        referenced_output_assets.extend(content.referenced_output_assets.iter().copied());
-        Ok(Vc::cell(referenced_output_assets))
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]

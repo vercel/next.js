@@ -42,8 +42,7 @@ type RuntimeParams = {
 
 type ChunkRegistration = [
   chunkPath: ChunkScript,
-  chunkModules: CompressedModuleFactories,
-  params: RuntimeParams | undefined,
+  ...([RuntimeParams] | CompressedModuleFactories),
 ]
 
 type ChunkList = {
@@ -78,11 +77,7 @@ interface RuntimeBackend {
   /**
    * Returns the same Promise for the same chunk URL.
    */
-  loadChunkCached: (
-    sourceType: SourceType,
-    sourceData: SourceData,
-    chunkUrl: ChunkUrl
-  ) => Promise<void>
+  loadChunkCached: (sourceType: SourceType, chunkUrl: ChunkUrl) => Promise<void>
   loadWebAssembly: (
     sourceType: SourceType,
     sourceData: SourceData,
@@ -104,18 +99,18 @@ interface DevRuntimeBackend {
   restart: () => void
 }
 
-const moduleFactories: ModuleFactories = Object.create(null)
+const moduleFactories: ModuleFactories = new Map()
 contextPrototype.M = moduleFactories
 
 const availableModules: Map<ModuleId, Promise<any> | true> = new Map()
 
 const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
 
-function factoryNotAvailable(
+function factoryNotAvailableMessage(
   moduleId: ModuleId,
   sourceType: SourceType,
   sourceData: SourceData
-) {
+): string {
   let instantiationReason
   switch (sourceType) {
     case SourceType.Runtime:
@@ -133,9 +128,7 @@ function factoryNotAvailable(
         (sourceType) => `Unknown source type: ${sourceType}`
       )
   }
-  throw new Error(
-    `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`
-  )
+  return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`
 }
 
 function loadChunk(
@@ -161,7 +154,7 @@ async function loadChunkInternal(
 
   const includedList = chunkData.included || []
   const modulesPromises = includedList.map((included) => {
-    if (moduleFactories[included]) return true
+    if (moduleFactories.has(included)) return true
     return availableModules.get(included)
   })
   if (modulesPromises.length > 0 && modulesPromises.every((p) => p)) {
@@ -179,7 +172,7 @@ async function loadChunkInternal(
     })
     .filter((p) => p)
 
-  let promise
+  let promise: Promise<unknown>
   if (moduleChunksPromises.length > 0) {
     // Some module chunks are already loaded or loading.
 
@@ -247,7 +240,7 @@ function loadChunkByUrlInternal(
   sourceData: SourceData,
   chunkUrl: ChunkUrl
 ): Promise<any> {
-  const thenable = BACKEND.loadChunkCached(sourceType, sourceData, chunkUrl)
+  const thenable = BACKEND.loadChunkCached(sourceType, chunkUrl)
   let entry = instrumentedBackendLoadChunks.get(thenable)
   if (entry === undefined) {
     const resolve = instrumentedBackendLoadChunks.set.bind(
@@ -256,7 +249,7 @@ function loadChunkByUrlInternal(
       loadedChunk
     )
     entry = thenable.then(resolve).catch((error) => {
-      let loadReason
+      let loadReason: string
       switch (sourceType) {
         case SourceType.Runtime:
           loadReason = `as a runtime dependency of chunk ${sourceData}`
@@ -377,23 +370,6 @@ function getPathFromScript(
     ? src.slice(CHUNK_BASE_PATH.length)
     : src
   return path as ChunkPath | ChunkListPath
-}
-
-function registerCompressedModuleFactory(
-  moduleId: ModuleId,
-  moduleFactory: Function | [Function, ModuleId[]]
-) {
-  if (!moduleFactories[moduleId]) {
-    if (Array.isArray(moduleFactory)) {
-      let [moduleFactoryFn, otherIds] = moduleFactory
-      moduleFactories[moduleId] = moduleFactoryFn
-      for (const otherModuleId of otherIds) {
-        moduleFactories[otherModuleId] = moduleFactoryFn
-      }
-    } else {
-      moduleFactories[moduleId] = moduleFactory
-    }
-  }
 }
 
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/

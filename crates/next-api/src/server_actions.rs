@@ -8,7 +8,7 @@ use next_core::{
     util::NextRuntime,
 };
 use swc_core::{
-    atoms::Atom,
+    atoms::{Atom, atom},
     common::comments::Comments,
     ecma::{
         ast::{
@@ -19,19 +19,18 @@ use swc_core::{
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
+    chunk::{
+        ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset, ModuleId,
+    },
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
-    module_graph::{
-        ModuleGraph, SingleModuleGraph, SingleModuleGraphModuleNode,
-        async_module_info::AsyncModulesInfo,
-    },
+    module_graph::{ModuleGraph, SingleModuleGraph, async_module_info::AsyncModulesInfo},
     output::OutputAsset,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
@@ -75,7 +74,7 @@ pub(crate) async fn create_server_actions_manifest(
         .to_resolved()
         .await?;
 
-    let chunk_item = loader.as_chunk_item(module_graph, Vc::upcast(chunking_context));
+    let chunk_item = loader.as_chunk_item(module_graph, chunking_context);
     let manifest = build_manifest(
         node_root,
         page_name,
@@ -168,22 +167,43 @@ async fn build_manifest(
     let key = format!("app{page_name}");
 
     let actions_value = actions.await?;
-    let loader_id = chunk_item.id().to_string().await?;
+    let loader_id = chunk_item.id().await?;
+    let loader_id = match &*loader_id {
+        ModuleId::Number(id) => ActionManifestModuleId::Number(*id),
+        ModuleId::String(id) => ActionManifestModuleId::String(id),
+    };
     let mapping = match runtime {
         NextRuntime::Edge => &mut manifest.edge,
         NextRuntime::NodeJs => &mut manifest.node,
     };
 
-    for (hash_id, (layer, _name, _module)) in actions_value {
+    // Collect all the action metadata including filenames
+    let mut action_metadata: Vec<(String, (ActionLayer, String, String))> = Vec::new();
+    for (hash_id, (layer, name, module)) in actions_value.iter() {
+        // Get the module path and use the full path
+        let module_path = module.ident().path().await?;
+        let full_path = module_path.to_string();
+
+        action_metadata.push((hash_id.clone(), (*layer, name.clone(), full_path)));
+    }
+
+    // Now create the manifest entries
+    for (hash_id, (layer, name, filename)) in &action_metadata {
         let entry = mapping.entry(hash_id.as_str()).or_default();
         entry.workers.insert(
             &key,
             ActionManifestWorkerEntry {
-                module_id: ActionManifestModuleId::String(loader_id.as_str()),
+                module_id: loader_id.clone(),
                 is_async: *async_module_info.is_async(chunk_item.module()).await?,
+                exported_name: name.as_str(),
+                filename: filename.as_str(),
             },
         );
         entry.layer.insert(&key, *layer);
+
+        // Hoist the filename and exported_name to the entry level
+        entry.exported_name = name.as_str();
+        entry.filename = filename.as_str();
     }
 
     Ok(ResolvedVc::upcast(
@@ -252,14 +272,13 @@ pub fn parse_server_actions(
 /// If found, we return the mapping of every action's hashed id to the name of
 /// the exported action function. If not, we return a None.
 #[turbo_tasks::function]
-async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap>> {
-    let Some(ecmascript_asset) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
+async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionActionMap>> {
+    let Some(ecmascript_asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module)
     else {
         return Ok(Vc::cell(None));
     };
 
-    if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
+    if let Some(module) = ResolvedVc::try_downcast_type::<EcmascriptModulePartAsset>(module)
         && matches!(
             module.await?.part,
             ModulePart::Evaluation | ModulePart::Facade
@@ -321,7 +340,7 @@ fn all_export_names(program: &Program) -> Vec<Atom> {
                     ModuleItem::ModuleDecl(
                         ModuleDecl::ExportDefaultExpr(..) | ModuleDecl::ExportDefaultDecl(..),
                     ) => {
-                        exports.push("default".into());
+                        exports.push(atom!("default"));
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(decl)) => match &decl.decl {
                         Decl::Class(c) => {
@@ -354,7 +373,7 @@ fn all_export_names(program: &Program) -> Vec<Atom> {
                                     );
                                 }
                                 ExportSpecifier::Default(_) => {
-                                    exports.push("default".into());
+                                    exports.push(atom!("default"));
                                 }
                                 ExportSpecifier::Namespace(e) => {
                                     exports.push(e.name.atom().clone());
@@ -394,7 +413,7 @@ fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
         .unwrap_or(false)
 }
 
-type HashToLayerNameModule = FxIndexMap<String, (ActionLayer, String, ResolvedVc<Box<dyn Module>>)>;
+type HashToLayerNameModule = Vec<(String, (ActionLayer, String, ResolvedVc<Box<dyn Module>>))>;
 
 /// A mapping of every module which exports a Server Action, with the hashed id
 /// and exported name of each found action.
@@ -405,7 +424,7 @@ pub struct AllActions(HashToLayerNameModule);
 impl AllActions {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(FxIndexMap::default())
+        Vc::cell(Default::default())
     }
 }
 
@@ -432,24 +451,21 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
     let actions = graph
         .await?
         .iter_nodes()
-        .map(|node| {
-            async move {
-                let SingleModuleGraphModuleNode { module } = node;
-                // TODO: compare module contexts instead?
-                let layer = match module.ident().await?.layer.as_ref() {
-                    Some(layer) if layer.name() == "app-rsc" || layer.name() == "app-edge-rsc" => {
-                        ActionLayer::Rsc
-                    }
-                    Some(layer) if layer.name() == "app-client" => ActionLayer::ActionBrowser,
-                    // TODO really ignore SSR?
-                    _ => return Ok(None),
-                };
-                // TODO the old implementation did parse_actions(to_rsc_context(module))
-                // is that really necessary?
-                Ok(parse_actions(**module)
-                    .await?
-                    .map(|action_map| (*module, (layer, action_map))))
-            }
+        .map(async |module| {
+            // TODO: compare module contexts instead?
+            let layer = match module.ident().await?.layer.as_ref() {
+                Some(layer) if layer.name() == "app-rsc" || layer.name() == "app-edge-rsc" => {
+                    ActionLayer::Rsc
+                }
+                Some(layer) if layer.name() == "app-client" => ActionLayer::ActionBrowser,
+                // TODO really ignore SSR?
+                _ => return Ok(None),
+            };
+            // TODO the old implementation did parse_actions(to_rsc_context(module))
+            // is that really necessary?
+            Ok(parse_actions(*module)
+                .await?
+                .map(|action_map| (module, (layer, action_map))))
         })
         .try_flat_join()
         .await?;

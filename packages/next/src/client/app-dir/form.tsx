@@ -19,7 +19,7 @@ import {
   mountFormInstance,
   unmountPrefetchableInstance,
 } from '../components/links'
-import { FetchStrategy } from '../components/segment-cache'
+import { FetchStrategy } from '../components/segment-cache/types'
 
 export type { FormProps }
 
@@ -61,6 +61,7 @@ export default function Form({
     }
   }
 
+  // TODO(runtime-ppr): allow runtime prefetches in Form
   const prefetch =
     prefetchProp === false || prefetchProp === null ? prefetchProp : null
 

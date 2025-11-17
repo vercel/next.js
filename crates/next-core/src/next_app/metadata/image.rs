@@ -41,12 +41,11 @@ async fn hash_file_content(path: FileSystemPath) -> Result<u64> {
     })
 }
 
-#[turbo_tasks::function]
-pub async fn dynamic_image_metadata_source(
-    asset_context: Vc<Box<dyn AssetContext>>,
+async fn dynamic_image_metadata_with_generator_source(
     path: FileSystemPath,
     ty: RcStr,
     page: AppPage,
+    exported_fields_excluding_default: String,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
@@ -58,36 +57,13 @@ pub async fn dynamic_image_metadata_source(
     let sizes = if use_numeric_sizes {
         "data.width = size.width; data.height = size.height;".to_string()
     } else {
-        // Note: This case seemingly can never happen because this code runs for dynamic metadata
-        // which has e.g. a `.js` or `.ts` extension not `.svg`. Branching code is still here to
-        // match the static implementation
-        //
-        // For SVGs, skip sizes and use "any" to let it scale automatically based on viewport,
-        // For the images doesn't provide the size properly, use "any" as well.
-        // If the size is presented, use the actual size for the image.
         let sizes = if ext == "svg" {
             "any"
         } else {
             "${size.width}x${size.height}"
         };
-
         format!("data.sizes = `{sizes}`;")
     };
-
-    let source = Vc::upcast(FileSource::new(path.clone()));
-    let module = asset_context
-        .process(
-            source,
-            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
-        )
-        .module();
-    let exports = &*collect_direct_exports(module).await?;
-    let exported_fields_excluding_default = exports
-        .iter()
-        .filter(|e| *e != "default")
-        .cloned()
-        .collect::<Vec<_>>()
-        .join(", ");
 
     let code = formatdoc! {
         r#"
@@ -115,15 +91,11 @@ pub async fn dynamic_image_metadata_source(
                     return data
                 }}
 
-                if (generateImageMetadata) {{
-                    const imageMetadataArray = await generateImageMetadata({{ params }})
-                    return imageMetadataArray.map((imageMetadata, index) => {{
-                        const idParam = (imageMetadata.id || index) + ''
-                        return getImageMetadata(imageMetadata, idParam)
-                    }})
-                }} else {{
-                    return [getImageMetadata(imageModule, '')]
-                }}
+                const imageMetadataArray = await generateImageMetadata({{ params }})
+                return imageMetadataArray.map((imageMetadata, index) => {{
+                    const idParam = imageMetadata.id + ''
+                    return getImageMetadata(imageMetadata, idParam)
+                }})
             }}
         "#,
         exported_fields_excluding_default = exported_fields_excluding_default,
@@ -141,6 +113,117 @@ pub async fn dynamic_image_metadata_source(
     );
 
     Ok(Vc::upcast(source))
+}
+
+async fn dynamic_image_metadata_without_generator_source(
+    path: FileSystemPath,
+    ty: RcStr,
+    page: AppPage,
+    exported_fields_excluding_default: String,
+) -> Result<Vc<Box<dyn Source>>> {
+    let stem = path.file_stem();
+    let stem = stem.unwrap_or_default();
+    let ext = path.extension();
+
+    let hash_query = format!("?{:x}", hash_file_content(path.clone()).await?);
+
+    let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
+    let sizes = if use_numeric_sizes {
+        "data.width = size.width; data.height = size.height;".to_string()
+    } else {
+        let sizes = if ext == "svg" {
+            "any"
+        } else {
+            "${size.width}x${size.height}"
+        };
+        format!("data.sizes = `{sizes}`;")
+    };
+
+    let code = formatdoc! {
+        r#"
+            import {{ {exported_fields_excluding_default} }} from {resource_path}
+            import {{ fillMetadataSegment }} from 'next/dist/lib/metadata/get-metadata-route'
+
+            const imageModule = {{ {exported_fields_excluding_default} }}
+
+            export default async function (props) {{
+                const {{ __metadata_id__: _, ...params }} = await props.params
+                const imageUrl = fillMetadataSegment({pathname_prefix}, params, {page_segment})
+
+                function getImageMetadata(imageMetadata, idParam) {{
+                    const data = {{
+                        alt: imageMetadata.alt,
+                        type: imageMetadata.contentType || 'image/png',
+                        url: imageUrl + (idParam ? ('/' + idParam) : '') + {hash_query},
+                    }}
+                    const {{ size }} = imageMetadata
+                    if (size) {{
+                        {sizes}
+                    }}
+                    return data
+                }}
+
+                return [getImageMetadata(imageModule, '')]
+            }}
+        "#,
+        exported_fields_excluding_default = exported_fields_excluding_default,
+        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        pathname_prefix = StringifyJs(&page.to_string()),
+        page_segment = StringifyJs(stem),
+        sizes = sizes,
+        hash_query = StringifyJs(&hash_query),
+    };
+
+    let file = File::from(code);
+    let source = VirtualSource::new(
+        path.parent().join(&format!("{stem}--metadata.js"))?,
+        AssetContent::file(file.into()),
+    );
+
+    Ok(Vc::upcast(source))
+}
+
+#[turbo_tasks::function]
+pub async fn dynamic_image_metadata_source(
+    asset_context: Vc<Box<dyn AssetContext>>,
+    path: FileSystemPath,
+    ty: RcStr,
+    page: AppPage,
+) -> Result<Vc<Box<dyn Source>>> {
+    let source = Vc::upcast(FileSource::new(path.clone()));
+    let module = asset_context
+        .process(
+            source,
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
+        )
+        .module();
+    let exports = &*collect_direct_exports(module).await?;
+    let exported_fields_excluding_default = exports
+        .iter()
+        .filter(|e| *e != "default")
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let has_generate_image_metadata = exports.contains(&"generateImageMetadata".into());
+
+    if has_generate_image_metadata {
+        dynamic_image_metadata_with_generator_source(
+            path,
+            ty,
+            page,
+            exported_fields_excluding_default,
+        )
+        .await
+    } else {
+        dynamic_image_metadata_without_generator_source(
+            path,
+            ty,
+            page,
+            exported_fields_excluding_default,
+        )
+        .await
+    }
 }
 
 #[turbo_tasks::function]

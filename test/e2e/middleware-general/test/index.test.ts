@@ -4,12 +4,7 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { isNextStart, NextInstance } from 'e2e-utils'
-import {
-  check,
-  fetchViaHTTP,
-  shouldRunTurboDevTest,
-  waitFor,
-} from 'next-test-utils'
+import { check, fetchViaHTTP, waitFor } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 
 const urlsError = 'Please use only absolute URLs'
@@ -89,9 +84,7 @@ describe('Middleware Runtime', () => {
           scripts: {
             setup: `cp -r ./shared-package ./node_modules`,
             build: 'pnpm run setup && next build',
-            dev: `pnpm run setup && next ${
-              shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
-            }`,
+            dev: 'pnpm run setup && next dev',
             start: 'next start',
           },
         },
@@ -207,7 +200,9 @@ describe('Middleware Runtime', () => {
           `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
         )
         const matchers = await res.json()
-        expect(matchers).toEqual([{ regexp: '.*', originalSource: '/:path*' }])
+        expect(matchers).toEqual([
+          { regexp: '^/.*$', originalSource: '/:path*' },
+        ])
       })
     }
 

@@ -60,12 +60,14 @@ program
   )
   .argument(
     '[revision]',
-    'Specify the target Next.js version using an NPM dist tag (e.g. "latest", "canary", "rc") or an exact version number (e.g. "15.0.0").',
+    'Specify the target Next.js version using an NPM dist tag (e.g. "latest", "canary", "rc", "beta") or an exact version number (e.g. "15.0.0").',
     packageJson.version.includes('-canary.')
       ? 'canary'
       : packageJson.version.includes('-rc.')
         ? 'rc'
-        : 'latest'
+        : packageJson.version.includes('-beta.')
+          ? 'beta'
+          : 'latest'
   )
   .usage('[revision] [options]')
   .option('--verbose', 'Verbose output', false)

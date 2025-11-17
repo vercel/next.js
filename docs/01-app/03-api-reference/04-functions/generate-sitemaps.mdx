@@ -24,6 +24,7 @@ Your generated sitemaps will be available at `/.../sitemap/[id].xml`. For exampl
 For example, to split a sitemap using `generateSitemaps`, return an array of objects with the sitemap `id`. Then, use the `id` to generate the unique sitemaps.
 
 ```ts filename="app/product/sitemap.ts" switcher
+import type { MetadataRoute } from 'next'
 import { BASE_URL } from '@/app/lib/constants'
 
 export async function generateSitemaps() {
@@ -31,11 +32,10 @@ export async function generateSitemaps() {
   return [{ id: 0 }, { id: 1 }, { id: 2 }, { id: 3 }]
 }
 
-export default async function sitemap({
-  id,
-}: {
-  id: number
+export default async function sitemap(props: {
+  id: Promise<number>
 }): Promise<MetadataRoute.Sitemap> {
+  const id = await props.id
   // Google's limit is 50,000 URLs per sitemap
   const start = id * 50000
   const end = start + 50000
@@ -57,7 +57,8 @@ export async function generateSitemaps() {
   return [{ id: 0 }, { id: 1 }, { id: 2 }, { id: 3 }]
 }
 
-export default async function sitemap({ id }) {
+export default async function sitemap(props) {
+  const id = await props.id
   // Google's limit is 50,000 URLs per sitemap
   const start = id * 50000
   const end = start + 50000
@@ -65,7 +66,7 @@ export default async function sitemap({ id }) {
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
   )
   return products.map((product) => ({
-    url: `${BASE_URL}/product/${id}`,
+    url: `${BASE_URL}/product/${product.id}`,
     lastModified: product.date,
   }))
 }
@@ -75,5 +76,6 @@ export default async function sitemap({ id }) {
 
 | Version   | Changes                                                                                                                                              |
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v16.0.0` | The `id` values returned from `generateSitemaps` are now passed as a promise to the sitemap function.                                                |
 | `v15.0.0` | `generateSitemaps` now generates consistent URLs between development and production                                                                  |
 | `v13.3.2` | `generateSitemaps` introduced. In development, you can view the generated sitemap on `/.../sitemap.xml/[id]`. For example, `/product/sitemap.xml/1`. |

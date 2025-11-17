@@ -25,11 +25,6 @@ describe('Node Extensions', () => {
       it('should not error when accessing pages that use Math.random() in App Router', async () => {
         let res, $
 
-        res = await next.fetch('/app/prerendered/uncached')
-        expect(res.status).toBe(200)
-        $ = await next.render$('/app/prerendered/uncached')
-        expect($('li').length).toBe(2)
-
         res = await next.fetch('/app/prerendered/unstable-cache')
         expect(res.status).toBe(200)
         $ = await next.render$('/app/prerendered/unstable-cache')

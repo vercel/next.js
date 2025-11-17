@@ -83,7 +83,7 @@ pub async fn apply_cjs_specific_options(options: Vc<ResolveOptions>) -> Result<V
         conditions.insert(rcstr!("import"), ConditionValue::Unset);
         conditions.insert(rcstr!("require"), ConditionValue::Set);
     }
-    Ok(options.into())
+    Ok(options.cell())
 }
 
 pub async fn esm_resolve(
@@ -104,11 +104,11 @@ pub async fn esm_resolve(
 pub async fn cjs_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
+    ty: CommonJsReferenceSubType,
     issue_source: Option<IssueSource>,
     is_optional: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
-    // TODO pass CommonJsReferenceSubType
-    let ty = ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined);
+    let ty = ReferenceType::CommonJs(ty);
     let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()).await?)
         .resolve()
         .await?;
@@ -119,11 +119,11 @@ pub async fn cjs_resolve(
 pub async fn cjs_resolve_source(
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     request: ResolvedVc<Request>,
+    ty: CommonJsReferenceSubType,
     issue_source: Option<IssueSource>,
     is_optional: bool,
 ) -> Result<Vc<ResolveResult>> {
-    // TODO pass CommonJsReferenceSubType
-    let ty = ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined);
+    let ty = ReferenceType::CommonJs(ty);
     let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()).await?)
         .resolve()
         .await?;

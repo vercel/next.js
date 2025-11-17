@@ -178,7 +178,7 @@ format_iter!(std::fmt::Pointer);
 format_iter!(std::fmt::UpperExp);
 format_iter!(std::fmt::UpperHex);
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue, Hash)]
 pub enum AstPathRange {
     /// The ast path to the block or expression.
     Exact(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>),
@@ -197,10 +197,17 @@ pub fn module_value_to_well_known_object(module_value: &ModuleValue) -> Option<J
         }
         "node:fs" | "fs" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
         "node:child_process" | "child_process" => {
-            JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess)
+            JsValue::WellKnownObject(WellKnownObjectKind::ChildProcessModule)
         }
         "node:os" | "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
-        "node:process" | "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
+        "node:process" | "process" => {
+            JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule)
+        }
+        "node:url" | "url" => JsValue::WellKnownObject(WellKnownObjectKind::UrlModule),
+        "node:module" | "module" => JsValue::WellKnownObject(WellKnownObjectKind::ModuleModule),
+        "node:worker_threads" | "worker_threads" => {
+            JsValue::WellKnownObject(WellKnownObjectKind::WorkerThreadsModule)
+        }
         "node-pre-gyp" | "@mapbox/node-pre-gyp" => {
             JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp)
         }
@@ -214,6 +221,7 @@ pub fn module_value_to_well_known_object(module_value: &ModuleValue) -> Option<J
         }
         "resolve-from" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom),
         "@grpc/proto-loader" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader),
+        "fs-extra" => JsValue::WellKnownObject(WellKnownObjectKind::FsExtraModule),
         _ => return None,
     })
 }
@@ -265,7 +273,11 @@ mod tests {
             Pattern::Constant(rcstr!("hello/world")),
             js_value_to_pattern(&JsValue::Concat(
                 1,
-                vec!["hello".into(), "\\".into(), "world".into()]
+                vec![
+                    rcstr!("hello").into(),
+                    rcstr!("\\").into(),
+                    rcstr!("world").into()
+                ]
             ))
         );
     }

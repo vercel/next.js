@@ -63,12 +63,8 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
      * Loads the given chunk, and returns a promise that resolves once the chunk
      * has been loaded.
      */
-    loadChunkCached(
-      sourceType: SourceType,
-      sourceData: SourceData,
-      chunkUrl: ChunkUrl
-    ) {
-      return doLoadChunk(sourceType, sourceData, chunkUrl)
+    loadChunkCached(sourceType: SourceType, chunkUrl: ChunkUrl) {
+      return doLoadChunk(sourceType, chunkUrl)
     },
 
     async loadWebAssembly(
@@ -128,11 +124,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
    * Loads the given chunk, and returns a promise that resolves once the chunk
    * has been loaded.
    */
-  function doLoadChunk(
-    sourceType: SourceType,
-    _sourceData: SourceData,
-    chunkUrl: ChunkUrl
-  ) {
+  function doLoadChunk(sourceType: SourceType, chunkUrl: ChunkUrl) {
     const resolver = getOrCreateResolver(chunkUrl)
     if (resolver.loadingStarted) {
       return resolver.promise

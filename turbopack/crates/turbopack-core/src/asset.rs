@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkType,
@@ -43,9 +43,10 @@ impl AssetContent {
         let this = self.await?;
         match &*this {
             AssetContent::File(content) => Ok(content.parse_json()),
-            AssetContent::Redirect { .. } => {
-                Ok(FileJsonContent::unparsable("a redirect can't be parsed as json").cell())
-            }
+            AssetContent::Redirect { .. } => Ok(FileJsonContent::unparsable(rcstr!(
+                "a redirect can't be parsed as json"
+            ))
+            .cell()),
         }
     }
 
@@ -81,9 +82,10 @@ impl AssetContent {
         let this = self.await?;
         match &*this {
             AssetContent::File(content) => Ok(content.parse_json_with_comments()),
-            AssetContent::Redirect { .. } => {
-                Ok(FileJsonContent::unparsable("a redirect can't be parsed as json").cell())
-            }
+            AssetContent::Redirect { .. } => Ok(FileJsonContent::unparsable(rcstr!(
+                "a redirect can't be parsed as json"
+            ))
+            .cell()),
         }
     }
 

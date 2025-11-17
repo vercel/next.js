@@ -3,10 +3,10 @@ use std::{collections::BTreeMap, fmt::Write, hash::Hash, path::PathBuf, sync::Ar
 use anyhow::Error;
 use serde::Deserialize;
 use swc_core::{
+    atoms::atom,
     common::{Mark, SourceMap, SyntaxContext, comments::SingleThreadedComments, util::take::Take},
     ecma::{
         ast::{EsVersion, Id, Module},
-        atoms::Atom,
         codegen::text_writer::JsWriter,
         parser::{EsSyntax, parse_file_as_module},
         visit::VisitMutWith,
@@ -175,7 +175,7 @@ fn run(input: PathBuf) {
         )
         .unwrap();
 
-        let uri_of_module: Atom = "entry.js".into();
+        let uri_of_module = atom!("entry.js");
 
         let mut describe =
             |is_debug: bool, title: &str, entries: Vec<ItemIdGroupKind>, skip_parts: bool| {

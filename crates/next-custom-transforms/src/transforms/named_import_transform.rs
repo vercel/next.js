@@ -78,11 +78,11 @@ impl Fold for NamedImportTransform {
 
                 // Create a new import declaration, keep everything the same except the source
                 let mut new_decl = decl.clone();
-                new_decl.src = Box::new(Str {
+                *new_decl.src = Str {
                     span: DUMMY_SP,
                     value: new_src.into(),
                     raw: None,
-                });
+                };
 
                 return new_decl;
             }

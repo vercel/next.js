@@ -29,19 +29,6 @@ describe('cache-components', () => {
     }
   })
 
-  it('should not prerender pages with uncached `Date.now()` calls', async () => {
-    let $ = await next.render$('/date/now/uncached', {})
-    if (isNextDev) {
-      expect($('#layout').text()).toBe('at runtime')
-      expect($('#page').text()).toBe('at runtime')
-      expect($('#value').text()).toMatch(/^\d+$/)
-    } else {
-      expect($('#layout').text()).toBe('at buildtime')
-      expect($('#page').text()).toBe('at runtime')
-      expect($('#value').text()).toMatch(/^\d+$/)
-    }
-  })
-
   it('should prerender pages with cached `Date()` calls', async () => {
     let $ = await next.render$('/date/date/cached', {})
     if (isNextDev) {
@@ -55,19 +42,6 @@ describe('cache-components', () => {
     }
   })
 
-  it('should not prerender pages with uncached `Date()` calls', async () => {
-    let $ = await next.render$('/date/date/uncached', {})
-    if (isNextDev) {
-      expect($('#layout').text()).toBe('at runtime')
-      expect($('#page').text()).toBe('at runtime')
-      expect($('#value').text()).toContain('GMT')
-    } else {
-      expect($('#layout').text()).toBe('at buildtime')
-      expect($('#page').text()).toBe('at runtime')
-      expect($('#value').text()).toContain('GMT')
-    }
-  })
-
   it('should prerender pages with cached `new Date()` calls', async () => {
     let $ = await next.render$('/date/new-date/cached', {})
     if (isNextDev) {
@@ -77,19 +51,6 @@ describe('cache-components', () => {
     } else {
       expect($('#layout').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at buildtime')
-      expect($('#value').text()).toContain('GMT')
-    }
-  })
-
-  it('should not prerender pages with uncached `new Date()` calls', async () => {
-    let $ = await next.render$('/date/new-date/uncached', {})
-    if (isNextDev) {
-      expect($('#layout').text()).toBe('at runtime')
-      expect($('#page').text()).toBe('at runtime')
-      expect($('#value').text()).toContain('GMT')
-    } else {
-      expect($('#layout').text()).toBe('at buildtime')
-      expect($('#page').text()).toBe('at runtime')
       expect($('#value').text()).toContain('GMT')
     }
   })

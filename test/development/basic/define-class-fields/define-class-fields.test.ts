@@ -1,5 +1,4 @@
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
@@ -16,32 +15,18 @@ describe('useDefineForClassFields SWC option', () => {
   })
 
   it('tsx should compile with useDefineForClassFields enabled', async () => {
-    let browser
-    try {
-      browser = await webdriver(next.url, '/')
-      await browser.elementByCss('#action').click()
-      await check(
-        () => browser.elementByCss('#name').text(),
-        /this is my name: next/
-      )
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
+    const browser = await next.browser('/')
+    await browser.elementByCss('#action').click()
+    await check(
+      () => browser.elementByCss('#name').text(),
+      /this is my name: next/
+    )
   })
 
   it("Initializes resident to undefined after the call to 'super()' when with useDefineForClassFields enabled", async () => {
-    let browser
-    try {
-      browser = await webdriver(next.url, '/animal')
-      expect(await browser.elementByCss('#dog').text()).toBe('')
-      expect(await browser.elementByCss('#dogDecl').text()).toBe('dog')
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
+    const browser = await next.browser('/animal')
+    expect(await browser.elementByCss('#dog').text()).toBe('undefined')
+    expect(await browser.elementByCss('#dogDecl').text()).toBe('dog')
   })
 
   async function matchLogs$(browser) {
@@ -62,17 +47,10 @@ describe('useDefineForClassFields SWC option', () => {
   }
 
   it('set accessors from base classes won’t get triggered with useDefineForClassFields enabled', async () => {
-    let browser
-    try {
-      browser = await webdriver(next.url, '/derived')
-      await matchLogs$(browser).then(([data_foundLog, name_foundLog]) => {
-        expect(data_foundLog).toBe(true)
-        expect(name_foundLog).toBe(false)
-      })
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
+    const browser = await next.browser('/derived')
+    await matchLogs$(browser).then(([data_foundLog, name_foundLog]) => {
+      expect(data_foundLog).toBe(true)
+      expect(name_foundLog).toBe(false)
+    })
   })
 })

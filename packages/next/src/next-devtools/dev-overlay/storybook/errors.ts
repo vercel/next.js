@@ -62,15 +62,6 @@ export const errors: SupportedErrorEvent[] = [
     error: Object.assign(new Error('First error message'), {
       __NEXT_ERROR_CODE: 'E001',
     }),
-    componentStackFrames: [
-      {
-        file: 'app/page.tsx',
-        component: 'Home',
-        line1: 10,
-        column1: 5,
-        canOpenInEditor: true,
-      },
-    ],
     frames: [
       {
         file: 'app/page.tsx',

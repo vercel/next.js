@@ -1,21 +1,19 @@
+import { logQueue } from '../../../../next-devtools/userspace/app/forward-logs'
 import {
-  isTerminalLoggingEnabled,
-  logQueue,
-} from '../../../../next-devtools/userspace/app/forward-logs'
-import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
-  type HMR_ACTION_TYPES,
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  type HmrMessageSentToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { getSocketUrl } from '../get-socket-url'
+import { WEB_SOCKET_MAX_RECONNECTIONS } from '../../../../lib/constants'
 
 let source: WebSocket
 
-type ActionCallback = (action: HMR_ACTION_TYPES) => void
+type MessageCallback = (message: HmrMessageSentToBrowser) => void
 
-const eventCallbacks: Array<ActionCallback> = []
+const messageCallbacks: Array<MessageCallback> = []
 
-export function addMessageListener(callback: ActionCallback) {
-  eventCallbacks.push(callback)
+export function addMessageListener(callback: MessageCallback) {
+  messageCallbacks.push(callback)
 }
 
 export function sendMessage(data: string) {
@@ -28,13 +26,13 @@ let reloading = false
 let serverSessionId: number | null = null
 
 export function connectHMR(options: { path: string; assetPrefix: string }) {
+  let timer: ReturnType<typeof setTimeout>
+
   function init() {
     if (source) source.close()
 
     function handleOnline() {
-      if (isTerminalLoggingEnabled) {
-        logQueue.onSocketReady(source)
-      }
+      logQueue.onSocketReady(source)
       reconnections = 0
       window.console.log('[HMR] connected')
     }
@@ -46,16 +44,12 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
         return
       }
 
-      // Coerce into HMR_ACTION_TYPES as that is the format.
-      const msg: HMR_ACTION_TYPES = JSON.parse(event.data)
+      const message: HmrMessageSentToBrowser = JSON.parse(event.data)
 
-      if (
-        'action' in msg &&
-        msg.action === HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
-      ) {
+      if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED) {
         if (
           serverSessionId !== null &&
-          serverSessionId !== msg.data.sessionId
+          serverSessionId !== message.data.sessionId
         ) {
           // Either the server's session id has changed and it's a new server, or
           // it's been too long since we disconnected and we should reload the page.
@@ -67,22 +61,21 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
           return
         }
 
-        serverSessionId = msg.data.sessionId
+        serverSessionId = message.data.sessionId
       }
 
-      for (const eventCallback of eventCallbacks) {
-        eventCallback(msg)
+      for (const messageCallback of messageCallbacks) {
+        messageCallback(message)
       }
     }
 
-    let timer: ReturnType<typeof setTimeout>
     function handleDisconnect() {
       source.onerror = null
       source.onclose = null
       source.close()
       reconnections++
       // After 25 reconnects we'll want to reload the page as it indicates the dev server is no longer running.
-      if (reconnections > 25) {
+      if (reconnections > WEB_SOCKET_MAX_RECONNECTIONS) {
         reloading = true
         window.location.reload()
         return

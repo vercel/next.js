@@ -1,6 +1,7 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use swc_core::{
+    atoms::atom,
     common::{util::take::Take, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
@@ -113,7 +114,7 @@ impl VisitMut for CjsOptimizer {
                                             obj: Box::new(Expr::Call(CallExpr {
                                                 span: DUMMY_SP,
                                                 callee: Ident::new(
-                                                    "require".into(),
+                                                    atom!("require"),
                                                     DUMMY_SP,
                                                     self.unresolved_ctxt,
                                                 )

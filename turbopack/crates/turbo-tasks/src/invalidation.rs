@@ -15,21 +15,26 @@ use turbo_dyn_eq_hash::{
 
 use crate::{
     FxIndexMap, FxIndexSet, TaskId, TurboTasksApi,
-    manager::{current_task, mark_invalidator, with_turbo_tasks},
+    manager::{current_task_if_available, mark_invalidator, with_turbo_tasks},
     trace::TraceRawVcs,
     util::StaticOrArc,
 };
 
 /// Get an [`Invalidator`] that can be used to invalidate the current task
 /// based on external events.
-pub fn get_invalidator() -> Invalidator {
-    mark_invalidator();
+/// Returns `None` if called outside of a task context.
+pub fn get_invalidator() -> Option<Invalidator> {
+    if let Some(task) = current_task_if_available("turbo_tasks::get_invalidator()") {
+        mark_invalidator();
 
-    let handle = Handle::current();
-    Invalidator {
-        task: current_task("turbo_tasks::get_invalidator()"),
-        turbo_tasks: with_turbo_tasks(Arc::downgrade),
-        handle,
+        let handle = Handle::current();
+        Some(Invalidator {
+            task,
+            turbo_tasks: with_turbo_tasks(Arc::downgrade),
+            handle,
+        })
+    } else {
+        None
     }
 }
 

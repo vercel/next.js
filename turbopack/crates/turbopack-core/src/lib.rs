@@ -16,6 +16,7 @@ pub mod compile_time_info;
 pub mod condition;
 pub mod context;
 pub mod data_uri_source;
+pub mod debug_id;
 pub mod diagnostics;
 pub mod environment;
 pub mod error;
@@ -25,6 +26,7 @@ pub mod introspect;
 pub mod issue;
 pub mod module;
 pub mod module_graph;
+pub mod node_addon_module;
 pub mod output;
 pub mod package_json;
 pub mod proxied_asset;
@@ -56,10 +58,4 @@ pub const SOURCE_URL_PROTOCOL: &str = "turbopack:";
 #[doc(hidden)]
 pub mod __private {
     pub use turbo_tasks::FxIndexMap;
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

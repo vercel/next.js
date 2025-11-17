@@ -40,8 +40,9 @@ pub async fn get_server_actions_transform_rule(
     Ok(ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![transformer]),
-            append: ResolvedVc::cell(vec![]),
+            preprocess: ResolvedVc::cell(vec![transformer]),
+            main: ResolvedVc::cell(vec![]),
+            postprocess: ResolvedVc::cell(vec![]),
         }],
     ))
 }

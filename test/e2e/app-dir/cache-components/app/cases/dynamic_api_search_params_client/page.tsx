@@ -18,7 +18,7 @@ export default function Page({ searchParams }: { searchParams: Promise<any> }) {
       <p>
         Without PPR this page is fully dynamic because a dynamic API was used.
       </p>
-      <Suspense fallback={<Fallback>loading...</Fallback>}>
+      <Suspense fallback={<div id="fallback-component-one-">loading...</div>}>
         <ComponentOne searchParams={searchParams} />
       </Suspense>
       <Suspense fallback={<Fallback>loading too...</Fallback>}>

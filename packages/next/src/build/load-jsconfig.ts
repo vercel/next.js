@@ -56,7 +56,7 @@ export default async function loadJsConfig(
 }> {
   let typeScriptPath: string | undefined
   try {
-    const deps = await hasNecessaryDependencies(dir, [
+    const deps = hasNecessaryDependencies(dir, [
       {
         pkg: 'typescript',
         file: 'typescript/lib/typescript.js',
@@ -65,19 +65,17 @@ export default async function loadJsConfig(
     ])
     typeScriptPath = deps.resolved.get('typescript')
   } catch {}
-  const tsConfigPath = path.join(dir, config.typescript.tsconfigPath)
+  const tsConfigFileName = config.typescript.tsconfigPath || 'tsconfig.json'
+  const tsConfigPath = path.join(dir, tsConfigFileName)
   const useTypeScript = Boolean(typeScriptPath && fs.existsSync(tsConfigPath))
 
   let implicitBaseurl
   let jsConfig: { compilerOptions: Record<string, any> } | undefined
   // jsconfig is a subset of tsconfig
   if (useTypeScript) {
-    if (
-      config.typescript.tsconfigPath !== 'tsconfig.json' &&
-      TSCONFIG_WARNED === false
-    ) {
+    if (tsConfigFileName !== 'tsconfig.json' && TSCONFIG_WARNED === false) {
       TSCONFIG_WARNED = true
-      Log.info(`Using tsconfig file: ${config.typescript.tsconfigPath}`)
+      Log.info(`Using tsconfig file: ${tsConfigFileName}`)
     }
 
     const ts = (await Promise.resolve(

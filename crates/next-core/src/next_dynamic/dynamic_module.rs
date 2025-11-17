@@ -10,6 +10,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::{ModuleReferences, SingleChunkableModuleReference},
     resolve::ExportUsage,
 };
@@ -132,15 +133,15 @@ struct NextDynamicEntryChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for NextDynamicEntryChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for NextDynamicEntryChunkItem {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let inner = self.inner.await?;
 
-        let module_id = inner
-            .module
-            .chunk_item_id(Vc::upcast(*self.chunking_context))
-            .await?;
+        let module_id = inner.module.chunk_item_id(*self.chunking_context).await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 r#"

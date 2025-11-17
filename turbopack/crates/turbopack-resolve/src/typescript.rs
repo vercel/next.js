@@ -1,9 +1,9 @@
-use std::{collections::HashMap, mem::take};
+use std::mem::take;
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueDefault, Vc, fxindexset};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueDefault, Vc, fxindexset};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath, FileSystemPathOption};
 use turbopack_core::{
     asset::Asset,
@@ -287,7 +287,7 @@ pub async fn tsconfig_resolve_options(
         None
     };
 
-    let mut all_paths = HashMap::new();
+    let mut all_paths = FxIndexMap::default();
     for (content, source) in configs.iter().rev() {
         if let FileJsonContent::Content(json) = &*content.await?
             && let JsonValue::Object(paths) = &json["compilerOptions"]["paths"]
@@ -321,7 +321,7 @@ pub async fn tsconfig_resolve_options(
                         })
                         .collect();
                     all_paths.insert(
-                        key.to_string(),
+                        RcStr::from(key.as_str()),
                         ImportMapping::primary_alternatives(entries, Some(context_dir.clone())),
                     );
                 } else {
@@ -426,13 +426,15 @@ pub async fn type_resolve(
         fragment: _,
     } = &*request.await?
     {
-        let m = if let Some(stripped) = m.strip_prefix('@') {
-            stripped.replace('/', "__").into()
+        let mut m = if let Some(mut stripped) = m.strip_prefix("@")? {
+            stripped.replace_constants(&|c| Some(Pattern::Constant(c.replace("/", "__").into())));
+            stripped
         } else {
             m.clone()
         };
+        m.push_front(rcstr!("@types/").into());
         Some(Request::module(
-            format!("@types/{m}").into(),
+            m,
             p.clone(),
             RcStr::default(),
             RcStr::default(),
@@ -527,7 +529,7 @@ async fn apply_typescript_types_options(
     for conditions in get_condition_maps(&mut resolve_options) {
         conditions.insert(rcstr!("types"), ConditionValue::Set);
     }
-    Ok(resolve_options.into())
+    Ok(resolve_options.cell())
 }
 
 #[turbo_tasks::value_impl]

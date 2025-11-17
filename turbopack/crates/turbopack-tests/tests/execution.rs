@@ -5,7 +5,7 @@
 
 mod util;
 
-use std::{env, path::PathBuf, sync::Once};
+use std::{env, path::PathBuf};
 
 use anyhow::{Context, Result};
 use dunce::canonicalize;
@@ -17,12 +17,12 @@ use turbo_tasks::{
     debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemEntryType, FileSystemPath,
-    json::parse_json_with_source_context, util::sys_to_unix,
+    json::parse_json_with_source_context,
 };
+use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
     css::chunk::CssChunkType,
@@ -38,10 +38,8 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
-    issue::IssueDescriptionExt,
-    module_graph::{
-        ModuleGraph, chunk_group_info::ChunkGroupEntry, export_usage::compute_export_usage_info,
-    },
+    issue::CollectibleIssuesExt,
+    module_graph::{ModuleGraph, export_usage::compute_export_usage_info},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ExternalTraced, ExternalType,
@@ -49,7 +47,10 @@ use turbopack_core::{
     },
 };
 use turbopack_ecmascript_runtime::RuntimeType;
-use turbopack_node::{debug::should_debug, evaluate::evaluate};
+use turbopack_node::{
+    debug::should_debug,
+    evaluate::{evaluate, get_evaluate_entries},
+};
 use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 use turbopack_test_utils::{jest::JestRunResult, snapshot::UPDATE};
@@ -83,26 +84,18 @@ enum IssueSnapshotMode {
     NoSnapshots,
 }
 
-fn register() {
-    turbo_tasks::register();
-    turbo_tasks_env::register();
-    turbo_tasks_fs::register();
-    turbopack::register();
-    turbopack_nodejs::register();
-    turbopack_env::register();
-    turbopack_ecmascript_plugins::register();
-    turbopack_resolve::register();
-    include!(concat!(env!("OUT_DIR"), "/register_test_execution.rs"));
-}
-
 // To minimize test path length and consistency with snapshot tests,
 // node_modules is stored as a sibling of the test fixtures. Don't run
 // it as a test.
 //
 // "Skip" directories named `__skipped__`, which include test directories to
 // skip.
-#[testing::fixture("tests/execution/*/*/*", exclude("node_modules|__skipped__"))]
+#[testing::fixture(
+    "tests/execution/*/*/*/input/index.js",
+    exclude("node_modules|__skipped__")
+)]
 fn test(resource: PathBuf) {
+    let resource = resource.parent().unwrap().parent().unwrap().to_path_buf();
     let messages = get_messages(run(resource, IssueSnapshotMode::Snapshots).unwrap());
     if !messages.is_empty() {
         panic!(
@@ -112,10 +105,10 @@ fn test(resource: PathBuf) {
     }
 }
 
-#[testing::fixture("tests/execution/*/*/__skipped__/*/input")]
+#[testing::fixture("tests/execution/*/*/__skipped__/*/input/index.js")]
 #[should_panic]
 fn test_skipped_fails(resource: PathBuf) {
-    let resource = resource.parent().unwrap().to_path_buf();
+    let resource = resource.parent().unwrap().parent().unwrap().to_path_buf();
 
     let JsResult {
         // Ignore uncaught exceptions for skipped tests.
@@ -141,7 +134,7 @@ fn get_messages(js_results: JsResult) -> Vec<String> {
     let mut messages = vec![];
 
     if js_results.jest_result.test_results.is_empty() {
-        messages.push("No tests were run.".into());
+        messages.push("No tests were run.".to_string());
     }
 
     for test_result in js_results.jest_result.test_results {
@@ -168,11 +161,8 @@ fn get_messages(js_results: JsResult) -> Vec<String> {
     messages
 }
 
-#[tokio::main(flavor = "current_thread")]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsResult> {
-    static REGISTER_ONCE: Once = Once::new();
-    REGISTER_ONCE.call_once(register);
-
     // Clean up old output files.
     let output_path = resource.join("output");
     if output_path.exists() {
@@ -191,7 +181,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     // Set up a `tracing_subscriber` for debugging -- We can only do this when using nextest, as
     // `cargo test` runs all execution test cases in the same process.
     //
-    // Configuring `tracing_subscriber` requires proces-global side-effects. We can't use a
+    // Configuring `tracing_subscriber` requires process-global side-effects. We can't use a
     // thread-local subscriber because we're not fully single-threaded, even with the
     // `current_thread` tokio executor.
     //
@@ -243,23 +233,34 @@ async fn run_inner_operation(
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    Debug,
-    Default,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
+    PartialEq, Eq, Debug, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue,
 )]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
+    #[serde(default = "default_tree_shaking_mode")]
     tree_shaking_mode: Option<TreeShakingMode>,
     remove_unused_exports: Option<bool>,
     scope_hoisting: Option<bool>,
     #[serde(default)]
     minify: bool,
+    #[serde(default)]
+    production_chunking: bool,
+}
+
+fn default_tree_shaking_mode() -> Option<TreeShakingMode> {
+    Some(TreeShakingMode::ReexportsOnly)
+}
+
+impl Default for TestOptions {
+    fn default() -> Self {
+        Self {
+            tree_shaking_mode: default_tree_shaking_mode(),
+            remove_unused_exports: None,
+            scope_hoisting: None,
+            minify: false,
+            production_chunking: false,
+        }
+    }
 }
 
 #[turbo_tasks::value]
@@ -290,9 +291,9 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
         &*REPO_ROOT,
         resource_path.display()
     ))?;
-    let relative_path: RcStr = sys_to_unix(relative_path.to_str().unwrap()).into();
-    let path = root_fs.root().await?.join(&relative_path.clone())?;
-    let project_path = project_root.join(&relative_path.clone())?;
+    let relative_path = RcStr::from(sys_to_unix(relative_path.to_str().unwrap()));
+    let path = root_fs.root().await?.join(&relative_path)?;
+    let project_path = project_root.join(&relative_path)?;
     let tests_path = project_fs
         .root()
         .await?
@@ -359,7 +360,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 
     let mut import_map = ImportMap::empty();
     import_map.insert_wildcard_alias(
-        "esm-external/",
+        rcstr!("esm-external/"),
         ImportMapping::External(
             Some(rcstr!("*")),
             ExternalType::EcmaScriptModule,
@@ -368,7 +369,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .resolved_cell(),
     );
     import_map.insert_exact_alias(
-        "jest-circus",
+        rcstr!("jest-circus"),
         ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
             .resolved_cell(),
     );
@@ -376,6 +377,22 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         "expect",
         ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
             .resolved_cell(),
+    );
+    import_map.insert_exact_alias(
+        rcstr!("testGlobalExternalValue"),
+        ImportMapping::External(None, ExternalType::Global, ExternalTraced::Untraced)
+            .resolved_cell(),
+    );
+
+    let mut fallback_import_map = ImportMap::empty();
+    fallback_import_map.insert_exact_alias(
+        rcstr!("fallback"),
+        ImportMapping::External(
+            None,
+            ExternalType::EcmaScriptModule,
+            ExternalTraced::Untraced,
+        )
+        .resolved_cell(),
     );
 
     let remove_unused_exports = options.remove_unused_exports.unwrap_or(true);
@@ -389,6 +406,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
                 import_externals: true,
+                enable_exports_info_inlining: true,
                 ..Default::default()
             },
             environment: Some(env),
@@ -403,7 +421,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             )],
             ..Default::default()
         }
-        .into(),
+        .cell(),
         ResolveOptionsContext {
             enable_typescript: true,
             enable_node_modules: Some(project_root.clone()),
@@ -421,6 +439,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             browser: true,
             module: true,
             import_map: Some(import_map.resolved_cell()),
+            fallback_import_map: Some(fallback_import_map.resolved_cell()),
             ..Default::default()
         }
         .cell(),
@@ -448,15 +467,11 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         )
         .module();
 
-    // Keep this in sync with what `evaluate` does internally
-    let module_graph = ModuleGraph::from_modules(
-        Vc::cell(vec![ChunkGroupEntry::Entry(vec![
-            jest_entry_asset.to_resolved().await?,
-        ])]),
-        false,
-    );
+    let entries = get_evaluate_entries(jest_entry_asset, asset_context, None);
 
-    let chunking_context = NodeJsChunkingContext::builder(
+    let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false);
+
+    let mut builder = NodeJsChunkingContext::builder(
         project_root.clone(),
         chunk_root_path.clone(),
         chunk_root_path_in_root_path_offset,
@@ -465,20 +480,6 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         static_root_path,
         env,
         RuntimeType::Development,
-    )
-    .chunking_config(
-        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-        ChunkingConfig {
-            min_chunk_size: 10_000,
-            ..Default::default()
-        },
-    )
-    .chunking_config(
-        Vc::<CssChunkType>::default().to_resolved().await?,
-        ChunkingConfig {
-            max_merge_chunk_size: 100_000,
-            ..Default::default()
-        },
     )
     .module_merging(options.scope_hoisting.unwrap_or(true))
     .minify_type(if options.minify {
@@ -496,29 +497,43 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         )
     } else {
         None
-    })
-    .build();
+    });
+    if options.production_chunking {
+        builder = builder
+            .chunking_config(
+                Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    min_chunk_size: 2_000,
+                    max_chunk_count_per_group: 40,
+                    max_merge_chunk_size: 200_000,
+                    ..Default::default()
+                },
+            )
+            .chunking_config(
+                Vc::<CssChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .nested_async_availability(true);
+    }
+    let chunking_context = builder.build();
 
     let res = evaluate(
-        jest_entry_asset,
+        entries,
         path.clone(),
         Vc::upcast(CommandLineProcessEnv::new()),
         Vc::upcast(test_source),
-        asset_context,
         Vc::upcast(chunking_context),
-        None,
+        module_graph,
         vec![],
         Completion::immutable(),
         should_debug("execution_test"),
     )
     .await?;
 
-    let single = res
-        .try_into_single()
-        .await
-        .context("test node result did not emit anything")?;
-
-    let SingleValue::Single(bytes) = single else {
+    let Some(str) = &*res else {
         return Ok(RunTestResult {
             js_result: JsResult {
                 uncaught_exceptions: vec![],
@@ -534,7 +549,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     };
 
     Ok(RunTestResult {
-        js_result: JsResult::resolved_cell(parse_json_with_source_context(bytes.to_str()?)?),
+        js_result: JsResult::resolved_cell(parse_json_with_source_context(str)?),
         path: path.clone(),
     }
     .cell())
@@ -548,9 +563,7 @@ async fn snapshot_issues(
     let PreparedTest { path, .. } = &*prepared_test.await?;
     let _ = run_result_op.resolve_strongly_consistent().await;
 
-    let captured_issues = run_result_op.peek_issues_with_path().await?;
-
-    let plain_issues = captured_issues.get_plain_issues().await?;
+    let plain_issues = run_result_op.peek_issues().get_plain_issues().await?;
 
     turbopack_test_utils::snapshot::snapshot_issues(plain_issues, path.join("issues")?, &REPO_ROOT)
         .await

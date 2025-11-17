@@ -1,0 +1,1036 @@
+[
+    ImportedBinding {
+        esm_reference_index: 1,
+        export: Some(
+            "calledA1",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    1,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 191..199,
+    },
+    Call {
+        func: Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "foo",
+                    annotations: ImportAnnotations {
+                        map: {},
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "calledA1",
+                    ),
+                ),
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    1,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 191..201,
+        in_try: false,
+        new: false,
+    },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    1,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    1,
+                ),
+            ),
+            Stmt(
+                While,
+            ),
+            WhileStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+        ],
+    },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    1,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    1,
+                ),
+            ),
+            Stmt(
+                While,
+            ),
+            WhileStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+        ],
+    },
+    ImportedBinding {
+        esm_reference_index: 7,
+        export: Some(
+            "unreachableA3",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    1,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    2,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 286..299,
+    },
+    Call {
+        func: Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "foo",
+                    annotations: ImportAnnotations {
+                        map: {},
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "unreachableA3",
+                    ),
+                ),
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    1,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    2,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 286..301,
+        in_try: false,
+        new: false,
+    },
+    ImportedBinding {
+        esm_reference_index: 8,
+        export: Some(
+            "unreachableB1",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    2,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                While,
+            ),
+            WhileStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    1,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 350..363,
+    },
+    Call {
+        func: Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "foo",
+                    annotations: ImportAnnotations {
+                        map: {},
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "unreachableB1",
+                    ),
+                ),
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    2,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                While,
+            ),
+            WhileStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    1,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 350..365,
+        in_try: false,
+        new: false,
+    },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    2,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                While,
+            ),
+            WhileStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    2,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+        ],
+    },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    2,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                While,
+            ),
+            WhileStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+        ],
+    },
+    ImportedBinding {
+        esm_reference_index: 2,
+        export: Some(
+            "calledB1",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    2,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    1,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 403..411,
+    },
+    Call {
+        func: Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "foo",
+                    annotations: ImportAnnotations {
+                        map: {},
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "calledB1",
+                    ),
+                ),
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    2,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    1,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 403..413,
+        in_try: false,
+        new: false,
+    },
+    ImportedBinding {
+        esm_reference_index: 3,
+        export: Some(
+            "calledC1",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    3,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                While,
+            ),
+            WhileStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    1,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 484..492,
+    },
+    Call {
+        func: Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "foo",
+                    annotations: ImportAnnotations {
+                        map: {},
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "calledC1",
+                    ),
+                ),
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    3,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                While,
+            ),
+            WhileStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    1,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 484..494,
+        in_try: false,
+        new: false,
+    },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    3,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                While,
+            ),
+            WhileStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    2,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+        ],
+    },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    3,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                While,
+            ),
+            WhileStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+        ],
+    },
+    ImportedBinding {
+        esm_reference_index: 4,
+        export: Some(
+            "calledC2",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    3,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    1,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 532..540,
+    },
+    Call {
+        func: Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "foo",
+                    annotations: ImportAnnotations {
+                        map: {},
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "calledC2",
+                    ),
+                ),
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    3,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    1,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 532..542,
+        in_try: false,
+        new: false,
+    },
+]

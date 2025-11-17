@@ -46,7 +46,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       `
     )
 
-    await session.assertHasRedbox()
+    await session.waitForRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
       /That only works in a Server Component/
     )
@@ -82,10 +82,9 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
          × Module build failed:
-         ╰─▶   × Error:   x You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-
-               │   | your-application/rendering/server-components
+         ╰─▶   × Error:   x You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
-               │   |
+               │
                │    ,-[1:1]
                │  1 | import { cookies } from 'next/headers'
                │    : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -131,7 +130,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       `
     )
 
-    await session.assertHasRedbox()
+    await session.waitForRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
       /That only works in a Server Component/
     )
@@ -167,10 +166,9 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
          × Module build failed:
-         ╰─▶   × Error:   x You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-
-               │   | application/rendering/server-components
+         ╰─▶   × Error:   x You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
-               │   |
+               │
                │    ,-[1:1]
                │  1 | import 'server-only'
                │    : ^^^^^^^^^^^^^^^^^^^^
@@ -218,7 +216,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       `
     )
 
-    await session.assertHasRedbox()
+    await session.waitForRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
       /That only works in a Server Component/
     )
@@ -254,10 +252,9 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
          × Module build failed:
-         ╰─▶   × Error:   x You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-
-               │   | application/rendering/server-components
+         ╰─▶   × Error:   x You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
-               │   |
+               │
                │    ,-[1:1]
                │  1 | import { after } from 'next/server'
                │    :          ^^^^^
@@ -314,7 +311,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     await using sandbox = await createSandbox(next, files)
     const { session } = sandbox
 
-    await session.assertHasRedbox()
+    await session.waitForRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
       /That only works in a Server Component/
     )
@@ -387,10 +384,10 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     test.each([
       'revalidatePath',
       'revalidateTag',
-      'unstable_cacheLife',
-      'unstable_cacheTag',
-      'unstable_expirePath',
-      'unstable_expireTag',
+      'cacheLife',
+      'cacheTag',
+      'revalidatePath',
+      'revalidateTag',
     ])('%s is not allowed', async (api) => {
       await using sandbox = await createSandbox(next, initialFiles)
       const { session } = sandbox
@@ -406,7 +403,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         `
       )
 
-      await session.assertHasRedbox()
+      await session.waitForRedbox()
       await expect(session.getRedboxSource()).resolves.toMatch(
         `You're importing a component that needs "${api}". That only works in a Server Component which is not supported in the pages/ directory.`
       )
@@ -430,7 +427,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         `
       )
 
-      await session.assertNoRedbox()
+      await session.waitForNoRedbox()
     })
   })
 })

@@ -19,6 +19,7 @@ use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
     reference::ModuleReference,
+    reference_type::CommonJsReferenceSubType,
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
@@ -67,6 +68,7 @@ impl ModuleReference for AmdDefineAssetReference {
         cjs_resolve(
             *self.origin,
             *self.request,
+            CommonJsReferenceSubType::Undefined,
             Some(self.issue_source),
             self.in_try,
         )
@@ -96,6 +98,7 @@ impl ChunkableModuleReference for AmdDefineAssetReference {}
     TraceRawVcs,
     Clone,
     NonLocalValue,
+    Hash,
 )]
 pub enum AmdDefineDependencyElement {
     Request {
@@ -118,6 +121,7 @@ pub enum AmdDefineDependencyElement {
     Copy,
     Clone,
     NonLocalValue,
+    Hash,
 )]
 pub enum AmdDefineFactoryType {
     Unknown,
@@ -125,7 +129,9 @@ pub enum AmdDefineFactoryType {
     Value,
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+)]
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
@@ -172,10 +178,11 @@ impl AmdDefineWithDependenciesCodeGen {
                         pattern_mapping: PatternMapping::resolve_request(
                             **request,
                             *self.origin,
-                            Vc::upcast(chunking_context),
+                            chunking_context,
                             cjs_resolve(
                                 *self.origin,
                                 **request,
+                                CommonJsReferenceSubType::Undefined,
                                 Some(self.issue_source),
                                 self.in_try,
                             ),

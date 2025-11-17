@@ -3,7 +3,7 @@ use std::{cell::RefCell, mem::take, rc::Rc};
 use easy_error::{bail, Error};
 use rustc_hash::FxHashSet;
 use swc_core::{
-    atoms::Atom,
+    atoms::{atom, Atom},
     common::{
         errors::HANDLER,
         pass::{Repeat, Repeated},
@@ -443,7 +443,7 @@ impl Fold for NextSsg {
 
         match &i {
             ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e)) if e.specifiers.is_empty() => {
-                return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }))
+                return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
             }
             _ => {}
         }
@@ -469,9 +469,9 @@ impl Fold for NextSsg {
                     name: Pat::Ident(
                         IdentName::new(
                             if self.state.is_prerenderer {
-                                "__N_SSG".into()
+                                atom!("__N_SSG")
                             } else {
-                                "__N_SSP".into()
+                                atom!("__N_SSP")
                             },
                             DUMMY_SP,
                         )

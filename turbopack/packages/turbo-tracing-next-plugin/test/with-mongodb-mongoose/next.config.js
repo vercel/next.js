@@ -6,7 +6,4 @@ module.exports = createNodeFileTrace({
   path: join(__dirname, '..', '..', '..', '..', 'target', 'debug'),
 })({
   reactStrictMode: true,
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
 })

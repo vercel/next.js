@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 40, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/node/bun_protocol_external/input/index.js"],"sourcesContent":["// Test that Bun builtins are treated as external\nimport bunFfi from 'bun:ffi'\nimport bunJsc from 'bun:jsc'\nimport bunSqlite from 'bun:sqlite'\nimport bunTest from 'bun:test'\nimport bunWrap from 'bun:wrap'\nimport bun from 'bun'\n\nconsole.log('bun:ffi:', bunFfi)\nconsole.log('bun:jsc:', bunJsc)\nconsole.log('bun:sqlite:', bunSqlite)\nconsole.log('bun:test:', bunTest)\nconsole.log('bun:wrap:', bunWrap)\nconsole.log('bun:', bun)\n"],"names":[],"mappings":"AAAA,iDAAiD;;AACjD;AACA;AACA;AACA;AACA;AACA;;;;;;;AAEA,QAAQ,GAAG,CAAC,YAAY,wHAAM;AAC9B,QAAQ,GAAG,CAAC,YAAY,wHAAM;AAC9B,QAAQ,GAAG,CAAC,eAAe,8HAAS;AACpC,QAAQ,GAAG,CAAC,aAAa,0HAAO;AAChC,QAAQ,GAAG,CAAC,aAAa,0HAAO;AAChC,QAAQ,GAAG,CAAC,QAAQ,0GAAG"}}]
+}

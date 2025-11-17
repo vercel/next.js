@@ -26,13 +26,11 @@ function getWebpackIgnoreCommentValue(index: any, nodes: any, inBetween?: any) {
   let prevValueNode = nodes[index - 1]
 
   if (!prevValueNode) {
-    // eslint-disable-next-line consistent-return
     return
   }
 
   if (prevValueNode.type === 'space') {
     if (!nodes[index - 2]) {
-      // eslint-disable-next-line consistent-return
       return
     }
 
@@ -40,7 +38,6 @@ function getWebpackIgnoreCommentValue(index: any, nodes: any, inBetween?: any) {
   }
 
   if (prevValueNode.type !== 'comment') {
-    // eslint-disable-next-line consistent-return
     return
   }
 
@@ -139,7 +136,6 @@ function parseDeclaration(
         needIgnore
       ) {
         if (needIgnore) {
-          // eslint-disable-next-line no-undefined
           needIgnore = undefined
         }
 
@@ -155,7 +151,6 @@ function parseDeclaration(
       if (
         !shouldHandleURL(url, declaration, result, isSupportDataURLInNewURL)
       ) {
-        // eslint-disable-next-line consistent-return
         return false
       }
 
@@ -176,7 +171,6 @@ function parseDeclaration(
         needQuotes: false,
       })
 
-      // eslint-disable-next-line consistent-return
       return false
     } else if (isImageSetFunc.test(valueNode.value)) {
       for (const [innerIndex, nNode] of valueNode.nodes.entries()) {
@@ -190,11 +184,9 @@ function parseDeclaration(
             needIgnore
           ) {
             if (needIgnore) {
-              // eslint-disable-next-line no-undefined
               needIgnore = undefined
             }
 
-            // eslint-disable-next-line no-continue
             continue
           }
 
@@ -209,7 +201,6 @@ function parseDeclaration(
           if (
             !shouldHandleURL(url, declaration, result, isSupportDataURLInNewURL)
           ) {
-            // eslint-disable-next-line consistent-return
             return false
           }
 
@@ -237,11 +228,9 @@ function parseDeclaration(
             needIgnore
           ) {
             if (needIgnore) {
-              // eslint-disable-next-line no-undefined
               needIgnore = undefined
             }
 
-            // eslint-disable-next-line no-continue
             continue
           }
 
@@ -251,7 +240,6 @@ function parseDeclaration(
           if (
             !shouldHandleURL(url, declaration, result, isSupportDataURLInNewURL)
           ) {
-            // eslint-disable-next-line consistent-return
             return false
           }
 
@@ -275,12 +263,10 @@ function parseDeclaration(
       }
 
       // Do not traverse inside `image-set`
-      // eslint-disable-next-line consistent-return
       return false
     }
   })
 
-  // eslint-disable-next-line consistent-return
   return parsedURLs
 }
 
@@ -319,13 +305,11 @@ const plugin = (options: any = {}) => {
                 const needKeep = await options.filter(url)
 
                 if (!needKeep) {
-                  // eslint-disable-next-line consistent-return
                   return
                 }
               }
 
               if (isDataUrl(url)) {
-                // eslint-disable-next-line consistent-return
                 return parsedDeclaration
               }
 
@@ -343,7 +327,6 @@ const plugin = (options: any = {}) => {
               )
 
               if (!needToResolveURL) {
-                // eslint-disable-next-line consistent-return
                 return { ...parsedDeclaration, url: request, hash }
               }
 
@@ -353,11 +336,9 @@ const plugin = (options: any = {}) => {
               ])
 
               if (!resolvedUrl) {
-                // eslint-disable-next-line consistent-return
                 return
               }
 
-              // eslint-disable-next-line consistent-return
               return { ...parsedDeclaration, url: resolvedUrl, hash }
             })
           )
@@ -375,7 +356,6 @@ const plugin = (options: any = {}) => {
             const item = resolvedDeclarations[index]
 
             if (!item) {
-              // eslint-disable-next-line no-continue
               continue
             }
 
@@ -426,11 +406,8 @@ const plugin = (options: any = {}) => {
               })
             }
 
-            // eslint-disable-next-line no-param-reassign
             item.node.type = 'word'
-            // eslint-disable-next-line no-param-reassign
             item.node.value = replacementName
-            // eslint-disable-next-line no-param-reassign
             item.declaration.value = item.parsed.toString()
           }
         },

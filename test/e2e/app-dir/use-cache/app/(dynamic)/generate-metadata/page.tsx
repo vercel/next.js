@@ -6,6 +6,8 @@ export async function generateMetadata(): Promise<Metadata> {
   // TODO: Deduping with nested caches requires #78703.
   // 'use cache'
 
+  await connection()
+
   return {
     description: new Date().toISOString(),
     title: await getCachedData(),

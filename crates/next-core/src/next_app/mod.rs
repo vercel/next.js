@@ -293,6 +293,11 @@ impl AppPage {
         )
     }
 
+    /// Returns true if there is only one segment and it is a group.
+    pub fn is_first_layer_group_route(&self) -> bool {
+        self.0.len() == 1 && matches!(self.0.last(), Some(PageSegment::Group(_)))
+    }
+
     pub fn complete(&self, page_type: PageType) -> Result<Self> {
         self.clone_push(PageSegment::PageType(page_type))
     }
@@ -454,6 +459,18 @@ impl AppPath {
         }
 
         true
+    }
+
+    /// Returns true if ANY segment in the entire path is an interception route.
+    /// This is different from `is_intercepting()` which only checks the last
+    /// segment.
+    pub fn contains_interception(&self) -> bool {
+        self.iter().any(|segment| {
+            matches!(
+                segment,
+                PathSegment::Static(s) if s.starts_with("(.)") || s.starts_with("(..)") || s.starts_with("(...)")
+            )
+        })
     }
 }
 

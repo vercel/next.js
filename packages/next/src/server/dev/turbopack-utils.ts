@@ -11,8 +11,8 @@ import type {
   WrittenEndpoint,
 } from '../../build/swc/types'
 import {
-  type HMR_ACTION_TYPES,
-  HMR_ACTIONS_SENT_TO_BROWSER,
+  type HmrMessageSentToBrowser,
+  HMR_MESSAGE_SENT_TO_BROWSER,
 } from './hot-reloader-types'
 import * as Log from '../../build/output/log'
 import type { PropagateToWorkersField } from '../lib/router-utils/types'
@@ -35,6 +35,7 @@ import {
   type EntryIssuesMap,
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
+import { MIDDLEWARE_FILENAME, PROXY_FILENAME } from '../../lib/constants'
 
 const onceErrorSet = new Set()
 /**
@@ -106,16 +107,18 @@ export type StartChangeSubscription = (
   key: EntryKey,
   includeIssues: boolean,
   endpoint: Endpoint,
-  makePayload: (
+  createMessage: (
     change: TurbopackResult,
     hash: string
-  ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void,
-  onError?: (e: Error) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
+  ) => Promise<HmrMessageSentToBrowser> | HmrMessageSentToBrowser | void,
+  onError?: (
+    e: Error
+  ) => Promise<HmrMessageSentToBrowser> | HmrMessageSentToBrowser | void
 ) => Promise<void>
 
 export type StopChangeSubscription = (key: EntryKey) => Promise<void>
 
-export type SendHmr = (id: string, payload: HMR_ACTION_TYPES) => void
+export type SendHmr = (id: string, message: HmrMessageSentToBrowser) => void
 
 export type StartBuilding = (
   id: string,
@@ -127,7 +130,7 @@ export type ReadyIds = Set<string>
 
 export type ClientState = {
   clientIssues: EntryIssuesMap
-  hmrPayloads: Map<string, HMR_ACTION_TYPES>
+  messages: Map<string, HmrMessageSentToBrowser>
   turbopackUpdates: TurbopackUpdate[]
   subscriptions: Map<string, AsyncIterator<any>>
 }
@@ -241,7 +244,7 @@ export async function handleRouteType({
           await manifestLoader.loadWebpackStats(page, 'pages')
         }
 
-        await manifestLoader.writeManifests({
+        manifestLoader.writeManifests({
           devRewrites,
           productionRewrites,
           entrypoints,
@@ -266,13 +269,13 @@ export async function handleRouteType({
               // Report the next compilation again
               readyIds?.delete(pathname)
               return {
-                event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
+                type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
                 pages: [page],
               }
             },
             (e) => {
               return {
-                action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+                type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
                 data: `error in ${page} data subscription: ${e}`,
               }
             }
@@ -283,12 +286,12 @@ export async function handleRouteType({
             route.htmlEndpoint,
             () => {
               return {
-                event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES,
+                type: HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES,
               }
             },
             (e) => {
               return {
-                action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+                type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
                 data: `error in ${page} html subscription: ${e}`,
               }
             }
@@ -300,13 +303,13 @@ export async function handleRouteType({
               entrypoints.global.document,
               () => {
                 return {
-                  action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+                  type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
                   data: '_document has changed (page route)',
                 }
               },
               (e) => {
                 return {
-                  action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+                  type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
                   data: `error in _document subscription (page route): ${e}`,
                 }
               }
@@ -332,7 +335,7 @@ export async function handleRouteType({
         manifestLoader.deleteMiddlewareManifest(key)
       }
 
-      await manifestLoader.writeManifests({
+      manifestLoader.writeManifests({
         devRewrites,
         productionRewrites,
         entrypoints,
@@ -364,13 +367,13 @@ export async function handleRouteType({
             // Report the next compilation again
             readyIds?.delete(pathname)
             return {
-              action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+              type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
               hash,
             }
           },
           (e) => {
             return {
-              action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+              type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
               data: `error in ${page} app-page subscription: ${e}`,
             }
           }
@@ -380,22 +383,21 @@ export async function handleRouteType({
       const type = writtenEndpoint.type
 
       if (type === 'edge') {
-        await manifestLoader.loadMiddlewareManifest(page, 'app')
+        manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
       }
 
-      await manifestLoader.loadAppBuildManifest(page)
-      await manifestLoader.loadBuildManifest(page, 'app')
-      await manifestLoader.loadAppPathsManifest(page)
-      await manifestLoader.loadActionManifest(page)
-      await manifestLoader.loadFontManifest(page, 'app')
+      manifestLoader.loadBuildManifest(page, 'app')
+      manifestLoader.loadAppPathsManifest(page)
+      manifestLoader.loadActionManifest(page)
+      manifestLoader.loadFontManifest(page, 'app')
 
       if (shouldCreateWebpackStats) {
-        await manifestLoader.loadWebpackStats(page, 'app')
+        manifestLoader.loadWebpackStats(page, 'app')
       }
 
-      await manifestLoader.writeManifests({
+      manifestLoader.writeManifests({
         devRewrites,
         productionRewrites,
         entrypoints,
@@ -413,15 +415,15 @@ export async function handleRouteType({
 
       const type = writtenEndpoint.type
 
-      await manifestLoader.loadAppPathsManifest(page)
+      manifestLoader.loadAppPathsManifest(page)
 
       if (type === 'edge') {
-        await manifestLoader.loadMiddlewareManifest(page, 'app')
+        manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
       }
 
-      await manifestLoader.writeManifests({
+      manifestLoader.writeManifests({
         devRewrites,
         productionRewrites,
         entrypoints,
@@ -540,7 +542,6 @@ export function hasEntrypointForKey(
         )
     default: {
       // validation that we covered all cases, this should never run.
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _: never = type
       return false
     }
@@ -564,7 +565,7 @@ type HandleEntrypointsHooks = {
 type HandleEntrypointsDevOpts = {
   assetMapper: AssetMapper
   changeSubscriptions: ChangeSubscriptions
-  clients: Set<ws>
+  clients: Array<ws>
   clientStates: ClientStateMap
   serverFields: ServerFields
 
@@ -650,12 +651,12 @@ export async function handleEntrypoints({
     await dev?.hooks.unsubscribeFromChanges(key)
     currentEntryIssues.delete(key)
     dev.hooks.sendHmr('middleware', {
-      event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
+      type: HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
     })
   } else if (!currentEntrypoints.global.middleware && middleware) {
     // Went from no middleware to middleware
     dev.hooks.sendHmr('middleware', {
-      event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
+      type: HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
     })
   }
 
@@ -688,7 +689,7 @@ export async function handleEntrypoints({
       'instrumentation',
       'instrumentation'
     )
-    await manifestLoader.writeManifests({
+    manifestLoader.writeManifests({
       devRewrites,
       productionRewrites: undefined,
       entrypoints: currentEntrypoints,
@@ -711,10 +712,13 @@ export async function handleEntrypoints({
     const key = getEntryKey('root', 'server', 'middleware')
 
     const endpoint = middleware.endpoint
+    const triggerName = middleware.isProxy
+      ? PROXY_FILENAME
+      : MIDDLEWARE_FILENAME
 
     async function processMiddleware() {
       const finishBuilding = dev.hooks.startBuilding(
-        'middleware',
+        triggerName,
         undefined,
         true
       )
@@ -743,7 +747,7 @@ export async function handleEntrypoints({
         endpoint,
         async () => {
           const finishBuilding = dev.hooks.startBuilding(
-            'middleware',
+            triggerName,
             undefined,
             true
           )
@@ -756,18 +760,20 @@ export async function handleEntrypoints({
             'middleware',
             dev.serverFields.middleware
           )
-          await manifestLoader.writeManifests({
+          manifestLoader.writeManifests({
             devRewrites,
             productionRewrites: undefined,
             entrypoints: currentEntrypoints,
           })
 
           finishBuilding?.()
-          return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
+          return {
+            type: HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
+          }
         },
         () => {
           return {
-            event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
+            type: HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
           }
         }
       )
@@ -879,11 +885,13 @@ export async function handlePagesErrorRoute({
       () => {
         // There's a special case for this in `../client/page-bootstrap.ts`.
         // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
-        return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
+        return {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES,
+        }
       },
       () => {
         return {
-          action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+          type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
           data: '_app has changed (error route)',
         }
       }
@@ -905,13 +913,13 @@ export async function handlePagesErrorRoute({
       entrypoints.global.document,
       () => {
         return {
-          action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+          type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
           data: '_document has changed (error route)',
         }
       },
       (e) => {
         return {
-          action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+          type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
           data: `error in _document subscription (error route): ${e}`,
         }
       }
@@ -932,11 +940,13 @@ export async function handlePagesErrorRoute({
       () => {
         // There's a special case for this in `../client/page-bootstrap.ts`.
         // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
-        return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
+        return {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES,
+        }
       },
       (e) => {
         return {
-          action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+          type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
           data: `error in _error subscription: ${e}`,
         }
       }
@@ -948,7 +958,7 @@ export async function handlePagesErrorRoute({
   await manifestLoader.loadPagesManifest('_error')
   await manifestLoader.loadFontManifest('_error')
 
-  await manifestLoader.writeManifests({
+  manifestLoader.writeManifests({
     devRewrites,
     productionRewrites,
     entrypoints,

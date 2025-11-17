@@ -8,7 +8,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     source::Source,
 };
 use turbopack_ecmascript::{
@@ -104,6 +104,14 @@ struct RawModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for RawModuleChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
+        OutputAssetsWithReferenced::from_assets(Vc::cell(vec![ResolvedVc::upcast(self.wasm_asset)]))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for RawModuleChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
@@ -111,13 +119,8 @@ impl ChunkItem for RawModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Result<Vc<OutputAssets>> {
-        Ok(Vc::cell(vec![ResolvedVc::upcast(self.wasm_asset)]))
-    }
-
-    #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(*self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -152,6 +155,6 @@ impl EcmascriptChunkItem for RawModuleChunkItem {
             .into(),
             ..Default::default()
         }
-        .into())
+        .cell())
     }
 }

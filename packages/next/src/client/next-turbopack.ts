@@ -9,7 +9,8 @@ import { initialize, version, router, emitter, hydrate } from './'
 import { displayContent } from './dev/fouc'
 
 window.next = {
-  version: `${version}-turbo`,
+  version,
+  turbopack: true,
   // router is initialized later so it has to be live-binded
   get router() {
     return router

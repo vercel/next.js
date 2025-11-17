@@ -64,7 +64,7 @@ impl GenerateSourceMap for SourceMapReference {
 
         let content = file.read().await?;
         let content = content.as_content().map(|file| file.content());
-        let source_map = resolve_source_map_sources(content, self.from.clone()).await?;
+        let source_map = resolve_source_map_sources(content, &self.from).await?;
         Ok(Vc::cell(source_map))
     }
 }

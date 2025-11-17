@@ -14,7 +14,7 @@ use turbo_tasks::{
     backend::TurboTasksExecutionError,
     panic_hooks::{handle_panic, register_panic_hook},
 };
-use turbo_tasks_testing::{Registration, register, run_without_cache_check};
+use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
 
 static REGISTRATION: Registration = register!();
 
@@ -25,7 +25,7 @@ static FILE_PATH_REGEX: LazyLock<Regex> =
 //
 // This test depends on the process-wide global panic handler. This test must be run in its own
 // process in isolation of any other tests.
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_panic_hook() {
     let prev_hook = take_hook();
     set_hook(Box::new(move |info| {
@@ -40,7 +40,8 @@ async fn test_panic_hook() {
     });
 
     let result =
-        run_without_cache_check(&REGISTRATION, async move { anyhow::Ok(*double(3).await?) }).await;
+        run_once_without_cache_check(&REGISTRATION, async move { anyhow::Ok(*double(3).await?) })
+            .await;
 
     assert!(hook_was_called.load(Ordering::SeqCst));
 

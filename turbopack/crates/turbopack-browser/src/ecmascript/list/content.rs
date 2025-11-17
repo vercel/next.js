@@ -154,8 +154,10 @@ impl EcmascriptDevChunkListContent {
         // `TURBOPACK_CHUNK_LISTS` global variable.
         writedoc!(
             code,
+            // `||=` would be better but we need to be es2020 compatible
+            //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
             r#"
-                (globalThis.TURBOPACK_CHUNK_LISTS = globalThis.TURBOPACK_CHUNK_LISTS || []).push({{
+                (globalThis.TURBOPACK_CHUNK_LISTS || (globalThis.TURBOPACK_CHUNK_LISTS = [])).push({{
                     script: {script_or_path},
                     chunks: {:#},
                     source: {:#}

@@ -1,12 +1,14 @@
 use std::{
     net::IpAddr,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
+use anyhow::anyhow;
 use clap::{Args, Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
-use turbopack_cli_utils::issue::IssueSeverityCliOption;
+use turbopack_core::issue::IssueSeverity;
 
 #[derive(Debug, Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -21,6 +23,14 @@ impl Arguments {
         match self {
             Arguments::Build(args) => args.common.dir.as_deref(),
             Arguments::Dev(args) => args.common.dir.as_deref(),
+        }
+    }
+
+    /// The number of worker threads to use. see [CommonArguments]::worker_threads
+    pub fn worker_threads(&self) -> Option<usize> {
+        match self {
+            Arguments::Build(args) => args.common.worker_threads,
+            Arguments::Dev(args) => args.common.worker_threads,
         }
     }
 }
@@ -78,13 +88,17 @@ pub struct CommonArguments {
     #[clap(long)]
     pub full_stats: bool,
 
+    /// Whether to build for the `browser` or `node`
+    #[clap(long)]
+    pub target: Option<Target>,
+
+    /// Number of worker threads to use for parallel processing
+    #[clap(long)]
+    pub worker_threads: Option<usize>,
     // Enable experimental garbage collection with the provided memory limit in
     // MB.
     // #[clap(long)]
     // pub memory_limit: Option<usize>,
-    /// Whether to build for the `browser` or `node``
-    #[clap(long)]
-    pub target: Option<Target>,
 }
 
 #[derive(Debug, Args)]
@@ -145,4 +159,49 @@ pub struct BuildArguments {
     /// leak detectors.
     #[clap(long, hide = true)]
     pub force_memory_cleanup: bool,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct IssueSeverityCliOption(pub IssueSeverity);
+
+impl serde::Serialize for IssueSeverityCliOption {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.0.to_string())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for IssueSeverityCliOption {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        <IssueSeverityCliOption as std::str::FromStr>::from_str(&s)
+            .map_err(serde::de::Error::custom)
+    }
+}
+
+impl ValueEnum for IssueSeverityCliOption {
+    fn value_variants<'a>() -> &'a [Self] {
+        const VARIANTS: [IssueSeverityCliOption; 8] = [
+            IssueSeverityCliOption(IssueSeverity::Bug),
+            IssueSeverityCliOption(IssueSeverity::Fatal),
+            IssueSeverityCliOption(IssueSeverity::Error),
+            IssueSeverityCliOption(IssueSeverity::Warning),
+            IssueSeverityCliOption(IssueSeverity::Hint),
+            IssueSeverityCliOption(IssueSeverity::Note),
+            IssueSeverityCliOption(IssueSeverity::Suggestion),
+            IssueSeverityCliOption(IssueSeverity::Info),
+        ];
+        &VARIANTS
+    }
+
+    fn to_possible_value<'a>(&self) -> Option<clap::builder::PossibleValue> {
+        Some(clap::builder::PossibleValue::new(self.0.as_str()).help(self.0.as_help_str()))
+    }
+}
+
+impl FromStr for IssueSeverityCliOption {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        <IssueSeverityCliOption as clap::ValueEnum>::from_str(s, true).map_err(|s| anyhow!("{}", s))
+    }
 }

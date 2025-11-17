@@ -1,4 +1,4 @@
-import { existsSync, promises as fs } from 'fs'
+import { existsSync, realpathSync } from 'fs'
 import { resolveFrom } from './resolve-from'
 import { dirname, join, relative } from 'path'
 
@@ -29,41 +29,43 @@ export type NecessaryDependencies = {
   missing: MissingDependency[]
 }
 
-export async function hasNecessaryDependencies(
+export function hasNecessaryDependencies(
   baseDir: string,
   requiredPackages: MissingDependency[]
-): Promise<NecessaryDependencies> {
+): NecessaryDependencies {
   let resolutions = new Map<string, string>()
   const missingPackages: MissingDependency[] = []
 
-  await Promise.all(
-    requiredPackages.map(async (p) => {
-      try {
-        const pkgPath = await fs.realpath(
-          resolveFrom(baseDir, `${p.pkg}/package.json`)
-        )
-        const pkgDir = dirname(pkgPath)
+  for (const p of requiredPackages) {
+    try {
+      const pkgPath = realpathSync(
+        resolveFrom(baseDir, `${p.pkg}/package.json`)
+      )
+      const pkgDir = dirname(pkgPath)
 
-        if (p.exportsRestrict) {
-          const fileNameToVerify = relative(p.pkg, p.file)
-          if (fileNameToVerify) {
-            const fileToVerify = join(pkgDir, fileNameToVerify)
-            if (existsSync(fileToVerify)) {
-              resolutions.set(p.pkg, fileToVerify)
-            } else {
-              return missingPackages.push(p)
-            }
+      resolutions.set(join(p.pkg, 'package.json'), pkgPath)
+
+      if (p.exportsRestrict) {
+        const fileNameToVerify = relative(p.pkg, p.file)
+        if (fileNameToVerify) {
+          const fileToVerify = join(pkgDir, fileNameToVerify)
+          if (existsSync(fileToVerify)) {
+            resolutions.set(p.pkg, fileToVerify)
           } else {
-            resolutions.set(p.pkg, pkgPath)
+            missingPackages.push(p)
+            continue
           }
         } else {
-          resolutions.set(p.pkg, resolveFrom(baseDir, p.file))
+          resolutions.set(p.pkg, pkgPath)
         }
-      } catch (_) {
-        return missingPackages.push(p)
+      } else {
+        resolutions.set(p.pkg, resolveFrom(baseDir, p.file))
       }
-    })
-  )
+    } catch (_) {
+      missingPackages.push(p)
+      continue
+    }
+  }
 
   return {
     resolved: resolutions,

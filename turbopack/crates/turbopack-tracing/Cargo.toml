@@ -1,0 +1,45 @@
+[package]
+name = "turbopack-tracing"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[lib]
+bench = false
+
+[features]
+test_persistent_cache = []
+bench_against_node_nft = []
+
+[lints]
+workspace = true
+
+[dependencies]
+turbopack = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-malloc = { workspace = true, default-features = false }
+turbo-tasks-backend = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-resolve = { workspace = true }
+
+criterion = { workspace = true, features = ["async_tokio"] }
+difference = "2.0"
+rstest = { workspace = true }
+rstest_reuse = "0.5.0"
+tokio = { workspace = true }
+
+
+[[bench]]
+name = "mod"
+harness = false

@@ -16,6 +16,7 @@ use turbopack_core::issue::{
 };
 
 use crate::{
+    mode::NextMode,
     next_app::{
         AppPage, AppPath, PageSegment, PageType,
         metadata::{
@@ -268,10 +269,10 @@ async fn get_directory_tree(
     dir: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<DirectoryTree>> {
-    let span = {
-        let dir = dir.value_to_string().await?.to_string();
-        tracing::info_span!("read app directory tree", name = dir)
-    };
+    let span = tracing::info_span!(
+        "read app directory tree",
+        name = display(dir.value_to_string().await?)
+    );
     get_directory_tree_internal(dir, page_extensions)
         .instrument(span)
         .await
@@ -753,12 +754,14 @@ pub fn get_entrypoints(
     app_dir: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
     is_global_not_found_enabled: Vc<bool>,
+    next_mode: Vc<NextMode>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints(
         app_dir.clone(),
         get_directory_tree(app_dir.clone(), page_extensions),
         get_global_metadata(app_dir, page_extensions),
         is_global_not_found_enabled,
+        next_mode,
         Default::default(),
         Default::default(),
     )
@@ -786,6 +789,7 @@ fn directory_tree_to_entrypoints(
     directory_tree: Vc<DirectoryTree>,
     global_metadata: Vc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
+    next_mode: Vc<NextMode>,
     root_layouts: Vc<FileSystemPathVec>,
     root_params: Vc<RootParamVecOption>,
 ) -> Vc<Entrypoints> {
@@ -793,6 +797,7 @@ fn directory_tree_to_entrypoints(
         app_dir,
         global_metadata,
         is_global_not_found_enabled,
+        next_mode,
         rcstr!(""),
         directory_tree,
         AppPage::new(),
@@ -835,6 +840,92 @@ impl Issue for DuplicateParallelRouteIssue {
     }
 }
 
+#[turbo_tasks::value]
+struct MissingDefaultParallelRouteIssue {
+    app_dir: FileSystemPath,
+    app_page: AppPage,
+    slot_name: RcStr,
+}
+
+#[turbo_tasks::function]
+fn missing_default_parallel_route_issue(
+    app_dir: FileSystemPath,
+    app_page: AppPage,
+    slot_name: RcStr,
+) -> Vc<MissingDefaultParallelRouteIssue> {
+    MissingDefaultParallelRouteIssue {
+        app_dir,
+        app_page,
+        slot_name,
+    }
+    .cell()
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for MissingDefaultParallelRouteIssue {
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(self
+            .app_dir
+            .join(&self.app_page.to_string())?
+            .join(&format!("@{}", self.slot_name))?
+            .cell())
+    }
+
+    #[turbo_tasks::function]
+    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
+        IssueStage::AppStructure.cell()
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    #[turbo_tasks::function]
+    async fn title(&self) -> Vc<StyledString> {
+        StyledString::Text(
+            format!(
+                "Missing required default.js file for parallel route at {}/@{}",
+                self.app_page, self.slot_name
+            )
+            .into(),
+        )
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Stack(vec![
+                StyledString::Text(
+                    format!(
+                        "The parallel route slot \"@{}\" is missing a default.js file. When using \
+                         parallel routes, each slot must have a default.js file to serve as a \
+                         fallback.",
+                        self.slot_name
+                    )
+                    .into(),
+                ),
+                StyledString::Text(
+                    format!(
+                        "Create a default.js file at: {}/@{}/default.js",
+                        self.app_page, self.slot_name
+                    )
+                    .into(),
+                ),
+            ])
+            .resolved_cell(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn documentation_link(&self) -> Vc<RcStr> {
+        Vc::cell(rcstr!(
+            "https://nextjs.org/docs/messages/slot-missing-default"
+        ))
+    }
+}
+
 fn page_path_except_parallel(loader_tree: &AppPageLoaderTree) -> Option<AppPage> {
     if loader_tree.page.iter().any(|v| {
         matches!(
@@ -856,6 +947,32 @@ fn page_path_except_parallel(loader_tree: &AppPageLoaderTree) -> Option<AppPage>
     }
 
     None
+}
+
+/// Checks if a directory tree has child routes (non-parallel, non-group routes).
+/// Leaf segments don't need default.js because there are no child routes
+/// that could cause the parallel slot to unmatch.
+fn has_child_routes(directory_tree: &PlainDirectoryTree) -> bool {
+    for (name, subdirectory) in &directory_tree.subdirectories {
+        // Skip parallel routes (start with '@')
+        if is_parallel_route(name) {
+            continue;
+        }
+
+        // Skip route groups, but check if they have pages inside
+        if is_group_route(name) {
+            // Recursively check if the group has child routes
+            if has_child_routes(subdirectory) {
+                return true;
+            }
+            continue;
+        }
+
+        // If we get here, it's a regular route segment (child route)
+        return true;
+    }
+
+    false
 }
 
 async fn check_duplicate(
@@ -923,21 +1040,53 @@ async fn directory_tree_to_loader_tree(
 ///   set.
 /// * `file_path` - The file path to the default page if neither the current module nor the parent
 ///   module is set.
+/// * `is_first_layer_group_route` - If true, the module will be overridden with the parent module
+///   if it is not set.
 async fn check_and_update_module_references(
     app_dir: FileSystemPath,
     module: &mut Option<FileSystemPath>,
     parent_module: &mut Option<FileSystemPath>,
     file_path: &str,
+    is_first_layer_group_route: bool,
 ) -> Result<()> {
     match (module.as_mut(), parent_module.as_mut()) {
+        // If the module is set, update the parent module to the same value
         (Some(module), _) => *parent_module = Some(module.clone()),
-        (None, Some(parent_module)) => *module = Some(parent_module.clone()),
+        // If we are in a first layer group route and we have a parent module, we want to override
+        // a nonexistent module with the parent module
+        (None, Some(parent_module)) if is_first_layer_group_route => {
+            *module = Some(parent_module.clone())
+        }
+        // If we are not in a first layer group route, and the module is not set, and the parent
+        // module is set, we do nothing
+        (None, Some(_)) => {}
+        // If the module is not set, and the parent module is not set, we override with the default
+        // page. This can only happen in the root directory because after this the parent module
+        // will always be set.
         (None, None) => {
-            let default_page = get_next_package(app_dir.clone()).await?.join(file_path)?;
-
+            let default_page = get_next_package(app_dir).await?.join(file_path)?;
             *module = Some(default_page.clone());
             *parent_module = Some(default_page);
         }
+    }
+
+    Ok(())
+}
+
+/// Checks if the current directory is the root directory and if the module is not set.
+/// If the module is not set, it will be set to the default page.
+///
+/// # Arguments
+/// * `app_dir` - The application directory.
+/// * `module` - The module to check and update if it is not set.
+/// * `file_path` - The file path to the default page if the module is not set.
+async fn check_and_update_global_module_references(
+    app_dir: FileSystemPath,
+    module: &mut Option<FileSystemPath>,
+    file_path: &str,
+) -> Result<()> {
+    if module.is_none() {
+        *module = Some(get_next_package(app_dir).await?.join(file_path)?);
     }
 
     Ok(())
@@ -967,16 +1116,19 @@ async fn directory_tree_to_loader_tree_internal(
 
     // the root directory in the app dir.
     let is_root_directory = app_page.is_root();
-    // an alternative root layout (in a route group which affects the page, but not
-    // the path).
-    let is_root_layout = app_path.is_root() && modules.layout.is_some();
 
-    if is_root_directory || is_root_layout {
+    // If the first layer is a group route, we treat it as root layer
+    let is_first_layer_group_route = app_page.is_first_layer_group_route();
+
+    // Handle the non-global modules that should always be overridden for top level groups or set to
+    // the default page if they are not set.
+    if is_root_directory || is_first_layer_group_route {
         check_and_update_module_references(
             app_dir.clone(),
             &mut modules.not_found,
             &mut parent_modules.not_found,
             "dist/client/components/builtin/not-found.js",
+            is_first_layer_group_route,
         )
         .await?;
 
@@ -985,6 +1137,7 @@ async fn directory_tree_to_loader_tree_internal(
             &mut modules.forbidden,
             &mut parent_modules.forbidden,
             "dist/client/components/builtin/forbidden.js",
+            is_first_layer_group_route,
         )
         .await?;
 
@@ -993,13 +1146,15 @@ async fn directory_tree_to_loader_tree_internal(
             &mut modules.unauthorized,
             &mut parent_modules.unauthorized,
             "dist/client/components/builtin/unauthorized.js",
+            is_first_layer_group_route,
         )
         .await?;
+    }
 
-        check_and_update_module_references(
+    if is_root_directory {
+        check_and_update_global_module_references(
             app_dir.clone(),
             &mut modules.global_error,
-            &mut parent_modules.global_error,
             "dist/client/components/builtin/global-error.js",
         )
         .await?;
@@ -1016,7 +1171,7 @@ async fn directory_tree_to_loader_tree_internal(
     let current_level_is_parallel_route = is_parallel_route(&directory_name);
 
     if current_level_is_parallel_route {
-        tree.segment = rcstr!("children");
+        tree.segment = rcstr!("(slot)");
     }
 
     if let Some(page) = (app_path == for_app_path || app_path.is_catchall())
@@ -1037,10 +1192,6 @@ async fn directory_tree_to_loader_tree_internal(
                 global_metadata: global_metadata.to_resolved().await?,
             },
         );
-
-        if current_level_is_parallel_route {
-            tree.segment = rcstr!("page$");
-        }
     }
 
     let mut duplicate = FxHashMap::default();
@@ -1075,6 +1226,55 @@ async fn directory_tree_to_loader_tree_internal(
 
         if let Some(subtree) = subtree {
             if let Some(key) = parallel_route_key {
+                // Validate that parallel routes (except "children") have a default.js file.
+                // This validation matches the webpack loader's logic but is implemented
+                // differently due to Turbopack's single-pass recursive processing.
+
+                // Check if we're inside a catch-all route (i.e., the parallel route is a child
+                // of a catch-all segment). Only skip validation if the slot is UNDER a catch-all.
+                // For example:
+                //   /[...catchAll]/@slot - is_inside_catchall = true (skip validation) ✓
+                //   /@slot/[...catchAll] - is_inside_catchall = false (require default) ✓
+                // The catch-all provides fallback behavior, so default.js is not required.
+                let is_inside_catchall = app_page.is_catchall();
+
+                // Check if this is a leaf segment (no child routes).
+                // Leaf segments don't need default.js because there are no child routes
+                // that could cause the parallel slot to unmatch. For example:
+                //   /repo-overview/@slot/page with no child routes - is_leaf_segment = true (skip
+                // validation) ✓   /repo-overview/@slot/page with
+                // /repo-overview/child/page - is_leaf_segment = false (require default) ✓
+                // This also handles route groups correctly by filtering them out.
+                let is_leaf_segment = !has_child_routes(directory_tree);
+
+                // Turbopack-specific: Check if the parallel slot has matching child routes.
+                // In webpack, this is checked implicitly via the two-phase processing:
+                // slots with content are processed first and skip validation in the second phase.
+                // In Turbopack's single-pass approach, we check directly if the slot has child
+                // routes. If the slot has child routes that match the parent's
+                // child routes, it can render content for those routes and doesn't
+                // need a default. For example:
+                //   /parent/@slot/page + /parent/@slot/child + /parent/child - slot_has_children =
+                // true (skip validation) ✓   /parent/@slot/page + /parent/child (no
+                // @slot/child) - slot_has_children = false (require default) ✓
+                let slot_has_children = has_child_routes(subdirectory);
+
+                if key != "children"
+                    && subdirectory.modules.default.is_none()
+                    && !is_inside_catchall
+                    && !is_leaf_segment
+                    && !slot_has_children
+                {
+                    missing_default_parallel_route_issue(
+                        app_dir.clone(),
+                        app_page.clone(),
+                        key.into(),
+                    )
+                    .to_resolved()
+                    .await?
+                    .emit();
+                }
+
                 tree.parallel_routes.insert(key.into(), subtree);
                 continue;
             }
@@ -1134,10 +1334,37 @@ async fn directory_tree_to_loader_tree_internal(
                 None
             };
 
+            let is_inside_catchall = app_page.is_catchall();
+
+            // Check if this is a leaf segment (no child routes).
+            let is_leaf_segment = !has_child_routes(directory_tree);
+
+            // Only emit the issue if this is not the children slot and there's no default
+            // component. The children slot is implicit and doesn't require a default.js
+            // file. Also skip validation if the slot is UNDER a catch-all route or if
+            // this is a leaf segment (no child routes).
+            if default.is_none() && key != "children" && !is_inside_catchall && !is_leaf_segment {
+                missing_default_parallel_route_issue(
+                    app_dir.clone(),
+                    app_page.clone(),
+                    key.clone(),
+                )
+                .to_resolved()
+                .await?
+                .emit();
+            }
+
             tree.parallel_routes.insert(
-                key,
-                default_route_tree(app_dir.clone(), global_metadata, app_page.clone(), default)
-                    .await?,
+                key.clone(),
+                default_route_tree(
+                    app_dir.clone(),
+                    global_metadata,
+                    app_page.clone(),
+                    default,
+                    key.clone(),
+                    for_app_path.clone(),
+                )
+                .await?,
             );
         }
     }
@@ -1147,8 +1374,10 @@ async fn directory_tree_to_loader_tree_internal(
             tree = default_route_tree(
                 app_dir.clone(),
                 global_metadata,
-                app_page,
+                app_page.clone(),
                 modules.default.clone(),
+                rcstr!("children"),
+                for_app_path.clone(),
             )
             .await?;
         } else {
@@ -1160,8 +1389,10 @@ async fn directory_tree_to_loader_tree_internal(
             default_route_tree(
                 app_dir.clone(),
                 global_metadata,
-                app_page,
+                app_page.clone(),
                 modules.default.clone(),
+                rcstr!("children"),
+                for_app_path.clone(),
             )
             .await?,
         );
@@ -1183,6 +1414,8 @@ async fn default_route_tree(
     global_metadata: Vc<GlobalMetadata>,
     app_page: AppPage,
     default_component: Option<FileSystemPath>,
+    slot_name: RcStr,
+    for_app_path: AppPath,
 ) -> Result<AppPageLoaderTree> {
     Ok(AppPageLoaderTree {
         page: app_page.clone(),
@@ -1194,13 +1427,16 @@ async fn default_route_tree(
                 ..Default::default()
             }
         } else {
-            // default fallback component
+            let contains_interception = for_app_path.contains_interception();
+
+            let default_file = if contains_interception && slot_name == "children" {
+                "dist/client/components/builtin/default-null.js"
+            } else {
+                "dist/client/components/builtin/default.js"
+            };
+
             AppDirModules {
-                default: Some(
-                    get_next_package(app_dir)
-                        .await?
-                        .join("dist/client/components/builtin/default.js")?,
-                ),
+                default: Some(get_next_package(app_dir).await?.join(default_file)?),
                 ..Default::default()
             }
         },
@@ -1213,6 +1449,7 @@ async fn directory_tree_to_entrypoints_internal(
     app_dir: FileSystemPath,
     global_metadata: ResolvedVc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
+    next_mode: Vc<NextMode>,
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
@@ -1224,6 +1461,7 @@ async fn directory_tree_to_entrypoints_internal(
         app_dir,
         global_metadata,
         is_global_not_found_enabled,
+        next_mode,
         directory_name,
         directory_tree,
         app_page,
@@ -1238,6 +1476,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     app_dir: FileSystemPath,
     global_metadata: ResolvedVc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
+    next_mode: Vc<NextMode>,
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
@@ -1420,16 +1659,13 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                             parallel_routes: FxIndexMap::default(),
                             modules: if use_global_not_found {
                                 // if global-not-found.js is present:
-                                // we use it for the page and no layout, since layout is included in global-not-found.js;
+                                // leaf module only keeps page pointing to empty-stub
                                 AppDirModules {
-                                    layout: None,
-                                    page: match modules.global_not_found {
-                                        Some(v) => Some(v),
-                                        None =>  Some(get_next_package(app_dir.clone())
-                                            .await?
-                                            .join("dist/client/components/builtin/global-not-found.js")?,
-                                        ),
-                                    },
+                                    // page is built-in/empty-stub
+                                    page: Some(get_next_package(app_dir.clone())
+                                        .await?
+                                        .join("dist/client/components/builtin/empty-stub.js")?,
+                                    ),
                                     ..Default::default()
                                 }
                             } else {
@@ -1461,7 +1697,14 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 // Otherwise, we need to compose it with the root layout to compose with
                 // not-found.js boundary.
                 layout: if use_global_not_found {
-                    None
+                    match modules.global_not_found {
+                        Some(v) => Some(v),
+                        None => Some(
+                            get_next_package(app_dir.clone())
+                                .await?
+                                .join("dist/client/components/builtin/global-not-found.js")?,
+                        ),
+                    }
                 } else {
                     modules.layout
                 },
@@ -1469,7 +1712,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             },
             global_metadata,
         }
-            .resolved_cell();
+        .resolved_cell();
 
         {
             let app_page = app_page
@@ -1481,6 +1724,46 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 &mut result,
                 app_page,
                 not_found_tree,
+                root_params,
+            );
+        }
+
+        // Create production global error page only in build mode
+        // This aligns with webpack: default Pages entries (including /_error) are only added when
+        // the build isn't app-only. If the build is app-only (no user pages/api), we should still
+        // expose the app global error so runtime errors render, but we shouldn't emit it otherwise.
+        if matches!(*next_mode.await?, NextMode::Build) {
+            // Use built-in global-error.js to create a `_global-error/page` route.
+            let global_error_tree = AppPageLoaderTree {
+                page: app_page.clone(),
+                segment: directory_name.clone(),
+                parallel_routes: fxindexmap! {
+                    rcstr!("children") => AppPageLoaderTree {
+                        page: app_page.clone(),
+                        segment: rcstr!("__PAGE__"),
+                        parallel_routes: FxIndexMap::default(),
+                        modules: AppDirModules {
+                            page: Some(get_next_package(app_dir.clone())
+                                .await?
+                                .join("dist/client/components/builtin/app-error.js")?),
+                            ..Default::default()
+                        },
+                        global_metadata,
+                    }
+                },
+                modules: AppDirModules::default(),
+                global_metadata,
+            }
+            .resolved_cell();
+
+            let app_global_error_page = app_page
+                .clone_push_str("_global-error")?
+                .complete(PageType::Page)?;
+            add_app_page(
+                app_dir.clone(),
+                &mut result,
+                app_global_error_page,
+                global_error_tree,
                 root_params,
             );
         }
@@ -1508,6 +1791,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     app_dir.clone(),
                     *global_metadata,
                     is_global_not_found_enabled,
+                    next_mode,
                     subdir_name.clone(),
                     *subdirectory,
                     child_app_page.clone(),

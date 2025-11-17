@@ -39,7 +39,7 @@ async function installDependencies(cwd, tmpDir) {
  * @param {object | null} [param0.resolutions]
  * @param { ((ctx: { dependencies: { [key: string]: string } }) => string) | string | null} [param0.installCommand]
  * @param {object} [param0.packageJson]
- * @param {string} [param0.dirSuffix]
+ * @param {string} [param0.subDir]
  * @param {boolean} [param0.keepRepoDir]
  * @param {(span: import('@next/telemetry').Span, installDir: string) => Promise<void>} param0.beforeInstall
  * @returns {Promise<{installDir: string, pkgPaths: Map<string, string>, tmpRepoDir: string | undefined}>}
@@ -50,7 +50,7 @@ async function createNextInstall({
   resolutions = null,
   installCommand = null,
   packageJson = {},
-  dirSuffix = '',
+  subDir = '',
   keepRepoDir = false,
   beforeInstall,
 }) {
@@ -62,7 +62,8 @@ async function createNextInstall({
       const origRepoDir = path.join(__dirname, '../../')
       const installDir = path.join(
         tmpDir,
-        `next-install-${randomBytes(32).toString('hex')}${dirSuffix}`
+        `next-install-${randomBytes(32).toString('hex')}`,
+        subDir
       )
       let tmpRepoDir
       require('console').log('Creating next instance in:')
@@ -77,7 +78,8 @@ async function createNextInstall({
       } else {
         tmpRepoDir = path.join(
           tmpDir,
-          `next-repo-${randomBytes(32).toString('hex')}${dirSuffix}`
+          `next-repo-${randomBytes(32).toString('hex')}`,
+          subDir
         )
         require('console').log('Creating temp repo dir', tmpRepoDir)
 

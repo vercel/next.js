@@ -3,7 +3,7 @@ declare const __turbopack_external_require__: {
 } & ((id: string, thunk: () => any, esm?: boolean) => any)
 
 import type { Ipc } from '../ipc/evaluate'
-import { dirname, resolve as pathResolve } from 'path'
+import { dirname, resolve as pathResolve, relative } from 'path'
 import {
   StackFrame,
   parse as parseStackTrace,
@@ -15,6 +15,8 @@ import {
   toPath,
   type TransformIpc,
 } from './transforms'
+import fs from 'fs'
+import path from 'path'
 
 export type IpcInfoMessage =
   | {
@@ -185,6 +187,24 @@ const transform = (
               ? entry.options
               : {}
           },
+          fs: {
+            readFile(p: string, optionsOrCb: any, maybeCb: any) {
+              ipc
+                .sendRequest({
+                  type: 'trackFileRead',
+                  file: relative(contextDir, pathResolve(p)),
+                })
+                .then(
+                  () => {
+                    fs.readFile(p, optionsOrCb, maybeCb)
+                  },
+                  (err) => {
+                    ipc.sendError(err)
+                    // sendError is going to stop the process, no need to call callback
+                  }
+                )
+            },
+          },
           getResolve: (options: ResolveOptions) => {
             const rustOptions = {
               aliasFields: undefined as undefined | string[],
@@ -282,6 +302,22 @@ const transform = (
               request: string,
               callback?: (err?: Error, result?: string) => void
             ) => {
+              if (path.isAbsolute(request)) {
+                // Relativize absolute requests. Turbopack disallow them in JS code, but here it's
+                // generated programatically and there is a smaller problem of
+                // non-cacheable/non-portable builds.
+                request = path.relative(lookupPath, request)
+
+                // On Windows, the path might be still absolute if it's on a different drive. Just
+                // let the resolver throw the error in that case.
+                if (
+                  !path.isAbsolute(request) &&
+                  request.split(path.sep)[0] !== '..'
+                ) {
+                  request = './' + request
+                }
+              }
+
               const promise = ipc
                 .sendRequest({
                   type: 'resolve',
@@ -428,7 +464,7 @@ const transform = (
 
         loaders: loadersWithOptions.map((loader) => ({
           loader: __turbopack_external_require__.resolve(loader.loader, {
-            paths: [resourceDir],
+            paths: [contextDir, resourceDir],
           }),
           options: loader.options,
         })),

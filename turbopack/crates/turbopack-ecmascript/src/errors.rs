@@ -1,4 +1,4 @@
-pub mod failed_to_analyse {
+pub mod failed_to_analyze {
     pub mod ecmascript {
         pub const DYNAMIC_IMPORT: &str = "TP1001";
         pub const REQUIRE: &str = "TP1002";

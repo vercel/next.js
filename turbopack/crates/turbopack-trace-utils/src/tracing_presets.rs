@@ -64,7 +64,6 @@ pub static TRACING_TURBO_TASKS_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
         &[
             "turbo_tasks=trace",
             "turbo_tasks_auto_hash_map=trace",
-            "turbo_tasks_build=trace",
             "turbo_tasks_bytes=trace",
             "turbo_tasks_env=trace",
             "turbo_tasks_fetch=trace",

@@ -384,7 +384,7 @@ export async function getOriginalStackFrames({
   isServer: boolean
   isEdgeServer: boolean
   isAppDirectory: boolean
-  frames: StackFrame[]
+  frames: readonly StackFrame[]
   clientStats: () => webpack.Stats | null
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null

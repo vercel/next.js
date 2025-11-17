@@ -28,6 +28,8 @@
 /// of regexes and those are mostly preserved.
 use anyhow::Error;
 
+use crate::glob::GlobOptions;
+
 /// The parsed tokens of a glob pattern.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[repr(transparent)]
@@ -72,8 +74,8 @@ impl Tokens {
     /// Convert this pattern to a string that is guaranteed to be a valid
     /// regular expression and will represent the matching semantics of this
     /// glob pattern and the options given.
-    fn to_regex(&self) -> String {
-        self.to_regex_impl(Self::tokens_to_regex)
+    fn to_regex(&self, opts: GlobOptions) -> String {
+        self.to_regex_impl(Self::tokens_to_regex, opts)
     }
 
     /// Convert this pattern to a string that is guaranteed to be a valid
@@ -84,24 +86,34 @@ impl Tokens {
     /// The basic strategy is to add 'early exits' to the regex at `/` boundaries.
     /// e.g. `foo/bar/baz` -> `foo(?:/bar(?:/baz(?:/.*)?)?)?`
     /// that way 'foo' will match but foo/baz will not
-    fn to_directory_match_regex(&self) -> String {
-        self.to_regex_impl(Self::tokens_to_directory_match_regex)
+    fn to_directory_match_regex(&self, opts: GlobOptions) -> String {
+        self.to_regex_impl(Self::tokens_to_directory_match_regex, opts)
     }
 
-    fn to_regex_impl(&self, tokens_to_regex_fn: fn(&[Token], &mut String)) -> String {
+    fn to_regex_impl(
+        &self,
+        tokens_to_regex_fn: fn(&[Token], &mut String),
+        opts: GlobOptions,
+    ) -> String {
         let mut re = String::new();
-        // Our patterns are always anchored to the beginning and end of the string and we care not
-        // for unicode correctness.  Paths do not require this and if the caller does they can
-        // simply take care to pass us valid utf8 themselves.
-        re.push_str("(?-u)^");
+        // We don't care care about for unicode correctness.  Paths do not require this and if the
+        // caller does they can simply take care to pass us valid utf8 themselves.
+        re.push_str("(?-u)");
+
+        // Enable anchored matches unless
+        if !opts.contains {
+            re.push('^');
+        }
         // Special case. If the entire glob is just `**`, then it should match
         // everything.
         if self.len() == 1 && self[0] == Token::RecursivePrefix {
-            re.push_str(".*$");
-            return re;
+            re.push_str(".*");
+        } else {
+            tokens_to_regex_fn(self, &mut re);
         }
-        tokens_to_regex_fn(self, &mut re);
-        re.push('$');
+        if !opts.contains {
+            re.push('$');
+        }
         re
     }
 
@@ -253,10 +265,13 @@ impl Tokens {
 
 fn build_alternates(re: &mut String, patterns: &Vec<Tokens>, branch_fn: fn(&[Token], &mut String)) {
     let mut parts = Vec::with_capacity(patterns.len());
+    let mut has_empty_part = false;
     for pat in patterns {
         let mut altre = String::new();
         branch_fn(pat, &mut altre);
-        if !altre.is_empty() {
+        if altre.is_empty() {
+            has_empty_part = true;
+        } else {
             parts.push(altre);
         }
     }
@@ -265,6 +280,9 @@ fn build_alternates(re: &mut String, patterns: &Vec<Tokens>, branch_fn: fn(&[Tok
     // resulting alternation '()' would be an error.
     if !parts.is_empty() {
         re.push_str("(?:");
+        if has_empty_part {
+            re.push('|');
+        }
         re.push_str(&parts.join("|"));
         re.push(')');
     }
@@ -334,9 +352,9 @@ impl ErrorKind {
 // The directory match regex is guaranteed to be valid and will match the same
 // semantics as the glob when used to check if a directory path might contain files that match
 // this glob. This means we care about matching prefixes that are bounded by `/` characters.
-pub(crate) fn parse(glob: &str) -> Result<(String, String), Error> {
+pub(crate) fn parse(glob: &str, opts: GlobOptions) -> Result<(String, String), Error> {
     let tokens = Parser::new(glob).parse()?;
-    Ok((tokens.to_regex(), tokens.to_directory_match_regex()))
+    Ok((tokens.to_regex(opts), tokens.to_directory_match_regex(opts)))
 }
 
 struct Parser<'a> {
@@ -618,6 +636,7 @@ mod tests {
     use rstest::*;
 
     use super::parse;
+    use crate::glob::GlobOptions;
 
     #[rstest]
     #[case::literal("dir/file.js", "dir/file\\.js", "dir")]
@@ -638,7 +657,7 @@ mod tests {
         #[case] glob_regex: &str,
         #[case] directory_match_regex: &str,
     ) {
-        let (glob_re, directory_match_re) = parse(glob).unwrap();
+        let (glob_re, directory_match_re) = parse(glob, GlobOptions::default()).unwrap();
         // All our regexes come with a fixed prefix and suffix, just assert and drop them
         fn strip_overhead(s: String) -> String {
             assert!(s.starts_with("(?-u)^"));

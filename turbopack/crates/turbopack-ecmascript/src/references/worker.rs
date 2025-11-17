@@ -23,6 +23,7 @@ use crate::{
     create_visitor,
     references::AstPath,
     runtime_functions::TURBOPACK_REQUIRE,
+    utils::module_id_to_lit,
     worker_chunk::module::WorkerLoaderModule,
 };
 
@@ -124,7 +125,9 @@ impl IntoCodeGenReference for WorkerAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+)]
 pub struct WorkerAssetReferenceCodeGen {
     reference: ResolvedVc<WorkerAssetReference>,
     path: AstPath,
@@ -148,7 +151,7 @@ impl WorkerAssetReferenceCodeGen {
                 if let Some(args) = args {
                     match args.first_mut() {
                         Some(ExprOrSpread { spread: None, expr }) => {
-                            let item_id = Expr::Lit(Lit::Str(item_id.to_string().into()));
+                            let item_id = module_id_to_lit(&item_id);
                             *expr = quote_expr!(
                                 "$turbopack_require($item_id)",
                                 turbopack_require: Expr = TURBOPACK_REQUIRE.into(),

@@ -4,23 +4,23 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
-use turbo_tasks_testing::{Registration, register, run_without_cache_check};
+use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
 
 static REGISTRATION: Registration = register!();
 
 const EXPECTED_TRACE: &str = "\
-Adder::add_method (read cell of type turbo-tasks@TODO::::primitives::u64)
+Adder::add_method (read cell of type turbo-tasks@turbo_tasks::primitives::u64)
   self:
-    Adder::new (read cell of type turbo-tasks-backend@TODO::::Adder)
+    Adder::new (read cell of type turbo-tasks-backend@trace_transient::Adder)
       args:
-        unknown transient task (read cell of type turbo-tasks@TODO::::primitives::unit)
+        unknown transient task (read cell of type turbo-tasks@turbo_tasks::primitives::())
   args:
-    unknown transient task (read cell of type turbo-tasks@TODO::::primitives::u16)
-    unknown transient task (read cell of type turbo-tasks@TODO::::primitives::u32)";
+    unknown transient task (read cell of type turbo-tasks@turbo_tasks::primitives::u16)
+    unknown transient task (read cell of type turbo-tasks@turbo_tasks::primitives::u32)";
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trace_transient() {
-    let result = run_without_cache_check(&REGISTRATION, async {
+    let result = run_once_without_cache_check(&REGISTRATION, async {
         read_incorrect_task_input_operation(IncorrectTaskInput(
             Adder::new(Vc::cell(()))
                 .add_method(Vc::cell(2), Vc::cell(3))

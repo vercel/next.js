@@ -19,7 +19,7 @@ use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
+use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath, glob::Glob};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -30,7 +30,9 @@ use turbopack_core::{
     issue::IssueSource,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
+    reference_type::CommonJsReferenceSubType,
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
     source::Source,
 };
@@ -196,9 +198,15 @@ impl RequireContextMap {
             let request = Request::parse(origin_relative.clone().into())
                 .to_resolved()
                 .await?;
-            let result = cjs_resolve(origin, *request, issue_source, is_optional)
-                .to_resolved()
-                .await?;
+            let result = cjs_resolve(
+                origin,
+                *request,
+                CommonJsReferenceSubType::Undefined,
+                issue_source,
+                is_optional,
+            )
+            .to_resolved()
+            .await?;
 
             map.insert(
                 context_relative.clone(),
@@ -309,7 +317,9 @@ impl IntoCodeGenReference for RequireContextAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+)]
 pub struct RequireContextAssetReferenceCodeGen {
     path: AstPath,
     reference: ResolvedVc<RequireContextAssetReference>,
@@ -324,7 +334,7 @@ impl RequireContextAssetReferenceCodeGen {
             .reference
             .await?
             .inner
-            .chunk_item_id(Vc::upcast(chunking_context))
+            .chunk_item_id(chunking_context)
             .await?;
 
         let mut visitors = Vec::new();
@@ -411,6 +421,14 @@ impl Module for RequireContextAsset {
                 .collect(),
         ))
     }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(
+        self: Vc<Self>,
+        _side_effect_free_packages: Vc<Glob>,
+    ) -> Vc<bool> {
+        Vc::cell(true)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -463,6 +481,9 @@ pub struct RequireContextChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for RequireContextChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for RequireContextChunkItem {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
@@ -478,7 +499,7 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
             let pm = PatternMapping::resolve_request(
                 *entry.request,
                 *self.origin,
-                *ResolvedVc::upcast(self.chunking_context),
+                *self.chunking_context,
                 *entry.result,
                 ResolveType::ChunkItem,
             )
@@ -556,7 +577,7 @@ impl ChunkItem for RequireContextChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]

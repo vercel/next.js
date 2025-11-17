@@ -1,4 +1,4 @@
-import { revalidatePath, revalidateTag, unstable_cacheTag } from 'next/cache'
+import { revalidatePath, cacheTag, updateTag } from 'next/cache'
 import { Form } from './form'
 import { connection } from 'next/server'
 
@@ -10,7 +10,7 @@ async function fetchCachedValue() {
 
 async function getCachedValue() {
   'use cache'
-  unstable_cacheTag('revalidate-and-use')
+  cacheTag('revalidate-and-use')
   return Math.random()
 }
 
@@ -26,7 +26,7 @@ export default async function Page() {
         const initialCachedValue = await getCachedValue()
 
         if (type === 'tag') {
-          revalidateTag('revalidate-and-use')
+          updateTag('revalidate-and-use')
         } else {
           revalidatePath('/revalidate-and-use')
         }
