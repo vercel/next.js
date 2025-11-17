@@ -98,6 +98,7 @@ impl ChunkableModuleReference for AmdDefineAssetReference {}
     TraceRawVcs,
     Clone,
     NonLocalValue,
+    Hash,
 )]
 pub enum AmdDefineDependencyElement {
     Request {
@@ -120,6 +121,7 @@ pub enum AmdDefineDependencyElement {
     Copy,
     Clone,
     NonLocalValue,
+    Hash,
 )]
 pub enum AmdDefineFactoryType {
     Unknown,
@@ -127,7 +129,9 @@ pub enum AmdDefineFactoryType {
     Value,
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+)]
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
