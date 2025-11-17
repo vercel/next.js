@@ -924,5 +924,6 @@
   "923": "%s is being parsed as a normalized route, but it has a route group or parallel route segment.",
   "924": "Invalid interception route: %s",
   "925": "You cannot define a route with the same specificity as an optional catch-all route (\"%s\" and \"/[[...%s]]\").",
-  "926": "Optional route parameters are not yet supported (\"[%s]\") in route \"%s\"."
+  "926": "Optional route parameters are not yet supported (\"[%s]\") in route \"%s\".",
+  "927": "No debug targets found"
 }

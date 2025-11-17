@@ -500,15 +500,17 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .source_map_source_type(options.source_map_source_type);
 
             if options.production_chunking {
-                builder = builder.chunking_config(
-                    Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                    ChunkingConfig {
-                        min_chunk_size: 2_000,
-                        max_chunk_count_per_group: 40,
-                        max_merge_chunk_size: 200_000,
-                        ..Default::default()
-                    },
-                )
+                builder = builder
+                    .chunking_config(
+                        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                        ChunkingConfig {
+                            min_chunk_size: 2_000,
+                            max_chunk_count_per_group: 40,
+                            max_merge_chunk_size: 200_000,
+                            ..Default::default()
+                        },
+                    )
+                    .nested_async_availability(true);
             }
             Vc::upcast(builder.build())
         }

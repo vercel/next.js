@@ -243,6 +243,8 @@ struct TestOptions {
     scope_hoisting: Option<bool>,
     #[serde(default)]
     minify: bool,
+    #[serde(default)]
+    production_chunking: bool,
 }
 
 fn default_tree_shaking_mode() -> Option<TreeShakingMode> {
@@ -256,6 +258,7 @@ impl Default for TestOptions {
             remove_unused_exports: None,
             scope_hoisting: None,
             minify: false,
+            production_chunking: false,
         }
     }
 }
@@ -468,7 +471,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 
     let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false);
 
-    let chunking_context = NodeJsChunkingContext::builder(
+    let mut builder = NodeJsChunkingContext::builder(
         project_root.clone(),
         chunk_root_path.clone(),
         chunk_root_path_in_root_path_offset,
@@ -477,20 +480,6 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         static_root_path,
         env,
         RuntimeType::Development,
-    )
-    .chunking_config(
-        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-        ChunkingConfig {
-            min_chunk_size: 10_000,
-            ..Default::default()
-        },
-    )
-    .chunking_config(
-        Vc::<CssChunkType>::default().to_resolved().await?,
-        ChunkingConfig {
-            max_merge_chunk_size: 100_000,
-            ..Default::default()
-        },
     )
     .module_merging(options.scope_hoisting.unwrap_or(true))
     .minify_type(if options.minify {
@@ -508,8 +497,28 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         )
     } else {
         None
-    })
-    .build();
+    });
+    if options.production_chunking {
+        builder = builder
+            .chunking_config(
+                Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    min_chunk_size: 2_000,
+                    max_chunk_count_per_group: 40,
+                    max_merge_chunk_size: 200_000,
+                    ..Default::default()
+                },
+            )
+            .chunking_config(
+                Vc::<CssChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .nested_async_availability(true);
+    }
+    let chunking_context = builder.build();
 
     let res = evaluate(
         entries,
