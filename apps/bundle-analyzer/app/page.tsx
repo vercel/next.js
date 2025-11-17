@@ -321,8 +321,8 @@ export default function Home() {
                               {specialModuleType ===
                               SpecialModule.POLYFILL_NOMODULE ? (
                                 <>
-                                  . <pre>polyfill-nomodule.js</pre> is only sent
-                                  to legacy browsers.
+                                  . <code>polyfill-nomodule.js</code> is only
+                                  sent to legacy browsers.
                                 </>
                               ) : null}
                             </dd>
