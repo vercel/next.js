@@ -372,37 +372,39 @@ export async function getRealtimeStats() {
 
 ### Nested caching behavior
 
-When components with different cache profiles are nested, Next.js respects the shortest duration among them:
+When you nest components with different `use cache` scopes, the parent cache behavior depends on whether it has an explicit `cacheLife`:
 
 ```tsx filename="app/dashboard/page.tsx"
 import { cacheLife } from 'next/cache'
-import { RealtimeWidget } from './realtime-widget'
+import { Widget } from './widget'
 
 export default async function Dashboard() {
   'use cache'
-  cacheLife('hours') // Dashboard cached for hours
+  cacheLife('hours') // Explicit parent cache lifetime
 
   return (
     <div>
       <h1>Dashboard</h1>
-      <RealtimeWidget />
+      <Widget />
     </div>
   )
 }
 ```
 
-```tsx filename="app/dashboard/realtime-widget.tsx"
+```tsx filename="app/dashboard/widget.tsx"
 import { cacheLife } from 'next/cache'
 
-export async function RealtimeWidget() {
+export async function Widget() {
   'use cache'
-  cacheLife('seconds') // Widget needs fresh data
+  cacheLife('minutes') // Child cache lifetime
 
   const data = await fetchRealtimeData()
   return <div>{data.value}</div>
 }
 ```
 
-In this example, the outer `Dashboard` component specifies the `hours` profile, but it contains `RealtimeWidget` which uses the `seconds` profile. The shortest duration from the nested profiles takes precedence, ensuring the widget gets fresh data while the rest of the dashboard can be cached longer.
+**With explicit parent `cacheLife`**: The `Dashboard` cache uses its own lifetime (hours). When the Dashboard cache hits, it returns the complete cached output including the widget's data. The parent cache extends the child's output lifetime, the widget won't refresh on its own schedule while served from the parent cache.
 
-> **Good to know**: This shortest-duration behavior ensures that no part of your page serves stale data longer than its most frequently updated component requires.
+**Without explicit parent `cacheLife`**: If you **remove** `cacheLife('hours')` from the `Dashboard`, the parent cache adopts the shortest child lifetime. In this case, the `Dashboard` would revalidate every few minutes to match the `widget` timing.
+
+> **Good to know**: It is recommended to specify an explicit `cacheLife` for each `use cache` directive. Relying on implicit lifetimes (where a parent adopts the shortest child lifetime) makes cache behavior harder to understand and maintain, especially as your component tree grows.
