@@ -310,7 +310,7 @@ export class FlightClientEntryPlugin {
     > = []
     const createdSSRDependenciesForEntry: Record<
       string,
-      ReturnType<typeof this.injectClientEntryAndSSRModules>[3][]
+      ReturnType<typeof this.injectClientEntryAndSSRModules>[2][]
     > = {}
 
     const addActionEntryList: Array<ReturnType<typeof this.injectActionEntry>> =
@@ -483,7 +483,7 @@ export class FlightClientEntryPlugin {
           createdSSRDependenciesForEntry[clientEntryToInject.entryName] = []
         }
         createdSSRDependenciesForEntry[clientEntryToInject.entryName].push(
-          injected[3]
+          injected[2]
         )
 
         addClientEntryAndSSRModulesList.push(injected)
@@ -843,7 +843,6 @@ export class FlightClientEntryPlugin {
   }): [
     shouldInvalidate: boolean,
     addSSREntryPromise: Promise<void>,
-    addRSCEntryPromise: Promise<void>,
     ssrDep: ReturnType<typeof webpack.EntryPlugin.createDependency>,
   ] {
     const bundler = getWebpackBundler()
@@ -921,11 +920,6 @@ export class FlightClientEntryPlugin {
       { name: bundlePath }
     )
 
-    const clientComponentRSCEntryDep = bundler.EntryPlugin.createDependency(
-      clientServerLoader,
-      { name: bundlePath }
-    )
-
     return [
       shouldInvalidate,
       // Add the entries to the server compiler for the SSR and RSC layers. The
@@ -934,10 +928,6 @@ export class FlightClientEntryPlugin {
       this.addEntry(compilation, compiler.context, clientComponentSSREntryDep, {
         name: entryName,
         layer: WEBPACK_LAYERS.serverSideRendering,
-      }),
-      this.addEntry(compilation, compiler.context, clientComponentRSCEntryDep, {
-        name: entryName,
-        layer: WEBPACK_LAYERS.reactServerComponents,
       }),
       clientComponentSSREntryDep,
     ]
