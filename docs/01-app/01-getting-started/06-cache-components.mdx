@@ -33,7 +33,7 @@ Cache Components eliminates these tradeoffs by prerendering routes into a **stat
 
 At build time, Next.js renders your route's component tree. As long as components don't access network resources, certain system APIs, or require an incoming request to render, their output is **automatically added to the static shell**. Otherwise, you must choose how to handle them:
 
-- Defer to request time by wrapping components in React's [`<Suspense>`](https://react.dev/reference/react/Suspense), [showing fallback UI](#defer-rendering-to-request-time) until the content is ready, or
+- Defer rendering to request time by wrapping components in React's [`<Suspense>`](https://react.dev/reference/react/Suspense), [showing fallback UI](#defer-rendering-to-request-time) until the content is ready, or
 - Cache the result using the [`use cache`](/docs/app/api-reference/directives/use-cache) directive to [include it in the static shell](#using-use-cache) (if no request data is needed)
 
 Because this happens ahead of time, before a request arrives, we refer to it as prerendering. This generates a static shell consisting of HTML for initial page loads and a serialized [RSC Payload](/docs/app/getting-started/server-and-client-components#on-the-server) for client-side navigation, ensuring the browser receives fully rendered content instantly whether users navigate directly to the URL or transition from another page.
@@ -50,7 +50,7 @@ Next.js requires you to explicitly handle components that can't complete during 
   height="785"
 />
 
-This is how Cache Components implements **Partial Prerendering**. With Cache Components this is the only prerendering strategy. Throughout this document, we refer to it simply as "prerendering".
+This rendering approach is called **Partial Prerendering**, and it's the default behavior with Cache Components. For the rest of this document, we simply refer to it as "prerendering" which can produce a partial or complete output. 
 
 > **🎥 Watch:** Why Partial Prerendering and how it works → [YouTube (10 minutes)](https://www.youtube.com/watch?v=MTcPrTIBkpA).
 
@@ -253,11 +253,11 @@ The [`use cache`](/docs/app/api-reference/directives/use-cache) directive caches
 
 Arguments and any closed-over values from parent scopes automatically become part of the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys), which means different inputs produce separate cache entries. This enables personalized or parameterized cached content.
 
-When [dynamic content](#dynamic-content) doesn't need to be fetched fresh from the source on every access, caching it lets you include the content in the static shell during prerendering, or reuse the result at runtime across multiple requests.
+When [dynamic content](#dynamic-content) doesn't need to be fetched fresh from the source on every request, caching it lets you include the content in the static shell during prerendering, or reuse the result at runtime across multiple requests.
 
 Cached content can be revalidated in two ways: automatically based on the cache lifetime, or on-demand using tags with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) or [`updateTag`](/docs/app/api-reference/functions/updateTag).
 
-> **Good to know**: See [serialization requirements and constraints](/docs/app/api-reference/directives/use-cache#constraints) in the `use cache` API reference for details on what can be cached and how arguments work.
+> **Good to know**: See [serialization requirements and constraints](/docs/app/api-reference/directives/use-cache#constraints) for details on what can be cached and how arguments work.
 
 ### During prerendering
 
