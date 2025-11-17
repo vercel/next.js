@@ -542,7 +542,7 @@ module.exports = {
 >
 > - We still recommend using WebP for most use cases.
 > - AVIF generally takes 50% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
-> - When using multiple formats, the order matters. Next.js will use the first format in the array that the browser supports.
+> - When using multiple formats, Next.js will cache each format separately. This means increased storage requirements compared to using a single format, as both AVIF and WebP versions of images will be stored for different browser support.
 > - If you self-host with a Proxy/CDN in front of Next.js, you must configure the Proxy to forward the `Accept` header.
 
 ## Caching Behavior
