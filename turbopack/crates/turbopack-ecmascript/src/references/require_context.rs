@@ -317,7 +317,9 @@ impl IntoCodeGenReference for RequireContextAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+)]
 pub struct RequireContextAssetReferenceCodeGen {
     path: AstPath,
     reference: ResolvedVc<RequireContextAssetReference>,

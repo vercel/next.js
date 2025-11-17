@@ -35,7 +35,7 @@ use crate::{
     utils::{AstPathRange, unparen},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct EffectsBlock {
     pub effects: Vec<Effect>,
     pub range: AstPathRange,
@@ -47,7 +47,7 @@ impl EffectsBlock {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum ConditionalKind {
     /// The blocks of an `if` statement without an `else` block.
     If { then: Box<EffectsBlock> },
@@ -117,7 +117,7 @@ impl ConditionalKind {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum EffectArg {
     Value(JsValue),
     Closure(JsValue, Box<EffectsBlock>),
@@ -140,7 +140,7 @@ impl EffectArg {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Effect {
     /// Some condition which affects which effects might be executed. If the
     /// condition evaluates to some compile-time constant, we can use that
@@ -2428,14 +2428,16 @@ impl VisitAstPath for Analyzer<'_> {
         self.effects.append(&mut block);
         self.effects.append(&mut handler);
         if let Some(finalizer) = stmt.finalizer.as_ref() {
-            let mut ast_path =
-                ast_path.with_guard(AstParentNodeRef::TryStmt(stmt, TryStmtField::Finalizer));
-            finalizer.visit_with_ast_path(self, &mut ast_path);
+            {
+                let mut ast_path =
+                    ast_path.with_guard(AstParentNodeRef::TryStmt(stmt, TryStmtField::Finalizer));
+                finalizer.visit_with_ast_path(self, &mut ast_path);
+            }
             // If a finally block early returns the parent block does too.
             if self.end_early_return_block() {
                 self.early_return_stack.push(EarlyReturn::Always {
                     prev_effects: take(&mut self.effects),
-                    start_ast_path: as_parent_path(&ast_path),
+                    start_ast_path: as_parent_path(ast_path),
                 });
             }
         };

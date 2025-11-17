@@ -23,7 +23,9 @@ use crate::{
 /// initialize the binding a single time.
 ///
 /// This singleton behavior must be enforced by the caller!
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+)]
 pub struct ExportsInfoBinding {}
 
 impl ExportsInfoBinding {
@@ -89,7 +91,9 @@ impl From<ExportsInfoBinding> for CodeGen {
 ///
 /// There can be many references, and they appear at any nesting in the file. But all references
 /// refer to the same mutable object.
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+)]
 pub struct ExportsInfoRef {
     ast_path: AstPath,
 }
