@@ -1869,6 +1869,13 @@ export async function ncc_source_map08(task, opts) {
     })
     .target('src/compiled/source-map08')
 }
+externals['serve-handler'] = 'next/dist/compiled/serve-handler'
+export async function ncc_serve_handler(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('serve-handler')))
+    .ncc({ packageName: 'serve-handler', externals })
+    .target('src/compiled/serve-handler')
+}
 externals['string-hash'] = 'next/dist/compiled/string-hash'
 export async function ncc_string_hash(task, opts) {
   await task
@@ -2286,6 +2293,7 @@ export async function ncc(task, opts) {
         'ncc_send',
         'ncc_source_map',
         'ncc_source_map08',
+        'ncc_serve_handler',
         'ncc_string_hash',
         'ncc_strip_ansi',
         'ncc_superstruct',

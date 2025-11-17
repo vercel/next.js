@@ -1,6 +1,7 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use tracing::Instrument;
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunkingContextExt,
@@ -45,7 +46,7 @@ impl AsyncLoaderChunkItem {
             let module_or_batch = batches.get_entry(inner_module).await?;
             if let Some(chunkable_module_or_batch) =
                 ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
-                && *chunk_items.get(chunkable_module_or_batch).await?
+                && *chunk_items.get(chunkable_module_or_batch.into()).await?
             {
                 return Ok(OutputAssetsWithReferenced {
                     assets: ResolvedVc::cell(vec![]),
@@ -66,10 +67,18 @@ impl AsyncLoaderChunkItem {
     #[turbo_tasks::function]
     async fn chunks_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
         let this = self.await?;
-        Ok(ChunkData::from_assets(
-            this.chunking_context.output_root().owned().await?,
-            *self.chunk_group().await?.assets,
-        ))
+        let span = tracing::info_span!(
+            "compute async chunks",
+            name = this.module.ident().to_string().await?.as_str()
+        );
+        async move {
+            Ok(ChunkData::from_assets(
+                this.chunking_context.output_root().owned().await?,
+                *self.chunk_group().await?.assets,
+            ))
+        }
+        .instrument(span)
+        .await
     }
 }
 
