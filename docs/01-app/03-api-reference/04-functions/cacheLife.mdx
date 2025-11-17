@@ -408,3 +408,39 @@ export async function Widget() {
 **Without explicit parent `cacheLife`**: If you **remove** `cacheLife('hours')` from the `Dashboard`, the parent cache adopts the shortest child lifetime. In this case, the `Dashboard` would revalidate every few minutes to match the `widget` timing.
 
 > **Good to know**: It is recommended to specify an explicit `cacheLife` for each `use cache` directive. Relying on implicit lifetimes (where a parent adopts the shortest child lifetime) makes cache behavior harder to understand and maintain, especially as your component tree grows.
+
+### Conditional cache lifetimes
+
+You can call `cacheLife` conditionally to set different cache durations based on your data or application logic:
+
+```tsx filename="lib/posts.ts"
+import { cacheLife, cacheTag } from 'next/cache'
+
+async function getPostContent(slug: string) {
+  'use cache'
+
+  const post = await fetchPost(slug)
+
+  // Tag the cache entry for targeted revalidation
+  cacheTag(`post-${slug}`)
+
+  if (!post) {
+    // Content may not be published yet or could be in draft
+    // Cache briefly to reduce database load
+    cacheLife('minutes')
+    return null
+  }
+
+  // Use cache lifetime configured by the content author
+  cacheLife(post.cacheProfile)
+
+  // Return only the necessary data to keep cache size minimal
+  return post.data
+}
+```
+
+This pattern is useful when:
+
+- Different outcomes need different cache durations (errors vs. success)
+- Cache behavior depends on data properties (author preferences, content type)
+- Content might not be available yet, requiring a shorter cache duration to check back sooner while still reducing database load
