@@ -52,14 +52,6 @@ impl Module for InlinedBytesJsModule {
     ) -> Vc<bool> {
         Vc::cell(true)
     }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        _side_effect_free_packages: Vc<Glob>,
-    ) -> Vc<bool> {
-        Vc::cell(true)
-    }
 }
 
 #[turbo_tasks::value_impl]

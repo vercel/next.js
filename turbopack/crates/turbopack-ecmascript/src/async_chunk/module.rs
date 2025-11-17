@@ -1,6 +1,7 @@
 use anyhow::Result;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkableModule, ChunkingContext, availability_info::AvailabilityInfo},
