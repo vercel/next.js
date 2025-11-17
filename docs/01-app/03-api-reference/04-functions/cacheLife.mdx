@@ -37,6 +37,12 @@ const nextConfig = {
 export default nextConfig
 ```
 
+> **Good to know**:
+>
+> - `cacheLife` requires the `use cache` directive, which must be placed at the file level or at the top of an async function or component
+> - If used, `cacheLife` should be called directly in the function where the `use cache` directive appears
+> - Only one `cacheLife` call should execute per function invocation. You can call `cacheLife` in different control flow branches, but ensure only one executes per run. See the [conditional cache lifetimes](#conditional-cache-lifetimes) example.
+
 ### Using preset profiles
 
 Next.js provides preset cache profiles that cover common caching needs. Each profile balances three factors:
@@ -68,9 +74,7 @@ export default async function BlogPage() {
 }
 ```
 
-The profile name tells Next.js how to cache the entire function's output. If you need more control over timing values, see the [Reference](#reference) section below.
-
-> **Good to know**: The use cache directive must either be placed at the file level or at the top of an async function or component, and cacheLife can be called within its scope.
+The profile name tells Next.js how to cache the entire function's output. If you don't call `cacheLife`, the `default` profile is used. See [preset cache profiles](#preset-cache-profiles) for timing details.
 
 ## Reference
 
