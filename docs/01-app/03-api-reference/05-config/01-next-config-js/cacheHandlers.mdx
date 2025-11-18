@@ -41,8 +41,8 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheHandlers: {
-    default: require.resolve('./cache-handlers/default-handler.js'),
-    remote: require.resolve('./cache-handlers/remote-handler.js'),
+    default: './cache-handlers/default-handler.js',
+    remote: './cache-handlers/remote-handler.js',
   },
 }
 
@@ -52,8 +52,8 @@ export default nextConfig
 ```js filename="next.config.js" switcher
 module.exports = {
   cacheHandlers: {
-    default: require.resolve('./cache-handlers/default-handler.js'),
-    remote: require.resolve('./cache-handlers/remote-handler.js'),
+    default: './cache-handlers/default-handler.js',
+    remote: './cache-handlers/remote-handler.js',
   },
 }
 ```
@@ -103,7 +103,7 @@ const cacheHandler = {
     }
 
     return entry
-  }
+  },
 }
 ```
 
@@ -134,7 +134,7 @@ const cacheHandler = {
 
     // Store in your cache system
     cache.set(cacheKey, entry)
-  }
+  },
 }
 ```
 
@@ -157,7 +157,7 @@ const cacheHandler = {
   async refreshTags() {
     // For in-memory cache, no action needed
     // For distributed cache, sync tag state from external service
-  }
+  },
 }
 ```
 
@@ -189,7 +189,7 @@ const cacheHandler = {
 
     // Or return the most recent revalidation timestamp
     // return Math.max(...tags.map(tag => tagTimestamps.get(tag) || 0));
-  }
+  },
 }
 ```
 
@@ -221,7 +221,7 @@ const cacheHandler = {
         cache.delete(key)
       }
     }
-  }
+  },
 }
 ```
 
@@ -284,7 +284,7 @@ module.exports = {
     }
 
     return entry
-  }
+  },
 
   async set(cacheKey, pendingEntry) {
     // Create a promise to track this set operation
@@ -304,16 +304,16 @@ module.exports = {
       resolvePending()
       pendingSets.delete(cacheKey)
     }
-  }
+  },
 
   async refreshTags() {
     // No-op for in-memory cache
-  }
+  },
 
   async getExpiration(tags) {
     // Return 0 to indicate no tags have been revalidated
     return 0
-  }
+  },
 
   async updateTags(tags, durations) {
     // Implement tag-based invalidation
@@ -322,7 +322,7 @@ module.exports = {
         cache.delete(key)
       }
     }
-  }
+  },
 }
 ```
 
@@ -333,15 +333,13 @@ For durable storage like Redis or a database, you'll need to serialize the cache
 ```js filename="cache-handlers/redis-handler.js"
 const { createClient } = require('redis')
 
-module.exports = {
-  constructor() {
-    this.client = createClient({ url: process.env.REDIS_URL })
-    this.client.connect()
-  }
+const client = createClient({ url: process.env.REDIS_URL })
+client.connect()
 
+module.exports = {
   async get(cacheKey, softTags) {
     // Retrieve from Redis
-    const stored = await this.client.get(cacheKey)
+    const stored = await client.get(cacheKey)
     if (!stored) return undefined
 
     // Deserialize the entry
@@ -361,7 +359,7 @@ module.exports = {
       expire: data.expire,
       revalidate: data.revalidate,
     }
-  }
+  },
 
   async set(cacheKey, pendingEntry) {
     const entry = await pendingEntry
@@ -383,7 +381,7 @@ module.exports = {
     // Combine chunks and serialize for Redis storage
     const data = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)))
 
-    await this.client.set(
+    await client.set(
       cacheKey,
       JSON.stringify({
         value: data.toString('base64'),
@@ -395,23 +393,23 @@ module.exports = {
       }),
       { EX: entry.expire } // Use Redis TTL for automatic expiration
     )
-  }
+  },
 
   async refreshTags() {
     // No-op for basic Redis implementation
     // Could sync with external tag service if needed
-  }
+  },
 
   async getExpiration(tags) {
     // Return 0 to indicate no tags have been revalidated
     // Could query Redis for tag expiration timestamps if tracking them
     return 0
-  }
+  },
 
   async updateTags(tags, durations) {
     // Implement tag-based invalidation if needed
     // Could iterate over keys with matching tags and delete them
-  }
+  },
 }
 ```
 
