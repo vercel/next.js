@@ -1,15 +1,27 @@
-0 -> 1 free var = FreeVar(global)
+0 -> 1 conditional = 3
 
-0 -> 2 free var = FreeVar(global)
+1 -> 2 free var = FreeVar(global)
 
-0 -> 3 free var = FreeVar(global)
+0 -> 3 conditional = 2
 
-0 -> 4 free var = FreeVar(global)
+3 -> 4 free var = FreeVar(global)
 
-0 -> 5 free var = FreeVar(global)
+0 -> 5 conditional = 2
 
-0 -> 6 free var = FreeVar(global)
+5 -> 6 free var = FreeVar(global)
 
-0 -> 7 free var = FreeVar(global)
+0 -> 7 conditional = 0
 
-0 -> 8 free var = FreeVar(global)
+7 -> 8 free var = FreeVar(global)
+
+0 -> 9 free var = FreeVar(global)
+
+0 -> 10 conditional = true
+
+10 -> 11 free var = FreeVar(global)
+
+0 -> 12 free var = FreeVar(global)
+
+0 -> 13 conditional = false
+
+13 -> 14 free var = FreeVar(global)

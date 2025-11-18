@@ -93,7 +93,7 @@ export class NextInstance {
   public forcedPort?: string
   public subDir: string = ''
   public startServerTimeout: number = 10_000 // 10 seconds
-  public serverReadyPattern: RegExp = / ✓ Ready in /
+  public serverReadyPattern: RegExp = /✓ Ready in /
   patchFileDelay: number = 0
 
   constructor(opts: NextInstanceOpts) {

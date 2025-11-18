@@ -14,6 +14,8 @@ import { Input } from '@/components/ui/input'
 import { Skeleton, TreemapSkeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
+import { SpecialModule } from '@/lib/types'
+import { getSpecialModuleType } from '@/lib/utils'
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B'
@@ -136,6 +138,11 @@ export default function Home() {
   const error = analyzeError || modulesError
   const isAnyLoading = isAnalyzeLoading || isModulesLoading
   const rootSourceIndex = getRootSourceIndex(analyzeData)
+
+  const specialModuleType = getSpecialModuleType(
+    analyzeData,
+    selectedSourceIndex
+  )
 
   return (
     <main
@@ -289,12 +296,39 @@ export default function Home() {
                 {selectedSourceIndex != null &&
                   analyzeData.source(selectedSourceIndex) && (
                     <>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Output Size:{' '}
-                        {formatBytes(
-                          analyzeData.getSourceOutputSize(selectedSourceIndex)
+                      <dl className="space-y-2">
+                        <div>
+                          <dt className="text-xs text-muted-foreground inline">
+                            Output Size:{' '}
+                          </dt>
+                          <dd className="text-xs text-muted-foreground inline">
+                            {formatBytes(
+                              analyzeData.getSourceOutputSize(
+                                selectedSourceIndex
+                              )
+                            )}
+                          </dd>
+                        </div>
+                        {(specialModuleType === SpecialModule.POLYFILL_MODULE ||
+                          specialModuleType ===
+                            SpecialModule.POLYFILL_NOMODULE) && (
+                          <div className="flex items-center gap-2">
+                            <dt className="inline-flex items-center rounded-md bg-polyfill/10 dark:bg-polyfill/30 px-2 py-1 text-xs font-medium text-polyfill dark:text-polyfill-foreground ring-1 ring-inset ring-polyfill/20 shrink-0">
+                              Polyfill
+                            </dt>
+                            <dd className="text-xs text-muted-foreground">
+                              Next.js built-in polyfills
+                              {specialModuleType ===
+                              SpecialModule.POLYFILL_NOMODULE ? (
+                                <>
+                                  . <code>polyfill-nomodule.js</code> is only
+                                  sent to legacy browsers.
+                                </>
+                              ) : null}
+                            </dd>
+                          </div>
                         )}
-                      </p>
+                      </dl>
                       {modulesData && (
                         <ImportChain
                           key={selectedSourceIndex}

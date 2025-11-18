@@ -301,6 +301,8 @@ export const experimentalSchema = {
   turbopackTreeShaking: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),
+  turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
+  turbopackServerSideNestedAsyncChunking: z.boolean().optional(),
   turbopackImportTypeBytes: z.boolean().optional(),
   turbopackUseSystemTlsCerts: z.boolean().optional(),
   turbopackUseBuiltinBabel: z.boolean().optional(),

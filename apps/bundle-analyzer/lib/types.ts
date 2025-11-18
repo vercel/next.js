@@ -33,3 +33,8 @@ export interface RouteManifest {
   staticRoutes: Array<Route>
   dynamicRoutes: Array<Route>
 }
+
+export enum SpecialModule {
+  POLYFILL_MODULE,
+  POLYFILL_NOMODULE,
+}

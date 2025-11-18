@@ -26,14 +26,13 @@ import {
   INSTRUMENTATION_HOOK_FILENAME,
   RSC_PREFETCH_SUFFIX,
   RSC_SUFFIX,
-  NEXT_RESUME_HEADER,
   PRERENDER_REVALIDATE_HEADER,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   MATCHED_PATH_HEADER,
-  RSC_SEGMENTS_DIR_SUFFIX,
-  RSC_SEGMENT_SUFFIX,
+  type RSC_SEGMENTS_DIR_SUFFIX,
+  type RSC_SEGMENT_SUFFIX,
 } from '../lib/constants'
 import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -140,8 +139,9 @@ import {
   collectRoutesUsingEdgeRuntime,
   collectMeta,
   isProxyFile,
+  pageToRoute,
 } from './utils'
-import type { PageInfo, PageInfos } from './utils'
+import type { DynamicManifestRoute, PageInfo, PageInfos } from './utils'
 import type { FallbackRouteParam, PrerenderedRoute } from './static-paths/types'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import { writeBuildId } from './write-build-id'
@@ -158,14 +158,13 @@ import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import {
   ACTION_HEADER,
-  NEXT_ROUTER_PREFETCH_HEADER,
-  RSC_HEADER,
-  RSC_CONTENT_TYPE_HEADER,
-  NEXT_ROUTER_STATE_TREE_HEADER,
-  NEXT_DID_POSTPONE_HEADER,
-  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
-  NEXT_REWRITTEN_PATH_HEADER,
-  NEXT_REWRITTEN_QUERY_HEADER,
+  type NEXT_ROUTER_PREFETCH_HEADER,
+  type RSC_HEADER,
+  type RSC_CONTENT_TYPE_HEADER,
+  type NEXT_DID_POSTPONE_HEADER,
+  type NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  type NEXT_REWRITTEN_PATH_HEADER,
+  type NEXT_REWRITTEN_QUERY_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext, type MappedPages } from './build-context'
@@ -188,7 +187,6 @@ import {
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
 import { hasCustomExportOutput } from '../export/utils'
-import { buildCustomRoute } from '../lib/build-custom-route'
 import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils-server'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
@@ -231,6 +229,7 @@ import {
 } from '../server/lib/router-utils/route-types-utils'
 import { Lockfile } from './lockfile'
 import { validateAppPaths } from './validate-app-paths'
+import { generateRoutesManifest } from './generate-routes-manifest'
 
 type Fallback = null | boolean | string
 
@@ -417,15 +416,6 @@ export type ManifestRoute = ManifestBuiltRoute & {
   skipInternalRouting?: boolean
 }
 
-type DynamicManifestRoute = ManifestRoute & {
-  /**
-   * The source page that this route is based on. This is used to determine the
-   * source page for the route and is only relevant for app pages where PPR is
-   * enabled and the page differs from the source page.
-   */
-  sourcePage: string | undefined
-}
-
 type ManifestDataRoute = {
   page: string
   routeKeys?: { [key: string]: string }
@@ -505,42 +495,6 @@ export type RoutesManifest = {
        */
       headers: Record<string, string>
     }
-  }
-}
-
-/**
- * Converts a page to a manifest route.
- *
- * @param page The page to convert to a route.
- * @returns A route object.
- */
-function pageToRoute(page: string): ManifestRoute
-/**
- * Converts a page to a dynamic manifest route.
- *
- * @param page The page to convert to a route.
- * @param sourcePage The source page that this route is based on. This is used
- * to determine the source page for the route and is only relevant for app
- * pages when PPR is enabled on them.
- * @returns A route object.
- */
-function pageToRoute(
-  page: string,
-  sourcePage: string | undefined
-): DynamicManifestRoute
-function pageToRoute(
-  page: string,
-  sourcePage?: string
-): DynamicManifestRoute | ManifestRoute {
-  const routeRegex = getNamedRouteRegex(page, {
-    prefixRouteKeys: true,
-  })
-  return {
-    sourcePage,
-    page,
-    regex: normalizeRouteRegex(routeRegex.re.source),
-    routeKeys: routeRegex.routeKeys,
-    namedRegex: routeRegex.namedRegex,
   }
 }
 
@@ -1605,100 +1559,22 @@ export default async function build(
       const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
-      const dynamicRoutes: Array<DynamicManifestRoute> = []
 
-      /**
-       * A map of all the pages to their sourcePage value. This is only used for
-       * routes that have PPR enabled and clientSegmentEnabled is true.
-       */
-      const sourcePages = new Map<string, string>()
-      const routesManifest: RoutesManifest = nextBuildSpan
+      // Generate the routes manifest using the extracted helper
+      const { routesManifest, dynamicRoutes, sourcePages } = nextBuildSpan
         .traceChild('generate-routes-manifest')
-        .traceFn(() => {
-          const sortedRoutes = sortPages([
-            ...pageKeys.pages,
-            ...(pageKeys.app ?? []),
-          ])
-          const staticRoutes: Array<ManifestRoute> = []
-
-          for (const route of sortedRoutes) {
-            if (isDynamicRoute(route)) {
-              dynamicRoutes.push(
-                pageToRoute(
-                  route,
-                  // This property is only relevant when PPR is enabled.
-                  undefined
-                )
-              )
-            } else if (
-              !isReservedPage(route) ||
-              // don't consider /api reserved here
-              route.match(/^\/(api(\/|$))/)
-            ) {
-              staticRoutes.push(pageToRoute(route))
-            }
-          }
-
-          return {
-            version: 3,
-            pages404: true,
+        .traceFn(() =>
+          generateRoutesManifest({
             appType,
-            caseSensitive: !!config.experimental.caseSensitiveRoutes,
-            basePath: config.basePath,
-            redirects: redirects.map((r) =>
-              buildCustomRoute('redirect', r, restrictedRedirectPaths)
-            ),
-            headers: headers.map((r) => buildCustomRoute('header', r)),
-            rewrites: {
-              beforeFiles: rewrites.beforeFiles.map((r) =>
-                buildCustomRoute('rewrite', r)
-              ),
-              afterFiles: rewrites.afterFiles.map((r) =>
-                buildCustomRoute('rewrite', r)
-              ),
-              fallback: rewrites.fallback.map((r) =>
-                buildCustomRoute('rewrite', r)
-              ),
-            },
-            dynamicRoutes,
-            staticRoutes,
-            dataRoutes: [],
-            i18n: config.i18n || undefined,
-            rsc: {
-              header: RSC_HEADER,
-              // This vary header is used as a default. It is technically re-assigned in `base-server`,
-              // and may include an additional Vary option for `Next-URL`.
-              varyHeader: `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`,
-              prefetchHeader: NEXT_ROUTER_PREFETCH_HEADER,
-              didPostponeHeader: NEXT_DID_POSTPONE_HEADER,
-              contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
-              suffix: RSC_SUFFIX,
-              prefetchSuffix: RSC_PREFETCH_SUFFIX,
-              prefetchSegmentHeader: NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
-              prefetchSegmentSuffix: RSC_SEGMENT_SUFFIX,
-              prefetchSegmentDirSuffix: RSC_SEGMENTS_DIR_SUFFIX,
-              clientParamParsing: config.cacheComponents ?? false,
-              clientParamParsingOrigins:
-                config.experimental.clientParamParsingOrigins,
-              dynamicRSCPrerender:
-                isAppPPREnabled && config.cacheComponents === true,
-            },
-            rewriteHeaders: {
-              pathHeader: NEXT_REWRITTEN_PATH_HEADER,
-              queryHeader: NEXT_REWRITTEN_QUERY_HEADER,
-            },
-            skipProxyUrlNormalize: config.skipProxyUrlNormalize,
-            ppr: isAppPPREnabled
-              ? {
-                  chain: {
-                    headers: {
-                      [NEXT_RESUME_HEADER]: '1',
-                    },
-                  },
-                }
-              : undefined,
-          } satisfies RoutesManifest
-        })
+            pageKeys,
+            config,
+            redirects,
+            headers,
+            rewrites,
+            restrictedRedirectPaths,
+            isAppPPREnabled,
+          })
+        )
 
       // For pages directory, we run type checking after route collection but before build.
       if (!appDir && !isCompileMode) {
