@@ -11,7 +11,7 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
-    atoms::{Atom, atom},
+    atoms::{Atom, Wtf8Atom, atom},
     common::{
         DUMMY_SP, FileName, Span, Spanned,
         comments::{Comment, CommentKind, Comments},
@@ -70,7 +70,7 @@ struct ReactServerComponents<C: Comments> {
 
 #[derive(Clone, Debug)]
 struct ModuleImports {
-    source: (Atom, Span),
+    source: (Wtf8Atom, Span),
     specifiers: Vec<(Atom, Span)>,
 }
 
@@ -470,7 +470,7 @@ fn collect_module_info(
                     type_only: false, ..
                 },
             )) => {
-                let source = import.src.value.clone().to_atom_lossy().into_owned();
+                let source = import.src.value.clone();
                 let specifiers = import
                     .specifiers
                     .iter()
@@ -578,11 +578,11 @@ struct ReactServerComponentValidator {
     use_cache_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
-    invalid_server_imports: Vec<Atom>,
-    invalid_server_lib_apis_mapping: FxHashMap<&'static str, Vec<&'static str>>,
-    deprecated_apis_mapping: FxHashMap<&'static str, Vec<&'static str>>,
-    invalid_client_imports: Vec<Atom>,
-    invalid_client_lib_apis_mapping: FxHashMap<&'static str, Vec<&'static str>>,
+    invalid_server_imports: Vec<Wtf8Atom>,
+    invalid_server_lib_apis_mapping: FxHashMap<Wtf8Atom, Vec<&'static str>>,
+    deprecated_apis_mapping: FxHashMap<Wtf8Atom, Vec<&'static str>>,
+    invalid_client_imports: Vec<Wtf8Atom>,
+    invalid_client_lib_apis_mapping: FxHashMap<Wtf8Atom, Vec<&'static str>>,
     pub module_directive: Option<ModuleDirective>,
     pub export_names: Vec<Atom>,
     imports: ImportMap,
@@ -609,7 +609,7 @@ impl ReactServerComponentValidator {
             // next/navigation -> [apis]
             invalid_server_lib_apis_mapping: FxHashMap::from_iter([
                 (
-                    "react",
+                    atom!("react").into(),
                     vec![
                         "Component",
                         "createContext",
@@ -631,7 +631,7 @@ impl ReactServerComponentValidator {
                     ],
                 ),
                 (
-                    "react-dom",
+                    atom!("react-dom").into(),
                     vec![
                         "flushSync",
                         "unstable_batchedUpdates",
@@ -640,7 +640,7 @@ impl ReactServerComponentValidator {
                     ],
                 ),
                 (
-                    "next/navigation",
+                    atom!("next/navigation").into(),
                     vec![
                         "useSearchParams",
                         "usePathname",
@@ -653,27 +653,30 @@ impl ReactServerComponentValidator {
                         "unstable_isUnrecognizedActionError",
                     ],
                 ),
-                ("next/link", vec!["useLinkStatus"]),
+                (atom!("next/link").into(), vec!["useLinkStatus"]),
             ]),
-            deprecated_apis_mapping: FxHashMap::from_iter([("next/server", vec!["ImageResponse"])]),
+            deprecated_apis_mapping: FxHashMap::from_iter([(
+                atom!("next/server").into(),
+                vec!["ImageResponse"],
+            )]),
 
             invalid_server_imports: vec![
-                Atom::from("client-only"),
-                Atom::from("react-dom/client"),
-                Atom::from("react-dom/server"),
-                Atom::from("next/router"),
+                atom!("client-only").into(),
+                atom!("react-dom/client").into(),
+                atom!("react-dom/server").into(),
+                atom!("next/router").into(),
             ],
 
             invalid_client_imports: vec![
-                Atom::from("server-only"),
-                Atom::from("next/headers"),
-                Atom::from("next/root-params"),
+                atom!("server-only").into(),
+                atom!("next/headers").into(),
+                atom!("next/root-params").into(),
             ],
 
             invalid_client_lib_apis_mapping: FxHashMap::from_iter([
-                ("next/server", vec!["after"]),
+                (atom!("next/server").into(), vec!["after"]),
                 (
-                    "next/cache",
+                    atom!("next/cache").into(),
                     vec![
                         "revalidatePath",
                         "revalidateTag",
@@ -706,8 +709,8 @@ impl ReactServerComponentValidator {
     // e.g.
     // assert_invalid_server_lib_apis("react", import)
     // assert_invalid_server_lib_apis("react-dom", import)
-    fn assert_invalid_server_lib_apis(&self, import_source: String, import: &ModuleImports) {
-        let deprecated_apis = self.deprecated_apis_mapping.get(import_source.as_str());
+    fn assert_invalid_server_lib_apis(&self, import_source: &Wtf8Atom, import: &ModuleImports) {
+        let deprecated_apis = self.deprecated_apis_mapping.get(import_source);
         if let Some(deprecated_apis) = deprecated_apis {
             for specifier in &import.specifiers {
                 if deprecated_apis.contains(&specifier.0.as_str()) {
@@ -715,7 +718,7 @@ impl ReactServerComponentValidator {
                         &self.app_dir,
                         &self.filepath,
                         RSCErrorKind::NextRscErrDeprecatedApi((
-                            import_source.clone(),
+                            import_source.to_string_lossy().into_owned(),
                             specifier.0.to_string(),
                             specifier.1,
                         )),
@@ -724,9 +727,7 @@ impl ReactServerComponentValidator {
             }
         }
 
-        let invalid_apis = self
-            .invalid_server_lib_apis_mapping
-            .get(import_source.as_str());
+        let invalid_apis = self.invalid_server_lib_apis_mapping.get(import_source);
         if let Some(invalid_apis) = invalid_apis {
             for specifier in &import.specifiers {
                 if invalid_apis.contains(&specifier.0.as_str()) {
@@ -746,17 +747,19 @@ impl ReactServerComponentValidator {
             return;
         }
         for import in imports {
-            let source = import.source.0.clone();
-            let source_str = source.to_string();
-            if self.invalid_server_imports.contains(&source) {
+            let source = &import.source.0;
+            if self.invalid_server_imports.contains(source) {
                 report_error(
                     &self.app_dir,
                     &self.filepath,
-                    RSCErrorKind::NextRscErrServerImport((source_str.clone(), import.source.1)),
+                    RSCErrorKind::NextRscErrServerImport((
+                        source.to_string_lossy().into_owned(),
+                        import.source.1,
+                    )),
                 );
             }
 
-            self.assert_invalid_server_lib_apis(source_str, import);
+            self.assert_invalid_server_lib_apis(source, import);
         }
 
         self.assert_invalid_api(module, false);
@@ -804,11 +807,14 @@ impl ReactServerComponentValidator {
                 report_error(
                     &self.app_dir,
                     &self.filepath,
-                    RSCErrorKind::NextRscErrClientImport((source.to_string(), import.source.1)),
+                    RSCErrorKind::NextRscErrClientImport((
+                        source.to_string_lossy().into_owned(),
+                        import.source.1,
+                    )),
                 );
             }
 
-            let invalid_apis = self.invalid_client_lib_apis_mapping.get(source.as_str());
+            let invalid_apis = self.invalid_client_lib_apis_mapping.get(source);
             if let Some(invalid_apis) = invalid_apis {
                 for specifier in &import.specifiers {
                     if invalid_apis.contains(&specifier.0.as_str()) {

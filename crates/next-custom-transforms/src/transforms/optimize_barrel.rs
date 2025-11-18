@@ -197,7 +197,7 @@ impl Fold for OptimizeBarrel {
                         Expr::Lit(l) => {
                             if let Lit::Str(s) = l {
                                 if allowed_directives && s.value.starts_with("use ") {
-                                    directives.push(s.value.to_string_lossy().into_owned());
+                                    directives.push(&s.value);
                                 }
                             } else {
                                 allowed_directives = false;
