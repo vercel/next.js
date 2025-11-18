@@ -7,11 +7,7 @@
 
 0 -> 7 free var = FreeVar(console)
 
-0 -> 8 conditional = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analyzed yet
-
-0 -> 9 member call = ???*0*["debug"]("####", ???*1*, (???*2* ? true : false))
+0 -> 8 member call = ???*0*["debug"]("####", ???*1*, (???*2* ? true : false))
 - *0* FreeVar(console)
   ⚠️  unknown global
   ⚠️  This value might have side effects
@@ -20,11 +16,7 @@
 - *2* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-0 -> 12 conditional = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analyzed yet
-
-0 -> 14 call = (...) => parent(???*0*, (???*2* ? ???*3* : (???*10* | undefined)), (???*15* | {}){truthy})
+0 -> 12 call = (...) => parent(???*0*, (???*2* ? ???*3* : (???*10* | undefined)), (???*15* | {}){truthy})
 - *0* ???*1*[key]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -64,8 +56,8 @@
 - *16* arguments[2]
   ⚠️  function calls are not analyzed yet
 
-0 -> 15 unreachable = ???*0*
+0 -> 13 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 16 call = (...) => parent({"wrapper": {"data": {"key": {}}}}, "", {})
+0 -> 14 call = (...) => parent({"wrapper": {"data": {"key": {}}}}, "", {})

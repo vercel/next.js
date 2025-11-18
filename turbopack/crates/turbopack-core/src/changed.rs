@@ -1,21 +1,15 @@
 use anyhow::Result;
 use turbo_tasks::{
     Completion, Completions, ResolvedVc, TryJoinIterExt, Vc,
-    graph::{AdjacencyMap, GraphTraversal, NonDeterministic},
+    graph::{AdjacencyMap, GraphTraversal},
 };
 
 use crate::{
     asset::Asset,
     module::Module,
-    output::{OutputAsset, OutputAssets},
+    output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
     reference::primary_referenced_modules,
 };
-
-async fn get_referenced_output_assets(
-    parent: ResolvedVc<Box<dyn OutputAsset>>,
-) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>> + Send> {
-    Ok(parent.references().owned().await?.into_iter())
-}
 
 pub async fn get_referenced_modules(
     parent: ResolvedVc<Box<dyn Module>>,
@@ -53,17 +47,14 @@ pub async fn any_content_changed_of_module(
 pub async fn any_content_changed_of_output_asset(
     root: ResolvedVc<Box<dyn OutputAsset>>,
 ) -> Result<Vc<Completion>> {
-    let completions = NonDeterministic::new()
-        .skip_duplicates()
-        .visit([root], get_referenced_output_assets)
-        .await
-        .completed()?
-        .into_inner()
-        .into_iter()
-        .map(|m| content_changed(*ResolvedVc::upcast(m)))
-        .map(|v| v.to_resolved())
-        .try_join()
-        .await?;
+    let completions =
+        expand_output_assets(std::iter::once(ExpandOutputAssetsInput::Asset(root)), true)
+            .await?
+            .into_iter()
+            .map(|m| content_changed(*ResolvedVc::upcast(m)))
+            .map(|v| v.to_resolved())
+            .try_join()
+            .await?;
 
     Ok(Vc::<Completions>::cell(completions).completed())
 }

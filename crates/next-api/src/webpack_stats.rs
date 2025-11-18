@@ -11,7 +11,7 @@ use turbopack_core::{
     chunk::{Chunk, ChunkItem, ChunkItemExt, ModuleId},
     module::Module,
     module_graph::ModuleGraph,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
 };
 
 #[instrument(level = "info", name = "generate webpack stats", skip_all)]
@@ -38,7 +38,7 @@ where
         let mut queue = entry_assets.clone();
         while let Some(asset) = queue.pop() {
             if visited.insert(asset) {
-                let references = asset.references().await?;
+                let references = asset.references().all_assets().await?;
                 asset_children.insert(asset, references.clone());
                 queue.extend(references);
             }

@@ -281,6 +281,15 @@ pub enum TaskPersistence {
     Transient,
 }
 
+impl Display for TaskPersistence {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TaskPersistence::Persistent => write!(f, "persistent"),
+            TaskPersistence::Transient => write!(f, "transient"),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
 pub enum ReadConsistency {
     /// The default behavior for most APIs. Reads are faster, but may return stale values, which
@@ -826,7 +835,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 let output = match result {
                     Ok(raw_vc) => OutputContent::Link(raw_vc),
                     Err(err) => OutputContent::Error(
-                        TurboTasksExecutionError::from(err).with_task_context(task_type),
+                        TurboTasksExecutionError::from(err).with_task_context(task_type, None),
                     ),
                 };
 

@@ -31,7 +31,9 @@ use crate::{
     utils::AstPathRange,
 };
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash,
+)]
 
 pub struct Unreachable {
     range: AstPathRange,

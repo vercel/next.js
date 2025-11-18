@@ -125,7 +125,9 @@ impl IntoCodeGenReference for WorkerAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+)]
 pub struct WorkerAssetReferenceCodeGen {
     reference: ResolvedVc<WorkerAssetReference>,
     path: AstPath,

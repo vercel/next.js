@@ -441,6 +441,7 @@ describe('config telemetry', () => {
       ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemetry for usage of @vercel/og',
         async () => {
+          // Test vercelImageGeneration telemetry tracking
           const { stderr } = await nextBuild(appDir, [], {
             stderr: true,
             env: { NEXT_TELEMETRY_DEBUG: '1' },

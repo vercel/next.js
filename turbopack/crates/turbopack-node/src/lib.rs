@@ -2,15 +2,12 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
-use std::{iter::once, thread::available_parallelism};
+use std::thread::available_parallelism;
 
 use anyhow::{Result, bail};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    FxIndexSet, ResolvedVc, TryJoinIterExt, Vc,
-    graph::{AdjacencyMap, GraphTraversal},
-};
+use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{File, FileSystemPath, to_sys_path};
 use turbopack_core::{
@@ -19,7 +16,7 @@ use turbopack_core::{
     chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets},
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
-    output::{OutputAsset, OutputAssets, OutputAssetsSet},
+    output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
     source_map::GenerateSourceMap,
     virtual_output::VirtualOutputAsset,
 };
@@ -50,15 +47,6 @@ async fn emit(
     Ok(())
 }
 
-/// List of the all assets of the "internal" subgraph and a list of boundary
-/// assets that are not considered "internal" ("external")
-#[derive(Debug)]
-#[turbo_tasks::value]
-struct SeparatedAssets {
-    internal_assets: ResolvedVc<OutputAssetsSet>,
-    external_asset_entrypoints: ResolvedVc<OutputAssetsSet>,
-}
-
 /// Extracts the subgraph of "internal" assets (assets within the passes
 /// directory). Also lists all boundary assets that are not part of the
 /// "internal" subgraph.
@@ -66,13 +54,25 @@ struct SeparatedAssets {
 async fn internal_assets(
     intermediate_asset: ResolvedVc<Box<dyn OutputAsset>>,
     intermediate_output_path: FileSystemPath,
-) -> Result<Vc<OutputAssetsSet>> {
-    Ok(
-        *separate_assets_operation(intermediate_asset, intermediate_output_path)
-            .read_strongly_consistent()
-            .await?
-            .internal_assets,
+) -> Result<Vc<OutputAssets>> {
+    let all_assets = expand_output_assets(
+        std::iter::once(ExpandOutputAssetsInput::Asset(intermediate_asset)),
+        true,
     )
+    .await?;
+    let internal_assets = all_assets
+        .into_iter()
+        .map(async |asset| {
+            let path = asset.path().await?;
+            if path.is_inside_ref(&intermediate_output_path) {
+                Ok(Some(asset))
+            } else {
+                Ok(None)
+            }
+        })
+        .try_flat_join()
+        .await?;
+    Ok(Vc::cell(internal_assets))
 }
 
 #[turbo_tasks::value(transparent)]
@@ -98,93 +98,6 @@ async fn internal_assets_for_source_mapping(
         }
     }
     Ok(Vc::cell(internal_assets_for_source_mapping))
-}
-
-/// Returns a set of "external" assets on the boundary of the "internal"
-/// subgraph
-#[turbo_tasks::function]
-pub async fn external_asset_entrypoints(
-    module: Vc<Box<dyn EvaluatableAsset>>,
-    runtime_entries: Vc<EvaluatableAssets>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    intermediate_output_path: FileSystemPath,
-) -> Result<Vc<OutputAssetsSet>> {
-    Ok(*separate_assets_operation(
-        get_intermediate_asset(chunking_context, module, runtime_entries)
-            .to_resolved()
-            .await?,
-        intermediate_output_path,
-    )
-    .read_strongly_consistent()
-    .await?
-    .external_asset_entrypoints)
-}
-
-/// Splits the asset graph into "internal" assets and boundaries to "external"
-/// assets.
-#[turbo_tasks::function(operation)]
-async fn separate_assets_operation(
-    intermediate_asset: ResolvedVc<Box<dyn OutputAsset>>,
-    intermediate_output_path: FileSystemPath,
-) -> Result<Vc<SeparatedAssets>> {
-    let intermediate_output_path = intermediate_output_path.clone();
-    #[derive(PartialEq, Eq, Hash, Clone, Copy)]
-    enum Type {
-        Internal(ResolvedVc<Box<dyn OutputAsset>>),
-        External(ResolvedVc<Box<dyn OutputAsset>>),
-    }
-    let get_asset_children = |asset| {
-        let intermediate_output_path = intermediate_output_path.clone();
-        async move {
-            let Type::Internal(asset) = asset else {
-                return Ok(Vec::new());
-            };
-            asset
-                .references()
-                .await?
-                .iter()
-                .map(|asset| async {
-                    // Assets within the output directory are considered as "internal" and all
-                    // others as "external". We follow references on "internal" assets, but do not
-                    // look into references of "external" assets, since there are no "internal"
-                    // assets behind "externals"
-                    if asset.path().await?.is_inside_ref(&intermediate_output_path) {
-                        Ok(Type::Internal(*asset))
-                    } else {
-                        Ok(Type::External(*asset))
-                    }
-                })
-                .try_join()
-                .await
-        }
-    };
-
-    let graph = AdjacencyMap::new()
-        .skip_duplicates()
-        .visit(once(Type::Internal(intermediate_asset)), get_asset_children)
-        .await
-        .completed()?
-        .into_inner();
-
-    let mut internal_assets = FxIndexSet::default();
-    let mut external_asset_entrypoints = FxIndexSet::default();
-
-    for item in graph.into_postorder_topological() {
-        match item {
-            Type::Internal(asset) => {
-                internal_assets.insert(asset);
-            }
-            Type::External(asset) => {
-                external_asset_entrypoints.insert(asset);
-            }
-        }
-    }
-
-    Ok(SeparatedAssets {
-        internal_assets: ResolvedVc::cell(internal_assets),
-        external_asset_entrypoints: ResolvedVc::cell(external_asset_entrypoints),
-    }
-    .cell())
 }
 
 /// Emit a basic package.json that sets the type of the package to commonjs.

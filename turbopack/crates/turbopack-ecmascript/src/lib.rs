@@ -100,6 +100,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, OptionModule},
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::ModuleReferences,
     reference_type::InnerAssets,
     resolve::{
@@ -748,6 +749,23 @@ impl Module for EcmascriptModuleAsset {
             Ok(Vc::cell(false))
         }
     }
+
+    #[turbo_tasks::function]
+    async fn is_marked_as_side_effect_free(
+        self: Vc<Self>,
+        side_effect_free_packages: Vc<Glob>,
+    ) -> Result<Vc<bool>> {
+        // Check package.json first, so that we can skip parsing the module if it's marked that way.
+        let pkg_side_effect_free = is_marked_as_side_effect_free(
+            self.ident().path().owned().await?,
+            side_effect_free_packages,
+        );
+        Ok(if *pkg_side_effect_free.await? {
+            pkg_side_effect_free
+        } else {
+            Vc::cell(self.analyze().await?.has_side_effect_free_directive)
+        })
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -783,23 +801,6 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn get_async_module(self: Vc<Self>) -> Result<Vc<OptionAsyncModule>> {
         Ok(*self.analyze().await?.async_module)
-    }
-
-    #[turbo_tasks::function]
-    async fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        side_effect_free_packages: Vc<Glob>,
-    ) -> Result<Vc<bool>> {
-        // Check package.json first, so that we can skip parsing the module if it's marked that way.
-        let pkg_side_effect_free = is_marked_as_side_effect_free(
-            self.ident().path().owned().await?,
-            side_effect_free_packages,
-        );
-        Ok(if *pkg_side_effect_free.await? {
-            pkg_side_effect_free
-        } else {
-            Vc::cell(self.analyze().await?.has_side_effect_free_directive)
-        })
     }
 }
 
@@ -870,6 +871,9 @@ struct ModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for ModuleChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
@@ -905,6 +909,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     async fn content_with_async_module_info(
         self: Vc<Self>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let span = tracing::info_span!(
             "code generation",

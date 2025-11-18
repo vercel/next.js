@@ -1,13 +1,15 @@
 import { INTERCEPTION_ROUTE_MARKERS } from './interception-routes'
 import type { DynamicParamTypes } from '../../app-router-types'
 
+export type SegmentParam = {
+  param: string
+  type: DynamicParamTypes
+}
+
 /**
  * Parse dynamic route segment to type of parameter
  */
-export function getSegmentParam(segment: string): {
-  param: string
-  type: DynamicParamTypes
-} | null {
+export function getSegmentParam(segment: string): SegmentParam | null {
   const interceptionMarker = INTERCEPTION_ROUTE_MARKERS.find((marker) =>
     segment.startsWith(marker)
   )

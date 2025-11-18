@@ -3034,7 +3034,6 @@
           (resolveChunkDebugInfo(response, streamState, chunk),
           "pending" === chunk.status)
         ) {
-          releasePendingChunk(response, chunk);
           id = chunk.value;
           if (null != chunk._debugChunk) {
             streamState = initializingHandler;
@@ -3069,7 +3068,9 @@
               moveDebugInfoFromChunkToInnerValue(chunk, stream));
         }
       } else
-        (stream = new ReactPromise("fulfilled", stream, controller)),
+        0 === response._pendingChunks++ &&
+          (response._weakResponse.response = response),
+          (stream = new ReactPromise("fulfilled", stream, controller)),
           resolveChunkDebugInfo(response, streamState, stream),
           chunks.set(id, stream);
     }
@@ -4510,9 +4511,11 @@
           startAsyncIterable(response, id, !0, streamState);
           break;
         case 67:
-          (response = response._chunks.get(id)) &&
-            "fulfilled" === response.status &&
-            response.reason.close("" === buffer ? '"$undefined"' : buffer);
+          (id = response._chunks.get(id)) &&
+            "fulfilled" === id.status &&
+            (0 === --response._pendingChunks &&
+              (response._weakResponse.response = null),
+            id.reason.close("" === buffer ? '"$undefined"' : buffer));
           break;
         default:
           if ("" === buffer) {
@@ -4704,6 +4707,7 @@
                 65 === rowState ||
                 79 === rowState ||
                 111 === rowState ||
+                98 === rowState ||
                 85 === rowState ||
                 83 === rowState ||
                 115 === rowState ||
@@ -4744,14 +4748,21 @@
                 endTime,
                 debugInfo - i
               )),
-                processFullBinaryRow(
-                  response,
-                  _ref,
-                  rowID,
-                  rowTag,
-                  buffer,
-                  rowLength
-                ),
+                98 === rowTag
+                  ? resolveBuffer(
+                      response,
+                      rowID,
+                      debugInfo === chunkLength ? rowLength : rowLength.slice(),
+                      _ref
+                    )
+                  : processFullBinaryRow(
+                      response,
+                      _ref,
+                      rowID,
+                      rowTag,
+                      buffer,
+                      rowLength
+                    ),
                 (i = debugInfo),
                 3 === rowState && i++,
                 (rowLength = rowID = rowTag = rowState = 0),
@@ -4762,8 +4773,10 @@
                 endTime,
                 value.byteLength - i
               );
-              buffer.push(value);
-              rowLength -= value.byteLength;
+              98 === rowTag
+                ? ((rowLength -= value.byteLength),
+                  resolveBuffer(response, rowID, value, _ref))
+                : (buffer.push(value), (rowLength -= value.byteLength));
               break;
             }
           }

@@ -427,6 +427,8 @@ pub struct TurboTasksError {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TurboTaskContextError {
     pub task: RcStr,
+    #[cfg(feature = "task_id_details")]
+    pub task_id: Option<TaskId>,
     pub source: Option<TurboTasksExecutionError>,
 }
 
@@ -438,9 +440,11 @@ pub enum TurboTasksExecutionError {
 }
 
 impl TurboTasksExecutionError {
-    pub fn with_task_context(&self, task: impl Display) -> Self {
+    pub fn with_task_context(&self, task: impl Display, _task_id: Option<TaskId>) -> Self {
         TurboTasksExecutionError::TaskContext(Arc::new(TurboTaskContextError {
             task: RcStr::from(task.to_string()),
+            #[cfg(feature = "task_id_details")]
+            task_id: _task_id,
             source: Some(self.clone()),
         }))
     }
@@ -468,6 +472,14 @@ impl Display for TurboTasksExecutionError {
                 write!(f, "{}", error.message)
             }
             TurboTasksExecutionError::TaskContext(context_error) => {
+                #[cfg(feature = "task_id_details")]
+                if let Some(task_id) = context_error.task_id {
+                    return write!(
+                        f,
+                        "Execution of {} ({}) failed",
+                        context_error.task, task_id
+                    );
+                }
                 write!(f, "Execution of {} failed", context_error.task)
             }
         }
