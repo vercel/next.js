@@ -6,7 +6,7 @@ use swc_core::{
     ecma::{
         ast::{Id, ModuleItem, Pass},
         atoms::Atom,
-        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitWith},
+        visit::{VisitMut, VisitWith, noop_visit_mut_type, visit_mut_pass},
     },
 };
 
@@ -18,7 +18,7 @@ mod font_imports_generator;
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
     pub font_loaders: Vec<Wtf8Atom>,
-    pub relative_file_path_from_root: Wtf8Atom,
+    pub relative_file_path_from_root: Atom,
 }
 
 pub fn next_font_loaders(config: Config) -> impl Pass + VisitMut {
@@ -64,7 +64,7 @@ impl VisitMut for NextFontLoaders {
             // Generate imports from font function calls
             let mut import_generator = font_imports_generator::FontImportsGenerator {
                 state: &mut self.state,
-                relative_path: &self.config.relative_file_path_from_root.to_string_lossy(),
+                relative_path: &self.config.relative_file_path_from_root,
             };
             items.visit_with(&mut import_generator);
 

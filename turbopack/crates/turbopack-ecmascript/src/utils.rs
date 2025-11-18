@@ -2,9 +2,10 @@ use std::ops::Deref;
 
 use serde::{Deserialize, Serialize};
 use swc_core::{
+    atoms::Atom,
     common::{DUMMY_SP, SyntaxContext},
     ecma::{
-        ast::{Expr, Lit, Str},
+        ast::{Expr, Lit, ModuleExportName, Str},
         visit::AstParentKind,
     },
 };
@@ -94,6 +95,13 @@ pub fn module_id_to_lit(module_id: &ModuleId) -> Expr {
             raw: None,
         }),
     })
+}
+
+pub(crate) fn export_name_to_atom_lossy(n: &ModuleExportName) -> Atom {
+    match n {
+        ModuleExportName::Ident(v) => v.sym.clone(),
+        ModuleExportName::Str(v) => v.value.clone().to_atom_lossy().into_owned(),
+    }
 }
 
 pub struct StringifyModuleId<'a>(pub &'a ModuleId);

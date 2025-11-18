@@ -34,7 +34,7 @@ use swc_core::{
 };
 use turbo_rcstr::{rcstr, RcStr};
 
-use crate::FxIndexMap;
+use crate::{transforms::export_name_to_atom_lossy, FxIndexMap};
 
 #[derive(Clone, Copy, Debug, Deserialize)]
 pub enum ServerActionsMode {
@@ -1503,64 +1503,25 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     }) = spec
                                     {
                                         if !*is_type_only {
-                                            if let Some(export_name) = exported {
-                                                if let ModuleExportName::Ident(Ident {
-                                                    sym, ..
-                                                }) = export_name
-                                                {
-                                                    // export { foo as bar }
-                                                    self.server_reference_exports.push(
-                                                        ServerReferenceExport {
-                                                            ident: ident.clone(),
-                                                            export_name: sym.clone(),
-                                                            reference_id: self
-                                                                .generate_server_reference_id(
-                                                                    sym.as_ref(),
-                                                                    in_cache_file,
-                                                                    None,
-                                                                ),
-                                                        },
-                                                    );
-                                                } else if let ModuleExportName::Str(str) =
-                                                    export_name
-                                                {
-                                                    // export { foo as "bar" }
-                                                    self.server_reference_exports.push(
-                                                        ServerReferenceExport {
-                                                            ident: ident.clone(),
-                                                            export_name: str
-                                                                .value
-                                                                .clone()
-                                                                .to_atom_lossy()
-                                                                .into_owned(),
-                                                            reference_id: self
-                                                                .generate_server_reference_id(
-                                                                    str.value
-                                                                        .clone()
-                                                                        .to_atom_lossy()
-                                                                        .into_owned()
-                                                                        .as_ref(),
-                                                                    in_cache_file,
-                                                                    None,
-                                                                ),
-                                                        },
-                                                    );
-                                                }
-                                            } else {
-                                                // export { foo }
-                                                self.server_reference_exports.push(
-                                                    ServerReferenceExport {
-                                                        ident: ident.clone(),
-                                                        export_name: ident.sym.clone(),
-                                                        reference_id: self
-                                                            .generate_server_reference_id(
-                                                                ident.sym.as_ref(),
-                                                                in_cache_file,
-                                                                None,
-                                                            ),
-                                                    },
-                                                );
-                                            }
+                                            // export { foo as bar }
+                                            // export { foo as "bar" }
+                                            // export { foo }
+                                            let export_name = exported.as_ref().map_or_else(
+                                                || ident.sym.clone(),
+                                                export_name_to_atom_lossy,
+                                            );
+                                            let id = self.generate_server_reference_id(
+                                                &export_name,
+                                                in_cache_file,
+                                                None,
+                                            );
+                                            self.server_reference_exports.push(
+                                                ServerReferenceExport {
+                                                    ident: ident.clone(),
+                                                    export_name,
+                                                    reference_id: id,
+                                                },
+                                            );
                                         }
                                     } else {
                                         disallowed_export_span = named.span;

@@ -5,9 +5,11 @@ use swc_core::{
     common::DUMMY_SP,
     ecma::{
         ast::*,
-        visit::{fold_pass, Fold},
+        visit::{Fold, fold_pass},
     },
 };
+
+use crate::transforms::export_name_to_atom_lossy;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
@@ -46,17 +48,9 @@ impl Fold for NamedImportTransform {
                     ImportSpecifier::Named(specifier) => {
                         // Add the import name as string to the set
                         if let Some(imported) = &specifier.imported {
-                            match imported {
-                                ModuleExportName::Ident(ident) => {
-                                    specifier_names.insert(ident.sym.to_string());
-                                }
-                                ModuleExportName::Str(str_) => {
-                                    specifier_names
-                                        .insert(str_.value.to_string_lossy().into_owned());
-                                }
-                            }
+                            specifier_names.insert(export_name_to_atom_lossy(imported));
                         } else {
-                            specifier_names.insert(specifier.local.sym.to_string());
+                            specifier_names.insert(specifier.local.sym.clone());
                         }
                     }
                     ImportSpecifier::Default(_) => {
@@ -71,7 +65,10 @@ impl Fold for NamedImportTransform {
             }
 
             if !skip_transform {
-                let mut names = specifier_names.into_iter().collect::<Vec<_>>();
+                let mut names = specifier_names
+                    .iter()
+                    .map(|n| n.as_str())
+                    .collect::<Vec<_>>();
                 // Sort the names to make sure the order is consistent
                 names.sort();
 

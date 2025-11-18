@@ -8,9 +8,11 @@ use swc_core::{
     common::DUMMY_SP,
     ecma::{
         ast::*,
-        visit::{fold_pass, Fold, FoldWith},
+        visit::{Fold, FoldWith, fold_pass},
     },
 };
+
+use crate::transforms::export_name_to_atom_lossy;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
@@ -106,13 +108,10 @@ impl Fold for OptimizeServerReact {
                 }
                 for specifier in &import_decl.specifiers {
                     if let ImportSpecifier::Named(named_import) = specifier {
-                        let name = match &named_import.imported {
-                            Some(n) => match &n {
-                                ModuleExportName::Ident(n) => n.sym.to_string(),
-                                ModuleExportName::Str(n) => n.value.to_string_lossy().into_owned(),
-                            },
-                            None => named_import.local.sym.to_string(),
-                        };
+                        let name = named_import.imported.as_ref().map_or_else(
+                            || named_import.local.sym.clone(),
+                            export_name_to_atom_lossy,
+                        );
 
                         if name == "useState" {
                             self.use_state_ident = Some(named_import.local.to_id());

@@ -11,25 +11,25 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{Atom, atom},
     common::{
+        DUMMY_SP, FileName, Span, Spanned,
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
         util::take::Take,
-        FileName, Span, Spanned, DUMMY_SP,
     },
     ecma::{
         ast::*,
-        utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
+        utils::{ExprFactory, prepend_stmts, quote_ident, quote_str},
         visit::{
-            noop_visit_mut_type, noop_visit_type, visit_mut_pass, Visit, VisitMut, VisitMutWith,
-            VisitWith,
+            Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type,
+            visit_mut_pass,
         },
     },
 };
 
 use super::{cjs_finder::contains_cjs, import_analyzer::ImportMap};
-use crate::FxIndexMap;
+use crate::{FxIndexMap, transforms::export_name_to_atom_lossy};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
@@ -485,12 +485,9 @@ fn collect_module_info(
                     })
                     .map(|specifier| match specifier {
                         ImportSpecifier::Named(named) => match &named.imported {
-                            Some(imported) => match &imported {
-                                ModuleExportName::Ident(i) => (i.to_id().0, i.span),
-                                ModuleExportName::Str(s) => {
-                                    (s.value.clone().to_atom_lossy().into_owned(), s.span)
-                                }
-                            },
+                            Some(imported) => {
+                                (export_name_to_atom_lossy(imported), imported.span())
+                            }
                             None => (named.local.to_id().0, named.local.span),
                         },
                         ImportSpecifier::Default(d) => (atom!(""), d.span),
@@ -512,18 +509,8 @@ fn collect_module_info(
                         ExportSpecifier::Default(_) => atom!("default"),
                         ExportSpecifier::Namespace(_) => atom!("*"),
                         ExportSpecifier::Named(named) => match &named.exported {
-                            Some(exported) => match &exported {
-                                ModuleExportName::Ident(i) => i.sym.clone(),
-                                ModuleExportName::Str(s) => {
-                                    s.value.clone().to_atom_lossy().into_owned()
-                                }
-                            },
-                            _ => match &named.orig {
-                                ModuleExportName::Ident(i) => i.sym.clone(),
-                                ModuleExportName::Str(s) => {
-                                    s.value.clone().to_atom_lossy().into_owned()
-                                }
-                            },
+                            Some(exported) => export_name_to_atom_lossy(exported),
+                            None => export_name_to_atom_lossy(&named.orig),
                         },
                     })
                 }
@@ -906,17 +893,10 @@ impl ReactServerComponentValidator {
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export)) => {
                         for specifier in &export.specifiers {
                             if let ExportSpecifier::Named(named) = specifier {
-                                match &named.orig {
-                                    ModuleExportName::Ident(i) => {
-                                        collect_possibly_invalid_exports(&i.sym, &named.span);
-                                    }
-                                    ModuleExportName::Str(s) => {
-                                        collect_possibly_invalid_exports(
-                                            &s.value.to_atom_lossy(),
-                                            &named.span,
-                                        );
-                                    }
-                                }
+                                collect_possibly_invalid_exports(
+                                    &export_name_to_atom_lossy(&named.orig),
+                                    &named.span,
+                                );
                             }
                         }
                     }

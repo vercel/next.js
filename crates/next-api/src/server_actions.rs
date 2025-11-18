@@ -363,7 +363,7 @@ fn all_export_names(program: &Program) -> Vec<Atom> {
                         for s in decl.specifiers.iter() {
                             match s {
                                 ExportSpecifier::Named(named) => {
-                                    exports.push(module_export_name_to_atom(
+                                    exports.push(export_name_to_atom_lossy(
                                         named.exported.as_ref().unwrap_or(&named.orig),
                                     ));
                                 }
@@ -371,7 +371,7 @@ fn all_export_names(program: &Program) -> Vec<Atom> {
                                     exports.push(atom!("default"));
                                 }
                                 ExportSpecifier::Namespace(e) => {
-                                    exports.push(module_export_name_to_atom(&e.name));
+                                    exports.push(export_name_to_atom_lossy(&e.name));
                                 }
                             }
                         }
@@ -408,7 +408,7 @@ fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
         .unwrap_or(false)
 }
 
-fn module_export_name_to_atom(name: &ModuleExportName) -> Atom {
+fn export_name_to_atom_lossy(name: &ModuleExportName) -> Atom {
     match name {
         ModuleExportName::Ident(ident) => ident.sym.clone(),
         ModuleExportName::Str(s) => s.value.to_atom_lossy().into_owned(),

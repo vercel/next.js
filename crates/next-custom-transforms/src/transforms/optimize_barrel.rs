@@ -2,14 +2,16 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 use swc_core::{
-    atoms::{atom, Atom, Wtf8Atom},
+    atoms::{Atom, Wtf8Atom, atom},
     common::DUMMY_SP,
     ecma::{
         ast::*,
         utils::private_ident,
-        visit::{fold_pass, Fold},
+        visit::{Fold, fold_pass},
     },
 };
+
+use crate::transforms::export_name_to_atom_lossy;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
@@ -45,12 +47,7 @@ impl Fold for OptimizeBarrel {
                                 (
                                     src.clone(),
                                     match &s.imported {
-                                        Some(n) => match &n {
-                                            ModuleExportName::Ident(n) => n.sym.clone(),
-                                            ModuleExportName::Str(n) => {
-                                                n.value.clone().to_atom_lossy().into_owned()
-                                            }
-                                        },
+                                        Some(n) => export_name_to_atom_lossy(n),
                                         None => s.local.sym.clone(),
                                     },
                                 ),
@@ -94,12 +91,7 @@ impl Fold for OptimizeBarrel {
                             for spec in &export_named.specifiers {
                                 match spec {
                                     ExportSpecifier::Namespace(s) => {
-                                        let name_str = match &s.name {
-                                            ModuleExportName::Ident(n) => n.sym.clone(),
-                                            ModuleExportName::Str(n) => {
-                                                n.value.clone().to_atom_lossy().into_owned()
-                                            }
-                                        };
+                                        let name_str = export_name_to_atom_lossy(&s.name);
                                         if let Some(src) = &export_named.src {
                                             export_map.push((
                                                 name_str.clone(),
@@ -118,21 +110,11 @@ impl Fold for OptimizeBarrel {
                                         }
                                     }
                                     ExportSpecifier::Named(s) => {
-                                        let orig_str = match &s.orig {
-                                            ModuleExportName::Ident(n) => n.sym.clone(),
-                                            ModuleExportName::Str(n) => {
-                                                n.value.clone().to_atom_lossy().into_owned()
-                                            }
-                                        };
-                                        let name_str = match &s.exported {
-                                            Some(n) => match &n {
-                                                ModuleExportName::Ident(n) => n.sym.clone(),
-                                                ModuleExportName::Str(n) => {
-                                                    n.value.clone().to_atom_lossy().into_owned()
-                                                }
-                                            },
-                                            None => orig_str.clone(),
-                                        };
+                                        let orig_str = export_name_to_atom_lossy(&s.orig);
+                                        let name_str = s.exported.as_ref().map_or_else(
+                                            || orig_str.clone(),
+                                            export_name_to_atom_lossy,
+                                        );
 
                                         if let Some(src) = &export_named.src {
                                             export_map.push((

@@ -22,6 +22,7 @@ use crate::{
     analyzer::{ConstantValue, ObjectPart},
     magic_identifier,
     tree_shake::{PartId, find_turbopack_part_id_in_asserts},
+    utils::export_name_to_atom_lossy,
 };
 
 #[turbo_tasks::value]
@@ -455,13 +456,6 @@ impl Analyzer<'_> {
     }
 }
 
-fn export_as_atom(name: &'_ ModuleExportName) -> Cow<'_, Atom> {
-    match name {
-        ModuleExportName::Ident(ident) => Cow::Borrowed(&ident.sym),
-        ModuleExportName::Str(s) => s.value.to_atom_lossy(),
-    }
-}
-
 impl Visit for Analyzer<'_> {
     fn visit_import_decl(&mut self, import: &ImportDecl) {
         self.data.has_imports = true;
@@ -498,7 +492,7 @@ impl Visit for Analyzer<'_> {
                 ImportSpecifier::Named(ImportNamedSpecifier {
                     local, imported, ..
                 }) => match imported {
-                    Some(imported) => (local.to_id(), orig_name(imported)),
+                    Some(imported) => (local.to_id(), export_name_to_atom_lossy(imported)),
                     _ => (local.to_id(), local.sym.clone()),
                 },
                 ImportSpecifier::Default(s) => (s.local.to_id(), atom!("default")),
@@ -584,7 +578,7 @@ impl Visit for Analyzer<'_> {
                     self.data.reexports.push((
                         i,
                         Reexport::Namespace {
-                            exported: export_as_atom(&n.name).clone().into_owned(),
+                            exported: export_name_to_atom_lossy(&n.name),
                         },
                     ));
                 }
@@ -601,10 +595,10 @@ impl Visit for Analyzer<'_> {
                     self.data.reexports.push((
                         i,
                         Reexport::Named {
-                            imported: export_as_atom(&n.orig).clone().into_owned(),
-                            exported: export_as_atom(n.exported.as_ref().unwrap_or(&n.orig))
-                                .clone()
-                                .into_owned(),
+                            imported: export_name_to_atom_lossy(&n.orig),
+                            exported: export_name_to_atom_lossy(
+                                n.exported.as_ref().unwrap_or(&n.orig),
+                            ),
                         },
                     ));
                 }
@@ -700,9 +694,10 @@ impl Visit for Analyzer<'_> {
             unreachable!("string reexports should have been already handled in visit_named_export");
         };
         let exported = n.exported.as_ref().unwrap_or(&n.orig);
-        self.data
-            .exports
-            .insert(export_as_atom(exported).as_str().into(), local.to_id());
+        self.data.exports.insert(
+            export_name_to_atom_lossy(exported).as_str().into(),
+            local.to_id(),
+        );
     }
 
     fn visit_export_default_specifier(&mut self, n: &ExportDefaultSpecifier) {
@@ -815,13 +810,6 @@ fn parse_ignore_directive(comments: &dyn Comments, value: Option<&ExprOrSpread>)
         .next()
 }
 
-pub(crate) fn orig_name(n: &ModuleExportName) -> Atom {
-    match n {
-        ModuleExportName::Ident(v) => v.sym.clone(),
-        ModuleExportName::Str(v) => v.value.clone().to_atom_lossy().into_owned(),
-    }
-}
-
 fn parse_with(with: Option<&ObjectLit>) -> Option<ImportedSymbol> {
     find_turbopack_part_id_in_asserts(with?).map(|v| match v {
         PartId::Internal(index, true) => ImportedSymbol::PartEvaluation(index),
@@ -837,7 +825,7 @@ fn get_import_symbol_from_import(specifier: &ImportSpecifier) -> ImportedSymbol 
         ImportSpecifier::Named(ImportNamedSpecifier {
             local, imported, ..
         }) => ImportedSymbol::Symbol(match imported {
-            Some(imported) => orig_name(imported),
+            Some(imported) => export_name_to_atom_lossy(imported),
             _ => local.sym.clone(),
         }),
         ImportSpecifier::Default(..) => ImportedSymbol::Symbol(atom!("default")),
@@ -848,7 +836,7 @@ fn get_import_symbol_from_import(specifier: &ImportSpecifier) -> ImportedSymbol 
 fn get_import_symbol_from_export(specifier: &ExportSpecifier) -> ImportedSymbol {
     match specifier {
         ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
-            ImportedSymbol::Symbol(orig_name(orig))
+            ImportedSymbol::Symbol(export_name_to_atom_lossy(orig))
         }
         ExportSpecifier::Default(..) => ImportedSymbol::Symbol(atom!("default")),
         ExportSpecifier::Namespace(..) => ImportedSymbol::Exports,

@@ -1,14 +1,16 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    atoms::{atom, Atom, Wtf8Atom},
+    atoms::{Atom, Wtf8Atom, atom},
     ecma::{
         ast::{
             Expr, Id, ImportDecl, ImportNamedSpecifier, ImportSpecifier, MemberExpr, MemberProp,
-            Module, ModuleExportName,
+            Module,
         },
-        visit::{noop_visit_type, Visit, VisitWith},
+        visit::{Visit, VisitWith, noop_visit_type},
     },
 };
+
+use crate::transforms::export_name_to_atom_lossy;
 
 #[derive(Debug, Default)]
 pub(crate) struct ImportMap {
@@ -77,7 +79,7 @@ impl Visit for Analyzer<'_> {
                 ImportSpecifier::Named(ImportNamedSpecifier {
                     local, imported, ..
                 }) => match imported {
-                    Some(imported) => (local.to_id(), orig_name(imported)),
+                    Some(imported) => (local.to_id(), export_name_to_atom_lossy(imported)),
                     _ => (local.to_id(), local.sym.clone()),
                 },
                 ImportSpecifier::Default(s) => (s.local.to_id(), atom!("default")),
@@ -93,12 +95,5 @@ impl Visit for Analyzer<'_> {
                 .imports
                 .insert(local, (import.src.value.clone(), orig_sym));
         }
-    }
-}
-
-fn orig_name(n: &ModuleExportName) -> Atom {
-    match n {
-        ModuleExportName::Ident(v) => v.sym.clone(),
-        ModuleExportName::Str(v) => v.value.clone().to_atom_lossy().into_owned(),
     }
 }
