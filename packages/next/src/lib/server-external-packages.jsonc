@@ -13,10 +13,13 @@
   "@node-rs/bcrypt",
   "@prisma/client",
   "@react-pdf/renderer",
+  // Native Node.js addons
   "@sentry/profiling-node",
   "@sparticuz/chromium",
   "@sparticuz/chromium-min",
+  // Native Node.js addons
   "@statsig/statsig-node-core",
+  // Native Node.js addons
   "@swc/core",
   "@xenova/transformers",
   "argon2",
@@ -26,7 +29,9 @@
   "better-sqlite3",
   "canvas",
   "chromadb-default-embed",
+  // Contains an unconditional require to a undeclared dependency 'coffee-script'
   "config",
+  // Native Node.js addons
   "cpu-features",
   "cypress",
   "dd-trace",
@@ -34,10 +39,14 @@
   "express",
   "firebase-admin",
   "htmlrewriter",
+  // Patches the module system to shim modules
   "import-in-the-middle",
+  // Native Node.js addons
   "isolated-vm",
   "jest",
   "jsdom",
+  // Used to contain a very dynamic require to load the DB backend:
+  // https://github.com/jaredwray/keyv/blob/78b247b5b7a8c9b12154fbfae4295d6fb29158cf/packages/keyv/src/index.js#L22
   "keyv",
   "libsql",
   "mdx-bundler",
@@ -60,16 +69,20 @@
   "puppeteer",
   "puppeteer-core",
   "ravendb",
+  // Patches the module system to shim modules
   "require-in-the-middle",
   "rimraf",
+  // Native Node.js addons
   "sharp",
   "shiki",
   "sqlite3",
   "ts-node",
+  // Slow to compile because it pulls in typescript
   "ts-morph",
   "typescript",
   "vscode-oniguruma",
   "webpack",
   "websocket",
+  // Native Node.js addons
   "zeromq",
 ]
