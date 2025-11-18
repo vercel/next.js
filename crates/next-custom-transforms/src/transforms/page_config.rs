@@ -1,9 +1,9 @@
 use chrono::Utc;
 use swc_core::{
-    common::{errors::HANDLER, Span, DUMMY_SP},
+    common::{DUMMY_SP, Span, errors::HANDLER},
     ecma::{
         ast::*,
-        visit::{fold_pass, Fold, FoldWith},
+        visit::{Fold, FoldWith, fold_pass},
     },
 };
 

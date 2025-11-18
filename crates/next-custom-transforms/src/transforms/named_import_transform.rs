@@ -31,7 +31,7 @@ struct NamedImportTransform {
 impl Fold for NamedImportTransform {
     fn fold_import_decl(&mut self, decl: ImportDecl) -> ImportDecl {
         // Match named imports and check if it's included in the packages
-        let src_value = decl.src.value.clone();
+        let src_value = &decl.src.value;
 
         if self
             .packages
@@ -47,11 +47,10 @@ impl Fold for NamedImportTransform {
                 match specifier {
                     ImportSpecifier::Named(specifier) => {
                         // Add the import name as string to the set
-                        if let Some(imported) = &specifier.imported {
-                            specifier_names.insert(export_name_to_atom_lossy(imported));
-                        } else {
-                            specifier_names.insert(specifier.local.sym.clone());
-                        }
+                        specifier_names.insert(specifier.imported.as_ref().map_or_else(
+                            || specifier.local.sym.clone(),
+                            export_name_to_atom_lossy,
+                        ));
                     }
                     ImportSpecifier::Default(_) => {
                         skip_transform = true;
