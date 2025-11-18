@@ -1,12 +1,6 @@
 const RUNTIME_PUBLIC_PATH = "output/[turbopack]_runtime.js";
 const RELATIVE_ROOT_PATH = "../../../../../../..";
 const ASSET_PREFIX = "/";
-/**
- * This file contains runtime types and functions that are shared between all
- * TurboPack ECMAScript runtimes.
- *
- * It will be prepended to the runtime code of each runtime.
- */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-types.d.ts" />
 const REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
@@ -522,7 +516,7 @@ externalRequire.resolve = (id, options)=>{
     return require.resolve(id, options);
 };
 contextPrototype.x = externalRequire;
-/* eslint-disable @typescript-eslint/no-unused-vars */ const path = require('path');
+const path = require('path');
 const relativePathToRuntimeRoot = path.relative(RUNTIME_PUBLIC_PATH, '.');
 // Compute the relative path to the `distDir`.
 const relativePathToDistRoot = path.join(relativePathToRuntimeRoot, RELATIVE_ROOT_PATH);

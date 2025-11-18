@@ -2,13 +2,13 @@
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/Actions.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
-// import() doesn't care about whether a module is an async module or not
 __turbopack_context__.s([
     "AlternativeCreateUserAction",
     ()=>AlternativeCreateUserAction,
     "CreateUserAction",
     ()=>CreateUserAction
 ]);
+// import() doesn't care about whether a module is an async module or not
 const UserApi = __turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/UserAPI.js [test] (ecmascript, async loader)");
 const CreateUserAction = async (name)=>{
     console.log('Creating user', name);

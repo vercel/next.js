@@ -11,12 +11,6 @@ const CHUNK_BASE_PATH = "";
 const CHUNK_SUFFIX_PATH = "";
 const RELATIVE_ROOT_PATH = "../../../../../../..";
 const RUNTIME_PUBLIC_PATH = "";
-/**
- * This file contains runtime types and functions that are shared between all
- * TurboPack ECMAScript runtimes.
- *
- * It will be prepended to the runtime code of each runtime.
- */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-types.d.ts" />
 const REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
@@ -491,15 +485,6 @@ function applyModuleFactoryName(factory) {
         value: 'module evaluation'
     });
 }
-/**
- * This file contains runtime types and functions that are shared between all
- * Turbopack *development* ECMAScript runtimes.
- *
- * It will be appended to the runtime code of each runtime right after the
- * shared runtime utils.
- */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../base/globals.d.ts" />
-/// <reference path="../../../shared/runtime-utils.ts" />
-// Used in WebWorkers to tell the runtime about the chunk base path
 const browserContextPrototype = Context.prototype;
 var SourceType = /*#__PURE__*/ function(SourceType) {
     /**
@@ -715,9 +700,6 @@ function loadWebAssemblyModule(chunkPath, edgeModule) {
     return BACKEND.loadWebAssemblyModule(1, this.m.id, chunkPath, edgeModule);
 }
 contextPrototype.u = loadWebAssemblyModule;
-/// <reference path="./dev-globals.d.ts" />
-/// <reference path="./dev-protocol.d.ts" />
-/// <reference path="./dev-extensions.ts" />
 const devContextPrototype = Context.prototype;
 /**
  * This file contains runtime types and functions that are shared between all
@@ -1569,13 +1551,6 @@ function registerChunk(registration) {
     }
 }
 globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
-/**
- * This file contains the runtime code specific to the Turbopack development
- * ECMAScript DOM runtime.
- *
- * It will be appended to the base development runtime code.
- */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
-/// <reference path="../../../shared/runtime-types.d.ts" />
 let BACKEND;
 /**
  * Maps chunk paths to the corresponding resolver.
