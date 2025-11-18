@@ -32,7 +32,6 @@ export function spawnNextUpgrade(
     {
       stdio: 'inherit',
       cwd: baseDir,
-      shell: true,
     }
   )
 
