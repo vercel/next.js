@@ -22,7 +22,7 @@ use swc_core::{
         errors::HANDLER,
         source_map::{SourceMapGenConfig, PURE_SP},
         util::take::Take,
-        BytePos, FileName, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
+        FileName, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
     },
     ecma::{
         ast::*,
@@ -151,7 +151,6 @@ pub fn server_actions<C: Comments>(
         cm,
         file_name: file_name.to_string(),
         file_query,
-        start_pos: BytePos(0),
         file_directive: None,
         in_exported_expr: false,
         in_default_export_decl: false,
@@ -216,7 +215,6 @@ struct ServerActions<C: Comments> {
     cm: Arc<SourceMap>,
     mode: ServerActionsMode,
 
-    start_pos: BytePos,
     file_directive: Option<Directive>,
     in_exported_expr: bool,
     in_default_export_decl: bool,
@@ -604,10 +602,7 @@ impl<C: Comments> ServerActions<C> {
         new_params.append(&mut function.params);
 
         let action_name: Atom = self.gen_action_ident();
-        let mut action_ident = Ident::new(action_name.clone(), function.span, self.private_ctxt);
-        if action_ident.span.lo == self.start_pos {
-            action_ident.span = Span::dummy_with_cmt();
-        }
+        let action_ident = Ident::new(action_name.clone(), function.span, self.private_ctxt);
 
         let action_id = self.generate_server_reference_id(&action_name, false, Some(&new_params));
 
@@ -1156,11 +1151,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 );
             }
         }
-    }
-
-    fn visit_mut_module(&mut self, m: &mut Module) {
-        self.start_pos = m.span.lo;
-        m.visit_mut_children_with(self);
     }
 
     fn visit_mut_stmt(&mut self, n: &mut Stmt) {
@@ -2095,12 +2085,18 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             new.rotate_right(import_count);
         }
 
+        let create_empty_stmt_with_cmt = |comment: Comment| {
+            let comment_span = Span::dummy_with_cmt();
+            self.comments.add_leading(comment_span.lo, comment);
+            ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: comment_span }))
+        };
+
         if self.has_action || self.has_cache {
             if self.config.is_react_server_layer {
                 // Prepend a special comment to the top of the file.
-                self.comments.add_leading(
-                    self.start_pos,
-                    Comment {
+                new.insert(
+                    0,
+                    create_empty_stmt_with_cmt(Comment {
                         span: DUMMY_SP,
                         kind: CommentKind::Block,
                         text: generate_server_actions_comment(
@@ -2111,21 +2107,18 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             },
                         )
                         .into(),
-                    },
+                    }),
                 );
             } else {
                 match self.mode {
                     ServerActionsMode::Webpack => {
-                        self.comments.add_leading(
-                            self.start_pos,
-                            Comment {
-                                span: DUMMY_SP,
-                                kind: CommentKind::Block,
-                                text: generate_server_actions_comment(&actions, None).into(),
-                            },
-                        );
+                        new.push(create_empty_stmt_with_cmt(Comment {
+                            span: DUMMY_SP,
+                            kind: CommentKind::Block,
+                            text: generate_server_actions_comment(&actions, None).into(),
+                        }));
                         new.push(client_layer_import.unwrap());
-                        new.rotate_right(1);
+                        new.rotate_right(2);
                         new.extend(client_layer_exports.into_iter().map(|(_, (v, _))| v));
                     }
                     ServerActionsMode::Turbopack => {
@@ -3308,15 +3301,19 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
 fn program_to_data_url(
     file_name: &str,
     cm: &Arc<SourceMap>,
-    body: Vec<ModuleItem>,
+    mut body: Vec<ModuleItem>,
     prepend_comment: Comment,
 ) -> String {
-    let module_span = Span::dummy_with_cmt();
+    let comment_span = Span::dummy_with_cmt();
     let comments = SingleThreadedComments::default();
-    comments.add_leading(module_span.lo, prepend_comment);
+    comments.add_leading(comment_span.lo, prepend_comment);
+    body.insert(
+        0,
+        ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: comment_span })),
+    );
 
     let program = &Program::Module(Module {
-        span: module_span,
+        span: DUMMY_SP,
         body,
         shebang: None,
     });

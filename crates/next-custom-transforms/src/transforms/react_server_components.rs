@@ -234,11 +234,12 @@ impl<C: Comments> ReactServerComponents<C> {
         self.prepend_comment_node(module, is_cjs, export_names);
     }
 
-    fn prepend_comment_node(&self, module: &Module, is_cjs: bool, export_names: &[Atom]) {
+    fn prepend_comment_node(&self, module: &mut Module, is_cjs: bool, export_names: &[Atom]) {
         // Prepend a special comment to the top of the file that contains
         // module export names and the detected module type.
+        let comment_span = Span::dummy_with_cmt();
         self.comments.add_leading(
-            module.span.lo,
+            comment_span.lo,
             Comment {
                 span: DUMMY_SP,
                 kind: CommentKind::Block,
@@ -249,6 +250,10 @@ impl<C: Comments> ReactServerComponents<C> {
                 )
                 .into(),
             },
+        );
+        module.body.insert(
+            0,
+            ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: comment_span })),
         );
     }
 }
