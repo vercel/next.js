@@ -9,7 +9,10 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph},
-    output::{OutputAsset, OutputAssets, OutputAssetsReference},
+    output::{
+        ExpandOutputAssetsInput, OutputAsset, OutputAssets, OutputAssetsReference,
+        expand_output_assets,
+    },
 };
 
 use crate::{
@@ -93,7 +96,16 @@ pub async fn endpoint_hashes(
         .try_join()
         .await?;
 
-    let output_assets = outputs.await?.output_assets.await?;
+    let output_assets = expand_output_assets(
+        outputs
+            .await?
+            .output_assets
+            .await?
+            .into_iter()
+            .map(|asset| ExpandOutputAssetsInput::Asset(*asset)),
+        true,
+    )
+    .await?;
     let outputs_hashes = output_assets
         .iter()
         .map(|asset| asset.content().hash())
