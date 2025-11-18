@@ -16,7 +16,6 @@ use turbopack::module_options::{
     ConditionItem, ConditionPath, LoaderRuleItem, WebpackRules,
     module_options_context::MdxTransformOptions,
 };
-use turbopack_browser::ChunkSuffix;
 use turbopack_core::{
     chunk::SourceMapsType,
     issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
@@ -1671,19 +1670,6 @@ impl NextConfig {
         match &this.deployment_id {
             Some(deployment_id) => Ok(Vc::cell(Some(format!("?dpl={deployment_id}").into()))),
             None => Ok(Vc::cell(None)),
-        }
-    }
-
-    /// Returns the suffix to use for chunk loading.
-    #[turbo_tasks::function]
-    pub async fn chunk_suffix(self: Vc<Self>) -> Result<Vc<ChunkSuffix>> {
-        let this = self.await?;
-
-        match &this.deployment_id {
-            Some(deployment_id) => {
-                Ok(ChunkSuffix::Constant(format!("?dpl={deployment_id}").into()).cell())
-            }
-            None => Ok(ChunkSuffix::None.cell()),
         }
     }
 
