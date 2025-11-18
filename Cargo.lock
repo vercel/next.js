@@ -4399,7 +4399,6 @@ dependencies = [
  "sha1",
  "styled_components",
  "styled_jsx",
- "swc_atoms",
  "swc_core",
  "swc_emotion",
  "swc_relay",

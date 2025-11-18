@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use swc_atoms::Wtf8Atom;
 use swc_core::{
-    atoms::Atom,
+    atoms::{Atom, Wtf8Atom},
     common::{errors::HANDLER, SourceMap, Span},
     ecma::{
         ast::{

@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
 use serde::Deserialize;
-use swc_atoms::Wtf8Atom;
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{atom, Atom, Wtf8Atom},
     common::DUMMY_SP,
     ecma::{
         ast::*,

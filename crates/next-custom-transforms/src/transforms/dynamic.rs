@@ -544,7 +544,7 @@ impl NextDynamicPatcher {
 fn exec_expr_when_resolve_weak_available(expr: &Expr) -> Expr {
     let undefined_str_literal = Expr::Lit(Lit::Str(Str {
         span: DUMMY_SP,
-        value: "undefined".into(),
+        value: atom!("undefined").into(),
         raw: None,
     }));
 
