@@ -19,7 +19,7 @@ use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
+use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath, glob::Glob};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -317,7 +317,9 @@ impl IntoCodeGenReference for RequireContextAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+)]
 pub struct RequireContextAssetReferenceCodeGen {
     path: AstPath,
     reference: ResolvedVc<RequireContextAssetReference>,
@@ -418,6 +420,14 @@ impl Module for RequireContextAsset {
                 })
                 .collect(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(
+        self: Vc<Self>,
+        _side_effect_free_packages: Vc<Glob>,
+    ) -> Vc<bool> {
+        Vc::cell(true)
     }
 }
 

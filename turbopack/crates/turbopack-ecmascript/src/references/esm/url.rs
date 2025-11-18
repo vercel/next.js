@@ -146,7 +146,9 @@ impl IntoCodeGenReference for UrlAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+)]
 pub struct UrlAssetReferenceCodeGen {
     reference: ResolvedVc<UrlAssetReference>,
     path: AstPath,

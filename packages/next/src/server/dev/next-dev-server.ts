@@ -430,6 +430,7 @@ export default class DevServer extends Server {
        */
       if (
         request.url.includes('/_next/static') ||
+        request.url.includes('/__nextjs_attach-nodejs-inspector') ||
         request.url.includes('/__nextjs_original-stack-frame') ||
         request.url.includes('/__nextjs_source-map') ||
         request.url.includes('/__nextjs_error_feedback')
