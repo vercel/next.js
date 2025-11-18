@@ -52,6 +52,27 @@ export function eventLintCheckCompleted(event: EventLintCheckCompleted): {
   }
 }
 
+const EVENT_ANALYZE_COMPLETED = 'NEXT_ANALYZE_COMPLETED'
+type AnalyzeEventCompleted =
+  | {
+      durationInSeconds: number
+      success: true
+      totalPageCount: number
+    }
+  | {
+      success: false
+    }
+
+export function eventAnalyzeCompleted(event: AnalyzeEventCompleted): {
+  eventName: string
+  payload: AnalyzeEventCompleted
+} {
+  return {
+    eventName: EVENT_ANALYZE_COMPLETED,
+    payload: event,
+  }
+}
+
 const EVENT_BUILD_COMPLETED = 'NEXT_BUILD_COMPLETED'
 type EventBuildCompleted = {
   bundler: 'webpack' | 'rspack' | 'turbopack'

@@ -22,7 +22,9 @@ use crate::{
 /// Makes code changes to remove export/import declarations and places the
 /// expr/decl in a normal statement. Unnamed expr/decl will be named with the
 /// magic identifier "export default"
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash,
+)]
 pub struct EsmModuleItem {
     pub path: AstPath,
 }

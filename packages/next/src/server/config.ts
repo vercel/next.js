@@ -1864,6 +1864,24 @@ function enforceExperimentalFeatures(
   }
 
   if (
+    process.env.__NEXT_EXPERIMENTAL_TRANSITION_INDICATOR === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.transitionIndicator === undefined ||
+      (isDefaultConfig && !config.experimental.transitionIndicator))
+  ) {
+    config.experimental.transitionIndicator = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'transitionIndicator',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_TRANSITION_INDICATOR`'
+      )
+    }
+  }
+
+  if (
     process.env.__NEXT_ENABLE_REACT_COMPILER === 'true' &&
     // We do respect an explicit value in the user config.
     (config.reactCompiler === undefined ||

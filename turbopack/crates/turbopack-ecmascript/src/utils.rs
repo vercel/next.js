@@ -178,7 +178,7 @@ format_iter!(std::fmt::Pointer);
 format_iter!(std::fmt::UpperExp);
 format_iter!(std::fmt::UpperHex);
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue, Hash)]
 pub enum AstPathRange {
     /// The ast path to the block or expression.
     Exact(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>),

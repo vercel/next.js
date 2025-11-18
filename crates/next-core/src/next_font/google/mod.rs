@@ -21,6 +21,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::Layer,
     issue::{IssueExt, IssueSeverity, StyledString},
+    module_graph::ModuleGraph,
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ResolveResult,
@@ -31,7 +32,9 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_node::{
-    debug::should_debug, evaluate::evaluate, execution_context::ExecutionContext,
+    debug::should_debug,
+    evaluate::{evaluate, get_evaluate_entries},
+    execution_context::ExecutionContext,
 };
 
 use self::{
@@ -752,15 +755,17 @@ async fn get_mock_stylesheet(
         )
         .module();
 
+    let entries = get_evaluate_entries(mocked_response_asset, asset_context, None);
+    let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false);
+
     let root = mock_fs.root().owned().await?;
     let val = evaluate(
-        mocked_response_asset,
+        entries,
         root,
         *env,
         loader_source,
-        asset_context,
         *chunking_context,
-        None,
+        module_graph,
         vec![],
         Completion::immutable(),
         should_debug("next_font::google"),

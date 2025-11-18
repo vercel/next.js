@@ -1793,6 +1793,7 @@ function startReadingFromStream(response, stream, onDone) {
           65 === rowState ||
           79 === rowState ||
           111 === rowState ||
+          98 === rowState ||
           85 === rowState ||
           83 === rowState ||
           115 === rowState ||
@@ -1828,22 +1829,30 @@ function startReadingFromStream(response, stream, onDone) {
       var offset = value.byteOffset + i;
       if (-1 < lastIdx)
         (rowLength = new Uint8Array(value.buffer, offset, lastIdx - i)),
-          processFullBinaryRow(
-            response,
-            streamState,
-            _ref2,
-            rowTag,
-            buffer,
-            rowLength
-          ),
+          98 === rowTag
+            ? resolveBuffer(
+                response,
+                _ref2,
+                lastIdx === chunkLength ? rowLength : rowLength.slice()
+              )
+            : processFullBinaryRow(
+                response,
+                streamState,
+                _ref2,
+                rowTag,
+                buffer,
+                rowLength
+              ),
           (i = lastIdx),
           3 === rowState && i++,
           (rowLength = _ref2 = rowTag = rowState = 0),
           (buffer.length = 0);
       else {
         value = new Uint8Array(value.buffer, offset, value.byteLength - i);
-        buffer.push(value);
-        rowLength -= value.byteLength;
+        98 === rowTag
+          ? ((rowLength -= value.byteLength),
+            resolveBuffer(response, _ref2, value))
+          : (buffer.push(value), (rowLength -= value.byteLength));
         break;
       }
     }

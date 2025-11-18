@@ -30,10 +30,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
-    module_graph::{
-        ModuleGraph, SingleModuleGraph, SingleModuleGraphModuleNode,
-        async_module_info::AsyncModulesInfo,
-    },
+    module_graph::{ModuleGraph, SingleModuleGraph, async_module_info::AsyncModulesInfo},
     output::OutputAsset,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
@@ -454,24 +451,21 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
     let actions = graph
         .await?
         .iter_nodes()
-        .map(|node| {
-            async move {
-                let SingleModuleGraphModuleNode { module } = node;
-                // TODO: compare module contexts instead?
-                let layer = match module.ident().await?.layer.as_ref() {
-                    Some(layer) if layer.name() == "app-rsc" || layer.name() == "app-edge-rsc" => {
-                        ActionLayer::Rsc
-                    }
-                    Some(layer) if layer.name() == "app-client" => ActionLayer::ActionBrowser,
-                    // TODO really ignore SSR?
-                    _ => return Ok(None),
-                };
-                // TODO the old implementation did parse_actions(to_rsc_context(module))
-                // is that really necessary?
-                Ok(parse_actions(**module)
-                    .await?
-                    .map(|action_map| (*module, (layer, action_map))))
-            }
+        .map(async |module| {
+            // TODO: compare module contexts instead?
+            let layer = match module.ident().await?.layer.as_ref() {
+                Some(layer) if layer.name() == "app-rsc" || layer.name() == "app-edge-rsc" => {
+                    ActionLayer::Rsc
+                }
+                Some(layer) if layer.name() == "app-client" => ActionLayer::ActionBrowser,
+                // TODO really ignore SSR?
+                _ => return Ok(None),
+            };
+            // TODO the old implementation did parse_actions(to_rsc_context(module))
+            // is that really necessary?
+            Ok(parse_actions(*module)
+                .await?
+                .map(|action_map| (module, (layer, action_map))))
         })
         .try_flat_join()
         .await?;

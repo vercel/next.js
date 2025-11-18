@@ -471,19 +471,39 @@ fn react_server_components_typescript(input: PathBuf) {
 fn react_server_components_fixture(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
+    let filename = FileName::Real(PathBuf::from("/some-project/src/some-file.js"));
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
         &|tr| {
-            server_components(
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
-                Config::WithOptions(Options {
-                    is_react_server_layer,
-                    cache_components_enabled: false,
-                    use_cache_enabled: false,
-                }),
-                tr.comments.as_ref().clone(),
-                None,
+            (
+                // The transforms are intentionally declared in the same order as in
+                // crates/next-custom-transforms/src/chain_transforms.rs
+                server_components(
+                    filename.clone().into(),
+                    Config::WithOptions(Options {
+                        is_react_server_layer,
+                        cache_components_enabled: false,
+                        use_cache_enabled: false,
+                    }),
+                    tr.comments.as_ref().clone(),
+                    None,
+                ),
+                server_actions(
+                    &filename,
+                    None,
+                    server_actions::Config {
+                        is_react_server_layer,
+                        is_development: true,
+                        use_cache_enabled: true,
+                        hash_salt: "".into(),
+                        cache_kinds: FxHashSet::default(),
+                    },
+                    tr.comments.as_ref().clone(),
+                    tr.cm.clone(),
+                    Default::default(),
+                    ServerActionsMode::Webpack,
+                ),
             )
         },
         &input,
