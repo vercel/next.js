@@ -408,8 +408,8 @@ function makeGetDynamicParamFromSegment(
     if (!segmentParam) {
       return null
     }
-    const segmentKey = segmentParam.param
-    const dynamicParamType = dynamicParamTypes[segmentParam.type]
+    const segmentKey = segmentParam.paramName
+    const dynamicParamType = dynamicParamTypes[segmentParam.paramType]
     return getDynamicParam(
       interpolatedParams,
       segmentKey,
