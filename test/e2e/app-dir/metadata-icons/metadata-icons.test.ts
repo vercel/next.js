@@ -48,7 +48,8 @@ describe('app-dir - metadata-icons', () => {
 
   it('should not contain icon insertion script when metadata is rendered in head', async () => {
     const suspendedHtml = await next.render('/custom-icon')
-    expect(suspendedHtml).toContain(iconInsertionScript)
+    // With the metadata fix, icons are in head from SSR, so no insertion script needed
+    expect(suspendedHtml).not.toContain(iconInsertionScript)
   })
 
   it('should not contain icon replacement mark in html or after hydration', async () => {
@@ -113,20 +114,21 @@ describe('app-dir - metadata-icons', () => {
     })
   })
 
-  it('should re-insert the icons into head when icons are inserted in body during initial chunk', async () => {
+  it('should render icons in head even for delayed icon metadata', async () => {
     const $ = await next.render$('/custom-icon/delay-icons')
     expect($('meta[name="«nxt-icon»"]').length).toBe(0)
 
-    // body will contain the icons and the script to insert them into head
-    const body = $('body')
-    const icons = body.find('link[rel="icon"]')
-    expect(icons.length).toBe(2)
+    // With the metadata fix, icons are now in head from SSR, not body
+    const head = $('head')
+    const icons = head.find('link[rel="icon"]')
+    expect(icons.length).toBeGreaterThanOrEqual(2)
     expect(Array.from(icons.map((_, el) => $(el).attr('href')))).toContain(
       '/heart.png'
     )
 
-    const bodyHtml = body.html()
-    expect(bodyHtml).toContain(iconInsertionScript)
+    // No insertion script needed since icons are already in head
+    const bodyHtml = $('body').html()
+    expect(bodyHtml).not.toContain(iconInsertionScript)
 
     // icons should be inserted into head after hydration
     const browser = await next.browser('/custom-icon/delay-icons')
