@@ -62,14 +62,16 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
-    raw_output::RawOutput,
     reference::all_assets_from_entries,
     reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
+    source_map::SourceMapAsset,
     virtual_output::VirtualOutputAsset,
 };
-use turbopack_ecmascript::resolve::cjs_resolve;
+use turbopack_ecmascript::{
+    resolve::cjs_resolve, single_file_ecmascript_output::SingleFileEcmascriptOutput,
+};
 
 use crate::{
     dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
@@ -1300,11 +1302,11 @@ impl AppEndpoint {
 
         let manifest_path_prefix = &app_entry.original_name;
 
-        // polyfill-nomodule.js is a pre-compiled asset distributed as part of next,
-        // load it as a RawModule.
+        // polyfill-nomodule.js is a pre-compiled asset distributed as part of next
         let next_package = get_next_package(project.project_path().owned().await?).await?;
-        let polyfill_source =
-            FileSource::new(next_package.join("dist/build/polyfills/polyfill-nomodule.js")?);
+        let polyfill_source_path =
+            next_package.join("dist/build/polyfills/polyfill-nomodule.js")?;
+        let polyfill_source = FileSource::new(polyfill_source_path.clone());
         let polyfill_output_path = client_chunking_context
             .chunk_path(
                 Some(Vc::upcast(polyfill_source)),
@@ -1314,12 +1316,25 @@ impl AppEndpoint {
             )
             .owned()
             .await?;
-        let polyfill_output_asset = ResolvedVc::upcast(
-            RawOutput::new(polyfill_output_path, Vc::upcast(polyfill_source))
-                .to_resolved()
-                .await?,
-        );
+
+        let polyfill_output = SingleFileEcmascriptOutput::new(
+            polyfill_output_path.clone(),
+            polyfill_source_path,
+            Vc::upcast(polyfill_source),
+        )
+        .to_resolved()
+        .await?;
+
+        let polyfill_output_asset = ResolvedVc::upcast(polyfill_output);
         client_assets.insert(polyfill_output_asset);
+
+        let polyfill_source_map_asset = SourceMapAsset::new_fixed(
+            polyfill_output_path.clone(),
+            *ResolvedVc::upcast(polyfill_output),
+        )
+        .to_resolved()
+        .await?;
+        client_assets.insert(ResolvedVc::upcast(polyfill_source_map_asset));
 
         let client_assets: ResolvedVc<OutputAssets> =
             ResolvedVc::cell(client_assets.into_iter().collect::<Vec<_>>());

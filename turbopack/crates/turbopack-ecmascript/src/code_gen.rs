@@ -35,6 +35,7 @@ use crate::{
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         ident::IdentReplacement,
         member::MemberReplacement,
+        replace_parent_with_child::ReplaceParentWithChild,
         require_context::RequireContextAssetReferenceCodeGen,
         unreachable::Unreachable,
         worker::WorkerAssetReferenceCodeGen,
@@ -199,6 +200,7 @@ pub enum CodeGen {
     RequireContextAssetReferenceCodeGen(RequireContextAssetReferenceCodeGen),
     UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen),
     WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen),
+    ReplaceParentWithChild(ReplaceParentWithChild),
 }
 
 impl CodeGen {
@@ -212,8 +214,8 @@ impl CodeGen {
         match self {
             Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(ctx).await,
             Self::CjsRequireCacheAccess(v) => v.code_generation(ctx).await,
-            Self::ConstantConditionCodeGen(v) => v.code_generation(ctx).await,
-            Self::ConstantValueCodeGen(v) => v.code_generation(ctx).await,
+            Self::ConstantConditionCodeGen(v) => v.code_generation(),
+            Self::ConstantValueCodeGen(v) => v.code_generation(),
             Self::DynamicExpression(v) => v.code_generation(ctx).await,
             Self::EsmBinding(v) => v.code_generation(ctx, scope_hoisting_context).await,
             Self::EsmModuleItem(v) => v.code_generation(ctx).await,
@@ -231,6 +233,7 @@ impl CodeGen {
             Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::ReplaceParentWithChild(v) => v.code_generation(),
         }
     }
 }
