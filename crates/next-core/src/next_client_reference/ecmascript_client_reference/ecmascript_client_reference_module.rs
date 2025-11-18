@@ -20,6 +20,7 @@ use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     reference_type::ReferenceType,
     resolve::ModuleResolveResult,
+    source::OptionSource,
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
@@ -195,6 +196,11 @@ impl Module for EcmascriptClientReferenceModule {
             .server_ident
             .with_modifier(rcstr!("client reference proxy"))
             .with_layer(self.server_asset_context.into_trait_ref().await?.layer()))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
     }
 
     #[turbo_tasks::function]

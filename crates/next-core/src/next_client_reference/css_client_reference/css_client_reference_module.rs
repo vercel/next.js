@@ -10,6 +10,7 @@ use turbopack_core::{
     module::Module,
     reference::{ModuleReference, ModuleReferences},
     resolve::ModuleResolveResult,
+    source::OptionSource,
 };
 
 /// A [`CssClientReferenceModule`] is a marker module used to indicate which
@@ -39,6 +40,11 @@ impl Module for CssClientReferenceModule {
         self.client_module
             .ident()
             .with_modifier(rcstr!("css client reference"))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
     }
 
     #[turbo_tasks::function]

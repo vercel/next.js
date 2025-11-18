@@ -13,6 +13,7 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     reference::ModuleReferences,
+    source::OptionSource,
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -51,6 +52,11 @@ impl Module for NextServerUtilityModule {
         self.module
             .ident()
             .with_modifier(rcstr!("Next.js server utility"))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
     }
 
     #[turbo_tasks::function]

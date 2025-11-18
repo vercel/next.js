@@ -14,6 +14,7 @@ use turbopack_core::{
     output::OutputAssetsReference,
     reference::{ModuleReferences, SingleChunkableModuleReference},
     resolve::ExportUsage,
+    source::OptionSource,
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -51,6 +52,11 @@ impl Module for NextDynamicEntryModule {
         self.module
             .ident()
             .with_modifier(rcstr!("next/dynamic entry"))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
     }
 
     #[turbo_tasks::function]

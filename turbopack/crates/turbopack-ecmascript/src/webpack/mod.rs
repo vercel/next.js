@@ -56,6 +56,11 @@ impl Module for WebpackModuleAsset {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
     fn references(&self) -> Vc<ModuleReferences> {
         module_references(*self.source, *self.runtime, *self.transforms)
     }

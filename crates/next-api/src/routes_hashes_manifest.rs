@@ -1,6 +1,8 @@
 use anyhow::Result;
 use serde::Serialize;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 use turbopack_core::{
@@ -97,11 +99,15 @@ pub async fn endpoint_hashes(
         println!("{e:?} {endpoint:?} module_graph entries = {entries:#?}\nmodules = {modules:#?}")
     }
 
-    // let sources = all_modules
-    //     .iter()
-    //     .map(|module| module.source().to_resolved())
-    //     .try_join()
-    //     .await?;
+    let sources = all_modules
+        .iter()
+        .map(|module| module.source())
+        .try_flat_join()
+        .await?
+        .into_iter()
+        .map(|source| source.content().hash())
+        .try_join()
+        .await?;
 
     let modules_hashes = all_modules
         .iter()
@@ -116,7 +122,13 @@ pub async fn endpoint_hashes(
         .try_join()
         .await?;
 
-    let sources_hash = 0; // TODO compute source hash
+    let sources_hash = {
+        let mut hasher = Xxh3Hash64Hasher::new();
+        for source in sources.iter() {
+            source.deterministic_hash(&mut hasher);
+        }
+        hasher.finish()
+    };
     let modules_hash = {
         let mut hasher = Xxh3Hash64Hasher::new();
         for hash in modules_hashes.iter() {
