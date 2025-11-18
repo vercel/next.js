@@ -2,16 +2,14 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 use swc_core::{
-    atoms::{atom, Atom, Wtf8Atom},
+    atoms::{Atom, Wtf8Atom, atom},
     common::DUMMY_SP,
     ecma::{
         ast::*,
         utils::private_ident,
-        visit::{fold_pass, Fold},
+        visit::{Fold, fold_pass},
     },
 };
-
-use crate::transforms::export_name_to_atom_lossy;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
@@ -47,7 +45,7 @@ impl Fold for OptimizeBarrel {
                                 (
                                     src.clone(),
                                     match &s.imported {
-                                        Some(n) => export_name_to_atom_lossy(n),
+                                        Some(n) => n.atom().into_owned(),
                                         None => s.local.sym.clone(),
                                     },
                                 ),
@@ -91,7 +89,7 @@ impl Fold for OptimizeBarrel {
                             for spec in &export_named.specifiers {
                                 match spec {
                                     ExportSpecifier::Namespace(s) => {
-                                        let name_str = export_name_to_atom_lossy(&s.name);
+                                        let name_str = s.name.atom().into_owned();
                                         if let Some(src) = &export_named.src {
                                             export_map.push((
                                                 name_str.clone(),
@@ -110,10 +108,10 @@ impl Fold for OptimizeBarrel {
                                         }
                                     }
                                     ExportSpecifier::Named(s) => {
-                                        let orig_str = export_name_to_atom_lossy(&s.orig);
+                                        let orig_str = s.orig.atom().into_owned();
                                         let name_str = s.exported.as_ref().map_or_else(
                                             || orig_str.clone(),
-                                            export_name_to_atom_lossy,
+                                            |i| i.atom().into_owned(),
                                         );
 
                                         if let Some(src) = &export_named.src {

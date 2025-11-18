@@ -2,17 +2,17 @@
 // - Removes `useEffect` and `useLayoutEffect` calls
 // - Refactors `useState` calls (under the `optimize_use_state` flag)
 
+use std::borrow::Cow;
+
 use serde::Deserialize;
 use swc_core::{
     atoms::atom,
     common::DUMMY_SP,
     ecma::{
         ast::*,
-        visit::{fold_pass, Fold, FoldWith},
+        visit::{Fold, FoldWith, fold_pass},
     },
 };
-
-use crate::transforms::export_name_to_atom_lossy;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
@@ -108,17 +108,22 @@ impl Fold for OptimizeServerReact {
                 }
                 for specifier in &import_decl.specifiers {
                     if let ImportSpecifier::Named(named_import) = specifier {
-                        let name = named_import.imported.as_ref().map_or_else(
-                            || named_import.local.sym.clone(),
-                            export_name_to_atom_lossy,
-                        );
+                        let name = named_import
+                            .imported
+                            .as_ref()
+                            .map_or_else(|| Cow::Borrowed(&named_import.local.sym), |i| i.atom());
 
-                        if name == "useState" {
-                            self.use_state_ident = Some(named_import.local.to_id());
-                        } else if name == "useEffect" {
-                            self.use_effect_ident = Some(named_import.local.to_id());
-                        } else if name == "useLayoutEffect" {
-                            self.use_layout_effect_ident = Some(named_import.local.to_id());
+                        match &**name {
+                            "useState" => {
+                                self.use_state_ident = Some(named_import.local.to_id());
+                            }
+                            "useEffect" => {
+                                self.use_effect_ident = Some(named_import.local.to_id());
+                            }
+                            "useLayoutEffect" => {
+                                self.use_layout_effect_ident = Some(named_import.local.to_id());
+                            }
+                            _ => {}
                         }
                     } else if let ImportSpecifier::Default(default_import) = specifier {
                         self.react_ident = Some(default_import.local.to_id());

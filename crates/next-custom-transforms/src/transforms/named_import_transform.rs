@@ -5,11 +5,9 @@ use swc_core::{
     common::DUMMY_SP,
     ecma::{
         ast::*,
-        visit::{fold_pass, Fold},
+        visit::{Fold, fold_pass},
     },
 };
-
-use crate::transforms::export_name_to_atom_lossy;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
@@ -49,7 +47,7 @@ impl Fold for NamedImportTransform {
                         // Add the import name as string to the set
                         specifier_names.insert(specifier.imported.as_ref().map_or_else(
                             || specifier.local.sym.clone(),
-                            export_name_to_atom_lossy,
+                            |i| i.atom().into_owned(),
                         ));
                     }
                     ImportSpecifier::Default(_) => {

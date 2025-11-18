@@ -1,5 +1,3 @@
-use swc_core::{atoms::Atom, ecma::ast::ModuleExportName};
-
 pub mod cjs_finder;
 pub mod cjs_optimizer;
 pub mod debug_fn_name;
@@ -23,10 +21,3 @@ pub mod warn_for_edge_runtime;
 
 //[TODO] PACK-1564: need to decide reuse vs. turbopack specific
 pub mod named_import_transform;
-
-pub(crate) fn export_name_to_atom_lossy(n: &ModuleExportName) -> Atom {
-    match n {
-        ModuleExportName::Ident(v) => v.sym.clone(),
-        ModuleExportName::Str(v) => v.value.clone().to_atom_lossy().into_owned(),
-    }
-}

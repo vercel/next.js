@@ -22,7 +22,6 @@ use crate::{
     analyzer::{ConstantValue, ObjectPart},
     magic_identifier,
     tree_shake::{PartId, find_turbopack_part_id_in_asserts},
-    utils::export_name_to_atom_lossy,
 };
 
 #[turbo_tasks::value]
@@ -492,7 +491,7 @@ impl Visit for Analyzer<'_> {
                 ImportSpecifier::Named(ImportNamedSpecifier {
                     local, imported, ..
                 }) => match imported {
-                    Some(imported) => (local.to_id(), export_name_to_atom_lossy(imported)),
+                    Some(imported) => (local.to_id(), imported.atom().into_owned()),
                     _ => (local.to_id(), local.sym.clone()),
                 },
                 ImportSpecifier::Default(s) => (s.local.to_id(), atom!("default")),
@@ -578,7 +577,7 @@ impl Visit for Analyzer<'_> {
                     self.data.reexports.push((
                         i,
                         Reexport::Namespace {
-                            exported: export_name_to_atom_lossy(&n.name),
+                            exported: n.name.atom().into_owned(),
                         },
                     ));
                 }
@@ -595,10 +594,8 @@ impl Visit for Analyzer<'_> {
                     self.data.reexports.push((
                         i,
                         Reexport::Named {
-                            imported: export_name_to_atom_lossy(&n.orig),
-                            exported: export_name_to_atom_lossy(
-                                n.exported.as_ref().unwrap_or(&n.orig),
-                            ),
+                            imported: n.orig.atom().into_owned(),
+                            exported: n.exported.as_ref().unwrap_or(&n.orig).atom().into_owned(),
                         },
                     ));
                 }
@@ -694,10 +691,9 @@ impl Visit for Analyzer<'_> {
             unreachable!("string reexports should have been already handled in visit_named_export");
         };
         let exported = n.exported.as_ref().unwrap_or(&n.orig);
-        self.data.exports.insert(
-            export_name_to_atom_lossy(exported).as_str().into(),
-            local.to_id(),
-        );
+        self.data
+            .exports
+            .insert(exported.atom().as_str().into(), local.to_id());
     }
 
     fn visit_export_default_specifier(&mut self, n: &ExportDefaultSpecifier) {
@@ -825,7 +821,7 @@ fn get_import_symbol_from_import(specifier: &ImportSpecifier) -> ImportedSymbol 
         ImportSpecifier::Named(ImportNamedSpecifier {
             local, imported, ..
         }) => ImportedSymbol::Symbol(match imported {
-            Some(imported) => export_name_to_atom_lossy(imported),
+            Some(imported) => imported.atom().into_owned(),
             _ => local.sym.clone(),
         }),
         ImportSpecifier::Default(..) => ImportedSymbol::Symbol(atom!("default")),
@@ -836,7 +832,7 @@ fn get_import_symbol_from_import(specifier: &ImportSpecifier) -> ImportedSymbol 
 fn get_import_symbol_from_export(specifier: &ExportSpecifier) -> ImportedSymbol {
     match specifier {
         ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
-            ImportedSymbol::Symbol(export_name_to_atom_lossy(orig))
+            ImportedSymbol::Symbol(orig.atom().into_owned())
         }
         ExportSpecifier::Default(..) => ImportedSymbol::Symbol(atom!("default")),
         ExportSpecifier::Namespace(..) => ImportedSymbol::Exports,
