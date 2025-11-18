@@ -2,14 +2,14 @@ use std::fmt::Write;
 
 use swc_core::{
     atoms::Atom,
-    common::{DUMMY_SP, util::take::Take},
+    common::{util::take::Take, DUMMY_SP},
     ecma::{
         ast::{
             CallExpr, Callee, ExportDefaultDecl, ExportDefaultExpr, Expr, FnDecl, FnExpr,
             KeyValueProp, MemberProp, ObjectLit, Pass, PropOrSpread, VarDeclarator,
         },
         utils::ExprFactory,
-        visit::{VisitMut, VisitMutWith, visit_mut_pass},
+        visit::{visit_mut_pass, VisitMut, VisitMutWith},
     },
 };
 

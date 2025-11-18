@@ -1,8 +1,8 @@
 use swc_core::{
-    common::{DUMMY_SP, Span, Spanned, comments::Comments, errors::HANDLER, util::take::Take},
+    common::{comments::Comments, errors::HANDLER, util::take::Take, Span, Spanned, DUMMY_SP},
     ecma::{
         ast::{CallExpr, Callee, EmptyStmt, Expr, Module, ModuleDecl, ModuleItem, Stmt},
-        visit::{VisitMut, VisitMutWith, noop_visit_mut_type},
+        visit::{noop_visit_mut_type, VisitMut, VisitMutWith},
     },
 };
 

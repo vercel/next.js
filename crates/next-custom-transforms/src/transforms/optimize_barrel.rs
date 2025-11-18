@@ -2,12 +2,12 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 use swc_core::{
-    atoms::{Atom, Wtf8Atom, atom},
+    atoms::{atom, Atom, Wtf8Atom},
     common::DUMMY_SP,
     ecma::{
         ast::*,
         utils::private_ident,
-        visit::{Fold, fold_pass},
+        visit::{fold_pass, Fold},
     },
 };
 
