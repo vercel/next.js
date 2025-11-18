@@ -50,13 +50,13 @@ Next.js requires you to explicitly handle components that can't complete during 
   height="785"
 />
 
-This rendering approach is called **Partial Prerendering**, and it's the default behavior with Cache Components. For the rest of this document, we simply refer to it as "prerendering" which can produce a partial or complete output. 
+This rendering approach is called **Partial Prerendering**, and it's the default behavior with Cache Components. For the rest of this document, we simply refer to it as "prerendering" which can produce a partial or complete output.
 
 > **🎥 Watch:** Why Partial Prerendering and how it works → [YouTube (10 minutes)](https://www.youtube.com/watch?v=MTcPrTIBkpA).
 
 ## Automatically prerendered content
 
-Operations like immediately resolved promises, synchronous I/O, module imports, and pure computations can complete during prerendering. Components using only these operations have their rendered output included in the static HTML shell.
+Operations like synchronous I/O, module imports, and pure computations can complete during prerendering. Components using only these operations have their rendered output included in the static HTML shell.
 
 Because all operations in the `Page` component below complete during rendering, its rendered output is automatically included in the static shell. When both the layout and page prerender successfully, the entire route is the static shell.
 
@@ -64,9 +64,6 @@ Because all operations in the `Page` component below complete during rendering, 
 import fs from 'node:fs'
 
 export default async function Page() {
-  // Immediately resolved promise
-  const data = await new Promise((resolve) => resolve('foo'))
-
   // Synchronous file system read
   const content = fs.readFileSync('./config.json', 'utf-8')
 
@@ -78,7 +75,6 @@ export default async function Page() {
 
   return (
     <div>
-      <p>{data}</p>
       <h1>{constants.appName}</h1>
       <ul>
         {processed.map((value, i) => (
@@ -270,18 +266,12 @@ When revalidation occurs, the static shell is updated with fresh content. See [T
 ```tsx filename="app/page.tsx" highlight={1,4,5}
 import { cacheLife } from 'next/cache'
 
-async function fetchUsers() {
+export default async function Page() {
   'use cache'
   cacheLife('hours')
 
-  // This query result will be cached for 1 hour
   const users = await db.query('SELECT * FROM users')
 
-  return users
-}
-
-export default async function Page() {
-  const users = await fetchUsers()
   return (
     <ul>
       {users.map((user) => (
@@ -294,10 +284,10 @@ export default async function Page() {
 
 The `cacheLife` function accepts a cache profile name (like `'hours'`, `'days'`, or `'weeks'`) or a custom configuration object to control cache behavior:
 
-```tsx filename="app/page.tsx" highlight={5-9}
+```tsx filename="app/page.tsx" highlight={1,4-8}
 import { cacheLife } from 'next/cache'
 
-async function fetchUsers() {
+export default async function Page() {
   'use cache'
   cacheLife({
     stale: 3600, // 1 hour until considered stale
@@ -306,7 +296,14 @@ async function fetchUsers() {
   })
 
   const users = await db.query('SELECT * FROM users')
-  return users
+
+  return (
+    <ul>
+      {users.map((user) => (
+        <li key={user.id}>{user.name}</li>
+      ))}
+    </ul>
+  )
 }
 ```
 
