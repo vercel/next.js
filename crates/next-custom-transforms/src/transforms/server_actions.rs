@@ -2801,10 +2801,7 @@ impl DirectiveVisitor<'_> {
                             location: self.location.clone(),
                         });
                     }
-                } else if detect_similar_strings(
-                    value.to_string_lossy().into_owned().as_ref(),
-                    "use server",
-                ) {
+                } else if detect_similar_strings(&value.to_string_lossy(), "use server") {
                     // Detect typo of "use server"
                     emit_error(ServerActionsErrorKind::MisspelledDirective {
                         span: *span,
@@ -2904,10 +2901,7 @@ impl DirectiveVisitor<'_> {
                     }
                 } else {
                     // Detect typo of "use cache"
-                    if detect_similar_strings(
-                        value.to_string_lossy().into_owned().as_ref(),
-                        "use cache",
-                    ) {
+                    if detect_similar_strings(&value.to_string_lossy(), "use cache") {
                         emit_error(ServerActionsErrorKind::MisspelledDirective {
                             span: *span,
                             directive: value.to_string_lossy().into_owned(),
@@ -2927,7 +2921,7 @@ impl DirectiveVisitor<'_> {
             }) => {
                 // Match `("use server")`.
                 if value == "use server"
-                    || detect_similar_strings(value.as_str().unwrap_or_default(), "use server")
+                    || detect_similar_strings(&value.to_string_lossy(), "use server")
                 {
                     if self.is_allowed_position {
                         emit_error(ServerActionsErrorKind::WrappedDirective {
@@ -2942,7 +2936,7 @@ impl DirectiveVisitor<'_> {
                         });
                     }
                 } else if value == "use cache"
-                    || detect_similar_strings(value.as_str().unwrap_or_default(), "use cache")
+                    || detect_similar_strings(&value.to_string_lossy(), "use cache")
                 {
                     if self.is_allowed_position {
                         emit_error(ServerActionsErrorKind::WrappedDirective {
