@@ -64,7 +64,7 @@ async fn get_analyze_data_operation(
         .node_root()
         .owned()
         .await?
-        .join("diagnostics/analyze")?;
+        .join("diagnostics/analyze/data")?;
     let whole_app_module_graphs = project.whole_app_module_graphs();
     let analyze_output_root = &analyze_output_root;
     let analyze_data = project

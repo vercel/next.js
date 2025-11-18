@@ -68,6 +68,7 @@ export enum AdapterOutputType {
 }
 
 export const PHASE_EXPORT = 'phase-export'
+export const PHASE_ANALYZE = 'phase-analyze'
 export const PHASE_PRODUCTION_BUILD = 'phase-production-build'
 export const PHASE_PRODUCTION_SERVER = 'phase-production-server'
 export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
@@ -78,6 +79,7 @@ export type PHASE_TYPE =
   | typeof PHASE_INFO
   | typeof PHASE_TEST
   | typeof PHASE_EXPORT
+  | typeof PHASE_ANALYZE
   | typeof PHASE_PRODUCTION_BUILD
   | typeof PHASE_PRODUCTION_SERVER
   | typeof PHASE_DEVELOPMENT_SERVER

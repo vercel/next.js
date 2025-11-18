@@ -16,6 +16,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::{ModuleGraph, export_usage::ModuleExportUsageInfo},
+    output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
     reference_type::ReferenceType,
     resolve::ModuleResolveResult,
@@ -292,6 +293,9 @@ struct EcmascriptClientReferenceProxyChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for EcmascriptClientReferenceProxyChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for EcmascriptClientReferenceProxyChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
@@ -325,9 +329,10 @@ impl EcmascriptChunkItem for EcmascriptClientReferenceProxyChunkItem {
     fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        estimated: bool,
     ) -> Vc<EcmascriptChunkItemContent> {
         self.inner_chunk_item
-            .content_with_async_module_info(async_module_info)
+            .content_with_async_module_info(async_module_info, estimated)
     }
 }
 

@@ -2,7 +2,6 @@ use std::future::IntoFuture;
 
 use anyhow::{Result, bail};
 use next_core::{
-    all_assets_from_entries,
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewaresManifestV2, ProxyMatcher, Regions},
@@ -120,7 +119,7 @@ impl MiddlewareEndpoint {
             module.ident(),
             ChunkGroup::Entry(vec![module]),
             module_graph,
-            AvailabilityInfo::Root,
+            AvailabilityInfo::root(),
         );
         Ok(edge_chunk_grou)
     }
@@ -148,7 +147,7 @@ impl MiddlewareEndpoint {
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),
-                AvailabilityInfo::Root,
+                AvailabilityInfo::root(),
             )
             .await?;
         Ok(*chunk)
@@ -258,7 +257,7 @@ impl MiddlewareEndpoint {
             Ok(Vc::cell(output_assets))
         } else {
             let edge_chunk_group = self.edge_chunk_group();
-            let edge_all_assets = edge_chunk_group.all_assets();
+            let edge_all_assets = edge_chunk_group.expand_all_assets();
 
             let node_root = this.project.node_root().owned().await?;
             let node_root_value = node_root.clone();
@@ -267,12 +266,13 @@ impl MiddlewareEndpoint {
                 get_js_paths_from_root(&node_root_value, &edge_chunk_group.await?.assets.await?)
                     .await?;
 
-            let mut output_assets = all_assets_from_entries(edge_all_assets).owned().await?;
+            let mut output_assets = edge_chunk_group.all_assets().owned().await?;
 
             let wasm_paths_from_root =
-                get_wasm_paths_from_root(&node_root_value, &output_assets).await?;
+                get_wasm_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
 
-            let all_assets = get_asset_paths_from_root(&node_root_value, &output_assets).await?;
+            let all_assets =
+                get_asset_paths_from_root(&node_root_value, &edge_all_assets.await?).await?;
 
             let regions = if let Some(regions) = config.preferred_region.as_ref() {
                 if regions.len() == 1 {

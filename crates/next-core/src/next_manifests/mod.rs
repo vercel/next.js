@@ -13,7 +13,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 use crate::next_config::RouteHas;
@@ -36,14 +36,9 @@ pub struct BuildManifest {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for BuildManifest {
+impl OutputAssetsReference for BuildManifest {
     #[turbo_tasks::function]
-    async fn path(&self) -> Vc<FileSystemPath> {
-        self.output_path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
+    async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
         let chunks: Vec<ReadRef<OutputAssets>> = self.pages.values().try_join().await?;
 
         let root_main_files = self
@@ -61,7 +56,17 @@ impl OutputAsset for BuildManifest {
             .chain(self.polyfill_files.iter().copied())
             .collect();
 
-        Ok(Vc::cell(references))
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
+            references,
+        )))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for BuildManifest {
+    #[turbo_tasks::function]
+    async fn path(&self) -> Vc<FileSystemPath> {
+        self.output_path.clone().cell()
     }
 }
 
@@ -163,16 +168,19 @@ pub struct ClientBuildManifest {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for ClientBuildManifest {
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let chunks: Vec<ResolvedVc<Box<dyn OutputAsset>>> = self.pages.values().copied().collect();
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(chunks)))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl OutputAsset for ClientBuildManifest {
     #[turbo_tasks::function]
     async fn path(&self) -> Vc<FileSystemPath> {
         self.output_path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
-        let chunks: Vec<ResolvedVc<Box<dyn OutputAsset>>> = self.pages.values().copied().collect();
-        Ok(Vc::cell(chunks))
     }
 }
 
