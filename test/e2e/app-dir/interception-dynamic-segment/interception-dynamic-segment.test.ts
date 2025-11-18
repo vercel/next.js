@@ -146,6 +146,16 @@ describe('interception-dynamic-segment', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('x-nextjs-cache')).toBe('HIT')
     })
+
+    it('should prerender a dynamic intercepted route', async () => {
+      if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
+        expect(next.cliOutput).toContain('/(.)[username]/[id]')
+        expect(next.cliOutput).toContain('/(.)john/[id]')
+      }
+
+      expect(next.cliOutput).toContain('/(.)john/1')
+      expect(next.cliOutput).not.toContain('/john/1')
+    })
   }
 
   if (!isNextDev) {

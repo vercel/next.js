@@ -15,39 +15,39 @@ import {
  */
 function validateSegmentParam(param: SegmentParam, pathname: string): void {
   // Check for empty parameter names
-  if (param.param.length === 0) {
+  if (param.paramName.length === 0) {
     throw new Error(`Parameter names cannot be empty in route "${pathname}".`)
   }
 
   // Check for three-dot character (…) instead of ...
-  if (param.param.includes('…')) {
+  if (param.paramName.includes('…')) {
     throw new Error(
-      `Detected a three-dot character ('…') in parameter "${param.param}" in route "${pathname}". Did you mean ('...')?`
+      `Detected a three-dot character ('…') in parameter "${param.paramName}" in route "${pathname}". Did you mean ('...')?`
     )
   }
 
   // Check for optional non-catch-all segments (not yet supported)
   if (
-    param.type !== 'optional-catchall' &&
-    param.param.startsWith('[') &&
-    param.param.endsWith(']')
+    param.paramType !== 'optional-catchall' &&
+    param.paramName.startsWith('[') &&
+    param.paramName.endsWith(']')
   ) {
     throw new Error(
-      `Optional route parameters are not yet supported ("[${param.param}]") in route "${pathname}".`
+      `Optional route parameters are not yet supported ("[${param.paramName}]") in route "${pathname}".`
     )
   }
 
   // Check for extra brackets
-  if (param.param.startsWith('[') || param.param.endsWith(']')) {
+  if (param.paramName.startsWith('[') || param.paramName.endsWith(']')) {
     throw new Error(
-      `Segment names may not start or end with extra brackets ('${param.param}') in route "${pathname}".`
+      `Segment names may not start or end with extra brackets ('${param.paramName}') in route "${pathname}".`
     )
   }
 
   // Check for erroneous periods
-  if (param.param.startsWith('.')) {
+  if (param.paramName.startsWith('.')) {
     throw new Error(
-      `Segment names may not start with erroneous periods ('${param.param}') in route "${pathname}".`
+      `Segment names may not start with erroneous periods ('${param.paramName}') in route "${pathname}".`
     )
   }
 }
@@ -82,7 +82,7 @@ function validateAppRoute(route: NormalizedAppRoute): void {
       // First, validate syntax
       validateSegmentParam(segment.param, route.pathname)
 
-      const properties = getParamProperties(segment.param.type)
+      const properties = getParamProperties(segment.param.paramType)
 
       if (properties.repeat) {
         if (properties.optional) {
@@ -95,25 +95,25 @@ function validateAppRoute(route: NormalizedAppRoute): void {
       }
 
       // Check to see if the parameter name is already in use.
-      if (slugNames.has(segment.param.param)) {
+      if (slugNames.has(segment.param.paramName)) {
         throw new Error(
-          `You cannot have the same slug name "${segment.param.param}" repeat within a single dynamic path in route "${route.pathname}".`
+          `You cannot have the same slug name "${segment.param.paramName}" repeat within a single dynamic path in route "${route.pathname}".`
         )
       }
 
       // Normalize parameter name for comparison by removing all non-word
       // characters.
-      const normalizedSegment = segment.param.param.replace(/\W/g, '')
+      const normalizedSegment = segment.param.paramName.replace(/\W/g, '')
       if (normalizedSegments.has(normalizedSegment)) {
         const existing = Array.from(slugNames).find((s) => {
           return s.replace(/\W/g, '') === normalizedSegment
         })
         throw new Error(
-          `You cannot have the slug names "${existing}" and "${segment.param.param}" differ only by non-word symbols within a single dynamic path in route "${route.pathname}".`
+          `You cannot have the slug names "${existing}" and "${segment.param.paramName}" differ only by non-word symbols within a single dynamic path in route "${route.pathname}".`
         )
       }
 
-      slugNames.add(segment.param.param)
+      slugNames.add(segment.param.paramName)
       normalizedSegments.add(normalizedSegment)
     }
 
@@ -179,7 +179,7 @@ function normalizeSegments(
         // Dynamic segment - normalize the parameter name by replacing the
         // parameter name with a wildcard. The interception marker is already
         // included in the segment name, so no special handling is needed.
-        return segment.name.replace(segment.param.param, '*')
+        return segment.name.replace(segment.param.paramName, '*')
       })
       .join('/')
   )
@@ -217,7 +217,7 @@ export function validateAppPaths(
     const lastSegment = route.segments[route.segments.length - 1]
     if (
       lastSegment?.type === 'dynamic' &&
-      lastSegment.param.type === 'optional-catchall'
+      lastSegment.param.paramType === 'optional-catchall'
     ) {
       const prefixSegments = route.segments.slice(0, -1)
       const normalizedPrefix = normalizeSegments(prefixSegments)
@@ -229,14 +229,14 @@ export function validateAppPaths(
         // /[[...slug]] has prefix '' which should match '/'
         if (prefixSegments.length === 0 && appPath === '/') {
           throw new Error(
-            `You cannot define a route with the same specificity as an optional catch-all route ("${appPath}" and "/[[...${lastSegment.param.param}]]").`
+            `You cannot define a route with the same specificity as an optional catch-all route ("${appPath}" and "/[[...${lastSegment.param.paramName}]]").`
           )
         }
 
         // General case: compare normalized structures
         if (normalizedAppPath === normalizedPrefix) {
           throw new Error(
-            `You cannot define a route with the same specificity as an optional catch-all route ("${appPath}" and "${normalizedPrefix}/[[...${lastSegment.param.param}]]").`
+            `You cannot define a route with the same specificity as an optional catch-all route ("${appPath}" and "${normalizedPrefix}/[[...${lastSegment.param.paramName}]]").`
           )
         }
       }

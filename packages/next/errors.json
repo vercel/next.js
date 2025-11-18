@@ -927,5 +927,8 @@
   "926": "Optional route parameters are not yet supported (\"[%s]\") in route \"%s\".",
   "927": "No debug targets found",
   "928": "Unable to get server address",
-  "929": "No pages or app directory found."
+  "929": "No pages or app directory found.",
+  "930": "Expected a dynamic route, but got a static route: %s",
+  "931": "Unexpected empty path segments match for a route \"%s\" with param \"%s\" of type \"%s\"",
+  "932": "Could not resolve param value for segment: %s"
 }

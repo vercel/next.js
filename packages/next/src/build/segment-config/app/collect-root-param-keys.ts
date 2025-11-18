@@ -17,9 +17,9 @@ function collectAppPageRootParamKeys(
     const [name, parallelRoutes, modules] = current
 
     // If this is a dynamic segment, then we collect the param.
-    const param = getSegmentParam(name)?.param
-    if (param) {
-      rootParams.push(param)
+    const paramName = getSegmentParam(name)?.paramName
+    if (paramName) {
+      rootParams.push(paramName)
     }
 
     // If this has a layout module, then we've found the root layout because
