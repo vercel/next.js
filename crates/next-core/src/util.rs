@@ -287,6 +287,23 @@ async fn virtual_next_js_template_path(
         .join(&format!("{NEXT_TEMPLATE_PATH}/{file}"))
 }
 
+pub async fn load_next_js_json_file<T: DeserializeOwned>(
+    project_path: FileSystemPath,
+    sub_path: RcStr,
+) -> Result<T> {
+    let file_path = get_next_package(project_path.clone())
+        .await?
+        .join(&sub_path)?;
+
+    let content = &*file_path.read().await?;
+
+    match content.parse_json_ref() {
+        FileJsonContent::Unparsable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
+        FileJsonContent::NotFound => Err(anyhow!("File not found")),
+        FileJsonContent::Content(value) => Ok(serde_json::from_value(value)?),
+    }
+}
+
 pub async fn load_next_js_jsonc_file<T: DeserializeOwned>(
     project_path: FileSystemPath,
     sub_path: RcStr,
