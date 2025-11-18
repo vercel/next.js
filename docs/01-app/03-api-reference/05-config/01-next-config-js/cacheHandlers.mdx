@@ -41,8 +41,8 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheHandlers: {
-    default: './cache-handlers/default-handler.js',
-    remote: './cache-handlers/remote-handler.js',
+    default: require.resolve('./cache-handlers/default-handler.js'),
+    remote: require.resolve('./cache-handlers/remote-handler.js'),
   },
 }
 
@@ -52,8 +52,8 @@ export default nextConfig
 ```js filename="next.config.js" switcher
 module.exports = {
   cacheHandlers: {
-    default: './cache-handlers/default-handler.js',
-    remote: './cache-handlers/remote-handler.js',
+    default: require.resolve('./cache-handlers/default-handler.js'),
+    remote: require.resolve('./cache-handlers/remote-handler.js'),
   },
 }
 ```
