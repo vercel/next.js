@@ -946,9 +946,10 @@ impl FunctionLike for SetterProp {
 enum BlockContext {
     // In the root of a function scope
     Function { id: u32, binds_this: bool },
-    FunctionRoot,
-    // In the root of the module scope
-    Module,
+    // A placeholder for identify anonymous blocks
+    // If we have Block->Block then we are in an anonymous block
+    // If we have Function->Block or ControlFlow->Block then we are just in a function root
+    Block,
     // In some kind of control flow
     ControlFlow { is_try: bool },
 }
@@ -1004,12 +1005,17 @@ mod analyzer_state {
         /// Returns true if we are currently in a block scope that isn't at the root of a function
         /// or a module.
         pub(super) fn is_in_nested_block_scope(&self) -> bool {
-            match self.state.block_context_stack.last().unwrap() {
-                BlockContext::Module
-                | BlockContext::FunctionRoot
-                | BlockContext::Function { .. } => false,
+            match &self.state.block_context_stack
+                [self.state.block_context_stack.len().saturating_sub(2)..]
+            {
+                [BlockContext::Block] | [BlockContext::Function { .. }, BlockContext::Block] => {
+                    false
+                }
+                [] => {
+                    unreachable!()
+                }
 
-                BlockContext::ControlFlow { .. } => true,
+                _ => true,
             }
         }
 
@@ -1110,7 +1116,7 @@ mod analyzer_state {
             let fn_id = function.span().lo.0;
             let prev_return_values = self.state.cur_fn_return_values.replace(vec![]);
 
-            self.enter_block(
+            self.with_block(
                 BlockContext::Function {
                     id: fn_id,
                     binds_this: function.binds_this(),
@@ -1180,14 +1186,25 @@ mod analyzer_state {
             func: impl FnOnce(&mut Self) -> T,
         ) -> (T, bool) {
             let prev_early_return_stack = take(&mut self.state.early_return_stack);
-            self.state.block_context_stack.push(block_kind);
-            let result = func(self);
+            let result = self.with_block(block_kind, func);
             let always_returns = self.end_early_return_block();
             self.state.early_return_stack = prev_early_return_stack;
-            let old = self.state.block_context_stack.pop();
-            debug_assert_eq!(old, Some(block_kind));
             (result, always_returns)
         }
+
+        /// Pushes a block onto the stack without performing early return logic.
+        pub(super) fn with_block<T>(
+            &mut self,
+            block_kind: BlockContext,
+            func: impl FnOnce(&mut Self) -> T,
+        ) -> T {
+            self.state.block_context_stack.push(block_kind);
+            let result = func(self);
+            let old = self.state.block_context_stack.pop();
+            debug_assert_eq!(old, Some(block_kind));
+            result
+        }
+
         /// Ends a conditional block. All early returns are integrated into the
         /// effects. Returns true if the whole block always early returns.
         fn end_early_return_block(&mut self) -> bool {
@@ -2449,7 +2466,7 @@ impl VisitAstPath for Analyzer<'_> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         self.effects = take(&mut self.data.effects);
-        self.enter_block(BlockContext::Module, |this| {
+        self.enter_block(BlockContext::Block, |this| {
             program.visit_children_with_ast_path(this, ast_path);
         });
         self.effects.append(&mut self.hoisted_effects);
@@ -2664,10 +2681,9 @@ impl VisitAstPath for Analyzer<'_> {
                 let mut effects = take(&mut self.effects);
                 let hoisted_effects = take(&mut self.hoisted_effects);
 
-                let (_, returns_unconditionally) =
-                    self.enter_block(BlockContext::FunctionRoot, |this| {
-                        n.visit_children_with_ast_path(this, ast_path);
-                    });
+                let (_, returns_unconditionally) = self.enter_block(BlockContext::Block, |this| {
+                    n.visit_children_with_ast_path(this, ast_path);
+                });
                 // By handling this logic here instead of in enter_fn, we naturally skip it
                 // for arrow functions with single expression bodies, since they just don't hit this
                 // path.
@@ -2679,29 +2695,20 @@ impl VisitAstPath for Analyzer<'_> {
                 self.hoisted_effects = hoisted_effects;
                 self.effects = effects;
             }
-            BlockContext::ControlFlow { .. }
-            | BlockContext::Module
-            | BlockContext::FunctionRoot => {
-                // A block is anonymous if its parent is also a block (rather than a
-                // loop/function/if-stmt)
-                let is_anonymous_block = matches!(
-                    ast_path.get(ast_path.len() - 2),
-                    Some(AstParentNodeRef::BlockStmt(_, BlockStmtField::Stmts(_)))
-                );
-
-                if is_anonymous_block {
-                    // Handle anonymous block statement
-                    // e.g., enter a new control flow context and because it is 'unconditiona' we
-                    // need to propagate early returns
-                    let (_, returns_early) = self.enter_control_flow(|this| {
-                        n.visit_children_with_ast_path(this, ast_path);
-                    });
-                    if returns_early {
-                        self.add_early_return_always(ast_path);
-                    }
-                } else {
-                    // Regular block (part of if/loop/function/etc)
-                    n.visit_children_with_ast_path(self, ast_path);
+            BlockContext::ControlFlow { .. } => {
+                self.with_block(BlockContext::Block, |this| {
+                    n.visit_children_with_ast_path(this, ast_path)
+                });
+            }
+            BlockContext::Block => {
+                // Handle anonymous block statement
+                // e.g., enter a new control flow context and because it is 'unconditiona' we
+                // need to propagate early returns
+                let (_, returns_early) = self.enter_control_flow(|this| {
+                    n.visit_children_with_ast_path(this, ast_path);
+                });
+                if returns_early {
+                    self.add_early_return_always(ast_path);
                 }
             }
         }
