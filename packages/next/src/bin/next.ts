@@ -411,6 +411,36 @@ program
   )
   .usage('[directory] [options]')
 
+const nextVersion = process.env.__NEXT_VERSION || 'unknown'
+program
+  .command('upgrade')
+  .description(
+    'Upgrade Next.js apps to desired versions with a single command.'
+  )
+  .argument(
+    '[directory]',
+    `A Next.js project directory to upgrade. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .usage('[directory] [options]')
+  .option(
+    '--revision <revision>',
+    'Specify the target Next.js version using an NPM dist tag (e.g. "latest", "canary", "rc", "beta") or an exact version number (e.g. "15.0.0").',
+    nextVersion.includes('-canary.')
+      ? 'canary'
+      : nextVersion.includes('-rc.')
+        ? 'rc'
+        : nextVersion.includes('-beta.')
+          ? 'beta'
+          : 'latest'
+  )
+  .option('--verbose', 'Verbose output', false)
+  .action(async (directory, options) => {
+    const mod = await import('../cli/next-upgrade.js')
+    mod.spawnNextUpgrade(directory, options)
+  })
+
 program
   .command('experimental-test')
   .description(

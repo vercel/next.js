@@ -1,6 +1,73 @@
 [
-    FreeVar {
-        var: "global",
+    Conditional {
+        condition: Logical(
+            4,
+            And,
+            [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            2.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            3.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        kind: And {
+            rhs_effects: [
+                FreeVar {
+                    var: "global",
+                    ast_path: [
+                        Program(
+                            Script,
+                        ),
+                        Script(
+                            Body(
+                                7,
+                            ),
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                0,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Bin,
+                        ),
+                        BinExpr(
+                            Right,
+                        ),
+                        Expr(
+                            Ident,
+                        ),
+                    ],
+                    span: 132..138,
+                },
+            ],
+        },
         ast_path: [
             Program(
                 Script,
@@ -28,16 +95,91 @@
                 Bin,
             ),
             BinExpr(
-                Right,
-            ),
-            Expr(
-                Ident,
+                Left,
             ),
         ],
-        span: 132..138,
+        span: 117..138,
     },
-    FreeVar {
-        var: "global",
+    Conditional {
+        condition: Logical(
+            3,
+            And,
+            [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            2.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        kind: And {
+            rhs_effects: [
+                FreeVar {
+                    var: "global",
+                    ast_path: [
+                        Program(
+                            Script,
+                        ),
+                        Script(
+                            Body(
+                                8,
+                            ),
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                0,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Bin,
+                        ),
+                        BinExpr(
+                            Left,
+                        ),
+                        Expr(
+                            Bin,
+                        ),
+                        BinExpr(
+                            Left,
+                        ),
+                        Expr(
+                            Paren,
+                        ),
+                        ParenExpr(
+                            Expr,
+                        ),
+                        Expr(
+                            Bin,
+                        ),
+                        BinExpr(
+                            Right,
+                        ),
+                        Expr(
+                            Ident,
+                        ),
+                    ],
+                    span: 164..170,
+                },
+            ],
+        },
         ast_path: [
             Program(
                 Script,
@@ -83,16 +225,85 @@
                 Bin,
             ),
             BinExpr(
-                Right,
-            ),
-            Expr(
-                Ident,
+                Left,
             ),
         ],
-        span: 164..170,
+        span: 154..170,
     },
-    FreeVar {
-        var: "global",
+    Conditional {
+        condition: Logical(
+            3,
+            And,
+            [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            2.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        kind: And {
+            rhs_effects: [
+                FreeVar {
+                    var: "global",
+                    ast_path: [
+                        Program(
+                            Script,
+                        ),
+                        Script(
+                            Body(
+                                9,
+                            ),
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                0,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Bin,
+                        ),
+                        BinExpr(
+                            Left,
+                        ),
+                        Expr(
+                            Bin,
+                        ),
+                        BinExpr(
+                            Left,
+                        ),
+                        Expr(
+                            Bin,
+                        ),
+                        BinExpr(
+                            Right,
+                        ),
+                        Expr(
+                            Ident,
+                        ),
+                    ],
+                    span: 208..214,
+                },
+            ],
+        },
         ast_path: [
             Program(
                 Script,
@@ -132,16 +343,86 @@
                 Bin,
             ),
             BinExpr(
-                Right,
-            ),
-            Expr(
-                Ident,
+                Left,
             ),
         ],
-        span: 208..214,
+        span: 198..214,
     },
-    FreeVar {
-        var: "global",
+    Conditional {
+        condition: Logical(
+            4,
+            And,
+            [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            2.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            0.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        kind: And {
+            rhs_effects: [
+                FreeVar {
+                    var: "global",
+                    ast_path: [
+                        Program(
+                            Script,
+                        ),
+                        Script(
+                            Body(
+                                10,
+                            ),
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                0,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Bin,
+                        ),
+                        BinExpr(
+                            Left,
+                        ),
+                        Expr(
+                            Bin,
+                        ),
+                        BinExpr(
+                            Right,
+                        ),
+                        Expr(
+                            Ident,
+                        ),
+                    ],
+                    span: 256..262,
+                },
+            ],
+        },
         ast_path: [
             Program(
                 Script,
@@ -175,13 +456,10 @@
                 Bin,
             ),
             BinExpr(
-                Right,
-            ),
-            Expr(
-                Ident,
+                Left,
             ),
         ],
-        span: 256..262,
+        span: 241..262,
     },
     FreeVar {
         var: "global",
@@ -220,8 +498,51 @@
         ],
         span: 284..290,
     },
-    FreeVar {
-        var: "global",
+    Conditional {
+        condition: Constant(
+            True,
+        ),
+        kind: Or {
+            rhs_effects: [
+                FreeVar {
+                    var: "global",
+                    ast_path: [
+                        Program(
+                            Script,
+                        ),
+                        Script(
+                            Body(
+                                12,
+                            ),
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                0,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Bin,
+                        ),
+                        BinExpr(
+                            Right,
+                        ),
+                        Expr(
+                            Ident,
+                        ),
+                    ],
+                    span: 323..329,
+                },
+            ],
+        },
         ast_path: [
             Program(
                 Script,
@@ -249,13 +570,10 @@
                 Bin,
             ),
             BinExpr(
-                Right,
-            ),
-            Expr(
-                Ident,
+                Left,
             ),
         ],
-        span: 323..329,
+        span: 315..329,
     },
     FreeVar {
         var: "global",
@@ -294,8 +612,51 @@
         ],
         span: 346..352,
     },
-    FreeVar {
-        var: "global",
+    Conditional {
+        condition: Constant(
+            False,
+        ),
+        kind: And {
+            rhs_effects: [
+                FreeVar {
+                    var: "global",
+                    ast_path: [
+                        Program(
+                            Script,
+                        ),
+                        Script(
+                            Body(
+                                14,
+                            ),
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                0,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Bin,
+                        ),
+                        BinExpr(
+                            Right,
+                        ),
+                        Expr(
+                            Ident,
+                        ),
+                    ],
+                    span: 387..393,
+                },
+            ],
+        },
         ast_path: [
             Program(
                 Script,
@@ -323,12 +684,9 @@
                 Bin,
             ),
             BinExpr(
-                Right,
-            ),
-            Expr(
-                Ident,
+                Left,
             ),
         ],
-        span: 387..393,
+        span: 378..393,
     },
 ]
