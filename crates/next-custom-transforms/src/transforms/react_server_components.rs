@@ -912,7 +912,7 @@ impl ReactServerComponentValidator {
                                     }
                                     ModuleExportName::Str(s) => {
                                         collect_possibly_invalid_exports(
-                                            &s.value.to_atom_lossy().into_owned(),
+                                            &s.value.to_atom_lossy(),
                                             &named.span,
                                         );
                                     }

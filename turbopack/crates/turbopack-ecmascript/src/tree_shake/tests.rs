@@ -2,9 +2,8 @@ use std::{collections::BTreeMap, fmt::Write, hash::Hash, path::PathBuf, sync::Ar
 
 use anyhow::Error;
 use serde::Deserialize;
-use swc_atoms::Wtf8Atom;
 use swc_core::{
-    atoms::atom,
+    atoms::{Wtf8Atom, atom},
     common::{Mark, SourceMap, SyntaxContext, comments::SingleThreadedComments, util::take::Take},
     ecma::{
         ast::{EsVersion, Id, Module},

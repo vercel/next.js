@@ -15,8 +15,8 @@ use num_bigint::BigInt;
 use num_traits::identities::Zero;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHasher;
-use swc_atoms::Wtf8Atom;
 use swc_core::{
+    atoms::Wtf8Atom,
     common::Mark,
     ecma::{
         ast::{Id, Ident, Lit},

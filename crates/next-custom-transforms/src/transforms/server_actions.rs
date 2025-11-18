@@ -2042,7 +2042,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 })],
                 src: Box::new(Str {
                     span: DUMMY_SP,
-                    value: atom!("react"),
+                    value: atom!("react").into(),
                     raw: None,
                 }),
                 type_only: false,
@@ -2099,7 +2099,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     ],
                     src: Box::new(Str {
                         span: DUMMY_SP,
-                        value: atom!("private-next-rsc-action-encryption"),
+                        value: atom!("private-next-rsc-action-encryption").into(),
                         raw: None,
                     }),
                     type_only: false,

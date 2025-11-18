@@ -1,7 +1,9 @@
 use anyhow::Error;
 use rustc_hash::FxHashSet;
-use swc_atoms::Wtf8Atom;
-use swc_core::ecma::ast::{Module, ModuleDecl, ModuleItem};
+use swc_core::{
+    atoms::Wtf8Atom,
+    ecma::ast::{Module, ModuleDecl, ModuleItem},
+};
 
 use super::{PartId, graph::find_turbopack_part_id_in_asserts};
 
