@@ -67,7 +67,7 @@ pub async fn endpoint_hashes(
 
     let module_graph = module_graph.read_graphs().await?;
 
-    if let Err(e) = module_graph.traverse_nodes_from_entries_dfs(
+    module_graph.traverse_nodes_from_entries_dfs(
         modules,
         &mut all_modules,
         |module, all_modules| {
@@ -75,29 +75,7 @@ pub async fn endpoint_hashes(
             Ok(GraphTraversalAction::Continue)
         },
         |_, _| Ok(()),
-    ) {
-        let modules = entries
-            .await?
-            .into_iter()
-            .chain(additional_entries.await?.into_iter())
-            .flat_map(|e| e.entries())
-            .map(async |m| Ok((m, m.ident().to_string().await?)))
-            .try_join()
-            .await?;
-        let entries = module_graph
-            .entries()
-            .map(async |e| {
-                let modules = e
-                    .entries()
-                    .map(async |m| Ok((m, m.ident().to_string().await?)))
-                    .try_join()
-                    .await?;
-                Ok((e, modules))
-            })
-            .try_join()
-            .await?;
-        println!("{e:?} {endpoint:?} module_graph entries = {entries:#?}\nmodules = {modules:#?}")
-    }
+    )?;
 
     let sources = all_modules
         .iter()
