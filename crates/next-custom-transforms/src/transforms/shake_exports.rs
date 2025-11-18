@@ -3,9 +3,9 @@ use swc_core::{
     common::Mark,
     ecma::{
         ast::*,
-        atoms::{atom, Atom},
-        transforms::optimization::simplify::dce::{dce, Config as DCEConfig},
-        visit::{fold_pass, Fold, FoldWith, VisitMutWith},
+        atoms::{Atom, atom},
+        transforms::optimization::simplify::dce::{Config as DCEConfig, dce},
+        visit::{Fold, FoldWith, VisitMutWith, fold_pass},
     },
 };
 

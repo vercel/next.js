@@ -1,9 +1,9 @@
 use swc_core::{
-    common::{source_map::PURE_SP, util::take::Take, Mark, SyntaxContext},
+    common::{Mark, SyntaxContext, source_map::PURE_SP, util::take::Take},
     ecma::{
         ast::*,
         utils::{prepend_stmt, private_ident, quote_ident, quote_str},
-        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
+        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
     },
     quote,
 };
