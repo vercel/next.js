@@ -28,14 +28,6 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 12 conditional = ((0 | ???*0*) === 0)
-- *0* (???*1* + ???*2*)
-  ⚠️  nested operation
-- *1* clientComponentLoadTimes
-  ⚠️  circular variable reference
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-
-0 -> 14 unreachable = ???*0*
+0 -> 13 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects

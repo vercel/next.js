@@ -55,6 +55,7 @@ pub async fn get_client_chunking_context(
         .hot_module_replacement()
         .source_map_source_type(SourceMapSourceType::AbsoluteFileUri)
         .dynamic_chunk_content_loading(true)
+        .nested_async_availability(true)
         .build(),
     ))
 }

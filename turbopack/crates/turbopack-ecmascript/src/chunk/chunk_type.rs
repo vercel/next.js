@@ -67,7 +67,7 @@ impl ChunkType for EcmascriptChunkType {
         };
         Ok(Vc::cell(
             chunk_item
-                .content_with_async_module_info(async_module_info)
+                .content_with_async_module_info(async_module_info, true)
                 .await
                 .map_or(0, |content| round_chunk_item_size(content.inner_code.len())),
         ))

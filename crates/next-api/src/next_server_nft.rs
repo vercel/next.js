@@ -16,7 +16,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     context::AssetContext,
     file_source::FileSource,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request},
     traced_asset::TracedAsset,
@@ -75,6 +75,9 @@ impl ServerNftJsonAsset {
         ServerNftJsonAsset { project, ty }.cell()
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for ServerNftJsonAsset {}
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for ServerNftJsonAsset {

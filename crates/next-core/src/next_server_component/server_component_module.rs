@@ -11,6 +11,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::ModuleReferences,
 };
 use turbopack_ecmascript::{
@@ -123,6 +124,9 @@ struct NextServerComponentChunkItem {
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     inner: ResolvedVc<NextServerComponentModule>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for NextServerComponentChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for NextServerComponentChunkItem {

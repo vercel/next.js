@@ -4,11 +4,8 @@ pub mod source_map;
 use std::fmt::Write;
 
 use anyhow::{Result, bail};
-use swc_core::common::pass::Either;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueDefault, ValueToString, Vc,
-};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, ValueDefault, ValueToString, Vc};
 use turbo_tasks_fs::{
     File, FileSystem, FileSystemPath,
     rope::{Rope, RopeBuilder},
@@ -29,7 +26,7 @@ use turbopack_core::{
         utils::{children_from_output_assets, content_to_details},
     },
     module::Module,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::ImportContext,
     server_fs::ServerFileSystem,
     source_map::{
@@ -252,6 +249,82 @@ pub struct CssChunkContent {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for CssChunk {
+    #[turbo_tasks::function]
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let this = self.await?;
+        let content = this.content.await?;
+        let should_generate_single_item_chunks = content.chunk_items.len() > 1
+            && *this
+                .chunking_context
+                .is_dynamic_chunk_content_loading_enabled()
+                .await?;
+        let references = content
+            .chunk_items
+            .iter()
+            .map(|item| async {
+                let refs = item.references().await?;
+                let single_css_chunk = if should_generate_single_item_chunks {
+                    Some(ResolvedVc::upcast(
+                        SingleItemCssChunk::new(*this.chunking_context, **item)
+                            .to_resolved()
+                            .await?,
+                    ))
+                } else {
+                    None
+                };
+                Ok((
+                    refs.assets.await?,
+                    single_css_chunk,
+                    refs.referenced_assets.await?,
+                    refs.references.await?,
+                ))
+            })
+            .try_join()
+            .await?;
+        let source_map = if *this
+            .chunking_context
+            .reference_chunk_source_maps(Vc::upcast(self))
+            .await?
+        {
+            Some(ResolvedVc::upcast(
+                CssChunkSourceMapAsset::new(self).to_resolved().await?,
+            ))
+        } else {
+            None
+        };
+
+        Ok(OutputAssetsWithReferenced {
+            assets: ResolvedVc::cell(
+                references
+                    .iter()
+                    .flat_map(|(assets, single_css_chunk, _, _)| {
+                        assets
+                            .iter()
+                            .copied()
+                            .chain(single_css_chunk.iter().copied())
+                    })
+                    .chain(source_map.into_iter())
+                    .collect(),
+            ),
+            referenced_assets: ResolvedVc::cell(
+                references
+                    .iter()
+                    .flat_map(|(_, _, referenced_assets, _)| referenced_assets.iter().copied())
+                    .collect(),
+            ),
+            references: ResolvedVc::cell(
+                references
+                    .iter()
+                    .flat_map(|(_, _, _, references)| references.iter().copied())
+                    .collect(),
+            ),
+        }
+        .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl Chunk for CssChunk {
     #[turbo_tasks::function]
     async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
@@ -344,46 +417,6 @@ impl OutputAsset for CssChunk {
             rcstr!(".css"),
         ))
     }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-        let content = this.content.await?;
-        let should_generate_single_item_chunks = content.chunk_items.len() > 1
-            && *this
-                .chunking_context
-                .is_dynamic_chunk_content_loading_enabled()
-                .await?;
-        let mut references = content
-            .chunk_items
-            .iter()
-            .map(|item| async {
-                let references = item.references().await?.into_iter().copied();
-                Ok(if should_generate_single_item_chunks {
-                    Either::Left(
-                        references.chain(std::iter::once(ResolvedVc::upcast(
-                            SingleItemCssChunk::new(*this.chunking_context, **item)
-                                .to_resolved()
-                                .await?,
-                        ))),
-                    )
-                } else {
-                    Either::Right(references)
-                })
-            })
-            .try_flat_join()
-            .await?;
-        if *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?
-        {
-            references.push(ResolvedVc::upcast(
-                CssChunkSourceMapAsset::new(self).to_resolved().await?,
-            ));
-        }
-        Ok(Vc::cell(references))
-    }
 }
 
 #[turbo_tasks::value_impl]
@@ -427,7 +460,7 @@ pub struct CssChunkItemContent {
 }
 
 #[turbo_tasks::value_trait]
-pub trait CssChunkItem: ChunkItem {
+pub trait CssChunkItem: ChunkItem + OutputAssetsReference {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<CssChunkItemContent>;
 }
@@ -461,7 +494,7 @@ impl Introspectable for CssChunk {
 
     #[turbo_tasks::function]
     async fn children(self: Vc<Self>) -> Result<Vc<IntrospectableChildren>> {
-        let mut children = children_from_output_assets(OutputAsset::references(self))
+        let mut children = children_from_output_assets(OutputAssetsReference::references(self))
             .owned()
             .await?;
         children.extend(

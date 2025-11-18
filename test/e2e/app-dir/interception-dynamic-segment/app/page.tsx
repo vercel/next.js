@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { LinkAccordion } from './page.client'
 
 export default function Page() {
   return (
@@ -8,9 +8,7 @@ export default function Page() {
 
         <div>
           <h3>Test Case 1a: Simple page (no parallel routes)</h3>
-          <Link href="/simple-page" style={{ color: 'blue', fontSize: '16px' }}>
-            → /simple-page
-          </Link>
+          <LinkAccordion href="/simple-page" />
           <p>
             Interception route with just a page.tsx, no parallel routes at all.
           </p>
@@ -18,7 +16,7 @@ export default function Page() {
 
         <div>
           <h3>Test Case 1b: Has page.tsx</h3>
-          <Link href="/has-page">→ /has-page</Link>
+          <LinkAccordion href="/has-page" />
           <p>
             Interception route has page.tsx at root level. No children slot
             exists.
@@ -27,15 +25,13 @@ export default function Page() {
 
         <div>
           <h3>Test Case 2: No parallel routes</h3>
-          <Link href="/no-parallel-routes/deeper">
-            → /no-parallel-routes/deeper
-          </Link>
+          <LinkAccordion href="/no-parallel-routes/deeper" />
           <p>No @parallel routes exist, so no implicit layout created.</p>
         </div>
 
         <div>
           <h3>Test Case 3: Has both @sidebar AND page.tsx</h3>
-          <Link href="/has-both">→ /has-both</Link>
+          <LinkAccordion href="/has-both" />
           <p>
             Has @sidebar parallel route BUT page.tsx fills the children slot.
           </p>
@@ -47,14 +43,14 @@ export default function Page() {
 
         <div>
           <h3>Test Case 4a: Has @sidebar but NO page.tsx (implicit layout)</h3>
-          <Link href="/test-nested">→ /test-nested</Link>
+          <LinkAccordion href="/test-nested" />
           <p>Has @sidebar (creates implicit layout) but NO page.tsx.</p>
           <p>✓ Auto-uses null default (no explicit files needed)</p>
         </div>
 
         <div>
           <h3>Test Case 4b: Has explicit layout.tsx but NO parallel routes</h3>
-          <Link href="/explicit-layout/deeper">→ /explicit-layout/deeper</Link>
+          <LinkAccordion href="/explicit-layout/deeper" />
           <p>
             Has explicit layout.tsx with children slot, but NO parallel routes
             like @sidebar.
@@ -69,18 +65,16 @@ export default function Page() {
         <h2>Original Tests</h2>
         <ul>
           <li>
-            <Link href="/foo/1">/foo/1</Link>
+            <LinkAccordion href="/foo/1" />
           </li>
           <li>
-            <Link href="/bar/1">/bar/1</Link>
+            <LinkAccordion href="/bar/1" />
           </li>
           <li>
-            <Link href="/test-nested/deeper">/test-nested/deeper</Link>
+            <LinkAccordion href="/test-nested/deeper" />
           </li>
           <li>
-            <Link href="/generate-static-params/foo">
-              /generate-static-params/foo
-            </Link>
+            <LinkAccordion href="/generate-static-params/foo" />
           </li>
         </ul>
       </section>

@@ -41,8 +41,8 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheHandlers: {
-    default: './cache-handlers/default-handler.js',
-    remote: './cache-handlers/remote-handler.js',
+    default: require.resolve('./cache-handlers/default-handler.js'),
+    remote: require.resolve('./cache-handlers/remote-handler.js'),
   },
 }
 
@@ -52,8 +52,8 @@ export default nextConfig
 ```js filename="next.config.js" switcher
 module.exports = {
   cacheHandlers: {
-    default: './cache-handlers/default-handler.js',
-    remote: './cache-handlers/remote-handler.js',
+    default: require.resolve('./cache-handlers/default-handler.js'),
+    remote: require.resolve('./cache-handlers/remote-handler.js'),
   },
 }
 ```
@@ -91,7 +91,7 @@ Returns a `CacheEntry` object if found, or `undefined` if not found or expired.
 Your `get` method should retrieve the cache entry from storage, check if it has expired based on the `revalidate` time, and return `undefined` for missing or expired entries.
 
 ```js
-class CacheHandler {
+const cacheHandler = {
   async get(cacheKey, softTags) {
     const entry = cache.get(cacheKey)
     if (!entry) return undefined
@@ -103,7 +103,7 @@ class CacheHandler {
     }
 
     return entry
-  }
+  },
 }
 ```
 
@@ -127,14 +127,14 @@ Returns `Promise<void>`.
 Your `set` method must await the `pendingEntry` promise before storing it, since the cache entry may still be generating when this method is called. Once resolved, store the entry in your cache system.
 
 ```js
-class CacheHandler {
+const cacheHandler = {
   async set(cacheKey, pendingEntry) {
     // Wait for the entry to be ready
     const entry = await pendingEntry
 
     // Store in your cache system
     cache.set(cacheKey, entry)
-  }
+  },
 }
 ```
 
@@ -153,11 +153,11 @@ Returns `Promise<void>`.
 For in-memory caches, this can be a no-op. For distributed caches, use this to sync tag state from an external service or database before processing requests.
 
 ```js
-class CacheHandler {
+const cacheHandler = {
   async refreshTags() {
     // For in-memory cache, no action needed
     // For distributed cache, sync tag state from external service
-  }
+  },
 }
 ```
 
@@ -182,14 +182,14 @@ Returns:
 If you're not tracking tag revalidation timestamps, return `0`. Otherwise, find the most recent revalidation timestamp across all the provided tags. Return `Infinity` if you prefer to handle soft tag checking in the `get` method.
 
 ```js
-class CacheHandler {
+const cacheHandler = {
   async getExpiration(tags) {
     // Return 0 if not tracking tag revalidation
     return 0
 
     // Or return the most recent revalidation timestamp
     // return Math.max(...tags.map(tag => tagTimestamps.get(tag) || 0));
-  }
+  },
 }
 ```
 
@@ -213,7 +213,7 @@ Returns `Promise<void>`.
 When tags are revalidated, your handler should invalidate all cache entries that have any of those tags. Iterate through your cache and remove entries whose tags match the provided list.
 
 ```js
-class CacheHandler {
+const cacheHandler = {
   async updateTags(tags, durations) {
     // Invalidate all cache entries with matching tags
     for (const [key, entry] of cache.entries()) {
@@ -221,7 +221,7 @@ class CacheHandler {
         cache.delete(key)
       }
     }
-  }
+  },
 }
 ```
 
@@ -264,7 +264,7 @@ Here's a minimal implementation using a `Map` for storage. This example demonstr
 const cache = new Map()
 const pendingSets = new Map()
 
-module.exports = class MemoryCacheHandler {
+module.exports = {
   async get(cacheKey, softTags) {
     // Wait for any pending set operation to complete
     const pendingPromise = pendingSets.get(cacheKey)
@@ -284,7 +284,7 @@ module.exports = class MemoryCacheHandler {
     }
 
     return entry
-  }
+  },
 
   async set(cacheKey, pendingEntry) {
     // Create a promise to track this set operation
@@ -304,16 +304,16 @@ module.exports = class MemoryCacheHandler {
       resolvePending()
       pendingSets.delete(cacheKey)
     }
-  }
+  },
 
   async refreshTags() {
     // No-op for in-memory cache
-  }
+  },
 
   async getExpiration(tags) {
     // Return 0 to indicate no tags have been revalidated
     return 0
-  }
+  },
 
   async updateTags(tags, durations) {
     // Implement tag-based invalidation
@@ -322,7 +322,7 @@ module.exports = class MemoryCacheHandler {
         cache.delete(key)
       }
     }
-  }
+  },
 }
 ```
 
@@ -333,15 +333,13 @@ For durable storage like Redis or a database, you'll need to serialize the cache
 ```js filename="cache-handlers/redis-handler.js"
 const { createClient } = require('redis')
 
-module.exports = class RedisCacheHandler {
-  constructor() {
-    this.client = createClient({ url: process.env.REDIS_URL })
-    this.client.connect()
-  }
+const client = createClient({ url: process.env.REDIS_URL })
+client.connect()
 
+module.exports = {
   async get(cacheKey, softTags) {
     // Retrieve from Redis
-    const stored = await this.client.get(cacheKey)
+    const stored = await client.get(cacheKey)
     if (!stored) return undefined
 
     // Deserialize the entry
@@ -361,7 +359,7 @@ module.exports = class RedisCacheHandler {
       expire: data.expire,
       revalidate: data.revalidate,
     }
-  }
+  },
 
   async set(cacheKey, pendingEntry) {
     const entry = await pendingEntry
@@ -383,7 +381,7 @@ module.exports = class RedisCacheHandler {
     // Combine chunks and serialize for Redis storage
     const data = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)))
 
-    await this.client.set(
+    await client.set(
       cacheKey,
       JSON.stringify({
         value: data.toString('base64'),
@@ -395,23 +393,23 @@ module.exports = class RedisCacheHandler {
       }),
       { EX: entry.expire } // Use Redis TTL for automatic expiration
     )
-  }
+  },
 
   async refreshTags() {
     // No-op for basic Redis implementation
     // Could sync with external tag service if needed
-  }
+  },
 
   async getExpiration(tags) {
     // Return 0 to indicate no tags have been revalidated
     // Could query Redis for tag expiration timestamps if tracking them
     return 0
-  }
+  },
 
   async updateTags(tags, durations) {
     // Implement tag-based invalidation if needed
     // Could iterate over keys with matching tags and delete them
-  }
+  },
 }
 ```
 

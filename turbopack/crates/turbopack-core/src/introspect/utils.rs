@@ -9,7 +9,7 @@ use super::{
 use crate::{
     asset::AssetContent,
     chunk::{ChunkableModuleReference, ChunkingType},
-    output::OutputAssets,
+    output::OutputAssetsWithReferenced,
     reference::{ModuleReference, ModuleReferences},
 };
 
@@ -121,11 +121,11 @@ pub async fn children_from_module_references(
 
 #[turbo_tasks::function]
 pub async fn children_from_output_assets(
-    references: Vc<OutputAssets>,
+    references: Vc<OutputAssetsWithReferenced>,
 ) -> Result<Vc<IntrospectableChildren>> {
     let key = reference_ty();
     let mut children = FxIndexSet::default();
-    let references = references.await?;
+    let references = references.expand_all_assets().await?;
     for &reference in &*references {
         children.insert((
             key.clone(),

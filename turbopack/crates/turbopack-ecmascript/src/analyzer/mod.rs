@@ -4107,15 +4107,14 @@ mod tests {
                                 .await;
                                 resolved.push((format!("{parent} -> {i} conditional"), condition));
                                 match *kind {
-                                    ConditionalKind::If { then } => {
-                                        queue
-                                            .extend(then.effects.into_iter().rev().map(|e| (i, e)));
-                                    }
-                                    ConditionalKind::Else { r#else } => {
+                                    ConditionalKind::If { then: block }
+                                    | ConditionalKind::Else { r#else: block }
+                                    | ConditionalKind::Labeled { body: block } => {
                                         queue.extend(
-                                            r#else.effects.into_iter().rev().map(|e| (i, e)),
+                                            block.effects.into_iter().rev().map(|e| (i, e)),
                                         );
                                     }
+
                                     ConditionalKind::IfElse { then, r#else }
                                     | ConditionalKind::Ternary { then, r#else } => {
                                         queue.extend(
@@ -4136,12 +4135,10 @@ mod tests {
                                             );
                                         }
                                     }
-                                    ConditionalKind::And { expr }
-                                    | ConditionalKind::Or { expr }
-                                    | ConditionalKind::NullishCoalescing { expr }
-                                    | ConditionalKind::Labeled { body: expr } => {
-                                        queue
-                                            .extend(expr.effects.into_iter().rev().map(|e| (i, e)));
+                                    ConditionalKind::And { rhs_effects }
+                                    | ConditionalKind::Or { rhs_effects }
+                                    | ConditionalKind::NullishCoalescing { rhs_effects } => {
+                                        queue.extend(rhs_effects.into_iter().rev().map(|e| (i, e)));
                                     }
                                 };
                                 steps

@@ -3,10 +3,9 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs};
 use turbopack_core::{
     chunk::{
-        ChunkItem, ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,
-        ChunkItemOrBatchWithAsyncModuleInfo,
+        ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo, ChunkItemOrBatchWithAsyncModuleInfo,
     },
-    output::OutputAssets,
+    output::{OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 use crate::chunk::EcmascriptChunkItemWithAsyncInfo;
@@ -39,7 +38,7 @@ impl EcmascriptChunkItemOrBatchWithAsyncInfo {
         })
     }
 
-    pub fn references(&self) -> Vc<OutputAssets> {
+    pub fn references(&self) -> Vc<OutputAssetsWithReferenced> {
         match self {
             EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(item) => {
                 item.chunk_item.references()
@@ -70,13 +69,23 @@ impl EcmascriptChunkBatchWithAsyncInfo {
     }
 
     #[turbo_tasks::function]
-    pub async fn references(&self) -> Result<Vc<OutputAssets>> {
+    pub async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let mut output_assets = Vec::new();
+        let mut referenced_output_assets = Vec::new();
         let mut references = Vec::new();
         // We expect most references to be empty, and avoiding try_join to avoid allocating the Vec
         for item in &self.chunk_items {
-            references.extend(item.chunk_item.references().await?.into_iter().copied());
+            let r = item.chunk_item.references().await?;
+            output_assets.extend(r.assets.await?);
+            referenced_output_assets.extend(r.referenced_assets.await?);
+            references.extend(r.references.await?);
         }
-        Ok(Vc::cell(references))
+        Ok(OutputAssetsWithReferenced {
+            assets: ResolvedVc::cell(output_assets),
+            referenced_assets: ResolvedVc::cell(referenced_output_assets),
+            references: ResolvedVc::cell(references),
+        }
+        .cell())
     }
 }
 

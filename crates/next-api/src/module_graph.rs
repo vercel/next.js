@@ -41,6 +41,82 @@ pub struct NextDynamicGraph {
     data: ResolvedVc<DynamicImportEntries>,
 }
 
+#[turbo_tasks::value]
+pub struct NextDynamicGraphs(Vec<ResolvedVc<NextDynamicGraph>>);
+
+#[turbo_tasks::value_impl]
+impl NextDynamicGraphs {
+    #[turbo_tasks::function(operation)]
+    async fn new_operation(
+        graphs: ResolvedVc<ModuleGraph>,
+        is_single_page: bool,
+    ) -> Result<Vc<Self>> {
+        let graphs_ref = &graphs.await?.graphs;
+        let next_dynamic = async {
+            graphs_ref
+                .iter()
+                .map(|graph| {
+                    NextDynamicGraph::new_with_entries(**graph, is_single_page).to_resolved()
+                })
+                .try_join()
+                .await
+        }
+        .instrument(tracing::info_span!("generating next/dynamic graphs"))
+        .await?;
+        Ok(Self(next_dynamic).cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
+        // TODO get rid of this function once everything inside of
+        // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
+        let result_op = Self::new_operation(graphs, is_single_page);
+        let result_vc = if !is_single_page {
+            let result_vc = result_op.resolve_strongly_consistent().await?;
+            result_op.drop_collectibles::<Box<dyn Issue>>();
+            *result_vc
+        } else {
+            result_op.connect()
+        };
+        Ok(result_vc)
+    }
+
+    /// Returns the next/dynamic-ally imported (client) modules (from RSC and SSR modules) for the
+    /// given endpoint.
+    #[turbo_tasks::function]
+    pub async fn get_next_dynamic_imports_for_endpoint(
+        &self,
+        entry: Vc<Box<dyn Module>>,
+    ) -> Result<Vc<DynamicImportEntriesWithImporter>> {
+        let span = tracing::info_span!("collect all next/dynamic imports for endpoint");
+        async move {
+            if let [graph] = &self.0[..] {
+                // Just a single graph, no need to merge results
+                Ok(graph.get_next_dynamic_imports_for_endpoint(entry))
+            } else {
+                let result = self
+                    .0
+                    .iter()
+                    .map(|graph| async move {
+                        Ok(graph
+                            .get_next_dynamic_imports_for_endpoint(entry)
+                            .await?
+                            .into_iter()
+                            .map(|(k, v)| (*k, *v))
+                            // TODO remove this collect and return an iterator instead
+                            .collect::<Vec<_>>())
+                    })
+                    .try_flat_join()
+                    .await?;
+
+                Ok(Vc::cell(result.into_iter().collect()))
+            }
+        }
+        .instrument(span)
+        .await
+    }
+}
+
 #[turbo_tasks::value(transparent)]
 pub struct DynamicImportEntriesWithImporter(
     pub  Vec<(
@@ -161,6 +237,79 @@ pub struct ServerActionsGraph {
     data: ResolvedVc<AllModuleActions>,
 }
 
+#[turbo_tasks::value]
+pub struct ServerActionsGraphs(Vec<ResolvedVc<ServerActionsGraph>>);
+
+#[turbo_tasks::value_impl]
+impl ServerActionsGraphs {
+    #[turbo_tasks::function(operation)]
+    async fn new_operation(
+        graphs: ResolvedVc<ModuleGraph>,
+        is_single_page: bool,
+    ) -> Result<Vc<Self>> {
+        let graphs_ref = &graphs.await?.graphs;
+        let server_actions = async {
+            graphs_ref
+                .iter()
+                .map(|graph| {
+                    ServerActionsGraph::new_with_entries(**graph, is_single_page).to_resolved()
+                })
+                .try_join()
+                .await
+        }
+        .instrument(tracing::info_span!("generating server actions graphs"))
+        .await?;
+        Ok(Self(server_actions).cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
+        // TODO get rid of this function once everything inside of
+        // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
+        let result_op = Self::new_operation(graphs, is_single_page);
+        let result_vc = if !is_single_page {
+            let result_vc = result_op.resolve_strongly_consistent().await?;
+            result_op.drop_collectibles::<Box<dyn Issue>>();
+            *result_vc
+        } else {
+            result_op.connect()
+        };
+        Ok(result_vc)
+    }
+
+    /// Returns the server actions for the given page.
+    #[turbo_tasks::function]
+    pub async fn get_server_actions_for_endpoint(
+        &self,
+        entry: Vc<Box<dyn Module>>,
+        rsc_asset_context: Vc<Box<dyn AssetContext>>,
+    ) -> Result<Vc<AllActions>> {
+        let span = tracing::info_span!("collect all server actions for endpoint");
+        async move {
+            if let [graph] = &self.0[..] {
+                // Just a single graph, no need to merge results
+                Ok(graph.get_server_actions_for_endpoint(entry, rsc_asset_context))
+            } else {
+                let result = self
+                    .0
+                    .iter()
+                    .map(|graph| async move {
+                        graph
+                            .get_server_actions_for_endpoint(entry, rsc_asset_context)
+                            .owned()
+                            .await
+                    })
+                    .try_flat_join()
+                    .await?;
+
+                Ok(Vc::cell(result))
+            }
+        }
+        .instrument(span)
+        .await
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl ServerActionsGraph {
     #[turbo_tasks::function]
@@ -261,6 +410,104 @@ pub struct ClientReferencesGraph {
     data: ResolvedVc<ClientReferenceData>,
 }
 
+#[turbo_tasks::value]
+pub struct ClientReferencesGraphs(Vec<ResolvedVc<ClientReferencesGraph>>);
+
+#[turbo_tasks::value_impl]
+impl ClientReferencesGraphs {
+    #[turbo_tasks::function(operation)]
+    async fn new_operation(
+        graphs: ResolvedVc<ModuleGraph>,
+        is_single_page: bool,
+    ) -> Result<Vc<Self>> {
+        let graphs_ref = &graphs.await?.graphs;
+        let client_references = async {
+            graphs_ref
+                .iter()
+                .map(|graph| {
+                    ClientReferencesGraph::new_with_entries(**graph, is_single_page).to_resolved()
+                })
+                .try_join()
+                .await
+        }
+        .instrument(tracing::info_span!("generating client references graphs"))
+        .await?;
+        Ok(Self(client_references).cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
+        // TODO get rid of this function once everything inside of
+        // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
+        let result_op = Self::new_operation(graphs, is_single_page);
+        let result_vc = if !is_single_page {
+            let result_vc = result_op.resolve_strongly_consistent().await?;
+            result_op.drop_collectibles::<Box<dyn Issue>>();
+            *result_vc
+        } else {
+            result_op.connect()
+        };
+        Ok(result_vc)
+    }
+
+    /// Returns the client references for the given page.
+    #[turbo_tasks::function]
+    pub async fn get_client_references_for_endpoint(
+        &self,
+        entry: Vc<Box<dyn Module>>,
+        has_layout_segments: bool,
+        include_traced: bool,
+    ) -> Result<Vc<ClientReferenceGraphResult>> {
+        let span = tracing::info_span!("collect all client references for endpoint");
+        async move {
+            let result = if let [graph] = &self.0[..] {
+                // Just a single graph, no need to merge results  This also naturally aggregates
+                // server components and server utilities in the correct order
+                graph.get_client_references_for_endpoint(entry)
+            } else {
+                let results = self
+                    .0
+                    .iter()
+                    .map(|graph| graph.get_client_references_for_endpoint(entry))
+                    .try_join();
+                // Do this separately for now, because the aggregation of multiple graph traversals
+                // messes up the order of the server_component_entries.
+                let server_entries = async {
+                    if has_layout_segments {
+                        let server_entries = find_server_entries(entry, include_traced).await?;
+                        Ok(Some(server_entries))
+                    } else {
+                        Ok(None)
+                    }
+                };
+                // Wait for both in parallel since `find_server_entries` tends to be slower than the
+                // graph traversals
+                let (results, server_entries) = join!(results, server_entries);
+
+                let mut result = ClientReferenceGraphResult {
+                    client_references: results?
+                        .iter()
+                        .flat_map(|r| r.client_references.iter().copied())
+                        .collect(),
+                    ..Default::default()
+                };
+                if let Some(ServerEntries {
+                    server_utils,
+                    server_component_entries,
+                }) = server_entries?.as_deref()
+                {
+                    result.server_utils = server_utils.clone();
+                    result.server_component_entries = server_component_entries.clone();
+                }
+                result.cell()
+            };
+            Ok(result)
+        }
+        .instrument(span)
+        .await
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl ClientReferencesGraph {
     #[turbo_tasks::function]
@@ -268,8 +515,6 @@ impl ClientReferencesGraph {
         graph: ResolvedVc<SingleModuleGraph>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        // TODO if is_single_page, then perform the graph traversal below in map_client_references
-        // already, which saves us a traversal.
         let mapped = map_client_references(*graph);
 
         Ok(Self {
@@ -515,7 +760,7 @@ struct ModuleNameMap(pub FxModuleNameMap);
 
 #[tracing::instrument(level = "info", name = "validate pages css imports", skip_all)]
 #[turbo_tasks::function]
-async fn validate_pages_css_imports(
+async fn validate_pages_css_imports_individual(
     graph: Vc<SingleModuleGraph>,
     is_single_page: bool,
     entry: Vc<Box<dyn Module>>,
@@ -605,247 +850,27 @@ async fn validate_pages_css_imports(
     Ok(())
 }
 
-/// The consumers of this shouldn't need to care about the exact contents since it's abstracted away
-/// by the accessor functions, but
-/// - In dev, contains information about the modules of the current endpoint only
-/// - In prod, there is a single `GlobalBuildInformation` for the whole app, containing all pages
-#[turbo_tasks::value]
-pub struct GlobalBuildInformation {
-    next_dynamic: Vec<ResolvedVc<NextDynamicGraph>>,
-    server_actions: Vec<ResolvedVc<ServerActionsGraph>>,
-    client_references: Vec<ResolvedVc<ClientReferencesGraph>>,
-    // Data for some more ad-hoc operations
-    bare_graphs: ResolvedVc<ModuleGraph>,
-    is_single_page: bool,
-}
-
-#[turbo_tasks::value_impl]
-impl GlobalBuildInformation {
-    #[turbo_tasks::function]
-    pub async fn new(graphs: Vc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
-        let graphs_ref = &graphs.await?.graphs;
-        let next_dynamic = async {
-            graphs_ref
-                .iter()
-                .map(|graph| {
-                    NextDynamicGraph::new_with_entries(**graph, is_single_page).to_resolved()
-                })
-                .try_join()
-                .await
-        }
-        .instrument(tracing::info_span!("generating next/dynamic graphs"));
-
-        let server_actions = async {
-            graphs_ref
-                .iter()
-                .map(|graph| {
-                    ServerActionsGraph::new_with_entries(**graph, is_single_page).to_resolved()
-                })
-                .try_join()
-                .await
-        }
-        .instrument(tracing::info_span!("generating server actions graphs"));
-
-        let client_references = async {
-            graphs_ref
-                .iter()
-                .map(|graph| {
-                    ClientReferencesGraph::new_with_entries(**graph, is_single_page).to_resolved()
-                })
-                .try_join()
-                .await
-        }
-        .instrument(tracing::info_span!("generating client references graphs"));
-
-        let (next_dynamic, server_actions, client_references) =
-            futures::join!(next_dynamic, server_actions, client_references);
-
-        Ok(Self {
-            next_dynamic: next_dynamic?,
-            server_actions: server_actions?,
-            client_references: client_references?,
-            bare_graphs: graphs.to_resolved().await?,
-            is_single_page,
-        }
-        .cell())
-    }
-
-    /// Returns the next/dynamic-ally imported (client) modules (from RSC and SSR modules) for the
-    /// given endpoint.
-    #[turbo_tasks::function]
-    pub async fn get_next_dynamic_imports_for_endpoint(
-        &self,
-        entry: Vc<Box<dyn Module>>,
-    ) -> Result<Vc<DynamicImportEntriesWithImporter>> {
-        let span = tracing::info_span!("collect all next/dynamic imports for endpoint");
-        async move {
-            if let [graph] = &self.next_dynamic[..] {
-                // Just a single graph, no need to merge results
-                Ok(graph.get_next_dynamic_imports_for_endpoint(entry))
-            } else {
-                let result = self
-                    .next_dynamic
-                    .iter()
-                    .map(|graph| async move {
-                        Ok(graph
-                            .get_next_dynamic_imports_for_endpoint(entry)
-                            .await?
-                            .into_iter()
-                            .map(|(k, v)| (*k, *v))
-                            // TODO remove this collect and return an iterator instead
-                            .collect::<Vec<_>>())
-                    })
-                    .try_flat_join()
-                    .await?;
-
-                Ok(Vc::cell(result.into_iter().collect()))
-            }
-        }
-        .instrument(span)
-        .await
-    }
-
-    /// Returns the server actions for the given page.
-    #[turbo_tasks::function]
-    pub async fn get_server_actions_for_endpoint(
-        &self,
-        entry: Vc<Box<dyn Module>>,
-        rsc_asset_context: Vc<Box<dyn AssetContext>>,
-    ) -> Result<Vc<AllActions>> {
-        let span = tracing::info_span!("collect all server actions for endpoint");
-        async move {
-            if let [graph] = &self.server_actions[..] {
-                // Just a single graph, no need to merge results
-                Ok(graph.get_server_actions_for_endpoint(entry, rsc_asset_context))
-            } else {
-                let result = self
-                    .server_actions
-                    .iter()
-                    .map(|graph| async move {
-                        graph
-                            .get_server_actions_for_endpoint(entry, rsc_asset_context)
-                            .owned()
-                            .await
-                    })
-                    .try_flat_join()
-                    .await?;
-
-                Ok(Vc::cell(result))
-            }
-        }
-        .instrument(span)
-        .await
-    }
-
-    /// Returns the client references for the given page.
-    #[turbo_tasks::function]
-    pub async fn get_client_references_for_endpoint(
-        &self,
-        entry: Vc<Box<dyn Module>>,
-        has_layout_segments: bool,
-        include_traced: bool,
-    ) -> Result<Vc<ClientReferenceGraphResult>> {
-        let span = tracing::info_span!("collect all client references for endpoint");
-        async move {
-            let result = if let [graph] = &self.client_references[..] {
-                // Just a single graph, no need to merge results  This also naturally aggregates
-                // server components and server utilities in the correct order
-                graph.get_client_references_for_endpoint(entry)
-            } else {
-                let results = self
-                    .client_references
-                    .iter()
-                    .map(|graph| graph.get_client_references_for_endpoint(entry))
-                    .try_join();
-                // Do this separately for now, because the aggregation of multiple graph traversals
-                // messes up the order of the server_component_entries.
-                let server_entries = async {
-                    if has_layout_segments {
-                        let server_entries = find_server_entries(entry, include_traced).await?;
-                        Ok(Some(server_entries))
-                    } else {
-                        Ok(None)
-                    }
-                };
-                // Wait for both in parallel since `find_server_entries` tends to be slower than the
-                // graph traversals
-                let (results, server_entries) = join!(results, server_entries);
-
-                let mut result = ClientReferenceGraphResult {
-                    client_references: results?
-                        .iter()
-                        .flat_map(|r| r.client_references.iter().copied())
-                        .collect(),
-                    ..Default::default()
-                };
-                if let Some(ServerEntries {
-                    server_utils,
-                    server_component_entries,
-                }) = server_entries?.as_deref()
-                {
-                    result.server_utils = server_utils.clone();
-                    result.server_component_entries = server_component_entries.clone();
-                }
-                result.cell()
-            };
-            Ok(result)
-        }
-        .instrument(span)
-        .await
-    }
-
-    #[turbo_tasks::function]
-    /// Validates that the global CSS/SCSS/SASS imports are only valid imports with the following
-    /// rules:
-    /// * The import is made from a `node_modules` package
-    /// * The import is made from a `.module.css` file
-    /// * The import is made from the `pages/_app.js`, or equivalent file.
-    pub async fn validate_pages_css_imports(
-        &self,
-        entry: Vc<Box<dyn Module>>,
-        app_module: Vc<Box<dyn Module>>,
-    ) -> Result<()> {
-        let graphs = &self.bare_graphs.await?.graphs;
-
-        graphs
-            .iter()
-            .map(|graph| {
-                validate_pages_css_imports(**graph, self.is_single_page, entry, app_module)
-                    .as_side_effect()
-            })
-            .try_join()
-            .await?;
-
-        Ok(())
-    }
-}
-
-#[turbo_tasks::function(operation)]
-fn get_global_information_for_endpoint_inner_operation(
-    module_graph: ResolvedVc<ModuleGraph>,
-    is_single_page: bool,
-) -> Vc<GlobalBuildInformation> {
-    GlobalBuildInformation::new(*module_graph, is_single_page)
-}
-
-/// Generates a [GlobalBuildInformation] for the given project and endpoint containing information
-/// that is either global (module ids, chunking) or computed globally as a performance optimization
-/// (client references, etc).
+/// Validates that the global CSS/SCSS/SASS imports are only valid imports with the following
+/// rules:
+/// * The import is made from a `node_modules` package
+/// * The import is made from a `.module.css` file
+/// * The import is made from the `pages/_app.js`, or equivalent file.
 #[turbo_tasks::function]
-pub async fn get_global_information_for_endpoint(
-    module_graph: ResolvedVc<ModuleGraph>,
+pub async fn validate_pages_css_imports(
+    graph: Vc<ModuleGraph>,
     is_single_page: bool,
-) -> Result<Vc<GlobalBuildInformation>> {
-    // TODO get rid of this function once everything inside of
-    // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
-    let result_op =
-        get_global_information_for_endpoint_inner_operation(module_graph, is_single_page);
-    let result_vc = if !is_single_page {
-        let result_vc = result_op.resolve_strongly_consistent().await?;
-        result_op.drop_collectibles::<Box<dyn Issue>>();
-        *result_vc
-    } else {
-        result_op.connect()
-    };
-    Ok(result_vc)
+    entry: Vc<Box<dyn Module>>,
+    app_module: Vc<Box<dyn Module>>,
+) -> Result<()> {
+    let graphs = &graph.await?.graphs;
+    graphs
+        .iter()
+        .map(|graph| {
+            validate_pages_css_imports_individual(**graph, is_single_page, entry, app_module)
+                .as_side_effect()
+        })
+        .try_join()
+        .await?;
+
+    Ok(())
 }

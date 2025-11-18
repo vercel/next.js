@@ -9,8 +9,8 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
-use turbopack_core::{chunk::ChunkingContext, compile_time_info::CompileTimeDefineValue};
+use turbo_tasks::{NonLocalValue, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbopack_core::compile_time_info::CompileTimeDefineValue;
 
 use super::AstPath;
 use crate::{
@@ -39,15 +39,11 @@ impl ConstantValueCodeGen {
     pub fn new(value: CompileTimeDefineValue, path: AstPath) -> Self {
         ConstantValueCodeGen { value, path }
     }
-    pub async fn code_generation(
-        &self,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<CodeGeneration> {
+    pub fn code_generation(&self) -> Result<CodeGeneration> {
         let value = self.value.clone();
 
         let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
-            // TODO: avoid this clone
-            *expr = define_env_to_expr((value).clone());
+            *expr = define_env_to_expr(&value);
         });
 
         Ok(CodeGeneration::visitors(vec![visitor]))
@@ -60,7 +56,7 @@ impl From<ConstantValueCodeGen> for CodeGen {
     }
 }
 
-fn define_env_to_expr(value: CompileTimeDefineValue) -> Expr {
+fn define_env_to_expr(value: &CompileTimeDefineValue) -> Expr {
     match value {
         CompileTimeDefineValue::Null => {
             quote!("(\"TURBOPACK compile-time value\", null)" as Expr)
@@ -71,23 +67,23 @@ fn define_env_to_expr(value: CompileTimeDefineValue) -> Expr {
         CompileTimeDefineValue::Bool(false) => {
             quote!("(\"TURBOPACK compile-time value\", false)" as Expr)
         }
-        CompileTimeDefineValue::Number(ref n) => {
+        CompileTimeDefineValue::Number(n) => {
             quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = n.parse::<f64>().unwrap().into())
         }
-        CompileTimeDefineValue::String(ref s) => {
+        CompileTimeDefineValue::String(s) => {
             quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = s.to_string().into())
         }
         CompileTimeDefineValue::Array(a) => {
             quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = Expr::Array(ArrayLit {
                 span: DUMMY_SP,
-                elems: a.into_iter().map(|i| Some(define_env_to_expr(i).into())).collect(),
+                elems: a.iter().map(|i| Some(define_env_to_expr(i).into())).collect(),
             }))
         }
         CompileTimeDefineValue::Object(m) => {
             quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = Expr::Object(ObjectLit {
                 span: DUMMY_SP,
                 props: m
-                    .into_iter()
+                    .iter()
                     .map(|(k, v)| {
                         swc_core::ecma::ast::PropOrSpread::Prop(
                             Prop::KeyValue(KeyValueProp {
@@ -103,7 +99,7 @@ fn define_env_to_expr(value: CompileTimeDefineValue) -> Expr {
         CompileTimeDefineValue::Undefined => {
             quote!("(\"TURBOPACK compile-time value\", void 0)" as Expr)
         }
-        CompileTimeDefineValue::Evaluate(ref s) => parse_single_expr_lit(s.clone()),
+        CompileTimeDefineValue::Evaluate(s) => parse_single_expr_lit(s.clone()),
     }
 }
 
