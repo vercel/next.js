@@ -19796,7 +19796,7 @@ ${La}${a}`("SuspenseList")
 - *0* unreachable
   ⚠️  This value might have side effects
 
-2604 -> 2606 conditional = (???*0* | ???*1*)
+2604 -> 2607 conditional = (???*0* | ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* ???*2*["return"]

@@ -1037,11 +1037,11 @@ mod analyzer_state {
         }
 
         pub(super) fn is_this_bound(&self) -> bool {
-            *self.state.block_context_stack.iter().any(|b| {
+            self.state.block_context_stack.iter().any(|b| {
                 matches!(
                     b,
                     BlockContext::Function {
-                        id,
+                        id: _,
                         binds_this: true
                     }
                 )
@@ -2205,8 +2205,18 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast WhileStmt,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
+        // Enter control flow for everything (test and body both repeat in loop iterations)
         self.enter_control_flow(|this| {
-            n.visit_children_with_ast_path(this, ast_path);
+            {
+                let mut ast_path =
+                    ast_path.with_guard(AstParentNodeRef::WhileStmt(n, WhileStmtField::Test));
+                n.test.visit_with_ast_path(this, &mut ast_path);
+            }
+            {
+                let mut ast_path =
+                    ast_path.with_guard(AstParentNodeRef::WhileStmt(n, WhileStmtField::Body));
+                n.body.visit_with_ast_path(this, &mut ast_path);
+            }
         });
     }
 
@@ -2215,8 +2225,18 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast DoWhileStmt,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
+        // Enter control flow for everything (body and test both are part of loop iterations)
         self.enter_control_flow(|this| {
-            n.visit_children_with_ast_path(this, ast_path);
+            {
+                let mut ast_path =
+                    ast_path.with_guard(AstParentNodeRef::DoWhileStmt(n, DoWhileStmtField::Body));
+                n.body.visit_with_ast_path(this, &mut ast_path);
+            }
+            {
+                let mut ast_path =
+                    ast_path.with_guard(AstParentNodeRef::DoWhileStmt(n, DoWhileStmtField::Test));
+                n.test.visit_with_ast_path(this, &mut ast_path);
+            }
         });
     }
 
