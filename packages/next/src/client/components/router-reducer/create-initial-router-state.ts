@@ -8,7 +8,6 @@ import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-
 import { extractPathFromFlightRouterState } from './compute-changed-path'
 
 import type { AppRouterState } from './router-reducer-types'
-import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-parallel-segments'
 import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 
 export interface InitialRouterStateParameters {
@@ -63,8 +62,6 @@ export function createInitialRouterState({
       ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
         createHrefFromUrl(location)
       : initialCanonicalUrl
-
-  addRefreshMarkerToActiveParallelSegments(initialTree, canonicalUrl)
 
   // When the cache hasn't been seeded yet we fill the cache with the head.
   if (initialParallelRoutes === null || initialParallelRoutes.size === 0) {
