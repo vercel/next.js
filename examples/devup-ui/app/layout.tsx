@@ -2,7 +2,6 @@ import { resetCss } from "@devup-ui/reset-css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
-// https://panda-css.com/docs/guides/fonts#setup
 const InterFont = Inter({
   weight: ["400", "500", "700"],
   display: "swap",
