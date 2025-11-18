@@ -11,6 +11,7 @@ use next_custom_transforms::transforms::{
 };
 use rustc_hash::FxHashSet;
 use swc_core::{
+    atoms::atom,
     common::{FileName, Mark},
     ecma::{
         parser::{EsSyntax, Syntax},
@@ -134,8 +135,11 @@ fn next_font_loaders_errors(input: PathBuf) {
         syntax(),
         &|_tr| {
             next_font_loaders(FontLoaderConfig {
-                relative_file_path_from_root: "pages/test.tsx".into(),
-                font_loaders: vec!["@next/font/google".into(), "cool-fonts".into()],
+                relative_file_path_from_root: atom!("pages/test.tsx").into(),
+                font_loaders: vec![
+                    atom!("@next/font/google").into(),
+                    atom!("cool-fonts").into(),
+                ],
             })
         },
         &input,
