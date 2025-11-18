@@ -895,6 +895,9 @@ trait FunctionLike {
         false
     }
     fn span(&self) -> Span;
+    fn binds_this(&self) -> bool {
+        true
+    }
 }
 
 impl FunctionLike for Function {
@@ -918,6 +921,9 @@ impl FunctionLike for ArrowExpr {
     fn span(&self) -> Span {
         self.span
     }
+    fn binds_this(&self) -> bool {
+        false
+    }
 }
 
 impl FunctionLike for Constructor {
@@ -939,7 +945,7 @@ impl FunctionLike for SetterProp {
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
 enum BlockContext {
     // In the root of a function scope
-    Function(u32),
+    Function { id: u32, binds_this: bool },
     FunctionRoot,
     // In the root of the module scope
     Module,
@@ -983,7 +989,7 @@ mod analyzer_state {
             self.state
                 .block_context_stack
                 .iter()
-                .any(|b| matches!(b, BlockContext::Function(_)))
+                .any(|b| matches!(b, BlockContext::Function { .. }))
         }
 
         pub(super) fn is_in_try(&self) -> bool {
@@ -991,7 +997,7 @@ mod analyzer_state {
                 .block_context_stack
                 .iter()
                 .rev()
-                .take_while(|b| !matches!(b, BlockContext::Function(_)))
+                .take_while(|b| !matches!(b, BlockContext::Function { .. }))
                 .any(|b| *b == BlockContext::ControlFlow { is_try: true })
         }
 
@@ -999,9 +1005,9 @@ mod analyzer_state {
         /// or a module.
         pub(super) fn is_in_nested_block_scope(&self) -> bool {
             match self.state.block_context_stack.last().unwrap() {
-                BlockContext::Module | BlockContext::FunctionRoot | BlockContext::Function(_) => {
-                    false
-                }
+                BlockContext::Module
+                | BlockContext::FunctionRoot
+                | BlockContext::Function { .. } => false,
 
                 BlockContext::ControlFlow { .. } => true,
             }
@@ -1020,7 +1026,7 @@ mod analyzer_state {
                 .iter()
                 .rev()
                 .filter_map(|b| {
-                    if let BlockContext::Function(id) = b {
+                    if let BlockContext::Function { id, .. } = b {
                         Some(id)
                     } else {
                         None
@@ -1028,6 +1034,18 @@ mod analyzer_state {
                 })
                 .next()
                 .expect("not in a function")
+        }
+
+        pub(super) fn is_this_bound(&self) -> bool {
+            *self.state.block_context_stack.iter().any(|b| {
+                matches!(
+                    b,
+                    BlockContext::Function {
+                        id,
+                        binds_this: true
+                    }
+                )
+            })
         }
 
         /// Adds a return value to the current function.
@@ -1092,7 +1110,13 @@ mod analyzer_state {
             let fn_id = function.span().lo.0;
             let prev_return_values = self.state.cur_fn_return_values.replace(vec![]);
 
-            self.enter_block(BlockContext::Function(fn_id), |this| visitor(this));
+            self.enter_block(
+                BlockContext::Function {
+                    id: fn_id,
+                    binds_this: function.binds_this(),
+                },
+                |this| visitor(this),
+            );
             let return_values = self.state.cur_fn_return_values.take().unwrap();
             self.state.cur_fn_return_values = prev_return_values;
 
@@ -2374,27 +2398,7 @@ impl VisitAstPath for Analyzer<'_> {
         node: &'ast ThisExpr,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
-        // TODO: would it be better to compute this while traversing?
-        // `this` is rebound within functions and class method members
-        if ast_path.iter().rev().any(|node| {
-            matches!(
-                node.kind(),
-                AstParentKind::MethodProp(MethodPropField::Function)
-                    | AstParentKind::GetterProp(GetterPropField::Body)
-                    | AstParentKind::SetterProp(SetterPropField::Body)
-                    | AstParentKind::Constructor(ConstructorField::Body)
-                    | AstParentKind::ClassMethod(ClassMethodField::Function)
-                    | AstParentKind::ClassDecl(ClassDeclField::Class)
-                    | AstParentKind::ClassExpr(ClassExprField::Class)
-                    | AstParentKind::Function(FunctionField::Body)
-                    | AstParentKind::Function(FunctionField::Params(_))
-            )
-        }) {
-            // We are in some scope that will rebind this
-            return;
-        }
-
-        if self.analyze_mode.is_code_gen() {
+        if self.analyze_mode.is_code_gen() && !self.is_this_bound() {
             // Otherwise 'this' is free
             self.add_effect(Effect::FreeVar {
                 var: atom!("this"),
@@ -2636,7 +2640,7 @@ impl VisitAstPath for Analyzer<'_> {
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
         match self.cur_block_context() {
-            BlockContext::Function(_) => {
+            BlockContext::Function { .. } => {
                 let mut effects = take(&mut self.effects);
                 let hoisted_effects = take(&mut self.hoisted_effects);
 
@@ -2668,7 +2672,7 @@ impl VisitAstPath for Analyzer<'_> {
                 if is_anonymous_block {
                     // Handle anonymous block statement
                     // e.g., enter a new control flow context and because it is 'unconditiona' we
-                    // need to propogate early returns
+                    // need to propagate early returns
                     let (_, returns_early) = self.enter_control_flow(|this| {
                         n.visit_children_with_ast_path(this, ast_path);
                     });
