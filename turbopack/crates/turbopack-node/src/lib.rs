@@ -2,20 +2,12 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
-use std::thread::available_parallelism;
-
 use anyhow::Result;
 use rustc_hash::FxHashMap;
-use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
-use turbo_tasks_env::ProcessEnv;
-use turbo_tasks_fs::{File, FileSystemPath, to_sys_path};
+use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    changed::content_changed,
-    chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets},
-    module::Module,
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
     source_map::GenerateSourceMap,
     virtual_output::VirtualOutputAsset,
