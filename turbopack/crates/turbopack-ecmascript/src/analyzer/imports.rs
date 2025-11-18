@@ -1,8 +1,9 @@
-use std::{collections::BTreeMap, fmt::Display};
+use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
+    atoms::Wtf8Atom,
     common::{BytePos, Span, Spanned, SyntaxContext, comments::Comments, source_map::SmallPos},
     ecma::{
         ast::*,
@@ -63,13 +64,16 @@ impl ImportAnnotations {
             Some((&kv.key, str))
         }) {
             let key = match key {
-                PropName::Ident(ident) => ident.sym.as_str(),
-                PropName::Str(str) => str.value.as_str(),
+                PropName::Ident(ident) => Cow::Borrowed(ident.sym.as_str()),
+                PropName::Str(str) => str.value.to_string_lossy(),
                 // the rest are invalid, ignore for now till SWC ast is correct
                 _ => continue,
             };
 
-            map.insert(key.into(), value.value.as_str().into());
+            map.insert(
+                key.into(),
+                value.value.to_string_lossy().into_owned().into(),
+            );
         }
 
         ImportAnnotations { map }
@@ -182,7 +186,7 @@ pub(crate) struct ImportMap {
 
     /// The module specifiers of star imports that are accessed dynamically and should be imported
     /// as a whole.
-    full_star_imports: FxHashSet<Atom>,
+    full_star_imports: FxHashSet<Wtf8Atom>,
 
     pub(crate) exports: FxHashMap<RcStr, Id>,
 }
@@ -241,7 +245,7 @@ pub(crate) enum ImportedSymbol {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct ImportMapReference {
-    pub module_path: Atom,
+    pub module_path: Wtf8Atom,
     pub imported_symbol: ImportedSymbol,
     pub annotations: ImportAnnotations,
     pub issue_source: Option<IssueSource>,
@@ -360,8 +364,8 @@ impl ImportMap {
 
 struct StarImportAnalyzer<'a> {
     /// The local identifiers of the star imports
-    candidates: FxIndexMap<Id, Atom>,
-    full_star_imports: &'a mut FxHashSet<Atom>,
+    candidates: FxIndexMap<Id, Wtf8Atom>,
+    full_star_imports: &'a mut FxHashSet<Wtf8Atom>,
 }
 
 impl Visit for StarImportAnalyzer<'_> {
@@ -427,7 +431,7 @@ impl Analyzer<'_> {
     fn ensure_reference(
         &mut self,
         span: Span,
-        module_path: Atom,
+        module_path: Wtf8Atom,
         imported_symbol: ImportedSymbol,
         annotations: ImportAnnotations,
     ) -> Option<usize> {
@@ -451,10 +455,10 @@ impl Analyzer<'_> {
     }
 }
 
-fn export_as_atom(name: &ModuleExportName) -> &Atom {
+fn export_as_atom(name: &'_ ModuleExportName) -> Cow<'_, Atom> {
     match name {
-        ModuleExportName::Ident(ident) => &ident.sym,
-        ModuleExportName::Str(s) => &s.value,
+        ModuleExportName::Ident(ident) => Cow::Borrowed(&ident.sym),
+        ModuleExportName::Str(s) => s.value.to_atom_lossy(),
     }
 }
 
@@ -580,7 +584,7 @@ impl Visit for Analyzer<'_> {
                     self.data.reexports.push((
                         i,
                         Reexport::Namespace {
-                            exported: export_as_atom(&n.name).clone(),
+                            exported: export_as_atom(&n.name).clone().into_owned(),
                         },
                     ));
                 }
@@ -597,9 +601,10 @@ impl Visit for Analyzer<'_> {
                     self.data.reexports.push((
                         i,
                         Reexport::Named {
-                            imported: export_as_atom(&n.orig).clone(),
+                            imported: export_as_atom(&n.orig).clone().into_owned(),
                             exported: export_as_atom(n.exported.as_ref().unwrap_or(&n.orig))
-                                .clone(),
+                                .clone()
+                                .into_owned(),
                         },
                     ));
                 }
@@ -813,7 +818,7 @@ fn parse_ignore_directive(comments: &dyn Comments, value: Option<&ExprOrSpread>)
 pub(crate) fn orig_name(n: &ModuleExportName) -> Atom {
     match n {
         ModuleExportName::Ident(v) => v.sym.clone(),
-        ModuleExportName::Str(v) => v.value.clone(),
+        ModuleExportName::Str(v) => v.value.clone().to_atom_lossy().into_owned(),
     }
 }
 

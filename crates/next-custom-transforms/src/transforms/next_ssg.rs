@@ -1,17 +1,17 @@
 use std::{cell::RefCell, mem::take, rc::Rc};
 
-use easy_error::{bail, Error};
+use easy_error::{Error, bail};
 use rustc_hash::FxHashSet;
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{Atom, atom},
     common::{
+        DUMMY_SP,
         errors::HANDLER,
         pass::{Repeat, Repeated},
-        DUMMY_SP,
     },
     ecma::{
         ast::*,
-        visit::{fold_pass, noop_fold_type, Fold, FoldWith},
+        visit::{Fold, FoldWith, fold_pass, noop_fold_type},
     },
 };
 
@@ -383,12 +383,12 @@ impl Fold for NextSsg {
                     if self.state.is_server_props
                         // filter out non-packages import
                         // third part packages must start with `a-z` or `@`
-                        && import_src.starts_with(|c: char| c.is_ascii_lowercase() || c == '@')
+                        && import_src.as_str().unwrap_or_default().starts_with(|c: char| c.is_ascii_lowercase() || c == '@')
                     {
                         self.state
                             .eliminated_packages
                             .borrow_mut()
-                            .insert(import_src.clone());
+                            .insert(import_src.clone().to_atom_lossy().into_owned());
                     }
                     tracing::trace!(
                         "Dropping import `{}{:?}` because it should be removed",

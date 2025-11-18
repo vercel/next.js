@@ -190,7 +190,7 @@ pub enum AstPathRange {
 /// Converts a module value (ie an import) to a well known object,
 /// which we specifically handle.
 pub fn module_value_to_well_known_object(module_value: &ModuleValue) -> Option<JsValue> {
-    Some(match &*module_value.module {
+    Some(match &*module_value.module.as_str()? {
         "node:path" | "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
         "node:fs/promises" | "fs/promises" => {
             JsValue::WellKnownObject(WellKnownObjectKind::FsModule)

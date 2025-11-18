@@ -9,13 +9,13 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
     common::{
+        DUMMY_SP,
         errors::HANDLER,
         pass::{Repeat, Repeated},
-        DUMMY_SP,
     },
     ecma::{
         ast::*,
-        visit::{fold_pass, noop_fold_type, noop_visit_type, Fold, FoldWith, Visit, VisitWith},
+        visit::{Fold, FoldWith, Visit, VisitWith, fold_pass, noop_fold_type, noop_visit_type},
     },
 };
 
@@ -729,12 +729,12 @@ impl Fold for NextSsg {
                         && matches!(self.state.filter, ExportFilter::StripDataExports)
                         // filter out non-packages import
                         // third part packages must start with `a-z` or `@`
-                        && import_src.starts_with(|c: char| c.is_ascii_lowercase() || c == '@')
+                        && import_src.as_str().unwrap_or_default().starts_with(|c: char| c.is_ascii_lowercase() || c == '@')
                     {
                         self.state
                             .ssr_removed_packages
                             .borrow_mut()
-                            .insert(import_src.clone());
+                            .insert(import_src.clone().to_atom_lossy().into_owned());
                     }
                     tracing::trace!(
                         "Dropping import `{}{:?}` because it should be removed",
@@ -789,7 +789,7 @@ impl Fold for NextSsg {
 
         match &i {
             ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e)) if e.specifiers.is_empty() => {
-                return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }))
+                return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
             }
             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(e)) => match &e.decl {
                 Decl::Fn(f) => {

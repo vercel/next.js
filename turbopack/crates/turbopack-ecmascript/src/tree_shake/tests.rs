@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, fmt::Write, hash::Hash, path::PathBuf, sync::Ar
 
 use anyhow::Error;
 use serde::Deserialize;
+use swc_atoms::Wtf8Atom;
 use swc_core::{
     atoms::atom,
     common::{Mark, SourceMap, SyntaxContext, comments::SingleThreadedComments, util::take::Take},
@@ -175,7 +176,7 @@ fn run(input: PathBuf) {
         )
         .unwrap();
 
-        let uri_of_module = atom!("entry.js");
+        let uri_of_module = atom!("entry.js").into();
 
         let mut describe =
             |is_debug: bool, title: &str, entries: Vec<ItemIdGroupKind>, skip_parts: bool| {
@@ -263,12 +264,12 @@ fn run(input: PathBuf) {
 }
 
 struct SingleModuleLoader<'a> {
-    entry_module_uri: &'a str,
+    entry_module_uri: &'a Wtf8Atom,
     modules: &'a [Module],
 }
 
 impl super::merge::Load for SingleModuleLoader<'_> {
-    fn load(&mut self, uri: &str, chunk_id: u32) -> Result<Option<Module>, Error> {
+    fn load(&mut self, uri: &Wtf8Atom, chunk_id: u32) -> Result<Option<Module>, Error> {
         if self.entry_module_uri == uri {
             return Ok(Some(self.modules[chunk_id as usize].clone()));
         }

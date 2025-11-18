@@ -1,16 +1,16 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use swc_core::{
-    atoms::atom,
-    common::{util::take::Take, SyntaxContext, DUMMY_SP},
+    atoms::{Wtf8Atom, atom},
+    common::{DUMMY_SP, SyntaxContext, util::take::Take},
     ecma::{
         ast::{
             CallExpr, Callee, Decl, Expr, Id, Ident, IdentName, Lit, MemberExpr, MemberProp,
             Module, ModuleItem, Pat, Script, Stmt, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::Atom,
-        utils::{prepend_stmts, private_ident, ExprFactory, IdentRenamer},
-        visit::{noop_visit_mut_type, noop_visit_type, Visit, VisitMut, VisitMutWith, VisitWith},
+        utils::{ExprFactory, IdentRenamer, prepend_stmts, private_ident},
+        visit::{Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type},
     },
 };
 
@@ -47,7 +47,7 @@ struct State {
     imports: FxHashMap<Id, ImportRecord>,
 
     /// `(module_specifier, property): (identifier)`
-    replaced: FxHashMap<(Atom, Atom), Id>,
+    replaced: FxHashMap<(Wtf8Atom, Atom), Id>,
 
     extra_stmts: Vec<Stmt>,
 
@@ -61,11 +61,11 @@ struct State {
 
 #[derive(Debug)]
 struct ImportRecord {
-    module_specifier: Atom,
+    module_specifier: Wtf8Atom,
 }
 
 impl CjsOptimizer {
-    fn should_rewrite(&self, module_specifier: &Atom) -> Option<&FxHashMap<Atom, Atom>> {
+    fn should_rewrite(&self, module_specifier: &Wtf8Atom) -> Option<&FxHashMap<Atom, Atom>> {
         self.packages.get(module_specifier).map(|v| &v.transforms)
     }
 }
@@ -119,10 +119,10 @@ impl VisitMut for CjsOptimizer {
                                                     self.unresolved_ctxt,
                                                 )
                                                 .as_callee(),
-                                                args: vec![Expr::Lit(Lit::Str(
-                                                    renamed.clone().into(),
-                                                ))
-                                                .as_arg()],
+                                                args: vec![
+                                                    Expr::Lit(Lit::Str(renamed.clone().into()))
+                                                        .as_arg(),
+                                                ],
                                                 ..Default::default()
                                             })),
                                             prop: MemberProp::Ident(IdentName::new(

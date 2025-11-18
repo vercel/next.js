@@ -8,7 +8,7 @@ use swc_core::{
     common::DUMMY_SP,
     ecma::{
         ast::*,
-        visit::{fold_pass, Fold, FoldWith},
+        visit::{Fold, FoldWith, fold_pass},
     },
 };
 
@@ -109,7 +109,7 @@ impl Fold for OptimizeServerReact {
                         let name = match &named_import.imported {
                             Some(n) => match &n {
                                 ModuleExportName::Ident(n) => n.sym.to_string(),
-                                ModuleExportName::Str(n) => n.value.to_string(),
+                                ModuleExportName::Str(n) => n.value.to_string_lossy().into_owned(),
                             },
                             None => named_import.local.sym.to_string(),
                         };

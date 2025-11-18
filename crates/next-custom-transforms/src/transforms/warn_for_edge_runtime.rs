@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
+use swc_atoms::Wtf8Atom;
 use swc_core::{
     atoms::Atom,
-    common::{errors::HANDLER, SourceMap, Span},
+    common::{SourceMap, Span, errors::HANDLER},
     ecma::{
         ast::{
-            op, BinExpr, CallExpr, Callee, CondExpr, Expr, IdentName, IfStmt, ImportDecl, Lit,
-            MemberExpr, MemberProp, NamedExport, UnaryExpr,
+            BinExpr, CallExpr, Callee, CondExpr, Expr, IdentName, IfStmt, ImportDecl, Lit,
+            MemberExpr, MemberProp, NamedExport, UnaryExpr, op,
         },
         utils::{ExprCtx, ExprExt},
         visit::{Visit, VisitWith},
@@ -187,7 +188,8 @@ where
     EmitWarn: Fn(Span, String),
     EmitError: Fn(Span, String),
 {
-    fn warn_if_nodejs_module(&self, span: Span, module_specifier: &str) -> Option<()> {
+    fn warn_if_nodejs_module(&self, span: Span, module_specifier: &Wtf8Atom) -> Option<()> {
+        let module_specifier = module_specifier.as_str()?;
         if self.guarded_runtime {
             return None;
         }

@@ -5,17 +5,17 @@ use std::{
 
 use pathdiff::diff_paths;
 use swc_core::{
-    atoms::{atom, Atom},
-    common::{errors::HANDLER, FileName, Span, DUMMY_SP},
+    atoms::{Atom, Wtf8Atom, atom},
+    common::{DUMMY_SP, FileName, Span, errors::HANDLER},
     ecma::{
         ast::{
-            op, ArrayLit, ArrowExpr, BinExpr, BlockStmt, BlockStmtOrExpr, Bool, CallExpr, Callee,
-            Expr, ExprOrSpread, ExprStmt, Id, Ident, IdentName, ImportDecl, ImportNamedSpecifier,
+            ArrayLit, ArrowExpr, BinExpr, BlockStmt, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
+            ExprOrSpread, ExprStmt, Id, Ident, IdentName, ImportDecl, ImportNamedSpecifier,
             ImportSpecifier, KeyValueProp, Lit, ModuleDecl, ModuleItem, ObjectLit, Pass, Prop,
-            PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp,
+            PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp, op,
         },
-        utils::{private_ident, quote_ident, ExprFactory},
-        visit::{fold_pass, Fold, FoldWith, VisitMut, VisitMutWith},
+        utils::{ExprFactory, private_ident, quote_ident},
+        visit::{Fold, FoldWith, VisitMut, VisitMutWith, fold_pass},
     },
     quote,
 };
@@ -91,7 +91,7 @@ struct NextDynamicPatcher {
     filename: Arc<FileName>,
     dynamic_bindings: Vec<Id>,
     is_next_dynamic_first_arg: bool,
-    dynamically_imported_specifier: Option<(Atom, Span)>,
+    dynamically_imported_specifier: Option<(Wtf8Atom, Span)>,
     state: NextDynamicPatcherState,
 }
 
@@ -111,7 +111,10 @@ enum NextDynamicPatcherState {
 #[derive(Debug, Clone, Eq, PartialEq)]
 enum TurbopackImport {
     // TODO do we need more variants? server vs client vs dev vs prod?
-    Import { id_ident: Ident, specifier: Atom },
+    Import {
+        id_ident: Ident,
+        specifier: Wtf8Atom,
+    },
 }
 
 impl Fold for NextDynamicPatcher {
@@ -149,7 +152,7 @@ impl Fold for NextDynamicPatcher {
                     }
                     Expr::Tpl(Tpl { exprs, quasis, .. }) if exprs.is_empty() => {
                         self.dynamically_imported_specifier =
-                            Some((quasis[0].raw.clone(), quasis[0].span));
+                            Some((quasis[0].raw.clone().into(), quasis[0].span));
                     }
                     _ => {}
                 }
@@ -541,7 +544,7 @@ impl NextDynamicPatcher {
 fn exec_expr_when_resolve_weak_available(expr: &Expr) -> Expr {
     let undefined_str_literal = Expr::Lit(Lit::Str(Str {
         span: DUMMY_SP,
-        value: atom!("undefined"),
+        value: "undefined".into(),
         raw: None,
     }));
 

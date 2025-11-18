@@ -1528,10 +1528,18 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                     self.server_reference_exports.push(
                                                         ServerReferenceExport {
                                                             ident: ident.clone(),
-                                                            export_name: str.value.clone(),
+                                                            export_name: str
+                                                                .value
+                                                                .clone()
+                                                                .to_atom_lossy()
+                                                                .into_owned(),
                                                             reference_id: self
                                                                 .generate_server_reference_id(
-                                                                    str.value.as_ref(),
+                                                                    str.value
+                                                                        .clone()
+                                                                        .to_atom_lossy()
+                                                                        .into_owned()
+                                                                        .as_ref(),
                                                                     in_cache_file,
                                                                     None,
                                                                 ),
@@ -1828,7 +1836,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     ],
                     src: Box::new(Str {
                         span: DUMMY_SP,
-                        value: atom!("private-next-rsc-action-client-wrapper"),
+                        value: "private-next-rsc-action-client-wrapper".into(),
                         raw: None,
                     }),
                     type_only: false,
@@ -1965,7 +1973,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         })],
                         src: Box::new(Str {
                             span: DUMMY_SP,
-                            value: atom!("private-next-rsc-action-validate"),
+                            value: "private-next-rsc-action-validate".into(),
                             raw: None,
                         }),
                         type_only: false,
@@ -2016,7 +2024,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 })],
                 src: Box::new(Str {
                     span: DUMMY_SP,
-                    value: atom!("private-next-rsc-cache-wrapper"),
+                    value: "private-next-rsc-cache-wrapper".into(),
                     raw: None,
                 }),
                 type_only: false,
@@ -2059,7 +2067,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 })],
                 src: Box::new(Str {
                     span: DUMMY_SP,
-                    value: atom!("private-next-rsc-server-reference"),
+                    value: "private-next-rsc-server-reference".into(),
                     raw: None,
                 }),
                 type_only: false,
@@ -2828,26 +2836,30 @@ impl DirectiveVisitor<'_> {
                     } else {
                         emit_error(ServerActionsErrorKind::MisplacedDirective {
                             span: *span,
-                            directive: value.to_string(),
+                            directive: value.to_string_lossy().into_owned(),
                             location: self.location.clone(),
                         });
                     }
-                } else if detect_similar_strings(value, "use server") {
+                } else if detect_similar_strings(
+                    value.to_string_lossy().into_owned().as_ref(),
+                    "use server",
+                ) {
                     // Detect typo of "use server"
                     emit_error(ServerActionsErrorKind::MisspelledDirective {
                         span: *span,
-                        directive: value.to_string(),
+                        directive: value.to_string_lossy().into_owned(),
                         expected_directive: "use server".to_string(),
                     });
                 } else if value == "use action" {
                     emit_error(ServerActionsErrorKind::MisspelledDirective {
                         span: *span,
-                        directive: value.to_string(),
+                        directive: value.to_string_lossy().into_owned(),
                         expected_directive: "use server".to_string(),
                     });
                 } else
                 // `use cache` or `use cache: foo`
-                if let Some(rest) = value.strip_prefix("use cache") {
+                if let Some(rest) = value.as_str().and_then(|s| s.strip_prefix("use cache"))
+                {
                     // Increment telemetry counter tracking usage of "use cache" directives
 
                     if in_fn_body && !allow_inline {
@@ -2863,7 +2875,7 @@ impl DirectiveVisitor<'_> {
                         if !self.config.use_cache_enabled {
                             emit_error(ServerActionsErrorKind::UseCacheWithoutCacheComponents {
                                 span: *span,
-                                directive: value.to_string(),
+                                directive: value.to_string_lossy().into_owned(),
                             });
                         }
 
@@ -2878,7 +2890,7 @@ impl DirectiveVisitor<'_> {
                         }
 
                         if rest.starts_with(": ") {
-                            let cache_kind = RcStr::from(rest.split_at(": ".len()).1);
+                            let cache_kind = RcStr::from(rest.split_at(": ".len()).1.to_string());
 
                             if !cache_kind.is_empty() {
                                 if !self.config.cache_kinds.contains(&cache_kind) {
@@ -2917,7 +2929,7 @@ impl DirectiveVisitor<'_> {
 
                         emit_error(ServerActionsErrorKind::MisspelledDirective {
                             span: *span,
-                            directive: value.to_string(),
+                            directive: value.to_string_lossy().into_owned(),
                             expected_directive,
                         });
 
@@ -2925,16 +2937,19 @@ impl DirectiveVisitor<'_> {
                     } else {
                         emit_error(ServerActionsErrorKind::MisplacedDirective {
                             span: *span,
-                            directive: value.to_string(),
+                            directive: value.to_string_lossy().into_owned(),
                             location: self.location.clone(),
                         });
                     }
                 } else {
                     // Detect typo of "use cache"
-                    if detect_similar_strings(value, "use cache") {
+                    if detect_similar_strings(
+                        value.to_string_lossy().into_owned().as_ref(),
+                        "use cache",
+                    ) {
                         emit_error(ServerActionsErrorKind::MisspelledDirective {
                             span: *span,
-                            directive: value.to_string(),
+                            directive: value.to_string_lossy().into_owned(),
                             expected_directive: "use cache".to_string(),
                         });
                     }
@@ -2950,7 +2965,9 @@ impl DirectiveVisitor<'_> {
                 ..
             }) => {
                 // Match `("use server")`.
-                if value == "use server" || detect_similar_strings(value, "use server") {
+                if value == "use server"
+                    || detect_similar_strings(value.as_str().unwrap_or_default(), "use server")
+                {
                     if self.is_allowed_position {
                         emit_error(ServerActionsErrorKind::WrappedDirective {
                             span: *span,
@@ -2963,7 +2980,9 @@ impl DirectiveVisitor<'_> {
                             location: self.location.clone(),
                         });
                     }
-                } else if value == "use cache" || detect_similar_strings(value, "use cache") {
+                } else if value == "use cache"
+                    || detect_similar_strings(value.as_str().unwrap_or_default(), "use cache")
+                {
                     if self.is_allowed_position {
                         emit_error(ServerActionsErrorKind::WrappedDirective {
                             span: *span,

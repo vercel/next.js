@@ -470,8 +470,11 @@ pub async fn parse_segment_config_from_source(
                             if let ExportSpecifier::Named(named) = specifier {
                                 parse(
                                     match named.exported.as_ref().unwrap_or(&named.orig) {
-                                        ModuleExportName::Ident(ident) => &ident.sym,
-                                        ModuleExportName::Str(s) => &*s.value,
+                                        ModuleExportName::Ident(ident) => &*ident.sym,
+                                        ModuleExportName::Str(s) => &*s
+                                            .value
+                                            .as_str()
+                                            .expect("unpaired unicode surrgate in export name"),
                                     },
                                     None,
                                     specifier.span(),
