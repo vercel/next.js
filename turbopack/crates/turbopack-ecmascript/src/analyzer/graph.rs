@@ -357,8 +357,6 @@ pub fn create_graph(
             eval_context,
             effects: Default::default(),
             hoisted_effects: Default::default(),
-            early_return_stack: Default::default(),
-            var_decl_kind: Default::default(),
         },
         &mut Default::default(),
     );
@@ -885,11 +883,8 @@ struct Analyzer<'a> {
     // Tracked separately so we can preserve effects from hoisted declarations even when we don't
     // collect effects from the declaring context.
     hoisted_effects: Vec<Effect>,
-    early_return_stack: Vec<EarlyReturn>,
 
     eval_context: &'a EvalContext,
-
-    var_decl_kind: Option<VarDeclKind>,
 }
 
 trait FunctionLike {
@@ -941,6 +936,17 @@ impl FunctionLike for SetterProp {
     }
 }
 
+#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+enum BlockContext {
+    // In the root of a function scope
+    Function(u32),
+    FunctionRoot,
+    // In the root of the module scope
+    Module,
+    // In some kind of control flow
+    ControlFlow { is_try: bool },
+}
+
 mod analyzer_state {
     use super::*;
 
@@ -948,23 +954,25 @@ mod analyzer_state {
     /// intentionally private to the rest of the `Analyzer` implementation.
     pub struct AnalyzerState {
         pat_value: Option<JsValue>,
-        /// A unique identifier for the current function, based on the span of the function
-        /// declaration. [`None`] if we are in the root scope.  These are only used as opaque
-        /// identifiers to distinguish function arguments.
-        cur_fn_id: Option<u32>,
         /// Return values of the current function.
         ///
         /// This is configured to [Some] by function handlers and filled by the
         /// return statement handler.
         cur_fn_return_values: Option<Vec<JsValue>>,
+        /// Stack of early returns for control flow analysis.
+        early_return_stack: Vec<EarlyReturn>,
+        block_context_stack: Vec<BlockContext>,
+        var_decl_kind: Option<VarDeclKind>,
     }
 
     impl AnalyzerState {
         pub fn new() -> AnalyzerState {
             AnalyzerState {
                 pat_value: None,
-                cur_fn_id: None,
                 cur_fn_return_values: None,
+                early_return_stack: Default::default(),
+                block_context_stack: Default::default(),
+                var_decl_kind: None,
             }
         }
     }
@@ -972,13 +980,54 @@ mod analyzer_state {
     impl Analyzer<'_> {
         /// Returns true if we are in a function. False if we are in the root scope.
         pub(super) fn is_in_fn(&self) -> bool {
-            self.state.cur_fn_id.is_some()
+            self.state
+                .block_context_stack
+                .iter()
+                .any(|b| matches!(b, BlockContext::Function(_)))
+        }
+
+        pub(super) fn is_in_try(&self) -> bool {
+            self.state
+                .block_context_stack
+                .iter()
+                .rev()
+                .take_while(|b| !matches!(b, BlockContext::Function(_)))
+                .any(|b| *b == BlockContext::ControlFlow { is_try: true })
+        }
+
+        /// Returns true if we are currently in a block scope that isn't at the root of a function
+        /// or a module.
+        pub(super) fn is_in_nested_block_scope(&self) -> bool {
+            match self.state.block_context_stack.last().unwrap() {
+                BlockContext::Module | BlockContext::FunctionRoot | BlockContext::Function(_) => {
+                    false
+                }
+
+                BlockContext::ControlFlow { .. } => true,
+            }
+        }
+
+        pub(super) fn cur_block_context(&self) -> BlockContext {
+            *self.state.block_context_stack.last().unwrap()
         }
 
         /// Returns the identifier of the current function.
         /// must be called only if `is_in_fn` is true
         pub(super) fn cur_fn_ident(&self) -> u32 {
-            self.state.cur_fn_id.expect("not in a function")
+            *self
+                .state
+                .block_context_stack
+                .iter()
+                .rev()
+                .filter_map(|b| {
+                    if let BlockContext::Function(id) = b {
+                        Some(id)
+                    } else {
+                        None
+                    }
+                })
+                .next()
+                .expect("not in a function")
         }
 
         /// Adds a return value to the current function.
@@ -1015,6 +1064,24 @@ mod analyzer_state {
             out
         }
 
+        /// Runs `func` with the given variable declaration kind, restoring the previous kind
+        /// afterwards.
+        pub(super) fn with_decl_kind<T>(
+            &mut self,
+            kind: Option<VarDeclKind>,
+            func: impl FnOnce(&mut Self) -> T,
+        ) -> T {
+            let prev_kind = replace(&mut self.state.var_decl_kind, kind);
+            let out = func(self);
+            self.state.var_decl_kind = prev_kind;
+            out
+        }
+
+        /// Returns the current variable declaration kind.
+        pub(super) fn var_decl_kind(&self) -> Option<VarDeclKind> {
+            self.state.var_decl_kind
+        }
+
         /// Runs `func` with the current function identifier and return values initialized for the
         /// block.
         pub(super) fn enter_fn(
@@ -1023,14 +1090,12 @@ mod analyzer_state {
             visitor: impl FnOnce(&mut Self),
         ) -> JsValue {
             let fn_id = function.span().lo.0;
-            let prev_fn_id = self.state.cur_fn_id.replace(fn_id);
             let prev_return_values = self.state.cur_fn_return_values.replace(vec![]);
 
-            visitor(self);
+            self.enter_block(BlockContext::Function(fn_id), |this| visitor(this));
             let return_values = self.state.cur_fn_return_values.take().unwrap();
-
-            self.state.cur_fn_id = prev_fn_id;
             self.state.cur_fn_return_values = prev_return_values;
+
             JsValue::function(
                 fn_id,
                 function.is_async(),
@@ -1041,6 +1106,136 @@ mod analyzer_state {
                     _ => JsValue::alternatives(return_values),
                 },
             )
+        }
+
+        /// Helper to access the early_return_stack mutably (for push operations)
+        pub(super) fn early_return_stack_mut(&mut self) -> &mut Vec<EarlyReturn> {
+            &mut self.state.early_return_stack
+        }
+
+        /// Records an unconditional early return (return, throw, or finally block that always
+        /// returns). Takes ownership of current effects and pushes them onto the early return
+        /// stack.
+        pub(super) fn add_early_return_always(
+            &mut self,
+            ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+        ) {
+            let early_return = EarlyReturn::Always {
+                prev_effects: take(&mut self.effects),
+                start_ast_path: as_parent_path(ast_path),
+            };
+            self.early_return_stack_mut().push(early_return);
+        }
+
+        /// Runs `func` with a fresh early return stack, restoring the previous stack afterwards.
+        /// Returns the result of `func` and whether the block always returns (from
+        /// `end_early_return_block`).
+        pub(super) fn enter_control_flow<T>(
+            &mut self,
+            func: impl FnOnce(&mut Self) -> T,
+        ) -> (T, bool) {
+            self.enter_block(BlockContext::ControlFlow { is_try: false }, |this| {
+                func(this)
+            })
+        }
+        /// Runs `func` with a fresh early return stack, restoring the previous stack afterwards.
+        /// Returns the result of `func` and whether the block always returns (from
+        /// `end_early_return_block`).
+        pub(super) fn enter_try<T>(&mut self, func: impl FnOnce(&mut Self) -> T) -> (T, bool) {
+            self.enter_block(BlockContext::ControlFlow { is_try: true }, |this| {
+                func(this)
+            })
+        }
+
+        /// Runs `func` with a fresh early return stack, restoring the previous stack afterwards.
+        /// Returns the result of `func` and whether the block always returns (from
+        /// `end_early_return_block`).
+        pub(super) fn enter_block<T>(
+            &mut self,
+            block_kind: BlockContext,
+            func: impl FnOnce(&mut Self) -> T,
+        ) -> (T, bool) {
+            let prev_early_return_stack = take(&mut self.state.early_return_stack);
+            self.state.block_context_stack.push(block_kind);
+            let result = func(self);
+            let always_returns = self.end_early_return_block();
+            self.state.early_return_stack = prev_early_return_stack;
+            let old = self.state.block_context_stack.pop();
+            debug_assert_eq!(old, Some(block_kind));
+            (result, always_returns)
+        }
+        /// Ends a conditional block. All early returns are integrated into the
+        /// effects. Returns true if the whole block always early returns.
+        fn end_early_return_block(&mut self) -> bool {
+            let mut always_returns = false;
+            while let Some(early_return) = self.state.early_return_stack.pop() {
+                match early_return {
+                    EarlyReturn::Always {
+                        prev_effects,
+                        start_ast_path,
+                    } => {
+                        self.effects = prev_effects;
+                        if self.analyze_mode.is_code_gen() {
+                            self.effects.push(Effect::Unreachable { start_ast_path });
+                        }
+                        always_returns = true;
+                    }
+                    EarlyReturn::Conditional {
+                        prev_effects,
+                        start_ast_path,
+                        condition,
+                        then,
+                        r#else,
+                        condition_ast_path,
+                        span,
+                        early_return_condition_value,
+                    } => {
+                        let block = Box::new(EffectsBlock {
+                            effects: take(&mut self.effects),
+                            range: AstPathRange::StartAfter(start_ast_path),
+                        });
+                        self.effects = prev_effects;
+                        let kind = match (then, r#else, early_return_condition_value) {
+                            (None, None, false) => ConditionalKind::If { then: block },
+                            (None, None, true) => ConditionalKind::IfElseMultiple {
+                                then: vec![block],
+                                r#else: vec![],
+                            },
+                            (Some(then), None, false) => ConditionalKind::IfElseMultiple {
+                                then: vec![then, block],
+                                r#else: vec![],
+                            },
+                            (Some(then), None, true) => ConditionalKind::IfElse {
+                                then,
+                                r#else: block,
+                            },
+                            (Some(then), Some(r#else), false) => ConditionalKind::IfElseMultiple {
+                                then: vec![then, block],
+                                r#else: vec![r#else],
+                            },
+                            (Some(then), Some(r#else), true) => ConditionalKind::IfElseMultiple {
+                                then: vec![then],
+                                r#else: vec![r#else, block],
+                            },
+                            (None, Some(r#else), false) => ConditionalKind::IfElse {
+                                then: block,
+                                r#else,
+                            },
+                            (None, Some(r#else), true) => ConditionalKind::IfElseMultiple {
+                                then: vec![],
+                                r#else: vec![r#else, block],
+                            },
+                        };
+                        self.effects.push(Effect::Conditional {
+                            condition,
+                            kind: Box::new(kind),
+                            ast_path: condition_ast_path,
+                            span,
+                        })
+                    }
+                }
+            }
+            always_returns
         }
     }
 }
@@ -1058,24 +1253,6 @@ pub fn as_parent_path_with(
         .map(|n| n.kind())
         .chain([additional])
         .collect()
-}
-
-fn is_in_try(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
-    ast_path
-        .iter()
-        .rev()
-        .find_map(|ast_ref| match ast_ref.kind() {
-            AstParentKind::ArrowExpr(ArrowExprField::Body)
-            | AstParentKind::Function(FunctionField::Body)
-            | AstParentKind::Constructor(ConstructorField::Body)
-            | AstParentKind::ClassMethod(ClassMethodField::Function)
-            | AstParentKind::GetterProp(GetterPropField::Body)
-            | AstParentKind::SetterProp(SetterPropField::Body)
-            | AstParentKind::MethodProp(MethodPropField::Function) => Some(false),
-            AstParentKind::TryStmt(TryStmtField::Block) => Some(true),
-            _ => None,
-        })
-        .unwrap_or(false)
 }
 
 enum CallOrNewExpr<'ast> {
@@ -1423,7 +1600,7 @@ impl Analyzer<'_> {
                     args,
                     ast_path: as_parent_path(ast_path),
                     span,
-                    in_try: is_in_try(ast_path),
+                    in_try: self.is_in_try(),
                     new,
                 });
             }
@@ -1447,7 +1624,7 @@ impl Analyzer<'_> {
                         args,
                         ast_path: as_parent_path(ast_path),
                         span,
-                        in_try: is_in_try(ast_path),
+                        in_try: self.is_in_try(),
                         new,
                     });
                 } else {
@@ -1457,7 +1634,7 @@ impl Analyzer<'_> {
                         args,
                         ast_path: as_parent_path(ast_path),
                         span,
-                        in_try: is_in_try(ast_path),
+                        in_try: self.is_in_try(),
                         new,
                     });
                 }
@@ -1471,7 +1648,7 @@ impl Analyzer<'_> {
                 args,
                 ast_path: as_parent_path(ast_path),
                 span,
-                in_try: is_in_try(ast_path),
+                in_try: self.is_in_try(),
                 new,
             }),
         }
@@ -1503,80 +1680,6 @@ impl Analyzer<'_> {
             ast_path: as_parent_path(ast_path),
             span: member_expr.span(),
         });
-    }
-
-    /// Ends a conditional block. All early returns are integrated into the
-    /// effects. Returns true if the whole block always early returns.
-    fn end_early_return_block(&mut self) -> bool {
-        let mut always_returns = false;
-        while let Some(early_return) = self.early_return_stack.pop() {
-            match early_return {
-                EarlyReturn::Always {
-                    prev_effects,
-                    start_ast_path,
-                } => {
-                    self.effects = prev_effects;
-                    if self.analyze_mode.is_code_gen() {
-                        self.effects.push(Effect::Unreachable { start_ast_path });
-                    }
-                    always_returns = true;
-                }
-                EarlyReturn::Conditional {
-                    prev_effects,
-                    start_ast_path,
-                    condition,
-                    then,
-                    r#else,
-                    condition_ast_path,
-                    span,
-                    early_return_condition_value,
-                } => {
-                    let block = Box::new(EffectsBlock {
-                        effects: take(&mut self.effects),
-                        range: AstPathRange::StartAfter(start_ast_path),
-                    });
-                    self.effects = prev_effects;
-                    let kind = match (then, r#else, early_return_condition_value) {
-                        (None, None, false) => ConditionalKind::If { then: block },
-                        (None, None, true) => ConditionalKind::IfElseMultiple {
-                            then: vec![block],
-                            r#else: vec![],
-                        },
-                        (Some(then), None, false) => ConditionalKind::IfElseMultiple {
-                            then: vec![then, block],
-                            r#else: vec![],
-                        },
-                        (Some(then), None, true) => ConditionalKind::IfElse {
-                            then,
-                            r#else: block,
-                        },
-                        (Some(then), Some(r#else), false) => ConditionalKind::IfElseMultiple {
-                            then: vec![then, block],
-                            r#else: vec![r#else],
-                        },
-                        (Some(then), Some(r#else), true) => ConditionalKind::IfElseMultiple {
-                            then: vec![then],
-                            r#else: vec![r#else, block],
-                        },
-                        (None, Some(r#else), false) => ConditionalKind::IfElse {
-                            then: block,
-                            r#else,
-                        },
-                        (None, Some(r#else), true) => ConditionalKind::IfElseMultiple {
-                            then: vec![],
-                            r#else: vec![r#else, block],
-                        },
-                    };
-                    self.effects.push(Effect::Conditional {
-                        condition,
-                        kind: Box::new(kind),
-                        ast_path: condition_ast_path,
-                        span,
-                    })
-                }
-            }
-        }
-        always_returns
     }
 }
 
@@ -1720,10 +1823,9 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast Expr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let old = self.var_decl_kind;
-        self.var_decl_kind = None;
-        n.visit_children_with_ast_path(self, ast_path);
-        self.var_decl_kind = old;
+        self.with_decl_kind(None, |this| {
+            n.visit_children_with_ast_path(this, ast_path);
+        });
     }
 
     fn visit_params<'ast: 'r, 'r>(
@@ -1745,25 +1847,25 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast Param,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let old = self.var_decl_kind;
         let Param {
             decorators,
             pat,
             span: _,
         } = n;
-        self.var_decl_kind = None;
-        self.with_pat_value(None, |this| {
-            let mut ast_path = ast_path.with_guard(AstParentNodeRef::Param(
-                n,
-                ParamField::Decorators(usize::MAX),
-            ));
-            this.visit_decorators(decorators, &mut ast_path);
+        self.with_decl_kind(None, |this| {
+            // Decorators don't have access to the parameter values, so omit them
+            this.with_pat_value(None, |this| {
+                let mut ast_path = ast_path.with_guard(AstParentNodeRef::Param(
+                    n,
+                    ParamField::Decorators(usize::MAX),
+                ));
+                this.visit_decorators(decorators, &mut ast_path);
+            });
+            {
+                let mut ast_path = ast_path.with_guard(AstParentNodeRef::Param(n, ParamField::Pat));
+                this.visit_pat(pat, &mut ast_path);
+            }
         });
-        {
-            let mut ast_path = ast_path.with_guard(AstParentNodeRef::Param(n, ParamField::Pat));
-            self.visit_pat(pat, &mut ast_path);
-        }
-        self.var_decl_kind = old;
     }
 
     fn visit_fn_decl<'ast: 'r, 'r>(
@@ -1776,8 +1878,8 @@ impl VisitAstPath for Analyzer<'_> {
         });
         // Take all effects produced by the function and move them to hoisted effects since
         // function declarations are hoisted.
-        // This accounts for the fact that even with `if (false) { function f() {} }` `f` is
-        // hoisted out of the condition. so we still need to process effects for it.
+        // This accounts for the fact that even with `if (true) { return f} function f() {} ` `f` is
+        // hoisted earlier of the condition. so we still need to process effects for it.
         // TODO(lukesandberg): shouldn't this just be the effects associated with the function.
         self.hoisted_effects.append(&mut self.effects);
 
@@ -1923,10 +2025,9 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast VarDecl,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let old = self.var_decl_kind;
-        self.var_decl_kind = Some(n.kind);
-        n.visit_children_with_ast_path(self, ast_path);
-        self.var_decl_kind = old;
+        self.with_decl_kind(Some(n.kind), |this| {
+            n.visit_children_with_ast_path(this, ast_path);
+        });
     }
 
     fn visit_var_declarator<'ast: 'r, 'r>(
@@ -1939,7 +2040,7 @@ impl VisitAstPath for Analyzer<'_> {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::VarDeclarator(n, VarDeclaratorField::Name));
 
-            if self.var_decl_kind.is_some()
+            if let Some(var_decl_kind) = self.var_decl_kind()
                 && let Some(init) = &n.init
             {
                 // For case like
@@ -1952,8 +2053,8 @@ impl VisitAstPath for Analyzer<'_> {
                 //
                 // The variable `x` is undefined
 
-                let should_include_undefined = matches!(self.var_decl_kind, Some(VarDeclKind::Var))
-                    && is_lexically_block_scope(&mut ast_path);
+                let should_include_undefined =
+                    var_decl_kind == VarDeclKind::Var && self.is_in_nested_block_scope();
                 let init_value = self.eval_context.eval(init);
                 let pat_value = Some(if should_include_undefined {
                     JsValue::alternatives(vec![
@@ -2013,10 +2114,9 @@ impl VisitAstPath for Analyzer<'_> {
         let mut ast_path =
             ast_path.with_guard(AstParentNodeRef::ForInStmt(n, ForInStmtField::Body));
 
-        let prev_early_return_stack = take(&mut self.early_return_stack);
-        n.body.visit_with_ast_path(self, &mut ast_path);
-        self.end_early_return_block();
-        self.early_return_stack = prev_early_return_stack;
+        self.enter_control_flow(|this| {
+            n.body.visit_with_ast_path(this, &mut ast_path);
+        });
     }
 
     fn visit_for_of_stmt<'ast: 'r, 'r>(
@@ -2042,10 +2142,9 @@ impl VisitAstPath for Analyzer<'_> {
         let mut ast_path =
             ast_path.with_guard(AstParentNodeRef::ForOfStmt(n, ForOfStmtField::Body));
 
-        let prev_early_return_stack = take(&mut self.early_return_stack);
-        n.body.visit_with_ast_path(self, &mut ast_path);
-        self.end_early_return_block();
-        self.early_return_stack = prev_early_return_stack;
+        self.enter_control_flow(|this| {
+            n.body.visit_with_ast_path(this, &mut ast_path);
+        });
     }
 
     fn visit_for_stmt<'ast: 'r, 'r>(
@@ -2053,10 +2152,28 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast ForStmt,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
-        let prev_early_return_stack = take(&mut self.early_return_stack);
-        n.visit_children_with_ast_path(self, ast_path);
-        self.end_early_return_block();
-        self.early_return_stack = prev_early_return_stack;
+        {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::ForStmt(n, ForStmtField::Init));
+            n.init.visit_with_ast_path(self, &mut ast_path);
+        }
+        self.enter_control_flow(|this| {
+            {
+                let mut ast_path =
+                    ast_path.with_guard(AstParentNodeRef::ForStmt(n, ForStmtField::Test));
+                n.test.visit_with_ast_path(this, &mut ast_path);
+            }
+            {
+                let mut ast_path =
+                    ast_path.with_guard(AstParentNodeRef::ForStmt(n, ForStmtField::Body));
+                n.body.visit_with_ast_path(this, &mut ast_path);
+            }
+            {
+                let mut ast_path =
+                    ast_path.with_guard(AstParentNodeRef::ForStmt(n, ForStmtField::Update));
+                n.update.visit_with_ast_path(this, &mut ast_path);
+            }
+        });
     }
 
     fn visit_while_stmt<'ast: 'r, 'r>(
@@ -2064,10 +2181,9 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast WhileStmt,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
-        let prev_early_return_stack = take(&mut self.early_return_stack);
-        n.visit_children_with_ast_path(self, ast_path);
-        self.end_early_return_block();
-        self.early_return_stack = prev_early_return_stack;
+        self.enter_control_flow(|this| {
+            n.visit_children_with_ast_path(this, ast_path);
+        });
     }
 
     fn visit_do_while_stmt<'ast: 'r, 'r>(
@@ -2075,10 +2191,9 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast DoWhileStmt,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
-        let prev_early_return_stack = take(&mut self.early_return_stack);
-        n.visit_children_with_ast_path(self, ast_path);
-        self.end_early_return_block();
-        self.early_return_stack = prev_early_return_stack;
+        self.enter_control_flow(|this| {
+            n.visit_children_with_ast_path(this, ast_path);
+        });
     }
 
     fn visit_simple_assign_target<'ast: 'r, 'r>(
@@ -2187,10 +2302,7 @@ impl VisitAstPath for Analyzer<'_> {
             self.add_return_value(return_value);
         }
 
-        self.early_return_stack.push(EarlyReturn::Always {
-            prev_effects: take(&mut self.effects),
-            start_ast_path: as_parent_path(ast_path),
-        });
+        self.add_early_return_always(ast_path);
     }
 
     fn visit_ident<'ast: 'r, 'r>(
@@ -2313,8 +2425,9 @@ impl VisitAstPath for Analyzer<'_> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         self.effects = take(&mut self.data.effects);
-        program.visit_children_with_ast_path(self, ast_path);
-        self.end_early_return_block();
+        self.enter_block(BlockContext::Module, |this| {
+            program.visit_children_with_ast_path(this, ast_path);
+        });
         self.effects.append(&mut self.hoisted_effects);
         self.data.effects = take(&mut self.effects);
     }
@@ -2414,13 +2527,16 @@ impl VisitAstPath for Analyzer<'_> {
             stmt.test.visit_with_ast_path(self, &mut ast_path);
         }
         let prev_effects = take(&mut self.effects);
-        let prev_early_return_stack = take(&mut self.early_return_stack);
         let then_returning;
         let then = {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::IfStmt(stmt, IfStmtField::Cons));
-            stmt.cons.visit_with_ast_path(self, &mut ast_path);
-            then_returning = self.end_early_return_block();
+            then_returning = self
+                .enter_control_flow(|this| {
+                    stmt.cons.visit_with_ast_path(this, &mut ast_path);
+                })
+                .1;
+
             Box::new(EffectsBlock {
                 effects: take(&mut self.effects),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
@@ -2430,14 +2546,17 @@ impl VisitAstPath for Analyzer<'_> {
         let r#else = stmt.alt.as_ref().map(|alt| {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::IfStmt(stmt, IfStmtField::Alt));
-            alt.visit_with_ast_path(self, &mut ast_path);
-            else_returning = self.end_early_return_block();
+            else_returning = self
+                .enter_control_flow(|this| {
+                    alt.visit_with_ast_path(this, &mut ast_path);
+                })
+                .1;
+
             Box::new(EffectsBlock {
                 effects: take(&mut self.effects),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
             })
         });
-        self.early_return_stack = prev_early_return_stack;
         self.effects = prev_effects;
         self.add_conditional_if_effect_with_early_return(
             &stmt.test,
@@ -2456,40 +2575,43 @@ impl VisitAstPath for Analyzer<'_> {
         stmt: &'ast TryStmt,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
+        // TODO: if both try and catch return unconditionally, then so does the whole try statement
         let prev_effects = take(&mut self.effects);
-        let prev_early_return_stack = take(&mut self.early_return_stack);
+
         let mut block = {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::TryStmt(stmt, TryStmtField::Block));
-            stmt.block.visit_with_ast_path(self, &mut ast_path);
-            self.end_early_return_block();
+            self.enter_try(|this| {
+                stmt.block.visit_with_ast_path(this, &mut ast_path);
+            });
+
             take(&mut self.effects)
         };
         let mut handler = if let Some(handler) = stmt.handler.as_ref() {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::TryStmt(stmt, TryStmtField::Handler));
-            handler.visit_with_ast_path(self, &mut ast_path);
-            self.end_early_return_block();
+            self.enter_control_flow(|this| {
+                handler.visit_with_ast_path(this, &mut ast_path);
+            });
             take(&mut self.effects)
         } else {
             vec![]
         };
-        self.early_return_stack = prev_early_return_stack;
         self.effects = prev_effects;
         self.effects.append(&mut block);
         self.effects.append(&mut handler);
         if let Some(finalizer) = stmt.finalizer.as_ref() {
-            {
+            let finally_returns_unconditionally = {
                 let mut ast_path =
                     ast_path.with_guard(AstParentNodeRef::TryStmt(stmt, TryStmtField::Finalizer));
-                finalizer.visit_with_ast_path(self, &mut ast_path);
-            }
+                self.enter_control_flow(|this| {
+                    finalizer.visit_with_ast_path(this, &mut ast_path);
+                })
+                .1
+            };
             // If a finally block early returns the parent block does too.
-            if self.end_early_return_block() {
-                self.early_return_stack.push(EarlyReturn::Always {
-                    prev_effects: take(&mut self.effects),
-                    start_ast_path: as_parent_path(ast_path),
-                });
+            if finally_returns_unconditionally {
+                self.add_early_return_always(ast_path);
             }
         };
     }
@@ -2500,11 +2622,10 @@ impl VisitAstPath for Analyzer<'_> {
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
         let prev_effects = take(&mut self.effects);
-        let prev_early_return_stack = take(&mut self.early_return_stack);
-        case.visit_children_with_ast_path(self, ast_path);
-        self.end_early_return_block();
+        self.enter_control_flow(|this| {
+            case.visit_children_with_ast_path(this, ast_path);
+        });
         let mut effects = take(&mut self.effects);
-        self.early_return_stack = prev_early_return_stack;
         self.effects = prev_effects;
         self.effects.append(&mut effects);
     }
@@ -2514,76 +2635,50 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast BlockStmt,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
-        enum ScopeType {
-            Function,
-            Block,
-            ControlFlow,
-        }
-        let block_type = if ast_path.len() < 2 {
-            ScopeType::Block
-        } else if matches!(
-            &ast_path[ast_path.len() - 2..],
-            [
-                AstParentNodeRef::IfStmt(_, IfStmtField::Cons),
-                AstParentNodeRef::Stmt(_, StmtField::Block)
-            ] | [
-                AstParentNodeRef::IfStmt(_, IfStmtField::Alt),
-                AstParentNodeRef::Stmt(_, StmtField::Block)
-            ] | [_, AstParentNodeRef::TryStmt(_, TryStmtField::Block,)]
-                | [
-                    AstParentNodeRef::TryStmt(_, TryStmtField::Handler),
-                    AstParentNodeRef::CatchClause(_, CatchClauseField::Body)
-                ]
-                | [
-                    AstParentNodeRef::LabeledStmt(_, LabeledStmtField::Body),
-                    AstParentNodeRef::Stmt(_, StmtField::Block)
-                ]
-        ) {
-            ScopeType::ControlFlow
-        } else if matches!(
-            &ast_path[ast_path.len() - 2..],
-            [_, AstParentNodeRef::Function(_, FunctionField::Body)]
-                | [
-                    AstParentNodeRef::ArrowExpr(_, ArrowExprField::Body),
-                    AstParentNodeRef::BlockStmtOrExpr(_, BlockStmtOrExprField::BlockStmt)
-                ]
-                | [_, AstParentNodeRef::GetterProp(_, GetterPropField::Body)]
-                | [_, AstParentNodeRef::SetterProp(_, SetterPropField::Body)]
-                | [_, AstParentNodeRef::Constructor(_, ConstructorField::Body)]
-        ) {
-            ScopeType::Function
-        } else {
-            ScopeType::Block
-        };
-        match block_type {
-            ScopeType::Function => {
-                let early_return_stack = take(&mut self.early_return_stack);
+        match self.cur_block_context() {
+            BlockContext::Function(_) => {
                 let mut effects = take(&mut self.effects);
                 let hoisted_effects = take(&mut self.hoisted_effects);
-                n.visit_children_with_ast_path(self, ast_path);
-                if !self.end_early_return_block() {
-                    // NOTE: this only occurs if the function has a return statement on one branch
-                    // but not another. if there are no return statements,
-                    // `end_early_return_block` will return false.
+
+                let (_, returns_unconditionally) =
+                    self.enter_block(BlockContext::FunctionRoot, |this| {
+                        n.visit_children_with_ast_path(this, ast_path);
+                    });
+                // By handling this logic here instead of in enter_fn, we naturally skip it
+                // for arrow functions with single expression bodies, since they just don't hit this
+                // path.
+                if !returns_unconditionally {
                     self.add_return_value(JsValue::Constant(ConstantValue::Undefined));
                 }
                 self.effects.append(&mut self.hoisted_effects);
                 effects.append(&mut self.effects);
                 self.hoisted_effects = hoisted_effects;
                 self.effects = effects;
-                self.early_return_stack = early_return_stack;
             }
-            ScopeType::Block => {
-                n.visit_children_with_ast_path(self, ast_path);
-                if self.end_early_return_block() {
-                    self.early_return_stack.push(EarlyReturn::Always {
-                        prev_effects: take(&mut self.effects),
-                        start_ast_path: as_parent_path(ast_path),
+            BlockContext::ControlFlow { .. }
+            | BlockContext::Module
+            | BlockContext::FunctionRoot => {
+                // A block is anonymous if its parent is also a block (rather than a
+                // loop/function/if-stmt)
+                let is_anonymous_block = matches!(
+                    ast_path.get(ast_path.len() - 2),
+                    Some(AstParentNodeRef::BlockStmt(_, BlockStmtField::Stmts(_)))
+                );
+
+                if is_anonymous_block {
+                    // Handle anonymous block statement
+                    // e.g., enter a new control flow context and because it is 'unconditiona' we
+                    // need to propogate early returns
+                    let (_, returns_early) = self.enter_control_flow(|this| {
+                        n.visit_children_with_ast_path(this, ast_path);
                     });
+                    if returns_early {
+                        self.add_early_return_always(ast_path);
+                    }
+                } else {
+                    // Regular block (part of if/loop/function/etc)
+                    n.visit_children_with_ast_path(self, ast_path);
                 }
-            }
-            ScopeType::ControlFlow => {
-                n.visit_children_with_ast_path(self, ast_path);
             }
         }
     }
@@ -2612,11 +2707,9 @@ impl VisitAstPath for Analyzer<'_> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         let mut prev_effects = take(&mut self.effects);
-        let prev_early_return_stack = take(&mut self.early_return_stack);
-
-        stmt.visit_children_with_ast_path(self, ast_path);
-
-        self.end_early_return_block();
+        self.enter_control_flow(|this| {
+            stmt.visit_children_with_ast_path(this, ast_path);
+        });
 
         let effects = take(&mut self.effects);
 
@@ -2636,25 +2729,7 @@ impl VisitAstPath for Analyzer<'_> {
         });
 
         self.effects = prev_effects;
-        self.early_return_stack = prev_early_return_stack;
     }
-}
-
-fn is_lexically_block_scope(ast_path: &mut AstNodePath<AstParentNodeRef>) -> bool {
-    let mut iter = ast_path.iter().rev().peekable();
-
-    while let Some(cur) = iter.next() {
-        // If it's a block statement, we need to check if it's Function#body
-        if matches!(cur.kind(), AstParentKind::BlockStmt(..)) {
-            if let Some(next) = iter.peek() {
-                return !matches!(next.kind(), AstParentKind::Function(FunctionField::Body));
-            }
-            return false;
-        }
-    }
-
-    // This `var` is not in a block scope
-    false
 }
 
 impl Analyzer<'_> {
@@ -2686,7 +2761,7 @@ impl Analyzer<'_> {
         let condition = Box::new(condition);
         match (early_return_when_true, early_return_when_false) {
             (true, false) => {
-                self.early_return_stack.push(EarlyReturn::Conditional {
+                let early_return = EarlyReturn::Conditional {
                     prev_effects: take(&mut self.effects),
                     start_ast_path: as_parent_path(ast_path),
                     condition,
@@ -2695,10 +2770,11 @@ impl Analyzer<'_> {
                     condition_ast_path: as_parent_path_with(ast_path, condition_ast_kind),
                     span,
                     early_return_condition_value: true,
-                });
+                };
+                self.early_return_stack_mut().push(early_return);
             }
             (false, true) => {
-                self.early_return_stack.push(EarlyReturn::Conditional {
+                let early_return = EarlyReturn::Conditional {
                     prev_effects: take(&mut self.effects),
                     start_ast_path: as_parent_path(ast_path),
                     condition,
@@ -2707,7 +2783,8 @@ impl Analyzer<'_> {
                     condition_ast_path: as_parent_path_with(ast_path, condition_ast_kind),
                     span,
                     early_return_condition_value: false,
-                });
+                };
+                self.early_return_stack_mut().push(early_return);
             }
             (false, false) | (true, true) => {
                 let kind = match (then, r#else) {
@@ -2727,10 +2804,11 @@ impl Analyzer<'_> {
                     });
                 }
                 if early_return_when_false && early_return_when_true {
-                    self.early_return_stack.push(EarlyReturn::Always {
+                    let early_return = EarlyReturn::Always {
                         prev_effects: take(&mut self.effects),
                         start_ast_path: as_parent_path(ast_path),
-                    });
+                    };
+                    self.early_return_stack_mut().push(early_return);
                 }
             }
         }
