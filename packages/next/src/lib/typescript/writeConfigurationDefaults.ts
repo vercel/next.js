@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from 'fs'
+import * as path from 'path'
 import { bold, cyan, white } from '../picocolors'
 import * as CommentJson from 'next/dist/compiled/comment-json'
 import semver from 'next/dist/compiled/semver'
@@ -267,7 +268,11 @@ export async function writeConfigurationDefaults(
     }
   }
 
-  const nextAppTypes: string[] = [`${distDir}/types/**/*.ts`]
+  const distDirPosix =
+    path.win32.sep === path.sep
+      ? distDir.replaceAll(path.win32.sep, path.posix.sep)
+      : distDir
+  const nextAppTypes: string[] = [`${distDirPosix}/types/**/*.ts`]
 
   // When isolatedDevBuild is enabled, Next.js uses different distDir paths:
   // - Development: "{distDir}/dev"
@@ -279,10 +284,10 @@ export async function writeConfigurationDefaults(
       process.env.NODE_ENV === 'development'
         ? // In dev, distDir is "{distDir}/dev", which is already in the array above, but we also need "{distDir}/types".
           // Here we remove "/dev" at the end of distDir for consistency.
-          `${distDir.replace(/\/dev$/, '')}/types/**/*.ts`
+          `${distDirPosix.replace(/\/dev$/, '')}/types/**/*.ts`
         : // In build, distDir is "{distDir}", which is already in the array above, but we also need "{distDir}/dev/types".
           // Here we add "/dev" at the end of distDir for consistency.
-          `${distDir}/dev/types/**/*.ts`
+          `${distDirPosix}/dev/types/**/*.ts`
     )
     // Sort the array to ensure consistent order.
     nextAppTypes.sort((a, b) => a.length - b.length)

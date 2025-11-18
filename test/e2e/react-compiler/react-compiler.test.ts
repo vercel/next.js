@@ -1,5 +1,5 @@
 import { nextTestSetup, FileRef } from 'e2e-utils'
-import { assertHasRedbox } from 'next-test-utils'
+import { waitForRedbox } from 'next-test-utils'
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
 
@@ -135,8 +135,7 @@ describe.each(['default', 'babelrc'] as const)(
         // TODO(NDX-663): Unhelpful error message.
         // Should say that the library should have a react-server entrypoint that doesn't use the React Compiler.
         expect(cliOutput).toContain(
-          '' +
-            "\n ⨯ TypeError: Cannot read properties of undefined (reading 'H')" +
+          "⨯ TypeError: Cannot read properties of undefined (reading 'H')" +
             // location not important. Just that this is the only frame.
             // TODO: Stack should start at product code. Possible React limitation.
             '\n    at Container (**)' +
@@ -144,7 +143,7 @@ describe.each(['default', 'babelrc'] as const)(
             '\n  2 |'
         )
 
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
       }
     })
   }

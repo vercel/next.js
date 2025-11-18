@@ -1,6 +1,6 @@
 use std::{
     io::{self, ErrorKind},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use anyhow::{Context, Result, anyhow};
@@ -19,10 +19,7 @@ pub fn extract_disk_access<T>(value: io::Result<T>, path: &Path) -> Result<Optio
     }
 }
 
-#[cfg(not(target_os = "windows"))]
 pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<String> {
-    use turbo_unix_path::sys_to_unix;
-
     let root_fs = root.fs;
     let root_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(root_fs)
         .context("Expected root to have a DiskFileSystem")?
@@ -33,32 +30,26 @@ pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<S
         None => root,
     };
 
-    let sys_path = root_fs.to_sys_path(&path);
+    Ok(uri_from_path_buf(root_fs.to_sys_path(&path)))
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn uri_from_path_buf(sys_path: PathBuf) -> String {
+    use turbo_unix_path::sys_to_unix;
     let sys_path = sys_path.to_string_lossy();
 
-    Ok(format!(
+    format!(
         "file://{}",
         sys_to_unix(&sys_path)
             .split('/')
             .map(|s| urlencoding::encode(s))
             .collect::<Vec<_>>()
             .join("/")
-    ))
+    )
 }
 
 #[cfg(target_os = "windows")]
-pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<String> {
-    let root_fs = root.fs;
-    let root_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(root_fs)
-        .context("Expected root to have a DiskFileSystem")?
-        .await?;
-
-    let sys_path = match path {
-        Some(path) => root.join(path.into())?,
-        None => root,
-    };
-    let sys_path = root_fs.to_sys_path(&sys_path);
-
+pub fn uri_from_path_buf(sys_path: PathBuf) -> String {
     let raw_path = sys_path.to_string_lossy().to_string();
     let normalized_path = raw_path.replace('\\', "/");
 
@@ -70,7 +61,5 @@ pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<S
         .collect::<Vec<_>>()
         .join("/");
 
-    let uri = format!("file:///{}", encoded_path);
-
-    Ok(uri)
+    format!("file:///{}", encoded_path)
 }

@@ -46,7 +46,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       `
     )
 
-    await session.assertHasRedbox()
+    await session.waitForRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
       /That only works in a Server Component/
     )
@@ -130,7 +130,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       `
     )
 
-    await session.assertHasRedbox()
+    await session.waitForRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
       /That only works in a Server Component/
     )
@@ -216,7 +216,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       `
     )
 
-    await session.assertHasRedbox()
+    await session.waitForRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
       /That only works in a Server Component/
     )
@@ -311,7 +311,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     await using sandbox = await createSandbox(next, files)
     const { session } = sandbox
 
-    await session.assertHasRedbox()
+    await session.waitForRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
       /That only works in a Server Component/
     )
@@ -403,7 +403,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         `
       )
 
-      await session.assertHasRedbox()
+      await session.waitForRedbox()
       await expect(session.getRedboxSource()).resolves.toMatch(
         `You're importing a component that needs "${api}". That only works in a Server Component which is not supported in the pages/ directory.`
       )
@@ -427,7 +427,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         `
       )
 
-      await session.assertNoRedbox()
+      await session.waitForNoRedbox()
     })
   })
 })

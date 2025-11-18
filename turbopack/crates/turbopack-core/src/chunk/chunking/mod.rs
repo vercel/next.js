@@ -399,8 +399,8 @@ struct SplitContext<'a> {
 
 /// Creates a chunk with the given `chunk_items. `key` should be unique.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(key = display(key)))]
-async fn make_chunk<'l>(
-    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
+async fn make_chunk(
+    chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
     batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
     key: &mut String,
     split_context: &mut SplitContext<'_>,

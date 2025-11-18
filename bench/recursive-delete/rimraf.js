@@ -1,13 +1,16 @@
-import { join } from 'path'
-import { promisify } from 'util'
-import rimrafMod from 'rimraf'
+import { manual, manualSync } from 'rimraf'
 
-const rimraf = promisify(rimrafMod)
-const resolveDataDir = join(__dirname, `fixtures-${process.argv[2]}`, '**/*')
+const targetDir = process.argv[2]
+const method = process.argv[3]
 
 async function test() {
   const time = process.hrtime()
-  await rimraf(resolveDataDir)
+
+  if (method === 'sync') {
+    manualSync(targetDir)
+  } else {
+    await manual(targetDir)
+  }
 
   const hrtime = process.hrtime(time)
   const nanoseconds = hrtime[0] * 1e9 + hrtime[1]

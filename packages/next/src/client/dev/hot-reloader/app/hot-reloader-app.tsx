@@ -500,6 +500,10 @@ export function processMessage(
       sendMessage(JSON.stringify(response))
       return
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR: {
+      dispatcher.onCacheIndicator(message.state)
+      return
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:
     case HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES:
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES:

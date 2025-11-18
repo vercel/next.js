@@ -16,7 +16,7 @@ use turbopack::{
 };
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, MangleType, MinifyType, SourceMapsType,
+        ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, SourceMapsType,
         module_id_strategies::ModuleIdStrategy,
     },
     compile_time_defines,
@@ -214,7 +214,10 @@ pub async fn get_server_resolve_options_context(
         custom_conditions.push(rcstr!("react-server"));
     };
 
-    if *next_config.enable_cache_components().await? {
+    if *next_config.enable_cache_components().await?
+        // Middleware shouldn't use the "next-js" condition because it doesn't have all Next.js APIs available
+        && !matches!(ty, ServerContextType::Middleware { .. } |  ServerContextType::Instrumentation { .. })
+    {
         custom_conditions.push(rcstr!("next-js"));
     };
 
@@ -997,6 +1000,7 @@ pub struct ServerChunkingContextOptions {
     pub turbo_source_maps: Vc<bool>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub nested_async_chunking: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub client_root: FileSystemPath,
     pub asset_prefix: RcStr,
@@ -1019,6 +1023,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         turbo_source_maps,
         no_mangling,
         scope_hoisting,
+        nested_async_chunking,
         debug_ids,
         client_root,
         asset_prefix,
@@ -1055,11 +1060,15 @@ pub async fn get_server_chunking_context_with_client_assets(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .file_tracing(next_mode.is_production())
-    .debug_ids(*debug_ids.await?);
+    .debug_ids(*debug_ids.await?)
+    .nested_async_availability(*nested_async_chunking.await?);
 
-    if next_mode.is_development() {
-        builder = builder.use_file_source_map_uris();
+    builder = builder.source_map_source_type(if next_mode.is_development() {
+        SourceMapSourceType::AbsoluteFileUri
     } else {
+        SourceMapSourceType::RelativeUri
+    });
+    if next_mode.is_production() {
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
@@ -1100,6 +1109,7 @@ pub async fn get_server_chunking_context(
         turbo_source_maps,
         no_mangling,
         scope_hoisting,
+        nested_async_chunking,
         debug_ids,
         client_root,
         asset_prefix,
@@ -1136,12 +1146,14 @@ pub async fn get_server_chunking_context(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .file_tracing(next_mode.is_production())
-    .debug_ids(*debug_ids.await?);
+    .debug_ids(*debug_ids.await?)
+    .nested_async_availability(*nested_async_chunking.await?);
 
     if next_mode.is_development() {
-        builder = builder.use_file_source_map_uris()
+        builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);
     } else {
         builder = builder
+            .source_map_source_type(SourceMapSourceType::RelativeUri)
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {

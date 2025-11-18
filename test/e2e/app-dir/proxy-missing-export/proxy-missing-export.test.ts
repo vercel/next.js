@@ -2,8 +2,18 @@ import { nextTestSetup } from 'e2e-utils'
 import { join } from 'node:path'
 import { writeFile } from 'node:fs/promises'
 
-const errorMessage =
-  'The Proxy file "./proxy.ts" must export a function named `proxy` or a default function.'
+const errorMessage = `This function is what Next.js runs for every request handled by this proxy (previously called middleware).
+
+Why this happens:
+- You are migrating from \`middleware\` to \`proxy\`, but haven't updated the exported function.
+- The file exists but doesn't export a function.
+- The export is not a function (e.g., an object or constant).
+- There's a syntax error preventing the export from being recognized.
+
+To fix it:
+- Ensure this file has either a default or "proxy" function export.
+
+Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
 
 describe('proxy-missing-export', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -22,14 +32,26 @@ describe('proxy-missing-export', () => {
       'export function middleware() {}'
     )
 
+    let cliOutput: string
+
     if (isNextDev) {
       await next.start().catch(() => {})
       // Use .catch() because Turbopack errors during compile and exits before runtime.
       await next.browser('/').catch(() => {})
-      expect(next.cliOutput).toContain(errorMessage)
+      cliOutput = next.cliOutput
     } else {
-      const { cliOutput } = await next.build()
-      expect(cliOutput).toContain(errorMessage)
+      cliOutput = (await next.build()).cliOutput
+    }
+
+    // TODO: Investigate why in dev-turbo, the error is shown in the browser console, not CLI output.
+    if (process.env.IS_TURBOPACK_TEST && !isNextDev) {
+      expect(cliOutput).toContain(`./proxy.ts
+Proxy is missing expected function export name
+${errorMessage}`)
+    } else {
+      expect(cliOutput)
+        .toContain(`The file "./proxy.ts" must export a function, either as a default export or as a named "proxy" export.
+${errorMessage}`)
     }
 
     await next.stop()
@@ -94,16 +116,27 @@ describe('proxy-missing-export', () => {
       'const proxy = () => {}; export { proxy as handler };'
     )
 
+    let cliOutput: string
+
     if (isNextDev) {
       await next.start().catch(() => {})
       // Use .catch() because Turbopack errors during compile and exits before runtime.
       await next.browser('/').catch(() => {})
-      expect(next.cliOutput).toContain(errorMessage)
+      cliOutput = next.cliOutput
     } else {
-      const { cliOutput } = await next.build()
-      expect(cliOutput).toContain(errorMessage)
+      cliOutput = (await next.build()).cliOutput
     }
 
+    // TODO: Investigate why in dev-turbo, the error is shown in the browser console, not CLI output.
+    if (process.env.IS_TURBOPACK_TEST && !isNextDev) {
+      expect(cliOutput).toContain(`./proxy.ts
+Proxy is missing expected function export name
+${errorMessage}`)
+    } else {
+      expect(cliOutput)
+        .toContain(`The file "./proxy.ts" must export a function, either as a default export or as a named "proxy" export.
+${errorMessage}`)
+    }
     await next.stop()
   })
 })

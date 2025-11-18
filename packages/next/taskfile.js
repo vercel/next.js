@@ -86,6 +86,23 @@ export async function ncc_node_html_parser(task, opts) {
     .target('src/compiled/node-html-parser')
 }
 
+externals['@vercel/routing-utils'] = 'next/dist/compiled/@vercel/routing-utils'
+export async function ncc_vercel_routing_utils(task, opts) {
+  await task
+    .source(
+      relative(
+        __dirname,
+        require.resolve('@vercel/routing-utils/dist/superstatic')
+      )
+    )
+    .ncc({
+      packageName: '@vercel/routing-utils',
+      externals,
+      target: 'es5',
+    })
+    .target('src/compiled/@vercel/routing-utils')
+}
+
 externals['busboy'] = 'next/dist/compiled/busboy'
 export async function ncc_busboy(task, opts) {
   await task
@@ -241,6 +258,13 @@ export async function copy_vercel_og(task, opts) {
     },
     { spaces: 2 }
   )
+}
+
+export async function copy_bundle_analyzer_ui(task, opts) {
+  const bundleAnalyzerPath = join(__dirname, '../../apps/bundle-analyzer/dist')
+  await task
+    .source(join(bundleAnalyzerPath, '**/*'))
+    .target('dist/bundle-analyzer')
 }
 
 externals['anser'] = 'next/dist/compiled/anser'
@@ -1201,12 +1225,12 @@ export async function ncc_is_animated(task, opts) {
     .ncc({ packageName: 'is-animated', externals })
     .target('src/compiled/is-animated')
 }
-externals['is-local-address'] = 'next/dist/compiled/is-local-address'
-export async function ncc_is_local_address(task, opts) {
+externals['ipaddr.js'] = 'next/dist/compiled/ipaddr.js'
+export async function ncc_ipaddr_js(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('is-local-address')))
-    .ncc({ packageName: 'is-local-address', externals })
-    .target('src/compiled/is-local-address')
+    .source(relative(__dirname, require.resolve('ipaddr.js')))
+    .ncc({ packageName: 'ipaddr.js', externals })
+    .target('src/compiled/ipaddr.js')
 }
 externals['is-docker'] = 'next/dist/compiled/is-docker'
 export async function ncc_is_docker(task, opts) {
@@ -1845,6 +1869,13 @@ export async function ncc_source_map08(task, opts) {
     })
     .target('src/compiled/source-map08')
 }
+externals['serve-handler'] = 'next/dist/compiled/serve-handler'
+export async function ncc_serve_handler(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('serve-handler')))
+    .ncc({ packageName: 'serve-handler', externals })
+    .target('src/compiled/serve-handler')
+}
 externals['string-hash'] = 'next/dist/compiled/string-hash'
 export async function ncc_string_hash(task, opts) {
   await task
@@ -2231,7 +2262,7 @@ export async function ncc(task, opts) {
         'ncc_http_proxy',
         'ncc_ignore_loader',
         'ncc_is_animated',
-        'ncc_is_local_address',
+        'ncc_ipaddr_js',
         'ncc_is_docker',
         'ncc_is_wsl',
         'ncc_json5',
@@ -2262,6 +2293,7 @@ export async function ncc(task, opts) {
         'ncc_send',
         'ncc_source_map',
         'ncc_source_map08',
+        'ncc_serve_handler',
         'ncc_string_hash',
         'ncc_strip_ansi',
         'ncc_superstruct',
@@ -2309,6 +2341,7 @@ export async function ncc(task, opts) {
       'ncc_mswjs_interceptors',
       'ncc_rsc_poison_packages',
       'ncc_modelcontextprotocol_sdk',
+      'ncc_vercel_routing_utils',
     ],
     opts
   )
@@ -2318,6 +2351,7 @@ export async function next_compile(task, opts) {
   await task.parallel(
     [
       'cli',
+      'copy_bundle_analyzer_ui',
       'bin',
       'server',
       'server_esm',

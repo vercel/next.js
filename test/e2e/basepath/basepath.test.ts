@@ -4,7 +4,7 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertNoRedbox,
+  waitForNoRedbox,
   check,
   fetchViaHTTP,
   getClientBuildManifestLoaderChunkUrlPath,
@@ -126,33 +126,26 @@ describe('basePath', () => {
           '/gssp'
         )
 
-        await check(
-          async () => {
-            const links = await browser.elementsByCss('link[rel=prefetch]')
+        await check(async () => {
+          const links = await browser.elementsByCss('link[rel=prefetch]')
 
-            for (const link of links) {
-              const href = await link.getAttribute('href')
-              if (href.includes(chunk)) {
-                return true
-              }
+          for (const link of links) {
+            const href = await link.getAttribute('href')
+            if (href.includes(chunk)) {
+              return true
             }
-
-            const scripts = await browser.elementsByCss('script')
-
-            for (const script of scripts) {
-              const src = await script.getAttribute('src')
-              if (src.includes(chunk)) {
-                return true
-              }
-            }
-            return false
-          },
-          {
-            test(result) {
-              return result === true
-            },
           }
-        )
+
+          const scripts = await browser.elementsByCss('script')
+
+          for (const script of scripts) {
+            const src = await script.getAttribute('src')
+            if (src.includes(chunk)) {
+              return true
+            }
+          }
+          return false
+        }, true)
       })
 
       it('should prefetch pages correctly in viewport with <Link>', async () => {
@@ -535,7 +528,7 @@ describe('basePath', () => {
       expect(await browser.eval('window.location.search')).toBe('?query=true')
 
       if (isNextDev) {
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
       }
     } finally {
       await browser.close()
@@ -559,7 +552,7 @@ describe('basePath', () => {
       expect(await browser.eval('window.location.search')).toBe('?query=true')
 
       if (isNextDev) {
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
       }
     } finally {
       await browser.close()

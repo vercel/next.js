@@ -35,8 +35,8 @@ export function fillLazyItemsTillLeafWithHead(
     // in the response format, so that we don't have to send the keys twice.
     // Then the client can convert them into separate representations.
     const parallelSeedData =
-      cacheNodeSeedData !== null && cacheNodeSeedData[2][key] !== undefined
-        ? cacheNodeSeedData[2][key]
+      cacheNodeSeedData !== null && cacheNodeSeedData[1][key] !== undefined
+        ? cacheNodeSeedData[1][key]
         : null
     if (existingCache) {
       const existingParallelRoutesCacheNode =
@@ -47,8 +47,8 @@ export function fillLazyItemsTillLeafWithHead(
         let newCacheNode: CacheNode
         if (parallelSeedData !== null) {
           // New data was sent from the server.
-          const seedNode = parallelSeedData[1]
-          const loading = parallelSeedData[3]
+          const seedNode = parallelSeedData[0]
+          const loading = parallelSeedData[2]
           newCacheNode = {
             lazyData: null,
             rsc: seedNode,
@@ -99,8 +99,8 @@ export function fillLazyItemsTillLeafWithHead(
     let newCacheNode: CacheNode
     if (parallelSeedData !== null) {
       // New data was sent from the server.
-      const seedNode = parallelSeedData[1]
-      const loading = parallelSeedData[3]
+      const seedNode = parallelSeedData[0]
+      const loading = parallelSeedData[2]
       newCacheNode = {
         lazyData: null,
         rsc: seedNode,

@@ -19,7 +19,7 @@ import {
   mountFormInstance,
   unmountPrefetchableInstance,
 } from '../components/links'
-import { FetchStrategy } from '../components/segment-cache'
+import { FetchStrategy } from '../components/segment-cache/types'
 
 export type { FormProps }
 

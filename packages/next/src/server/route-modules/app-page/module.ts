@@ -39,13 +39,12 @@ if (process.env.NEXT_RUNTIME !== 'edge') {
   vendoredReactSSR =
     require('./vendored/ssr/entrypoints') as typeof import('./vendored/ssr/entrypoints')
 
-  // In Node environments we augment console logging with information contextual to a React render.
-  // This patching is global so we need to register the cacheSignal getter from our bundled React instances
-  // here when we load them rather than in the external module itself when the patch is applied.
-  const { registerGetCacheSignal } =
-    require('../../node-environment-extensions/console-dim.external') as typeof import('../../node-environment-extensions/console-dim.external')
-  registerGetCacheSignal(vendoredReactRSC.React.cacheSignal)
-  registerGetCacheSignal(vendoredReactSSR.React.cacheSignal)
+  // In Node environments we need to access the correct React instance from external modules such
+  // as global patches. We register the loaded React instances here.
+  const { registerServerReact, registerClientReact } =
+    require('../../runtime-reacts.external') as typeof import('../../runtime-reacts.external')
+  registerServerReact(vendoredReactRSC.React)
+  registerClientReact(vendoredReactSSR.React)
 }
 
 /**

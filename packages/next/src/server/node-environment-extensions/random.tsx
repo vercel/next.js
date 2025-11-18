@@ -21,6 +21,6 @@ try {
   Object.defineProperty(Math.random, 'name', { value: 'random' })
 } catch {
   console.error(
-    `Failed to install ${expression} extension. When using \`experimental.cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
+    `Failed to install ${expression} extension. When using \`cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
   )
 }

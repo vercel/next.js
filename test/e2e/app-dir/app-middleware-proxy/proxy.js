@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { headers as nextHeaders, draftMode } from 'next/headers'
+import { headers as nextHeaders } from 'next/headers'
 
 /**
  * @param {import('next/server').NextRequest} request
@@ -20,9 +20,11 @@ export async function proxy(request) {
     throw new Error('Expected headers from client to match')
   }
 
-  if (request.nextUrl.searchParams.get('draft')) {
-    ;(await draftMode()).enable()
-  }
+  // Cannot set draftMode in nodejs runtime
+  // TODO: Investigate https://github.com/vercel/next.js/pull/85174
+  // if (request.nextUrl.searchParams.get('draft')) {
+  //   ;(await draftMode()).enable()
+  // }
 
   const removeHeaders = request.nextUrl.searchParams.get('remove-headers')
   if (removeHeaders) {

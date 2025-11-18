@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs'
 import path from 'node:path'
 import { execSync } from 'node:child_process'
+import semver from 'semver'
 import { getPkgManager, installPackages } from '../lib/handle-package'
 import { createParserFromPath } from '../lib/parser'
 import { white, bold, red, yellow, green, magenta } from 'picocolors'
@@ -128,6 +129,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
   const root = j(configContent)
 
   // Track if we need to add imports and preserve other configs
+  let needsNext = false
   let needsNextVitals = false
   let needsNextTs = false
   let otherConfigs: string[] = []
@@ -136,6 +138,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
   root.find(j.CallExpression).forEach((astPath) => {
     const node = astPath.value
 
+    // Detect compat.extends() calls and identify which configs are being used
     if (
       node.callee.type === 'MemberExpression' &&
       (node.callee as any).object.type === 'Identifier' &&
@@ -146,7 +149,9 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
       // Check arguments for all configs
       node.arguments.forEach((arg: any) => {
         if (arg.type === 'Literal' || arg.type === 'StringLiteral') {
-          if (arg.value === 'next/core-web-vitals') {
+          if (arg.value === 'next') {
+            needsNext = true
+          } else if (arg.value === 'next/core-web-vitals') {
             needsNextVitals = true
           } else if (arg.value === 'next/typescript') {
             needsNextTs = true
@@ -157,9 +162,56 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
         }
       })
     }
+
+    // Detect compat.config({ extends: [...] }) calls and identify which configs are being used
+    if (
+      node.callee.type === 'MemberExpression' &&
+      (node.callee as any).object.type === 'Identifier' &&
+      (node.callee as any).object.name === 'compat' &&
+      (node.callee as any).property.type === 'Identifier' &&
+      (node.callee as any).property.name === 'config'
+    ) {
+      // Look for extends property in the object argument
+      node.arguments.forEach((arg: any) => {
+        if (arg.type === 'ObjectExpression') {
+          arg.properties?.forEach((prop: any) => {
+            if (
+              prop.type === 'ObjectProperty' &&
+              prop.key.type === 'Identifier' &&
+              prop.key.name === 'extends' &&
+              prop.value.type === 'ArrayExpression'
+            ) {
+              // Process the extends array
+              prop.value.elements?.forEach((element: any) => {
+                if (
+                  element.type === 'Literal' ||
+                  element.type === 'StringLiteral'
+                ) {
+                  if (element.value === 'next') {
+                    needsNext = true
+                  } else if (element.value === 'next/core-web-vitals') {
+                    needsNextVitals = true
+                  } else if (element.value === 'next/typescript') {
+                    needsNextTs = true
+                  } else if (typeof element.value === 'string') {
+                    // Preserve other configs (non-Next.js or other Next.js variants)
+                    otherConfigs.push(element.value)
+                  }
+                }
+              })
+            }
+          })
+        }
+      })
+    }
   })
 
-  if (!needsNextVitals && !needsNextTs && otherConfigs.length === 0) {
+  if (
+    !needsNext &&
+    !needsNextVitals &&
+    !needsNextTs &&
+    otherConfigs.length === 0
+  ) {
     console.warn(
       prefixes.warn,
       '   No ESLint configs found in FlatCompat usage'
@@ -167,7 +219,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
     return false
   }
 
-  if (!needsNextVitals && !needsNextTs) {
+  if (!needsNext && !needsNextVitals && !needsNextTs) {
     console.log('   No Next.js configs found, but preserving other configs')
   }
 
@@ -214,7 +266,16 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
   // Add new imports after the eslint/config import
   const imports = []
 
-  // Add imports in correct order: core-web-vitals first, then typescript
+  // Add imports in correct order: next first, then core-web-vitals, then typescript
+  if (needsNext) {
+    imports.push(
+      j.importDeclaration(
+        [j.importDefaultSpecifier(j.identifier('next'))],
+        j.literal('eslint-config-next')
+      )
+    )
+  }
+
   if (needsNextVitals) {
     imports.push(
       j.importDeclaration(
@@ -258,6 +319,8 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
   // Replace FlatCompat extends with spread imports
   root.find(j.SpreadElement).forEach((astPath) => {
     const node = astPath.value
+
+    // Replace spread of compat.extends(...) calls with direct imports
     if (
       node.argument.type === 'CallExpression' &&
       node.argument.callee.type === 'MemberExpression' &&
@@ -270,7 +333,9 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
       const replacements = []
       node.argument.arguments.forEach((arg: any) => {
         if (arg.type === 'Literal' || arg.type === 'StringLiteral') {
-          if (arg.value === 'next/core-web-vitals') {
+          if (arg.value === 'next') {
+            replacements.push(j.spreadElement(j.identifier('next')))
+          } else if (arg.value === 'next/core-web-vitals') {
             replacements.push(
               j.spreadElement(j.identifier('nextCoreWebVitals'))
             )
@@ -304,6 +369,103 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
         }
       }
     }
+
+    // Replace spread of compat.config({ extends: [...] }) calls with direct imports
+    if (
+      node.argument.type === 'CallExpression' &&
+      node.argument.callee.type === 'MemberExpression' &&
+      node.argument.callee.object.type === 'Identifier' &&
+      node.argument.callee.object.name === 'compat' &&
+      node.argument.callee.property.type === 'Identifier' &&
+      node.argument.callee.property.name === 'config'
+    ) {
+      const replacements = []
+      const preservedConfigs = []
+
+      // Process each argument to compat.config
+      node.argument.arguments.forEach((arg: any) => {
+        if (arg.type === 'ObjectExpression') {
+          const updatedProperties = []
+
+          arg.properties?.forEach((prop: any) => {
+            if (
+              prop.type === 'ObjectProperty' &&
+              prop.key.type === 'Identifier' &&
+              prop.key.name === 'extends' &&
+              prop.value.type === 'ArrayExpression'
+            ) {
+              const nonNextConfigs = []
+
+              // Process extends array
+              prop.value.elements?.forEach((element: any) => {
+                if (
+                  element.type === 'Literal' ||
+                  element.type === 'StringLiteral'
+                ) {
+                  if (element.value === 'next') {
+                    replacements.push(j.spreadElement(j.identifier('next')))
+                  } else if (element.value === 'next/core-web-vitals') {
+                    replacements.push(
+                      j.spreadElement(j.identifier('nextCoreWebVitals'))
+                    )
+                  } else if (element.value === 'next/typescript') {
+                    replacements.push(
+                      j.spreadElement(j.identifier('nextTypescript'))
+                    )
+                  } else if (typeof element.value === 'string') {
+                    // Keep non-Next.js configs
+                    nonNextConfigs.push(element)
+                  }
+                }
+              })
+
+              // If there are non-Next.js configs, preserve the extends property with them
+              if (nonNextConfigs.length > 0) {
+                updatedProperties.push(
+                  j.property(
+                    'init',
+                    j.identifier('extends'),
+                    j.arrayExpression(nonNextConfigs)
+                  )
+                )
+              }
+            } else {
+              // Preserve other properties (not extends)
+              updatedProperties.push(prop)
+            }
+          })
+
+          // If we still have properties to preserve, keep the compat.config call
+          if (updatedProperties.length > 0) {
+            preservedConfigs.push(
+              j.spreadElement(
+                j.callExpression(
+                  j.memberExpression(
+                    j.identifier('compat'),
+                    j.identifier('config')
+                  ),
+                  [j.objectExpression(updatedProperties)]
+                )
+              )
+            )
+          }
+        }
+      })
+
+      // Add all replacements
+      const allReplacements = [...replacements, ...preservedConfigs]
+
+      if (allReplacements.length > 0) {
+        // Replace the current spread element with multiple spread elements
+        const parent = astPath.parent
+        if (parent.value.type === 'ArrayExpression') {
+          const index = parent.value.elements.indexOf(node)
+          if (index !== -1) {
+            parent.value.elements.splice(index, 1, ...allReplacements)
+          }
+        }
+      }
+    }
   })
 
   // Also handle the case where extends is used as a property value (not spread)
@@ -325,7 +487,9 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
         const replacements = []
         prop.value.arguments.forEach((arg: any) => {
           if (arg.type === 'Literal' || arg.type === 'StringLiteral') {
-            if (arg.value === 'next/core-web-vitals') {
+            if (arg.value === 'next') {
+              replacements.push(j.spreadElement(j.identifier('next')))
+            } else if (arg.value === 'next/core-web-vitals') {
               replacements.push(
                 j.spreadElement(j.identifier('nextCoreWebVitals'))
               )
@@ -431,6 +595,7 @@ function updateExistingFlatConfig(
   }
 
   // Check if Next.js configs are already imported directly
+  const hasNext = configContent.includes('eslint-config-next')
   const hasNextVitals = configContent.includes(
     'eslint-config-next/core-web-vitals'
   )
@@ -507,6 +672,15 @@ function updateExistingFlatConfig(
   const program = root.find(j.Program)
   const imports = []
 
+  if (!hasNext) {
+    imports.push(
+      j.importDeclaration(
+        [j.importDefaultSpecifier(j.identifier('next'))],
+        j.literal('eslint-config-next')
+      )
+    )
+  }
+
   if (!hasNextVitals) {
     imports.push(
       j.importDeclaration(
@@ -536,6 +710,9 @@ function updateExistingFlatConfig(
   }
 
   const spreadsToAdd = []
+  if (!hasNext) {
+    spreadsToAdd.push(j.spreadElement(j.identifier('next')))
+  }
   if (!hasNextVitals) {
     spreadsToAdd.push(j.spreadElement(j.identifier('nextCoreWebVitals')))
   }
@@ -820,6 +997,30 @@ function updatePackageJsonScripts(packageJsonContent: string): {
         packageJson.dependencies?.next || packageJson.devDependencies?.next
       packageJson.devDependencies['eslint-config-next'] =
         nextVersion || 'latest'
+      needsUpdate = true
+    }
+
+    // Bump eslint to v9 for full Flat config support
+    if (
+      packageJson.dependencies?.['eslint'] &&
+      semver.lt(
+        semver.minVersion(packageJson.dependencies['eslint'])?.version ??
+          '0.0.0',
+        '9.0.0'
+      )
+    ) {
+      packageJson.dependencies['eslint'] = '^9'
+      needsUpdate = true
+    }
+    if (
+      packageJson.devDependencies?.['eslint'] &&
+      semver.lt(
+        semver.minVersion(packageJson.devDependencies['eslint'])?.version ??
+          '0.0.0',
+        '9.0.0'
+      )
+    ) {
+      packageJson.devDependencies['eslint'] = '^9'
       needsUpdate = true
     }
 

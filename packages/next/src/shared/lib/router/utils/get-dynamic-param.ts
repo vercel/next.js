@@ -70,7 +70,10 @@ export function interpolateParallelRouteParams(
       switch (segmentParam.type) {
         case 'catchall':
         case 'optional-catchall':
-        case 'catchall-intercepted':
+        case 'catchall-intercepted-(..)(..)':
+        case 'catchall-intercepted-(.)':
+        case 'catchall-intercepted-(..)':
+        case 'catchall-intercepted-(...)':
           // For catchall parameters, take all remaining segments from this depth
           const remainingSegments = pathSegments.slice(depth)
 
@@ -92,7 +95,10 @@ export function interpolateParallelRouteParams(
           }
           break
         case 'dynamic':
-        case 'dynamic-intercepted':
+        case 'dynamic-intercepted-(..)(..)':
+        case 'dynamic-intercepted-(.)':
+        case 'dynamic-intercepted-(..)':
+        case 'dynamic-intercepted-(...)':
           // For regular dynamic parameters, take the segment at this depth
           if (depth < pathSegments.length) {
             const pathSegment = pathSegments[depth]

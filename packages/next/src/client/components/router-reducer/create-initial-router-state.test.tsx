@@ -36,7 +36,7 @@ describe('createInitialRouterState', () => {
 
     const state = createInitialRouterState({
       navigatedAt,
-      initialFlightData: [[initialTree, ['', children, {}, null]]],
+      initialFlightData: [[initialTree, [children, {}, null]]],
       initialCanonicalUrlParts: initialCanonicalUrl.split('/'),
       initialRenderedSearch: '',
       initialParallelRoutes,
@@ -45,7 +45,7 @@ describe('createInitialRouterState', () => {
 
     const state2 = createInitialRouterState({
       navigatedAt,
-      initialFlightData: [[initialTree, ['', children, {}, null]]],
+      initialFlightData: [[initialTree, [children, {}, null]]],
       initialCanonicalUrlParts: initialCanonicalUrl.split('/'),
       initialRenderedSearch: '',
       initialParallelRoutes,

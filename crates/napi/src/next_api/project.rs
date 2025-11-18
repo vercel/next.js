@@ -8,6 +8,7 @@ use napi::{
     bindgen_prelude::{External, within_runtime_if_available},
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
+use napi_derive::napi;
 use next_api::{
     entrypoints::Entrypoints,
     next_server_nft::next_server_nft_assets,
@@ -63,6 +64,7 @@ use url::Url;
 
 use crate::{
     next_api::{
+        analyze::{WriteAnalyzeResult, write_analyze_data_with_issues_operation},
         endpoint::ExternalEndpoint,
         turbopack_ctx::{
             NapiNextTurbopackCallbacks, NapiNextTurbopackCallbacksJsObject, NextTurboTasks,
@@ -915,6 +917,13 @@ fn project_container_entrypoints_operation(
 }
 
 #[turbo_tasks::value(serialization = "none")]
+struct OperationResult {
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
+}
+
+#[turbo_tasks::value(serialization = "none")]
 struct AllWrittenEntrypointsWithIssues {
     entrypoints: Option<ReadRef<EntrypointsOperation>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -994,9 +1003,10 @@ pub async fn all_entrypoints_write_to_disk_operation(
     project: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
 ) -> Result<Vc<Entrypoints>> {
+    let output_assets_operation = output_assets_operation(project, app_dir_only);
     project
         .project()
-        .emit_all_output_assets(output_assets_operation(project, app_dir_only))
+        .emit_all_output_assets(output_assets_operation)
         .as_side_effect()
         .await?;
 
@@ -1008,8 +1018,9 @@ async fn output_assets_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
 ) -> Result<Vc<OutputAssets>> {
-    let endpoint_assets = container
-        .project()
+    let project = container.project();
+    let whole_app_module_graphs = project.whole_app_module_graphs();
+    let endpoint_assets = project
         .get_all_endpoints(app_dir_only)
         .await?
         .iter()
@@ -1022,7 +1033,9 @@ async fn output_assets_operation(
         .flat_map(|assets| assets.iter().copied())
         .collect();
 
-    let nft = next_server_nft_assets(container.project()).await?;
+    let nft = next_server_nft_assets(project).await?;
+
+    whole_app_module_graphs.as_side_effect().await?;
 
     Ok(Vc::cell(
         output_assets
@@ -1033,6 +1046,49 @@ async fn output_assets_operation(
 }
 
 #[tracing::instrument(level = "info", name = "get entrypoints", skip_all)]
+#[napi]
+pub async fn project_entrypoints(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
+    let container = project.container;
+
+    let (entrypoints, issues, diags) = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_once(async move {
+            let entrypoints_with_issues_op = get_entrypoints_with_issues_operation(container);
+
+            // Read and compile the files
+            let EntrypointsWithIssues {
+                entrypoints,
+                issues,
+                diagnostics,
+                effects: _,
+            } = &*entrypoints_with_issues_op
+                .read_strongly_consistent()
+                .await?;
+
+            Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    let result = match entrypoints {
+        Some(entrypoints) => Some(NapiEntrypoints::from_entrypoints_op(
+            &entrypoints,
+            &project.turbopack_ctx,
+        )?),
+        None => None,
+    };
+
+    Ok(TurbopackResult {
+        result,
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+        diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+    })
+}
+
+#[tracing::instrument(level = "info", name = "subscribe to entrypoints", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_entrypoints_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -1712,5 +1768,39 @@ pub fn project_get_source_map_sync(
 ) -> napi::Result<Option<String>> {
     within_runtime_if_available(|| {
         tokio::runtime::Handle::current().block_on(project_get_source_map(project, file_path))
+    })
+}
+
+#[napi]
+pub async fn project_write_analyze_data(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    app_dir_only: bool,
+) -> napi::Result<TurbopackResult<()>> {
+    let container = project.container;
+    let (issues, diagnostics) = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_once(async move {
+            let analyze_data_op = write_analyze_data_with_issues_operation(container, app_dir_only);
+            let WriteAnalyzeResult {
+                issues,
+                diagnostics,
+                effects,
+            } = &*analyze_data_op.read_strongly_consistent().await?;
+
+            // Write the files to disk
+            effects.apply().await?;
+            Ok((issues.clone(), diagnostics.clone()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(TurbopackResult {
+        result: (),
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+        diagnostics: diagnostics
+            .iter()
+            .map(|d| NapiDiagnostic::from(d))
+            .collect(),
     })
 }

@@ -106,6 +106,9 @@ export function connection(): Promise<void> {
             // Semantically we only need the dev tracking when running in `next dev`
             // but since you would never use next dev with production NODE_ENV we use this
             // as a proxy so we can statically exclude this code from production builds.
+            if (workUnitStore.asyncApiPromises) {
+              return workUnitStore.asyncApiPromises.connection
+            }
             return makeDevtoolsIOAwarePromise(
               undefined,
               workUnitStore,

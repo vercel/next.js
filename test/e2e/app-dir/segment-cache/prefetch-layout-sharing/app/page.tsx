@@ -11,12 +11,6 @@ export default async function Page() {
         <li>
           <DebugLinkAccordion href="/shared-layout/one" prefetch={true} />
         </li>
-        <li>
-          <DebugLinkAccordion
-            href="/shared-layout/one"
-            prefetch={'unstable_forceStale'}
-          />
-        </li>
       </ul>
       <ul>
         <li>
@@ -24,12 +18,6 @@ export default async function Page() {
         </li>
         <li>
           <DebugLinkAccordion href="/shared-layout/two" prefetch={true} />
-        </li>
-        <li>
-          <DebugLinkAccordion
-            href="/shared-layout/two"
-            prefetch={'unstable_forceStale'}
-          />
         </li>
       </ul>
       <h2>shared layout prefetching - layout with cookies</h2>
@@ -44,12 +32,6 @@ export default async function Page() {
           <DebugLinkAccordion
             href="/runtime-prefetchable-layout/two"
             prefetch={'auto'}
-          />
-        </li>
-        <li>
-          <DebugLinkAccordion
-            href="/runtime-prefetchable-layout/two"
-            prefetch={'unstable_forceStale'}
           />
         </li>
       </ul>

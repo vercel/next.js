@@ -220,25 +220,26 @@ async function createCachedDynamicResponse(
     .finally(handleUnlock)
 
   const pendingRevalidateKey = `cache-set-${cacheKey}`
-  workStore.pendingRevalidates ??= {}
+  const pendingRevalidates = (workStore.pendingRevalidates ??= {})
 
-  if (pendingRevalidateKey in workStore.pendingRevalidates) {
-    // there is already a pending revalidate entry that we need to await to
-    // avoid race conditions
-    await workStore.pendingRevalidates[pendingRevalidateKey]
+  let pendingRevalidatePromise = Promise.resolve()
+  if (pendingRevalidateKey in pendingRevalidates) {
+    // There is already a pending revalidate entry that we need to await to
+    // avoid race conditions.
+    pendingRevalidatePromise = pendingRevalidates[pendingRevalidateKey]
   }
 
-  workStore.pendingRevalidates[pendingRevalidateKey] = cacheSetPromise.finally(
-    () => {
+  pendingRevalidates[pendingRevalidateKey] = pendingRevalidatePromise
+    .then(() => cacheSetPromise)
+    .finally(() => {
       // If the pending revalidate is not present in the store, then we have
       // nothing to delete.
-      if (!workStore.pendingRevalidates?.[pendingRevalidateKey]) {
+      if (!pendingRevalidates?.[pendingRevalidateKey]) {
         return
       }
 
-      delete workStore.pendingRevalidates[pendingRevalidateKey]
-    }
-  )
+      delete pendingRevalidates[pendingRevalidateKey]
+    })
 
   return cloned2
 }
@@ -562,9 +563,8 @@ export function createPatchedFetcher(
                   cacheSignal.endRead()
                   cacheSignal = null
                 }
-                await workUnitStore.stagedRendering.delayUntilStage(
-                  RenderStage.Dynamic,
-                  undefined
+                await workUnitStore.stagedRendering.waitForStage(
+                  RenderStage.Dynamic
                 )
               }
               break
@@ -689,9 +689,8 @@ export function createPatchedFetcher(
                       cacheSignal.endRead()
                       cacheSignal = null
                     }
-                    await workUnitStore.stagedRendering.delayUntilStage(
-                      RenderStage.Dynamic,
-                      undefined
+                    await workUnitStore.stagedRendering.waitForStage(
+                      RenderStage.Dynamic
                     )
                   }
                   break
@@ -962,9 +961,8 @@ export function createPatchedFetcher(
                     process.env.NODE_ENV === 'development' &&
                     workUnitStore.stagedRendering
                   ) {
-                    await workUnitStore.stagedRendering.delayUntilStage(
-                      RenderStage.Dynamic,
-                      undefined
+                    await workUnitStore.stagedRendering.waitForStage(
+                      RenderStage.Dynamic
                     )
                   }
                   break
@@ -1091,9 +1089,8 @@ export function createPatchedFetcher(
                       cacheSignal.endRead()
                       cacheSignal = null
                     }
-                    await workUnitStore.stagedRendering.delayUntilStage(
-                      RenderStage.Dynamic,
-                      undefined
+                    await workUnitStore.stagedRendering.waitForStage(
+                      RenderStage.Dynamic
                     )
                   }
                   break
@@ -1138,9 +1135,8 @@ export function createPatchedFetcher(
                       process.env.NODE_ENV === 'development' &&
                       workUnitStore.stagedRendering
                     ) {
-                      await workUnitStore.stagedRendering.delayUntilStage(
-                        RenderStage.Dynamic,
-                        undefined
+                      await workUnitStore.stagedRendering.waitForStage(
+                        RenderStage.Dynamic
                       )
                     }
                     break

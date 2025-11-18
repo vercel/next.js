@@ -3,6 +3,7 @@ import { Span } from 'next/dist/trace'
 import { NextInstance } from './base'
 import { retry, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
+import { quote as shellQuote } from 'shell-quote'
 
 export class NextDevInstance extends NextInstance {
   private _cliOutput: string = ''
@@ -50,7 +51,7 @@ export class NextDevInstance extends NextInstance {
       }
     }
 
-    console.log('running', startArgs.join(' '))
+    console.log('running', shellQuote(startArgs))
     await new Promise<void>((resolve, reject) => {
       try {
         this.childProcess = spawn(startArgs[0], startArgs.slice(1), {
@@ -130,7 +131,7 @@ export class NextDevInstance extends NextInstance {
         }
         this.on('stdout', readyCb)
       } catch (err) {
-        require('console').error(`Failed to run ${startArgs.join(' ')}`, err)
+        require('console').error(`Failed to run ${shellQuote(startArgs)}`, err)
         setTimeout(() => process.exit(1), 0)
       }
     })

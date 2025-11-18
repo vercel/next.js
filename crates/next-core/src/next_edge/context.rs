@@ -153,9 +153,9 @@ pub async fn get_edge_resolve_options_context(
         custom_conditions.push(rcstr!("react-server"));
     };
 
-    if *next_config.enable_cache_components().await? {
-        custom_conditions.push(rcstr!("next-js"));
-    };
+    // Edge runtime is disabled for projects with Cache Components enabled except for Middleware
+    // but Middleware doesn't have all Next.js APIs so we omit the "next-js" condition for all edge
+    // entrypoints
 
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().owned().await?),
@@ -208,6 +208,7 @@ pub struct EdgeChunkingContextOptions {
     pub turbo_source_maps: Vc<bool>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub nested_async_chunking: Vc<bool>,
     pub client_root: FileSystemPath,
     pub asset_prefix: RcStr,
 }
@@ -229,6 +230,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         turbo_source_maps,
         no_mangling,
         scope_hoisting,
+        nested_async_chunking,
         client_root,
         asset_prefix,
     } = options;
@@ -259,7 +261,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
         SourceMapsType::None
     })
     .module_id_strategy(module_id_strategy.to_resolved().await?)
-    .export_usage(*export_usage.await?);
+    .export_usage(*export_usage.await?)
+    .nested_async_availability(*nested_async_chunking.await?);
 
     if !next_mode.is_development() {
         builder = builder
@@ -300,6 +303,7 @@ pub async fn get_edge_chunking_context(
         turbo_source_maps,
         no_mangling,
         scope_hoisting,
+        nested_async_chunking,
         client_root,
         asset_prefix,
     } = options;
@@ -336,7 +340,8 @@ pub async fn get_edge_chunking_context(
         SourceMapsType::None
     })
     .module_id_strategy(module_id_strategy.to_resolved().await?)
-    .export_usage(*export_usage.await?);
+    .export_usage(*export_usage.await?)
+    .nested_async_availability(*nested_async_chunking.await?);
 
     if !next_mode.is_development() {
         builder = builder

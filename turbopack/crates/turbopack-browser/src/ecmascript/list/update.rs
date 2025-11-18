@@ -171,5 +171,5 @@ pub(super) async fn update_chunk_list(
         })
     };
 
-    Ok(update.into())
+    Ok(update.cell())
 }

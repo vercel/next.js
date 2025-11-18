@@ -7,10 +7,7 @@ import type {
 
 import { bold, green, magenta, red } from '../../../lib/picocolors'
 import isInternal from '../is-internal'
-import {
-  decodeMagicIdentifier,
-  MAGIC_IDENTIFIER_REGEX,
-} from '../magic-identifier'
+import { deobfuscateText } from '../magic-identifier'
 import type { EntryKey } from './entry-key'
 import * as Log from '../../../build/output/log'
 import type { NextConfigComplete } from '../../../server/config-shared'
@@ -288,23 +285,20 @@ function isNodeModulesIssue(issue: Issue): boolean {
 }
 
 export function renderStyledStringToErrorAnsi(string: StyledString): string {
-  function decodeMagicIdentifiers(str: string): string {
-    return str.replaceAll(MAGIC_IDENTIFIER_REGEX, (ident) => {
-      try {
-        return magenta(`{${decodeMagicIdentifier(ident)}}`)
-      } catch (e) {
-        return magenta(`{${ident} (decoding failed: ${e})}`)
-      }
-    })
+  function applyDeobfuscation(str: string): string {
+    // Use shared deobfuscate function and apply magenta color to identifiers
+    const deobfuscated = deobfuscateText(str)
+    // Color any {...} wrapped identifiers with magenta
+    return deobfuscated.replace(/\{([^}]+)\}/g, (match) => magenta(match))
   }
 
   switch (string.type) {
     case 'text':
-      return decodeMagicIdentifiers(string.value)
+      return applyDeobfuscation(string.value)
     case 'strong':
-      return bold(red(decodeMagicIdentifiers(string.value)))
+      return bold(red(applyDeobfuscation(string.value)))
     case 'code':
-      return green(decodeMagicIdentifiers(string.value))
+      return green(applyDeobfuscation(string.value))
     case 'line':
       return string.value.map(renderStyledStringToErrorAnsi).join('')
     case 'stack':

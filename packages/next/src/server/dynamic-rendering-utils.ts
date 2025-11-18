@@ -83,7 +83,11 @@ export function makeDevtoolsIOAwarePromise<T>(
 ): Promise<T> {
   if (requestStore.stagedRendering) {
     // We resolve each stage in a timeout, so React DevTools will pick this up as IO.
-    return requestStore.stagedRendering.delayUntilStage(stage, underlying)
+    return requestStore.stagedRendering.delayUntilStage(
+      stage,
+      undefined,
+      underlying
+    )
   }
   // in React DevTools if we resolve in a setTimeout we will observe
   // the promise resolution as something that can suspend a boundary or root.

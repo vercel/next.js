@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox, check, getDistDir, retry } from 'next-test-utils'
+import { waitForNoRedbox, check, getDistDir, retry } from 'next-test-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -249,7 +249,7 @@ describe('app dir - external dependency', () => {
     expect($('#transpile-cjs-lib').text()).toBe('transpile-cjs-lib')
 
     const browser = await next.browser('/cjs/client')
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 
   it('should export client module references in esm', async () => {

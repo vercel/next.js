@@ -52,30 +52,37 @@ export class StagedRenderingController {
     }
   }
 
-  delayUntilStage<T>(stage: NonStaticRenderStage, resolvedValue: T) {
-    let stagePromise: Promise<void>
+  private getStagePromise(stage: NonStaticRenderStage): Promise<void> {
     switch (stage) {
       case RenderStage.Runtime: {
-        stagePromise = this.runtimeStagePromise.promise
-        break
+        return this.runtimeStagePromise.promise
       }
       case RenderStage.Dynamic: {
-        stagePromise = this.dynamicStagePromise.promise
-        break
+        return this.dynamicStagePromise.promise
       }
       default: {
         stage satisfies never
         throw new InvariantError(`Invalid render stage: ${stage}`)
       }
     }
+  }
 
-    // FIXME: this seems to be the only form that leads to correct API names
-    // being displayed in React Devtools (in the "suspended by" section).
-    // If we use `promise.then(() => resolvedValue)`, the names are lost.
-    // It's a bit strange that only one of those works right.
-    const promise = new Promise<T>((resolve, reject) => {
-      stagePromise.then(resolve.bind(null, resolvedValue), reject)
-    })
+  waitForStage(stage: NonStaticRenderStage) {
+    return this.getStagePromise(stage)
+  }
+
+  delayUntilStage<T>(
+    stage: NonStaticRenderStage,
+    displayName: string | undefined,
+    resolvedValue: T
+  ) {
+    const ioTriggerPromise = this.getStagePromise(stage)
+
+    const promise = makeDevtoolsIOPromiseFromIOTrigger(
+      ioTriggerPromise,
+      displayName,
+      resolvedValue
+    )
 
     // Analogously to `makeHangingPromise`, we might reject this promise if the signal is invoked.
     // (e.g. in the case where we don't want want the render to proceed to the dynamic stage and abort it).
@@ -88,3 +95,26 @@ export class StagedRenderingController {
 }
 
 function ignoreReject() {}
+
+// TODO(restart-on-cache-miss): the layering of `delayUntilStage`,
+// `makeDevtoolsIOPromiseFromIOTrigger` and and `makeDevtoolsIOAwarePromise`
+// is confusing, we should clean it up.
+function makeDevtoolsIOPromiseFromIOTrigger<T>(
+  ioTrigger: Promise<any>,
+  displayName: string | undefined,
+  resolvedValue: T
+): Promise<T> {
+  // If we create a `new Promise` and give it a displayName
+  // (with no userspace code above us in the stack)
+  // React Devtools will use it as the IO cause when determining "suspended by".
+  // In particular, it should shadow any inner IO that resolved/rejected the promise
+  // (in case of staged rendering, this will be the `setTimeout` that triggers the relevant stage)
+  const promise = new Promise<T>((resolve, reject) => {
+    ioTrigger.then(resolve.bind(null, resolvedValue), reject)
+  })
+  if (displayName !== undefined) {
+    // @ts-expect-error
+    promise.displayName = displayName
+  }
+  return promise
+}

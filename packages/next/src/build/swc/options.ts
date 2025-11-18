@@ -92,7 +92,7 @@ function getBaseSWCOptions({
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
   isCacheComponents?: boolean
-  cacheHandlers?: ExperimentalConfig['cacheHandlers']
+  cacheHandlers?: NextConfig['cacheHandlers']
   useCacheEnabled?: boolean
   trackDynamicImports?: boolean
 }) {
@@ -412,7 +412,7 @@ export function getLoaderSWCOptions({
   serverComponents?: boolean
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
-  cacheHandlers: ExperimentalConfig['cacheHandlers']
+  cacheHandlers: NextConfig['cacheHandlers']
   useCacheEnabled?: boolean
   trackDynamicImports?: boolean
 }) {

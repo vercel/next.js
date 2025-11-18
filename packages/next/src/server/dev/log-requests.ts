@@ -46,7 +46,8 @@ export function logRequests(
   requestStartTime: bigint,
   requestEndTime: bigint,
   devRequestTimingMiddlewareStart: bigint | undefined,
-  devRequestTimingMiddlewareEnd: bigint | undefined
+  devRequestTimingMiddlewareEnd: bigint | undefined,
+  devRequestTimingInternalsEnd: bigint | undefined
 ): void {
   if (!ignoreLoggingIncomingRequests(request, loggingConfig)) {
     logIncomingRequests(
@@ -55,7 +56,8 @@ export function logRequests(
       requestEndTime,
       response.statusCode,
       devRequestTimingMiddlewareStart,
-      devRequestTimingMiddlewareEnd
+      devRequestTimingMiddlewareEnd,
+      devRequestTimingInternalsEnd
     )
   }
 
@@ -72,13 +74,10 @@ function logIncomingRequests(
   requestEndTime: bigint,
   statusCode: number,
   devRequestTimingMiddlewareStart: bigint | undefined,
-  devRequestTimingMiddlewareEnd: bigint | undefined
+  devRequestTimingMiddlewareEnd: bigint | undefined,
+  devRequestTimingInternalsEnd: bigint | undefined
 ): void {
   const isRSC = getRequestMeta(request, 'isRSCRequest')
-  const devRequestTimingInternalsEnd = getRequestMeta(
-    request,
-    'devRequestTimingInternalsEnd'
-  )
   const url = isRSC ? stripNextRscUnionQuery(request.url) : request.url
 
   const statusCodeColor =

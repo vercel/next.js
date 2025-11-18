@@ -1,7 +1,6 @@
 ---
 title: cacheTag
 description: Learn how to use the cacheTag function to manage cache invalidation in your Next.js application.
-version: canary
 related:
   title: Related
   description: View related API references.
@@ -22,9 +21,7 @@ To use `cacheTag`, enable the [`cacheComponents` flag](/docs/app/api-reference/c
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  experimental: {
-    cacheComponents: true,
-  },
+  cacheComponents: true,
 }
 
 export default nextConfig
@@ -32,9 +29,7 @@ export default nextConfig
 
 ```js filename="next.config.js" switcher
 const nextConfig = {
-  experimental: {
-    cacheComponents: true,
-  },
+  cacheComponents: true,
 }
 
 export default nextConfig
@@ -96,6 +91,8 @@ export default async function submit() {
 ```tsx
 cacheTag('tag-one', 'tag-two')
 ```
+
+- **Limits**: The max length for a custom tag is 256 characters and the max tag items is 128.
 
 ## Examples
 

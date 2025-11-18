@@ -33,6 +33,32 @@ Caching behavior changes depending on whether the route is statically or dynamic
 
 Fetch caching is **not** supported in `proxy`. Any fetches done inside of your `proxy` will be uncached.
 
+## Rendering Strategies
+
+To understand how caching works in Next.js, it's helpful to understand the rendering strategies available. The rendering strategy determines when your route's HTML is generated, which directly impacts what can be cached.
+
+### Static Rendering
+
+With Static Rendering, routes are rendered at **build time** or in the background after [data revalidation](/docs/app/guides/incremental-static-regeneration). The result is cached and can be reused across requests. Static routes are fully cached in the [Full Route Cache](#full-route-cache).
+
+### Dynamic Rendering
+
+With Dynamic Rendering, routes are rendered at **request time**. This happens when your route uses request-specific information like cookies, headers, or search params.
+
+A route becomes dynamic when it uses any of these APIs:
+
+- [`cookies`](/docs/app/api-reference/functions/cookies)
+- [`headers`](/docs/app/api-reference/functions/headers)
+- [`connection`](/docs/app/api-reference/functions/connection)
+- [`draftMode`](/docs/app/api-reference/functions/draft-mode)
+- [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional)
+- [`unstable_noStore`](/docs/app/api-reference/functions/unstable_noStore)
+- [`fetch`](/docs/app/api-reference/functions/fetch) with `{ cache: 'no-store' }`
+
+Dynamic routes are not cached in the Full Route Cache, but can still use the [Data Cache](#data-cache) for data requests.
+
+> **Good to know**: You can use [Cache Components](/docs/app/getting-started/cache-components) to mix static and dynamic rendering within the same route.
+
 ## Request Memoization
 
 Next.js extends the [`fetch` API](#fetch) to automatically **memoize** requests that have the same URL and options. This means you can call a fetch function for the same data in multiple places in a React component tree while only executing it once.
@@ -293,7 +319,7 @@ This diagram shows the difference between statically and dynamically rendered ro
   height="1314"
 />
 
-Learn more about [static and dynamic rendering](/docs/app/getting-started/partial-prerendering#static-rendering).
+Learn more about [static and dynamic rendering](#rendering-strategies).
 
 ### Duration
 
@@ -335,7 +361,7 @@ With the Router Cache:
 The cache is stored in the browser's temporary memory. Two factors determine how long the router cache lasts:
 
 - **Session**: The cache persists across navigation. However, it's cleared on page refresh.
-- **Automatic Invalidation Period**: The cache of layouts and loading states is automatically invalidated after a specific time. The duration depends on how the resource was [prefetched](/docs/app/api-reference/components/link#prefetch), and if the resource was [statically generated](/docs/app/getting-started/partial-prerendering#static-rendering):
+- **Automatic Invalidation Period**: The cache of layouts and loading states is automatically invalidated after a specific time. The duration depends on how the resource was [prefetched](/docs/app/api-reference/components/link#prefetch), and if the resource was [statically generated](#static-rendering):
   - **Default Prefetching** (`prefetch={null}` or unspecified): not cached for dynamic pages, 5 minutes for static pages.
   - **Full Prefetching** (`prefetch={true}` or `router.prefetch`): 5 minutes for both static & dynamic pages.
 
@@ -423,8 +449,8 @@ Data returned from `fetch` is _not_ automatically cached in the Data Cache.
 
 By default, when no `cache` or `next.revalidate` options are provided:
 
-- [Dynamic rendering](/docs/app/getting-started/partial-prerendering#dynamic-rendering): Fetch runs on every request and always returns fresh data.
-- [Static rendering](/docs/app/getting-started/partial-prerendering#static-rendering): Fetched data is stored in the [Data Cache](#data-cache), and the rendered output in the [Full Route Cache](#full-route-cache). Next.js serves this cached result until the path is revalidated.
+- [Dynamic rendering](#dynamic-rendering): Fetch runs on every request and always returns fresh data.
+- [Static rendering](#static-rendering): Fetched data is stored in the [Data Cache](#data-cache), and the rendered output in the [Full Route Cache](#full-route-cache). Next.js serves this cached result until the path is revalidated.
 
 See the [`fetch` API Reference](/docs/app/api-reference/functions/fetch) for more options.
 

@@ -103,7 +103,7 @@ async function createComponentTreeInternal(
   isRoot: boolean
 ): Promise<CacheNodeSeedData> {
   const {
-    renderOpts: { nextConfigOutput, experimental },
+    renderOpts: { nextConfigOutput, experimental, cacheComponents },
     workStore,
     componentMod: {
       createElement,
@@ -415,7 +415,6 @@ async function createComponentTreeInternal(
   }
 
   // Resolve the segment param
-  const actualSegment = segmentParam ? segmentParam.treeSegment : segment
   const isSegmentViewEnabled = !!ctx.renderOpts.dev
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
@@ -674,7 +673,6 @@ async function createComponentTreeInternal(
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
   if (!MaybeComponent) {
     return [
-      actualSegment,
       createElement(
         Fragment,
         {
@@ -708,7 +706,6 @@ async function createComponentTreeInternal(
     experimental.isRoutePPREnabled
   ) {
     return [
-      actualSegment,
       createElement(
         Fragment,
         {
@@ -745,22 +742,33 @@ async function createComponentTreeInternal(
     // Assign searchParams to props if this is a page
     let pageElement: React.ReactNode
     if (isClientComponent) {
-      if (isStaticGeneration) {
+      if (cacheComponents) {
+        // Params are omitted when Cache Components is enabled
+        pageElement = createElement(ClientPageRoot, {
+          Component: PageComponent,
+          serverProvidedParams: null,
+        })
+      } else if (isStaticGeneration) {
         const promiseOfParams =
           createPrerenderParamsForClientSegment(currentParams)
         const promiseOfSearchParams =
           createPrerenderSearchParamsForClientPage(workStore)
         pageElement = createElement(ClientPageRoot, {
           Component: PageComponent,
-          searchParams: query,
-          params: currentParams,
-          promises: [promiseOfSearchParams, promiseOfParams],
+          serverProvidedParams: {
+            searchParams: query,
+            params: currentParams,
+            promises: [promiseOfSearchParams, promiseOfParams],
+          },
         })
       } else {
         pageElement = createElement(ClientPageRoot, {
           Component: PageComponent,
-          searchParams: query,
-          params: currentParams,
+          serverProvidedParams: {
+            searchParams: query,
+            params: currentParams,
+            promises: null,
+          },
         })
       }
     } else {
@@ -812,7 +820,6 @@ async function createComponentTreeInternal(
         : pageElement
 
     return [
-      actualSegment,
       createElement(
         Fragment,
         {
@@ -838,22 +845,33 @@ async function createComponentTreeInternal(
 
     if (isClientComponent) {
       let clientSegment: React.ReactNode
-
-      if (isStaticGeneration) {
+      if (cacheComponents) {
+        // Params are omitted when Cache Components is enabled
+        clientSegment = createElement(ClientSegmentRoot, {
+          Component: SegmentComponent,
+          slots: parallelRouteProps,
+          serverProvidedParams: null,
+        })
+      } else if (isStaticGeneration) {
         const promiseOfParams =
           createPrerenderParamsForClientSegment(currentParams)
 
         clientSegment = createElement(ClientSegmentRoot, {
           Component: SegmentComponent,
           slots: parallelRouteProps,
-          params: currentParams,
-          promise: promiseOfParams,
+          serverProvidedParams: {
+            params: currentParams,
+            promises: [promiseOfParams],
+          },
         })
       } else {
         clientSegment = createElement(ClientSegmentRoot, {
           Component: SegmentComponent,
           slots: parallelRouteProps,
-          params: currentParams,
+          serverProvidedParams: {
+            params: currentParams,
+            promises: null,
+          },
         })
       }
 
@@ -1022,7 +1040,6 @@ async function createComponentTreeInternal(
 
     // For layouts we just render the component
     return [
-      actualSegment,
       wrappedSegmentNode,
       parallelRouteCacheNodeSeedData,
       loadingData,

@@ -25,7 +25,7 @@ describe('segment cache (metadata)', () => {
         )
         await checkbox.click()
       }, [
-        // Because the link is prefetched with prefetch="unstable_forceStale",
+        // Because the link is prefetched with prefetch={true},
         // we should be able to prefetch the title, even though it's dynamic.
         {
           includes: 'Dynamic Title',
@@ -42,17 +42,12 @@ describe('segment cache (metadata)', () => {
         )
         await checkbox.click()
       }, [
-        // TODO: Ideally, this would not prefetch the dynamic title again,
-        // because it was already prefetched by the previous link, and both
-        // links resolve to the same underlying route. This is because, unlike
-        // segment data, we cache routes solely by their input URL, not by the
-        // path of the underlying route. Similarly, we don't cache metadata
-        // separately from the route tree. We should probably do one or both.
+        // It should not prefetch the page title or content again, because it
+        // was already cached.
         {
           includes: 'Dynamic Title',
+          block: 'reject',
         },
-        // It should not prefetch the page content again, because it was
-        // already cached.
         {
           includes: 'Target page',
           block: 'reject',
@@ -90,7 +85,7 @@ describe('segment cache (metadata)', () => {
         )
         await checkbox.click()
       }, [
-        // Because the link is prefetched with prefetch="unstable_forceStale",
+        // Because the link is prefetched with prefetch={true},
         // we should be able to prefetch the title, even though it's dynamic.
         {
           includes: 'Runtime-prefetchable title',
@@ -107,17 +102,12 @@ describe('segment cache (metadata)', () => {
         )
         await checkbox.click()
       }, [
-        // TODO: Ideally, this would not prefetch the dynamic title again,
-        // because it was already prefetched by the previous link, and both
-        // links resolve to the same underlying route. This is because, unlike
-        // segment data, we cache routes solely by their input URL, not by the
-        // path of the underlying route. Similarly, we don't cache metadata
-        // separately from the route tree. We should probably do one or both.
+        // It should not prefetch the page title or content again, because it
+        // was already cached.
         {
           includes: 'Runtime-prefetchable title',
+          block: 'reject',
         },
-        // It should not prefetch the page content again, because it was
-        // already cached.
         {
           includes: 'Target page',
           block: 'reject',

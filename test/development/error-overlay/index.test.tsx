@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox } from 'next-test-utils'
+import { waitForRedbox } from 'next-test-utils'
 
 describe('DevErrorOverlay', () => {
   const { next } = nextTestSetup({
@@ -86,7 +86,7 @@ describe('DevErrorOverlay', () => {
       },
     })
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     await browser.waitForIdleNetwork()
 
     // Verify woff2 files were requested and loaded successfully
@@ -99,7 +99,7 @@ describe('DevErrorOverlay', () => {
   it('should load dev overlay styles successfully', async () => {
     const browser = await next.browser('/hydration-error')
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     const redbox = browser.locateRedbox()
 
     // check the data-nextjs-dialog-header="true" DOM element styles under redbox is applied

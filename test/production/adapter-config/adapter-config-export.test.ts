@@ -23,6 +23,9 @@ describe('adapter-config export', () => {
       'pages/api/node-pages.ts',
       'pages/edge-pages/index.tsx',
       'pages/node-pages/index.tsx',
+      'app/node-app/[slug]/page.tsx',
+      'app/node-app/@dialog/default.tsx',
+      'app/node-app/@dialog/[slug]/page.tsx',
     ]
 
     for (const file of nonExportFiles) {

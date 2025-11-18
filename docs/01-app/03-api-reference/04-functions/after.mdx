@@ -37,7 +37,7 @@ export default function Layout({ children }) {
 }
 ```
 
-> **Good to know:** `after` is not a [Dynamic API](/docs/app/getting-started/partial-prerendering#dynamic-rendering) and calling it does not cause a route to become dynamic. If it's used within a static page, the callback will execute at build time, or whenever a page is revalidated.
+> **Good to know:** `after` is not a [Dynamic API](/docs/app/guides/caching#dynamic-rendering) and calling it does not cause a route to become dynamic. If it's used within a static page, the callback will execute at build time, or whenever a page is revalidated.
 
 ## Reference
 
@@ -111,7 +111,7 @@ export async function POST(request) {
 }
 ```
 
-However, you cannot use these request APIs inside `after` in [Server Components](/docs/app/getting-started/server-and-client-components). This is because Next.js needs to know which part of the tree access the request APIs to support [Partial Prerendering](/docs/app/getting-started/partial-prerendering), but `after` runs after React's rendering lifecycle.
+However, you cannot use these request APIs inside `after` in [Server Components](/docs/app/getting-started/server-and-client-components). This is because Next.js needs to know which part of the tree access the request APIs to support [Cache Components](/docs/app/getting-started/cache-components), but `after` runs after React's rendering lifecycle.
 
 ## Platform Support
 

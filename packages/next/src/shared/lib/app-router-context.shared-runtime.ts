@@ -4,6 +4,7 @@ import type {
   FocusAndScrollRef,
   PrefetchKind,
 } from '../../client/components/router-reducer/router-reducer-types'
+import type { Params } from '../../server/request/params'
 import type {
   FlightRouterState,
   FlightSegmentPath,
@@ -61,7 +62,10 @@ export const LayoutRouterContext = React.createContext<{
   parentTree: FlightRouterState
   parentCacheNode: CacheNode
   parentSegmentPath: FlightSegmentPath | null
+  parentParams: Params
+  debugNameContext: string
   url: string
+  isActive: boolean
 } | null>(null)
 
 export const GlobalLayoutRouterContext = React.createContext<{

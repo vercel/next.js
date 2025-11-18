@@ -40,6 +40,7 @@ import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { Telemetry } from '../../telemetry/storage'
 import { type Span, setGlobal, trace } from '../../trace'
+import { traceGlobals } from '../../trace/shared'
 import { findPageFile } from '../lib/find-page-file'
 import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
@@ -47,6 +48,7 @@ import { loadDefaultErrorComponents } from '../load-default-error-components'
 import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
+import { defaultConfig } from '../config-shared'
 import { isMiddlewareFile } from '../../build/utils'
 import { formatServerError } from '../../lib/format-server-error'
 import { DevRouteMatcherManager } from '../route-matcher-managers/dev-route-matcher-manager'
@@ -76,6 +78,7 @@ import {
 import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import type { PrerenderedRoute } from '../../build/static-paths/types'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 
 // Load ReactDevOverlay only when needed
 let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
@@ -183,8 +186,14 @@ export default class DevServer extends Server {
     this.appDir = appDir
 
     if (this.nextConfig.experimental.serverComponentsHmrCache) {
-      this.serverComponentsHmrCache = new LRUCache(
+      // Ensure HMR cache has a minimum size equal to the default cacheMaxMemorySize,
+      // but allow it to grow if the user has configured a larger value.
+      const hmrCacheSize = Math.max(
         this.nextConfig.cacheMaxMemorySize,
+        defaultConfig.cacheMaxMemorySize
+      )
+      this.serverComponentsHmrCache = new LRUCache(
+        hmrCacheSize,
         function length(value) {
           return JSON.stringify(value).length
         }
@@ -288,7 +297,12 @@ export default class DevServer extends Server {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
-    const telemetry = new Telemetry({ distDir: this.distDir })
+    // Use existing telemetry instance from traceGlobals instead of creating a new one.
+    // Creating a new instance would overwrite the existing one, causing any telemetry
+    // events recorded to the original instance to be lost during cleanup/flush.
+    const existingTelemetry = traceGlobals.get('telemetry')
+    const telemetry =
+      existingTelemetry || new Telemetry({ distDir: this.distDir })
 
     await super.prepareImpl()
     await this.matchers.reload()
@@ -302,7 +316,10 @@ export default class DevServer extends Server {
     // This is required by the tracing subsystem.
     setGlobal('appDir', this.appDir)
     setGlobal('pagesDir', this.pagesDir)
-    setGlobal('telemetry', telemetry)
+    // Only set telemetry if it wasn't already set
+    if (!existingTelemetry) {
+      setGlobal('telemetry', telemetry)
+    }
 
     process.on('unhandledRejection', (reason) => {
       if (isPostpone(reason)) {
@@ -413,6 +430,7 @@ export default class DevServer extends Server {
        */
       if (
         request.url.includes('/_next/static') ||
+        request.url.includes('/__nextjs_attach-nodejs-inspector') ||
         request.url.includes('/__nextjs_original-stack-frame') ||
         request.url.includes('/__nextjs_source-map') ||
         request.url.includes('/__nextjs_error_feedback')
@@ -500,7 +518,8 @@ export default class DevServer extends Server {
               requestStart,
               requestEnd,
               getRequestMeta(req, 'devRequestTimingMiddlewareStart'),
-              getRequestMeta(req, 'devRequestTimingMiddlewareEnd')
+              getRequestMeta(req, 'devRequestTimingMiddlewareEnd'),
+              getRequestMeta(req, 'devRequestTimingInternalsEnd')
             )
           })
         }
@@ -751,9 +770,7 @@ export default class DevServer extends Server {
           config: {
             pprConfig: this.nextConfig.experimental.ppr,
             configFileName,
-            cacheComponents: Boolean(
-              this.nextConfig.experimental.cacheComponents
-            ),
+            cacheComponents: Boolean(this.nextConfig.cacheComponents),
           },
           httpAgentOptions,
           locales,
@@ -762,11 +779,11 @@ export default class DevServer extends Server {
           isAppPath,
           requestHeaders,
           cacheHandler: this.nextConfig.cacheHandler,
-          cacheHandlers: this.nextConfig.experimental.cacheHandlers,
-          cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
+          cacheHandlers: this.nextConfig.cacheHandlers,
+          cacheLifeProfiles: this.nextConfig.cacheLife,
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
-          maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
+          cacheMaxMemorySize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
           buildId: this.buildId,
           authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
@@ -802,6 +819,24 @@ export default class DevServer extends Server {
                 `Page "${page}" is missing param "${pathname}" in "generateStaticParams()", which is required with "output: export" config.`
               )
             }
+          }
+
+          // Since generateStaticParams run on the background, when accessing the
+          // devFallbackParams during the render, it is still set to the previous
+          // result from the cache. Therefore when the result has changed, re-render
+          // the Server Component to sync the devFallbackParams with the new result.
+          if (
+            isAppPath &&
+            this.nextConfig.cacheComponents &&
+            // Ensure this is not the first invocation.
+            result &&
+            // Ideally, we would want to compare the whole objects, but that is too expensive.
+            result.prerenderedRoutes?.length !== prerenderedRoutes?.length
+          ) {
+            this.bundlerService.triggerHMR({
+              type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+              hash: `generateStaticParams-${Date.now()}`,
+            })
           }
         }
 

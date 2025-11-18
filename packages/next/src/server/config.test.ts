@@ -82,29 +82,6 @@ describe('loadConfig', () => {
       delete process.env.__NEXT_VERSION
     })
 
-    it('should not print a stack trace when throwing an error', async () => {
-      const loadConfigPromise = loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-        customConfig: {
-          experimental: {
-            cacheComponents: true,
-          },
-        },
-      })
-
-      await expect(loadConfigPromise).rejects.toThrow(
-        /The experimental feature "experimental.cacheComponents" can only be enabled when using the latest canary version of Next.js./
-      )
-
-      try {
-        await loadConfigPromise
-      } catch (error: any) {
-        expect(error).toBeInstanceOf(Error)
-
-        // Check that there's no stack trace
-        expect(error.stack).toBeUndefined()
-      }
-    })
-
     it('errors when using PPR if not in canary', async () => {
       await expect(
         loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
@@ -115,21 +92,7 @@ describe('loadConfig', () => {
           },
         })
       ).rejects.toThrow(
-        /`experimental\.ppr` has been merged into `experimental\.cacheComponents`/
-      )
-    })
-
-    it('errors when using cacheComponents if not in canary', async () => {
-      await expect(
-        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-          customConfig: {
-            experimental: {
-              cacheComponents: true,
-            },
-          },
-        })
-      ).rejects.toThrow(
-        /The experimental feature "experimental.cacheComponents" can only be enabled when using the latest canary version of Next.js./
+        /`experimental\.ppr` has been merged into `cacheComponents`/
       )
     })
 
@@ -167,8 +130,81 @@ describe('loadConfig', () => {
           },
         })
       ).rejects.toThrow(
-        /`experimental\.ppr` has been merged into `experimental\.cacheComponents`/
+        /`experimental\.ppr` has been merged into `cacheComponents`/
       )
+    })
+  })
+
+  describe('middleware to proxy config key rename backward/forward compatibility', () => {
+    it('should copy `skipMiddlewareUrlNormalize value` to `skipProxyUrlNormalize`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          skipMiddlewareUrlNormalize: true,
+        },
+      })
+
+      expect(result.skipProxyUrlNormalize).toBe(true)
+    })
+
+    it('should copy `experimental.middlewarePrefetch` to `experimental.proxyPrefetch`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            middlewarePrefetch: 'strict',
+          },
+        },
+      })
+
+      expect(result.experimental.proxyPrefetch).toBe('strict')
+    })
+
+    it('should copy `experimental.externalMiddlewareRewritesResolve` to `experimental.externalProxyRewritesResolve`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            externalMiddlewareRewritesResolve: true,
+          },
+        },
+      })
+
+      expect(result.experimental.externalProxyRewritesResolve).toBe(true)
+    })
+
+    it('should copy `skipProxyUrlNormalize` to `skipMiddlewareUrlNormalize`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          skipProxyUrlNormalize: true,
+        },
+      })
+
+      expect(result.skipMiddlewareUrlNormalize).toBe(true)
+      expect(result.skipProxyUrlNormalize).toBe(true)
+    })
+
+    it('should copy `experimental.proxyPrefetch` to `experimental.middlewarePrefetch`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            proxyPrefetch: 'strict',
+          },
+        },
+      })
+
+      expect(result.experimental.middlewarePrefetch).toBe('strict')
+      expect(result.experimental.proxyPrefetch).toBe('strict')
+    })
+
+    it('should copy `experimental.externalProxyRewritesResolve` to `experimental.externalMiddlewareRewritesResolve`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            externalProxyRewritesResolve: true,
+          },
+        },
+      })
+
+      expect(result.experimental.externalMiddlewareRewritesResolve).toBe(true)
+      expect(result.experimental.externalProxyRewritesResolve).toBe(true)
     })
   })
 })

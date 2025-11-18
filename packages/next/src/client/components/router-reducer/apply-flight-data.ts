@@ -18,8 +18,8 @@ export function applyFlightData(
   }
 
   if (isRootRender) {
-    const rsc = seedData[1]
-    const loading = seedData[3]
+    const rsc = seedData[0]
+    const loading = seedData[2]
     cache.loading = loading
     cache.rsc = rsc
     // This is a PPR-only field. When PPR is enabled, we shouldn't hit

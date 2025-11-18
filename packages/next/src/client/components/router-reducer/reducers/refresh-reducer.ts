@@ -19,7 +19,7 @@ import { createEmptyCacheNode } from '../../app-router'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { refreshInactiveParallelSegments } from '../refetch-inactive-parallel-segments'
-import { revalidateEntireCache } from '../../segment-cache'
+import { revalidateEntireCache } from '../../segment-cache/cache'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -108,8 +108,8 @@ export function refreshReducer(
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (cacheNodeSeedData !== null) {
-          const rsc = cacheNodeSeedData[1]
-          const loading = cacheNodeSeedData[3]
+          const rsc = cacheNodeSeedData[0]
+          const loading = cacheNodeSeedData[2]
           cache.rsc = rsc
           cache.prefetchRsc = null
           cache.loading = loading

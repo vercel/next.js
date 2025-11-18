@@ -1,6 +1,6 @@
 import webdriver from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
-import { check, renderViaHTTP } from 'next-test-utils'
+import { check, renderViaHTTP, retry } from 'next-test-utils'
 
 describe('basePath', () => {
   const basePath = '/docs'
@@ -121,10 +121,8 @@ describe('basePath', () => {
       await browser.eval('window.beforeNav = "hi"')
       await browser.elementByCss('#other-page-link').click()
 
-      await check(() => browser.eval('window.beforeNav'), {
-        test(content) {
-          return content !== 'hi'
-        },
+      await retry(async () => {
+        expect(await browser.eval('window.beforeNav')).not.toEqual('hi')
       })
 
       await check(
@@ -138,10 +136,8 @@ describe('basePath', () => {
       await browser.eval('window.beforeNav = "hi"')
       await browser.eval(`window.next.router.push("${basePath}/other-page")`)
 
-      await check(() => browser.eval('window.beforeNav'), {
-        test(content) {
-          return content !== 'hi'
-        },
+      await retry(async () => {
+        expect(await browser.eval('window.beforeNav')).not.toEqual('hi')
       })
 
       const html = await browser.eval('document.documentElement.innerHTML')
@@ -153,10 +149,8 @@ describe('basePath', () => {
       await browser.eval('window.beforeNav = "hi"')
       await browser.eval(`window.next.router.replace("${basePath}/other-page")`)
 
-      await check(() => browser.eval('window.beforeNav'), {
-        test(content) {
-          return content !== 'hi'
-        },
+      await retry(async () => {
+        expect(await browser.eval('window.beforeNav')).not.toEqual('hi')
       })
 
       const html = await browser.eval('document.documentElement.innerHTML')

@@ -13,7 +13,7 @@ use turbopack_core::{
     chunk::{
         Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig,
         ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
-        EvaluatableAssets, MinifyType, ModuleId, SourceMapsType,
+        EvaluatableAssets, MinifyType, ModuleId, SourceMapSourceType, SourceMapsType,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
@@ -91,13 +91,18 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn use_file_source_map_uris(mut self) -> Self {
-        self.chunking_context.should_use_file_source_map_uris = true;
+    pub fn source_map_source_type(mut self, source_map_source_type: SourceMapSourceType) -> Self {
+        self.chunking_context.source_map_source_type = source_map_source_type;
         self
     }
 
     pub fn tracing(mut self, enable_tracing: bool) -> Self {
         self.chunking_context.enable_tracing = enable_tracing;
+        self
+    }
+
+    pub fn nested_async_availability(mut self, enable_nested_async_availability: bool) -> Self {
+        self.chunking_context.enable_nested_async_availability = enable_nested_async_availability;
         self
     }
 
@@ -173,6 +178,15 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn should_use_absolute_url_references(
+        mut self,
+        should_use_absolute_url_references: bool,
+    ) -> Self {
+        self.chunking_context.should_use_absolute_url_references =
+            should_use_absolute_url_references;
+        self
+    }
+
     pub fn asset_root_path_override(mut self, tag: RcStr, path: FileSystemPath) -> Self {
         self.chunking_context.asset_root_paths.insert(tag, path);
         self
@@ -220,8 +234,8 @@ pub struct BrowserChunkingContext {
     name: Option<RcStr>,
     /// The root path of the project
     root_path: FileSystemPath,
-    /// Whether to write file sources as file:// paths in source maps
-    should_use_file_source_map_uris: bool,
+    /// The strategy to use for generating source map source uris
+    source_map_source_type: SourceMapSourceType,
     /// This path is used to compute the url to request chunks from
     output_root: FileSystemPath,
     /// The relative path from the output_root to the root_path.
@@ -252,6 +266,8 @@ pub struct BrowserChunkingContext {
     enable_hot_module_replacement: bool,
     /// Enable tracing for this chunking
     enable_tracing: bool,
+    /// Enable nested async availability for this chunking
+    enable_nested_async_availability: bool,
     /// Enable module merging
     enable_module_merging: bool,
     /// Enable dynamic chunk content loading.
@@ -278,6 +294,8 @@ pub struct BrowserChunkingContext {
     export_usage: Option<ResolvedVc<ExportUsageInfo>>,
     /// The chunking configs
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
+    /// Whether to use absolute URLs for static assets (e.g. in CSS: `url("/absolute/path")`)
+    should_use_absolute_url_references: bool,
 }
 
 impl BrowserChunkingContext {
@@ -300,7 +318,7 @@ impl BrowserChunkingContext {
                 client_root,
                 client_roots: Default::default(),
                 chunk_root_path,
-                should_use_file_source_map_uris: false,
+                source_map_source_type: SourceMapSourceType::TurbopackUri,
                 asset_root_path,
                 asset_root_paths: Default::default(),
                 chunk_base_path: None,
@@ -309,6 +327,7 @@ impl BrowserChunkingContext {
                 asset_base_paths: Default::default(),
                 enable_hot_module_replacement: false,
                 enable_tracing: false,
+                enable_nested_async_availability: false,
                 enable_module_merging: false,
                 enable_dynamic_chunk_content_loading: false,
                 debug_ids: false,
@@ -322,6 +341,7 @@ impl BrowserChunkingContext {
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
                 export_usage: None,
                 chunking_configs: Default::default(),
+                should_use_absolute_url_references: false,
             },
         }
     }
@@ -605,13 +625,18 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn should_use_file_source_map_uris(&self) -> Vc<bool> {
-        Vc::cell(self.should_use_file_source_map_uris)
+    fn source_map_source_type(&self) -> Vc<SourceMapSourceType> {
+        self.source_map_source_type.cell()
     }
 
     #[turbo_tasks::function]
     fn is_tracing_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_tracing)
+    }
+
+    #[turbo_tasks::function]
+    fn is_nested_async_availability_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_nested_async_availability)
     }
 
     #[turbo_tasks::function]
@@ -630,6 +655,11 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
+    fn should_use_absolute_url_references(&self) -> Vc<bool> {
+        Vc::cell(self.should_use_absolute_url_references)
+    }
+
+    #[turbo_tasks::function]
     async fn chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
@@ -645,6 +675,7 @@ impl ChunkingContext for BrowserChunkingContext {
             let MakeChunkGroupResult {
                 chunks,
                 referenced_output_assets,
+                references,
                 availability_info,
             } = make_chunk_group(
                 entries,
@@ -662,15 +693,9 @@ impl ChunkingContext for BrowserChunkingContext {
 
             if this.enable_hot_module_replacement {
                 let mut ident = ident;
-                match input_availability_info {
-                    AvailabilityInfo::Root => {}
-                    AvailabilityInfo::Untracked => {
-                        ident = ident.with_modifier(rcstr!("untracked"));
-                    }
-                    AvailabilityInfo::Complete { available_modules } => {
-                        ident =
-                            ident.with_modifier(available_modules.hash().await?.to_string().into());
-                    }
+                if let Some(input_availability_info_ident) = input_availability_info.ident().await?
+                {
+                    ident = ident.with_modifier(input_availability_info_ident);
                 }
                 let other_assets = Vc::cell(assets.clone());
                 assets.push(
@@ -688,6 +713,7 @@ impl ChunkingContext for BrowserChunkingContext {
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
                 referenced_assets: ResolvedVc::cell(referenced_output_assets),
+                references: ResolvedVc::cell(references),
                 availability_info,
             }
             .cell())
@@ -715,6 +741,7 @@ impl ChunkingContext for BrowserChunkingContext {
             let MakeChunkGroupResult {
                 chunks,
                 referenced_output_assets,
+                references,
                 availability_info,
             } = make_chunk_group(
                 entries,
@@ -744,15 +771,9 @@ impl ChunkingContext for BrowserChunkingContext {
 
             if this.enable_hot_module_replacement {
                 let mut ident = ident;
-                match input_availability_info {
-                    AvailabilityInfo::Root => {}
-                    AvailabilityInfo::Untracked => {
-                        ident = ident.with_modifier(rcstr!("untracked"));
-                    }
-                    AvailabilityInfo::Complete { available_modules } => {
-                        ident =
-                            ident.with_modifier(available_modules.hash().await?.to_string().into());
-                    }
+                if let Some(input_availability_info_ident) = input_availability_info.ident().await?
+                {
+                    ident = ident.with_modifier(input_availability_info_ident);
                 }
                 assets.push(
                     self.generate_chunk_list_register_chunk(
@@ -775,6 +796,7 @@ impl ChunkingContext for BrowserChunkingContext {
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
                 referenced_assets: ResolvedVc::cell(referenced_output_assets),
+                references: ResolvedVc::cell(references),
                 availability_info,
             }
             .cell())

@@ -83,7 +83,7 @@ describe('parallel-route-navigations', () => {
 
     // If it's PPR or Cache Components, we'll see an immediate transition for
     // the client component.
-    if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true') {
+    if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
       await browser.waitForElementByCss(
         '[data-file="/[teamID]/sub/other-folder/page.tsx"]'
       )

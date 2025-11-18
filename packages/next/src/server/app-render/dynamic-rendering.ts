@@ -759,7 +759,11 @@ export function trackAllowedDynamicAccess(
     )
     return
   } else {
-    const message = `Route "${workStore.route}": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense`
+    const message =
+      `Route "${workStore.route}": Uncached data was accessed outside of ` +
+      '<Suspense>. This delays the entire page from rendering, resulting in a ' +
+      'slow user experience. Learn more: ' +
+      'https://nextjs.org/docs/messages/blocking-route'
     const error = createErrorWithComponentOrOwnerStack(message, componentStack)
     dynamicValidation.dynamicErrors.push(error)
     return

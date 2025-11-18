@@ -177,8 +177,9 @@ async function handleCJS({
     const nextConfigString = await readFile(nextConfigPath, 'utf8')
     // lazy require swc since it loads React before even setting NODE_ENV
     // resulting loading Development React on Production
-    const { transform } = require('../swc') as typeof import('../swc')
-    const { code } = await transform(nextConfigString, swcOptions)
+    const { loadBindings } = require('../swc') as typeof import('../swc')
+    const bindings = await loadBindings()
+    const { code } = await bindings.transform(nextConfigString, swcOptions)
 
     // register require hook only if require exists
     if (code.includes('require(')) {
@@ -187,7 +188,21 @@ async function handleCJS({
     }
 
     // filename & extension don't matter here
-    return requireFromString(code, resolve(cwd, 'next.config.compiled.js'))
+    const config = requireFromString(
+      code,
+      resolve(cwd, 'next.config.compiled.js')
+    )
+    // At this point we have already loaded the bindings without this configuration setting due to the `transform` call above.
+    // Possibly we fell back to wasm in which case, it all works out but if not we need to warn
+    // that the configuration was ignored.
+    if (config?.experimental?.useWasmBinary && !bindings.isWasm) {
+      warn(
+        'Using a next.config.ts file is incompatible with `experimental.useWasmBinary` unless ' +
+          '`--experimental-next-config-strip-types` is also passed.\nSetting `useWasmBinary` to `false'
+      )
+      config.experimental.useWasmBinary = false
+    }
+    return config
   } catch (error) {
     throw error
   } finally {

@@ -1,18 +1,32 @@
 {
   "version": 2,
   "suites": {
+    "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts": {
+      "failed": [
+        "app dir client cache semantics (default semantics) prefetch={true} should re-use the cache for the full page, only for 5 mins"
+      ]
+    },
+    "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts": {
+      "failed": [
+        "app dir client cache semantics (experimental staleTimes) static: 180 prefetch={undefined} - default should re-use the loading boundary for the custom static override time (3 minutes)"
+      ]
+    },
     "test/e2e/app-dir/actions/app-action.test.ts": {
       "failed": [
         "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
         "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
-        "app-dir action handling fetch actions should handle revalidateTag"
+        "app-dir action handling fetch actions should handle revalidateTag",
+        "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
+        "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation"
       ]
     },
     "test/e2e/app-dir/actions/app-action-node-middleware.test.ts": {
       "failed": [
         "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
         "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
-        "app-dir action handling fetch actions should handle revalidateTag"
+        "app-dir action handling fetch actions should handle revalidateTag",
+        "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
+        "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation"
       ]
     },
     "test/e2e/app-dir/app-static/app-static.test.ts": {
@@ -56,7 +70,7 @@
       "test/e2e/new-link-behavior/stitches.test.ts",
       "test/e2e/next-image-forward-ref/index.test.ts",
       "test/e2e/react-compiler/react-compiler.test.ts",
-      "test/e2e/app-dir/i18n-hybrid/i18n-hybrid.test.js",
+      "test/e2e/app-dir/i18n-hybrid/i18n-hybrid.test.ts",
       "test/e2e/app-dir/metadata/metadata.test.ts",
       "test/e2e/app-dir/rsc-basic/rsc-basic.test.ts",
       "test/e2e/basepath/basepath.test.ts",

@@ -722,6 +722,9 @@ export async function initialize(opts: {
     logErrorWithOriginalStack: opts.dev
       ? handlers.server.logErrorWithOriginalStack.bind(handlers.server)
       : (err: unknown) => !opts.quiet && Log.error(err),
+    setCacheStatus: config.cacheComponents
+      ? devBundlerService?.setCacheStatus.bind(devBundlerService)
+      : undefined,
     setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
     setReactDebugChannel: config.experimental.reactDebugChannel
       ? devBundlerService?.setReactDebugChannel.bind(devBundlerService)

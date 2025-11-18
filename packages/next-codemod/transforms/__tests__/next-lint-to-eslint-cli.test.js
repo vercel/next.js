@@ -94,7 +94,7 @@ describe('next-lint-to-eslint-cli', () => {
             "@types/node": "^20",
             "@types/react": "^19",
             "@types/react-dom": "^19",
-            "eslint": "^9",
+            "eslint": "^8",
             "eslint-config-next": "^16"
           }
         }
@@ -110,13 +110,14 @@ describe('next-lint-to-eslint-cli', () => {
         'utf8'
       )
       expect(actualConfig).toMatchInlineSnapshot(`
-       "import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+       "import next from "eslint-config-next";
+       import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
        import nextTypescript from "eslint-config-next/typescript";
        import { defineConfig } from 'eslint/config'
        import foo from 'foo'
        import bar from 'bar'
 
-       const eslintConfig = defineConfig([...nextCoreWebVitals, ...nextTypescript, foo, bar, {
+       const eslintConfig = defineConfig([...next, ...nextCoreWebVitals, ...nextTypescript, foo, bar, {
          ignores: [
            'node_modules/**',
            '.next/**',
@@ -232,7 +233,7 @@ describe('next-lint-to-eslint-cli', () => {
             "@types/node": "^20",
             "@types/react": "^19",
             "@types/react-dom": "^19",
-            "eslint": "^9",
+            "eslint": "^8",
             "eslint-config-next": "^16"
           }
         }
@@ -307,6 +308,92 @@ describe('next-lint-to-eslint-cli', () => {
     })
   })
 
+  describe('flat-config-flat-compat-with-other-compat', () => {
+    it('should replace FlatCompat config with direct imports while preserving other configs', () => {
+      const testDir = path.join(
+        fixturesDir,
+        'flat-config-flat-compat-with-other-compat'
+      )
+      // Check BEFORE state
+      const beforeConfig = fs.readFileSync(
+        path.join(testDir, 'eslint.config.mjs'),
+        'utf8'
+      )
+
+      expect(beforeConfig).toMatchInlineSnapshot(`
+       "import { dirname } from 'path'
+       import { fileURLToPath } from 'url'
+       import { FlatCompat } from '@eslint/eslintrc'
+
+       const __filename = fileURLToPath(import.meta.url)
+       const __dirname = dirname(__filename)
+
+       const compat = new FlatCompat({
+         baseDirectory: __dirname,
+       })
+
+       const eslintConfig = [
+         ...compat.config({
+           extends: ['next/core-web-vitals', 'next/typescript'],
+         }),
+         ...compat.config({
+           extends: ['foo', 'bar'],
+         }),
+         {
+           ignores: [
+             'node_modules/**',
+             '.next/**',
+             'out/**',
+             'build/**',
+             'next-env.d.ts',
+           ],
+         },
+       ]
+
+       export default eslintConfig
+       "
+      `)
+
+      // Run transformer
+      transformer([testDir], { skipInstall: true })
+
+      // Check AFTER state
+      const actualConfig = fs.readFileSync(
+        path.join(testDir, 'eslint.config.mjs'),
+        'utf8'
+      )
+      expect(actualConfig).toMatchInlineSnapshot(`
+       "import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+       import nextTypescript from "eslint-config-next/typescript";
+       import { dirname } from 'path'
+       import { fileURLToPath } from 'url'
+       import { FlatCompat } from '@eslint/eslintrc'
+
+       const __filename = fileURLToPath(import.meta.url)
+       const __dirname = dirname(__filename)
+
+       const compat = new FlatCompat({
+         baseDirectory: __dirname,
+       })
+
+       const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, ...compat.config({
+         extends: ['foo', 'bar']
+       }), {
+         ignores: [
+           'node_modules/**',
+           '.next/**',
+           'out/**',
+           'build/**',
+           'next-env.d.ts',
+         ],
+       }]
+
+       export default eslintConfig
+       "
+      `)
+    })
+  })
+
   describe('legacy-config', () => {
     it('should migrate legacy config to flat config and transform package.json', async () => {
       const testDir = path.join(fixturesDir, 'legacy-config')
@@ -330,6 +417,8 @@ describe('next-lint-to-eslint-cli', () => {
          "root": true,
          "extends": [
            "next/core-web-vitals",
+           "next",
+           "next/typescript",
            "turbo",
            "prettier",
            "plugin:tailwindcss/recommended"
@@ -391,7 +480,7 @@ describe('next-lint-to-eslint-cli', () => {
             "@types/node": "^20",
             "@types/react": "^19",
             "@types/react-dom": "^19",
-            "eslint": "^9",
+            "eslint": "^8",
             "eslint-config-next": "^16"
           }
         }
@@ -408,7 +497,9 @@ describe('next-lint-to-eslint-cli', () => {
       )
       expect(actualConfig).toMatchInlineSnapshot(`
        "import { defineConfig, globalIgnores } from "eslint/config";
+       import next from "eslint-config-next";
        import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+       import nextTypescript from "eslint-config-next/typescript";
        import tailwindcss from "eslint-plugin-tailwindcss";
        import tsParser from "@typescript-eslint/parser";
        import path from "node:path";
@@ -435,6 +526,8 @@ describe('next-lint-to-eslint-cli', () => {
        ]), {
            extends: [
                ...nextCoreWebVitals,
+               ...next,
+               ...nextTypescript,
                ...compat.extends("turbo"),
                ...compat.extends("prettier"),
                ...compat.extends("plugin:tailwindcss/recommended")

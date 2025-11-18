@@ -272,19 +272,13 @@ export interface LoggingConfig {
 export interface ExperimentalConfig {
   adapterPath?: string
   useSkewCookie?: boolean
-  cacheHandlers?: {
-    default?: string
-    remote?: string
-    static?: string
-    [handlerName: string]: string | undefined
-  }
+  /** @deprecated use top-level `cacheHandlers` instead */
+  cacheHandlers?: NextConfig['cacheHandlers']
   multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
-  clientSegmentCache?: boolean | 'client-only'
-
   /**
    * The origins that are allowed to write the rewritten headers when
    * performing a non-relative rewrite. When undefined, no non-relative
@@ -303,21 +297,13 @@ export interface ExperimentalConfig {
    */
   staleTimes?: {
     dynamic?: number
+    /** Must be greater than or equal to 30 seconds, to ensure prefetching is not completely wasteful */
     static?: number
   }
-  cacheLife?: {
-    [profile: string]: {
-      // How long the client can cache a value without checking with the server.
-      stale?: number
-      // How frequently you want the cache to refresh on the server.
-      // Stale values may be served while revalidating.
-      revalidate?: number
-      // In the worst case scenario, where you haven't had traffic in a while,
-      // how stale can a value be until you prefer deopting to dynamic.
-      // Must be longer than revalidate.
-      expire?: number
-    }
-  }
+  /**
+   * @deprecated use top-level `cacheLife` instead
+   */
+  cacheLife?: NextConfig['cacheLife']
   // decimal for percent for possible false positives
   // e.g. 0.01 for 10% potential false matches lower
   // percent increases size of the filter
@@ -402,6 +388,12 @@ export interface ExperimentalConfig {
   optimizeServerReact?: boolean
 
   /**
+   * Displays an indicator when a React Transition has no other indicator rendered.
+   * This includes displaying an indicator on client-side navigations.
+   */
+  transitionIndicator?: boolean
+
+  /**
    * A target memory limit for turbo, in bytes.
    */
   turbopackMemoryLimit?: number
@@ -420,6 +412,18 @@ export interface ExperimentalConfig {
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
    */
   turbopackScopeHoisting?: boolean
+
+  /**
+   * Enable nested async chunking for client side assets. Defaults to true in build mode and false in dev mode.
+   * This optimization computes all possible paths through dynamic imports in the applications to figure out the modules needed at dynamic imports for every path.
+   */
+  turbopackClientSideNestedAsyncChunking?: boolean
+
+  /**
+   * Enable nested async chunking for server side assets. Defaults to false in dev and build mode.
+   * This optimization computes all possible paths through dynamic imports in the applications to figure out the modules needed at dynamic imports for every path.
+   */
+  turbopackServerSideNestedAsyncChunking?: boolean
 
   /**
    * Enable filesystem cache for the turbopack dev server.
@@ -577,8 +581,8 @@ export interface ExperimentalConfig {
   clientTraceMetadata?: string[]
 
   /**
-   * @deprecated This configuration option has been merged into `experimental.cacheComponents`.
-   * The Partial Prerendering feature is still available via `experimental.cacheComponents`.
+   * @deprecated This configuration option has been merged into `cacheComponents`.
+   * The Partial Prerendering feature is still available via `cacheComponents`.
    */
   ppr?: ExperimentalPPRConfig
 
@@ -587,11 +591,6 @@ export interface ExperimentalConfig {
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
   taint?: boolean
-
-  /**
-   * Enables the Back/Forward Cache for the router.
-   */
-  routerBFCache?: boolean
 
   /**
    * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
@@ -686,6 +685,11 @@ export interface ExperimentalConfig {
   reactDebugChannel?: boolean
 
   /**
+   * @deprecated use top-level `cacheComponents` instead
+   */
+  cacheComponents?: boolean
+
+  /**
    * The number of times to retry static generation (per page) before giving up.
    */
   staticGenerationRetryCount?: number
@@ -704,14 +708,6 @@ export interface ExperimentalConfig {
    * Allows previously fetched data to be re-used when editing server components.
    */
   serverComponentsHmrCache?: boolean
-
-  /**
-   * When enabled, will cause IO in App Router to be excluded from prerenders,
-   * unless explicitly cached. This also enables the experimental Partial
-   * Prerendering feature of Next.js, and it enables `react@experimental` being
-   * used for the `app` directory.
-   */
-  cacheComponents?: boolean
 
   /**
    * Render <style> tags inline in the HTML for imported CSS assets.
@@ -802,7 +798,7 @@ export interface ExperimentalConfig {
    * When enabled, Next.js will expose an MCP server at `/_next/mcp` that provides
    * code intelligence and project context to AI assistants.
    *
-   * @default false
+   * @default true
    */
   mcpServer?: boolean
 
@@ -880,7 +876,7 @@ export type ExportPathMap = {
     /**
      * When true, the page is prerendered as a fallback shell, while allowing
      * any dynamic accesses to result in an empty shell. This is the case when
-     * the app has `experimental.ppr` and `experimental.cacheComponents` enabled, and
+     * the app has `experimental.ppr` and `cacheComponents` enabled, and
      * there are also routes prerendered with a more complete set of params.
      * Prerendering those routes would catch any invalid dynamic accesses.
      *
@@ -1016,6 +1012,13 @@ export interface NextConfig {
    * @see [Configuring Caching](https://nextjs.org/docs/app/building-your-application/deploying#configuring-caching) and the [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/incrementalCacheHandlerPath).
    */
   cacheHandler?: string | undefined
+
+  cacheHandlers?: {
+    default?: string
+    remote?: string
+    static?: string
+    [handlerName: string]: string | undefined
+  }
 
   /**
    * Configure the in-memory cache size in bytes. Defaults to 50 MB.
@@ -1265,6 +1268,29 @@ export interface NextConfig {
   enablePrerenderSourceMaps?: boolean
 
   /**
+   * When enabled, in development and build, Next.js will automatically cache
+   * page-level components and functions for faster builds and rendering. This
+   * includes Partial Prerendering support.
+   *
+   * @see [Cache Components documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents)
+   */
+  cacheComponents?: boolean
+
+  cacheLife?: {
+    [profile: string]: {
+      // How long the client can cache a value without checking with the server.
+      stale?: number
+      // How frequently you want the cache to refresh on the server.
+      // Stale values may be served while revalidating.
+      revalidate?: number
+      // In the worst case scenario, where you haven't had traffic in a while,
+      // how stale can a value be until you prefer deopting to dynamic.
+      // Must be longer than revalidate.
+      expire?: number
+    }
+  }
+
+  /**
    * period (in seconds) where the server allow to serve stale cache
    */
   expireTime?: number
@@ -1391,51 +1417,52 @@ export const defaultConfig = Object.freeze({
   allowedDevOrigins: undefined,
   // Will default to cacheComponents value.
   enablePrerenderSourceMaps: undefined,
+  cacheComponents: false,
+  cacheLife: {
+    default: {
+      stale: undefined, // defaults to staleTimes.static
+      revalidate: 60 * 15, // 15 minutes
+      expire: INFINITE_CACHE,
+    },
+    seconds: {
+      stale: 30, // 30 seconds
+      revalidate: 1, // 1 second
+      expire: 60, // 1 minute
+    },
+    minutes: {
+      stale: 60 * 5, // 5 minutes
+      revalidate: 60, // 1 minute
+      expire: 60 * 60, // 1 hour
+    },
+    hours: {
+      stale: 60 * 5, // 5 minutes
+      revalidate: 60 * 60, // 1 hour
+      expire: 60 * 60 * 24, // 1 day
+    },
+    days: {
+      stale: 60 * 5, // 5 minutes
+      revalidate: 60 * 60 * 24, // 1 day
+      expire: 60 * 60 * 24 * 7, // 1 week
+    },
+    weeks: {
+      stale: 60 * 5, // 5 minutes
+      revalidate: 60 * 60 * 24 * 7, // 1 week
+      expire: 60 * 60 * 24 * 30, // 1 month
+    },
+    max: {
+      stale: 60 * 5, // 5 minutes
+      revalidate: 60 * 60 * 24 * 30, // 1 month
+      expire: 60 * 60 * 24 * 365, // 1 year
+    },
+  },
+  cacheHandlers: {
+    default: process.env.NEXT_DEFAULT_CACHE_HANDLER_PATH,
+    remote: process.env.NEXT_REMOTE_CACHE_HANDLER_PATH,
+    static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
+  },
   experimental: {
     adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
     useSkewCookie: false,
-    cacheLife: {
-      default: {
-        stale: undefined, // defaults to staleTimes.static
-        revalidate: 60 * 15, // 15 minutes
-        expire: INFINITE_CACHE,
-      },
-      seconds: {
-        stale: 30, // 30 seconds
-        revalidate: 1, // 1 second
-        expire: 60, // 1 minute
-      },
-      minutes: {
-        stale: 60 * 5, // 5 minutes
-        revalidate: 60, // 1 minute
-        expire: 60 * 60, // 1 hour
-      },
-      hours: {
-        stale: 60 * 5, // 5 minutes
-        revalidate: 60 * 60, // 1 hour
-        expire: 60 * 60 * 24, // 1 day
-      },
-      days: {
-        stale: 60 * 5, // 5 minutes
-        revalidate: 60 * 60 * 24, // 1 day
-        expire: 60 * 60 * 24 * 7, // 1 week
-      },
-      weeks: {
-        stale: 60 * 5, // 5 minutes
-        revalidate: 60 * 60 * 24 * 7, // 1 week
-        expire: 60 * 60 * 24 * 30, // 1 month
-      },
-      max: {
-        stale: 60 * 5, // 5 minutes
-        revalidate: 60 * 60 * 24 * 30, // 1 month
-        expire: 60 * 60 * 24 * 365, // 1 year
-      },
-    },
-    cacheHandlers: {
-      default: process.env.NEXT_DEFAULT_CACHE_HANDLER_PATH,
-      remote: process.env.NEXT_REMOTE_CACHE_HANDLER_PATH,
-      static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
-    },
     cssChunking: true,
     multiZoneDraftMode: false,
     appNavFailHandling: false,
@@ -1444,7 +1471,6 @@ export const defaultConfig = Object.freeze({
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    clientSegmentCache: true,
     clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
     preloadEntriesOnStart: true,
@@ -1493,7 +1519,6 @@ export const defaultConfig = Object.freeze({
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     viewTransition: false,
-    routerBFCache: false,
     removeUncaughtErrorAndRejectionListeners: false,
     validateRSCRequestHeaders: !!(
       process.env.__NEXT_TEST_MODE || !isStableBuild()
@@ -1508,7 +1533,7 @@ export const defaultConfig = Object.freeze({
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
-    cacheComponents: false,
+    transitionIndicator: false,
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
@@ -1518,6 +1543,7 @@ export const defaultConfig = Object.freeze({
     isolatedDevBuild: true,
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
+    mcpServer: true,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

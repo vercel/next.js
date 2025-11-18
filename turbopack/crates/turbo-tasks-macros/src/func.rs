@@ -30,8 +30,6 @@ pub struct TurboFn<'a> {
     exposed_inputs: Vec<Input>,
     /// Should we return `OperationVc` and require that all arguments are `NonLocalValue`s?
     operation: bool,
-    /// Should this function use `TaskPersistence::LocalCells`?
-    local: bool,
 }
 
 #[derive(Debug)]
@@ -206,7 +204,6 @@ impl TurboFn<'_> {
             this,
             exposed_inputs,
             operation: args.operation.is_some(),
-            local: args.local.is_some(),
             inline_ident,
         })
     }
@@ -494,26 +491,14 @@ impl TurboFn<'_> {
     }
 
     pub fn persistence(&self) -> impl ToTokens {
-        if self.local {
-            quote! {
-                turbo_tasks::TaskPersistence::Local
-            }
-        } else {
-            quote! {
-                turbo_tasks::macro_helpers::get_non_local_persistence_from_inputs(&*inputs)
-            }
+        quote! {
+            turbo_tasks::macro_helpers::get_persistence_from_inputs(&*inputs)
         }
     }
 
     pub fn persistence_with_this(&self) -> impl ToTokens {
-        if self.local {
-            quote! {
-                turbo_tasks::TaskPersistence::Local
-            }
-        } else {
-            quote! {
-                turbo_tasks::macro_helpers::get_non_local_persistence_from_inputs_and_this(this, &*inputs)
-            }
+        quote! {
+            turbo_tasks::macro_helpers::get_persistence_from_inputs_and_this(this, &*inputs)
         }
     }
 
@@ -748,10 +733,6 @@ pub struct FunctionArguments {
     ///
     /// If there is an error due to this option being set, it should be reported to this span.
     pub operation: Option<Span>,
-    /// Does not run the function as a real task, and instead runs it inside the parent task using
-    /// task-local state. The function call itself will not be cached, but cells will be created on
-    /// the parent task.
-    pub local: Option<Span>,
 }
 
 impl Parse for FunctionArguments {
@@ -776,24 +757,15 @@ impl Parse for FunctionArguments {
                 ("operation", Meta::Path(_)) => {
                     parsed_args.operation = Some(meta.span());
                 }
-                ("local", Meta::Path(_)) => {
-                    parsed_args.local = Some(meta.span());
-                }
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
-                        "unexpected token, expected one of: \"fs\", \"network\", \"operation\", \
-                         \"local\"",
+                        "unexpected token, expected one of: \"fs\", \"network\", or \"operation\"",
                     ));
                 }
             }
         }
-        if let (Some(_), Some(span)) = (parsed_args.local, parsed_args.operation) {
-            return Err(syn::Error::new(
-                span,
-                "\"operation\" is mutually exclusive with the \"local\" option",
-            ));
-        }
+
         Ok(parsed_args)
     }
 }
@@ -1111,7 +1083,6 @@ pub struct NativeFn {
     /// Used only if `is_method` is true.
     pub is_self_used: bool,
     pub filter_trait_call_args: Option<FilterTraitCallArgsTokens>,
-    pub local: bool,
 }
 
 impl NativeFn {
@@ -1127,7 +1098,6 @@ impl NativeFn {
             is_method,
             is_self_used,
             filter_trait_call_args,
-            local,
         } = self;
 
         if *is_method {
@@ -1153,9 +1123,6 @@ impl NativeFn {
                         turbo_tasks::macro_helpers::NativeFunction::new_method(
                             #function_path_string,
                             #function_global_name,
-                            turbo_tasks::macro_helpers::FunctionMeta {
-                                local: #local,
-                            },
                             #arg_filter,
                             #function_path,
                         )
@@ -1168,9 +1135,6 @@ impl NativeFn {
                         turbo_tasks::macro_helpers::NativeFunction::new_method_without_this(
                             #function_path_string,
                             #function_global_name,
-                            turbo_tasks::macro_helpers::FunctionMeta {
-                                local: #local,
-                            },
                             #arg_filter,
                             #function_path,
                         )
@@ -1184,9 +1148,6 @@ impl NativeFn {
                     turbo_tasks::macro_helpers::NativeFunction::new_function(
                         #function_path_string,
                         #function_global_name,
-                        turbo_tasks::macro_helpers::FunctionMeta {
-                            local: #local,
-                        },
                         #function_path,
                     )
                 }

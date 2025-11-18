@@ -4,9 +4,7 @@
 const nextConfig = {
   enablePrerenderSourceMaps: false,
 
-  experimental: {
-    cacheComponents: true,
-  },
+  cacheComponents: true,
 }
 
 module.exports = nextConfig

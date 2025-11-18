@@ -1,6 +1,6 @@
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, retry } from 'next-test-utils'
+import { waitForRedbox, retry } from 'next-test-utils'
 
 describe('parallel-routes-leaf-segments-build-error', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -30,7 +30,7 @@ describe('parallel-routes-leaf-segments-build-error', () => {
     it('should throw MissingDefaultParallelRouteError for @header slot', async () => {
       if (isNextDev) {
         const browser = await next.browser('/with-children/child')
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
 
         await retry(async () => {
           const logs = await browser.log()
@@ -56,7 +56,7 @@ describe('parallel-routes-leaf-segments-build-error', () => {
     it('should throw MissingDefaultParallelRouteError for parallel slots', async () => {
       if (isNextDev) {
         const browser = await next.browser('/with-groups-and-children/nested')
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
 
         await retry(async () => {
           const logs = await browser.log()

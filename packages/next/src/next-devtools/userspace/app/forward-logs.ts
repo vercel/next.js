@@ -49,6 +49,10 @@ class ClientFileLogger {
           return String(arg)
         if (arg === null) return 'null'
         if (arg === undefined) return 'undefined'
+        // Handle DOM nodes - only log the tag name to avoid React proxied elements
+        if (arg instanceof Element) {
+          return `<${arg.tagName.toLowerCase()}>`
+        }
         return safeStringifyWithDepth(arg)
       })
       .join(' ')

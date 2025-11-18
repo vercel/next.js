@@ -24,6 +24,7 @@ mod path_visitor;
 pub mod references;
 pub mod runtime_functions;
 pub mod side_effect_optimization;
+pub mod single_file_ecmascript_output;
 pub mod source_map;
 pub(crate) mod static_code;
 mod swc_comments;
@@ -100,6 +101,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, OptionModule},
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::ModuleReferences,
     reference_type::InnerAssets,
     resolve::{
@@ -168,8 +170,8 @@ pub enum SpecifiedModuleType {
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum TreeShakingMode {
-    #[default]
     ModuleFragments,
+    #[default]
     ReexportsOnly,
 }
 
@@ -270,6 +272,8 @@ pub struct EcmascriptOptions {
     // node_modules.
     /// Whether to replace `typeof window` with some constant value.
     pub enable_typeof_window_inlining: Option<TypeofWindow>,
+    /// Whether to allow accessing exports info via `__webpack_exports_info__`.
+    pub enable_exports_info_inlining: bool,
 
     pub inline_helpers: bool,
 }
@@ -500,7 +504,8 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
         if this.options.await?.keep_last_successful_parse {
             let real_result_value = real_result.await?;
             let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
-                this.last_successful_parse.set(real_result_value.clone());
+                this.last_successful_parse
+                    .set_unconditionally(real_result_value.clone());
                 real_result_value
             } else {
                 let state_ref = this.last_successful_parse.get();
@@ -745,6 +750,23 @@ impl Module for EcmascriptModuleAsset {
             Ok(Vc::cell(false))
         }
     }
+
+    #[turbo_tasks::function]
+    async fn is_marked_as_side_effect_free(
+        self: Vc<Self>,
+        side_effect_free_packages: Vc<Glob>,
+    ) -> Result<Vc<bool>> {
+        // Check package.json first, so that we can skip parsing the module if it's marked that way.
+        let pkg_side_effect_free = is_marked_as_side_effect_free(
+            self.ident().path().owned().await?,
+            side_effect_free_packages,
+        );
+        Ok(if *pkg_side_effect_free.await? {
+            pkg_side_effect_free
+        } else {
+            Vc::cell(self.analyze().await?.has_side_effect_free_directive)
+        })
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -780,23 +802,6 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn get_async_module(self: Vc<Self>) -> Result<Vc<OptionAsyncModule>> {
         Ok(*self.analyze().await?.async_module)
-    }
-
-    #[turbo_tasks::function]
-    async fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        side_effect_free_packages: Vc<Glob>,
-    ) -> Result<Vc<bool>> {
-        // Check package.json first, so that we can skip parsing the module if it's marked that way.
-        let pkg_side_effect_free = is_marked_as_side_effect_free(
-            self.ident().path().owned().await?,
-            side_effect_free_packages,
-        );
-        Ok(if *pkg_side_effect_free.await? {
-            pkg_side_effect_free
-        } else {
-            Vc::cell(self.analyze().await?.has_side_effect_free_directive)
-        })
     }
 }
 
@@ -867,6 +872,9 @@ struct ModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for ModuleChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
@@ -902,6 +910,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     async fn content_with_async_module_info(
         self: Vc<Self>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let span = tracing::info_span!(
             "code generation",
@@ -1024,7 +1033,14 @@ impl EcmascriptModuleContentOptions {
             let code_gens = code_generation
                 .await?
                 .iter()
-                .map(|c| c.code_generation(**chunking_context, scope_hoisting_context))
+                .map(|c| {
+                    c.code_generation(
+                        **chunking_context,
+                        scope_hoisting_context,
+                        *module,
+                        *exports,
+                    )
+                })
                 .try_join()
                 .await?;
 
