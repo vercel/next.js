@@ -74,12 +74,12 @@ When this occurs, `_idleStart` is reliably different between `t1` and `t2`.
 We can guarantee that multiple timers (with the same delay, usually `0`)
 run together without any delays by making sure that their `_idleStart`s are the same,
 because that's what's used to determine if a timer should be deferred or not.
-Luckily, this is property is currently exposed to userland and mutable,
+Luckily, this property is currently exposed to userland and mutable,
 so we can patch it.
 
 Another related trick we could potentially apply is making
 a timer immediately be considered expired by doing  `timer._idleStart -= 2`.
-(the value must be more `1`, the delay that actually gets set for `setTimeout(cb, 0)`).
+(the value must be more than `1`, the delay that actually gets set for `setTimeout(cb, 0)`).
 This makes node view this timer as "a 1ms timer scheduled 2ms ago",
 meaning that it should definitely run in the next timer phase.
 However, I'm not confident we know all the side effects of doing this,
@@ -156,7 +156,7 @@ export function createAtomicTimerGroup(delayMs = 0) {
         return timer
       }
 
-      // NodeJS timers to have a `_idleStart` property, but it doesn't exist e.g. in Bun.
+      // NodeJS timers have a `_idleStart` property, but it doesn't exist e.g. in Bun.
       // If it's not present, we'll warn and try to continue.
       try {
         if ('_idleStart' in timer && typeof timer._idleStart === 'number') {
