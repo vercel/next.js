@@ -698,7 +698,14 @@ export async function handleAction({
             throw new Error('invariant: Missing request body.')
           }
 
-          // TODO: add body limit
+          // Enforce body size limit for security
+          const bodySizeLimit = ctx.requestStore.serverActions?.bodySizeLimit || 1024 * 1024 // Default 1MB
+          if (typeof bodySizeLimit === 'number' && req.body.length > bodySizeLimit) {
+            const error = new Error('Request body exceeded size limit')
+            ;(error as any).statusCode = 413
+            ;(error as any).code = 'BODY_SIZE_LIMIT_EXCEEDED'
+            throw error
+          }
 
           // Use react-server-dom-webpack/server
           const {
@@ -1124,11 +1131,30 @@ export async function handleAction({
     // (but it could also be a bug in our code!)
 
     if (isFetchAction) {
-      // TODO: consider checking if the error is an `ApiError` and change status code
-      // so that we can respond with a 413 to requests that break the body size limit
-      // (but if we do that, we also need to make sure that whatever handles the non-fetch error path below does the same)
-      res.statusCode = 500
-      metadata.statusCode = 500
+      // Check for specific error types and set appropriate status codes
+      let statusCode = 500
+      
+      if (err && typeof err === 'object') {
+        // Handle ApiError or errors with statusCode property
+        if ('statusCode' in err && typeof err.statusCode === 'number') {
+          statusCode = err.statusCode
+        } else if ('code' in err && err.code === 'BODY_SIZE_LIMIT_EXCEEDED') {
+          statusCode = 413
+        } else if ('name' in err) {
+          // Handle common error types
+          const errorName = String(err.name)
+          if (errorName === 'ValidationError') {
+            statusCode = 400
+          } else if (errorName === 'UnauthorizedError') {
+            statusCode = 401
+          } else if (errorName === 'ForbiddenError') {
+            statusCode = 403
+          }
+        }
+      }
+      
+      res.statusCode = statusCode
+      metadata.statusCode = statusCode
       const promise = Promise.reject(err)
       try {
         // we need to await the promise to trigger the rejection early

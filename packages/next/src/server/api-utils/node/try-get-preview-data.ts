@@ -100,15 +100,24 @@ export function tryGetPreviewData(
   )
 
   try {
-    // TODO: strict runtime type checking
     const data = JSON.parse(decryptedPreviewData)
+    
+    // Validate that parsed data is a valid object
+    if (data === null || (typeof data !== 'object' && typeof data !== 'string')) {
+      return false
+    }
+    
     // Cache lookup
     Object.defineProperty(req, SYMBOL_PREVIEW_DATA, {
       value: data,
       enumerable: false,
     })
     return data
-  } catch {
+  } catch (error) {
+    // Invalid JSON or decryption failure
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Failed to parse preview data:', error)
+    }
     return false
   }
 }

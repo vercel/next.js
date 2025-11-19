@@ -351,7 +351,18 @@ export function getOverlayMiddleware({
         req.on('error', reject)
       })
 
-      const request = JSON.parse(body) as OriginalStackFramesRequest
+      let request: OriginalStackFramesRequest
+      try {
+        request = JSON.parse(body) as OriginalStackFramesRequest
+        if (!request || typeof request !== 'object' || !Array.isArray(request.frames)) {
+          throw new Error('Invalid request format')
+        }
+      } catch (error) {
+        return middlewareResponse.json(res, {
+          error: 'Invalid JSON or request format',
+        }, 400)
+      }
+
       const result = await getOriginalStackFrames({
         project,
         projectPath,

@@ -472,6 +472,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
         try {
           const payload = JSON.parse(data)
+          
+          if (!payload || typeof payload !== 'object' || !payload.event) {
+            console.error('Invalid HMR payload format')
+            return
+          }
 
           let traceChild:
             | {

@@ -1724,12 +1724,17 @@ export default async function loadConfig(
     return finalConfig
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
+    const hasTypescriptSupport = 
+      typeof process !== 'undefined' &&
+      process.features &&
+      'typescript' in process.features &&
+      (process.features as { typescript?: boolean }).typescript === true
+    
     const unsupportedConfig = findUp.sync(
       [
         `${configBaseName}.cjs`,
         `${configBaseName}.cts`,
-        // TODO: Remove `as any` once we bump @types/node to v22.10.0+
-        ...((process.features as any).typescript ? [] : ['next.config.mts']),
+        ...(hasTypescriptSupport ? [] : ['next.config.mts']),
         `${configBaseName}.json`,
         `${configBaseName}.jsx`,
         `${configBaseName}.tsx`,

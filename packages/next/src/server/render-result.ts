@@ -147,7 +147,16 @@ export default class RenderResult<
   }
 
   public assignMetadata(metadata: Metadata) {
-    Object.assign(this.metadata, metadata)
+    // Prevent prototype pollution by filtering dangerous keys
+    if (metadata && typeof metadata === 'object') {
+      for (const key in metadata) {
+        if (Object.prototype.hasOwnProperty.call(metadata, key)) {
+          if (key !== '__proto__' && key !== 'constructor' && key !== 'prototype') {
+            this.metadata[key as keyof Metadata] = metadata[key as keyof Metadata]
+          }
+        }
+      }
+    }
   }
 
   /**

@@ -162,14 +162,25 @@ function setDraftMode<T>(
   return res
 }
 
+function isValidPreviewData(data: unknown): data is object | string {
+  return (
+    data !== null &&
+    data !== undefined &&
+    (typeof data === 'string' || (typeof data === 'object' && !Array.isArray(data)))
+  )
+}
+
 function setPreviewData<T>(
   res: NextApiResponse<T>,
-  data: object | string, // TODO: strict runtime type checking
+  data: object | string,
   options: {
     maxAge?: number
     path?: string
   } & __ApiPreviewProps
 ): NextApiResponse<T> {
+  if (!isValidPreviewData(data)) {
+    throw new Error('Preview data must be a non-null object or string')
+  }
   if (!isValidData(options.previewModeId)) {
     throw new Error('invariant: invalid previewModeId')
   }

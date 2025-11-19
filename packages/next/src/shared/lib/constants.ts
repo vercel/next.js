@@ -111,9 +111,14 @@ export const CONFIG_FILES = [
   'next.config.mjs',
   'next.config.ts',
   // process.features can be undefined on Edge runtime
-  // TODO: Remove `as any` once we bump @types/node to v22.10.0+
-  ...((process?.features as any)?.typescript ? ['next.config.mts'] : []),
-]
+  // Check for TypeScript support in Node.js features
+  ...(typeof process !== 'undefined' &&
+  process.features &&
+  'typescript' in process.features &&
+  (process.features as { typescript?: boolean }).typescript
+    ? ['next.config.mts']
+    : []),
+] as const
 export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']
 export const CLIENT_PUBLIC_FILES_PATH = 'public'

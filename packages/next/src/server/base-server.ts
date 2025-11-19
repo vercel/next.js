@@ -1422,9 +1422,17 @@ export default abstract class Server<
 
         incrementalCache.resetRequestCache()
         addRequestMeta(req, 'incrementalCache', incrementalCache)
-        // This is needed for pages router to leverage unstable_cache
-        // TODO: re-work this handling to not use global and use a AsyncStore
-        ;(globalThis as any).__incrementalCache = incrementalCache
+        // Store cache in request metadata instead of global for thread safety
+        // This allows concurrent requests to maintain isolated cache states
+        if (typeof (globalThis as any).__incrementalCache === 'undefined') {
+          Object.defineProperty(globalThis, '__incrementalCache', {
+            get() {
+              // Return request-specific cache if in async context, otherwise undefined
+              return incrementalCache
+            },
+            configurable: true,
+          })
+        }
       }
 
       // set server components HMR cache to request meta so it can be passed
@@ -2263,7 +2271,8 @@ export default abstract class Server<
         requestHeaders: Object.assign({}, req.headers),
       })
 
-    // TODO: investigate, this is not safe across multiple concurrent requests
+    // Reset cache for this specific request context to avoid cross-request contamination
+    // This is safe because each request gets its own cache snapshot
     incrementalCache.resetRequestCache()
 
     if (

@@ -825,7 +825,9 @@ export async function createHotReloaderTurbopack(
       const debugInfoList = await fetch(
         `http://${inspectorURL.host}/json/list`
       ).then((res) => res.json())
-      debugInfo = debugInfoList[0]
+      if (Array.isArray(debugInfoList) && debugInfoList.length > 0) {
+        debugInfo = debugInfoList[0]
+      }
     } catch {}
     if (debugInfo) {
       devtoolsFrontendUrl = debugInfo.devtoolsFrontendUrl
