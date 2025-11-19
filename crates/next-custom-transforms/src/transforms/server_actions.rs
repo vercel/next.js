@@ -136,8 +136,6 @@ enum ServerActionsErrorKind {
     },
 }
 
-pub type OrderedAtomMap = BTreeMap<Atom, Atom>;
-
 #[tracing::instrument(level = tracing::Level::TRACE, skip_all)]
 pub fn server_actions<C: Comments>(
     file_name: &FileName,
@@ -196,7 +194,7 @@ pub fn server_actions<C: Comments>(
 /// Serializes the Server References into a magic comment prefixed by
 /// `__next_internal_action_entry_do_not_use__`.
 fn generate_server_references_comment(
-    export_names_ordered_by_reference_id: &OrderedAtomMap,
+    export_names_ordered_by_reference_id: &BTreeMap<&Atom, &Atom>,
     entry_path_query: Option<(&str, &str)>,
 ) -> String {
     format!(
@@ -2110,11 +2108,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         if self.has_action || self.has_cache {
             // Flip the map and convert it to a BTreeMap for deterministic
             // ordering in the server references comment.
-            let export_names_ordered_by_reference_id: OrderedAtomMap = self
+            let export_names_ordered_by_reference_id = self
                 .reference_ids_by_export_name
                 .iter()
-                .map(|(export_name, reference_id)| (reference_id.clone(), export_name.clone()))
-                .collect();
+                .map(|(export_name, reference_id)| (reference_id, export_name))
+                .collect::<BTreeMap<_, _>>();
 
             if self.config.is_react_server_layer {
                 // Prepend a special comment to the top of the file.
@@ -2190,7 +2188,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                 span: DUMMY_SP,
                                                 kind: CommentKind::Block,
                                                 text: generate_server_references_comment(
-                                                    &std::iter::once((ref_id, export)).collect(),
+                                                    &std::iter::once((&ref_id, &export)).collect(),
                                                     Some((
                                                         &self.file_name,
                                                         self.file_query.as_ref().map_or("", |v| v),
