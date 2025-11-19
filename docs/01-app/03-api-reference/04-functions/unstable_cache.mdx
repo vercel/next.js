@@ -89,6 +89,98 @@ export default async function Page({ params } }) {
 }
 ```
 
+### Database Query Example
+
+Here's a practical example of caching a database query with proper error handling:
+
+```tsx filename="app/lib/db.ts" switcher
+import { unstable_cache } from 'next/cache'
+import { db } from './database'
+
+export const getProduct = unstable_cache(
+  async (id: string) => {
+    const product = await db.product.findUnique({
+      where: { id },
+      include: { category: true, reviews: true },
+    })
+    
+    if (!product) {
+      throw new Error('Product not found')
+    }
+    
+    return product
+  },
+  ['product'],
+  {
+    tags: ['products'],
+    revalidate: 3600, // Cache for 1 hour
+  }
+)
+```
+
+```jsx filename="app/lib/db.js" switcher
+import { unstable_cache } from 'next/cache'
+import { db } from './database'
+
+export const getProduct = unstable_cache(
+  async (id) => {
+    const product = await db.product.findUnique({
+      where: { id },
+      include: { category: true, reviews: true },
+    })
+    
+    if (!product) {
+      throw new Error('Product not found')
+    }
+    
+    return product
+  },
+  ['product'],
+  {
+    tags: ['products'],
+    revalidate: 3600, // Cache for 1 hour
+  }
+)
+```
+
+Then use it in your component:
+
+```tsx filename="app/products/[id]/page.tsx" switcher
+import { getProduct } from '@/app/lib/db'
+
+export default async function ProductPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const product = await getProduct(id)
+
+  return (
+    <div>
+      <h1>{product.name}</h1>
+      <p>{product.description}</p>
+    </div>
+  )
+}
+```
+
+```jsx filename="app/products/[id]/page.jsx" switcher
+import { getProduct } from '@/app/lib/db'
+
+export default async function ProductPage({ params }) {
+  const { id } = await params
+  const product = await getProduct(id)
+
+  return (
+    <div>
+      <h1>{product.name}</h1>
+      <p>{product.description}</p>
+    </div>
+  )
+}
+```
+
 ## Version History
 
 | Version   | Changes                      |
