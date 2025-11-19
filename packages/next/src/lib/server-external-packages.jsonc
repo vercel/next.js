@@ -71,5 +71,5 @@
   "vscode-oniguruma",
   "webpack",
   "websocket",
-  "zeromq"
+  "zeromq",
 ]
