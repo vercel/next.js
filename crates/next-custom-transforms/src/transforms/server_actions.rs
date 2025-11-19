@@ -1626,82 +1626,85 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let in_cache_file = matches!(self.file_directive, Some(Directive::UseCache { .. }));
         let in_action_file = matches!(self.file_directive, Some(Directive::UseServer));
 
+        // Only track exported identifiers in server action files or cache files.
+        let should_track_exports = in_action_file || in_cache_file;
+
         // Pre-pass: Collect a mapping from local identifiers to export names for all exports
         // in server boundary files ('use server' or 'use cache'). This mapping is used to:
         // 1. Set current_export_name when visiting exported functions/variables during the main
-        //    pass
-        // 2. Register any remaining exports in the post-pass that weren't handled by the visitor
-        for stmt in stmts.iter() {
-            match stmt {
-                ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(export_default_expr)) => {
-                    if let Expr::Ident(ident) = &*export_default_expr.expr {
-                        self.export_name_by_local_id
-                            .insert(ident.to_id(), atom!("default"));
-                    }
-                }
-                ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(export_default_decl)) => {
-                    // export default function foo() {}
-                    if let DefaultDecl::Fn(f) = &export_default_decl.decl {
-                        if let Some(ident) = &f.ident {
+        //    pass.
+        // 2. Register any remaining exports in the post-pass that weren't handled by the visitor.
+        if should_track_exports {
+            for stmt in stmts.iter() {
+                match stmt {
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(export_default_expr)) => {
+                        if let Expr::Ident(ident) = &*export_default_expr.expr {
                             self.export_name_by_local_id
                                 .insert(ident.to_id(), atom!("default"));
                         }
                     }
-                }
-                ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
-                    // export function foo() {} or export const bar = ...
-                    match &export_decl.decl {
-                        Decl::Fn(f) => {
-                            self.export_name_by_local_id
-                                .insert(f.ident.to_id(), f.ident.sym.clone());
-                        }
-                        Decl::Var(var) => {
-                            for decl in &var.decls {
-                                // Collect all identifiers from the pattern (handles destructuring)
-                                let mut idents = vec![];
-                                collect_idents_in_pat(&decl.name, &mut idents);
-                                for ident in idents {
-                                    self.export_name_by_local_id
-                                        .insert(ident.to_id(), ident.sym.clone());
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-                ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named_export)) => {
-                    if named_export.src.is_none() {
-                        for spec in &named_export.specifiers {
-                            match spec {
-                                ExportSpecifier::Named(ExportNamedSpecifier {
-                                    orig: ModuleExportName::Ident(orig),
-                                    exported: Some(ModuleExportName::Ident(exported)),
-                                    ..
-                                }) => {
-                                    // export { foo as bar }
-                                    self.export_name_by_local_id
-                                        .insert(orig.to_id(), exported.sym.clone());
-                                }
-                                ExportSpecifier::Named(ExportNamedSpecifier {
-                                    orig: ModuleExportName::Ident(orig),
-                                    exported: None,
-                                    ..
-                                }) => {
-                                    // export { foo }
-                                    self.export_name_by_local_id
-                                        .insert(orig.to_id(), orig.sym.clone());
-                                }
-                                _ => {}
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(export_default_decl)) => {
+                        // export default function foo() {}
+                        if let DefaultDecl::Fn(f) = &export_default_decl.decl {
+                            if let Some(ident) = &f.ident {
+                                self.export_name_by_local_id
+                                    .insert(ident.to_id(), atom!("default"));
                             }
                         }
                     }
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
+                        // export function foo() {} or export const bar = ...
+                        match &export_decl.decl {
+                            Decl::Fn(f) => {
+                                self.export_name_by_local_id
+                                    .insert(f.ident.to_id(), f.ident.sym.clone());
+                            }
+                            Decl::Var(var) => {
+                                for decl in &var.decls {
+                                    // Collect all identifiers from the pattern (handles
+                                    // destructuring)
+                                    let mut idents = vec![];
+                                    collect_idents_in_pat(&decl.name, &mut idents);
+                                    for ident in idents {
+                                        self.export_name_by_local_id
+                                            .insert(ident.to_id(), ident.sym.clone());
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named_export)) => {
+                        if named_export.src.is_none() {
+                            for spec in &named_export.specifiers {
+                                match spec {
+                                    ExportSpecifier::Named(ExportNamedSpecifier {
+                                        orig: ModuleExportName::Ident(orig),
+                                        exported: Some(ModuleExportName::Ident(exported)),
+                                        ..
+                                    }) => {
+                                        // export { foo as bar }
+                                        self.export_name_by_local_id
+                                            .insert(orig.to_id(), exported.sym.clone());
+                                    }
+                                    ExportSpecifier::Named(ExportNamedSpecifier {
+                                        orig: ModuleExportName::Ident(orig),
+                                        exported: None,
+                                        ..
+                                    }) => {
+                                        // export { foo }
+                                        self.export_name_by_local_id
+                                            .insert(orig.to_id(), orig.sym.clone());
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
         }
-
-        // Only track exported identifiers in action files or cache files.
-        let should_track_exports = self.file_directive.is_some();
 
         let old_annotations = self.annotations.take();
         let mut new = Vec::with_capacity(stmts.len());
@@ -1709,7 +1712,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         // Main pass: For each statement, validate exports in server boundary files,
         // visit and transform it, and add it to the output along with any hoisted items.
         for mut stmt in stmts.take() {
-            // For server boundary files: validate exports and do pre-visit transformations.
             if should_track_exports {
                 let mut disallowed_export_span = DUMMY_SP;
 
