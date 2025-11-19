@@ -501,8 +501,17 @@ ${ENDGROUP}`)
     `jest${process.platform === 'win32' ? '.CMD' : ''}`
   )
   let firstError = true
-  let killed = false
+  const testController = new AbortController()
+  const testSignal = testController.signal
   let hadFailures = false
+
+  async function yourTurn() {
+    await sema.acquire()
+    if (testSignal.aborted) {
+      sema.release()
+      throw testSignal.reason
+    }
+  }
 
   const runTest = (/** @type {TestFile} */ test, isFinalRun, isRetry) =>
     new Promise((resolve, reject) => {
@@ -618,11 +627,11 @@ ${ENDGROUP}`)
           if (hideOutput) {
             await outputSema.acquire()
             const isExpanded =
-              firstError && !killed && !shouldContinueTestsOnError
+              firstError && !testSignal.aborted && !shouldContinueTestsOnError
             if (isExpanded) {
               firstError = false
               process.stdout.write(`❌ ${test.file} output:\n`)
-            } else if (killed) {
+            } else if (testSignal.aborted) {
               process.stdout.write(`${GROUP}${test.file} output (killed)\n`)
             } else {
               process.stdout.write(`${GROUP}❌ ${test.file} output\n`)
@@ -636,7 +645,7 @@ ${ENDGROUP}`)
               output += chunk.toString()
             }
 
-            if (process.env.CI && !killed) {
+            if (process.env.CI && !testSignal.aborted) {
               errorsPerTests.set(test.file, output)
             }
 
@@ -685,7 +694,7 @@ ${ENDGROUP}`)
   const directorySemas = new Map()
 
   const originalRetries = numRetries
-  await Promise.all(
+  const results = await Promise.allSettled(
     tests.map(async (test) => {
       const dirName = path.dirname(test.file)
       let dirSema = directorySemas.get(dirName)
@@ -697,7 +706,12 @@ ${ENDGROUP}`)
       }
       if (dirSema) await dirSema.acquire()
 
-      await sema.acquire()
+      try {
+        await yourTurn()
+      } catch (err) {
+        throw new Error(`Skipping ${test.file} due to abort.`, { cause: err })
+      }
+
       let passed = false
 
       const shouldSkipRetries = skipRetryTestManifest.find((t) =>
@@ -750,16 +764,16 @@ ${ENDGROUP}`)
       }
 
       if (!passed) {
-        console.error(
-          `${test.file} failed to pass within ${numRetries} retries`
+        hadFailures = true
+        const error = new Error(
+          // "failed to pass within" is a keyword parsed by next-pr-webhook
+          `Test ${test.file} failed to pass within ${numRetries} retries`
         )
+        console.error(error.message)
 
         if (!shouldContinueTestsOnError) {
-          killed = true
-          children.forEach((child) => child.kill())
-          cleanUpAndExit(1)
+          testController.abort(error)
         } else {
-          hadFailures = true
           console.log(
             `CONTINUE_ON_ERROR enabled, continuing tests after ${test.file} failed`
           )
@@ -797,6 +811,18 @@ ${ENDGROUP}`)
       if (dirSema) dirSema.release()
     })
   )
+
+  for (const result of results) {
+    if (result.status === 'rejected') {
+      hadFailures = true
+      console.error(result.reason)
+    }
+  }
+
+  if (hadFailures) {
+    // TODO: Does it make sense to update timings if there were failures?
+    return hadFailures
+  }
 
   if (options.timings) {
     const curTimings = {}
@@ -857,7 +883,6 @@ ${ENDGROUP}`)
     }
   }
 
-  // Return whether there were any failures
   return hadFailures
 }
 
@@ -865,12 +890,13 @@ main()
   .then((hadFailures) => {
     if (hadFailures) {
       console.error('Some tests failed')
-      cleanUpAndExit(1)
+      return cleanUpAndExit(1)
     } else {
-      cleanUpAndExit(0)
+      return cleanUpAndExit(0)
     }
   })
   .catch((err) => {
     console.error(err)
-    cleanUpAndExit(1)
+    // Retry cleanup one more time.
+    return cleanUpAndExit(1)
   })
