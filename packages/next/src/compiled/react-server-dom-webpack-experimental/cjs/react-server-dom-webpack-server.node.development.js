@@ -924,8 +924,10 @@
         case "Function.resolve":
         case "Function.all":
         case "Function.allSettled":
+        case "Function.any":
         case "Function.race":
         case "Function.try":
+        case "Function.withResolvers":
           return !0;
         default:
           return !1;
@@ -2062,116 +2064,144 @@
     function visitAsyncNode(request, task, node, visited, cutOff) {
       if (visited.has(node)) return visited.get(node);
       visited.set(node, null);
-      request = visitAsyncNodeImpl(request, task, node, visited, cutOff);
+      a: if (0 <= node.end && node.end <= request.timeOrigin) request = null;
+      else {
+        var previousIONode = null;
+        if (
+          null !== node.previous &&
+          ((previousIONode = visitAsyncNode(
+            request,
+            task,
+            node.previous,
+            visited,
+            cutOff
+          )),
+          void 0 === previousIONode)
+        ) {
+          request = void 0;
+          break a;
+        }
+        switch (node.tag) {
+          case 0:
+            request = node;
+            break;
+          case 3:
+            request = previousIONode;
+            break;
+          case 1:
+            var awaited = node.awaited,
+              promise = node.promise.deref();
+            if (null !== awaited)
+              if (
+                ((cutOff = visitAsyncNode(
+                  request,
+                  task,
+                  awaited,
+                  visited,
+                  cutOff
+                )),
+                void 0 === cutOff)
+              ) {
+                request = void 0;
+                break;
+              } else
+                null !== cutOff
+                  ? (previousIONode =
+                      1 === cutOff.tag
+                        ? cutOff
+                        : (null !== node.stack &&
+                              hasUnfilteredFrame(request, node.stack)) ||
+                            (void 0 !== promise &&
+                              "string" === typeof promise.displayName &&
+                              (null === cutOff.stack ||
+                                !hasUnfilteredFrame(request, cutOff.stack)))
+                          ? node
+                          : cutOff)
+                  : request.status === ABORTING &&
+                    node.start < request.abortTime &&
+                    node.end > request.abortTime &&
+                    ((null !== node.stack &&
+                      hasUnfilteredFrame(request, node.stack)) ||
+                      (void 0 !== promise &&
+                        "string" === typeof promise.displayName)) &&
+                    (previousIONode = node);
+            void 0 !== promise &&
+              ((cutOff = promise._debugInfo),
+              null == cutOff ||
+                visited.has(cutOff) ||
+                (visited.set(cutOff, null),
+                forwardDebugInfo(request, task, cutOff)));
+            request = previousIONode;
+            break;
+          case 4:
+            request = previousIONode;
+            break;
+          case 2:
+            awaited = node.awaited;
+            if (null !== awaited)
+              if (
+                ((promise = visitAsyncNode(
+                  request,
+                  task,
+                  awaited,
+                  visited,
+                  cutOff
+                )),
+                void 0 === promise)
+              ) {
+                request = void 0;
+                break;
+              } else if (null !== promise) {
+                var startTime = node.start,
+                  endTime = node.end;
+                startTime < cutOff
+                  ? ((previousIONode = promise),
+                    null !== node.stack &&
+                      isAwaitInUserspace(request, node.stack) &&
+                      void 0 !==
+                        (null === awaited.promise
+                          ? void 0
+                          : awaited.promise.deref()) &&
+                      serializeIONode(request, promise, awaited.promise))
+                  : null !== node.stack &&
+                      isAwaitInUserspace(request, node.stack)
+                    ? (request.status === ABORTING &&
+                        startTime > request.abortTime) ||
+                      (serializeIONode(request, promise, awaited.promise),
+                      visited.set(promise, null),
+                      null != node.owner &&
+                        outlineComponentInfo(request, node.owner),
+                      (cutOff = (0, request.environmentName)()),
+                      advanceTaskTime(request, task, startTime),
+                      request.pendingChunks++,
+                      emitDebugChunk(request, task.id, {
+                        awaited: promise,
+                        env: cutOff,
+                        owner: node.owner,
+                        stack:
+                          null === node.stack
+                            ? null
+                            : filterStackTrace(request, node.stack)
+                      }),
+                      markOperationEndTime(request, task, endTime),
+                      request.status === ABORTING && (previousIONode = void 0))
+                    : (previousIONode = promise);
+              }
+            cutOff = node.promise.deref();
+            void 0 !== cutOff &&
+              ((cutOff = cutOff._debugInfo),
+              null == cutOff ||
+                visited.has(cutOff) ||
+                (visited.set(cutOff, null),
+                forwardDebugInfo(request, task, cutOff)));
+            request = previousIONode;
+            break;
+          default:
+            throw Error("Unknown AsyncSequence tag. This is a bug in React.");
+        }
+      }
       null !== request && visited.set(node, request);
       return request;
-    }
-    function visitAsyncNodeImpl(request, task, node, visited, cutOff) {
-      if (0 <= node.end && node.end <= request.timeOrigin) return null;
-      var previousIONode = null;
-      if (
-        null !== node.previous &&
-        ((previousIONode = visitAsyncNode(
-          request,
-          task,
-          node.previous,
-          visited,
-          cutOff
-        )),
-        void 0 === previousIONode)
-      )
-        return;
-      switch (node.tag) {
-        case 0:
-          return node;
-        case 3:
-          return previousIONode;
-        case 1:
-          var awaited = node.awaited,
-            promise = node.promise.deref();
-          if (null !== awaited) {
-            cutOff = visitAsyncNode(request, task, awaited, visited, cutOff);
-            if (void 0 === cutOff) break;
-            null !== cutOff
-              ? (previousIONode =
-                  1 === cutOff.tag
-                    ? cutOff
-                    : (null !== node.stack &&
-                          hasUnfilteredFrame(request, node.stack)) ||
-                        (void 0 !== promise &&
-                          "string" === typeof promise.displayName &&
-                          (null === cutOff.stack ||
-                            !hasUnfilteredFrame(request, cutOff.stack)))
-                      ? node
-                      : cutOff)
-              : request.status === ABORTING &&
-                node.start < request.abortTime &&
-                node.end > request.abortTime &&
-                ((null !== node.stack &&
-                  hasUnfilteredFrame(request, node.stack)) ||
-                  (void 0 !== promise &&
-                    "string" === typeof promise.displayName)) &&
-                (previousIONode = node);
-          }
-          void 0 !== promise &&
-            ((node = promise._debugInfo),
-            null == node ||
-              visited.has(node) ||
-              (visited.set(node, null), forwardDebugInfo(request, task, node)));
-          return previousIONode;
-        case 4:
-          return previousIONode;
-        case 2:
-          awaited = node.awaited;
-          if (null !== awaited) {
-            promise = visitAsyncNode(request, task, awaited, visited, cutOff);
-            if (void 0 === promise) break;
-            if (null !== promise) {
-              var startTime = node.start,
-                endTime = node.end;
-              startTime < cutOff
-                ? ((previousIONode = promise),
-                  null !== node.stack &&
-                    isAwaitInUserspace(request, node.stack) &&
-                    void 0 !==
-                      (null === awaited.promise
-                        ? void 0
-                        : awaited.promise.deref()) &&
-                    serializeIONode(request, promise, awaited.promise))
-                : null !== node.stack && isAwaitInUserspace(request, node.stack)
-                  ? (request.status === ABORTING &&
-                      startTime > request.abortTime) ||
-                    (serializeIONode(request, promise, awaited.promise),
-                    visited.set(promise, null),
-                    null != node.owner &&
-                      outlineComponentInfo(request, node.owner),
-                    (cutOff = (0, request.environmentName)()),
-                    advanceTaskTime(request, task, startTime),
-                    request.pendingChunks++,
-                    emitDebugChunk(request, task.id, {
-                      awaited: promise,
-                      env: cutOff,
-                      owner: node.owner,
-                      stack:
-                        null === node.stack
-                          ? null
-                          : filterStackTrace(request, node.stack)
-                    }),
-                    markOperationEndTime(request, task, endTime),
-                    request.status === ABORTING && (previousIONode = void 0))
-                  : (previousIONode = promise);
-            }
-          }
-          node = node.promise.deref();
-          void 0 !== node &&
-            ((node = node._debugInfo),
-            null == node ||
-              visited.has(node) ||
-              (visited.set(node, null), forwardDebugInfo(request, task, node)));
-          return previousIONode;
-        default:
-          throw Error("Unknown AsyncSequence tag. This is a bug in React.");
-      }
     }
     function emitAsyncSequence(
       request,
@@ -5992,12 +6022,12 @@
             "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
           );
         pendingFiles++;
-        var JSCompiler_object_inline_chunks_251 = [];
+        var JSCompiler_object_inline_chunks_273 = [];
         value.on("data", function (chunk) {
-          JSCompiler_object_inline_chunks_251.push(chunk);
+          JSCompiler_object_inline_chunks_273.push(chunk);
         });
         value.on("end", function () {
-          var blob = new Blob(JSCompiler_object_inline_chunks_251, {
+          var blob = new Blob(JSCompiler_object_inline_chunks_273, {
             type: mimeType
           });
           response._formData.append(name, blob, filename);
