@@ -1,4 +1,5 @@
-/* __next_internal_action_entry_do_not_use__ {"00c18c215a6b7cdc64bf709f3a714ffdef1bf9651d":"default"} */ import { registerServerReference } from "private-next-rsc-server-reference";
+/* __next_internal_action_entry_do_not_use__ {"00c18c215a6b7cdc64bf709f3a714ffdef1bf9651d":"default"} */ ;
+import { registerServerReference } from "private-next-rsc-server-reference";
 export default async function $$RSC_SERVER_ACTION_0() {}
 Object["defineProperty"]($$RSC_SERVER_ACTION_0, "name", {
     value: "default"
