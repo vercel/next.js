@@ -874,9 +874,8 @@ impl<C: Comments> ServerActions<C> {
         // If this is an exported function, remove it from export_name_by_local_id so the
         // post-pass doesn't register it again (it's already registered above).
         if self.current_export_name.is_some() {
-            if let Some(ref original_fn_name) = fn_name {
-                self.export_name_by_local_id
-                    .swap_remove(&original_fn_name.to_id());
+            if let Some(fn_name) = fn_name {
+                self.export_name_by_local_id.swap_remove(&fn_name.to_id());
             }
         }
 
@@ -940,7 +939,7 @@ impl<C: Comments> ServerActions<C> {
                 reference_id: reference_id.clone(),
             });
         } else if self.in_default_export_decl {
-            let fn_ident = Ident::new(self.gen_action_ident(), span, self.private_ctxt);
+            let action_ident = Ident::new(self.gen_action_ident(), span, self.private_ctxt);
             let reference_id = self.generate_server_reference_id(export_name, false, params);
 
             self.has_action = true;
@@ -948,7 +947,7 @@ impl<C: Comments> ServerActions<C> {
                 .insert(export_name.clone(), reference_id.clone());
 
             self.server_reference_exports.push(ServerReferenceExport {
-                ident: fn_ident.clone(),
+                ident: action_ident.clone(),
                 export_name: export_name.clone(),
                 reference_id: reference_id.clone(),
             });
@@ -960,16 +959,17 @@ impl<C: Comments> ServerActions<C> {
                         kind: VarDeclKind::Const,
                         decls: vec![VarDeclarator {
                             span: DUMMY_SP,
-                            name: Pat::Ident(fn_ident.clone().into()),
+                            name: Pat::Ident(action_ident.clone().into()),
                             init: Some(take_fn_or_arrow_expr()),
                             definite: false,
                         }],
                         ..Default::default()
                     })))));
 
-                assign_name_to_ident(&fn_ident, "default", &mut self.hoisted_extra_items);
+                assign_name_to_ident(&action_ident, "default", &mut self.hoisted_extra_items);
 
-                self.rewrite_default_fn_expr_to_proxy_expr = Some(Box::new(Expr::Ident(fn_ident)));
+                self.rewrite_default_fn_expr_to_proxy_expr =
+                    Some(Box::new(Expr::Ident(action_ident)));
             }
         }
     }
@@ -995,7 +995,7 @@ impl<C: Comments> ServerActions<C> {
                 reference_id: reference_id.clone(),
             });
         } else if self.in_default_export_decl {
-            let fn_ident = Ident::new(self.gen_action_ident(), span, self.private_ctxt);
+            let cache_ident = Ident::new(self.gen_cache_ident(), span, self.private_ctxt);
             let reference_id = self.generate_server_reference_id(export_name, true, params);
 
             self.has_cache = true;
@@ -1003,7 +1003,7 @@ impl<C: Comments> ServerActions<C> {
                 .insert(export_name.clone(), reference_id.clone());
 
             self.server_reference_exports.push(ServerReferenceExport {
-                ident: fn_ident.clone(),
+                ident: cache_ident.clone(),
                 export_name: export_name.clone(),
                 reference_id: reference_id.clone(),
             });
@@ -1043,7 +1043,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             && matches!(&*expr.expr, Expr::Call(_))
         {
             let export_name = atom!("default");
-            let call_ident = Ident::new(self.gen_action_ident(), expr.span, self.private_ctxt);
+            let action_ident = Ident::new(self.gen_action_ident(), expr.span, self.private_ctxt);
             let action_id = self.generate_server_reference_id(&export_name, false, None);
 
             self.has_action = true;
@@ -1051,7 +1051,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 .insert(export_name.clone(), action_id.clone());
 
             self.server_reference_exports.push(ServerReferenceExport {
-                ident: call_ident.clone(),
+                ident: action_ident.clone(),
                 export_name: export_name.clone(),
                 reference_id: action_id.clone(),
             });
@@ -1061,14 +1061,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     kind: VarDeclKind::Const,
                     decls: vec![VarDeclarator {
                         span: DUMMY_SP,
-                        name: Pat::Ident(call_ident.clone().into()),
+                        name: Pat::Ident(action_ident.clone().into()),
                         init: Some(expr.expr.take()),
                         definite: false,
                     }],
                     ..Default::default()
                 })))));
 
-            self.rewrite_default_fn_expr_to_proxy_expr = Some(Box::new(Expr::Ident(call_ident)));
+            self.rewrite_default_fn_expr_to_proxy_expr = Some(Box::new(Expr::Ident(action_ident)));
         }
     }
 
@@ -1127,9 +1127,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 // If this is an exported function that failed validation, remove it from
                 // export_name_by_local_id so the post-pass doesn't register it.
                 if self.current_export_name.is_some() {
-                    if let Some(ref invalid_fn_name) = fn_name {
-                        self.export_name_by_local_id
-                            .swap_remove(&invalid_fn_name.to_id());
+                    if let Some(fn_name) = fn_name {
+                        self.export_name_by_local_id.swap_remove(&fn_name.to_id());
                     }
                 }
 
@@ -1337,16 +1336,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if let Some(directive) = directive {
-            if !self.validate_async_function(
-                a.is_async,
-                a.span,
-                self.arrow_or_fn_expr_ident.as_ref(),
-                &directive,
-            ) {
+            let arrow_ident = self.arrow_or_fn_expr_ident.clone();
+
+            if !self.validate_async_function(a.is_async, a.span, arrow_ident.as_ref(), &directive) {
                 // If this is an exported arrow function that failed validation, remove it from
                 // export_name_by_local_id so the post-pass doesn't register it.
                 if self.current_export_name.is_some() {
-                    if let Some(ref arrow_ident) = self.arrow_or_fn_expr_ident {
+                    if let Some(arrow_ident) = arrow_ident {
                         self.export_name_by_local_id
                             .swap_remove(&arrow_ident.to_id());
                     }
@@ -1370,8 +1366,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     let params: Vec<Param> =
                         a.params.iter().map(|p| Param::from(p.clone())).collect();
 
-                    let arrow_ident = self.arrow_or_fn_expr_ident.clone();
-
                     self.register_server_action_export(
                         &export_name,
                         arrow_ident.as_ref(),
@@ -1390,8 +1384,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     if let Some(export_name) = self.current_export_name.clone() {
                         let params: Vec<Param> =
                             a.params.iter().map(|p| Param::from(p.clone())).collect();
-
-                        let arrow_ident = self.arrow_or_fn_expr_ident.clone();
 
                         self.register_cache_export_on_client(
                             &export_name,
