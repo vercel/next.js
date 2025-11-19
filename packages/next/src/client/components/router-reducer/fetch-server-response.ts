@@ -102,21 +102,20 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
   return urlToUrlWithoutFlightMarker(new URL(url, location.origin)).toString()
 }
 
-let abortController = new AbortController()
+let isPageUnloading = false
 
 if (typeof window !== 'undefined') {
-  // Abort any in-flight requests when the page is unloaded, e.g. due to
-  // reloading the page or performing hard navigations. This allows us to ignore
-  // what would otherwise be a thrown TypeError when the browser cancels the
-  // requests.
+  // Track when the page is unloading, e.g. due to reloading the page or
+  // performing hard navigations. This allows us to suppress error logging when
+  // the browser cancels in-flight requests during page unload.
   window.addEventListener('pagehide', () => {
-    abortController.abort()
+    isPageUnloading = true
   })
 
-  // Use a fresh AbortController instance on pageshow, e.g. when navigating back
-  // and the JavaScript execution context is restored by the browser.
+  // Reset the flag on pageshow, e.g. when navigating back and the JavaScript
+  // execution context is restored by the browser.
   window.addEventListener('pageshow', () => {
-    abortController = new AbortController()
+    isPageUnloading = false
   })
 }
 
@@ -197,8 +196,7 @@ export async function fetchServerResponse(
       url,
       headers,
       fetchPriority,
-      shouldImmediatelyDecode,
-      abortController.signal
+      shouldImmediatelyDecode
     )
 
     const responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))
@@ -287,7 +285,7 @@ export async function fetchServerResponse(
       debugInfo: flightResponsePromise._debugInfo ?? null,
     }
   } catch (err) {
-    if (!abortController.signal.aborted) {
+    if (!isPageUnloading) {
       console.error(
         `Failed to fetch RSC payload for ${originalUrl}. Falling back to browser navigation.`,
         err
