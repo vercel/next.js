@@ -1,5 +1,6 @@
 #![feature(iter_intersperse)]
 #![feature(box_patterns)]
+#![feature(bufreader_peek)]
 
 use std::{hash::BuildHasherDefault, path::PathBuf, sync::Arc};
 
@@ -29,11 +30,11 @@ mod viewer;
 )]
 type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
 
-pub fn start_turbopack_trace_server(path: PathBuf) {
+pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) {
     let store = Arc::new(StoreContainer::new());
     let reader = TraceReader::spawn(store.clone(), path);
 
-    serve(store, 5747);
+    serve(store, port.unwrap_or(5747));
 
     reader.join().unwrap();
 }

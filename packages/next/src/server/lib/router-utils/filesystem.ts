@@ -45,6 +45,7 @@ import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { PrefetchRSCPathnameNormalizer } from '../../normalizers/request/prefetch-rsc'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
+import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 
 export type FsOutput = {
   type:
@@ -130,6 +131,15 @@ export async function setupFsCheck(opts: {
 
   const appFiles = new Set<string>()
   const pageFiles = new Set<string>()
+  // Map normalized path to the file path. This is essential
+  // for parallel and group routes as their original path
+  // cannot be restored from the request path.
+  // Example:
+  // [normalized-path] -> [file-path]
+  // /icon-<hash>.png -> .../app/@parallel/icon.png
+  // /icon-<hash>.png -> .../app/(group)/icon.png
+  // /icon.png -> .../app/icon.png
+  const staticMetadataFiles = new Map<string, string>()
   let dynamicRoutes: FilesystemDynamicRoute[] = []
 
   let middlewareMatcher:
@@ -430,6 +440,7 @@ export async function setupFsCheck(opts: {
 
     appFiles,
     pageFiles,
+    staticMetadataFiles,
     dynamicRoutes,
     nextDataRoutes,
 
@@ -493,6 +504,18 @@ export async function setupFsCheck(opts: {
         return {
           itemPath,
           type: 'nextImage',
+        }
+      }
+
+      if (opts.dev && isMetadataRouteFile(itemPath, [], false)) {
+        const fsPath = staticMetadataFiles.get(itemPath)
+        if (fsPath) {
+          return {
+            // "nextStaticFolder" sets Cache-Control "no-store" on dev.
+            type: 'nextStaticFolder',
+            fsPath,
+            itemPath: fsPath,
+          }
         }
       }
 

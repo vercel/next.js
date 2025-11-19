@@ -121,7 +121,7 @@ async fn dir_references(package_dir: FileSystemPath) -> Result<Vc<ModuleReferenc
             PatternMatch::File(_, file) => {
                 let realpath = file.realpath_with_links().await?;
                 results.extend(realpath.symlinks.iter().cloned());
-                match &realpath.path_or_error {
+                match &realpath.path_result {
                     Ok(path) => {
                         results.insert(path.clone());
                     }

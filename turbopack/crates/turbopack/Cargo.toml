@@ -6,12 +6,8 @@ license = "MIT"
 edition = "2024"
 autobenches = false
 
-[lib]
-bench = false
-
 [features]
 test_persistent_cache = []
-bench_against_node_nft = []
 
 [lints]
 workspace = true
@@ -45,15 +41,4 @@ turbopack-static = { workspace = true }
 turbopack-wasm = { workspace = true }
 
 [dev-dependencies]
-criterion = { workspace = true, features = ["async_tokio"] }
-difference = "2.0"
-rstest = { workspace = true }
-rstest_reuse = "0.5.0"
-tokio = { workspace = true }
-turbo-tasks-malloc = { workspace = true, default-features = false }
 turbo-tasks-backend = { workspace = true }
-
-
-[[bench]]
-name = "mod"
-harness = false

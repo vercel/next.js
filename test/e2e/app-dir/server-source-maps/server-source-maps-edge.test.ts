@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 import * as path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
@@ -29,7 +28,7 @@ describe('app-dir - server source maps edge runtime', () => {
         )
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
-        '\nError: rsc-error-log' +
+        'Error: rsc-error-log' +
           '\n    at logError (app/rsc-error-log/page.js:2:17)' +
           '\n    at Page (app/rsc-error-log/page.js:6:3)' +
           '\n  1 | function logError() {' +
@@ -58,7 +57,7 @@ describe('app-dir - server source maps edge runtime', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       expect(cliOutput).toContain(
-        '\n ⨯ Error: ssr-throw' +
+        '⨯ Error: ssr-throw' +
           '\n    at throwError (app/ssr-throw/page.js:4:9)' +
           '\n    at Page (app/ssr-throw/page.js:8:3)' +
           '\n  2 |' +
@@ -88,7 +87,7 @@ describe('app-dir - server source maps edge runtime', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       expect(cliOutput).toContain(
-        '\n ⨯ Error: rsc-throw' +
+        '⨯ Error: rsc-throw' +
           '\n    at throwError (app/rsc-throw/page.js:2:9)' +
           '\n    at Page (app/rsc-throw/page.js:6:3)' +
           '\n  1 | function throwError() {' +

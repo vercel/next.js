@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, trace::TraceRawVcs};
-use turbo_tasks_testing::{Registration, register, run_without_cache_check};
+use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
 
 static REGISTRATION: Registration = register!();
 
@@ -12,7 +12,7 @@ const EXPECTED_MSG: &str =
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_transient_emit_from_persistent() {
-    let result = run_without_cache_check(&REGISTRATION, async {
+    let result = run_once_without_cache_check(&REGISTRATION, async {
         emit_incorrect_task_input_operation(IncorrectTaskInput(U32Wrapper(123).resolved_cell()))
             .read_strongly_consistent()
             .await?;

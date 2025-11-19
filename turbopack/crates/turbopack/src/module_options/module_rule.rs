@@ -1,5 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -21,7 +22,8 @@ pub struct ModuleRule {
 
 impl ModuleRule {
     /// Creates a new module rule. Will not match internal references.
-    pub fn new(condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+    pub fn new(mut condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+        condition.flatten();
         ModuleRule {
             condition,
             effects,
@@ -30,7 +32,8 @@ impl ModuleRule {
     }
 
     /// Creates a new module rule. Will only match internal references.
-    pub fn new_internal(condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+    pub fn new_internal(mut condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+        condition.flatten();
         ModuleRule {
             condition,
             effects,
@@ -39,7 +42,8 @@ impl ModuleRule {
     }
 
     /// Creates a new module rule. Will match all references.
-    pub fn new_all(condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+    pub fn new_all(mut condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+        condition.flatten();
         ModuleRule {
             condition,
             effects,
@@ -117,6 +121,16 @@ pub enum ModuleType {
         #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
+    EcmascriptExtensionless {
+        /// Transforms to run first: transpile TypeScript, decorators, ...
+        preprocess: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to execute on standard EcmaScript (plus JSX): styled-jsx, swc plugins, ...
+        main: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run last: JSX, preset-env, scan for imports, ...
+        postprocess: ResolvedVc<EcmascriptInputTransforms>,
+        #[turbo_tasks(trace_ignore)]
+        options: ResolvedVc<EcmascriptOptions>,
+    },
     Json,
     Raw,
     NodeAddon,
@@ -125,8 +139,15 @@ pub enum ModuleType {
         ty: CssModuleAssetType,
         environment: Option<ResolvedVc<Environment>>,
     },
-    StaticUrlJs,
-    StaticUrlCss,
+    StaticUrlJs {
+        /// The tag that is passed to ChunkingContext::asset_url
+        tag: Option<RcStr>,
+    },
+    StaticUrlCss {
+        /// The tag that is passed to ChunkingContext::asset_url
+        tag: Option<RcStr>,
+    },
+    InlinedBytesJs,
     WebAssembly {
         source_ty: WebAssemblySourceType,
     },

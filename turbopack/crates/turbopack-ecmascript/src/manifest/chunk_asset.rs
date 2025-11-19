@@ -1,6 +1,7 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -11,7 +12,7 @@ use turbopack_core::{
     module_graph::{
         ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
     },
-    output::OutputAssets,
+    output::OutputAssetsWithReferenced,
     reference::{ModuleReferences, SingleOutputAssetReference},
 };
 
@@ -55,7 +56,7 @@ impl ManifestAsyncModule {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn chunks(&self) -> Vc<OutputAssets> {
+    pub(super) fn chunk_group(&self) -> Vc<OutputAssetsWithReferenced> {
         self.chunking_context.chunk_group_assets(
             self.inner.ident(),
             ChunkGroup::Async(ResolvedVc::upcast(self.inner)),
@@ -65,7 +66,9 @@ impl ManifestAsyncModule {
     }
 
     #[turbo_tasks::function]
-    pub async fn manifest_chunks(self: ResolvedVc<Self>) -> Result<Vc<OutputAssets>> {
+    pub async fn manifest_chunk_group(
+        self: ResolvedVc<Self>,
+    ) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         if let Some(chunk_items) = this.availability_info.available_modules() {
             let inner_module = ResolvedVc::upcast(this.inner);
@@ -76,9 +79,14 @@ impl ManifestAsyncModule {
             let module_or_batch = batches.get_entry(inner_module).await?;
             if let Some(chunkable_module_or_batch) =
                 ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
-                && *chunk_items.get(chunkable_module_or_batch).await?
+                && *chunk_items.get(chunkable_module_or_batch.into()).await?
             {
-                return Ok(Vc::cell(vec![]));
+                return Ok(OutputAssetsWithReferenced {
+                    assets: ResolvedVc::cell(vec![]),
+                    referenced_assets: ResolvedVc::cell(vec![]),
+                    references: ResolvedVc::cell(vec![]),
+                }
+                .cell());
             }
         }
         Ok(this.chunking_context.chunk_group_assets(
@@ -119,12 +127,11 @@ impl Module for ManifestAsyncModule {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let chunks = self.chunks();
+        let assets = self.chunk_group().expand_all_assets().await?;
 
         Ok(Vc::cell(
-            chunks
-                .await?
-                .iter()
+            assets
+                .into_iter()
                 .copied()
                 .map(|chunk| async move {
                     Ok(ResolvedVc::upcast(
@@ -139,6 +146,14 @@ impl Module for ManifestAsyncModule {
                 .try_join()
                 .await?,
         ))
+    }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(
+        self: Vc<Self>,
+        _side_effect_free_packages: Vc<Glob>,
+    ) -> Vc<bool> {
+        Vc::cell(true)
     }
 }
 

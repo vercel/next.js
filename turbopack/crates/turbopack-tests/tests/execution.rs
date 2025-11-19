@@ -17,7 +17,6 @@ use turbo_tasks::{
     debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemEntryType, FileSystemPath,
@@ -36,13 +35,11 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
     context::AssetContext,
-    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
-    issue::IssueDescriptionExt,
-    module_graph::{
-        ModuleGraph, chunk_group_info::ChunkGroupEntry, export_usage::compute_export_usage_info,
-    },
+    issue::CollectibleIssuesExt,
+    module_graph::{ModuleGraph, export_usage::compute_export_usage_info},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ExternalTraced, ExternalType,
@@ -50,7 +47,10 @@ use turbopack_core::{
     },
 };
 use turbopack_ecmascript_runtime::RuntimeType;
-use turbopack_node::{debug::should_debug, evaluate::evaluate};
+use turbopack_node::{
+    debug::should_debug,
+    evaluate::{evaluate, get_evaluate_entries},
+};
 use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 use turbopack_test_utils::{jest::JestRunResult, snapshot::UPDATE};
@@ -161,7 +161,7 @@ fn get_messages(js_results: JsResult) -> Vec<String> {
     messages
 }
 
-#[tokio::main(flavor = "current_thread")]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsResult> {
     // Clean up old output files.
     let output_path = resource.join("output");
@@ -243,6 +243,8 @@ struct TestOptions {
     scope_hoisting: Option<bool>,
     #[serde(default)]
     minify: bool,
+    #[serde(default)]
+    production_chunking: bool,
 }
 
 fn default_tree_shaking_mode() -> Option<TreeShakingMode> {
@@ -256,6 +258,7 @@ impl Default for TestOptions {
             remove_unused_exports: None,
             scope_hoisting: None,
             minify: false,
+            production_chunking: false,
         }
     }
 }
@@ -337,10 +340,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .get_relative_path_to(project_root)
         .context("Project path is in root path")?;
 
-    let env = Environment::new(
-        ExecutionEnvironment::NodeJsBuildTime(NodeJsEnvironment::default().resolved_cell()),
-        BrowserEnvironment::default().cell(),
-    )
+    let env = Environment::new(ExecutionEnvironment::NodeJsBuildTime(
+        NodeJsEnvironment::default().resolved_cell(),
+    ))
     .to_resolved()
     .await?;
 
@@ -404,6 +406,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
                 import_externals: true,
+                enable_exports_info_inlining: true,
                 ..Default::default()
             },
             environment: Some(env),
@@ -418,7 +421,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             )],
             ..Default::default()
         }
-        .into(),
+        .cell(),
         ResolveOptionsContext {
             enable_typescript: true,
             enable_node_modules: Some(project_root.clone()),
@@ -464,15 +467,11 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         )
         .module();
 
-    // Keep this in sync with what `evaluate` does internally
-    let module_graph = ModuleGraph::from_modules(
-        Vc::cell(vec![ChunkGroupEntry::Entry(vec![
-            jest_entry_asset.to_resolved().await?,
-        ])]),
-        false,
-    );
+    let entries = get_evaluate_entries(jest_entry_asset, asset_context, None);
 
-    let chunking_context = NodeJsChunkingContext::builder(
+    let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false);
+
+    let mut builder = NodeJsChunkingContext::builder(
         project_root.clone(),
         chunk_root_path.clone(),
         chunk_root_path_in_root_path_offset,
@@ -481,20 +480,6 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         static_root_path,
         env,
         RuntimeType::Development,
-    )
-    .chunking_config(
-        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-        ChunkingConfig {
-            min_chunk_size: 10_000,
-            ..Default::default()
-        },
-    )
-    .chunking_config(
-        Vc::<CssChunkType>::default().to_resolved().await?,
-        ChunkingConfig {
-            max_merge_chunk_size: 100_000,
-            ..Default::default()
-        },
     )
     .module_merging(options.scope_hoisting.unwrap_or(true))
     .minify_type(if options.minify {
@@ -512,29 +497,43 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         )
     } else {
         None
-    })
-    .build();
+    });
+    if options.production_chunking {
+        builder = builder
+            .chunking_config(
+                Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    min_chunk_size: 2_000,
+                    max_chunk_count_per_group: 40,
+                    max_merge_chunk_size: 200_000,
+                    ..Default::default()
+                },
+            )
+            .chunking_config(
+                Vc::<CssChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .nested_async_availability(true);
+    }
+    let chunking_context = builder.build();
 
     let res = evaluate(
-        jest_entry_asset,
+        entries,
         path.clone(),
         Vc::upcast(CommandLineProcessEnv::new()),
         Vc::upcast(test_source),
-        asset_context,
         Vc::upcast(chunking_context),
-        None,
+        module_graph,
         vec![],
         Completion::immutable(),
         should_debug("execution_test"),
     )
     .await?;
 
-    let single = res
-        .try_into_single()
-        .await
-        .context("test node result did not emit anything")?;
-
-    let SingleValue::Single(bytes) = single else {
+    let Some(str) = &*res else {
         return Ok(RunTestResult {
             js_result: JsResult {
                 uncaught_exceptions: vec![],
@@ -550,7 +549,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     };
 
     Ok(RunTestResult {
-        js_result: JsResult::resolved_cell(parse_json_with_source_context(bytes.to_str()?)?),
+        js_result: JsResult::resolved_cell(parse_json_with_source_context(str)?),
         path: path.clone(),
     }
     .cell())
@@ -564,9 +563,7 @@ async fn snapshot_issues(
     let PreparedTest { path, .. } = &*prepared_test.await?;
     let _ = run_result_op.resolve_strongly_consistent().await;
 
-    let captured_issues = run_result_op.peek_issues_with_path().await?;
-
-    let plain_issues = captured_issues.get_plain_issues().await?;
+    let plain_issues = run_result_op.peek_issues().get_plain_issues().await?;
 
     turbopack_test_utils::snapshot::snapshot_issues(plain_issues, path.join("issues")?, &REPO_ROOT)
         .await

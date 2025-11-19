@@ -107,6 +107,11 @@ impl Module for SideEffectsModule {
 
         Ok(Vc::cell(references))
     }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
+        Vc::cell(true)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -122,11 +127,6 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         self.resolved_as.get_exports()
-    }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(true)
     }
 }
 

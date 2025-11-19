@@ -502,7 +502,7 @@ pub struct EsmExports {
 #[derive(Hash, Debug)]
 pub struct ExpandedExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
-    /// Modules we couldn't analyse all exports of.
+    /// Modules we couldn't analyze all exports of.
     pub dynamic_exports: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 

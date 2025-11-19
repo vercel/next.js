@@ -25,7 +25,6 @@ impl EcmascriptChunkData<'_> {
             included,
             excluded,
             module_chunks,
-            references: _,
         } = chunk_data;
         if included.is_empty() && excluded.is_empty() && module_chunks.is_empty() {
             return EcmascriptChunkData::Simple(path);

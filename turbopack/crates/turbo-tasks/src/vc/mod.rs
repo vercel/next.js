@@ -22,7 +22,7 @@ use shrink_to_fit::ShrinkToFit;
 
 pub use self::{
     cast::{VcCast, VcValueTraitCast, VcValueTypeCast},
-    cell_mode::{VcCellMode, VcCellNewMode, VcCellSharedMode},
+    cell_mode::{VcCellCompareMode, VcCellMode, VcCellNewMode},
     default::ValueDefault,
     local::NonLocalValue,
     operation::{OperationValue, OperationVc},
@@ -40,7 +40,7 @@ use crate::{
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 
 /// A "Value Cell" (`Vc` for short) is a reference to a memoized computation result stored on the
-/// heap or in persistent cache, depending on the Turbo Engine backend implementation.
+/// heap or in filesystem cache, depending on the Turbo Engine backend implementation.
 ///
 /// In order to get a reference to the pointed value, you need to `.await` the [`Vc<T>`] to get a
 /// [`ReadRef<T>`][`ReadRef`]:

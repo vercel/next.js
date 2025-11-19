@@ -9,6 +9,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::ModuleReferences,
 };
 
@@ -112,6 +113,9 @@ struct MergedEcmascriptModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for MergedEcmascriptModuleChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for MergedEcmascriptModuleChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
@@ -147,6 +151,7 @@ impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
     async fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let module = self.module.await?;
         let modules = &module.modules;

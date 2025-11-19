@@ -31,6 +31,18 @@ pub enum ModuleOrBatch {
     None(usize),
 }
 
+impl ModuleOrBatch {
+    pub async fn ident_strings(self) -> Result<IdentStrings> {
+        Ok(match self {
+            ModuleOrBatch::Module(module) => {
+                IdentStrings::Single(module.ident().to_string().owned().await?)
+            }
+            ModuleOrBatch::Batch(batch) => IdentStrings::Multiple(batch.ident_strings().await?),
+            ModuleOrBatch::None(_) => IdentStrings::None,
+        })
+    }
+}
+
 #[derive(
     Debug,
     Copy,
@@ -62,7 +74,7 @@ impl ChunkableModuleOrBatch {
     pub async fn ident_strings(self) -> Result<IdentStrings> {
         Ok(match self {
             ChunkableModuleOrBatch::Module(module) => {
-                IdentStrings::Single(module.ident().to_string().await?)
+                IdentStrings::Single(module.ident().to_string().owned().await?)
             }
             ChunkableModuleOrBatch::Batch(batch) => {
                 IdentStrings::Multiple(batch.ident_strings().await?)
@@ -84,7 +96,7 @@ impl From<ChunkableModuleOrBatch> for ModuleOrBatch {
 
 pub enum IdentStrings {
     None,
-    Single(ReadRef<RcStr>),
+    Single(RcStr),
     Multiple(ReadRef<Vec<RcStr>>),
 }
 

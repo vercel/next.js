@@ -1,155 +1,4 @@
 [
-    Conditional {
-        condition: Constant(
-            True,
-        ),
-        kind: Ternary {
-            then: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                0,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Args(
-                                0,
-                            ),
-                        ),
-                        ExprOrSpread(
-                            Expr,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Cons,
-                        ),
-                    ],
-                ),
-            },
-            else: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                0,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Args(
-                                0,
-                            ),
-                        ),
-                        ExprOrSpread(
-                            Expr,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Alt,
-                        ),
-                    ],
-                ),
-            },
-        },
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    0,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Cond,
-            ),
-            CondExpr(
-                Test,
-            ),
-        ],
-        span: 18..34,
-        in_try: false,
-    },
     Call {
         func: FreeVar(
             "import",
@@ -274,7 +123,6 @@
             ),
         ],
         span: 57..81,
-        in_try: false,
     },
     Member {
         obj: FreeVar(
@@ -347,7 +195,6 @@
             ),
         ],
         span: 57..68,
-        in_try: false,
     },
     FreeVar {
         var: "process",
@@ -417,189 +264,6 @@
             ),
         ],
         span: 57..64,
-        in_try: false,
-    },
-    Conditional {
-        condition: Binary(
-            7,
-            Member(
-                5,
-                Member(
-                    3,
-                    FreeVar(
-                        "process",
-                    ),
-                    Constant(
-                        Str(
-                            Atom(
-                                "env",
-                            ),
-                        ),
-                    ),
-                ),
-                Constant(
-                    Str(
-                        Atom(
-                            "NEXT_RUNTIME",
-                        ),
-                    ),
-                ),
-            ),
-            StrictEqual,
-            Constant(
-                Str(
-                    Atom(
-                        "edge",
-                    ),
-                ),
-            ),
-        ),
-        kind: Ternary {
-            then: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                1,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Args(
-                                0,
-                            ),
-                        ),
-                        ExprOrSpread(
-                            Expr,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Cons,
-                        ),
-                    ],
-                ),
-            },
-            else: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                1,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Args(
-                                0,
-                            ),
-                        ),
-                        ExprOrSpread(
-                            Expr,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Alt,
-                        ),
-                    ],
-                ),
-            },
-        },
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    1,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Cond,
-            ),
-            CondExpr(
-                Test,
-            ),
-        ],
-        span: 57..196,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -892,7 +556,6 @@
             ),
         ],
         span: 208..268,
-        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -943,7 +606,6 @@
                             ),
                         ],
                         span: 354..355,
-                        in_try: false,
                     },
                 ],
                 range: Exact(
@@ -1012,7 +674,6 @@
                             ),
                         ],
                         span: 368..369,
-                        in_try: false,
                     },
                 ],
                 range: Exact(
@@ -1058,7 +719,6 @@
             ),
         ],
         span: 340..372,
-        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -1232,7 +892,6 @@
             ),
         ],
         span: 399..434,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -1337,6 +996,5 @@
             ),
         ],
         span: 453..454,
-        in_try: false,
     },
 ]

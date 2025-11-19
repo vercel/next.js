@@ -114,6 +114,7 @@ exports.isValidElementType = function (type) {
     type === REACT_STRICT_MODE_TYPE ||
     type === REACT_SUSPENSE_TYPE ||
     type === REACT_SUSPENSE_LIST_TYPE ||
+    type === REACT_VIEW_TRANSITION_TYPE ||
     ("object" === typeof type &&
       null !== type &&
       (type.$$typeof === REACT_LAZY_TYPE ||

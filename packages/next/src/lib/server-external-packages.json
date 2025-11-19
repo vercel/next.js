@@ -16,6 +16,7 @@
   "@sentry/profiling-node",
   "@sparticuz/chromium",
   "@sparticuz/chromium-min",
+  "@statsig/statsig-node-core",
   "@swc/core",
   "@xenova/transformers",
   "argon2",

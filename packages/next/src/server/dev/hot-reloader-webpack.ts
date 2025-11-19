@@ -10,8 +10,10 @@ import { type webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import {
   getOverlayMiddleware,
   getSourceMapMiddleware,
+  getOriginalStackFrames,
 } from './middleware-webpack'
 import { WebpackHotMiddleware } from './hot-middleware'
+import * as inspector from 'inspector'
 import { join, relative, isAbsolute, posix, dirname } from 'path'
 import {
   createEntrypoints,
@@ -21,9 +23,9 @@ import {
   getEdgeServerEntry,
   getAppEntry,
   runDependingOnPageType,
-  getStaticInfoIncludingLayouts,
   getInstrumentationEntry,
 } from '../../build/entries'
+import { getStaticInfoIncludingLayouts } from '../../build/get-static-info-including-layouts'
 import { watchCompilers } from '../../build/output'
 import * as Log from '../../build/output/log'
 import getBaseWebpackConfig, {
@@ -31,10 +33,9 @@ import getBaseWebpackConfig, {
   loadProjectInfo,
 } from '../../build/webpack-config'
 import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../lib/constants'
-import { recursiveDelete } from '../../lib/recursive-delete'
+import { recursiveDeleteSyncWithAsyncRetries } from '../../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
@@ -42,7 +43,6 @@ import {
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
 import type { __ApiPreviewProps } from '../api-utils'
-import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { findPageFile } from '../lib/find-page-file'
 import {
   BUILDING,
@@ -66,7 +66,6 @@ import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { existsSync, promises as fs } from 'fs'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
-import { parseVersionInfo } from './parse-version-info'
 import type { VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
@@ -83,25 +82,39 @@ import type { HmrMessageSentToBrowser } from './hot-reloader-types'
 import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
-import { getNodeDebugType } from '../lib/utils'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get-dev-overlay-font-middleware'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
-import { checkPersistentCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
-import { receiveBrowserLogsWebpack } from './browser-logs/receive-logs'
+import { checkFileSystemCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
+import {
+  receiveBrowserLogsWebpack,
+  handleClientFileLogs,
+} from './browser-logs/receive-logs'
 import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
 } from '../../next-devtools/server/devtools-config-middleware'
+import { getAttachNodejsDebuggerMiddleware } from '../../next-devtools/server/attach-nodejs-debugger-middleware'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   connectReactDebugChannel,
-  deleteReactDebugChannel,
-  setReactDebugChannel,
+  connectReactDebugChannelForHtmlRequest,
+  deleteReactDebugChannelForHtmlRequest,
+  setReactDebugChannelForHtmlRequest,
   type ReactDebugChannelForBrowser,
 } from './debug-channel'
+import {
+  getVersionInfo,
+  matchNextPageBundleRequest,
+} from './hot-reloader-shared-utils'
+import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
+import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
+import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
+import { getFileLogger } from './browser-logs/file-logger'
+import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
+import type { Lockfile } from '../../build/lockfile'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -163,10 +176,6 @@ function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
   return { preflight: false }
 }
 
-export const matchNextPageBundleRequest = getPathMatch(
-  '/_next/static/chunks/pages/:path*.js(\\.map|)'
-)
-
 // Iteratively look up the issuer till it ends up at the root
 function findEntryModule(
   module: webpack.Module,
@@ -209,34 +218,7 @@ function erroredPages(compilation: webpack.Compilation) {
   return failedPages
 }
 
-export async function getVersionInfo(): Promise<VersionInfo> {
-  let installed = '0.0.0'
-
-  try {
-    installed = require('next/package.json').version
-
-    let res
-
-    try {
-      // use NPM registry regardless user using Yarn
-      res = await fetch('https://registry.npmjs.org/-/package/next/dist-tags')
-    } catch {
-      // ignore fetch errors
-    }
-
-    if (!res || !res.ok) return { installed, staleness: 'unknown' }
-
-    const { latest, canary } = await res.json()
-
-    return parseVersionInfo({ installed, latest, canary })
-  } catch (e: any) {
-    console.error(e)
-    return { installed, staleness: 'unknown' }
-  }
-}
-
 export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
-  private hasAmpEntrypoints: boolean
   private hasAppRouterEntrypoints: boolean
   private hasPagesRouterEntrypoints: boolean
   private dir: string
@@ -268,6 +250,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private appDir?: string
   private telemetry: Telemetry
   private resetFetch: () => void
+  private lockfile: Lockfile | undefined
   private versionInfo: VersionInfo = {
     staleness: 'unknown',
     installed: '0.0.0',
@@ -275,6 +258,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private devtoolsFrontendUrl: string | undefined
   private reloadAfterInvalidation: boolean = false
   private isSrcDir: boolean
+  private cacheStatusesByRequestId = new Map<string, ServerCacheStatus>()
 
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -297,6 +281,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       appDir,
       telemetry,
       resetFetch,
+      lockfile,
+      onDevServerCleanup,
     }: {
       config: NextConfigComplete
       isSrcDir: boolean
@@ -309,9 +295,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       appDir?: string
       telemetry: Telemetry
       resetFetch: () => void
+      lockfile: Lockfile | undefined
+      onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
     }
   ) {
-    this.hasAmpEntrypoints = false
     this.hasAppRouterEntrypoints = false
     this.hasPagesRouterEntrypoints = false
     this.buildId = buildId
@@ -328,6 +315,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.serverPrevDocumentHash = null
     this.telemetry = telemetry
     this.resetFetch = resetFetch
+    this.lockfile = lockfile
 
     this.config = config
     this.previewProps = previewProps
@@ -338,6 +326,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
     // of the current `next dev` invocation.
     this.hotReloaderSpan.stop()
+
+    // Initialize log monitor for file logging
+    // Enable logging by default in development mode
+    const mcpServerEnabled = !!config.experimental.mcpServer
+    const fileLogger = getFileLogger()
+    fileLogger.initialize(this.distDir, mcpServerEnabled)
+
+    onDevServerCleanup?.(async () => {
+      await lockfile?.unlock()
+    })
   }
 
   public async run(
@@ -442,10 +440,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     req: IncomingMessage,
     _socket: Duplex,
     head: Buffer,
-    callback: (client: ws.WebSocket) => void
+    callback: (
+      client: ws.WebSocket,
+      context: { isLegacyClient: boolean }
+    ) => void
   ) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
-      const requestId = req.url
+      const htmlRequestId = req.url
         ? new URL(req.url, 'http://n').searchParams.get('id')
         : null
 
@@ -453,9 +454,18 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         throw new InvariantError('Did not start HotReloaderWebpack.')
       }
 
-      this.webpackHotMiddleware.onHMR(client, requestId)
+      this.webpackHotMiddleware.onHMR(client, htmlRequestId)
       this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
-      callback(client)
+
+      const enableCacheComponents = this.config.cacheComponents
+      // Clients with a request ID are inferred App Router clients. If Cache
+      // Components is not enabled, we consider those legacy clients. Pages
+      // Router clients are also considered legacy clients. TODO: Maybe mark
+      // clients as App Router / Pages Router clients explicitly, instead of
+      // inferring it from the presence of a request ID.
+      const isLegacyClient = !htmlRequestId || !enableCacheComponents
+
+      callback(client, { isLegacyClient })
 
       client.addEventListener('message', async ({ data }) => {
         data = typeof data !== 'string' ? data.toString() : data
@@ -603,6 +613,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               }
               break
             }
+            case 'client-file-logs': {
+              // Always log to file regardless of terminal flag
+              await handleClientFileLogs(payload.logs)
+              break
+            }
+            case 'ping': {
+              // Handle ping events to keep WebSocket connections alive
+              // No-op - just acknowledge the ping
+              break
+            }
             default: {
               break
             }
@@ -621,18 +641,28 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         }
       })
 
-      if (requestId) {
-        connectReactDebugChannel(
-          requestId,
+      if (htmlRequestId) {
+        connectReactDebugChannelForHtmlRequest(
+          htmlRequestId,
           this.sendToClient.bind(this, client)
         )
+        if (enableCacheComponents) {
+          const status = this.cacheStatusesByRequestId.get(htmlRequestId)
+          if (status) {
+            this.sendToClient(client, {
+              type: HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR,
+              state: status,
+            })
+            this.cacheStatusesByRequestId.delete(htmlRequestId)
+          }
+        }
       }
 
       client.on('close', () => {
-        this.webpackHotMiddleware?.deleteClient(client, requestId)
+        this.webpackHotMiddleware?.deleteClient(client, htmlRequestId)
 
-        if (requestId) {
-          deleteReactDebugChannel(requestId)
+        if (htmlRequestId) {
+          deleteReactDebugChannelForHtmlRequest(htmlRequestId)
         }
       })
     })
@@ -642,7 +672,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     return span
       .traceChild('clean')
       .traceAsyncFn(() =>
-        recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
+        recursiveDeleteSyncWithAsyncRetries(
+          join(this.dir, this.config.distDir),
+          /^(cache|lock)/
+        )
       )
   }
 
@@ -829,16 +862,15 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     this.versionInfo = await this.tracedGetVersionInfo(startSpan)
 
-    const nodeDebugType = getNodeDebugType()
-    if (nodeDebugType && !this.devtoolsFrontendUrl) {
-      const debugPort = process.debugPort
+    const inspectorURLRaw = inspector.url()
+    if (inspectorURLRaw !== undefined) {
+      const inspectorURL = new URL(inspectorURLRaw)
+
       let debugInfo
       try {
-        // It requires to use 127.0.0.1 instead of localhost for server-side fetching.
         const debugInfoList = await fetch(
-          `http://127.0.0.1:${debugPort}/json/list`
+          `http://${inspectorURL.host}/json/list`
         ).then((res) => res.json())
-        // There will be only one item for current process, so always get the first item.
         debugInfo = debugInfoList[0]
       } catch {}
       if (debugInfo) {
@@ -931,15 +963,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   page,
                 })
               : undefined
-
-            if (staticInfo?.type === PAGE_TYPES.PAGES) {
-              if (
-                staticInfo.config?.config?.amp === true ||
-                staticInfo.config?.config?.amp === 'hybrid'
-              ) {
-                this.hasAmpEntrypoints = true
-              }
-            }
 
             const isServerComponent =
               isAppPath && staticInfo?.rsc !== RSC_MODULE_TYPES.client
@@ -1177,10 +1200,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             })
           })
         )
-
-        if (!this.hasAmpEntrypoints) {
-          delete entrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP]
-        }
         if (!this.hasPagesRouterEntrypoints) {
           delete entrypoints[CLIENT_STATIC_FILES_RUNTIME_MAIN]
           delete entrypoints['pages/_app']
@@ -1189,7 +1208,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           delete entrypoints['pages/_document']
         }
         // Remove React Refresh entrypoint chunk as `app` doesn't require it.
-        if (!this.hasAmpEntrypoints && !this.hasPagesRouterEntrypoints) {
+        if (!this.hasPagesRouterEntrypoints) {
           delete entrypoints[CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]
         }
         if (!this.hasAppRouterEntrypoints) {
@@ -1206,7 +1225,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     await Promise.all(
       Array.from(getCacheDirectories(this.activeWebpackConfigs)).map(
-        checkPersistentCacheInvalidationAndCleanup
+        checkFileSystemCacheInvalidationAndCleanup
       )
     )
     this.multiCompiler = getWebpackBundler()(
@@ -1580,6 +1599,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       this.multiCompiler.compilers,
       this.versionInfo,
       this.devtoolsFrontendUrl,
+      this.config,
       initialDevToolsConfig
     )
 
@@ -1648,7 +1668,36 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           })
         },
       }),
+      getAttachNodejsDebuggerMiddleware(),
+      ...(this.config.experimental.mcpServer
+        ? [
+            getMcpMiddleware({
+              projectPath: this.dir,
+              distDir: this.distDir,
+              nextConfig: this.config,
+              pagesDir: this.pagesDir,
+              appDir: this.appDir,
+              sendHmrMessage: (message) => this.send(message),
+              getActiveConnectionCount: () =>
+                this.webpackHotMiddleware?.getClientCount() ?? 0,
+              getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
+            }),
+          ]
+        : []),
     ]
+
+    setStackFrameResolver(async (request) => {
+      return getOriginalStackFrames({
+        isServer: request.isServer,
+        isEdgeServer: request.isEdgeServer,
+        isAppDirectory: request.isAppDirectory,
+        frames: request.frames,
+        clientStats: () => this.clientStats,
+        serverStats: () => this.serverStats,
+        edgeServerStats: () => this.edgeServerStats,
+        rootDirectory: this.dir,
+      })
+    })
   }
 
   public invalidate(
@@ -1697,20 +1746,58 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.webpackHotMiddleware!.publishToClient(client, message)
   }
 
+  public sendToLegacyClients(message: HmrMessageSentToBrowser): void {
+    this.webpackHotMiddleware!.publishToLegacyClients(message)
+  }
+
+  public setCacheStatus(
+    status: ServerCacheStatus,
+    htmlRequestId: string
+  ): void {
+    const client = this.webpackHotMiddleware?.getClient(htmlRequestId)
+    if (client !== undefined) {
+      this.sendToClient(client, {
+        type: HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR,
+        state: status,
+      })
+    } else {
+      // If the client is not connected, store the status so that we can send it
+      // when the client connects.
+      this.cacheStatusesByRequestId.set(htmlRequestId, status)
+    }
+  }
+
   public setReactDebugChannel(
     debugChannel: ReactDebugChannelForBrowser,
     htmlRequestId: string,
     requestId: string
   ): void {
-    // Store the debug channel, regardless of whether the client is connected.
-    setReactDebugChannel(requestId, debugChannel)
-
-    // If the client is connected, we can connect the debug channel immediately.
-    // Otherwise, we'll do that when the client connects.
     const client = this.webpackHotMiddleware?.getClient(htmlRequestId)
 
-    if (client) {
-      connectReactDebugChannel(requestId, this.sendToClient.bind(this, client))
+    if (htmlRequestId === requestId) {
+      // The debug channel is for the HTML request.
+      if (client) {
+        // If the client is connected, we can connect the debug channel for
+        // the HTML request immediately.
+        connectReactDebugChannel(
+          htmlRequestId,
+          debugChannel,
+          this.sendToClient.bind(this, client)
+        )
+      } else {
+        // Otherwise, we'll do that when the client connects and just store
+        // the debug channel.
+        setReactDebugChannelForHtmlRequest(htmlRequestId, debugChannel)
+      }
+    } else if (client) {
+      // The debug channel is for a subsequent request (e.g. client-side
+      // navigation for server function call). If the client is not connected
+      // anymore, we don't need to connect the debug channel.
+      connectReactDebugChannel(
+        requestId,
+        debugChannel,
+        this.sendToClient.bind(this, client)
+      )
     }
   }
 
@@ -1756,6 +1843,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
 
   public close() {
+    // Report MCP telemetry if MCP server is enabled
+    recordMcpTelemetry(this.telemetry)
+
     this.webpackHotMiddleware?.close()
   }
 }

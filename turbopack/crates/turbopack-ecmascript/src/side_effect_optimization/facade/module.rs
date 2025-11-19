@@ -23,7 +23,6 @@ use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::CodeGens,
     export::Liveness,
-    parse::ParseResult,
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
         esm::{EsmExport, EsmExports, base::EsmAssetReferences},
@@ -176,6 +175,22 @@ impl Module for EcmascriptModuleFacadeModule {
             .await?;
         Ok(is_self_async)
     }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(
+        &self,
+        side_effect_free_packages: Vc<Glob>,
+    ) -> Result<Vc<bool>> {
+        Ok(match self.part {
+            ModulePart::Facade => self
+                .module
+                .is_marked_as_side_effect_free(side_effect_free_packages),
+            ModulePart::RenamedExport { .. } | ModulePart::RenamedNamespace { .. } => {
+                Vc::cell(true)
+            }
+            _ => bail!("Unexpected ModulePart for EcmascriptModuleFacadeModule"),
+        })
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -212,7 +227,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
         let (part_references, esm_references) = self.await?.specific_references().await?;
 
         Ok(EcmascriptModuleContentOptions {
-            parsed: ParseResult::empty().to_resolved().await?,
+            parsed: None,
             module: ResolvedVc::upcast(self),
             specified_module_type: SpecifiedModuleType::EcmaScript,
             chunking_context,
@@ -334,22 +349,6 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())
-    }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
-        &self,
-        side_effect_free_packages: Vc<Glob>,
-    ) -> Result<Vc<bool>> {
-        Ok(match self.part {
-            ModulePart::Facade => self
-                .module
-                .is_marked_as_side_effect_free(side_effect_free_packages),
-            ModulePart::RenamedExport { .. } | ModulePart::RenamedNamespace { .. } => {
-                Vc::cell(true)
-            }
-            _ => bail!("Unexpected ModulePart for EcmascriptModuleFacadeModule"),
-        })
     }
 
     #[turbo_tasks::function]

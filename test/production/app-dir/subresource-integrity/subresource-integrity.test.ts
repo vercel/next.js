@@ -226,7 +226,7 @@ import cheerio from 'cheerio'
             `script-src 'nonce-"><script></script>"'`
           )
 
-          if (runtime === 'node' && process.env.__NEXT_EXPERIMENTAL_PPR) {
+          if (runtime === 'node' && process.env.__NEXT_CACHE_COMPONENTS) {
             expect(res.status).toBe(200)
           } else {
             expect(res.status).toBe(500)

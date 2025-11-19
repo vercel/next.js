@@ -43,6 +43,8 @@ export function hasNecessaryDependencies(
       )
       const pkgDir = dirname(pkgPath)
 
+      resolutions.set(join(p.pkg, 'package.json'), pkgPath)
+
       if (p.exportsRestrict) {
         const fileNameToVerify = relative(p.pkg, p.file)
         if (fileNameToVerify) {

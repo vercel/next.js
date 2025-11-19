@@ -46,9 +46,13 @@ function mapUrlsToStrings(obj: any) {
 describe('accumulateMetadata', () => {
   describe('typing', () => {
     it('should support both sync and async metadata', async () => {
+      const generateMetadata = () => Promise.resolve({ description: 'child' })
       const metadataItems: MetadataItems = [
         [{ description: 'parent' }, null],
-        [() => Promise.resolve({ description: 'child' }), null],
+        [
+          Object.assign(generateMetadata, { $$original: generateMetadata }),
+          null,
+        ],
       ]
 
       const metadata = await accumulateMetadata(metadataItems)
@@ -467,16 +471,18 @@ describe('accumulateMetadata', () => {
         },
       })
 
+      function gM2() {
+        return {
+          openGraph: {
+            images: undefined,
+          },
+          // twitter is not specified, supposed to merged with openGraph but images should not be picked up
+        }
+      }
+
       const metadataItems2: MetadataItems = [
         [
-          function gM2() {
-            return {
-              openGraph: {
-                images: undefined,
-              },
-              // twitter is not specified, supposed to merged with openGraph but images should not be picked up
-            }
-          },
+          Object.assign(gM2, { $$original: gM2 }),
           // has static metadata files
           {
             icon: undefined,

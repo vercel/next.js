@@ -5,13 +5,13 @@
 use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn all_in_one() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let a: Vc<u32> = Vc::cell(4242);
         assert_eq!(*a.await?, 4242);
 
@@ -25,7 +25,7 @@ async fn all_in_one() {
             value: 42,
             next: Some(MyStructValue::new(a).to_resolved().await?),
         }
-        .into();
+        .cell();
 
         let result = my_function(a, b.get_last(), c, MyEnumValue::Yeah(42));
         assert_eq!(*result.my_trait_function().await?, "42");

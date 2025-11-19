@@ -35,6 +35,7 @@ use std::{
 
 use anyhow::{Context as _, anyhow, bail};
 use napi::bindgen_prelude::*;
+use napi_derive::napi;
 use next_custom_transforms::chain_transforms::{TransformOptions, custom_before_pass};
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};

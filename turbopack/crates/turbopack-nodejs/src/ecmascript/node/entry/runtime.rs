@@ -4,13 +4,13 @@ use anyhow::{Result, bail};
 use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{File, FileSystem, FileSystemPath, rope::RopeBuilder};
+use turbo_tasks_fs::{File, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
 };
 use turbopack_ecmascript::utils::StringifyJs;
@@ -46,11 +46,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
         let runtime_public_path = if let Some(path) = output_root.get_path_to(&runtime_path) {
             path
         } else {
-            bail!(
-                "runtime path {} is not in output root {}",
-                runtime_path.to_string(),
-                output_root.to_string()
-            );
+            bail!("runtime path {runtime_path} is not in output root {output_root}");
         };
 
         let mut code = CodeBuilder::default();
@@ -124,19 +120,9 @@ impl ValueToString for EcmascriptBuildNodeRuntimeChunk {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
+impl OutputAssetsReference for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
-    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
-        let ident = self.ident_for_path();
-
-        Ok(this
-            .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         let mut references = vec![];
 
@@ -148,7 +134,22 @@ impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
             references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?))
         }
 
-        Ok(Vc::cell(references))
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
+            references,
+        )))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
+    #[turbo_tasks::function]
+    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        let ident = self.ident_for_path();
+
+        Ok(this
+            .chunking_context
+            .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
     }
 }
 
@@ -156,23 +157,14 @@ impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
 impl Asset for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        let code = self.code().await?;
-
-        let rope = if code.has_source_map() {
-            let mut rope_builder = RopeBuilder::default();
-            rope_builder.concat(code.source_code());
-            let source_map_path = self.source_map().path().await?;
-            write!(
-                rope_builder,
-                "\n\n//# sourceMappingURL={}",
-                urlencoding::encode(source_map_path.file_name())
-            )?;
-            rope_builder.build()
-        } else {
-            code.source_code().clone()
-        };
-
-        Ok(AssetContent::file(File::from(rope).into()))
+        Ok(AssetContent::file(
+            File::from(
+                self.code()
+                    .to_rope_with_magic_comments(|| self.source_map())
+                    .await?,
+            )
+            .into(),
+        ))
     }
 }
 

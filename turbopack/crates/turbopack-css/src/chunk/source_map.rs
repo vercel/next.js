@@ -5,7 +5,7 @@ use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     source_map::{GenerateSourceMap, SourceMap},
 };
 
@@ -24,6 +24,9 @@ impl CssChunkSourceMapAsset {
         CssChunkSourceMapAsset { chunk }.cell()
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for CssChunkSourceMapAsset {}
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for CssChunkSourceMapAsset {

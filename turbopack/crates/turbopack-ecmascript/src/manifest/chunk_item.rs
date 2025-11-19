@@ -5,7 +5,7 @@ use turbopack_core::{
     chunk::{ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunksData},
     ident::AssetIdent,
     module::Module,
-    output::OutputAssets,
+    output::{OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 use super::chunk_asset::ManifestAsyncModule;
@@ -33,7 +33,7 @@ impl ManifestChunkItem {
     async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
         Ok(ChunkData::from_assets(
             self.chunking_context.output_root().owned().await?,
-            self.manifest.chunks(),
+            *self.manifest.chunk_group().await?.assets,
         ))
     }
 }
@@ -60,7 +60,15 @@ impl EcmascriptChunkItem for ManifestChunkItem {
             inner_code: code.into(),
             ..Default::default()
         }
-        .into())
+        .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for ManifestChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
+        self.manifest.chunk_group()
     }
 }
 
@@ -74,16 +82,6 @@ impl ChunkItem for ManifestChunkItem {
     #[turbo_tasks::function]
     fn content_ident(&self) -> Vc<AssetIdent> {
         self.manifest.content_ident()
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let mut references = vec![];
-        for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?.iter());
-        }
-
-        Ok(Vc::cell(references))
     }
 
     #[turbo_tasks::function]

@@ -6,7 +6,7 @@ use std::env::current_dir;
 use anyhow::Result;
 use clap::Parser;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
-use turbo_tasks::{ReadConsistency, TurboTasks};
+use turbo_tasks::TurboTasks;
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_malloc::TurboMalloc;
 use turbopack_nft::nft::node_file_trace;
@@ -90,7 +90,7 @@ async fn main_inner(args: Arguments) -> Result<()> {
         noop_backing_storage(),
     ));
 
-    let task = tt.spawn_once_task::<(), _>(async move {
+    tt.run_once(async move {
         node_file_trace(
             current_dir()?.to_str().unwrap().into(),
             args.entry.into(),
@@ -99,11 +99,9 @@ async fn main_inner(args: Arguments) -> Result<()> {
             args.depth,
         )
         .await?;
-        Ok(Default::default())
-    });
-
-    tt.wait_task_completion(task, ReadConsistency::Strong)
-        .await?;
+        Ok(())
+    })
+    .await?;
 
     // Intentionally leak this `Arc`. Otherwise we'll waste time during process exit performing a
     // ton of drop calls.

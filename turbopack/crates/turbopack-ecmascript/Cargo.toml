@@ -9,6 +9,14 @@ autobenches = false
 [lib]
 bench = false
 
+[[bench]]
+name = "analyzer"
+harness = false
+
+[[bench]]
+name = "references"
+harness = false
+
 [lints]
 workspace = true
 
@@ -55,6 +63,7 @@ swc_core = { workspace = true, features = [
   "common_sourcemap",
   "ecma_ast_shrink",
   "ecma_codegen",
+  "ecma_helpers_inline",
   "ecma_lints",
   "ecma_minifier",
   "ecma_parser",
@@ -80,8 +89,3 @@ turbo-tasks-backend = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 turbopack-test-utils = { workspace = true }
-
-
-[[bench]]
-name = "mod"
-harness = false

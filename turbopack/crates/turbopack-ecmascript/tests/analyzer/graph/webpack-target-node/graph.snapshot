@@ -13,11 +13,12 @@
                     ),
                 ),
                 [
-                    Unknown {
-                        original_value: None,
-                        reason: "unsupported expression",
-                        has_side_effects: true,
-                    },
+                    Variable(
+                        (
+                            "moduleId",
+                            #6,
+                        ),
+                    ),
                 ],
             ),
         ),
@@ -168,10 +169,13 @@
     (
         "handler",
         Function(
-            2,
+            3,
             760,
-            Constant(
-                Undefined,
+            Promise(
+                2,
+                Constant(
+                    Undefined,
+                ),
             ),
         ),
     ),

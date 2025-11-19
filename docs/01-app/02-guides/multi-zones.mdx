@@ -98,12 +98,12 @@ async rewrites() {
 
 > **Good to know**: URL paths should be unique to a zone. For example, two zones trying to serve `/blog` would create a routing conflict.
 
-### Routing requests using middleware
+### Routing requests using proxy
 
-Routing requests through [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites) is recommended to minimize latency overhead for the requests, but middleware can also be used when there is a need for a dynamic decision when routing. For example, if you are using a feature flag to decide where a path should be routed such as during a migration, you can use middleware.
+Routing requests through [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites) is recommended to minimize latency overhead for the requests, but proxy can also be used when there is a need for a dynamic decision when routing. For example, if you are using a feature flag to decide where a path should be routed such as during a migration, you can use proxy.
 
-```js filename="middleware.js"
-export async function middleware(request) {
+```js filename="proxy.js"
+export async function proxy(request) {
   const { pathname, search } = req.nextUrl;
   if (pathname === '/your-path' && myFeatureFlag.isEnabled()) {
     return NextResponse.rewrite(`${rewriteDomain}${pathname}${search});

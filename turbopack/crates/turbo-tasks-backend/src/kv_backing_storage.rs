@@ -357,8 +357,12 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 
                             let mut task_type_bytes = Vec::new();
                             for (task_type, task_id) in updates {
+                                serialize_task_type(
+                                    &task_type,
+                                    &mut task_type_bytes,
+                                    Some(task_id),
+                                )?;
                                 let task_id: u32 = *task_id;
-                                serialize_task_type(&task_type, &mut task_type_bytes, task_id)?;
 
                                 batch
                                     .put(
@@ -441,8 +445,8 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                     .entered();
                     let mut task_type_bytes = Vec::new();
                     for (task_type, task_id) in task_cache_updates.into_iter().flatten() {
+                        serialize_task_type(&task_type, &mut task_type_bytes, Some(task_id))?;
                         let task_id = *task_id;
-                        serialize_task_type(&task_type, &mut task_type_bytes, task_id)?;
 
                         batch
                             .put(
@@ -499,8 +503,10 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             tx: &D::ReadTransaction<'_>,
             task_type: &CachedTaskType,
         ) -> Result<Option<TaskId>> {
-            let task_type = POT_CONFIG.serialize(task_type)?;
-            let Some(bytes) = database.get(tx, KeySpace::ForwardTaskCache, &task_type)? else {
+            let mut task_type_bytes = Vec::new();
+            serialize_task_type(task_type, &mut task_type_bytes, None)?;
+            let Some(bytes) = database.get(tx, KeySpace::ForwardTaskCache, &task_type_bytes)?
+            else {
                 return Ok(None);
             };
             let bytes = bytes.borrow().try_into()?;
@@ -645,23 +651,81 @@ where
     Ok(())
 }
 
+// DO NOT REMOVE THE `inline(never)` ATTRIBUTE!
+// `pot` uses the pointer address of `&'static str` to deduplicate Symbols.
+// If this function is inlined into multiple different callsites it might inline the Serialize
+// implementation too, which can pull a `&'static str` from another crate into this crate.
+// Since string deduplication between crates is not guaranteed, it can lead to behavior changes due
+// to the pointer addresses. This can lead to lookup path and store path creating different
+// serialization of the same task type, which breaks task cache lookups.
+#[inline(never)]
 fn serialize_task_type(
-    task_type: &Arc<CachedTaskType>,
+    task_type: &CachedTaskType,
     mut task_type_bytes: &mut Vec<u8>,
-    task_id: u32,
+    task_id: Option<TaskId>,
 ) -> Result<()> {
     task_type_bytes.clear();
     POT_CONFIG
-        .serialize_into(&**task_type, &mut task_type_bytes)
-        .with_context(|| anyhow!("Unable to serialize task {task_id} cache key {task_type:?}"))?;
+        .serialize_into(task_type, &mut task_type_bytes)
+        .with_context(|| {
+            if let Some(task_id) = task_id {
+                anyhow!("Unable to serialize task {task_id} cache key {task_type:?}")
+            } else {
+                anyhow!("Unable to serialize task cache key {task_type:?}")
+            }
+        })?;
     #[cfg(feature = "verify_serialization")]
     {
         let deserialize: Result<CachedTaskType, _> = serde_path_to_error::deserialize(
             &mut pot_de_symbol_list().deserializer_for_slice(&*task_type_bytes)?,
         );
-        if let Err(err) = deserialize {
-            println!("Task type would not be deserializable {task_id}: {err:?}\n{task_type:#?}");
-            panic!("Task type would not be deserializable {task_id}: {err:?}");
+        match deserialize {
+            Err(err) => {
+                println!(
+                    "Task type would not be deserializable {task_id:?}: {err:?}\n{task_type:#?}"
+                );
+                panic!("Task type would not be deserializable {task_id:?}: {err:?}");
+            }
+            Ok(task_type2) => {
+                if &task_type2 != task_type {
+                    println!(
+                        "Task type would not round-trip {task_id:?}:\noriginal: \
+                         {task_type:#?}\nround-tripped: {task_type2:#?}"
+                    );
+                    panic!(
+                        "Task type would not round-trip {task_id:?}:\noriginal: \
+                         {task_type:#?}\nround-tripped: {task_type2:#?}"
+                    );
+                }
+                let mut bytes2 = Vec::new();
+                let result2 = POT_CONFIG.serialize_into(&task_type2, &mut bytes2);
+                match result2 {
+                    Err(err) => {
+                        println!(
+                            "Task type would not be serializable the second time {task_id:?}: \
+                             {err:?}\n{task_type2:#?}"
+                        );
+                        panic!(
+                            "Task type would not be serializable the second time {task_id:?}: \
+                             {err:?}\n{task_type2:#?}"
+                        );
+                    }
+                    Ok(()) => {
+                        if bytes2 != *task_type_bytes {
+                            println!(
+                                "Task type would not serialize to the same bytes the second time \
+                                 {task_id:?}:\noriginal: {:x?}\nsecond: {:x?}\n{task_type2:#?}",
+                                task_type_bytes, bytes2
+                            );
+                            panic!(
+                                "Task type would not serialize to the same bytes the second time \
+                                 {task_id:?}:\noriginal: {:x?}\nsecond: {:x?}\n{task_type2:#?}",
+                                task_type_bytes, bytes2
+                            );
+                        }
+                    }
+                }
+            }
         }
     }
     Ok(())
@@ -737,7 +801,10 @@ fn serialize(task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 1
                 if let Err(err) = serde_path_to_error::serialize(&item, &mut serializer) {
                     if item.is_optional() {
                         #[cfg(feature = "verify_serialization")]
-                        println!("Skipping non-serializable optional item for {task}: {item:?}");
+                        println!(
+                            "Skipping non-serializable optional item for {task}: {item:?} due to \
+                             {err}"
+                        );
                     } else {
                         error = Err(err).context({
                             anyhow!("Unable to serialize data item for {task}: {item:?}")

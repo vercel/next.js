@@ -1,12 +1,11 @@
 use std::future::Future;
 
 use anyhow::Result;
-use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
-use tracing::Instrument;
+use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::TraceRawVcs,
@@ -43,16 +42,6 @@ pub struct ClientReference {
     pub ty: ClientReferenceType,
 }
 
-impl ClientReference {
-    pub fn server_component(&self) -> Option<ResolvedVc<NextServerComponentModule>> {
-        self.server_component
-    }
-
-    pub fn ty(&self) -> ClientReferenceType {
-        self.ty
-    }
-}
-
 #[derive(
     Copy,
     Clone,
@@ -80,33 +69,6 @@ pub struct ClientReferenceGraphResult {
 }
 
 #[turbo_tasks::value(shared)]
-pub struct VisitedClientReferenceGraphNodes(FxHashSet<FindServerEntriesNode>);
-
-#[turbo_tasks::value_impl]
-impl VisitedClientReferenceGraphNodes {
-    #[turbo_tasks::function]
-    pub fn empty() -> Vc<Self> {
-        VisitedClientReferenceGraphNodes(Default::default()).cell()
-    }
-}
-
-#[turbo_tasks::value(transparent)]
-pub struct ClientReferenceTypes(FxIndexSet<ClientReferenceType>);
-
-#[turbo_tasks::value_impl]
-impl ClientReferenceGraphResult {
-    #[turbo_tasks::function]
-    pub fn types(&self) -> Vc<ClientReferenceTypes> {
-        Vc::cell(
-            self.client_references
-                .iter()
-                .map(|r| r.ty())
-                .collect::<FxIndexSet<_>>(),
-        )
-    }
-}
-
-#[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ServerEntries {
     pub server_component_entries: Vec<ResolvedVc<NextServerComponentModule>>,
@@ -121,14 +83,23 @@ pub async fn find_server_entries(
     include_traced: bool,
 ) -> Result<Vc<ServerEntries>> {
     async move {
+        let emit_spans = tracing::enabled!(Level::INFO);
         let graph = AdjacencyMap::new()
             .skip_duplicates()
             .visit(
                 vec![FindServerEntriesNode::Internal(
                     entry,
-                    entry.ident().to_string().await?,
+                    if emit_spans {
+                        // INVALIDATION: we don't need to invalidate when the span name changes
+                        Some(entry.ident_string().untracked().await?)
+                    } else {
+                        None
+                    },
                 )],
-                FindServerEntries { include_traced },
+                FindServerEntries {
+                    include_traced,
+                    emit_spans,
+                },
             )
             .await
             .completed()?
@@ -161,6 +132,7 @@ pub async fn find_server_entries(
 struct FindServerEntries {
     /// Whether to walk ChunkingType::Traced references
     include_traced: bool,
+    emit_spans: bool,
 }
 
 #[derive(
@@ -177,9 +149,12 @@ struct FindServerEntries {
 )]
 enum FindServerEntriesNode {
     ClientReference,
-    ServerComponentEntry(ResolvedVc<NextServerComponentModule>, ReadRef<RcStr>),
-    ServerUtilEntry(ResolvedVc<NextServerUtilityModule>, ReadRef<RcStr>),
-    Internal(ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>),
+    ServerComponentEntry(
+        ResolvedVc<NextServerComponentModule>,
+        Option<ReadRef<RcStr>>,
+    ),
+    ServerUtilEntry(ResolvedVc<NextServerUtilityModule>, Option<ReadRef<RcStr>>),
+    Internal(ResolvedVc<Box<dyn Module>>, Option<ReadRef<RcStr>>),
 }
 
 impl Visit<FindServerEntriesNode> for FindServerEntries {
@@ -208,6 +183,7 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
             FindServerEntriesNode::ServerUtilEntry(module, _) => Vc::upcast(**module),
             FindServerEntriesNode::ServerComponentEntry(module, _) => Vc::upcast(**module),
         };
+        let emit_spans = self.emit_spans;
         async move {
             // Pass include_traced to reuse the same cached `primary_chunkable_referenced_modules`
             // task result, but the traced references will be filtered out again afterwards.
@@ -235,7 +211,13 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                     {
                         return Ok(FindServerEntriesNode::ServerComponentEntry(
                             server_component_asset,
-                            server_component_asset.ident().to_string().await?,
+                            if emit_spans {
+                                // INVALIDATION: we don't need to invalidate when the span name
+                                // changes
+                                Some(server_component_asset.ident_string().untracked().await?)
+                            } else {
+                                None
+                            },
                         ));
                     }
 
@@ -244,13 +226,24 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                     {
                         return Ok(FindServerEntriesNode::ServerUtilEntry(
                             server_util_module,
-                            module.ident().to_string().await?,
+                            if emit_spans {
+                                // INVALIDATION: we don't need to invalidate when the span name
+                                // changes
+                                Some(module.ident_string().untracked().await?)
+                            } else {
+                                None
+                            },
                         ));
                     }
 
                     Ok(FindServerEntriesNode::Internal(
                         *module,
-                        module.ident().to_string().await?,
+                        if emit_spans {
+                            // INVALIDATION: we don't need to invalidate when the span name changes
+                            Some(module.ident_string().untracked().await?)
+                        } else {
+                            None
+                        },
                     ))
                 });
 
@@ -261,18 +254,21 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
     }
 
     fn span(&mut self, node: &FindServerEntriesNode) -> tracing::Span {
+        if !self.emit_spans {
+            return Span::current();
+        }
         match node {
             FindServerEntriesNode::ClientReference => {
                 tracing::info_span!("client reference")
             }
             FindServerEntriesNode::Internal(_, name) => {
-                tracing::info_span!("module", name = display(name))
+                tracing::info_span!("module", name = display(name.as_ref().unwrap()))
             }
             FindServerEntriesNode::ServerUtilEntry(_, name) => {
-                tracing::info_span!("server util", name = display(name))
+                tracing::info_span!("server util", name = display(name.as_ref().unwrap()))
             }
             FindServerEntriesNode::ServerComponentEntry(_, name) => {
-                tracing::info_span!("layout segment", name = display(name))
+                tracing::info_span!("layout segment", name = display(name.as_ref().unwrap()))
             }
         }
     }

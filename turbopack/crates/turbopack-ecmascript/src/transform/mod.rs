@@ -69,13 +69,7 @@ pub trait CustomTransformer: Debug {
 
 /// A wrapper around a TransformPlugin instance, allowing it to operate with
 /// the turbo_task caching requirements.
-#[turbo_tasks::value(
-    transparent,
-    serialization = "none",
-    eq = "manual",
-    into = "new",
-    cell = "new"
-)]
+#[turbo_tasks::value(transparent, serialization = "none", eq = "manual", cell = "new")]
 #[derive(Debug)]
 pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
 
@@ -191,7 +185,7 @@ impl EcmascriptInputTransform {
                     debug_assert_eq!(TURBOPACK_REFRESH.full, "__turbopack_context__.k");
                     debug_assert_eq!(TURBOPACK_MODULE.full, "__turbopack_context__.m");
                     let stmt = quote!(
-                        // AMP / No-JS mode does not inject these helpers
+                        // No-JS mode does not inject these helpers
                         "if (typeof globalThis.$RefreshHelpers$ === 'object' && \
                          globalThis.$RefreshHelpers !== null) { \
                          __turbopack_context__.k.registerExports(__turbopack_context__.m, \

@@ -4,21 +4,23 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{
-    FileContent, FileSystem, FileSystemPath, VirtualFileSystem, glob::Glob, rope::RopeBuilder,
-};
+use turbo_tasks_fs::{FileContent, FileSystem, VirtualFileSystem, glob::Glob, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
-    context::AssetContext,
     ident::{AssetIdent, Layer},
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     raw_module::RawModule,
     reference::{ModuleReference, ModuleReferences, TracedModuleReference},
     reference_type::ReferenceType,
-    resolve::parse::Request,
+    resolve::{
+        origin::{ResolveOrigin, ResolveOriginExt},
+        parse::Request,
+    },
 };
+use turbopack_resolve::ecmascript::{cjs_resolve, esm_resolve};
 
 use crate::{
     EcmascriptModuleContent,
@@ -63,8 +65,7 @@ pub enum CachedExternalType {
 pub enum CachedExternalTracingMode {
     Untraced,
     Traced {
-        externals_context: ResolvedVc<Box<dyn AssetContext>>,
-        root_origin: FileSystemPath,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     },
 }
 
@@ -84,7 +85,7 @@ impl Display for CachedExternalType {
 pub struct CachedExternalModule {
     request: RcStr,
     external_type: CachedExternalType,
-    tracing_mode: CachedExternalTracingMode,
+    analyze_mode: CachedExternalTracingMode,
 }
 
 #[turbo_tasks::value_impl]
@@ -93,12 +94,12 @@ impl CachedExternalModule {
     pub fn new(
         request: RcStr,
         external_type: CachedExternalType,
-        tracing_mode: CachedExternalTracingMode,
+        analyze_mode: CachedExternalTracingMode,
     ) -> Vc<Self> {
         Self::cell(CachedExternalModule {
             request,
             external_type,
-            tracing_mode,
+            analyze_mode,
         })
     }
 
@@ -226,31 +227,43 @@ impl Module for CachedExternalModule {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(match &self.tracing_mode {
+        Ok(match &self.analyze_mode {
             CachedExternalTracingMode::Untraced => ModuleReferences::empty(),
-            CachedExternalTracingMode::Traced {
-                externals_context,
-                root_origin,
-            } => {
-                let reference_type = match self.external_type {
+            CachedExternalTracingMode::Traced { origin } => {
+                let external_result = match self.external_type {
                     CachedExternalType::EcmaScriptViaImport => {
-                        ReferenceType::EcmaScriptModules(Default::default())
+                        esm_resolve(
+                            **origin,
+                            Request::parse_string(self.request.clone()),
+                            Default::default(),
+                            false,
+                            None,
+                        )
+                        .await?
+                        .await?
                     }
                     CachedExternalType::CommonJs | CachedExternalType::EcmaScriptViaRequire => {
-                        ReferenceType::CommonJs(Default::default())
+                        cjs_resolve(
+                            **origin,
+                            Request::parse_string(self.request.clone()),
+                            Default::default(),
+                            None,
+                            false,
+                        )
+                        .await?
                     }
-                    _ => ReferenceType::Undefined,
+                    CachedExternalType::Global | CachedExternalType::Script => {
+                        origin
+                            .resolve_asset(
+                                Request::parse_string(self.request.clone()),
+                                origin.resolve_options(ReferenceType::Undefined).await?,
+                                ReferenceType::Undefined,
+                            )
+                            .await?
+                            .await?
+                    }
                 };
 
-                let external_result = externals_context
-                    .resolve_asset(
-                        root_origin.clone(),
-                        Request::parse_string(self.request.clone()),
-                        externals_context
-                            .resolve_options(root_origin.clone(), reference_type.clone()),
-                        reference_type,
-                    )
-                    .await?;
                 let references = external_result
                     .affecting_sources
                     .iter()
@@ -284,6 +297,14 @@ impl Module for CachedExternalModule {
             self.external_type == CachedExternalType::EcmaScriptViaImport
                 || self.external_type == CachedExternalType::Script,
         ))
+    }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(
+        self: Vc<Self>,
+        _side_effect_free_packages: Vc<Glob>,
+    ) -> Vc<bool> {
+        Vc::cell(false)
     }
 }
 
@@ -344,14 +365,6 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
             },
         )
     }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        _side_effect_free_packages: Vc<Glob>,
-    ) -> Vc<bool> {
-        Vc::cell(false)
-    }
 }
 
 #[turbo_tasks::value]
@@ -359,6 +372,9 @@ pub struct CachedExternalModuleChunkItem {
     module: ResolvedVc<CachedExternalModule>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for CachedExternalModuleChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for CachedExternalModuleChunkItem {
@@ -394,6 +410,7 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
     fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Vc<EcmascriptChunkItemContent> {
         let async_module_options = self
             .module

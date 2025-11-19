@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox, retry } from 'next-test-utils'
+import { waitForNoRedbox, retry } from 'next-test-utils'
 
 // This tests file symlinks, but not directory symlinks. Directory symlinks are
 // known to break route manifest generation:
@@ -21,7 +21,7 @@ describe('HMR symlinks', () => {
       (content) => content.replace('symlink target', 'updated symlink target'),
       async () => {
         await retry(async () => {
-          await assertNoRedbox(browser)
+          await waitForNoRedbox(browser)
           expect(await browser.elementByCss('h1').text()).toBe(
             'This is the updated symlink target'
           )
@@ -47,7 +47,7 @@ describe('HMR symlinks', () => {
           'app/symlink-link/page.tsx'
         )
         await retry(async () => {
-          await assertNoRedbox(browser)
+          await waitForNoRedbox(browser)
           expect(await browser.elementByCss('h1').text()).toBe(
             'This is the second symlink target'
           )
@@ -77,7 +77,7 @@ describe('HMR symlinks', () => {
           'app/symlink-link/page.tsx'
         )
         await retry(async () => {
-          await assertNoRedbox(browser)
+          await waitForNoRedbox(browser)
           expect(await browser.elementByCss('h1').text()).toBe(
             'This is the second symlink target'
           )

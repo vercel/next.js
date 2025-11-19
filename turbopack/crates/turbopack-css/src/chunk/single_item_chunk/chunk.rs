@@ -10,7 +10,7 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     introspect::Introspectable,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
 };
 
@@ -53,7 +53,8 @@ impl SingleItemCssChunk {
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?;
-        let mut code = CodeBuilder::new(source_maps);
+        // CSS chunks never have debug IDs
+        let mut code = CodeBuilder::new(source_maps, false);
 
         if matches!(
             &*this.chunking_context.minify_type().await?,
@@ -76,6 +77,29 @@ impl SingleItemCssChunk {
     pub(super) fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
         let item = self.item.asset_ident();
         Ok(item.with_modifier(rcstr!("single item css chunk")))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for SingleItemCssChunk {
+    #[turbo_tasks::function]
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let this = self.await?;
+        let mut references = Vec::new();
+        if *this
+            .chunking_context
+            .reference_chunk_source_maps(Vc::upcast(self))
+            .await?
+        {
+            references.push(ResolvedVc::upcast(
+                SingleItemCssChunkSourceMapAsset::new(self)
+                    .to_resolved()
+                    .await?,
+            ));
+        }
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
+            references,
+        )))
     }
 }
 
@@ -105,24 +129,6 @@ impl OutputAsset for SingleItemCssChunk {
             None,
             rcstr!(".single.css"),
         ))
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-        let mut references = Vec::new();
-        if *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?
-        {
-            references.push(ResolvedVc::upcast(
-                SingleItemCssChunkSourceMapAsset::new(self)
-                    .to_resolved()
-                    .await?,
-            ));
-        }
-        Ok(Vc::cell(references))
     }
 }
 

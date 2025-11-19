@@ -30,6 +30,7 @@ use std::{cell::RefCell, env, path::PathBuf};
 
 use anyhow::anyhow;
 use napi::bindgen_prelude::{External, Status};
+use napi_derive::napi;
 use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
 use tracing_subscriber::{Layer, filter, layer::SubscriberExt, util::SubscriberInitExt};
 

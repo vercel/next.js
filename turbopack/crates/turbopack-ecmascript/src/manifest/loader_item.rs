@@ -12,7 +12,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
-    output::OutputAssets,
+    output::{OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 use super::chunk_asset::ManifestAsyncModule;
@@ -67,16 +67,24 @@ impl ManifestLoaderChunkItem {
 
     #[turbo_tasks::function]
     pub async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
-        let chunks = self.manifest.manifest_chunks();
+        let chunks = self.manifest.manifest_chunk_group().await?.assets;
         Ok(ChunkData::from_assets(
             self.chunking_context.output_root().owned().await?,
-            chunks,
+            *chunks,
         ))
     }
 
     #[turbo_tasks::function]
     pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
         module.ident().with_modifier(modifier())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for ManifestLoaderChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
+        self.manifest.manifest_chunk_group()
     }
 }
 
@@ -90,17 +98,6 @@ impl ChunkItem for ManifestLoaderChunkItem {
     #[turbo_tasks::function]
     fn content_ident(&self) -> Vc<AssetIdent> {
         self.manifest.content_ident().with_modifier(modifier())
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-        let mut references = this.manifest.manifest_chunks().owned().await?;
-        for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?);
-        }
-
-        Ok(Vc::cell(references))
     }
 
     #[turbo_tasks::function]
@@ -183,6 +180,6 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
             inner_code: code.into(),
             ..Default::default()
         }
-        .into())
+        .cell())
     }
 }

@@ -3,7 +3,7 @@ use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     asset::{Asset, AssetContent},
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     source::Source,
 };
 
@@ -14,6 +14,9 @@ pub struct RawOutput {
     path: FileSystemPath,
     source: ResolvedVc<Box<dyn Source>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for RawOutput {}
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for RawOutput {

@@ -221,6 +221,22 @@ where
         }
     }
 
+    /// Upcasts the given `Vec<ResolvedVc<T>>` to a `Vec<ResolvedVc<K>>`.
+    ///
+    /// See also: [`Vc::upcast`].
+    #[inline(always)]
+    pub fn upcast_vec<K>(vec: Vec<Self>) -> Vec<ResolvedVc<K>>
+    where
+        T: UpcastStrict<K>,
+        K: VcValueTrait + ?Sized,
+    {
+        debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<ResolvedVc<K>>());
+        debug_assert!(size_of::<Vec<ResolvedVc<T>>>() == size_of::<Vec<ResolvedVc<K>>>());
+        let (ptr, len, capacity) = vec.into_raw_parts();
+        // Safety: The memory layout of `ResolvedVc<T>` and `ResolvedVc<K>` is the same.
+        unsafe { Vec::from_raw_parts(ptr as *mut ResolvedVc<K>, len, capacity) }
+    }
+
     /// Cheaply converts a Vec of resolved Vcs to a Vec of Vcs.
     pub fn deref_vec(vec: Vec<ResolvedVc<T>>) -> Vec<Vc<T>> {
         debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());
@@ -243,7 +259,7 @@ where
     /// Returns `None` if the underlying value type does not implement `K`.
     ///
     /// **Note:** if the trait `T` is required to implement `K`, use [`ResolvedVc::upcast`] instead.
-    /// This provides stronger guarantees, removing the need for a [`Result`] return type.
+    /// That method provides stronger guarantees, removing the need for a [`Option`] return type.
     ///
     /// See also: [`Vc::try_resolve_sidecast`].
     pub fn try_sidecast<K>(this: Self) -> Option<ResolvedVc<K>>

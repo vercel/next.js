@@ -104,6 +104,8 @@ export const isNextDeploy = testMode === 'deploy'
  */
 export const isNextStart = !isNextDev && !isNextDeploy
 
+export const isRspack = !!process.env.NEXT_RSPACK
+
 if (!testMode) {
   throw new Error(
     `No 'NEXT_TEST_MODE' set in environment, this is required for e2e-utils`
@@ -234,6 +236,7 @@ export function nextTestSetup(
   isNextDeploy: boolean
   isNextStart: boolean
   isTurbopack: boolean
+  isRspack: boolean
   next: NextInstance
   skipped: boolean
 } {
@@ -287,17 +290,19 @@ export function nextTestSetup(
     get isNextDev() {
       return isNextDev
     },
-    get isTurbopack(): boolean {
-      return Boolean(
-        !process.env.NEXT_TEST_WASM && (options.turbo ?? shouldUseTurbopack())
-      )
-    },
-
     get isNextDeploy() {
       return isNextDeploy
     },
     get isNextStart() {
       return isNextStart
+    },
+    get isTurbopack() {
+      return Boolean(
+        !process.env.NEXT_TEST_WASM && (options.turbo ?? shouldUseTurbopack())
+      )
+    },
+    get isRspack() {
+      return isRspack
     },
     get next() {
       return nextProxy

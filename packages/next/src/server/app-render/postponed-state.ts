@@ -116,8 +116,7 @@ export async function getDynamicDataPostponedState(
 
 export function parsePostponedState(
   state: string,
-  pagePath: string,
-  params: Params | undefined
+  interpolatedParams: Params
 ): PostponedState {
   try {
     const postponedStringLengthMatch = state.match(/^([0-9]*):/)?.[1]
@@ -162,7 +161,10 @@ export function parsePostponedState(
         ) as OpaqueFallbackRouteParamEntries
 
         let postponed = postponedString.slice(match.length + length)
-        for (const [key, [searchValue, dynamicParamType]] of replacements) {
+        for (const [
+          segmentKey,
+          [searchValue, dynamicParamType],
+        ] of replacements) {
           const {
             treeSegment: [
               ,
@@ -172,10 +174,9 @@ export function parsePostponedState(
               value,
             ],
           } = getDynamicParam(
-            params ?? {},
-            key,
+            interpolatedParams,
+            segmentKey,
             dynamicParamType,
-            pagePath,
             null
           )
 

@@ -119,7 +119,7 @@ return NextResponse.rewrite(new URL('/proxy', request.url))
 
 ## `next()`
 
-The `next()` method is useful for Middleware, as it allows you to return early and continue routing.
+The `next()` method is useful for Proxy, as it allows you to return early and continue routing.
 
 ```ts
 import { NextResponse } from 'next/server'
@@ -147,12 +147,12 @@ return NextResponse.next({
 
 This forwards `newHeaders` upstream to the target page, route, or server action, and does not expose them to the client. While this pattern is useful for passing data upstream, it should be used with caution because the headers containing this data may be forwarded to external services.
 
-In contrast, `NextResponse.next({ headers })` is a shorthand for sending headers from middleware to the client. This is **NOT** good practice and should be avoided. Among other reasons because setting response headers like `Content-Type`, can override framework expectations (for example, the `Content-Type` used by Server Actions), leading to failed submissions or broken streaming responses.
+In contrast, `NextResponse.next({ headers })` is a shorthand for sending headers from proxy to the client. This is **NOT** good practice and should be avoided. Among other reasons because setting response headers like `Content-Type`, can override framework expectations (for example, the `Content-Type` used by Server Actions), leading to failed submissions or broken streaming responses.
 
 ```ts
 import { type NextRequest, NextResponse } from 'next/server'
 
-async function middleware(request: NextRequest) {
+async function proxy(request: NextRequest) {
   const headers = await injectAuth(request.headers)
   // DO NOT forward headers like this
   return NextResponse.next({ headers })
@@ -166,7 +166,7 @@ Prefer a defensive approach by creating a subset of incoming request headers usi
 ```ts
 import { type NextRequest, NextResponse } from 'next/server'
 
-function middleware(request: NextRequest) {
+function proxy(request: NextRequest) {
   const incoming = new Headers(request.headers)
   const forwarded = new Headers()
 

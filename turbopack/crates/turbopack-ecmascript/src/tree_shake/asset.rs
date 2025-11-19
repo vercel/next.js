@@ -14,7 +14,7 @@ use turbopack_core::{
 };
 
 use super::{
-    SplitResult, chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module, split,
+    SplitResult, chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module,
     split_module,
 };
 use crate::{
@@ -24,7 +24,7 @@ use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     parse::ParseResult,
     references::{
-        FollowExportsResult, analyse_ecmascript_module, esm::FoundExportType, follow_reexports,
+        FollowExportsResult, analyze_ecmascript_module, esm::FoundExportType, follow_reexports,
     },
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
     tree_shake::{Key, side_effect_module::SideEffectsModule},
@@ -43,8 +43,7 @@ pub struct EcmascriptModulePartAsset {
 impl EcmascriptParsable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn failsafe_parse(&self) -> Result<Vc<ParseResult>> {
-        let parsed = self.full_module.failsafe_parse();
-        let split_data = split(self.full_module.ident(), self.full_module.source(), parsed);
+        let split_data = split_module(*self.full_module);
         Ok(part_of_module(split_data, self.part.clone()))
     }
     #[turbo_tasks::function]
@@ -62,7 +61,7 @@ impl EcmascriptParsable for EcmascriptModulePartAsset {
 impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn analyze(&self) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyse_ecmascript_module(*self.full_module, Some(self.part.clone()))
+        analyze_ecmascript_module(*self.full_module, Some(self.part.clone()))
     }
 
     #[turbo_tasks::function]
@@ -95,7 +94,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
             .reference_module_source_maps(Vc::upcast(*self))
             .await?;
         Ok(EcmascriptModuleContentOptions {
-            parsed,
+            parsed: Some(parsed),
             module: ResolvedVc::upcast(self),
             specified_module_type: module_type_result.module_type,
             chunking_context,
@@ -347,6 +346,19 @@ impl Module for EcmascriptModulePartAsset {
 
         Ok(analyze.references())
     }
+
+    #[turbo_tasks::function]
+    async fn is_marked_as_side_effect_free(
+        &self,
+        side_effect_free_packages: Vc<Glob>,
+    ) -> Result<Vc<bool>> {
+        match self.part {
+            ModulePart::Exports | ModulePart::Export(..) => Ok(Vc::cell(true)),
+            _ => Ok(self
+                .full_module
+                .is_marked_as_side_effect_free(side_effect_free_packages)),
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -362,21 +374,6 @@ impl EcmascriptChunkPlaceable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
         Ok(*self.analyze().await?.exports)
-    }
-
-    #[turbo_tasks::function]
-    async fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        side_effect_free_packages: Vc<Glob>,
-    ) -> Result<Vc<bool>> {
-        let this = self.await?;
-
-        match this.part {
-            ModulePart::Exports | ModulePart::Export(..) => Ok(Vc::cell(true)),
-            _ => Ok(this
-                .full_module
-                .is_marked_as_side_effect_free(side_effect_free_packages)),
-        }
     }
 }
 
@@ -411,7 +408,7 @@ fn analyze(
     module: Vc<EcmascriptModuleAsset>,
     part: ModulePart,
 ) -> Vc<AnalyzeEcmascriptModuleResult> {
-    analyse_ecmascript_module(module, Some(part))
+    analyze_ecmascript_module(module, Some(part))
 }
 
 #[turbo_tasks::value_impl]

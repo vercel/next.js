@@ -3,7 +3,10 @@ import { cachedDelay, DebugRenderKind, uncachedIO } from '../../../../shared'
 import { connection } from 'next/server'
 import { lang } from 'next/root-params'
 
-export const unstable_prefetch = 'unstable_runtime'
+export const unstable_prefetch = {
+  mode: 'runtime',
+  samples: [{ params: { lang: 'en' } }],
+}
 
 export default async function Page() {
   return (

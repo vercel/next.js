@@ -657,7 +657,7 @@ impl Visit for Analyzer<'_> {
                             SyntaxContext::empty(),
                         )
                     },
-                    |ident| (ident.to_id()),
+                    |ident| ident.to_id(),
                 ),
                 DefaultDecl::TsInterfaceDecl(_) => {
                     // not matching, might happen due to eventual consistency

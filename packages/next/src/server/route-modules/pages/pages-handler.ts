@@ -69,6 +69,13 @@ export const getHandler = ({
       waitUntil: (prom: Promise<void>) => void
     }
   ): Promise<void> {
+    if (routeModule.isDev) {
+      addRequestMeta(
+        req,
+        'devRequestTimingInternalsEnd',
+        process.hrtime.bigint()
+      )
+    }
     let srcPage = originalSrcPage
     // turbopack doesn't normalize `/index` in the page name
     // so we need to to process dynamic routes properly
@@ -92,6 +99,19 @@ export const getHandler = ({
       res.end('Bad Request')
       ctx.waitUntil?.(Promise.resolve())
       return
+    }
+
+    const isMinimalMode = Boolean(
+      process.env.MINIMAL_MODE || getRequestMeta(req, 'minimalMode')
+    )
+
+    const render404 = async () => {
+      // TODO: should route-module itself handle rendering the 404
+      if (routerServerContext?.render404) {
+        await routerServerContext.render404(req, res, parsedUrl, false)
+      } else {
+        res.end('This page could not be found')
+      }
     }
 
     const {
@@ -128,7 +148,6 @@ export const getHandler = ({
     const hasGetInitialProps = Boolean(
       (userland.default || userland).getInitialProps
     )
-    const isAmp = query.amp && config?.amp
     let cacheKey: null | string = null
     let isIsrFallback = false
     let isNextDataRequest =
@@ -143,10 +162,10 @@ export const getHandler = ({
         (srcPage === '/' || resolvedPathname === '/') && locale
           ? ''
           : resolvedPathname
-      }${isAmp ? '.amp' : ''}`
+      }`
 
       if (is404Page || is500Page || isErrorPage) {
-        cacheKey = `${locale ? `/${locale}` : ''}${srcPage}${isAmp ? '.amp' : ''}`
+        cacheKey = `${locale ? `/${locale}` : ''}${srcPage}`
       }
 
       // ensure /index and / is normalized to one key
@@ -167,6 +186,9 @@ export const getHandler = ({
 
       if (prerenderInfo) {
         if (prerenderInfo.fallback === false && !isPrerendered) {
+          if (nextConfig.experimental.adapterPath) {
+            return await render404()
+          }
           throw new NoFallbackError()
         }
 
@@ -185,7 +207,7 @@ export const getHandler = ({
     // to the bot in the head.
     if (
       (isIsrFallback && isBot(req.headers['user-agent'] || '')) ||
-      getRequestMeta(req, 'minimalMode')
+      isMinimalMode
     ) {
       isIsrFallback = false
     }
@@ -204,10 +226,6 @@ export const getHandler = ({
         query: hasStaticProps ? {} : originalQuery,
       })
 
-      const publicRuntimeConfig: Record<string, string> =
-        routerServerContext?.publicRuntimeConfig ||
-        nextConfig.publicRuntimeConfig
-
       const handleResponse = async (span?: Span) => {
         const responseGenerator: ResponseGenerator = async ({
           previousCacheEntry,
@@ -220,11 +238,6 @@ export const getHandler = ({
                     hasStaticProps && !isExperimentalCompile
                       ? ({
                           ...params,
-                          ...(isAmp
-                            ? {
-                                amp: query.amp,
-                              }
-                            : {}),
                         } as ParsedUrlQuery)
                       : {
                           ...query,
@@ -276,18 +289,10 @@ export const getHandler = ({
 
                     multiZoneDraftMode,
                     basePath: nextConfig.basePath,
-                    canonicalBase: nextConfig.amp.canonicalBase || '',
-                    ampOptimizerConfig: nextConfig.experimental.amp?.optimizer,
                     disableOptimizedLoading:
                       nextConfig.experimental.disableOptimizedLoading,
                     largePageDataBytes:
                       nextConfig.experimental.largePageDataBytes,
-                    // Only the `publicRuntimeConfig` key is exposed to the client side
-                    // It'll be rendered as part of __NEXT_DATA__ on the client side
-                    runtimeConfig:
-                      Object.keys(publicRuntimeConfig).length > 0
-                        ? publicRuntimeConfig
-                        : undefined,
 
                     isExperimentalCompile,
 
@@ -334,10 +339,6 @@ export const getHandler = ({
                       routeModule.relativeProjectDir,
                       routeModule.distDir
                     ),
-
-                    ampSkipValidation:
-                      nextConfig.experimental.amp?.skipValidation,
-                    ampValidator: getRequestMeta(req, 'ampValidator'),
                   },
                 })
                 .then((renderResult): ResponseCacheEntry => {
@@ -412,7 +413,7 @@ export const getHandler = ({
                     })
                     span.updateName(name)
                   } else {
-                    span.updateName(`${method} ${req.url}`)
+                    span.updateName(`${method} ${srcPage}`)
                   }
                 })
             } catch (err: unknown) {
@@ -427,7 +428,7 @@ export const getHandler = ({
                     routePath: srcPage,
                     routeType: 'render',
                     revalidateReason: getRevalidateReason({
-                      isRevalidate: hasStaticProps,
+                      isStaticGeneration: hasStaticProps,
                       isOnDemandRevalidate,
                     }),
                   },
@@ -469,7 +470,8 @@ export const getHandler = ({
                   incrementalCache: await routeModule.getIncrementalCache(
                     req,
                     nextConfig,
-                    prerenderManifest
+                    prerenderManifest,
+                    isMinimalMode
                   ),
                   waitUntil: ctx.waitUntil,
                 }
@@ -484,7 +486,7 @@ export const getHandler = ({
           }
 
           if (
-            !getRequestMeta(req, 'minimalMode') &&
+            !isMinimalMode &&
             isOnDemandRevalidate &&
             revalidateOnlyGenerated &&
             !previousCacheEntry
@@ -533,6 +535,7 @@ export const getHandler = ({
           waitUntil: ctx.waitUntil,
           responseGenerator: responseGenerator,
           prerenderManifest,
+          isMinimalMode,
         })
 
         // if we got a cache hit this wasn't an ISR fallback
@@ -547,7 +550,7 @@ export const getHandler = ({
           return
         }
 
-        if (hasStaticProps && !getRequestMeta(req, 'minimalMode')) {
+        if (hasStaticProps && !isMinimalMode) {
           res.setHeader(
             'x-nextjs-cache',
             isOnDemandRevalidate
@@ -624,13 +627,7 @@ export const getHandler = ({
             res.end('{"notFound":true}')
             return
           }
-          // TODO: should route-module itself handle rendering the 404
-          if (routerServerContext?.render404) {
-            await routerServerContext.render404(req, res, parsedUrl, false)
-          } else {
-            res.end('This page could not be found')
-          }
-          return
+          return await render404()
         }
 
         if (result.value.kind === CachedRouteKind.REDIRECT) {
@@ -697,9 +694,7 @@ export const getHandler = ({
         // send the _error response
         if (
           getRequestMeta(req, 'customErrorRender') ||
-          (isErrorPage &&
-            getRequestMeta(req, 'minimalMode') &&
-            res.statusCode === 500)
+          (isErrorPage && isMinimalMode && res.statusCode === 500)
         ) {
           return null
         }
@@ -734,7 +729,7 @@ export const getHandler = ({
           tracer.trace(
             BaseServerSpan.handleRequest,
             {
-              spanName: `${method} ${req.url}`,
+              spanName: `${method} ${srcPage}`,
               kind: SpanKind.SERVER,
               attributes: {
                 'http.method': method,
@@ -755,7 +750,7 @@ export const getHandler = ({
             routePath: srcPage,
             routeType: 'render',
             revalidateReason: getRevalidateReason({
-              isRevalidate: hasStaticProps,
+              isStaticGeneration: hasStaticProps,
               isOnDemandRevalidate,
             }),
           },

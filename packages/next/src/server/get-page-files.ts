@@ -3,7 +3,6 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 
 export type BuildManifest = {
   devFiles: readonly string[]
-  ampDevFiles: readonly string[]
   polyfillFiles: readonly string[]
   lowPriorityFiles: readonly string[]
   rootMainFiles: readonly string[]
@@ -15,7 +14,6 @@ export type BuildManifest = {
     '/_app': readonly string[]
     [page: string]: readonly string[]
   }
-  ampFirstPages: readonly string[]
 }
 
 export function getPageFiles(

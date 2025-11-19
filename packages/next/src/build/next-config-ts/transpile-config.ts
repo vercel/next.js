@@ -105,8 +105,6 @@ async function getTsConfig(cwd: string): Promise<CompilerOptions> {
   return parsedCommandLine.options
 }
 
-let useNodeNativeTSLoader = true
-
 export async function transpileConfig({
   nextConfigPath,
   configFileName,
@@ -117,11 +115,13 @@ export async function transpileConfig({
   cwd: string
 }) {
   try {
-    if (useNodeNativeTSLoader) {
+    // envs are passed to the workers and preserve the flag
+    if (process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED === 'true') {
       try {
         // Node.js v22.10.0+
         // Value is 'strip' or 'transform' based on how the feature is enabled.
         // https://nodejs.org/api/process.html#processfeaturestypescript
+        // TODO: Remove `as any` once we bump @types/node to v22.10.0+
         if ((process.features as any).typescript) {
           // Run import() here to catch errors and fallback to legacy resolution.
           return (await import(pathToFileURL(nextConfigPath).href)).default
@@ -131,23 +131,24 @@ export async function transpileConfig({
           getNodeOptionsArgs().includes('--no-experimental-strip-types') ||
           process.execArgv.includes('--no-experimental-strip-types')
         ) {
-          // TODO: Add Next.js docs link.
           warnOnce(
             `Skipped resolving "${configFileName}" using Node.js native TypeScript resolution because it was disabled by the "--no-experimental-strip-types" flag.` +
-              ' Falling back to legacy resolution.'
+              ' Falling back to legacy resolution.' +
+              ' Learn more: https://nextjs.org/docs/app/api-reference/config/typescript#using-nodejs-native-typescript-resolver-for-nextconfigts'
           )
         }
 
         // Feature is not enabled, fallback to legacy resolution for current session.
-        useNodeNativeTSLoader = false
+        process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'false'
       } catch (cause) {
         warnOnce(
           `Failed to import "${configFileName}" using Node.js native TypeScript resolution.` +
-            ' Falling back to legacy resolution.',
+            ' Falling back to legacy resolution.' +
+            ' Learn more: https://nextjs.org/docs/app/api-reference/config/typescript#using-nodejs-native-typescript-resolver-for-nextconfigts',
           { cause }
         )
         // Once failed, fallback to legacy resolution for current session.
-        useNodeNativeTSLoader = false
+        process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'false'
       }
     }
 
@@ -157,9 +158,7 @@ export async function transpileConfig({
 
     return handleCJS({ cwd, nextConfigPath, compilerOptions })
   } catch (cause) {
-    throw new Error(`Failed to transpile "${configFileName}".`, {
-      cause,
-    })
+    throw new Error(`Failed to transpile "${configFileName}".`, { cause })
   }
 }
 
@@ -178,8 +177,9 @@ async function handleCJS({
     const nextConfigString = await readFile(nextConfigPath, 'utf8')
     // lazy require swc since it loads React before even setting NODE_ENV
     // resulting loading Development React on Production
-    const { transform } = require('../swc') as typeof import('../swc')
-    const { code } = await transform(nextConfigString, swcOptions)
+    const { loadBindings } = require('../swc') as typeof import('../swc')
+    const bindings = await loadBindings()
+    const { code } = await bindings.transform(nextConfigString, swcOptions)
 
     // register require hook only if require exists
     if (code.includes('require(')) {
@@ -188,7 +188,21 @@ async function handleCJS({
     }
 
     // filename & extension don't matter here
-    return requireFromString(code, resolve(cwd, 'next.config.compiled.js'))
+    const config = requireFromString(
+      code,
+      resolve(cwd, 'next.config.compiled.js')
+    )
+    // At this point we have already loaded the bindings without this configuration setting due to the `transform` call above.
+    // Possibly we fell back to wasm in which case, it all works out but if not we need to warn
+    // that the configuration was ignored.
+    if (config?.experimental?.useWasmBinary && !bindings.isWasm) {
+      warn(
+        'Using a next.config.ts file is incompatible with `experimental.useWasmBinary` unless ' +
+          '`--experimental-next-config-strip-types` is also passed.\nSetting `useWasmBinary` to `false'
+      )
+      config.experimental.useWasmBinary = false
+    }
+    return config
   } catch (error) {
     throw error
   } finally {
