@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
@@ -74,7 +74,11 @@ impl OutputAsset for RebasedAsset {
 #[turbo_tasks::value_impl]
 impl Asset for RebasedAsset {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.module.content()
+    async fn content(&self) -> Result<Vc<AssetContent>> {
+        if let Some(source) = *self.module.source().await? {
+            Ok(source.content())
+        } else {
+            bail!("Module has no source")
+        }
     }
 }

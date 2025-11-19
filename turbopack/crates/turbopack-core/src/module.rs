@@ -14,7 +14,7 @@ pub enum StyleType {
 /// A module. This usually represents parsed source code, which has references
 /// to other modules.
 #[turbo_tasks::value_trait]
-pub trait Module: Asset {
+pub trait Module {
     /// The identifier of the [Module]. It's expected to be unique and capture
     /// all properties of the [Module].
     #[turbo_tasks::function]

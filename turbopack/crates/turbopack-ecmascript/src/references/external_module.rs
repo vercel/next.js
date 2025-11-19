@@ -446,14 +446,6 @@ impl ModuleWithoutSelfAsync {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for ModuleWithoutSelfAsync {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.module.content()
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl Module for ModuleWithoutSelfAsync {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
