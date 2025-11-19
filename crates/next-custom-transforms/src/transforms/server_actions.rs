@@ -898,8 +898,8 @@ impl<C: Comments> ServerActions<C> {
         }
     }
 
-    /// Validates that a function is async and returns true if validation passes.
-    /// Returns false if the function is not async or if there are existing errors.
+    /// Validates that a function is async, emitting an error if not.
+    /// Returns true if async, false otherwise.
     fn validate_async_function(
         &self,
         is_async: bool,
@@ -907,20 +907,18 @@ impl<C: Comments> ServerActions<C> {
         fn_name: Option<&Ident>,
         directive: &Directive,
     ) -> bool {
-        if !is_async {
+        if is_async {
+            true
+        } else {
             emit_error(ServerActionsErrorKind::InlineSyncFunction {
                 span: fn_name.as_ref().map_or(span, |ident| ident.span),
                 directive: directive.clone(),
             });
-            return false;
+            false
         }
-
-        let has_errors = HANDLER.with(|handler| handler.has_errors());
-        !has_errors
     }
 
-    /// Registers a server action export (for 'use server' directive).
-    /// Handles both named exports and default exports, with optional hoisting on server layer.
+    /// Registers a server action export (for a 'use server' file directive).
     fn register_server_action_export(
         &mut self,
         export_name: &Atom,
@@ -955,7 +953,7 @@ impl<C: Comments> ServerActions<C> {
                 reference_id: reference_id.clone(),
             });
 
-            // On server layer, also hoist the function and rewrite the default export
+            // For the server layer, also hoist the function and rewrite the default export.
             if self.config.is_react_server_layer {
                 self.hoisted_extra_items
                     .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
@@ -976,8 +974,7 @@ impl<C: Comments> ServerActions<C> {
         }
     }
 
-    /// Registers a cache export on client layer (for 'use cache' directive).
-    /// Only registers without hoisting, as hoisting happens in a different code path.
+    /// Registers a cache export for the client layer (for 'use cache' directive).
     fn register_cache_export_on_client(
         &mut self,
         export_name: &Atom,
@@ -1130,8 +1127,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 return;
             }
 
-            // For server action files, register exports without hoisting (both server and client
-            // layers)
+            // If this function is invalid, or any prior errors have been emitted, skip further
+            // processing.
+            if HANDLER.with(|handler| handler.has_errors()) {
+                return;
+            }
+
+            // For server action files, register exports without hoisting (for both server and
+            // client layers).
             if matches!(self.file_directive, Some(Directive::UseServer))
                 && matches!(directive, Directive::UseServer)
             {
@@ -1156,7 +1159,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 }
             }
 
-            // On client layer, register cache exports without hoisting to get proper parameter info
+            // For the client layer, register cache exports without hoisting.
             if !self.config.is_react_server_layer {
                 if matches!(directive, Directive::UseCache { .. }) {
                     if let Some(export_name) = self.current_export_name.clone() {
@@ -1213,7 +1216,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     self.rewrite_expr_to_proxy_expr = Some(new_expr);
                 }
             } else {
-                // For inline server actions (not in a server action file), we always hoist.
                 // Collect all the identifiers defined inside the closure and used
                 // in the action function. With deduplication.
                 retain_names_from_declared_idents(
@@ -1335,8 +1337,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 return;
             }
 
-            // For server action files, register exports without hoisting (both server and client
-            // layers)
+            // If this function is invalid, or any prior errors have been emitted, skip further
+            // processing.
+            if HANDLER.with(|handler| handler.has_errors()) {
+                return;
+            }
+
+            // For server action files, register exports without hoisting (for both server and
+            // client layers).
             if matches!(self.file_directive, Some(Directive::UseServer))
                 && matches!(directive, Directive::UseServer)
             {
@@ -1358,7 +1366,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 }
             }
 
-            // On client layer, register cache exports without hoisting to get proper parameter info
+            // For the client layer, register cache exports without hoisting.
             if !self.config.is_react_server_layer {
                 if matches!(directive, Directive::UseCache { .. }) {
                     if let Some(export_name) = self.current_export_name.clone() {
@@ -1394,7 +1402,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         a,
                     ));
             } else {
-                // For inline server actions (not in a server action file), we always hoist.
                 self.rewrite_expr_to_proxy_expr = Some(
                     self.maybe_hoist_and_create_proxy_for_server_action_arrow_expr(child_names, a),
                 );
@@ -1787,13 +1794,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         // Post-pass: Register any exports that weren't already registered during the main pass.
         if should_track_exports {
-            for ((id, ctxt), export_name) in &self.export_name_by_local_id {
-                // Check if this export was already registered
+            for (id, export_name) in &self.export_name_by_local_id {
                 if !self.reference_ids_by_export_name.contains_key(export_name) {
-                    // Not yet registered - add it now
-                    let ident = Ident::new(id.clone(), DUMMY_SP, *ctxt);
                     self.server_reference_exports.push(ServerReferenceExport {
-                        ident,
+                        ident: Ident::from(id.clone()),
                         export_name: export_name.clone(),
                         reference_id: self.generate_server_reference_id(
                             export_name.as_ref(),
