@@ -77,9 +77,11 @@ export default async function analyze({
       await turbopackAnalyze(analyzeContext)
 
     const durationString = durationToString(analyzeDuration)
-    Log.event(
-      `Analyze data created successfully in ${durationString}. To explore it, run \`next experimental-analyze --serve\`.`
-    )
+    let logMessage = `Analyze completed in ${durationString}.`
+    if (!serve) {
+      logMessage += ` To explore the analyze results, run \`next experimental-analyze --serve\`.`
+    }
+    Log.event(logMessage)
 
     await shutdownPromise
 
@@ -238,8 +240,15 @@ function startServer(dir: string, port: number): Promise<void> {
       let addressString
       if (typeof address === 'string') {
         addressString = address
+      } else if (
+        address.family === 'IPv6' &&
+        (address.address === '::' || address.address === '::1')
+      ) {
+        addressString = `localhost:${address.port}`
+      } else if (address.family === 'IPv6') {
+        addressString = `[${address.address}]:${address.port}`
       } else {
-        addressString = `${address.address === '::' ? 'localhost' : address.address}:${address.port}`
+        addressString = `${address.address}:${address.port}`
       }
 
       Log.info(`Bundle analyzer available at http://${addressString}`)
