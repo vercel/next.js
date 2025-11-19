@@ -9,7 +9,6 @@ use const_format::concatcp;
 use once_cell::sync::Lazy;
 use regex::Regex;
 pub use trace::{StackFrame, TraceResult, trace_source_map};
-use tracing::{Level, instrument};
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::{
     FileLinesContent, FileSystemPath, source_context::get_source_context, to_sys_path,
@@ -17,12 +16,11 @@ use turbo_tasks_fs::{
 use turbopack_cli_utils::source_context::format_source_context_lines;
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
-    output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMap},
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
-use crate::{AssetsForSourceMapping, internal_assets_for_source_mapping, pool::FormattingMode};
+use crate::{AssetsForSourceMapping, pool::FormattingMode};
 
 pub mod trace;
 
@@ -331,39 +329,4 @@ impl StructuredError {
 
         Ok(message)
     }
-}
-
-pub async fn trace_stack(
-    error: StructuredError,
-    root_asset: Vc<Box<dyn OutputAsset>>,
-    output_path: FileSystemPath,
-    project_dir: FileSystemPath,
-) -> Result<String> {
-    let assets_for_source_mapping =
-        internal_assets_for_source_mapping(root_asset, output_path.clone());
-
-    trace_stack_with_source_mapping_assets(
-        error,
-        assets_for_source_mapping,
-        output_path,
-        project_dir,
-    )
-    .await
-}
-
-#[instrument(level = Level::TRACE, skip_all)]
-pub async fn trace_stack_with_source_mapping_assets(
-    error: StructuredError,
-    assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    output_path: FileSystemPath,
-    project_dir: FileSystemPath,
-) -> Result<String> {
-    error
-        .print(
-            assets_for_source_mapping,
-            output_path,
-            project_dir,
-            FormattingMode::Plain,
-        )
-        .await
 }
