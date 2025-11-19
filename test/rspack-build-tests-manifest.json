@@ -882,10 +882,11 @@
       "app dir - prefetching should not prefetch for a bot user agent",
       "app dir - prefetching should not re-render error component when triggering a prefetch action",
       "app dir - prefetching should not unintentionally modify the requested prefetch by escaping the uri encoded query params",
-      "app dir - prefetching should only prefetch the loading state and not the component tree when prefetching at the same segment",
+      "app dir - prefetching should only prefetch the loading state and not the component tree when prefetching at the same segment"
+    ],
+    "failed": [
       "app dir - prefetching should show layout eagerly when prefetched with loading one level down"
     ],
-    "failed": [],
     "pending": [
       "app dir - prefetching should not suppress prefetches after navigating back"
     ],
@@ -3234,6 +3235,7 @@
       "interception-dynamic-segment should correctly prerender segments with generateStaticParams",
       "interception-dynamic-segment should intercept consistently with back/forward navigation",
       "interception-dynamic-segment should intercept multiple times from root",
+      "interception-dynamic-segment should prerender a dynamic intercepted route",
       "interception-dynamic-segment should work when interception route is paired with a dynamic segment"
     ],
     "failed": [],
@@ -6839,6 +6841,7 @@
       "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting cookies()",
       "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting dynamic params",
       "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting headers()",
+      "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting searchParams",
       "runtime prefetching errors should trigger error boundaries for errors that occurred in runtime-prefetched content",
       "runtime prefetching in a page can completely prefetch a page that uses cookies and no uncached IO",
       "runtime prefetching in a page includes cookies, but not dynamic content",
@@ -6847,24 +6850,22 @@
       "runtime prefetching in a page includes root params, but not dynamic content",
       "runtime prefetching in a page includes search params, but not dynamic content",
       "runtime prefetching in a private cache can completely prefetch a page that uses cookies and no uncached IO",
+      "runtime prefetching in a private cache includes cookies, but not dynamic content",
+      "runtime prefetching in a private cache includes dynamic params, but not dynamic content",
       "runtime prefetching in a private cache includes headers, but not dynamic content",
       "runtime prefetching in a private cache includes root params, but not dynamic content",
       "runtime prefetching in a private cache includes search params, but not dynamic content",
       "runtime prefetching passed to a public cache can completely prefetch a page that uses cookies and no uncached IO",
       "runtime prefetching passed to a public cache includes cookies, but not dynamic content",
+      "runtime prefetching passed to a public cache includes dynamic params, but not dynamic content",
+      "runtime prefetching passed to a public cache includes headers, but not dynamic content",
       "runtime prefetching passed to a public cache includes root params, but not dynamic content",
       "runtime prefetching passed to a public cache includes search params, but not dynamic content",
+      "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a page",
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a private cache",
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side private caches should return new results on each request"
     ],
-    "failed": [
-      "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting searchParams",
-      "runtime prefetching in a private cache includes cookies, but not dynamic content",
-      "runtime prefetching in a private cache includes dynamic params, but not dynamic content",
-      "runtime prefetching passed to a public cache includes dynamic params, but not dynamic content",
-      "runtime prefetching passed to a public cache includes headers, but not dynamic content",
-      "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a page"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6883,16 +6884,26 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/refresh/segment-cache-refresh.test.ts": {
+    "passed": [
+      "segment cache (refresh) refreshes data inside reused default parallel route slots"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/revalidation/segment-cache-revalidation.test.ts": {
     "passed": [
-      "segment cache (revalidation) call router.prefetch(..., {onInvalidate}) after cache is revalidated",
-      "segment cache (revalidation) delay re-prefetch after revalidation to allow CDN propagation",
       "segment cache (revalidation) evict client cache when Server Action calls revalidatePath",
-      "segment cache (revalidation) evict client cache when Server Action calls revalidateTag",
       "segment cache (revalidation) re-fetch visible links after a navigation, if needed",
       "segment cache (revalidation) refetch visible Form components after cache is revalidated"
     ],
-    "failed": [],
+    "failed": [
+      "segment cache (revalidation) call router.prefetch(..., {onInvalidate}) after cache is revalidated",
+      "segment cache (revalidation) delay re-prefetch after revalidation to allow CDN propagation",
+      "segment cache (revalidation) evict client cache when Server Action calls revalidateTag"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
