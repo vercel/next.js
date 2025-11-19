@@ -398,9 +398,13 @@ export default abstract class Server<
   protected getServerComponentsHmrCache():
     | ServerComponentsHmrCache
     | undefined {
-    return this.nextConfig.experimental.serverComponentsHmrCache
-      ? (globalThis as any).__serverComponentsHmrCache
-      : undefined
+    if (!this.nextConfig.experimental.serverComponentsHmrCache) {
+      return undefined
+    }
+    const global = globalThis as typeof globalThis & {
+      __serverComponentsHmrCache?: ServerComponentsHmrCache
+    }
+    return global.__serverComponentsHmrCache
   }
 
   protected abstract loadEnvConfig(params: {
@@ -1412,8 +1416,11 @@ export default abstract class Server<
       // set incremental cache to request meta so it can
       // be passed down for edge functions and the fetch disk
       // cache can be leveraged locally
+      const serverOpts = this.serverOptions as ServerOptions & {
+        webServerConfig?: unknown
+      }
       if (
-        !(this.serverOptions as any).webServerConfig &&
+        !serverOpts.webServerConfig &&
         !getRequestMeta(req, 'incrementalCache')
       ) {
         const incrementalCache = await this.getIncrementalCache({
@@ -1424,7 +1431,10 @@ export default abstract class Server<
         addRequestMeta(req, 'incrementalCache', incrementalCache)
         // Store cache in request metadata instead of global for thread safety
         // This allows concurrent requests to maintain isolated cache states
-        if (typeof (globalThis as any).__incrementalCache === 'undefined') {
+        const global = globalThis as typeof globalThis & {
+          __incrementalCache?: unknown
+        }
+        if (typeof global.__incrementalCache === 'undefined') {
           Object.defineProperty(globalThis, '__incrementalCache', {
             get() {
               // Return request-specific cache if in async context, otherwise undefined
@@ -1520,15 +1530,20 @@ export default abstract class Server<
         )
         if (finished) return
 
-        const err = new Error()
-        ;(err as any).result = {
+        const err = new Error() as Error & {
+          result?: {
+            response: Response
+          }
+          bubble?: boolean
+        }
+        err.result = {
           response: new Response(null, {
             headers: {
               'x-middleware-next': '1',
             },
           }),
         }
-        ;(err as any).bubble = true
+        err.bubble = true
         throw err
       }
 
@@ -2093,11 +2108,13 @@ export default abstract class Server<
     }
 
     // Toggle whether or not this is a Data request
+    const serverOpts = this.serverOptions as ServerOptions & {
+      webServerConfig?: unknown
+    }
     const isNextDataRequest =
       !!(
         getRequestMeta(req, 'isNextDataReq') ||
-        (req.headers['x-nextjs-data'] &&
-          (this.serverOptions as any).webServerConfig)
+        (req.headers['x-nextjs-data'] && serverOpts.webServerConfig)
       ) &&
       (isSSG || hasServerProps)
 
@@ -2374,17 +2391,25 @@ export default abstract class Server<
       // before handler resolves
       process.env.NODE_ENV === 'development'
         ? new Proxy(request, {
-            get(target: any, prop) {
-              if (typeof target[prop] === 'function') {
-                return target[prop].bind(target)
+            get(target: typeof request, prop: string | symbol) {
+              const value = target[prop as keyof typeof request]
+              if (typeof value === 'function') {
+                return (value as Function).bind(target)
               }
-              return target[prop]
+              return value
             },
-            set(target: any, prop, value) {
+            set(
+              target: typeof request,
+              prop: string | symbol,
+              value: unknown
+            ) {
               if (prop === 'fetchMetrics') {
-                ;(req as any).fetchMetrics = value
+                const reqWithMetrics = req as typeof req & {
+                  fetchMetrics?: unknown
+                }
+                reqWithMetrics.fetchMetrics = value
               }
-              target[prop] = value
+              ;(target as Record<string | symbol, unknown>)[prop] = value
               return true
             },
           })
