@@ -1267,7 +1267,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
         let old_this_status = replace(&mut self.this_status, ThisStatus::Allowed);
-        let old_current_export_name = self.current_export_name.clone();
+        let old_current_export_name = self.current_export_name.take();
         if self.in_module_level {
             if let Some(export_name) = self.export_name_by_local_id.get(&f.ident.to_id()) {
                 self.current_export_name = Some(export_name.clone());
