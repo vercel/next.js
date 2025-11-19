@@ -1804,8 +1804,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
         }
 
-        // Post-pass: Register any exports that weren't already registered during the main pass.
-        if should_track_exports {
+        // Post-pass: For 'use server' files, register any exports that weren't already registered
+        // during the main pass. So this inherently excludes self-annotated server
+        // functions.
+        if in_action_file {
             for (id, export_name) in &self.export_name_by_local_id {
                 if !self.reference_ids_by_export_name.contains_key(export_name) {
                     self.server_reference_exports.push(ServerReferenceExport {
@@ -1813,7 +1815,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         export_name: export_name.clone(),
                         reference_id: self.generate_server_reference_id(
                             export_name.as_ref(),
-                            in_cache_file,
+                            false,
                             None,
                         ),
                     });
