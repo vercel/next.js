@@ -2,7 +2,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     source::Source,
 };
 
@@ -25,6 +25,9 @@ impl FixedStaticAsset {
         .cell()
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for FixedStaticAsset {}
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for FixedStaticAsset {

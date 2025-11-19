@@ -31,16 +31,6 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module + Asset {
     fn get_async_module(self: Vc<Self>) -> Vc<OptionAsyncModule> {
         Vc::cell(None)
     }
-    #[turbo_tasks::function]
-    async fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        side_effect_free_packages: Vc<Glob>,
-    ) -> Result<Vc<bool>> {
-        Ok(is_marked_as_side_effect_free(
-            self.ident().path().owned().await?,
-            side_effect_free_packages,
-        ))
-    }
 }
 
 #[turbo_tasks::value]

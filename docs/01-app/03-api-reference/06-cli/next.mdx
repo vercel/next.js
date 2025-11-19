@@ -34,6 +34,7 @@ The following commands are available:
 | [`info`](#next-info-options)           | Prints relevant details about the current system which can be used to report Next.js bugs.                    |
 | [`telemetry`](#next-telemetry-options) | Allows you to enable or disable Next.js' completely anonymous telemetry collection.                           |
 | [`typegen`](#next-typegen-options)     | Generates TypeScript definitions for routes, pages, layouts, and route handlers without running a full build. |
+| [`upgrade`](#next-upgrade-options)     | Upgrades your Next.js application to the latest version.                                                      |
 
 > **Good to know**: Running `next` without a command is an alias for `next dev`.
 
@@ -185,6 +186,19 @@ The `next-env.d.ts` file is included into your `tsconfig.json` file, to make Nex
 To ensure `next-env.d.ts` is present before type-checking run `next typegen`. The commands `next dev` and `next build` also generate the `next-env.d.ts` file, but it is often undesirable to run these just to type-check, for example in CI/CD environments.
 
 > **Good to know**: `next typegen` loads your Next.js config (`next.config.js`, `next.config.mjs`, or `next.config.ts`) using the production build phase. Ensure any required environment variables and dependencies are available so the config can load correctly.
+
+## `next upgrade` options
+
+`next upgrade` upgrades your Next.js application to the latest version.
+
+The following options are available for the `next upgrade` command:
+
+| Option                  | Description                                                                                                                                        |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-h, --help`            | Show all available options.                                                                                                                        |
+| `[directory]`           | A directory with the Next.js application to upgrade. If not provided, the current directory will be used.                                          |
+| `--revision <revision>` | Specify a Next.js version or tag to upgrade to (e.g., `latest`, `canary`, `15.0.0`). Defaults to the release channel you have currently installed. |
+| `--verbose`             | Show verbose output during the upgrade process.                                                                                                    |
 
 ## Examples
 
