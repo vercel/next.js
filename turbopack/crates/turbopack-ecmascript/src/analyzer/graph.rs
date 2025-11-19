@@ -943,7 +943,7 @@ impl FunctionLike for SetterProp {
 }
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
-enum BlockContext {
+enum LexicalContext {
     // In the root of a function scope
     Function { id: u32, binds_this: bool },
     // A placeholder for identify anonymous blocks
@@ -952,6 +952,9 @@ enum BlockContext {
     Block,
     // In some kind of control flow
     ControlFlow { is_try: bool },
+
+    // Class bodies do rebind `this` and are in many ways like a function
+    ClassBody,
 }
 
 mod analyzer_state {
@@ -968,7 +971,7 @@ mod analyzer_state {
         cur_fn_return_values: Option<Vec<JsValue>>,
         /// Stack of early returns for control flow analysis.
         early_return_stack: Vec<EarlyReturn>,
-        block_context_stack: Vec<BlockContext>,
+        lexical_stack: Vec<LexicalContext>,
         var_decl_kind: Option<VarDeclKind>,
     }
 
@@ -978,7 +981,7 @@ mod analyzer_state {
                 pat_value: None,
                 cur_fn_return_values: None,
                 early_return_stack: Default::default(),
-                block_context_stack: Default::default(),
+                lexical_stack: Default::default(),
                 var_decl_kind: None,
             }
         }
@@ -988,29 +991,26 @@ mod analyzer_state {
         /// Returns true if we are in a function. False if we are in the root scope.
         pub(super) fn is_in_fn(&self) -> bool {
             self.state
-                .block_context_stack
+                .lexical_stack
                 .iter()
-                .any(|b| matches!(b, BlockContext::Function { .. }))
+                .any(|b| matches!(b, LexicalContext::Function { .. }))
         }
 
         pub(super) fn is_in_try(&self) -> bool {
             self.state
-                .block_context_stack
+                .lexical_stack
                 .iter()
                 .rev()
-                .take_while(|b| !matches!(b, BlockContext::Function { .. }))
-                .any(|b| *b == BlockContext::ControlFlow { is_try: true })
+                .take_while(|b| !matches!(b, LexicalContext::Function { .. }))
+                .any(|b| *b == LexicalContext::ControlFlow { is_try: true })
         }
 
         /// Returns true if we are currently in a block scope that isn't at the root of a function
         /// or a module.
         pub(super) fn is_in_nested_block_scope(&self) -> bool {
-            match &self.state.block_context_stack
-                [self.state.block_context_stack.len().saturating_sub(2)..]
-            {
-                [BlockContext::Block] | [BlockContext::Function { .. }, BlockContext::Block] => {
-                    false
-                }
+            match &self.state.lexical_stack[self.state.lexical_stack.len().saturating_sub(2)..] {
+                [LexicalContext::Block]
+                | [LexicalContext::Function { .. }, LexicalContext::Block] => false,
                 [] => {
                     unreachable!()
                 }
@@ -1019,8 +1019,8 @@ mod analyzer_state {
             }
         }
 
-        pub(super) fn cur_block_context(&self) -> BlockContext {
-            *self.state.block_context_stack.last().unwrap()
+        pub(super) fn cur_lexical_context(&self) -> LexicalContext {
+            *self.state.lexical_stack.last().unwrap()
         }
 
         /// Returns the identifier of the current function.
@@ -1028,11 +1028,11 @@ mod analyzer_state {
         pub(super) fn cur_fn_ident(&self) -> u32 {
             *self
                 .state
-                .block_context_stack
+                .lexical_stack
                 .iter()
                 .rev()
                 .filter_map(|b| {
-                    if let BlockContext::Function { id, .. } = b {
+                    if let LexicalContext::Function { id, .. } = b {
                         Some(id)
                     } else {
                         None
@@ -1043,13 +1043,13 @@ mod analyzer_state {
         }
 
         pub(super) fn is_this_bound(&self) -> bool {
-            self.state.block_context_stack.iter().any(|b| {
+            self.state.lexical_stack.iter().any(|b| {
                 matches!(
                     b,
-                    BlockContext::Function {
+                    LexicalContext::Function {
                         id: _,
                         binds_this: true
-                    }
+                    } | LexicalContext::ClassBody
                 )
             })
         }
@@ -1117,7 +1117,7 @@ mod analyzer_state {
             let prev_return_values = self.state.cur_fn_return_values.replace(vec![]);
 
             self.with_block(
-                BlockContext::Function {
+                LexicalContext::Function {
                     id: fn_id,
                     binds_this: function.binds_this(),
                 },
@@ -1164,7 +1164,7 @@ mod analyzer_state {
             &mut self,
             func: impl FnOnce(&mut Self) -> T,
         ) -> (T, bool) {
-            self.enter_block(BlockContext::ControlFlow { is_try: false }, |this| {
+            self.enter_block(LexicalContext::ControlFlow { is_try: false }, |this| {
                 func(this)
             })
         }
@@ -1172,7 +1172,7 @@ mod analyzer_state {
         /// Returns the result of `func` and whether the block always returns (from
         /// `end_early_return_block`).
         pub(super) fn enter_try<T>(&mut self, func: impl FnOnce(&mut Self) -> T) -> (T, bool) {
-            self.enter_block(BlockContext::ControlFlow { is_try: true }, |this| {
+            self.enter_block(LexicalContext::ControlFlow { is_try: true }, |this| {
                 func(this)
             })
         }
@@ -1182,7 +1182,7 @@ mod analyzer_state {
         /// `end_early_return_block`).
         pub(super) fn enter_block<T>(
             &mut self,
-            block_kind: BlockContext,
+            block_kind: LexicalContext,
             func: impl FnOnce(&mut Self) -> T,
         ) -> (T, bool) {
             let prev_early_return_stack = take(&mut self.state.early_return_stack);
@@ -1195,12 +1195,12 @@ mod analyzer_state {
         /// Pushes a block onto the stack without performing early return logic.
         pub(super) fn with_block<T>(
             &mut self,
-            block_kind: BlockContext,
+            block_kind: LexicalContext,
             func: impl FnOnce(&mut Self) -> T,
         ) -> T {
-            self.state.block_context_stack.push(block_kind);
+            self.state.lexical_stack.push(block_kind);
             let result = func(self);
-            let old = self.state.block_context_stack.pop();
+            let old = self.state.lexical_stack.pop();
             debug_assert_eq!(old, Some(block_kind));
             result
         }
@@ -1992,13 +1992,22 @@ impl VisitAstPath for Analyzer<'_> {
     ) {
         self.add_value_from_expr(
             decl.ident.to_id(),
-            // TODO avoid clone
             &Expr::Class(ClassExpr {
                 ident: Some(decl.ident.clone()),
                 class: decl.class.clone(),
             }),
         );
         decl.visit_children_with_ast_path(self, ast_path);
+    }
+
+    fn visit_class<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast Class,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        self.enter_block(LexicalContext::ClassBody, |this| {
+            node.visit_children_with_ast_path(this, ast_path);
+        });
     }
 
     fn visit_getter_prop<'ast: 'r, 'r>(
@@ -2466,7 +2475,7 @@ impl VisitAstPath for Analyzer<'_> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         self.effects = take(&mut self.data.effects);
-        self.enter_block(BlockContext::Block, |this| {
+        self.enter_block(LexicalContext::Block, |this| {
             program.visit_children_with_ast_path(this, ast_path);
         });
         self.effects.append(&mut self.hoisted_effects);
@@ -2676,14 +2685,15 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast BlockStmt,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
-        match self.cur_block_context() {
-            BlockContext::Function { .. } => {
+        match self.cur_lexical_context() {
+            LexicalContext::Function { .. } => {
                 let mut effects = take(&mut self.effects);
                 let hoisted_effects = take(&mut self.hoisted_effects);
 
-                let (_, returns_unconditionally) = self.enter_block(BlockContext::Block, |this| {
-                    n.visit_children_with_ast_path(this, ast_path);
-                });
+                let (_, returns_unconditionally) =
+                    self.enter_block(LexicalContext::Block, |this| {
+                        n.visit_children_with_ast_path(this, ast_path);
+                    });
                 // By handling this logic here instead of in enter_fn, we naturally skip it
                 // for arrow functions with single expression bodies, since they just don't hit this
                 // path.
@@ -2695,12 +2705,12 @@ impl VisitAstPath for Analyzer<'_> {
                 self.hoisted_effects = hoisted_effects;
                 self.effects = effects;
             }
-            BlockContext::ControlFlow { .. } => {
-                self.with_block(BlockContext::Block, |this| {
+            LexicalContext::ControlFlow { .. } => {
+                self.with_block(LexicalContext::Block, |this| {
                     n.visit_children_with_ast_path(this, ast_path)
                 });
             }
-            BlockContext::Block => {
+            LexicalContext::Block => {
                 // Handle anonymous block statement
                 // e.g., enter a new control flow context and because it is 'unconditiona' we
                 // need to propagate early returns
@@ -2710,6 +2720,11 @@ impl VisitAstPath for Analyzer<'_> {
                 if returns_early {
                     self.add_early_return_always(ast_path);
                 }
+            }
+            LexicalContext::ClassBody => {
+                // this would be something like a `static` initialization block
+                // there is no early return logic required here so just visit children
+                n.visit_children_with_ast_path(self, ast_path);
             }
         }
     }
