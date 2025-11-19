@@ -250,10 +250,10 @@ struct ServerActions<C: Comments> {
     extra_items: Vec<ModuleItem>,
     hoisted_extra_items: Vec<ModuleItem>,
 
-    // A map of all server references (inline + exported): export_name -> reference_id
+    /// A map of all server references (inline + exported): export_name -> reference_id
     reference_ids_by_export_name: FxIndexMap<Atom, Atom>,
 
-    // A list of server references for originally exported server functions only.
+    /// A list of server references for originally exported server functions only.
     server_reference_exports: Vec<ServerReferenceExport>,
 
     private_ctxt: SyntaxContext,
