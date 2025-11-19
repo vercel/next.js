@@ -2670,8 +2670,9 @@ async function renderToStream(
       // We only have a Prerender environment for projects opted into cacheComponents
       cacheComponents
     ) {
-      const [resolveValidation, validationOutlet] = createValidationOutlet()
+      let validationOutlet: Promise<ReactNode> | undefined
       let debugChannel: DebugChannelPair | undefined
+
       const getPayload = async (
         // eslint-disable-next-line @typescript-eslint/no-shadow
         requestStore: RequestStore
@@ -2695,7 +2696,7 @@ async function renderToStream(
           payload._bypassCachesInDev = createElement(WarnForBypassCachesInDev, {
             route: workStore.route,
           })
-        } else {
+        } else if (validationOutlet) {
           // Placing the validation outlet in the payload is safe
           // even if we end up discarding a render and restarting,
           // because we're not going to wait for the stream to complete,
@@ -2714,6 +2715,9 @@ async function renderToStream(
         // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
         !isBypassingCachesInDev(renderOpts, requestStore)
       ) {
+        const [resolveValidation, _validationOutlet] = createValidationOutlet()
+        validationOutlet = _validationOutlet
+
         const {
           stream: serverStream,
           staticChunks,
