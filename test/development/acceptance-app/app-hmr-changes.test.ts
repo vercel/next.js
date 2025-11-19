@@ -22,6 +22,10 @@ describe('Error overlay - RSC build errors', () => {
     skipStart: true,
   })
 
+  it('fails', () => {
+    throw new Error('simulated test failure')
+  })
+
   // TODO: The error overlay is not closed when restoring the working code.
   ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
     'Skipped in webpack',
