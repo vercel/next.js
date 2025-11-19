@@ -76,11 +76,7 @@ impl OutputAssetsReference for EcmascriptChunk {
             .iter()
             .map(async |with_info| {
                 let r = with_info.references().await?;
-                Ok((
-                    r.assets.await?,
-                    r.referenced_assets.await?,
-                    r.references.await?,
-                ))
+                Ok((r.assets.await?, r.references.await?))
             })
             .try_join()
             .await?;
@@ -88,19 +84,13 @@ impl OutputAssetsReference for EcmascriptChunk {
             assets: ResolvedVc::cell(
                 references
                     .iter()
-                    .flat_map(|(assets, _, _)| assets.into_iter().copied())
-                    .collect(),
-            ),
-            referenced_assets: ResolvedVc::cell(
-                references
-                    .iter()
-                    .flat_map(|(_, referenced_assets, _)| referenced_assets.into_iter().copied())
+                    .flat_map(|(assets, _)| assets.into_iter().copied())
                     .collect(),
             ),
             references: ResolvedVc::cell(
                 references
                     .iter()
-                    .flat_map(|(_, _, references)| references.into_iter().copied())
+                    .flat_map(|(_, references)| references.into_iter().copied())
                     .collect(),
             ),
         }

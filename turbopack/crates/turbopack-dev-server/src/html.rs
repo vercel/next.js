@@ -178,7 +178,6 @@ impl DevHtmlAsset {
 
                 Ok((
                     asset_with_referenced.assets.await?,
-                    asset_with_referenced.referenced_assets.await?,
                     asset_with_referenced.references.await?,
                 ))
             })
@@ -186,17 +185,14 @@ impl DevHtmlAsset {
             .await?;
 
         let mut all_assets = Vec::new();
-        let mut all_referenced_assets = Vec::new();
         let mut all_references = Vec::new();
-        for (asset, referenced_asset, reference) in all_chunk_groups {
+        for (asset, reference) in all_chunk_groups {
             all_assets.extend(asset);
-            all_referenced_assets.extend(referenced_asset);
             all_references.extend(reference);
         }
 
         Ok(OutputAssetsWithReferenced {
             assets: ResolvedVc::cell(all_assets),
-            referenced_assets: ResolvedVc::cell(all_referenced_assets),
             references: ResolvedVc::cell(all_references),
         }
         .cell())

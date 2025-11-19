@@ -2,7 +2,7 @@ use anyhow::Result;
 use either::Either;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, ResolvedVc, ValueToString, Vc,
+    FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     graph::{AdjacencyMap, GraphTraversal},
 };
 use turbo_tasks_fs::FileSystemPath;
@@ -19,7 +19,6 @@ pub trait OutputAssetsReference {
     fn references(self: Vc<Self>) -> Vc<OutputAssetsWithReferenced> {
         OutputAssetsWithReferenced {
             assets: OutputAssets::empty_resolved(),
-            referenced_assets: OutputAssets::empty_resolved(),
             references: OutputAssetsReferences::empty_resolved(),
         }
         .cell()
@@ -59,6 +58,24 @@ impl OutputAssetsReferences {
         references.extend(other.await?.iter().copied());
         Ok(Vc::cell(references.into_iter().collect()))
     }
+
+    /// Returns only direct referenced assets and does not include assets referenced indirectly by
+    /// them.
+    #[turbo_tasks::function]
+    pub async fn all_assets(&self) -> Result<Vc<OutputAssets>> {
+        let mut assets: FxIndexSet<_> = FxIndexSet::default();
+        for reference in &self.0 {
+            assets.extend(
+                reference
+                    .references()
+                    .all_assets()
+                    .await?
+                    .into_iter()
+                    .copied(),
+            );
+        }
+        Ok(Vc::cell(assets.into_iter().collect()))
+    }
 }
 impl OutputAssetsReferences {
     pub fn empty() -> Vc<Self> {
@@ -67,6 +84,30 @@ impl OutputAssetsReferences {
 
     pub fn empty_resolved() -> ResolvedVc<Self> {
         ResolvedVc::cell(vec![])
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for OutputAssetsReferences {
+    #[turbo_tasks::function]
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let refs_references = self
+            .await?
+            .into_iter()
+            .map(async |&reference| reference.references().await)
+            .try_join()
+            .await?;
+        let mut assets = Vec::new();
+        let mut references = Vec::new();
+        for r in refs_references {
+            assets.extend(r.assets.await?.iter().copied());
+            references.extend(r.references.await?.iter().copied());
+        }
+        Ok(OutputAssetsWithReferenced {
+            assets: ResolvedVc::cell(assets),
+            references: ResolvedVc::cell(references),
+        }
+        .cell())
     }
 }
 
@@ -102,6 +143,18 @@ impl OutputAssets {
     }
 }
 
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for OutputAssets {
+    #[turbo_tasks::function]
+    fn references(self: ResolvedVc<Self>) -> Vc<OutputAssetsWithReferenced> {
+        OutputAssetsWithReferenced {
+            assets: self,
+            references: OutputAssetsReferences::empty_resolved(),
+        }
+        .cell()
+    }
+}
+
 #[turbo_tasks::value(transparent)]
 pub struct ExpandedOutputAssets(Vec<ResolvedVc<Box<dyn OutputAsset>>>);
 
@@ -114,8 +167,6 @@ pub struct OutputAssetsSet(FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>);
 pub struct OutputAssetsWithReferenced {
     /// Primary output assets. These are e. g. the chunks needed for a chunk group.
     pub assets: ResolvedVc<OutputAssets>,
-    /// Secondary output assets that are referenced by the primary assets.
-    pub referenced_assets: ResolvedVc<OutputAssets>,
     /// Secondary output assets that are referenced by the primary assets. These are unresolved
     /// `OutputAssetsReference`s and need to be expanded to get the actual assets. These are e. g.
     /// async loaders that reference other chunk groups.
@@ -131,7 +182,6 @@ impl OutputAssetsWithReferenced {
             self.assets
                 .await?
                 .into_iter()
-                .chain(self.referenced_assets.await?.into_iter())
                 .map(|&asset| ExpandOutputAssetsInput::Asset(asset))
                 .chain(
                     self.references
@@ -151,7 +201,6 @@ impl OutputAssetsWithReferenced {
     pub fn from_assets(assets: ResolvedVc<OutputAssets>) -> Vc<Self> {
         OutputAssetsWithReferenced {
             assets,
-            referenced_assets: OutputAssets::empty_resolved(),
             references: OutputAssetsReferences::empty_resolved(),
         }
         .cell()
@@ -163,11 +212,6 @@ impl OutputAssetsWithReferenced {
             assets: self
                 .assets
                 .concatenate(*other.await?.assets)
-                .to_resolved()
-                .await?,
-            referenced_assets: self
-                .referenced_assets
-                .concatenate(*other.await?.referenced_assets)
                 .to_resolved()
                 .await?,
             references: self
@@ -199,28 +243,11 @@ impl OutputAssetsWithReferenced {
         *self.assets
     }
 
-    /// Returns only secondary referenced asset entries. Doesn't expand OutputAssets. Doesn't return
+    /// Returns only secondary referenced asset entries. Doesn't return
     /// primary assets.
     #[turbo_tasks::function]
-    pub async fn referenced_assets(&self) -> Result<Vc<OutputAssets>> {
-        Ok(Vc::cell(
-            expand_output_assets(
-                self.referenced_assets
-                    .await?
-                    .into_iter()
-                    .copied()
-                    .map(ExpandOutputAssetsInput::Asset)
-                    .chain(
-                        self.references
-                            .await?
-                            .into_iter()
-                            .copied()
-                            .map(ExpandOutputAssetsInput::Reference),
-                    ),
-                false,
-            )
-            .await?,
-        ))
+    pub fn references(&self) -> Vc<OutputAssetsReferences> {
+        *self.references
     }
 }
 
@@ -242,7 +269,6 @@ async fn get_referenced_assets(
         .assets
         .await?
         .into_iter()
-        .chain(refs.referenced_assets.await?.into_iter())
         .map(|&asset| ExpandOutputAssetsInput::Asset(asset))
         .chain(
             refs.references

@@ -27,8 +27,7 @@ use crate::{
         module_batches::{BatchingConfig, ModuleBatchesGraphEdge},
     },
     output::{
-        OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsReferences,
-        OutputAssetsWithReferenced,
+        OutputAsset, OutputAssetsReference, OutputAssetsReferences, OutputAssetsWithReferenced,
     },
     reference::ModuleReference,
     traced_asset::TracedAsset,
@@ -186,7 +185,6 @@ pub async fn references_to_output_assets(
         .collect::<Vec<_>>();
     Ok(OutputAssetsWithReferenced {
         assets: ResolvedVc::cell(output_assets),
-        referenced_assets: OutputAssets::empty_resolved(),
         references: OutputAssetsReferences::empty_resolved(),
     }
     .cell())

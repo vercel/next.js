@@ -71,18 +71,15 @@ impl EcmascriptChunkBatchWithAsyncInfo {
     #[turbo_tasks::function]
     pub async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
         let mut output_assets = Vec::new();
-        let mut referenced_output_assets = Vec::new();
         let mut references = Vec::new();
         // We expect most references to be empty, and avoiding try_join to avoid allocating the Vec
         for item in &self.chunk_items {
             let r = item.chunk_item.references().await?;
             output_assets.extend(r.assets.await?);
-            referenced_output_assets.extend(r.referenced_assets.await?);
             references.extend(r.references.await?);
         }
         Ok(OutputAssetsWithReferenced {
             assets: ResolvedVc::cell(output_assets),
-            referenced_assets: ResolvedVc::cell(referenced_output_assets),
             references: ResolvedVc::cell(references),
         }
         .cell())

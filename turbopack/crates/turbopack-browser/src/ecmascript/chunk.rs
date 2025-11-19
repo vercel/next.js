@@ -117,7 +117,6 @@ impl OutputAssetsReference for EcmascriptBrowserChunk {
 
         Ok(OutputAssetsWithReferenced {
             assets: ResolvedVc::cell(assets),
-            referenced_assets: chunk_references.referenced_assets,
             references: chunk_references.references,
         }
         .cell())

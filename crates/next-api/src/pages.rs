@@ -56,7 +56,7 @@ use turbopack_core::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
-    output::{OptionOutputAsset, OutputAsset, OutputAssets},
+    output::{OptionOutputAsset, OutputAsset, OutputAssets, OutputAssetsReferences},
     reference::all_assets_from_entries,
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
@@ -1048,7 +1048,7 @@ impl PageEndpoint {
 
                 Ok(SsrChunk::Edge {
                     assets: chunk_assets.primary_assets().to_resolved().await?,
-                    referenced_assets: chunk_assets.referenced_assets().to_resolved().await?,
+                    references: chunk_assets.references().to_resolved().await?,
                     dynamic_import_entries,
                     regions: regions.clone(),
                 }
@@ -1066,7 +1066,7 @@ impl PageEndpoint {
                         EvaluatableAssets::empty().with_entry(*ssr_module_evaluatable),
                         ssr_module_graph,
                         current_chunk_group.primary_assets(),
-                        current_chunk_group.referenced_assets(),
+                        current_chunk_group.references(),
                         current_chunk_group.await?.availability_info,
                     )
                     .to_resolved()
@@ -1409,7 +1409,7 @@ impl PageEndpoint {
             }
             SsrChunk::Edge {
                 assets,
-                referenced_assets,
+                references,
                 dynamic_import_entries,
                 ref regions,
             } => {
@@ -1429,10 +1429,12 @@ impl PageEndpoint {
                         fxindexset![]
                     };
 
-                    let all_assets = assets.concatenate(*referenced_assets);
+                    let referenced_assets = references.all_assets();
+
+                    let all_assets = assets.concatenate(referenced_assets);
                     let assets_ref = assets.await?;
 
-                    server_assets.extend(referenced_assets.await?.iter().copied());
+                    server_assets.extend(referenced_assets.await?.into_iter().copied());
 
                     // TODO(sokra): accessing the 1st asset is a bit hacky, we should find a better
                     // way to get the main entry asset
@@ -1772,7 +1774,7 @@ pub enum SsrChunk {
     },
     Edge {
         assets: ResolvedVc<OutputAssets>,
-        referenced_assets: ResolvedVc<OutputAssets>,
+        references: ResolvedVc<OutputAssetsReferences>,
         dynamic_import_entries: ResolvedVc<DynamicImportedChunks>,
         regions: Option<Vec<RcStr>>,
     },

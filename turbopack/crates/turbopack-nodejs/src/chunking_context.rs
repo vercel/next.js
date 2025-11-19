@@ -21,7 +21,7 @@ use turbopack_core::{
         chunk_group_info::ChunkGroup,
         export_usage::{ExportUsageInfo, ModuleExportUsage},
     },
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReferences},
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
@@ -452,7 +452,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             let MakeChunkGroupResult {
                 chunks,
                 referenced_output_assets,
-                references,
+                mut references,
                 availability_info,
             } = make_chunk_group(
                 modules,
@@ -462,6 +462,10 @@ impl ChunkingContext for NodeJsChunkingContext {
             )
             .await?;
 
+            let referenced_output_assets: ResolvedVc<OutputAssets> =
+                ResolvedVc::cell(referenced_output_assets);
+            references.push(ResolvedVc::upcast(referenced_output_assets));
+
             let assets = chunks
                 .iter()
                 .map(|chunk| self.generate_chunk(**chunk).to_resolved())
@@ -470,7 +474,6 @@ impl ChunkingContext for NodeJsChunkingContext {
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
-                referenced_assets: ResolvedVc::cell(referenced_output_assets),
                 references: ResolvedVc::cell(references),
                 availability_info,
             }
@@ -487,7 +490,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         evaluatable_assets: Vc<EvaluatableAssets>,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
-        extra_referenced_assets: Vc<OutputAssets>,
+        extra_references: ResolvedVc<OutputAssetsReferences>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<EntryChunkGroupResult>> {
         let span = tracing::info_span!(
@@ -503,8 +506,8 @@ impl ChunkingContext for NodeJsChunkingContext {
 
             let MakeChunkGroupResult {
                 chunks,
-                mut referenced_output_assets,
-                references,
+                referenced_output_assets,
+                mut references,
                 availability_info,
             } = make_chunk_group(
                 entries,
@@ -522,7 +525,11 @@ impl ChunkingContext for NodeJsChunkingContext {
                 .await?;
             other_chunks.extend(extra_chunks.iter().copied());
 
-            referenced_output_assets.extend(extra_referenced_assets.await?.iter().copied());
+            let referenced_output_assets: ResolvedVc<OutputAssets> =
+                ResolvedVc::cell(referenced_output_assets);
+            references.push(ResolvedVc::upcast(referenced_output_assets));
+
+            references.push(ResolvedVc::upcast(extra_references));
 
             let Some(module) = ResolvedVc::try_sidecast(*evaluatable_assets_ref.last().unwrap())
             else {
@@ -535,7 +542,6 @@ impl ChunkingContext for NodeJsChunkingContext {
                     Vc::cell(other_chunks),
                     evaluatable_assets,
                     *module,
-                    Vc::cell(referenced_output_assets),
                     Vc::cell(references),
                     module_graph,
                     *self,

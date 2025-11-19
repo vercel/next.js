@@ -24,7 +24,7 @@ use turbopack_core::{
         GraphEntries,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
-    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
+    output::{OutputAsset, OutputAssets, OutputAssetsReferences, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
     virtual_output::VirtualOutputAsset,
@@ -146,7 +146,7 @@ impl MiddlewareEndpoint {
                 Vc::cell(vec![module]),
                 module_graph,
                 OutputAssets::empty(),
-                OutputAssets::empty(),
+                OutputAssetsReferences::empty(),
                 AvailabilityInfo::root(),
             )
             .await?;

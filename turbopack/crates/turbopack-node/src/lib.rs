@@ -16,7 +16,10 @@ use turbopack_core::{
     chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets},
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
-    output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
+    output::{
+        ExpandOutputAssetsInput, OutputAsset, OutputAssets, OutputAssetsReferences,
+        expand_output_assets,
+    },
     source_map::GenerateSourceMap,
     virtual_output::VirtualOutputAsset,
 };
@@ -192,7 +195,7 @@ pub async fn get_intermediate_asset(
             false,
         ),
         OutputAssets::empty(),
-        OutputAssets::empty(),
+        OutputAssetsReferences::empty(),
     ))
 }
 

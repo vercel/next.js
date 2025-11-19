@@ -160,7 +160,6 @@ pub async fn get_app_client_references_chunks(
 
             let mut current_client_chunk_group = ChunkGroupResult {
                 assets: ResolvedVc::cell(vec![]),
-                referenced_assets: ResolvedVc::cell(vec![]),
                 references: ResolvedVc::cell(vec![]),
                 availability_info: client_availability_info,
             }

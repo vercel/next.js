@@ -96,7 +96,6 @@ impl OutputAssetsReference for EcmascriptBuildNodeChunk {
 
         Ok(OutputAssetsWithReferenced {
             assets: ResolvedVc::cell(assets),
-            referenced_assets: chunk_references.referenced_assets,
             references: chunk_references.references,
         }
         .cell())

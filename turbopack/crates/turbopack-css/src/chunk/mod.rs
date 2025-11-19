@@ -273,12 +273,7 @@ impl OutputAssetsReference for CssChunk {
                 } else {
                     None
                 };
-                Ok((
-                    refs.assets.await?,
-                    single_css_chunk,
-                    refs.referenced_assets.await?,
-                    refs.references.await?,
-                ))
+                Ok((refs.assets.await?, single_css_chunk, refs.references.await?))
             })
             .try_join()
             .await?;
@@ -298,7 +293,7 @@ impl OutputAssetsReference for CssChunk {
             assets: ResolvedVc::cell(
                 references
                     .iter()
-                    .flat_map(|(assets, single_css_chunk, _, _)| {
+                    .flat_map(|(assets, single_css_chunk, _)| {
                         assets
                             .iter()
                             .copied()
@@ -307,16 +302,10 @@ impl OutputAssetsReference for CssChunk {
                     .chain(source_map.into_iter())
                     .collect(),
             ),
-            referenced_assets: ResolvedVc::cell(
-                references
-                    .iter()
-                    .flat_map(|(_, _, referenced_assets, _)| referenced_assets.iter().copied())
-                    .collect(),
-            ),
             references: ResolvedVc::cell(
                 references
                     .iter()
-                    .flat_map(|(_, _, _, references)| references.iter().copied())
+                    .flat_map(|(_, _, references)| references.iter().copied())
                     .collect(),
             ),
         }

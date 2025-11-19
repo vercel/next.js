@@ -36,7 +36,7 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
         export_usage::compute_export_usage_info,
     },
-    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
+    output::{OutputAsset, OutputAssets, OutputAssetsReferences, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
         origin::{PlainResolveOrigin, ResolveOriginExt},
@@ -464,13 +464,12 @@ async fn build_internal(
                                             EvaluatableAssets::one(*ecmascript),
                                             module_graph,
                                             OutputAssets::empty(),
-                                            OutputAssets::empty(),
+                                            OutputAssetsReferences::empty(),
                                             AvailabilityInfo::root(),
                                         )
                                         .await?
                                         .asset,
                                 ]),
-                                referenced_assets: ResolvedVc::cell(vec![]),
                                 references: ResolvedVc::cell(vec![]),
                             }
                             .cell(),

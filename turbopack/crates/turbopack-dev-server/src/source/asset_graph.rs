@@ -155,11 +155,7 @@ async fn expand(
         for &reference in refs.references.await?.iter() {
             queue.push_back(reference);
         }
-        let ref_assets = refs
-            .assets
-            .await?
-            .into_iter()
-            .chain(refs.referenced_assets.await?.into_iter());
+        let ref_assets = refs.assets.await?;
         for &asset in ref_assets {
             if assets_set.insert(asset) {
                 let path = asset.path().await?;
