@@ -1124,6 +1124,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 .cloned();
 
             if !self.validate_async_function(f.is_async, f.span, fn_name.as_ref(), &directive) {
+                // If this is an exported function that failed validation, remove it from
+                // export_name_by_local_id so the post-pass doesn't register it.
+                if self.current_export_name.is_some() {
+                    if let Some(ref invalid_fn_name) = fn_name {
+                        self.export_name_by_local_id
+                            .swap_remove(&invalid_fn_name.to_id());
+                    }
+                }
+
                 return;
             }
 
@@ -1334,6 +1343,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 self.arrow_or_fn_expr_ident.as_ref(),
                 &directive,
             ) {
+                // If this is an exported arrow function that failed validation, remove it from
+                // export_name_by_local_id so the post-pass doesn't register it.
+                if self.current_export_name.is_some() {
+                    if let Some(ref arrow_ident) = self.arrow_or_fn_expr_ident {
+                        self.export_name_by_local_id
+                            .swap_remove(&arrow_ident.to_id());
+                    }
+                }
+
                 return;
             }
 
