@@ -19,6 +19,7 @@ describe('proxy-nfc-traced', () => {
       )
     )
     expect(nfc.files).toContain('middleware.js')
+    expect(nfc.files).not.toContain('proxy.js')
   })
 
   it('should successfully build and be redirected from proxy', async () => {
