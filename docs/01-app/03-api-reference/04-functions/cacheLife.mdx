@@ -411,7 +411,7 @@ export async function Widget() {
 
 ### Conditional cache lifetimes
 
-You can call `cacheLife` conditionally to set different cache durations based on your data or application logic:
+You can call `cacheLife` conditionally in different code paths to set different cache durations based on your application logic:
 
 ```tsx filename="lib/posts.ts"
 import { cacheLife, cacheTag } from 'next/cache'
@@ -431,16 +431,42 @@ async function getPostContent(slug: string) {
     return null
   }
 
-  // Use cache lifetime configured by the content author
-  cacheLife(post.cacheProfile)
+  // Published content can be cached longer
+  cacheLife('days')
 
   // Return only the necessary data to keep cache size minimal
   return post.data
 }
 ```
 
-This pattern is useful when:
+This pattern is useful when different outcomes need different cache durations, such as errors vs. success, or missing vs. available content.
 
-- Different outcomes need different cache durations (errors vs. success)
-- Cache behavior depends on data properties (author preferences, content type)
-- Content might not be available yet, requiring a shorter cache duration to check back sooner while still reducing database load
+#### Using dynamic cache lifetimes from data
+
+For dynamic cache behavior based on external data (like CMS settings), use inline objects instead of profile names to avoid validation complexity:
+
+```tsx filename="lib/posts.ts"
+import { cacheLife, cacheTag } from 'next/cache'
+
+async function getPostContent(slug: string) {
+  'use cache'
+
+  const post = await fetchPost(slug)
+  cacheTag(`post-${slug}`)
+
+  if (!post) {
+    cacheLife('minutes')
+    return null
+  }
+
+  // Use cache timing from CMS data directly as an object
+  cacheLife({
+    // Ensure post.revalidateSeconds is a number in seconds
+    revalidate: post.revalidateSeconds ?? 3600,
+  })
+
+  return post.data
+}
+```
+
+> **Good to know**: Invalid profile names passed to `cacheLife` will throw runtime errors. When using external data, inline objects with fallback values are recommended.
