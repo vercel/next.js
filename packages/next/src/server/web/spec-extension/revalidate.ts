@@ -179,6 +179,8 @@ function revalidate(
           // status being flipped when revalidating a static page with a server
           // action.
           workUnitStore.usedDynamic = true
+          // TODO(restart-on-cache-miss): we should do a sync IO error here in dev
+          // to match prerender behavior
         }
         break
       default:

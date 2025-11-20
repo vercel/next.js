@@ -4,6 +4,7 @@ export type ErrorType =
   | `Console ${string}`
   | `Recoverable ${string}`
   | 'Blocking Route'
+  | 'Ambiguous Metadata'
 
 type ErrorTypeLabelProps = {
   errorType: ErrorType
@@ -13,7 +14,7 @@ export function ErrorTypeLabel({ errorType }: ErrorTypeLabelProps) {
   return (
     <span
       id="nextjs__container_errors_label"
-      className={`nextjs__container_errors_label ${errorType === 'Blocking Route' ? 'nextjs__container_errors_label_blocking_page' : ''}`}
+      className={`nextjs__container_errors_label ${errorType === 'Blocking Route' || errorType === 'Ambiguous Metadata' ? 'nextjs__container_errors_label_blocking_page' : ''}`}
     >
       {errorType}
     </span>

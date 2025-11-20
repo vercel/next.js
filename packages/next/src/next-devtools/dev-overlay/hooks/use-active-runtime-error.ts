@@ -37,19 +37,12 @@ export function useActiveRuntimeError({
       errorDetails: null,
       errorCode: null,
       errorType: null,
-      notes: null,
-      hydrationWarning: null,
     }
   }
 
   const error = activeError.error
   const errorCode = extractNextErrorCode(error)
-  const errorType = getErrorTypeLabel(error, activeError.type)
-
-  // TODO(GH#78140): May be better to always treat everything past the first blank line as notes
-  // We're currently only special casing hydration error messages.
-  const notes = errorDetails.notes
-  const hydrationWarning = errorDetails.hydrationWarning
+  const errorType = getErrorTypeLabel(error, activeError.type, errorDetails)
 
   return {
     isLoading,
@@ -59,7 +52,5 @@ export function useActiveRuntimeError({
     errorDetails,
     errorCode,
     errorType,
-    notes,
-    hydrationWarning,
   }
 }

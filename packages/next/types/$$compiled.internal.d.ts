@@ -66,6 +66,15 @@ declare module 'react-server-dom-webpack/client' {
     options?: Options
   ): Promise<T>
 
+  export function createFromNodeStream<T>(
+    stream: import('node:stream').Readable,
+    serverConsumerManifest: Options['serverConsumerManifest'],
+    options?: Omit<Options, 'serverConsumerManifest' | 'debugChannel'> & {
+      // For the Node.js client we only support a single-direction debug channel.
+      debugChannel?: import('node:stream').Readable
+    }
+  ): Promise<T>
+
   export function createServerReference(
     id: string,
     callServer: CallServerCallback,
@@ -106,6 +115,8 @@ declare module 'react-server-dom-webpack/client.browser' {
     replayConsoleLogs?: boolean
     temporaryReferences?: TemporaryReferenceSet
     debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
+    startTime?: number
+    endTime?: number
   }
 
   export function createFromFetch<T>(
@@ -307,6 +318,8 @@ declare module 'react-server-dom-webpack/client.edge' {
     replayConsoleLogs?: boolean
     environmentName?: string
     debugChannel?: { readable?: ReadableStream }
+    startTime?: number
+    endTime?: number
   }
 
   export type EncodeFormActionCallback = <A>(

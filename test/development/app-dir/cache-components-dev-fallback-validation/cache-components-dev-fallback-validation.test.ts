@@ -52,19 +52,19 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -74,26 +74,26 @@ describe('Cache Components Fallback Validation', () => {
            |                          ^",
          "stack": [
            "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -103,7 +103,7 @@ describe('Cache Components Fallback Validation', () => {
            |                          ^",
          "stack": [
            "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -113,19 +113,19 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -135,26 +135,26 @@ describe('Cache Components Fallback Validation', () => {
            |                          ^",
          "stack": [
            "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -164,7 +164,7 @@ describe('Cache Components Fallback Validation', () => {
            |                          ^",
          "stack": [
            "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -174,19 +174,19 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -196,26 +196,26 @@ describe('Cache Components Fallback Validation', () => {
            |                          ^",
          "stack": [
            "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -225,7 +225,7 @@ describe('Cache Components Fallback Validation', () => {
            |                          ^",
          "stack": [
            "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -239,19 +239,19 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -261,26 +261,26 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -290,7 +290,7 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -300,19 +300,19 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -322,26 +322,26 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -351,7 +351,7 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -361,19 +361,19 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -383,26 +383,26 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -412,7 +412,7 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -422,19 +422,19 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -444,26 +444,26 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -473,7 +473,7 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -483,19 +483,19 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -505,26 +505,26 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -534,7 +534,7 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -544,19 +544,19 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -566,26 +566,26 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Uncached data was accessed outside of <Suspense>
+         "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-       To fix this, you can either:
+       To fix this:
 
-       Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+       Provide a fallback UI using <Suspense> around this component.
 
        or
 
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
 
-       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -595,7 +595,7 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
-           "LogSafely <anonymous>",
+           "ReportValidation <anonymous>",
          ],
        }
       `)
