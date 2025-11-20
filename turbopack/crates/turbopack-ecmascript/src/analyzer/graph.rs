@@ -1042,9 +1042,9 @@ mod analyzer_state {
                 .expect("not in a function")
         }
 
-        /// Returns true if `this` is bound in any scope
+        /// Returns true if `this` is bound in any active scope
         pub(super) fn is_this_bound(&self) -> bool {
-            self.state.lexical_stack.iter().any(|b| {
+            self.state.lexical_stack.iter().rev().any(|b| {
                 matches!(
                     b,
                     LexicalContext::Function {
