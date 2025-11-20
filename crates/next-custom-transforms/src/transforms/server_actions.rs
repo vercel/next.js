@@ -1837,7 +1837,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             Decl::Var(var) => {
                                 let mut has_export_needing_wrapper = false;
 
-                                // Single loop to validate and register exports
+                                // Check for literal exports and cache runtime wrappers
                                 for decl in &var.decls {
                                     // Validation: check for literal exports
                                     if let Some(init) = &decl.init {
@@ -1846,8 +1846,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         }
                                     }
 
-                                    // Only register exports for cache files in main pass
-                                    // Action files are handled in the post-pass
+                                    // For cache files, check if needs runtime wrapper
                                     if in_cache_file {
                                         let mut idents: Vec<Ident> = Vec::new();
                                         collect_idents_in_pat(&decl.name, &mut idents);
@@ -1856,22 +1855,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             let needs_cache_runtime_wrapper = self
                                                 .local_ids_that_may_need_cache_runtime_wrapper
                                                 .contains(&ident.to_id());
-
-                                            let export_name =
-                                                ModuleExportName::Ident(ident.clone().into());
-                                            self.server_reference_exports.push(
-                                                ServerReferenceExport {
-                                                    ident: ident.clone(),
-                                                    export_name: export_name.clone(),
-                                                    reference_id: self
-                                                        .generate_server_reference_id(
-                                                            &export_name,
-                                                            true,
-                                                            None,
-                                                        ),
-                                                    needs_cache_runtime_wrapper,
-                                                },
-                                            );
 
                                             if needs_cache_runtime_wrapper {
                                                 has_export_needing_wrapper = true;
@@ -1900,18 +1883,33 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             if let Some(src) = &named.src {
                                 // export { x } from './module'
                                 if in_cache_file {
-                                    // Transform to: import + cache runtime wrapper + export
+                                    // Transform to: import + cache runtime wrapper + export.
+                                    // We convert the re-export to an import, which makes it a local
+                                    // identifier that we can wrap with a cache runtime wrapper.
                                     let import_specs: Vec<ImportSpecifier> = named
                                         .specifiers
                                         .iter()
                                         .filter_map(|spec| {
                                             if let ExportSpecifier::Named(ExportNamedSpecifier {
                                                 orig: ModuleExportName::Ident(orig),
+                                                exported,
                                                 is_type_only,
                                                 ..
                                             }) = spec
                                             {
                                                 if !*is_type_only {
+                                                    // Now that we're converting this to an import,
+                                                    // track it as a local export so the post-pass
+                                                    // can
+                                                    // register it with the cache runtime wrapper.
+                                                    let export_name = if let Some(exported) = exported {
+                                                        exported.clone()
+                                                    } else {
+                                                        ModuleExportName::Ident(orig.clone().into())
+                                                    };
+                                                    self.export_name_by_local_id
+                                                        .insert(orig.to_id(), export_name);
+
                                                     return Some(ImportSpecifier::Named(
                                                         ImportNamedSpecifier {
                                                             span: DUMMY_SP,
@@ -1927,7 +1925,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         .collect();
 
                                     if !import_specs.is_empty() {
-                                        // Add import statement, preserving the span (and comments)
+                                        // Add import statement, preserving the span (and comments).
                                         self.extra_items.push(ModuleItem::ModuleDecl(
                                             ModuleDecl::Import(ImportDecl {
                                                 span: named.span,
@@ -1940,40 +1938,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         ));
                                     }
 
-                                    // Collect exports for annotation loop
-                                    for spec in &named.specifiers {
-                                        if let ExportSpecifier::Named(ExportNamedSpecifier {
-                                            orig: ModuleExportName::Ident(orig),
-                                            exported,
-                                            is_type_only,
-                                            ..
-                                        }) = spec
-                                        {
-                                            if !*is_type_only {
-                                                let export_name = if let Some(exported) = exported {
-                                                    exported.clone()
-                                                } else {
-                                                    ModuleExportName::Ident(orig.clone())
-                                                };
-
-                                                self.server_reference_exports.push(
-                                                    ServerReferenceExport {
-                                                        ident: orig.clone(),
-                                                        export_name: export_name.clone(),
-                                                        reference_id: self
-                                                            .generate_server_reference_id(
-                                                                &export_name,
-                                                                in_cache_file,
-                                                                None,
-                                                            ),
-                                                        needs_cache_runtime_wrapper: true,
-                                                    },
-                                                );
-                                            }
-                                        }
-                                    }
-
-                                    // Remove original export...from statement
+                                    // Remove original export...from statement.
+                                    // The post-pass will handle registration of these re-exports.
                                     continue;
                                 } else if named.specifiers.iter().any(|s| match s {
                                     ExportSpecifier::Namespace(_) | ExportSpecifier::Default(_) => {
@@ -2005,42 +1971,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                     .contains(&ident.to_id())
                                                 {
                                                     // Mark for removal from export statement
+                                                    // (registration happens in post-pass)
                                                     indices_to_remove.push(idx);
-
-                                                    // Determine export name for registration
-                                                    let export_name =
-                                                        if let ExportSpecifier::Named(
-                                                            ExportNamedSpecifier {
-                                                                exported: Some(exported),
-                                                                ..
-                                                            },
-                                                        ) = spec
-                                                        {
-                                                            exported.clone()
-                                                        } else {
-                                                            ModuleExportName::Ident(
-                                                                ident.clone().into(),
-                                                            )
-                                                        };
-
-                                                    // Register for runtime wrapping
-                                                    self.server_reference_exports.push(
-                                                        ServerReferenceExport {
-                                                            ident: ident.clone(),
-                                                            export_name: export_name.clone(),
-                                                            reference_id: self
-                                                                .generate_server_reference_id(
-                                                                    &export_name,
-                                                                    true,
-                                                                    None,
-                                                                ),
-                                                            needs_cache_runtime_wrapper: true,
-                                                        },
-                                                    );
                                                 }
                                                 // Otherwise, keep the specifier (it's a function
-                                                // declaration
-                                                // that will be handled by the visitor)
+                                                // declaration that will be handled by the visitor)
                                             }
                                         }
                                     }
@@ -2084,61 +2019,26 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         match &mut *default_expr.expr {
                             Expr::Fn(_) | Expr::Arrow(_) => {}
                             Expr::Ident(ident) => {
-                                // export default foo
-                                // Only register for cache files in main pass
-                                // Action files are handled in the post-pass
+                                // For cache files, strip the export if it needs a runtime wrapper.
+                                // We'll generate a new export when adding the runtime wrapper.
                                 if in_cache_file {
                                     let needs_cache_runtime_wrapper = self
                                         .local_ids_that_may_need_cache_runtime_wrapper
                                         .contains(&ident.to_id());
 
-                                    let export_name =
-                                        ModuleExportName::Ident(atom!("default").into());
-                                    self.server_reference_exports.push(ServerReferenceExport {
-                                        ident: ident.clone(),
-                                        export_name: export_name.clone(),
-                                        reference_id: self.generate_server_reference_id(
-                                            &export_name,
-                                            true,
-                                            None,
-                                        ),
-                                        needs_cache_runtime_wrapper,
-                                    });
-
                                     // If this needs a cache runtime wrapper, remove the export
-                                    // statement (we'll generate a new one with wrapper)
+                                    // statement. The post-pass will handle the registration.
                                     if needs_cache_runtime_wrapper {
                                         continue;
                                     }
                                 }
                             }
-                            Expr::Call(call) => {
-                                // export default fn()
-                                // Only for cache files - action files don't support this
+                            Expr::Call(_call) => {
+                                // For cache files, strip the export for call expressions.
+                                // We'll generate a new export when adding the runtime wrapper.
                                 if in_cache_file {
-                                    let span = call.span;
-
-                                    let new_ident = Ident::new(
-                                        self.gen_action_ident(),
-                                        span,
-                                        self.private_ctxt,
-                                    );
-
-                                    let export_name =
-                                        ModuleExportName::Ident(atom!("default").into());
-                                    self.server_reference_exports.push(ServerReferenceExport {
-                                        ident: new_ident.clone(),
-                                        export_name: export_name.clone(),
-                                        reference_id: self.generate_server_reference_id(
-                                            &export_name,
-                                            true,
-                                            None,
-                                        ),
-                                        needs_cache_runtime_wrapper: true,
-                                    });
-
-                                    // Remove the export statement (we'll generate a new one with
-                                    // wrapper)
+                                    // Remove the export statement. The post-pass will handle the
+                                    // registration.
                                     continue;
                                 }
                             }
@@ -2190,17 +2090,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
         }
 
-        // Post-pass: For 'use server' files, register any exports that weren't already registered
-        // during the main pass. So this inherently excludes self-annotated server
-        // functions. Exports for 'use cache' files are all handled in the main pass.
-        if in_action_file {
+        // Post-pass: For server boundary files, register any exports that weren't already
+        // registered during the main pass.
+        if should_track_exports {
             for (id, export_name) in &self.export_name_by_local_id {
                 if !self.reference_ids_by_export_name.contains_key(export_name) {
                     self.server_reference_exports.push(ServerReferenceExport {
                         ident: Ident::from(id.clone()),
                         export_name: export_name.clone(),
-                        reference_id: self.generate_server_reference_id(export_name, false, None),
-                        needs_cache_runtime_wrapper: false,
+                        reference_id: self.generate_server_reference_id(
+                            export_name,
+                            in_cache_file,
+                            None,
+                        ),
+                        needs_cache_runtime_wrapper: in_cache_file,
                     });
                 }
             }
