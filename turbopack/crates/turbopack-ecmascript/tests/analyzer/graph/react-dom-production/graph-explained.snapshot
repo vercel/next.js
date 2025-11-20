@@ -2843,7 +2843,7 @@ b#494 = di()
 
 b#5 = arguments[1]
 
-b#50 = (a["render"] | (a["displayName"] || null) | a["_payload"])
+b#50 = (a["render"] | undefined | (a["displayName"] || null) | a["_payload"])
 
 b#501 = di()
 
@@ -3230,7 +3230,7 @@ b#979 = arguments[1]
 
 b#986 = arguments[1]
 
-b#990 = a["stateNode"]
+b#990 = (a["stateNode"] | undefined)
 
 b#992 = Zg(a, 1)
 
@@ -3454,6 +3454,7 @@ c#361 = Bg(5, null, null, 0)
 
 c#362 = (
   | a["type"]
+  | undefined
   | ((null !== qg) ? {"id": rg, "overflow": sg} : null)
   | Bg(18, null, null, 0)
 )
@@ -3687,7 +3688,7 @@ c#64 = b["getValue"]()
 
 c#644 = arguments[2]
 
-c#645 = (null | b | a["tail"] | c["sibling"])
+c#645 = (null | undefined | b | a["tail"] | c["sibling"])
 
 c#646 = (0 | ???*0*)
 - *0* unsupported assign operation
@@ -4228,7 +4229,7 @@ d#621 = (b["pendingProps"] | M["current"] | ???*0* | ???*1*)
 - *1* unsupported assign operation
   ⚠️  This value might have side effects
 
-d#631 = (b["type"]["_context"] | b["memoizedState"] | (0 !== ???*0*))
+d#631 = (b["type"]["_context"] | undefined | b["memoizedState"] | (0 !== ???*0*))
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
@@ -4241,7 +4242,7 @@ d#64 = (
 
 d#644 = arguments[3]
 
-d#645 = (null | c)
+d#645 = (null | undefined | c)
 
 d#646 = (0 | ???*0*)
 - *0* unsupported assign operation
@@ -4287,13 +4288,13 @@ d#703 = a["tag"]
 
 d#704 = a["tag"]
 
-d#706 = (X | c["updateQueue"] | d["lastEffect"] | d["next"] | c["stateNode"] | U)
+d#706 = (X | undefined | c["updateQueue"] | d["lastEffect"] | d["next"] | c["stateNode"] | U)
 
 d#71 = b["type"]
 
 d#715 = ck["bind"](null, a, b)
 
-d#716 = (0 | ???*0*)
+d#716 = (0 | undefined | ???*0*)
 - *0* updated with update expression
   ⚠️  This value might have side effects
 
@@ -4357,10 +4358,11 @@ d#910 = (b["stateNode"] | undefined)
 
 d#915 = a["pingCache"]
 
-d#918 = a["stateNode"]
+d#918 = (a["stateNode"] | undefined)
 
 d#919 = (
   | b["type"]
+  | undefined
   | b["elementType"]
   | e(d["_payload"])
   | b["pendingProps"]
@@ -4491,7 +4493,7 @@ e#266 = (c["textContent"]["length"] | undefined | d | Ke(c, f))
 
 e#275 = (d["event"] | undefined)
 
-e#285 = (ed | gd | fd | undefined | !(0))
+e#285 = (ed | undefined | gd | fd | !(0))
 
 e#286 = arguments[4]
 
@@ -4619,14 +4621,15 @@ e#620 = arguments[4]
 
 e#621 = (d["revealOrder"] | null | c | b["child"] | c["sibling"] | a)
 
-e#631 = (b["memoizedProps"]["value"] | b["memoizedState"])
+e#631 = (b["memoizedProps"]["value"] | undefined | b["memoizedState"])
 
 e#639 = (a["memoizedProps"] | Ya(a, e) | A({}, e, {"value": undefined}) | gb(a, e))
 
-e#646 = (a["child"] | e["sibling"])
+e#646 = (a["child"] | undefined | e["sibling"])
 
 e#647 = (
   | Hh(Gh["current"])
+  | undefined
   | 0
   | ???*0*
   | null
@@ -4644,7 +4647,7 @@ e#673 = (d["anchorOffset"] | undefined)
 
 e#687 = (d["next"] | undefined | e["next"])
 
-e#706 = (Yj | d["next"] | e["next"])
+e#706 = (Yj | undefined | d["next"] | e["next"])
 
 e#716 = (c[d] | undefined)
 
@@ -4687,10 +4690,11 @@ e#883 = (K | undefined)
 
 e#9 = arguments[4]
 
-e#918 = a["memoizedState"]
+e#918 = (a["memoizedState"] | undefined)
 
 e#919 = (
   | Yf(b, H["current"])
+  | undefined
   | Xh(null, b, d, a, e, c)
   | d["_init"]
   | $k(d)
@@ -4776,7 +4780,7 @@ f#169 = (???*0* | undefined)
 
 f#175 = arguments[5]
 
-f#176 = e["pointerId"]
+f#176 = (e["pointerId"] | undefined)
 
 f#193 = cd["transition"]
 
@@ -4959,6 +4963,7 @@ f#9 = arguments[5]
 
 f#919 = (
   | bi()
+  | undefined
   | !(0)
   | !(1)
   | b["memoizedState"]

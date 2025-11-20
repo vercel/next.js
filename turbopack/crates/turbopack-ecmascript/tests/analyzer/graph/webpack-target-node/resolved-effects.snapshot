@@ -39,12 +39,12 @@
 0 -> 17 call = require*0*("../../webpack-api-runtime.js")
 - *0* require: The require method from CommonJS
 
-0 -> 19 member call = (module<../../webpack-api-runtime.js, {}> | undefined)["C"](({} | undefined))
+0 -> 19 member call = module<../../webpack-api-runtime.js, {}>["C"]({})
 
-0 -> 21 call = (module<../../webpack-api-runtime.js, {}> | undefined)(???*0*)
+0 -> 21 call = module<../../webpack-api-runtime.js, {}>(???*0*)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 22 call = ((...) => __webpack_require__(moduleId) | undefined)(5166)
+0 -> 22 call = (...) => __webpack_require__(moduleId)(5166)
 
 0 -> 24 free var = FreeVar(module)

@@ -4060,7 +4060,16 @@ a#5 = (???*0* | 0 | ???*1*)
 - *1* updated with update expression
   ⚠️  This value might have side effects
 
-a#50 = (???*0* | ???*1* | null["displayName"] | null["name"] | "" | (???*3* ? ???*5* : "ForwardRef"))
+a#50 = (
+  | ???*0*
+  | ???*1*
+  | undefined["displayName"]
+  | null["displayName"]
+  | undefined["name"]
+  | null["name"]
+  | ""
+  | (???*3* ? ???*5* : "ForwardRef")
+)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* ???*2*["displayName"]
@@ -7563,6 +7572,7 @@ b#50 = (
   | ???*0*
   | ""["render"]
   | (???*2* ? ???*4* : "ForwardRef")["render"]
+  | undefined
   | ""["displayName"]
   | (???*6* ? ???*8* : "ForwardRef")["displayName"]
   | null
@@ -9282,7 +9292,7 @@ b#986 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-b#990 = ???*0*
+b#990 = (???*0* | undefined)
 - *0* ???*1*["stateNode"]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -11486,7 +11496,7 @@ c#644 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analyzed yet
 
-c#645 = (null | ???*0* | ???*1*)
+c#645 = (null | undefined | ???*0* | ???*1*)
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 - *1* ???*2*["tail"]
@@ -11884,7 +11894,7 @@ c#917 = (0 | ???*0*)
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-c#918 = (0 | ???*0*)
+c#918 = (0 | ???*0* | undefined["retryLane"])
 - *0* ???*1*["retryLane"]
   ⚠️  unknown object
 - *1* ???*2*["memoizedState"]
@@ -12051,6 +12061,7 @@ c#990 = (
   | 536870912
   | 1073741824
   | ???*1*
+  | undefined["pendingLanes"]
   | undefined
 )
 - *0* unsupported expression
@@ -13878,7 +13889,7 @@ d#621 = (???*0* | 0 | ???*2* | ???*3* | ???*4*)
 - *4* unsupported assign operation
   ⚠️  This value might have side effects
 
-d#631 = (???*0* | (0 !== ???*3*))
+d#631 = (???*0* | undefined | (0 !== ???*3*))
 - *0* ???*1*["_context"]
   ⚠️  unknown object
 - *1* ???*2*["type"]
@@ -13951,7 +13962,7 @@ d#644 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analyzed yet
 
-d#645 = (null | ???*0* | ???*1*)
+d#645 = (null | undefined | ???*0* | ???*1*)
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 - *1* ???*2*["tail"]
@@ -14057,7 +14068,7 @@ d#715 = (...) => undefined["bind"](null, ???*0*, ???*1*)
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-d#716 = (0 | ???*0*)
+d#716 = (0 | undefined | ???*0*)
 - *0* updated with update expression
   ⚠️  This value might have side effects
 
@@ -14407,7 +14418,7 @@ d#915 = ???*0*
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-d#918 = ???*0*
+d#918 = (???*0* | undefined)
 - *0* ???*1*["stateNode"]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -16298,7 +16309,7 @@ e#621 = (???*0* | 0["revealOrder"] | ???*3* | null | ???*5* | ???*6* | null["sib
 - *6* e
   ⚠️  circular variable reference
 
-e#631 = ???*0*
+e#631 = (???*0* | undefined)
 - *0* ???*1*["value"]
   ⚠️  unknown object
 - *1* ???*2*["memoizedProps"]
@@ -16343,7 +16354,7 @@ e#639 = (???*0* | ???*2*)
 - *12* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-e#646 = ???*0*
+e#646 = (???*0* | undefined)
 - *0* ???*1*["child"]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -16577,7 +16588,7 @@ e#9 = ???*0*
 - *0* arguments[4]
   ⚠️  function calls are not analyzed yet
 
-e#918 = ???*0*
+e#918 = (???*0* | undefined)
 - *0* ???*1*["memoizedState"]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -16891,7 +16902,7 @@ f#175 = ???*0*
 - *0* arguments[5]
   ⚠️  function calls are not analyzed yet
 
-f#176 = ???*0*
+f#176 = (???*0* | undefined)
 - *0* ???*1*["pointerId"]
   ⚠️  unknown object
 - *1* arguments[4]
