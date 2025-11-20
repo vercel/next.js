@@ -523,8 +523,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/build-error-logs/build-error-logs.test.ts": {
-    "passed": [],
-    "failed": ["build-error-logs should only log error a single time"],
+    "passed": ["build-error-logs should only log error a single time"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1035,12 +1035,16 @@
       "server-components-hmr-cache edge runtime in after() should use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache edge runtime should not use cached fetch calls for intentional refresh requests",
       "server-components-hmr-cache edge runtime should use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache edge runtime with cacheMaxMemorySize set to 0 should not warn about \"Single item size exceeds maxSize\"",
+      "server-components-hmr-cache edge runtime with cacheMaxMemorySize set to 0 should still use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache edge runtime with experimental.serverComponentsHmrCache disabled in after() should not use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache edge runtime with experimental.serverComponentsHmrCache disabled should not use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime in after() should not use cached fetch calls for intentional refresh requests",
       "server-components-hmr-cache node runtime in after() should use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime should not use cached fetch calls for intentional refresh requests",
       "server-components-hmr-cache node runtime should use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache node runtime with cacheMaxMemorySize set to 0 should not warn about \"Single item size exceeds maxSize\"",
+      "server-components-hmr-cache node runtime with cacheMaxMemorySize set to 0 should still use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled in after() should not use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled should not use cached fetch calls for fast refresh requests"
     ],
@@ -1135,6 +1139,7 @@
   },
   "test/development/app-dir/use-cache-errors/use-cache-errors.test.ts": {
     "passed": [
+      "use-cache-errors should not leak generated internal cache function names in call stacks",
       "use-cache-errors should not show a false-positive compiler error about a misplaced \"use cache\" directive"
     ],
     "failed": [
@@ -1167,13 +1172,14 @@
   },
   "test/development/app-hmr/hmr.test.ts": {
     "passed": [
-      "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime",
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
       "app-dir-hmr filesystem changes should not break when renaming a folder",
       "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
       "app-dir-hmr filesystem changes should update server components after navigating to a page with a different runtime"
     ],
-    "failed": [],
+    "failed": [
+      "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2018,6 +2024,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/mcp-server/mcp-server-get-routes.test.ts": {
+    "passed": [
+      "get_routes MCP tool should filter routes by routerType parameter",
+      "get_routes MCP tool should return all routes via MCP get_routes tool without visiting pages"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/mcp-server/mcp-server-get-server-action-by-id.test.ts": {
     "passed": [
       "mcp-server get_server_action_by_id tool should return action details via get_server_action_by_id tool",
@@ -2585,6 +2601,15 @@
   "test/e2e/app-dir/actions-revalidate-remount/actions-revalidate-remount.test.ts": {
     "passed": [
       "actions-revalidate-remount should not remount the page + loading component when revalidating"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions-streaming/actions-streaming.test.ts": {
+    "passed": [
+      "actions-streaming actions returning a ReadableStream should properly stream the response without buffering"
     ],
     "failed": [],
     "pending": [],
@@ -3826,7 +3851,6 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -3884,7 +3908,8 @@
       "app dir - basic template component should render the template that holds state in a client component and reset on navigation"
     ],
     "failed": [
-      "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page"
+      "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -5146,6 +5171,15 @@
       "fallback-shells with cached IO with generateStaticParams and the page wrapped in Suspense and the params accessed in the cached page shares a cached layout with unused params between a prerendered route shell and the fallback shell",
       "fallback-shells with cached IO without generateStaticParams and the params accessed in the cached page does not produce hydration errors when resuming a fallback shell containing a layout with unused params",
       "fallback-shells with cached IO without generateStaticParams and the params accessed in the cached page includes a cached layout with unused params in the fallback shell"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/fetch-abort-on-refresh/fetch-abort-on-refresh.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "fetch-abort-on-refresh should not show abort error in global error boundary when restoring from bfcache"
     ],
     "flakey": [],
     "runtimeError": false
@@ -7928,6 +7962,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/proxy-nfc-traced/proxy-nfc-traced.test.ts": {
+    "passed": [
+      "proxy-nfc-traced should successfully build and be redirected from proxy"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts": {
     "passed": [
       "proxy-runtime-nodejs should use nodejs runtime for proxy by default"
@@ -8035,7 +8078,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/resume-data-cache/resume-data-cache/resume-data-cache.test.ts": {
+  "test/e2e/app-dir/resume-data-cache/resume-data-cache.test.ts": {
     "passed": ["resume-data-cache is skipped"],
     "failed": [],
     "pending": [],
@@ -8894,6 +8937,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/refresh/segment-cache-refresh.test.ts": {
+    "passed": ["segment cache (refresh) disabled in development"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/revalidation/segment-cache-revalidation.test.ts": {
     "passed": [
       "segment cache (revalidation) disabled in development / deployment"
@@ -9172,6 +9222,17 @@
       "app-dir trailingSlash handling should redirect route when requesting it directly",
       "app-dir trailingSlash handling should redirect route when requesting it directly by browser",
       "app-dir trailingSlash handling should render link with trailing slash"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/transition-indicator/transition-indicator.test.ts": {
+    "passed": [
+      "transition-indicator displays during any Transition that does not commit a pending state",
+      "transition-indicator displays while loading content without fallback",
+      "transition-indicator does not display while loading content with fallback"
     ],
     "failed": [],
     "pending": [],
@@ -9465,7 +9526,8 @@
       "use-cache usage in node_modules should cache results when using a directive without a handler",
       "use-cache works with \"use cache\" in method props",
       "use-cache works with \"use cache\" in static class methods",
-      "use-cache works with useActionState if previousState parameter is not used in \"use cache\" function"
+      "use-cache works with useActionState if previousState parameter is not used in \"use cache\" function",
+      "use-cache works with useActionState if previousState parameter is not used in \"use cache\" function (separate export)"
     ],
     "failed": [],
     "pending": [],
@@ -9897,7 +9959,8 @@
   },
   "test/e2e/chrome-devtools-workspace/chrome-devtools-workspace.test.ts": {
     "passed": [
-      "chrome-devtools-workspace default should be able to connect to Chrome DevTools in dev"
+      "chrome-devtools-workspace default should be able to connect to Chrome DevTools in dev",
+      "chrome-devtools-workspace proxy should be able to connect to Chrome DevTools in dev"
     ],
     "failed": [],
     "pending": [],
@@ -11867,6 +11930,7 @@
       "opentelemetry root context pages should handle getServerSideProps on edge",
       "opentelemetry root context pages should handle getServerSideProps returning notFound",
       "opentelemetry root context pages should handle getStaticProps when fallback: 'blocking'",
+      "opentelemetry with custom server should set attributes correctly on handleRequest span",
       "opentelemetry with disabled fetch tracing root context app router with disabled fetch should handle RSC with disabled fetch"
     ],
     "failed": [],
@@ -13358,16 +13422,6 @@
       "Chunking production mode should not include more than one instance of react-dom",
       "Chunking production mode should not preload the build manifest",
       "Chunking production mode should use all url friendly names"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/clean-distdir/test/index.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Cleaning distDir production mode disabled write should not clean up .next before build start",
-      "Cleaning distDir production mode should clean up .next before build start"
     ],
     "flakey": [],
     "runtimeError": false
