@@ -4965,7 +4965,7 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "description": " ⨯ "unhandledRejection:" "BOOM"",
+               "description": "⨯ "unhandledRejection:" "BOOM"",
                "environmentLabel": "Prerender",
                "label": "Console Error",
                "source": null,
@@ -4974,7 +4974,7 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "description": " ⨯ "unhandledRejection: " "BOOM"",
+               "description": "⨯ "unhandledRejection: " "BOOM"",
                "environmentLabel": "Prerender",
                "label": "Console Error",
                "source": null,
@@ -4992,7 +4992,7 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "description": " ⨯ "unhandledRejection:" "BAM"",
+               "description": "⨯ "unhandledRejection:" "BAM"",
                "environmentLabel": "Server",
                "label": "Console Error",
                "source": null,
@@ -5001,7 +5001,7 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "description": " ⨯ "unhandledRejection: " "BAM"",
+               "description": "⨯ "unhandledRejection: " "BAM"",
                "environmentLabel": "Server",
                "label": "Console Error",
                "source": null,

@@ -50,7 +50,7 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
         export_usage::compute_export_usage_info,
     },
-    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
@@ -468,15 +468,17 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .source_map_source_type(options.source_map_source_type);
 
             if options.production_chunking {
-                builder = builder.chunking_config(
-                    Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                    ChunkingConfig {
-                        min_chunk_size: 2_000,
-                        max_chunk_count_per_group: 40,
-                        max_merge_chunk_size: 200_000,
-                        ..Default::default()
-                    },
-                )
+                builder = builder
+                    .chunking_config(
+                        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                        ChunkingConfig {
+                            min_chunk_size: 2_000,
+                            max_chunk_count_per_group: 40,
+                            max_merge_chunk_size: 200_000,
+                            ..Default::default()
+                        },
+                    )
+                    .nested_async_availability(true);
             }
             Vc::upcast(builder.build())
         }
@@ -498,15 +500,17 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .source_map_source_type(options.source_map_source_type);
 
             if options.production_chunking {
-                builder = builder.chunking_config(
-                    Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                    ChunkingConfig {
-                        min_chunk_size: 2_000,
-                        max_chunk_count_per_group: 40,
-                        max_merge_chunk_size: 200_000,
-                        ..Default::default()
-                    },
-                )
+                builder = builder
+                    .chunking_config(
+                        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                        ChunkingConfig {
+                            min_chunk_size: 2_000,
+                            max_chunk_count_per_group: 40,
+                            max_merge_chunk_size: 200_000,
+                            ..Default::default()
+                        },
+                    )
+                    .nested_async_availability(true);
             }
             Vc::upcast(builder.build())
         }
@@ -518,7 +522,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             entry_module.ident(),
             ChunkGroup::Entry(entry_modules.into_iter().collect()),
             module_graph,
-            AvailabilityInfo::Root,
+            AvailabilityInfo::root(),
         ),
         Runtime::NodeJs => {
             OutputAssetsWithReferenced {
@@ -535,19 +539,20 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                             module_graph,
                             OutputAssets::empty(),
                             OutputAssets::empty(),
-                            AvailabilityInfo::Root,
+                            AvailabilityInfo::root(),
                         )
                         .await?
                         .asset,
                 ]),
                 referenced_assets: ResolvedVc::cell(vec![]),
+                references: ResolvedVc::cell(vec![]),
             }
             .cell()
         }
     };
 
     let mut seen = FxHashSet::default();
-    let mut queue: VecDeque<_> = chunks.all_assets().await?.iter().copied().collect();
+    let mut queue: VecDeque<_> = chunks.expand_all_assets().await?.iter().copied().collect();
 
     let output_path = project_path.clone();
     while let Some(asset) = queue.pop_front() {
@@ -583,7 +588,7 @@ async fn walk_asset(
         diff(path.clone(), asset.content()).await?;
     }
 
-    queue.extend(asset.references().await?.iter().copied());
+    queue.extend(asset.references().all_assets().await?.iter().copied());
 
     Ok(())
 }

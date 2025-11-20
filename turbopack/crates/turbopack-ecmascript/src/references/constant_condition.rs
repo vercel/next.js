@@ -1,8 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::quote;
-use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
-use turbopack_core::chunk::ChunkingContext;
+use turbo_tasks::{NonLocalValue, debug::ValueDebugFormat, trace::TraceRawVcs};
 
 use super::AstPath;
 use crate::{
@@ -19,7 +18,9 @@ pub enum ConstantConditionValue {
     Nullish,
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash,
+)]
 pub struct ConstantConditionCodeGen {
     value: ConstantConditionValue,
     path: AstPath,
@@ -30,10 +31,7 @@ impl ConstantConditionCodeGen {
         ConstantConditionCodeGen { value, path }
     }
 
-    pub async fn code_generation(
-        &self,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<CodeGeneration> {
+    pub fn code_generation(&self) -> Result<CodeGeneration> {
         let value = self.value;
         let visitors = [create_visitor!(
             exact,

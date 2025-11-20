@@ -34,7 +34,7 @@ describe('server-side dev errors', () => {
         // All tests cause Runtime ReferenceErrors which may lead to this message which
         // is not relevant to this test.
         stderr = stderr.replace(
-          ' ⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
+          '⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
           ''
         )
       },
@@ -362,7 +362,7 @@ describe('server-side dev errors', () => {
           8 |   }, 10)
           9 |   return {
          10 |     props: {},
-        ⨯ unhandledRejection: Error: catch this rejection
+       ⨯ unhandledRejection: Error: catch this rejection
            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:20)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
@@ -371,7 +371,7 @@ describe('server-side dev errors', () => {
           8 |   }, 10)
           9 |   return {
          10 |     props: {},
-        ⨯ unhandledRejection:  Error: catch this rejection
+       ⨯ unhandledRejection:  Error: catch this rejection
            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:20)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
@@ -393,7 +393,7 @@ describe('server-side dev errors', () => {
            8 |   }, 10)
            9 |   return {
           10 |     props: {},
-         ⨯ unhandledRejection: Error: catch this rejection
+        ⨯ unhandledRejection: Error: catch this rejection
             at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:20)
            5 | export async function getServerSideProps() {
            6 |   setTimeout(() => {
@@ -402,7 +402,7 @@ describe('server-side dev errors', () => {
            8 |   }, 10)
            9 |   return {
           10 |     props: {},
-         ⨯ unhandledRejection:  Error: catch this rejection
+        ⨯ unhandledRejection:  Error: catch this rejection
             at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:20)
            5 | export async function getServerSideProps() {
            6 |   setTimeout(() => {
@@ -441,7 +441,7 @@ describe('server-side dev errors', () => {
           8 |   }, 10)
           9 |   return {
          10 |     props: {},
-        ⨯ unhandledRejection: Error: 
+       ⨯ unhandledRejection: Error: 
            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:20)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
@@ -450,7 +450,7 @@ describe('server-side dev errors', () => {
           8 |   }, 10)
           9 |   return {
          10 |     props: {},
-        ⨯ unhandledRejection:  Error: 
+       ⨯ unhandledRejection:  Error: 
            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:20)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
@@ -471,7 +471,7 @@ describe('server-side dev errors', () => {
           8 |   }, 10)
           9 |   return {
          10 |     props: {},
-        ⨯ unhandledRejection: Error: 
+       ⨯ unhandledRejection: Error: 
            at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:20)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
@@ -480,7 +480,7 @@ describe('server-side dev errors', () => {
           8 |   }, 10)
           9 |   return {
          10 |     props: {},
-        ⨯ unhandledRejection:  Error: 
+       ⨯ unhandledRejection:  Error: 
            at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:20)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
@@ -519,7 +519,7 @@ describe('server-side dev errors', () => {
           8 |   }, 10)
           9 |   return {
          10 |     props: {},
-        ⨯ uncaughtException: Error: catch this exception
+       ⨯ uncaughtException: Error: catch this exception
            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:11)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
@@ -528,7 +528,7 @@ describe('server-side dev errors', () => {
           8 |   }, 10)
           9 |   return {
          10 |     props: {},
-        ⨯ uncaughtException:  Error: catch this exception
+       ⨯ uncaughtException:  Error: catch this exception
            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:11)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
@@ -549,7 +549,7 @@ describe('server-side dev errors', () => {
           8 |   }, 10)
           9 |   return {
          10 |     props: {},
-        ⨯ uncaughtException: Error: catch this exception
+       ⨯ uncaughtException: Error: catch this exception
            at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:11)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
@@ -558,7 +558,7 @@ describe('server-side dev errors', () => {
           8 |   }, 10)
           9 |   return {
          10 |     props: {},
-        ⨯ uncaughtException:  Error: catch this exception
+       ⨯ uncaughtException:  Error: catch this exception
            at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:11)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
@@ -597,7 +597,7 @@ describe('server-side dev errors', () => {
           8 |   }, 10)
           9 |   return {
          10 |     props: {},
-        ⨯ uncaughtException: Error: 
+       ⨯ uncaughtException: Error: 
            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:11)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
@@ -606,7 +606,7 @@ describe('server-side dev errors', () => {
           8 |   }, 10)
           9 |   return {
          10 |     props: {},
-        ⨯ uncaughtException:  Error: 
+       ⨯ uncaughtException:  Error: 
            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:11)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
@@ -627,7 +627,7 @@ describe('server-side dev errors', () => {
           8 |   }, 10)
           9 |   return {
          10 |     props: {},
-        ⨯ uncaughtException: Error: 
+       ⨯ uncaughtException: Error: 
            at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:11)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {
@@ -636,7 +636,7 @@ describe('server-side dev errors', () => {
           8 |   }, 10)
           9 |   return {
          10 |     props: {},
-        ⨯ uncaughtException:  Error: 
+       ⨯ uncaughtException:  Error: 
            at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:11)
           5 | export async function getServerSideProps() {
           6 |   setTimeout(() => {

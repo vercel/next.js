@@ -4,6 +4,11 @@ import { workUnitAsyncStorage } from 'next/dist/server/app-render/work-unit-asyn
 
 type Params = { id: string }
 
+export const unstable_prefetch = {
+  mode: 'runtime',
+  samples: [{ cookies: [] }],
+}
+
 export default async function Page({ params }: { params: Promise<Params> }) {
   return (
     <main>

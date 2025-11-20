@@ -70,11 +70,11 @@ describe('Cache Components Errors', () => {
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-                        "[<timestamp>] This is a console log from a server component page
-                        [<timestamp>] This is a console log from a server component page
-                        [<timestamp>]    Collecting build traces ...
-                        [<timestamp>]"
-                      `)
+             "[<timestamp>] This is a console log from a server component page
+             [<timestamp>] This is a console log from a server component page
+             [<timestamp>]   Collecting build traces ...
+             [<timestamp>]"
+            `)
           }
         })
       }

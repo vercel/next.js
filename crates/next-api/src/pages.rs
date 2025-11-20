@@ -1,8 +1,8 @@
 use anyhow::{Context, Result, bail};
 use futures::future::BoxFuture;
 use next_core::{
-    PageLoaderAsset, all_assets_from_entries, create_page_loader_entry_module,
-    get_asset_path_from_pathname, get_edge_resolve_options_context,
+    PageLoaderAsset, create_page_loader_entry_module, get_asset_path_from_pathname,
+    get_edge_resolve_options_context,
     hmr_entry::HmrEntryModule,
     mode::NextMode,
     next_client::{
@@ -56,7 +56,8 @@ use turbopack_core::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
-    output::{OptionOutputAsset, OutputAsset, OutputAssets, OutputAssetsWithReferenced},
+    output::{OptionOutputAsset, OutputAsset, OutputAssets},
+    reference::all_assets_from_entries,
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
@@ -780,7 +781,7 @@ impl PageEndpoint {
                 AssetIdent::from_path(this.page.await?.base_path.clone()),
                 ChunkGroup::Entry(evaluatable_assets),
                 module_graph,
-                AvailabilityInfo::Root,
+                AvailabilityInfo::root(),
             );
 
             Ok(client_chunk_group)
@@ -1003,34 +1004,24 @@ impl PageEndpoint {
                 NextRuntime::Edge => edge_chunking_context,
             };
 
-            let mut current_chunks = OutputAssets::empty();
-            let mut current_referenced_assets = OutputAssets::empty();
-            let mut current_availability_info = AvailabilityInfo::Root;
+            let mut current_chunk_group = ChunkGroupResult::empty_resolved();
             for layout in [document_module, app_module].iter().flatten().copied() {
                 let span = tracing::trace_span!(
                     "layout segment",
                     name = display(layout.ident().to_string().await?)
                 );
                 async {
-                    let ChunkGroupResult {
-                        assets,
-                        referenced_assets,
-                        availability_info,
-                    } = *chunking_context
-                        .chunk_group(
-                            layout.ident(),
-                            ChunkGroup::Shared(layout),
-                            ssr_module_graph,
-                            current_availability_info,
-                        )
-                        .await?;
+                    let chunk_group = chunking_context.chunk_group(
+                        layout.ident(),
+                        ChunkGroup::Shared(layout),
+                        ssr_module_graph,
+                        current_chunk_group.await?.availability_info,
+                    );
 
-                    current_chunks = current_chunks.concatenate(*assets).resolve().await?;
-                    current_referenced_assets = current_referenced_assets
-                        .concatenate(*referenced_assets)
-                        .resolve()
+                    current_chunk_group = current_chunk_group
+                        .concatenate(chunk_group)
+                        .to_resolved()
                         .await?;
-                    current_availability_info = availability_info;
 
                     anyhow::Ok(())
                 }
@@ -1042,27 +1033,22 @@ impl PageEndpoint {
                 .context("could not process page loader entry module")?;
             let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
-                let OutputAssetsWithReferenced {
-                    assets: edge_assets,
-                    referenced_assets: edge_referenced_assets,
-                } = *edge_chunking_context
-                    .evaluated_chunk_group_assets(
-                        ssr_module.ident(),
-                        ChunkGroup::Entry(vec![ResolvedVc::upcast(ssr_module_evaluatable)]),
-                        ssr_module_graph,
-                        current_availability_info,
-                    )
+                let chunk_assets = edge_chunking_context.evaluated_chunk_group_assets(
+                    ssr_module.ident(),
+                    ChunkGroup::Entry(vec![ResolvedVc::upcast(ssr_module_evaluatable)]),
+                    ssr_module_graph,
+                    current_chunk_group.await?.availability_info,
+                );
+
+                let chunk_assets = current_chunk_group
+                    .output_assets_with_referenced()
+                    .concatenate(chunk_assets)
+                    .to_resolved()
                     .await?;
 
                 Ok(SsrChunk::Edge {
-                    assets: current_chunks
-                        .concatenate(*edge_assets)
-                        .to_resolved()
-                        .await?,
-                    referenced_assets: current_referenced_assets
-                        .concatenate(*edge_referenced_assets)
-                        .to_resolved()
-                        .await?,
+                    assets: chunk_assets.primary_assets().to_resolved().await?,
+                    referenced_assets: chunk_assets.referenced_assets().to_resolved().await?,
                     dynamic_import_entries,
                     regions: regions.clone(),
                 }
@@ -1079,9 +1065,9 @@ impl PageEndpoint {
                         ssr_entry_chunk_path,
                         EvaluatableAssets::empty().with_entry(*ssr_module_evaluatable),
                         ssr_module_graph,
-                        current_chunks,
-                        current_referenced_assets,
-                        current_availability_info,
+                        current_chunk_group.primary_assets(),
+                        current_chunk_group.referenced_assets(),
+                        current_chunk_group.await?.availability_info,
                     )
                     .to_resolved()
                     .await?;
@@ -1321,21 +1307,14 @@ impl PageEndpoint {
 
         let ssr_chunk = match this.ty {
             PageEndpointType::Html => {
-                let client_chunk_group = self.client_chunk_group().await?;
-                let client_chunks = *client_chunk_group.assets;
-                client_assets.extend(client_chunks.await?.iter().map(|asset| **asset));
-                client_assets.extend(
-                    client_chunk_group
-                        .referenced_assets
-                        .await?
-                        .iter()
-                        .map(|asset| **asset),
-                );
+                let client_chunk_group = self.client_chunk_group();
+                client_assets.extend(client_chunk_group.all_assets().await?.iter().copied());
+                let client_chunks = *client_chunk_group.await?.assets;
 
                 let build_manifest = self.build_manifest(client_chunks).to_resolved().await?;
-                let page_loader = self.page_loader(client_chunks);
+                let page_loader = self.page_loader(client_chunks).to_resolved().await?;
                 let client_build_manifest = self
-                    .client_build_manifest(page_loader)
+                    .client_build_manifest(*page_loader)
                     .to_resolved()
                     .await?;
                 client_assets.push(page_loader);
@@ -1350,7 +1329,7 @@ impl PageEndpoint {
             PageEndpointType::SsrOnly => self.ssr_chunk(emit_manifests),
         };
 
-        let client_assets = OutputAssets::new(client_assets).to_resolved().await?;
+        let client_assets: ResolvedVc<OutputAssets> = ResolvedVc::cell(client_assets);
 
         let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname);
         let node_root = this.pages_project.project().node_root().owned().await?;
@@ -1381,7 +1360,7 @@ impl PageEndpoint {
             let webpack_stats = generate_webpack_stats(
                 self.client_module_graph(),
                 this.original_name.clone(),
-                client_assets.await?.iter().copied(),
+                client_assets.await?.into_iter().copied(),
             )
             .await?;
             let stats_output = VirtualOutputAsset::new(

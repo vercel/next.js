@@ -9,7 +9,6 @@
 
 pub mod evaluate_context;
 pub mod global_module_ids;
-mod graph;
 pub mod module_options;
 pub mod transition;
 
@@ -21,11 +20,10 @@ use ecmascript::{
     references::{FollowExportsResult, follow_reexports},
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
 };
-use graph::{AggregatedGraph, AggregatedGraphNodeContent, aggregate};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     FileSystemPath,
     glob::{Glob, GlobOptions},
@@ -40,7 +38,7 @@ use turbopack_core::{
     issue::{IssueExt, IssueSource, module::ModuleIssue},
     module::Module,
     node_addon_module::NodeAddonModule,
-    output::OutputAsset,
+    output::{ExpandedOutputAssets, OutputAsset},
     raw_module::RawModule,
     reference_type::{
         CssReferenceSubType, EcmaScriptModulesReferenceSubType, ImportContext, ImportWithType,
@@ -84,8 +82,14 @@ async fn apply_module_type(
     css_import_context: Option<ResolvedVc<ImportContext>>,
     runtime_code: bool,
 ) -> Result<Vc<ProcessResult>> {
+    let tree_shaking_mode = module_asset_context
+        .module_options_context()
+        .await?
+        .tree_shaking_mode;
+    let is_evaluation = matches!(&part, Some(ModulePart::Evaluation));
+
     let module_type = &*module_type.await?;
-    Ok(ProcessResult::Module(match module_type {
+    let module = match module_type {
         ModuleType::Ecmascript {
             preprocess,
             main,
@@ -166,10 +170,11 @@ async fn apply_module_type(
             if runtime_code {
                 ResolvedVc::upcast(module)
             } else {
-                let options_value = options.await?;
-                if options_value.tree_shaking_mode.is_some()
-                    && matches!(&part, Some(ModulePart::Evaluation))
-                {
+                // Check side effect free on the intermediate module before following reexports
+                // This can skip the module earlier and could skip more modules than only doing it
+                // at the end. Also we avoid parsing/analyzing the module in this
+                // case, because we would need to parse/analyze it for reexports.
+                if tree_shaking_mode.is_some() && is_evaluation {
                     // If we are tree shaking, skip the evaluation part if the module is marked as
                     // side effect free.
                     let side_effect_free_packages = module_asset_context
@@ -185,7 +190,7 @@ async fn apply_module_type(
                     }
                 }
 
-                match options_value.tree_shaking_mode {
+                match tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
                         Vc::upcast(EcmascriptModulePartAsset::select_part(
                             *module,
@@ -301,8 +306,25 @@ async fn apply_module_type(
                 .to_resolved()
                 .await?
         }
-    })
-    .cell())
+    };
+
+    if tree_shaking_mode.is_some() && is_evaluation {
+        // If we are tree shaking, skip the evaluation part if the module is marked as
+        // side effect free.
+        let side_effect_free_packages = module_asset_context
+            .side_effect_free_packages()
+            .resolve()
+            .await?;
+
+        if *module
+            .is_marked_as_side_effect_free(side_effect_free_packages)
+            .await?
+        {
+            return Ok(ProcessResult::Ignore.cell());
+        }
+    }
+
+    Ok(ProcessResult::Module(module).cell())
 }
 
 async fn apply_reexport_tree_shaking(
@@ -549,7 +571,8 @@ async fn process_default_internal(
         _ => None,
     };
 
-    for (i, rule) in options.await?.rules.iter().enumerate() {
+    let options_value = options.await?;
+    for (i, rule) in options_value.rules.iter().enumerate() {
         if has_type_attribute && current_module_type.is_some() {
             continue;
         }
@@ -712,7 +735,7 @@ async fn process_default_internal(
         return Ok(ProcessResult::Unknown(current_source).cell());
     };
 
-    apply_module_type(
+    let module = apply_module_type(
         current_source,
         module_asset_context,
         module_type.cell(),
@@ -725,7 +748,9 @@ async fn process_default_internal(
         },
         matches!(reference_type, ReferenceType::Runtime),
     )
-    .await
+    .await?;
+
+    Ok(module)
 }
 
 #[turbo_tasks::function]
@@ -974,57 +999,6 @@ impl AssetContext for ModuleAssetContext {
 }
 
 #[turbo_tasks::function]
-pub async fn emit_with_completion(
-    asset: Vc<Box<dyn OutputAsset>>,
-    output_dir: FileSystemPath,
-) -> Result<()> {
-    emit_assets_aggregated(asset, output_dir)
-        .as_side_effect()
-        .await
-}
-
-#[turbo_tasks::function(operation)]
-pub fn emit_with_completion_operation(
-    asset: ResolvedVc<Box<dyn OutputAsset>>,
-    output_dir: FileSystemPath,
-) -> Vc<()> {
-    emit_with_completion(*asset, output_dir)
-}
-
-#[turbo_tasks::function]
-async fn emit_assets_aggregated(
-    asset: Vc<Box<dyn OutputAsset>>,
-    output_dir: FileSystemPath,
-) -> Result<()> {
-    let aggregated = aggregate(asset);
-    emit_aggregated_assets(aggregated, output_dir)
-        .as_side_effect()
-        .await
-}
-
-#[turbo_tasks::function]
-async fn emit_aggregated_assets(
-    aggregated: Vc<AggregatedGraph>,
-    output_dir: FileSystemPath,
-) -> Result<()> {
-    match &*aggregated.content().await? {
-        AggregatedGraphNodeContent::Asset(asset) => {
-            emit_asset_into_dir(**asset, output_dir)
-                .as_side_effect()
-                .await?;
-        }
-        AggregatedGraphNodeContent::Children(children) => {
-            for aggregated in children {
-                emit_aggregated_assets(**aggregated, output_dir.clone())
-                    .as_side_effect()
-                    .await?;
-            }
-        }
-    }
-    Ok(())
-}
-
-#[turbo_tasks::function]
 pub async fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
     asset
         .content()
@@ -1045,6 +1019,32 @@ pub async fn emit_asset_into_dir(
         emit_asset(asset).as_side_effect().await?;
     }
     Ok(())
+}
+
+#[turbo_tasks::function]
+pub async fn emit_assets_into_dir(
+    assets: Vc<ExpandedOutputAssets>,
+    output_dir: FileSystemPath,
+) -> Result<()> {
+    let assets = assets.await?;
+    let paths = assets.iter().map(|&asset| asset.path()).try_join().await?;
+    for (&asset, path) in assets.iter().zip(paths.iter()) {
+        if path.is_inside_ref(&output_dir) {
+            emit_asset(*asset).as_side_effect().await?;
+        }
+    }
+    Ok(())
+}
+
+#[turbo_tasks::function(operation)]
+pub async fn emit_assets_into_dir_operation(
+    assets: ResolvedVc<ExpandedOutputAssets>,
+    output_dir: FileSystemPath,
+) -> Result<Vc<()>> {
+    emit_assets_into_dir(*assets, output_dir)
+        .as_side_effect()
+        .await?;
+    Ok(Vc::cell(()))
 }
 
 /// Replaces the externals in the result with `ExternalModuleAsset` instances.

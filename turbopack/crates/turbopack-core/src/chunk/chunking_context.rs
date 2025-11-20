@@ -17,7 +17,10 @@ use crate::{
         ModuleGraph, chunk_group_info::ChunkGroup, export_usage::ModuleExportUsage,
         module_batches::BatchingConfig,
     },
-    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
+    output::{
+        ExpandOutputAssetsInput, OutputAsset, OutputAssets, OutputAssetsReferences,
+        OutputAssetsWithReferenced, expand_output_assets,
+    },
 };
 
 #[derive(
@@ -87,11 +90,119 @@ pub enum ChunkGroupType {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ChunkGroupResult {
     pub assets: ResolvedVc<OutputAssets>,
     pub referenced_assets: ResolvedVc<OutputAssets>,
+    pub references: ResolvedVc<OutputAssetsReferences>,
     pub availability_info: AvailabilityInfo,
+}
+
+impl ChunkGroupResult {
+    pub fn empty() -> Vc<Self> {
+        ChunkGroupResult {
+            assets: ResolvedVc::cell(vec![]),
+            referenced_assets: ResolvedVc::cell(vec![]),
+            references: ResolvedVc::cell(vec![]),
+            availability_info: AvailabilityInfo::root(),
+        }
+        .cell()
+    }
+
+    pub fn empty_resolved() -> ResolvedVc<Self> {
+        ChunkGroupResult {
+            assets: ResolvedVc::cell(vec![]),
+            referenced_assets: ResolvedVc::cell(vec![]),
+            references: ResolvedVc::cell(vec![]),
+            availability_info: AvailabilityInfo::root(),
+        }
+        .resolved_cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkGroupResult {
+    #[turbo_tasks::function]
+    pub async fn output_assets_with_referenced(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        Ok(OutputAssetsWithReferenced {
+            assets: self.assets,
+            referenced_assets: self.referenced_assets,
+            references: self.references,
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn concatenate(&self, next: Vc<Self>) -> Result<Vc<Self>> {
+        let next = next.await?;
+        Ok(ChunkGroupResult {
+            assets: self.assets.concatenate(*next.assets).to_resolved().await?,
+            referenced_assets: self
+                .referenced_assets
+                .concatenate(*next.referenced_assets)
+                .to_resolved()
+                .await?,
+            references: self
+                .references
+                .concatenate(*next.references)
+                .to_resolved()
+                .await?,
+            availability_info: next.availability_info,
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn all_assets(&self) -> Result<Vc<OutputAssets>> {
+        Ok(Vc::cell(
+            expand_output_assets(
+                self.assets
+                    .await?
+                    .into_iter()
+                    .chain(self.referenced_assets.await?.into_iter())
+                    .copied()
+                    .map(ExpandOutputAssetsInput::Asset)
+                    .chain(
+                        self.references
+                            .await?
+                            .into_iter()
+                            .copied()
+                            .map(ExpandOutputAssetsInput::Reference),
+                    ),
+                false,
+            )
+            .await?,
+        ))
+    }
+
+    /// Returns only primary asset entries. Doesn't expand OutputAssets. Doesn't return referenced
+    /// assets.
+    #[turbo_tasks::function]
+    pub fn primary_assets(&self) -> Vc<OutputAssets> {
+        *self.assets
+    }
+
+    #[turbo_tasks::function]
+    pub async fn referenced_assets(&self) -> Result<Vc<OutputAssets>> {
+        Ok(Vc::cell(
+            expand_output_assets(
+                self.referenced_assets
+                    .await?
+                    .into_iter()
+                    .copied()
+                    .map(ExpandOutputAssetsInput::Asset)
+                    .chain(
+                        self.references
+                            .await?
+                            .into_iter()
+                            .copied()
+                            .map(ExpandOutputAssetsInput::Reference),
+                    ),
+                false,
+            )
+            .await?,
+        ))
+    }
 }
 
 #[turbo_tasks::value(shared)]
@@ -227,6 +338,15 @@ pub trait ChunkingContext {
     /// traced module.
     #[turbo_tasks::function]
     fn is_tracing_enabled(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
+    /// Whether async modules should create an new availability boundary and therefore nested async
+    /// modules include less modules. Enabling this will lead to better optimized async chunks,
+    /// but it will require to compute all possible paths in the application, which might lead to
+    /// many combinations.
+    #[turbo_tasks::function]
+    fn is_nested_async_availability_enabled(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
     }
 
@@ -410,7 +530,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<ChunkGroupResult> {
-        self.chunk_group(ident, chunk_group, module_graph, AvailabilityInfo::Root)
+        self.chunk_group(ident, chunk_group, module_graph, AvailabilityInfo::root())
     }
 
     fn root_chunk_group_assets(
@@ -477,7 +597,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
             module_graph,
             extra_chunks,
             extra_referenced_assets,
-            AvailabilityInfo::Root,
+            AvailabilityInfo::root(),
         )
     }
 
@@ -496,7 +616,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
             module_graph,
             extra_chunks,
             extra_referenced_assets,
-            AvailabilityInfo::Root,
+            AvailabilityInfo::root(),
         )
     }
 
@@ -564,38 +684,28 @@ async fn relative_path_from_chunk_root_to_project_root(
 }
 
 #[turbo_tasks::function]
-async fn root_chunk_group_assets(
+fn root_chunk_group_assets(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     ident: Vc<AssetIdent>,
     chunk_group: ChunkGroup,
     module_graph: Vc<ModuleGraph>,
-) -> Result<Vc<OutputAssetsWithReferenced>> {
-    let root_chunk_group = chunking_context
+) -> Vc<OutputAssetsWithReferenced> {
+    chunking_context
         .root_chunk_group(ident, chunk_group, module_graph)
-        .await?;
-    Ok(OutputAssetsWithReferenced {
-        assets: root_chunk_group.assets,
-        referenced_assets: root_chunk_group.referenced_assets,
-    }
-    .cell())
+        .output_assets_with_referenced()
 }
 
 #[turbo_tasks::function]
-async fn evaluated_chunk_group_assets(
+fn evaluated_chunk_group_assets(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     ident: Vc<AssetIdent>,
     chunk_group: ChunkGroup,
     module_graph: Vc<ModuleGraph>,
     availability_info: AvailabilityInfo,
-) -> Result<Vc<OutputAssetsWithReferenced>> {
-    let evaluated_chunk_group = chunking_context
+) -> Vc<OutputAssetsWithReferenced> {
+    chunking_context
         .evaluated_chunk_group(ident, chunk_group, module_graph, availability_info)
-        .await?;
-    Ok(OutputAssetsWithReferenced {
-        assets: evaluated_chunk_group.assets,
-        referenced_assets: evaluated_chunk_group.referenced_assets,
-    }
-    .cell())
+        .output_assets_with_referenced()
 }
 
 #[turbo_tasks::function]
@@ -622,19 +732,14 @@ async fn entry_chunk_group_asset(
 }
 
 #[turbo_tasks::function]
-async fn chunk_group_assets(
+fn chunk_group_assets(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     ident: Vc<AssetIdent>,
     chunk_group: ChunkGroup,
     module_graph: Vc<ModuleGraph>,
     availability_info: AvailabilityInfo,
-) -> Result<Vc<OutputAssetsWithReferenced>> {
-    let chunk_group = chunking_context
+) -> Vc<OutputAssetsWithReferenced> {
+    chunking_context
         .chunk_group(ident, chunk_group, module_graph, availability_info)
-        .await?;
-    Ok(OutputAssetsWithReferenced {
-        assets: chunk_group.assets,
-        referenced_assets: chunk_group.referenced_assets,
-    }
-    .cell())
+        .output_assets_with_referenced()
 }
