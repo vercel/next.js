@@ -441,6 +441,11 @@ export interface ExperimentalConfig {
   turbopackSourceMaps?: boolean
 
   /**
+   * Enable extraction of source maps from input files. Defaults to true.
+   */
+  turbopackInputSourceMaps?: boolean
+
+  /**
    * Enable tree shaking for the turbopack dev server and build.
    */
   turbopackTreeShaking?: boolean
@@ -1468,7 +1473,6 @@ export const defaultConfig = Object.freeze({
     appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
-    serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,

@@ -43,7 +43,7 @@ use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
     changed::content_changed,
     chunk::{
-        ChunkingContext, EvaluatableAssets, SourceMapsType,
+        ChunkingContext, EvaluatableAssets,
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
     },
     compile_time_info::CompileTimeInfo,
@@ -229,6 +229,14 @@ pub struct PartialProjectOptions {
 
     /// Options for draft mode.
     pub preview_props: Option<DraftModeOptions>,
+
+    /// The browserslist query to use for targeting browsers.
+    pub browserslist_query: Option<RcStr>,
+
+    /// When the code is minified, this opts out of the default mangling of
+    /// local names for variables, functions etc., which can be useful for
+    /// debugging/profiling purposes.
+    pub no_mangling: Option<bool>,
 }
 
 #[derive(
@@ -347,6 +355,8 @@ impl ProjectContainer {
             encryption_key,
             build_id,
             preview_props,
+            browserslist_query,
+            no_mangling,
         } = options;
 
         let resolved_self = self.to_resolved().await?;
@@ -387,6 +397,12 @@ impl ProjectContainer {
         }
         if let Some(preview_props) = preview_props {
             new_options.preview_props = preview_props;
+        }
+        if let Some(browserslist_query) = browserslist_query {
+            new_options.browserslist_query = browserslist_query;
+        }
+        if let Some(no_mangling) = no_mangling {
+            new_options.no_mangling = no_mangling;
         }
 
         // TODO: Handle mode switch, should prevent mode being switched.
@@ -845,11 +861,7 @@ impl Project {
                 node_build_environment().to_resolved().await?,
                 next_mode.runtime_type(),
             )
-            .source_maps(if *self.next_config().server_source_maps().await? {
-                SourceMapsType::Full
-            } else {
-                SourceMapsType::None
-            })
+            .source_maps(*self.next_config().server_source_maps().await?)
             .build(),
         );
 
@@ -1140,8 +1152,8 @@ impl Project {
             environment: self.server_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
-            turbo_minify: self.next_config().turbo_minify(self.next_mode()),
-            turbo_source_maps: self.next_config().server_source_maps(),
+            minify: self.next_config().turbo_minify(self.next_mode()),
+            source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             nested_async_chunking: self

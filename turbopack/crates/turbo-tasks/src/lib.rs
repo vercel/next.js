@@ -66,7 +66,6 @@ mod once_map;
 mod output;
 pub mod panic_hooks;
 pub mod parallel;
-pub mod persisted_graph;
 pub mod primitives;
 mod raw_vc;
 mod read_options;
