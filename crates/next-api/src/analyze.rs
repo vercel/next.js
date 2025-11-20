@@ -371,7 +371,7 @@ pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc
         let output_file_index = builder.add_output_file(AnalyzeOutputFile { filename });
         let chunk_parts = split_output_asset_into_parts(*asset).await?;
         for chunk_part in chunk_parts {
-let decoded_source = urlencoding::decode(&chunk_part.source)?;
+            let decoded_source = urlencoding::decode(&chunk_part.source)?;
             let source = if let Some(stripped) = decoded_source.strip_prefix(&prefix) {
                 Cow::Borrowed(stripped)
             } else {
@@ -550,9 +550,9 @@ pub struct AnalyzeDataOutputAsset {
 impl AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
     pub async fn new(
-path: FileSystemPath,
-output_assets: ResolvedVc<OutputAssets>,
-) -> Result<Vc<Self>> {
+        path: FileSystemPath,
+        output_assets: ResolvedVc<OutputAssets>,
+    ) -> Result<Vc<Self>> {
         Ok(Self {
             path,
             output_assets,
