@@ -27,6 +27,7 @@ pub struct TurboFn<'a> {
 
     output: Type,
     this: Option<Input>,
+    is_self_used: bool,
     exposed_inputs: Vec<Input>,
     /// Should we return `OperationVc` and require that all arguments are `NonLocalValue`s?
     operation: bool,
@@ -43,6 +44,7 @@ impl TurboFn<'_> {
         orig_signature: &Signature,
         definition_context: DefinitionContext,
         args: FunctionArguments,
+        is_self_used: bool,
     ) -> Option<TurboFn<'_>> {
         if !orig_signature.generics.params.is_empty() {
             orig_signature
@@ -202,6 +204,7 @@ impl TurboFn<'_> {
             ident: orig_ident,
             output,
             this,
+            is_self_used,
             exposed_inputs,
             operation: args.operation.is_some(),
             inline_ident,
@@ -271,7 +274,6 @@ impl TurboFn<'_> {
     pub fn inline_signature_and_block<'a>(
         &self,
         orig_block: &'a Block,
-        is_self_used: bool,
     ) -> (Signature, Cow<'a, Block>) {
         let mut shadow_self = None;
         let (inputs, transform_stmts): (Punctuated<_, _>, Vec<Option<_>>) = self
@@ -280,7 +282,7 @@ impl TurboFn<'_> {
             .iter()
             .filter(|arg| {
                 let FnArg::Typed(pat_type) = arg else {
-                    return is_self_used;
+                    return self.is_self_used;
                 };
                 let Pat::Ident(pat_id) = &*pat_type.pat else {
                     return true;
@@ -543,8 +545,7 @@ impl TurboFn<'_> {
         }
     }
 
-    /// The block of the exposed function for a dynamic dispatch call to the
-    /// given trait.
+    /// The block of the exposed function for a dynamic dispatch call to the given trait.
     pub fn dynamic_block(&self, trait_type_ident: &Ident) -> Block {
         let Some(converted_this) = self.converted_this() else {
             return parse_quote! {
@@ -579,13 +580,14 @@ impl TurboFn<'_> {
         }
     }
 
-    /// The block of the exposed function for a static dispatch call to the
-    /// given native function.
+    /// The block of the exposed function for a static dispatch call to the given native function.
     pub fn static_block(&self, native_function_ident: &Ident) -> Block {
         let output = &self.output;
         let inputs = self.inline_input_idents();
         let assertions = self.get_assertions();
-        let mut block = if let Some(converted_this) = self.converted_this() {
+        let mut block = if self.is_self_used
+            && let Some(converted_this) = self.converted_this()
+        {
             let persistence = self.persistence_with_this();
             parse_quote! {
                 {

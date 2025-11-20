@@ -43,7 +43,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         .unwrap_or_default();
     let is_self_used = args.operation.is_some() || is_self_used(&block);
 
-    let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args) else {
+    let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args, is_self_used) else {
         return quote! {
             // An error occurred while parsing the function signature.
         }
@@ -53,8 +53,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
     let ident = &sig.ident;
 
     let inline_function_ident = turbo_fn.inline_ident();
-    let (inline_signature, inline_block) =
-        turbo_fn.inline_signature_and_block(&block, is_self_used);
+    let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(&block);
     let inline_attrs = filter_inline_attributes(&attrs[..]);
     let function_path_string = ident.to_string();
 
