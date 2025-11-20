@@ -1743,24 +1743,32 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             Decl::Var(var) => {
                                 for decl in &var.decls {
                                     // Collect all identifiers from the pattern (handles
-                                    // destructuring)
+                                    // destructuring).
                                     let mut idents = vec![];
                                     collect_idents_in_pat(&decl.name, &mut idents);
+
+                                    // Track which exported var declarations may need cache runtime
+                                    // wrappers. For destructuring patterns, we always need wrappers
+                                    // since we can't statically know if the destructured values are
+                                    // functions. For simple identifiers, check the init expression.
+                                    let is_destructuring = !matches!(&decl.name, Pat::Ident(_));
+                                    let needs_wrapper = if is_destructuring {
+                                        true
+                                    } else if let Some(init) = &decl.init {
+                                        may_need_cache_runtime_wrapper(init)
+                                    } else {
+                                        false
+                                    };
+
                                     for ident in idents {
                                         self.export_name_by_local_id.insert(
                                             ident.to_id(),
                                             ModuleExportName::Ident(ident.clone()),
                                         );
-                                    }
 
-                                    // Track which exported var declarations may need cache runtime
-                                    // wrappers
-                                    if let Pat::Ident(ident_pat) = &decl.name {
-                                        if let Some(init) = &decl.init {
-                                            if may_need_cache_runtime_wrapper(init) {
-                                                self.local_ids_that_may_need_cache_runtime_wrapper
-                                                    .insert(ident_pat.id.to_id());
-                                            }
+                                        if needs_wrapper {
+                                            self.local_ids_that_may_need_cache_runtime_wrapper
+                                                .insert(ident.to_id());
                                         }
                                     }
                                 }
@@ -1926,7 +1934,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                     // track it as a local export so the post-pass
                                                     // can
                                                     // register it with the cache runtime wrapper.
-                                                    let export_name = if let Some(exported) = exported {
+                                                    let export_name = if let Some(exported) =
+                                                        exported
+                                                    {
                                                         exported.clone()
                                                     } else {
                                                         ModuleExportName::Ident(orig.clone().into())
@@ -3234,15 +3244,9 @@ fn collect_idents_in_array_pat(elems: &[Option<Pat>], idents: &mut Vec<Ident>) {
 fn collect_idents_in_object_pat(props: &[ObjectPatProp], idents: &mut Vec<Ident>) {
     for prop in props {
         match prop {
-            ObjectPatProp::KeyValue(KeyValuePatProp { key, value }) => {
-                if let PropName::Ident(ident) = key {
-                    idents.push(Ident::new(
-                        ident.sym.clone(),
-                        ident.span,
-                        SyntaxContext::empty(),
-                    ));
-                }
-
+            ObjectPatProp::KeyValue(KeyValuePatProp { value, .. }) => {
+                // For { foo: bar }, only collect 'bar' (the local binding), not 'foo'
+                // (the property key).
                 match &**value {
                     Pat::Ident(ident) => {
                         idents.push(ident.id.clone());
@@ -3257,6 +3261,7 @@ fn collect_idents_in_object_pat(props: &[ObjectPatProp], idents: &mut Vec<Ident>
                 }
             }
             ObjectPatProp::Assign(AssignPatProp { key, .. }) => {
+                // For { foo }, 'foo' is both the property key and local binding.
                 idents.push(key.id.clone());
             }
             ObjectPatProp::Rest(RestPat { arg, .. }) => {
