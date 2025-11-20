@@ -497,6 +497,15 @@ impl<C: Comments> ServerActions<C> {
             action_id.clone(),
         );
 
+        // If this is an exported arrow, remove it from export_name_by_local_id so the
+        // post-pass doesn't register it again (it's already registered above).
+        if self.current_export_name.is_some() {
+            if let Some(arrow_ident) = &self.arrow_or_fn_expr_ident {
+                self.export_name_by_local_id
+                    .swap_remove(&arrow_ident.to_id());
+            }
+        }
+
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
@@ -655,6 +664,14 @@ impl<C: Comments> ServerActions<C> {
             action_id.clone(),
         );
 
+        // If this is an exported function, remove it from export_name_by_local_id so the
+        // post-pass doesn't register it again (it's already registered above).
+        if self.current_export_name.is_some() {
+            if let Some(ref fn_name) = fn_name {
+                self.export_name_by_local_id.swap_remove(&fn_name.to_id());
+            }
+        }
+
         function.body.visit_mut_with(&mut ClosureReplacer {
             used_ids: &ids_from_closure,
             private_ctxt: self.private_ctxt,
@@ -791,6 +808,15 @@ impl<C: Comments> ServerActions<C> {
             reference_id.clone(),
         );
 
+        // If this is an exported arrow, remove it from export_name_by_local_id so the
+        // post-pass doesn't register it again (it's already registered above).
+        if self.current_export_name.is_some() {
+            if let Some(arrow_ident) = &self.arrow_or_fn_expr_ident {
+                self.export_name_by_local_id
+                    .swap_remove(&arrow_ident.to_id());
+            }
+        }
+
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
@@ -827,15 +853,6 @@ impl<C: Comments> ServerActions<C> {
                     &cache_ident,
                     sym.as_str(),
                 )));
-        }
-
-        // If this is an exported arrow, remove it from export_name_by_local_id so the
-        // post-pass doesn't register it again (it's already registered above).
-        if self.current_export_name.is_some() {
-            if let Some(arrow_ident) = &self.arrow_or_fn_expr_ident {
-                self.export_name_by_local_id
-                    .swap_remove(&arrow_ident.to_id());
-            }
         }
 
         let bound_args: Vec<_> = ids_from_closure
@@ -894,6 +911,14 @@ impl<C: Comments> ServerActions<C> {
             reference_id.clone(),
         );
 
+        // If this is an exported function, remove it from export_name_by_local_id so the
+        // post-pass doesn't register it again (it's already registered above).
+        if self.current_export_name.is_some() {
+            if let Some(ref fn_name) = fn_name {
+                self.export_name_by_local_id.swap_remove(&fn_name.to_id());
+            }
+        }
+
         function.body.visit_mut_with(&mut ClosureReplacer {
             used_ids: &ids_from_closure,
             private_ctxt: self.private_ctxt,
@@ -926,14 +951,6 @@ impl<C: Comments> ServerActions<C> {
                     &cache_ident,
                     "default",
                 )));
-        }
-
-        // If this is an exported function, remove it from export_name_by_local_id so the
-        // post-pass doesn't register it again (it's already registered above).
-        if self.current_export_name.is_some() {
-            if let Some(ref fn_name) = fn_name {
-                self.export_name_by_local_id.swap_remove(&fn_name.to_id());
-            }
         }
 
         let bound_args: Vec<_> = ids_from_closure
