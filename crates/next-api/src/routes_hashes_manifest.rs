@@ -276,7 +276,7 @@ impl Asset for RoutesHashesManifestAsset {
 
         let entrypoint_hashes_values = entrypoint_hashes.values().copied().try_join().await?;
 
-        let mainfest = serde_json::to_string_pretty(&RoutesHashesManifest {
+        let manifest = serde_json::to_string_pretty(&RoutesHashesManifest {
             routes: entrypoint_hashes
                 .keys()
                 .zip(entrypoint_hashes_values.iter())
@@ -291,7 +291,7 @@ impl Asset for RoutesHashesManifestAsset {
                 })
                 .collect(),
         })?;
-        Ok(AssetContent::File(FileContent::Content(mainfest.into()).resolved_cell()).cell())
+        Ok(AssetContent::File(FileContent::Content(manifest.into()).resolved_cell()).cell())
     }
 }
 
