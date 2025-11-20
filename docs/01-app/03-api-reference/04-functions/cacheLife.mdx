@@ -40,8 +40,8 @@ export default nextConfig
 > **Good to know**:
 >
 > - `cacheLife` requires the `use cache` directive, which must be placed at the file level or at the top of an async function or component
-> - If used, `cacheLife` should be called directly in the function where the `use cache` directive appears
-> - Only one `cacheLife` call should execute per function invocation. You can call `cacheLife` in different control flow branches, but ensure only one executes per run. See the [conditional cache lifetimes](#conditional-cache-lifetimes) example.
+> - If used, `cacheLife` should be placed within the function whose output is being cached, even when the `use cache` directive is at file level
+> - Only one `cacheLife` call should execute per function invocation. You can call `cacheLife` in different control flow branches, but ensure only one executes per run. See the [conditional cache lifetimes](#conditional-cache-lifetimes) example
 
 ### Using preset profiles
 
@@ -372,7 +372,11 @@ export async function getRealtimeStats() {
 
 ### Nested caching behavior
 
-When you nest components with different `use cache` scopes, the parent cache behavior depends on whether it has an explicit `cacheLife`:
+When you nest `use cache` directives (a cached function or component using another cached function or component), the outer cache's behavior depends on whether it has an explicit `cacheLife`.
+
+#### With explicit outer cacheLife
+
+The outer cache uses its own lifetime, regardless of inner cache lifetimes. When the outer cache hits, it returns the complete output including all nested data. An explicit `cacheLife` always takes precedence, whether it's longer or shorter than inner lifetimes.
 
 ```tsx filename="app/dashboard/page.tsx"
 import { cacheLife } from 'next/cache'
@@ -380,7 +384,29 @@ import { Widget } from './widget'
 
 export default async function Dashboard() {
   'use cache'
-  cacheLife('hours') // Explicit parent cache lifetime
+  cacheLife('hours') // Outer scope sets its own lifetime
+
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <Widget /> {/* Inner scope has 'minutes' lifetime */}
+    </div>
+  )
+}
+```
+
+#### Without explicit outer cacheLife
+
+If you don't call `cacheLife` in the outer cache, it uses the `default` profile (15 min revalidate). Inner caches with shorter lifetimes can reduce the outer cache's `default` lifetime. Inner caches with longer lifetimes cannot extend it beyond the default.
+
+```tsx filename="app/dashboard/page.tsx"
+import { Widget } from './widget'
+
+export default async function Dashboard() {
+  'use cache'
+  // No cacheLife call - uses default (15 min)
+  // If Widget has 5 min → Dashboard becomes 5 min
+  // If Widget has 1 hour → Dashboard stays 15 min
 
   return (
     <div>
@@ -391,29 +417,13 @@ export default async function Dashboard() {
 }
 ```
 
-```tsx filename="app/dashboard/widget.tsx"
-import { cacheLife } from 'next/cache'
-
-export async function Widget() {
-  'use cache'
-  cacheLife('minutes') // Child cache lifetime
-
-  const data = await fetchRealtimeData()
-  return <div>{data.value}</div>
-}
-```
-
-**With explicit parent `cacheLife`**: The `Dashboard` cache uses its own lifetime (hours), regardless of the child's lifetime. When the Dashboard cache hits, it returns the complete cached output including the widget's data. The parent's explicit `cacheLife` always takes precedence - it can be longer or shorter than the children's lifetimes.
-
-**Without explicit parent `cacheLife`**: If the `Dashboard` has `use cache` but no `cacheLife` call, it uses the `default` profile, and nested children can only reduce this default value to their shorter lifetimes. The parent cannot be extended beyond the default by children with longer lifetimes.
-
-> **Good to know**: It is recommended to specify an explicit `cacheLife` for each `use cache` directive. With explicit values, you can inspect a component and immediately know its cache behavior regardless of its children. Without explicit values, the behavior becomes dependent on nested cache lifetimes, making it harder to reason about.
+> **Good to know**: It is recommended to specify an explicit `cacheLife`. With explicit lifetime values, you can inspect a cache and immediately know its behavior without tracing through nested caches. Without explicit lifetime values, the behavior becomes dependent on inner cache lifetimes, making it harder to reason about.
 
 ### Conditional cache lifetimes
 
 You can call `cacheLife` conditionally in different code paths to set different cache durations based on your application logic:
 
-```tsx filename="lib/posts.ts"
+```tsx filename="lib/posts.ts" highlight={14,19}
 import { cacheLife, cacheTag } from 'next/cache'
 
 async function getPostContent(slug: string) {
@@ -445,7 +455,7 @@ This pattern is useful when different outcomes need different cache durations, s
 
 For dynamic cache behavior based on external data (like CMS settings), use inline objects instead of profile names to avoid validation complexity:
 
-```tsx filename="lib/posts.ts"
+```tsx filename="lib/posts.ts" highlight={15,16,17}
 import { cacheLife, cacheTag } from 'next/cache'
 
 async function getPostContent(slug: string) {
