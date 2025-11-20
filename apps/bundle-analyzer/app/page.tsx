@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton, TreemapSkeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
+import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
 import { SpecialModule } from '@/lib/types'
 import { getSpecialModuleType, fetchStrict } from '@/lib/utils'
 
@@ -99,6 +100,14 @@ export default function Home() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
+
+  // Compute module depth map from active entries
+  const moduleDepthMap = useMemo(() => {
+    if (!modulesData || !analyzeData) return new Map()
+
+    const activeEntries = computeActiveEntries(modulesData, analyzeData)
+    return computeModuleDepthMap(modulesData, activeEntries)
+  }, [modulesData, analyzeData])
 
   const filterSource = useMemo(() => {
     if (!analyzeData) return undefined
@@ -332,6 +341,7 @@ export default function Home() {
                           startFileId={selectedSourceIndex}
                           analyzeData={analyzeData}
                           modulesData={modulesData}
+                          depthMap={moduleDepthMap}
                           filterSource={filterSource}
                         />
                       )}

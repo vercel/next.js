@@ -643,8 +643,8 @@ importers:
         specifier: 1.0.4
         version: 1.0.4(@types/react-dom@19.2.1(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.3.0-canary-8ac5f4eb-20251119(react@19.3.0-canary-8ac5f4eb-20251119))(react@19.3.0-canary-8ac5f4eb-20251119)
       lucide-react:
-        specifier: ^0.454.0
-        version: 0.454.0(react@19.3.0-canary-8ac5f4eb-20251119)
+        specifier: ^0.554.0
+        version: 0.554.0(react@19.3.0-canary-8ac5f4eb-20251119)
       next:
         specifier: 16.0.1
         version: 16.0.1(@babel/core@7.26.10)(@opentelemetry/api@1.6.0)(@playwright/test@1.51.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@0.0.0-experimental-3fde738-20250918)(react-dom@19.3.0-canary-8ac5f4eb-20251119(react@19.3.0-canary-8ac5f4eb-20251119))(react@19.3.0-canary-8ac5f4eb-20251119)(sass@1.77.8)
@@ -12820,8 +12820,8 @@ packages:
     peerDependencies:
       react: 19.3.0-canary-8ac5f4eb-20251119
 
-  lucide-react@0.454.0:
-    resolution: {integrity: sha512-hw7zMDwykCLnEzgncEEjHeA6+45aeEzRYuKHuyRSOPkhko+J3ySGjGIzu+mmMfDFG1vazHepMaYFYHbTFAZAAQ==}
+  lucide-react@0.554.0:
+    resolution: {integrity: sha512-St+z29uthEJVx0Is7ellNkgTEhaeSoA42I7JjOCBCrc5X6LYMGSv0P/2uS5HDLTExP5tpiqRD2PyUEOS6s9UXA==}
     peerDependencies:
       react: 19.3.0-canary-8ac5f4eb-20251119
 
@@ -31817,7 +31817,7 @@ snapshots:
     dependencies:
       react: 19.3.0-canary-fb2177c1-20251114
 
-  lucide-react@0.454.0(react@19.3.0-canary-8ac5f4eb-20251119):
+  lucide-react@0.554.0(react@19.3.0-canary-8ac5f4eb-20251119):
     dependencies:
       react: 19.3.0-canary-8ac5f4eb-20251119
 
