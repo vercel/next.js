@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use turbo_tasks::{
-    Completion, Completions, ResolvedVc, TryJoinIterExt, Vc,
+    Completion, Completions, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     graph::{AdjacencyMap, GraphTraversal},
 };
 
@@ -94,7 +94,7 @@ pub async fn source_changed(asset: Vc<Box<dyn Module>>) -> Result<Vc<Completion>
         // Reading the file content is enough to add as dependency
         source.content().file_content().await?;
     } else {
-        bail!("Module has no source")
+        bail!("Module {} has no source", asset.ident().to_string().await?)
     }
     Ok(Completion::new())
 }

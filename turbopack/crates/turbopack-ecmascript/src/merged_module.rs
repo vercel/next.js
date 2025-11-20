@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
         MergeableModuleExposure, MergeableModules, MergeableModulesExposed,
@@ -57,14 +56,6 @@ impl MergedEcmascriptModule {
             options,
         }
         .resolved_cell())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for MergedEcmascriptModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        panic!("content() should not be called");
     }
 }
 

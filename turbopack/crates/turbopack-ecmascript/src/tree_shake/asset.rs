@@ -3,7 +3,6 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
     ident::AssetIdent,
@@ -363,14 +362,6 @@ impl Module for EcmascriptModulePartAsset {
                 .full_module
                 .is_marked_as_side_effect_free(side_effect_free_packages)),
         }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptModulePartAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.full_module.content()
     }
 }
 
