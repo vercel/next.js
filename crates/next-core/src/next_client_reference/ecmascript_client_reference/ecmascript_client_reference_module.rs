@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{IntoTraitRef, ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::File;
+use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -240,8 +240,12 @@ impl Module for EcmascriptClientReferenceModule {
 #[turbo_tasks::value_impl]
 impl Asset for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("client reference module asset has no content")
+    fn content(&self) -> Vc<AssetContent> {
+        AssetContent::File(
+            FileContent::Content("// This is a proxy module for Next.js client references.".into())
+                .resolved_cell(),
+        )
+        .cell()
     }
 }
 

@@ -1,6 +1,6 @@
 use std::{fmt::Write, sync::Arc};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use indoc::formatdoc;
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
@@ -111,8 +111,8 @@ impl Module for ModuleCssAsset {
 #[turbo_tasks::value_impl]
 impl Asset for ModuleCssAsset {
     #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("CSS module asset has no contents")
+    fn content(&self) -> Vc<AssetContent> {
+        self.source.content()
     }
 }
 

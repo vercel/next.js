@@ -1,6 +1,7 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks_fs::FileContent;
 use turbopack::css::chunk::CssChunkPlaceable;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -55,9 +56,14 @@ impl Module for CssClientReferenceModule {
 #[turbo_tasks::value_impl]
 impl Asset for CssClientReferenceModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
-        // The client reference asset only serves as a marker asset.
-        bail!("CssClientReferenceModule has no content")
+    fn content(&self) -> Vc<AssetContent> {
+        AssetContent::File(
+            FileContent::Content(
+                "// This is a marker module for Next.js client CSS references.".into(),
+            )
+            .resolved_cell(),
+        )
+        .cell()
     }
 }
 

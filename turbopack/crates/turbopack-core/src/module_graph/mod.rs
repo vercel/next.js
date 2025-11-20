@@ -859,9 +859,13 @@ impl ModuleGraphRef {
                 })
             })
         else {
-            bail!("Couldn't find entry module in module graph");
+            bail!("Couldn't find entry module {entry:?} in module graph");
         };
         Ok(idx)
+    }
+
+    pub fn entries(&self) -> impl Iterator<Item = ChunkGroupEntry> + '_ {
+        self.graphs.iter().flat_map(|g| g.entries.iter().cloned())
     }
 
     fn get_node(&self, entry: GraphNodeIndex) -> Result<&SingleModuleGraphNode> {
