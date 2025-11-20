@@ -23,7 +23,7 @@ use turbopack_core::{
     reference::all_assets_from_entries,
 };
 
-use crate::route::{Endpoint, ModuleGraphs};
+use crate::route::ModuleGraphs;
 
 #[derive(
     Default, Clone, Debug, Deserialize, Eq, NonLocalValue, PartialEq, Serialize, TraceRawVcs,
@@ -540,13 +540,6 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
     Ok(FileContent::Content(File::from(rope)).cell())
 }
 
-#[turbo_tasks::function]
-pub async fn analyze_endpoint(endpoint: Vc<Box<dyn Endpoint>>) -> Result<Vc<FileContent>> {
-    Ok(analyze_output_assets(
-        *endpoint.output().await?.output_assets,
-    ))
-}
-
 #[turbo_tasks::value]
 pub struct AnalyzeDataOutputAsset {
     pub path: FileSystemPath,
@@ -556,10 +549,13 @@ pub struct AnalyzeDataOutputAsset {
 #[turbo_tasks::value_impl]
 impl AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
-    pub async fn new(path: FileSystemPath, output_assets: Vc<OutputAssets>) -> Result<Vc<Self>> {
+    pub async fn new(
+path: FileSystemPath,
+output_assets: ResolvedVc<OutputAssets>,
+) -> Result<Vc<Self>> {
         Ok(Self {
             path,
-            output_assets: output_assets.to_resolved().await?,
+            output_assets,
         }
         .cell())
     }
