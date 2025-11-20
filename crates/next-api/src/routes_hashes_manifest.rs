@@ -274,7 +274,7 @@ impl Asset for RoutesHashesManifestAsset {
             }
         }
 
-        let entrypoint_hashes_values = entrypoint_hashes.values().map(|v| *v).try_join().await?;
+        let entrypoint_hashes_values = entrypoint_hashes.values().copied().try_join().await?;
 
         let mainfest = serde_json::to_string_pretty(&RoutesHashesManifest {
             routes: entrypoint_hashes
