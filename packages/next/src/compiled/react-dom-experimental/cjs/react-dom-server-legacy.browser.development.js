@@ -6740,7 +6740,12 @@
               refProp = void 0 !== refProp ? refProp : null;
               var debugTask = task.debugTask,
                 name = getComponentNameFromType(type);
-              key = null == key ? (-1 === childIndex ? 0 : childIndex) : key;
+              key =
+                null == key || key === REACT_OPTIMISTIC_KEY
+                  ? -1 === childIndex
+                    ? 0
+                    : childIndex
+                  : key;
               var keyPath = [task.keyPath, name, key];
               null !== task.replay
                 ? debugTask
@@ -8934,6 +8939,7 @@
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
+      REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
       isArrayImpl = Array.isArray,
       jsxPropsParents = new WeakMap(),
       jsxChildrenParents = new WeakMap(),
@@ -10405,5 +10411,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.3.0-experimental-0972e239-20251118";
+    exports.version = "19.3.0-experimental-8ac5f4eb-20251119";
   })();
