@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::{borrow::Cow, io::Write};
 
 use anyhow::Result;
 use byteorder::{BE, WriteBytesExt};
@@ -371,9 +371,16 @@ pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc
         let output_file_index = builder.add_output_file(AnalyzeOutputFile { filename });
         let chunk_parts = split_output_asset_into_parts(*asset).await?;
         for chunk_part in chunk_parts {
-            let source_index = builder
-                .ensure_source(chunk_part.source.trim_start_matches(&prefix))
-                .1;
+let decoded_source = urlencoding::decode(&chunk_part.source)?;
+            let source = if let Some(stripped) = decoded_source.strip_prefix(&prefix) {
+                Cow::Borrowed(stripped)
+            } else {
+                Cow::Owned(format!(
+                    "[project]/{}",
+                    decoded_source.trim_start_matches("../")
+                ))
+            };
+            let source_index = builder.ensure_source(&source).1;
             let chunk_part_index = builder.add_chunk_part(AnalyzeChunkPart {
                 source_index,
                 output_file_index,
