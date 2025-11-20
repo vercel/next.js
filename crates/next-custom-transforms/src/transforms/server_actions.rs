@@ -1837,37 +1837,45 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             Decl::Var(var) => {
                                 let mut has_export_needing_wrapper = false;
 
+                                // Single loop to validate and register exports
                                 for decl in &var.decls {
-                                    let mut idents: Vec<Ident> = Vec::new();
-                                    collect_idents_in_pat(&decl.name, &mut idents);
-
-                                    for ident in idents {
-                                        let needs_cache_runtime_wrapper = in_cache_file
-                                            && self
-                                                .local_ids_that_may_need_cache_runtime_wrapper
-                                                .contains(&ident.to_id());
-
-                                        self.server_reference_exports.push(ServerReferenceExport {
-                                            ident: ident.clone(),
-                                            export_name: ModuleExportName::Ident(ident.clone()),
-                                            reference_id: self.generate_server_reference_id(
-                                                &ModuleExportName::Ident(ident.clone()),
-                                                in_cache_file,
-                                                None,
-                                            ),
-                                            needs_cache_runtime_wrapper,
-                                        });
-
-                                        if needs_cache_runtime_wrapper {
-                                            has_export_needing_wrapper = true;
-                                        }
-                                    }
-                                }
-
-                                for decl in &mut var.decls {
+                                    // Validation: check for literal exports
                                     if let Some(init) = &decl.init {
                                         if let Expr::Lit(_) = &**init {
                                             disallowed_export_span = *span;
+                                        }
+                                    }
+
+                                    // Only register exports for cache files in main pass
+                                    // Action files are handled in the post-pass
+                                    if in_cache_file {
+                                        let mut idents: Vec<Ident> = Vec::new();
+                                        collect_idents_in_pat(&decl.name, &mut idents);
+
+                                        for ident in idents {
+                                            let needs_cache_runtime_wrapper = self
+                                                .local_ids_that_may_need_cache_runtime_wrapper
+                                                .contains(&ident.to_id());
+
+                                            let export_name =
+                                                ModuleExportName::Ident(ident.clone().into());
+                                            self.server_reference_exports.push(
+                                                ServerReferenceExport {
+                                                    ident: ident.clone(),
+                                                    export_name: export_name.clone(),
+                                                    reference_id: self
+                                                        .generate_server_reference_id(
+                                                            &export_name,
+                                                            true,
+                                                            None,
+                                                        ),
+                                                    needs_cache_runtime_wrapper,
+                                                },
+                                            );
+
+                                            if needs_cache_runtime_wrapper {
+                                                has_export_needing_wrapper = true;
+                                            }
                                         }
                                     }
                                 }
@@ -2057,58 +2065,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     {
                                         continue;
                                     }
-                                } else {
-                                    // For action files, register all exports
-                                    for spec in &mut named.specifiers {
-                                        if let ExportSpecifier::Named(ExportNamedSpecifier {
-                                            orig: ModuleExportName::Ident(ident),
-                                            exported,
-                                            is_type_only,
-                                            ..
-                                        }) = spec
-                                        {
-                                            if !*is_type_only {
-                                                if let Some(export_name) = exported {
-                                                    // export { foo as bar } or export { foo as
-                                                    // "bar" }
-                                                    self.server_reference_exports.push(
-                                                        ServerReferenceExport {
-                                                            ident: ident.clone(),
-                                                            export_name: export_name.clone(),
-                                                            reference_id: self
-                                                                .generate_server_reference_id(
-                                                                    export_name,
-                                                                    false,
-                                                                    None,
-                                                                ),
-                                                            needs_cache_runtime_wrapper: false,
-                                                        },
-                                                    );
-                                                } else {
-                                                    // export { foo }
-                                                    let export_name = ModuleExportName::Ident(
-                                                        ident.clone().into(),
-                                                    );
-                                                    self.server_reference_exports.push(
-                                                        ServerReferenceExport {
-                                                            ident: ident.clone(),
-                                                            export_name: export_name.clone(),
-                                                            reference_id: self
-                                                                .generate_server_reference_id(
-                                                                    &export_name,
-                                                                    false,
-                                                                    None,
-                                                                ),
-                                                            needs_cache_runtime_wrapper: false,
-                                                        },
-                                                    );
-                                                }
-                                            }
-                                        } else {
-                                            disallowed_export_span = named.span;
-                                        }
-                                    }
                                 }
+                                // For action files, do NOT register here - let the post-pass handle
+                                // it
                             }
                         }
                     }
@@ -2126,50 +2085,60 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             Expr::Fn(_) | Expr::Arrow(_) => {}
                             Expr::Ident(ident) => {
                                 // export default foo
-                                let needs_cache_runtime_wrapper = in_cache_file
-                                    && self
+                                // Only register for cache files in main pass
+                                // Action files are handled in the post-pass
+                                if in_cache_file {
+                                    let needs_cache_runtime_wrapper = self
                                         .local_ids_that_may_need_cache_runtime_wrapper
                                         .contains(&ident.to_id());
 
-                                self.server_reference_exports.push(ServerReferenceExport {
-                                    ident: ident.clone(),
-                                    export_name: ModuleExportName::Ident(atom!("default").into()),
-                                    reference_id: self.generate_server_reference_id(
-                                        &ModuleExportName::Ident(atom!("default").into()),
-                                        in_cache_file,
-                                        None,
-                                    ),
-                                    needs_cache_runtime_wrapper,
-                                });
+                                    let export_name =
+                                        ModuleExportName::Ident(atom!("default").into());
+                                    self.server_reference_exports.push(ServerReferenceExport {
+                                        ident: ident.clone(),
+                                        export_name: export_name.clone(),
+                                        reference_id: self.generate_server_reference_id(
+                                            &export_name,
+                                            true,
+                                            None,
+                                        ),
+                                        needs_cache_runtime_wrapper,
+                                    });
 
-                                // If this needs a cache runtime wrapper, remove the export
-                                // statement (we'll generate a new one with wrapper)
-                                if needs_cache_runtime_wrapper {
-                                    continue;
+                                    // If this needs a cache runtime wrapper, remove the export
+                                    // statement (we'll generate a new one with wrapper)
+                                    if needs_cache_runtime_wrapper {
+                                        continue;
+                                    }
                                 }
                             }
                             Expr::Call(call) => {
                                 // export default fn()
-                                // Determining a useful span here is tricky.
-                                let span = call.span;
-
-                                let new_ident =
-                                    Ident::new(self.gen_action_ident(), span, self.private_ctxt);
-
-                                self.server_reference_exports.push(ServerReferenceExport {
-                                    ident: new_ident.clone(),
-                                    export_name: ModuleExportName::Ident(atom!("default").into()),
-                                    reference_id: self.generate_server_reference_id(
-                                        &ModuleExportName::Ident(atom!("default").into()),
-                                        in_cache_file,
-                                        None,
-                                    ),
-                                    needs_cache_runtime_wrapper: true,
-                                });
-
-                                // If we're in a cache file, remove the export statement
-                                // (we'll generate a new one with wrapper)
+                                // Only for cache files - action files don't support this
                                 if in_cache_file {
+                                    let span = call.span;
+
+                                    let new_ident = Ident::new(
+                                        self.gen_action_ident(),
+                                        span,
+                                        self.private_ctxt,
+                                    );
+
+                                    let export_name =
+                                        ModuleExportName::Ident(atom!("default").into());
+                                    self.server_reference_exports.push(ServerReferenceExport {
+                                        ident: new_ident.clone(),
+                                        export_name: export_name.clone(),
+                                        reference_id: self.generate_server_reference_id(
+                                            &export_name,
+                                            true,
+                                            None,
+                                        ),
+                                        needs_cache_runtime_wrapper: true,
+                                    });
+
+                                    // Remove the export statement (we'll generate a new one with
+                                    // wrapper)
                                     continue;
                                 }
                             }
