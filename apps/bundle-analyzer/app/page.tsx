@@ -4,6 +4,7 @@ import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { ImportChain } from '@/components/import-chain'
+import { ErrorState } from '@/components/error-state'
 import {
   RouteTypeahead,
   type RouteTypeaheadRef,
@@ -15,7 +16,7 @@ import { Skeleton, TreemapSkeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import { SpecialModule } from '@/lib/types'
-import { getSpecialModuleType } from '@/lib/utils'
+import { getSpecialModuleType, fetchStrict } from '@/lib/utils'
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B'
@@ -164,12 +165,6 @@ export default function Home() {
         </div>
 
         <div className="basis-2/3 flex justify-end">
-          {error && (
-            <div className="text-sm text-red-600 font-medium">
-              Error: {error?.message}
-            </div>
-          )}
-
           {analyzeData && (
             <>
               <ToggleGroup
@@ -227,7 +222,9 @@ export default function Home() {
       </div>
 
       <div className="flex-1 flex min-h-0">
-        {isAnyLoading ? (
+        {error && !analyzeData ? (
+          <ErrorState error={error} />
+        ) : isAnyLoading ? (
           <>
             <div className="flex-1 min-w-0 p-4 bg-background">
               <TreemapSkeleton />
@@ -413,13 +410,4 @@ async function fetchAnalyzeData(url: string): Promise<AnalyzeData> {
 async function fetchModulesData(url: string): Promise<ModulesData> {
   const resp = await fetchStrict(url)
   return new ModulesData(await resp.arrayBuffer())
-}
-
-function fetchStrict(url: string): Promise<Response> {
-  return fetch(url).then((res) => {
-    if (!res.ok) {
-      throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`)
-    }
-    return res
-  })
 }

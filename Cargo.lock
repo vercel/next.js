@@ -9383,6 +9383,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
+ "rstest",
  "rustc-hash 2.1.1",
  "syn 2.0.104",
 ]

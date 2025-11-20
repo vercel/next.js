@@ -3,10 +3,10 @@
   "version": "16.0.2-canary.16",
   "private": true,
   "scripts": {
-    "build": "next build --no-mangling",
-    "dev": "next dev",
+    "build": "cross-env NEXT_TEST_NATIVE_DIR=no next build --no-mangling",
+    "dev": "cross-env NEXT_TEST_NATIVE_DIR=no next dev",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "cross-env NEXT_TEST_NATIVE_DIR=no next start"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.4",
@@ -32,6 +32,7 @@
     "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "cross-env": "10.1.0",
     "inliner": "1.13.1",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",

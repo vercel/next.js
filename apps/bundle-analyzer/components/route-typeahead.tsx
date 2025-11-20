@@ -18,6 +18,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { cn, jsonFetcher } from '@/lib/utils'
+import { NetworkError } from '@/lib/errors'
 
 interface RouteTypeaheadProps {
   selectedRoute: string | null
@@ -55,8 +56,13 @@ export const RouteTypeahead = forwardRef<
 
   if (error) {
     return (
-      <div className="flex max-w-full text-red-600">
-        Failed to load routes manifest: {error.message}
+      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm max-w-full">
+        <span className="font-medium">⚠</span>
+        <span className="truncate">
+          {error instanceof NetworkError
+            ? 'Unable to connect to server'
+            : error.message}
+        </span>
       </div>
     )
   }
