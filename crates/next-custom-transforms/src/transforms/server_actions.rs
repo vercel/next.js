@@ -187,7 +187,7 @@ pub fn server_actions<C: Comments>(
 
         arrow_or_fn_expr_ident: None,
         export_name_by_local_id: Default::default(),
-        local_ids_that_may_need_cache_runtime_wrapper: FxHashSet::default(),
+        local_ids_that_need_cache_runtime_wrapper_if_exported: FxHashSet::default(),
 
         use_cache_telemetry_tracker,
     })
@@ -261,10 +261,13 @@ struct ServerActions<C: Comments> {
 
     arrow_or_fn_expr_ident: Option<Ident>,
     export_name_by_local_id: FxIndexMap<Id, ModuleExportName>,
-    /// Track which local IDs may need cache runtime wrappers (collected during pre-pass).
-    /// This includes call expressions, identifiers, etc. but excludes known functions
-    /// (arrow/fn declarations) and non-functions (object/array literals).
-    local_ids_that_may_need_cache_runtime_wrapper: FxHashSet<Id>,
+
+    /// Tracks which local IDs need cache runtime wrappers if exported (collected during pre-pass).
+    /// Includes imports, destructured identifiers, and variables with unknown-type init
+    /// expressions (calls, identifiers, etc.). Excludes known functions (arrow/fn
+    /// declarations) and known non-functions (object/array/literals). When these IDs are
+    /// exported, their exports are stripped and replaced with conditional wrappers.
+    local_ids_that_need_cache_runtime_wrapper_if_exported: FxHashSet<Id>,
 
     use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>>,
 }
@@ -1766,7 +1769,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         );
 
                                         if needs_wrapper {
-                                            self.local_ids_that_may_need_cache_runtime_wrapper
+                                            self.local_ids_that_need_cache_runtime_wrapper_if_exported
                                                 .insert(ident.to_id());
                                         }
                                     }
@@ -1805,12 +1808,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         }
                     }
                     ModuleItem::Stmt(Stmt::Decl(Decl::Var(var_decl))) => {
-                        // Track which declarations may need cache runtime wrappers.
+                        // Track which declarations need cache runtime wrappers if exported.
                         for decl in &var_decl.decls {
                             if let Pat::Ident(ident_pat) = &decl.name {
                                 if let Some(init) = &decl.init {
                                     if may_need_cache_runtime_wrapper(init) {
-                                        self.local_ids_that_may_need_cache_runtime_wrapper
+                                        self.local_ids_that_need_cache_runtime_wrapper_if_exported
                                             .insert(ident_pat.id.to_id());
                                     }
                                 }
@@ -1827,15 +1830,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         for spec in &import_decl.specifiers {
                             match spec {
                                 ImportSpecifier::Named(named) => {
-                                    self.local_ids_that_may_need_cache_runtime_wrapper
+                                    self.local_ids_that_need_cache_runtime_wrapper_if_exported
                                         .insert(named.local.to_id());
                                 }
                                 ImportSpecifier::Default(default) => {
-                                    self.local_ids_that_may_need_cache_runtime_wrapper
+                                    self.local_ids_that_need_cache_runtime_wrapper_if_exported
                                         .insert(default.local.to_id());
                                 }
                                 ImportSpecifier::Namespace(ns) => {
-                                    self.local_ids_that_may_need_cache_runtime_wrapper
+                                    self.local_ids_that_need_cache_runtime_wrapper_if_exported
                                         .insert(ns.local.to_id());
                                 }
                             }
@@ -1885,7 +1888,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                                         for ident in idents {
                                             let needs_cache_runtime_wrapper = self
-                                                .local_ids_that_may_need_cache_runtime_wrapper
+                                                .local_ids_that_need_cache_runtime_wrapper_if_exported
                                                 .contains(&ident.to_id());
 
                                             if needs_cache_runtime_wrapper {
@@ -1939,6 +1942,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                     } else {
                                                         ModuleExportName::Ident(orig.clone().into())
                                                     };
+
                                                     self.export_name_by_local_id
                                                         .insert(orig.to_id(), export_name);
 
@@ -1999,7 +2003,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                 // Check if this identifier needs a cache runtime
                                                 // wrapper.
                                                 if self
-                                                    .local_ids_that_may_need_cache_runtime_wrapper
+                                                    .local_ids_that_need_cache_runtime_wrapper_if_exported
                                                     .contains(&ident.to_id())
                                                 {
                                                     // Mark for removal (registration happens in
@@ -2055,7 +2059,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 // (we'll generate a new export when adding the wrapper).
                                 if in_cache_file {
                                     let needs_cache_runtime_wrapper = self
-                                        .local_ids_that_may_need_cache_runtime_wrapper
+                                        .local_ids_that_need_cache_runtime_wrapper_if_exported
                                         .contains(&ident.to_id());
 
                                     if needs_cache_runtime_wrapper {
