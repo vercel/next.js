@@ -930,5 +930,8 @@
   "929": "No pages or app directory found.",
   "930": "Expected a dynamic route, but got a static route: %s",
   "931": "Unexpected empty path segments match for a route \"%s\" with param \"%s\" of type \"%s\"",
-  "932": "Could not resolve param value for segment: %s"
+  "932": "Could not resolve param value for segment: %s",
+  "933": "An unexpected error occurred while adjusting `_idleStart` on an atomic timer",
+  "934": "createAtomicTimerGroup cannot be called in the edge runtime",
+  "935": "Cannot schedule more timers into a group that already executed"
 }

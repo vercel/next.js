@@ -137,8 +137,8 @@ pub struct NapiProjectOptions {
     /// Unix path. E.g. `apps/my-app`
     pub project_path: RcStr,
 
-    /// A path where to emit the build outputs, relative to [`Project::project_path`], always Unix
-    /// path. Corresponds to next.config.js's `distDir`.
+    /// A path where tracing output will be written to and/or cache is read/written.
+    /// Usually equal to the `distDir` in next.config.js.
     /// E.g. `.next`
     pub dist_dir: RcStr,
 
@@ -191,11 +191,6 @@ pub struct NapiPartialProjectOptions {
     /// a Unix path.
     /// E.g. `apps/my-app`
     pub project_path: Option<RcStr>,
-
-    /// A path where to emit the build outputs, relative to [`Project::project_path`], always a
-    /// Unix path. Corresponds to next.config.js's `distDir`.
-    /// E.g. `.next`
-    pub dist_dir: Option<Option<RcStr>>,
 
     /// Filesystem watcher options.
     pub watch: Option<NapiWatchOptions>,
@@ -267,43 +262,70 @@ impl From<NapiWatchOptions> for WatchOptions {
 
 impl From<NapiProjectOptions> for ProjectOptions {
     fn from(val: NapiProjectOptions) -> Self {
+        let NapiProjectOptions {
+            root_path,
+            project_path,
+            // Only used for initializing cache and tracing
+            dist_dir: _,
+            watch,
+            next_config,
+            env,
+            define_env,
+            dev,
+            encryption_key,
+            build_id,
+            preview_props,
+            browserslist_query,
+            no_mangling,
+            current_node_js_version,
+        } = val;
         ProjectOptions {
-            root_path: val.root_path,
-            project_path: val.project_path,
-            watch: val.watch.into(),
-            next_config: val.next_config,
-            env: val
-                .env
-                .into_iter()
-                .map(|var| (var.name, var.value))
-                .collect(),
-            define_env: val.define_env.into(),
-            dev: val.dev,
-            encryption_key: val.encryption_key,
-            build_id: val.build_id,
-            preview_props: val.preview_props.into(),
-            browserslist_query: val.browserslist_query,
-            no_mangling: val.no_mangling,
-            current_node_js_version: val.current_node_js_version,
+            root_path,
+            project_path,
+            watch: watch.into(),
+            next_config,
+            env: env.into_iter().map(|var| (var.name, var.value)).collect(),
+            define_env: define_env.into(),
+            dev,
+            encryption_key,
+            build_id,
+            preview_props: preview_props.into(),
+            browserslist_query,
+            no_mangling,
+            current_node_js_version,
         }
     }
 }
 
 impl From<NapiPartialProjectOptions> for PartialProjectOptions {
     fn from(val: NapiPartialProjectOptions) -> Self {
+        let NapiPartialProjectOptions {
+            root_path,
+            project_path,
+            watch,
+            next_config,
+            env,
+            define_env,
+            dev,
+            encryption_key,
+            build_id,
+            preview_props,
+            browserslist_query,
+            no_mangling,
+        } = val;
         PartialProjectOptions {
-            root_path: val.root_path,
-            project_path: val.project_path,
-            watch: val.watch.map(From::from),
-            next_config: val.next_config,
-            env: val
-                .env
-                .map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
-            define_env: val.define_env.map(|env| env.into()),
-            dev: val.dev,
-            encryption_key: val.encryption_key,
-            build_id: val.build_id,
-            preview_props: val.preview_props.map(|props| props.into()),
+            root_path,
+            project_path,
+            watch: watch.map(From::from),
+            next_config,
+            env: env.map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
+            define_env: define_env.map(|env| env.into()),
+            dev,
+            encryption_key,
+            build_id,
+            preview_props: preview_props.map(|props| props.into()),
+            browserslist_query,
+            no_mangling,
         }
     }
 }
