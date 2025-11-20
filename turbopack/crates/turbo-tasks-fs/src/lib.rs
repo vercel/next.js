@@ -1847,7 +1847,7 @@ impl FileContent {
 }
 
 bitflags! {
-  #[derive(Default, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+  #[derive(Default, Serialize, Deserialize, TraceRawVcs, NonLocalValue, DeterministicHash)]
   pub struct LinkType: u8 {
       const DIRECTORY = 0b00000001;
       const ABSOLUTE = 0b00000010;

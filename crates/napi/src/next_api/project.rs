@@ -21,6 +21,7 @@ use next_api::{
         ProjectOptions, WatchOptions,
     },
     route::Endpoint,
+    routes_hashes_manifest::routes_hashes_manifest_asset_if_enabled,
 };
 use next_core::tracing_presets::{
     TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
@@ -175,6 +176,9 @@ pub struct NapiProjectOptions {
     /// debugging/profiling purposes.
     pub no_mangling: bool,
 
+    /// Whether to write the route hashes manifest.
+    pub write_routes_hashes_manifest: bool,
+
     /// The version of Node.js that is available/currently running.
     pub current_node_js_version: RcStr,
 }
@@ -219,6 +223,9 @@ pub struct NapiPartialProjectOptions {
 
     /// The browserslist query to use for targeting browsers.
     pub browserslist_query: Option<RcStr>,
+
+    /// Whether to write the route hashes manifest.
+    pub write_routes_hashes_manifest: Option<bool>,
 
     /// When the code is minified, this opts out of the default mangling of
     /// local names for variables, functions etc., which can be useful for
@@ -277,6 +284,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             preview_props,
             browserslist_query,
             no_mangling,
+            write_routes_hashes_manifest,
             current_node_js_version,
         } = val;
         ProjectOptions {
@@ -292,6 +300,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             preview_props: preview_props.into(),
             browserslist_query,
             no_mangling,
+            write_routes_hashes_manifest,
             current_node_js_version,
         }
     }
@@ -312,6 +321,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
             preview_props,
             browserslist_query,
             no_mangling,
+            write_routes_hashes_manifest,
         } = val;
         PartialProjectOptions {
             root_path,
@@ -326,6 +336,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
             preview_props: preview_props.map(|props| props.into()),
             browserslist_query,
             no_mangling,
+            write_routes_hashes_manifest,
         }
     }
 }
@@ -1057,12 +1068,15 @@ async fn output_assets_operation(
 
     let nft = next_server_nft_assets(project).await?;
 
+    let routes_hashes_manifest = routes_hashes_manifest_asset_if_enabled(project).await?;
+
     whole_app_module_graphs.as_side_effect().await?;
 
     Ok(Vc::cell(
         output_assets
             .into_iter()
             .chain(nft.iter().copied())
+            .chain(routes_hashes_manifest.iter().copied())
             .collect(),
     ))
 }

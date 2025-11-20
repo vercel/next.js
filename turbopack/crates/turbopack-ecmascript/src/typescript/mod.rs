@@ -49,6 +49,11 @@ impl Module for TsConfigModuleAsset {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let mut references = Vec::new();
         let configs = read_tsconfigs(

@@ -22,7 +22,7 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     resolve::ModulePart,
-    source::Source,
+    source::{OptionSource, Source},
     source_map::GenerateSourceMap,
 };
 use turbopack_ecmascript::{
@@ -91,6 +91,11 @@ impl Module for RawEcmascriptModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident().with_modifier(rcstr!("raw"))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(self.source))
     }
 
     #[turbo_tasks::function]

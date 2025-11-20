@@ -153,6 +153,11 @@ impl Module for EcmascriptModuleFacadeModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let (part_references, esm_references) = self.await?.specific_references().await?;
         let references = part_references

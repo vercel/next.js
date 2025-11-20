@@ -311,6 +311,11 @@ impl Module for EcmascriptModulePartAsset {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     fn is_self_async(self: Vc<Self>) -> Vc<bool> {
         self.is_async_module()
     }

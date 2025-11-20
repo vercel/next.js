@@ -4,6 +4,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkType,
 };
+use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use crate::version::{VersionedAssetContent, VersionedContent};
 
@@ -109,5 +110,19 @@ impl AssetContent {
             }
         }
         Ok(())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn hash(&self) -> Result<Vc<u64>> {
+        match self {
+            AssetContent::File(content) => Ok(content.hash()),
+            AssetContent::Redirect { target, link_type } => {
+                use turbo_tasks_hash::DeterministicHash;
+                let mut hasher = Xxh3Hash64Hasher::new();
+                target.deterministic_hash(&mut hasher);
+                link_type.deterministic_hash(&mut hasher);
+                Ok(Vc::cell(hasher.finish()))
+            }
+        }
     }
 }

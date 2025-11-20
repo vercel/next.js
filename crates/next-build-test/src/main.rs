@@ -182,6 +182,7 @@ fn main() {
                                      Safari versions, last 1 Edge versions"
                     .into(),
                 no_mangling: false,
+                write_routes_hashes_manifest: false,
                 current_node_js_version: rcstr!("18.0.0"),
             };
 

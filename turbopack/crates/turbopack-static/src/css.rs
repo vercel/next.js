@@ -48,6 +48,11 @@ impl Module for StaticUrlCssModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
     fn is_marked_as_side_effect_free(
         self: Vc<Self>,
         _side_effect_free_packages: Vc<Glob>,

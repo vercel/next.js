@@ -16,6 +16,7 @@ use turbopack_core::{
     output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
     resolve::ModuleResolveResult,
+    source::OptionSource,
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -60,6 +61,11 @@ impl Module for HmrEntryModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         hmr_entry_point_base_ident().with_asset(rcstr!("ENTRY"), *self.ident)
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
     }
 
     #[turbo_tasks::function]

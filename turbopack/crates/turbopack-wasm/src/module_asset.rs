@@ -16,7 +16,7 @@ use turbopack_core::{
     reference::{ModuleReferences, SingleChunkableModuleReference},
     reference_type::ReferenceType,
     resolve::{ExportUsage, origin::ResolveOrigin, parse::Request},
-    source::Source,
+    source::{OptionSource, Source},
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -128,6 +128,11 @@ impl Module for WebAssemblyModuleAsset {
             .ident()
             .with_modifier(rcstr!("wasm module"))
             .with_layer(self.asset_context.into_trait_ref().await?.layer()))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(ResolvedVc::upcast(self.source)))
     }
 
     #[turbo_tasks::function]

@@ -79,6 +79,8 @@ export async function turbopackBuild(): Promise<{
       previewProps,
       browserslistQuery: supportedBrowsers.join(', '),
       noMangling,
+      writeRoutesHashesManifest:
+        !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
       currentNodeJsVersion,
     },
     {

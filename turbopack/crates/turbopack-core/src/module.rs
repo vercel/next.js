@@ -2,7 +2,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
 use turbo_tasks_fs::glob::Glob;
 
-use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences};
+use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences, source::OptionSource};
 
 #[derive(Clone, Copy, Debug, TaskInput, Hash)]
 #[turbo_tasks::value(shared)]
@@ -26,6 +26,10 @@ pub trait Module: Asset {
     fn ident_string(self: Vc<Self>) -> Vc<RcStr> {
         self.ident().to_string()
     }
+
+    /// The source of the [Module].
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource>;
 
     /// Other [Module]s or [OutputAsset]s referenced from this [Module].
     // TODO refactor to avoid returning [OutputAsset]s here

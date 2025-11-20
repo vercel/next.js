@@ -9,7 +9,7 @@ use turbopack_core::{
     module::Module,
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
-    source::Source,
+    source::{OptionSource, Source},
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -58,6 +58,11 @@ impl Module for RawWebAssemblyModuleAsset {
             .ident()
             .with_modifier(rcstr!("wasm raw"))
             .with_layer(self.asset_context.into_trait_ref().await?.layer()))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(ResolvedVc::upcast(self.source)))
     }
 }
 

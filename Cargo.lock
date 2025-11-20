@@ -4269,6 +4269,7 @@ dependencies = [
  "turbo-tasks-backend",
  "turbo-tasks-env",
  "turbo-tasks-fs",
+ "turbo-tasks-hash",
  "turbo-tasks-malloc",
  "turbo-unix-path",
  "turbopack",

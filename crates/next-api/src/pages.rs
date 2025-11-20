@@ -1713,7 +1713,11 @@ impl Endpoint for PageEndpoint {
     async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
         let client_module_graph = self.client_module_graph().to_resolved().await?;
         let ssr_module_graph = self.ssr_module_graph().to_resolved().await?;
-        Ok(Vc::cell(vec![client_module_graph, ssr_module_graph]))
+        Ok(Vc::cell(if client_module_graph != ssr_module_graph {
+            vec![client_module_graph, ssr_module_graph]
+        } else {
+            vec![ssr_module_graph]
+        }))
     }
 }
 
