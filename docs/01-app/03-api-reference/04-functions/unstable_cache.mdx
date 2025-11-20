@@ -48,44 +48,60 @@ const data = unstable_cache(fetchData, keyParts, options)()
 ```tsx filename="app/page.tsx" switcher
 import { unstable_cache } from 'next/cache'
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ userId: string }>
-}) {
-  const { userId } = await params
-  const getCachedUser = unstable_cache(
+export default async function Page() {
+  const getCachedPosts = unstable_cache(
     async () => {
-      return { id: userId }
+      return [
+        { id: 1, title: 'Hello World' },
+        { id: 2, title: 'Next.js Caching' },
+      ]
     },
-    [userId], // add the user ID to the cache key
+    ['posts'],
     {
-      tags: ['users'],
+      tags: ['posts'],
       revalidate: 60,
     }
   )
 
-  //...
+  const posts = await getCachedPosts()
+
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
 }
 ```
 
 ```jsx filename="app/page.jsx" switcher
-import { unstable_cache } from 'next/cache';
+import { unstable_cache } from 'next/cache'
 
-export default async function Page({ params } }) {
-  const { userId } = await params
-  const getCachedUser = unstable_cache(
+export default async function Page() {
+  const getCachedPosts = unstable_cache(
     async () => {
-      return { id: userId };
+      return [
+        { id: 1, title: 'Hello World' },
+        { id: 2, title: 'Next.js Caching' },
+      ]
     },
-    [userId], // add the user ID to the cache key
+    ['posts'],
     {
-      tags: ["users"],
+      tags: ['posts'],
       revalidate: 60,
     }
-  );
+  )
 
-  //...
+  const posts = await getCachedPosts()
+
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
 }
 ```
 
