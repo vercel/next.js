@@ -17,6 +17,7 @@ use turbopack::module_options::{
     module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
+    chunk::SourceMapsType,
     issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
     resolve::ResolveAliasMap,
 };
@@ -884,6 +885,7 @@ pub struct ExperimentalConfig {
     turbopack_module_ids: Option<ModuleIds>,
     turbopack_persistent_caching: Option<bool>,
     turbopack_source_maps: Option<bool>,
+    turbopack_input_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
     turbopack_client_side_nested_async_chunking: Option<bool>,
@@ -1825,18 +1827,43 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn client_source_maps(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
-        let source_maps = self.experimental.turbopack_source_maps;
-        Ok(Vc::cell(source_maps.unwrap_or(match &*mode.await? {
-            NextMode::Development => true,
-            NextMode::Build => self.production_browser_source_maps,
-        })))
+    pub async fn client_source_maps(&self, mode: Vc<NextMode>) -> Result<Vc<SourceMapsType>> {
+        let input_source_maps = self
+            .experimental
+            .turbopack_input_source_maps
+            .unwrap_or(true);
+        let source_maps = self
+            .experimental
+            .turbopack_source_maps
+            .unwrap_or(match &*mode.await? {
+                NextMode::Development => true,
+                NextMode::Build => self.production_browser_source_maps,
+            });
+        Ok(match (source_maps, input_source_maps) {
+            (true, true) => SourceMapsType::Full,
+            (true, false) => SourceMapsType::Partial,
+            (false, _) => SourceMapsType::None,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
-    pub fn server_source_maps(&self) -> Result<Vc<bool>> {
-        let source_maps = self.experimental.turbopack_source_maps;
-        Ok(Vc::cell(source_maps.unwrap_or(true)))
+    pub fn server_source_maps(&self) -> Result<Vc<SourceMapsType>> {
+        let input_source_maps = self
+            .experimental
+            .turbopack_input_source_maps
+            .unwrap_or(true);
+        let source_maps = self
+            .experimental
+            .turbopack_source_maps
+            .or(self.experimental.server_source_maps)
+            .unwrap_or(true);
+        Ok(match (source_maps, input_source_maps) {
+            (true, true) => SourceMapsType::Full,
+            (true, false) => SourceMapsType::Partial,
+            (false, _) => SourceMapsType::None,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]

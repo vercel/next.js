@@ -577,11 +577,7 @@ pub async fn get_server_module_options_context(
     .flatten()
     .collect();
 
-    let source_maps = if *next_config.server_source_maps().await? {
-        SourceMapsType::Full
-    } else {
-        SourceMapsType::None
-    };
+    let source_maps = *next_config.server_source_maps().await?;
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
@@ -996,8 +992,8 @@ pub struct ServerChunkingContextOptions {
     pub environment: Vc<Environment>,
     pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
     pub export_usage: Vc<OptionExportUsageInfo>,
-    pub turbo_minify: Vc<bool>,
-    pub turbo_source_maps: Vc<bool>,
+    pub minify: Vc<bool>,
+    pub source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
@@ -1019,8 +1015,8 @@ pub async fn get_server_chunking_context_with_client_assets(
         environment,
         module_id_strategy,
         export_usage,
-        turbo_minify,
-        turbo_source_maps,
+        minify,
+        source_maps,
         no_mangling,
         scope_hoisting,
         nested_async_chunking,
@@ -1044,7 +1040,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         next_mode.runtime_type(),
     )
     .asset_prefix(Some(asset_prefix))
-    .minify_type(if *turbo_minify.await? {
+    .minify_type(if *minify.await? {
         MinifyType::Minify {
             // React needs deterministic function names to work correctly.
             mangle: (!*no_mangling.await?).then_some(MangleType::Deterministic),
@@ -1052,11 +1048,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     } else {
         MinifyType::NoMinify
     })
-    .source_maps(if *turbo_source_maps.await? {
-        SourceMapsType::Full
-    } else {
-        SourceMapsType::None
-    })
+    .source_maps(*source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .file_tracing(next_mode.is_production())
@@ -1105,8 +1097,8 @@ pub async fn get_server_chunking_context(
         environment,
         module_id_strategy,
         export_usage,
-        turbo_minify,
-        turbo_source_maps,
+        minify,
+        source_maps,
         no_mangling,
         scope_hoisting,
         nested_async_chunking,
@@ -1131,18 +1123,14 @@ pub async fn get_server_chunking_context(
     .client_roots_override(rcstr!("client"), client_root.clone())
     .asset_root_path_override(rcstr!("client"), client_root.join("static/media")?)
     .asset_prefix_override(rcstr!("client"), asset_prefix)
-    .minify_type(if *turbo_minify.await? {
+    .minify_type(if *minify.await? {
         MinifyType::Minify {
             mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
         }
     } else {
         MinifyType::NoMinify
     })
-    .source_maps(if *turbo_source_maps.await? {
-        SourceMapsType::Full
-    } else {
-        SourceMapsType::None
-    })
+    .source_maps(*source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .file_tracing(next_mode.is_production())

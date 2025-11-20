@@ -298,6 +298,7 @@ export const experimentalSchema = {
   turbopackFileSystemCacheForDev: z.boolean().optional(),
   turbopackFileSystemCacheForBuild: z.boolean().optional(),
   turbopackSourceMaps: z.boolean().optional(),
+  turbopackInputSourceMaps: z.boolean().optional(),
   turbopackTreeShaking: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),

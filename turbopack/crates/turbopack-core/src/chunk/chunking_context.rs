@@ -66,6 +66,8 @@ pub enum SourceMapsType {
     /// Extracts source maps from input files and writes source maps for output files.
     #[default]
     Full,
+    /// Ignores existing input source maps, but writes source maps for output files.
+    Partial,
     /// Ignores the existence of source maps and does not write source maps for output files.
     None,
 }
