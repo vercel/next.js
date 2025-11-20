@@ -1742,15 +1742,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }
                             Decl::Var(var) => {
                                 for decl in &var.decls {
-                                    // Collect all identifiers from the pattern (handles
-                                    // destructuring).
+                                    // Collect all identifiers from the pattern and track which may
+                                    // need cache runtime wrappers. For destructuring patterns, we
+                                    // always need wrappers since we can't statically know if the
+                                    // destructured values are functions. For simple identifiers,
+                                    // check the init expression.
                                     let mut idents = vec![];
                                     collect_idents_in_pat(&decl.name, &mut idents);
 
-                                    // Track which exported var declarations may need cache runtime
-                                    // wrappers. For destructuring patterns, we always need wrappers
-                                    // since we can't statically know if the destructured values are
-                                    // functions. For simple identifiers, check the init expression.
                                     let is_destructuring = !matches!(&decl.name, Pat::Ident(_));
                                     let needs_wrapper = if is_destructuring {
                                         true
@@ -1806,7 +1805,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         }
                     }
                     ModuleItem::Stmt(Stmt::Decl(Decl::Var(var_decl))) => {
-                        // Track which declarations may need cache runtime wrappers
+                        // Track which declarations may need cache runtime wrappers.
                         for decl in &var_decl.decls {
                             if let Pat::Ident(ident_pat) = &decl.name {
                                 if let Some(init) = &decl.init {
@@ -1819,12 +1818,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         }
                     }
                     ModuleItem::Stmt(Stmt::Decl(Decl::Fn(_fn_decl))) => {
-                        // Function declarations are known functions, so they don't need runtime
-                        // cache wrappers.
+                        // Function declarations are known functions and don't need runtime
+                        // wrappers.
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::Import(import_decl)) => {
-                        // Track all imports - we don't know if they're functions, so they need
-                        // cache runtime wrappers if they end up getting re-exported
+                        // Track all imports. We don't know if they're functions, so they need
+                        // runtime wrappers if they end up getting re-exported.
                         for spec in &import_decl.specifiers {
                             match spec {
                                 ImportSpecifier::Named(named) => {
@@ -1862,11 +1861,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             Decl::Var(var) => {
                                 let mut has_export_needing_wrapper = false;
 
-                                // Check for disallowed exports and cache runtime wrappers.
+                                // Validate exports and check for cache runtime wrappers. Disallow
+                                // exporting literals, objects, and arrays directly (destructuring
+                                // patterns are allowed since we can't statically know if the
+                                // destructured value is a function).
                                 for decl in &var.decls {
-                                    // Validation: Disallow exporting literals, objects, and arrays
-                                    // directly. Destructuring patterns are allowed since we can't
-                                    // statically know if the destructured value is a function.
                                     if let Pat::Ident(_) = &decl.name {
                                         if let Some(init) = &decl.init {
                                             match &**init {
@@ -1878,7 +1877,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         }
                                     }
 
-                                    // For cache files, check if needs runtime wrapper
+                                    // For cache files, check if any identifier needs a runtime
+                                    // wrapper.
                                     if in_cache_file {
                                         let mut idents: Vec<Ident> = Vec::new();
                                         collect_idents_in_pat(&decl.name, &mut idents);
@@ -1895,8 +1895,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     }
                                 }
 
-                                // If this export needs a cache runtime wrapper,
-                                // convert to a regular declaration (remove export keyword)
+                                // If this export needs a cache runtime wrapper, convert to a
+                                // regular declaration (remove export keyword).
                                 if in_cache_file && has_export_needing_wrapper {
                                     stmt = ModuleItem::Stmt(Stmt::Decl(Decl::Var(var.clone())));
                                 }
@@ -1915,9 +1915,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             if let Some(src) = &named.src {
                                 // export { x } from './module'
                                 if in_cache_file {
-                                    // Transform to: import + cache runtime wrapper + export.
-                                    // We convert the re-export to an import, which makes it a local
-                                    // identifier that we can wrap with a cache runtime wrapper.
+                                    // Transform re-exports into imports so we can wrap them with
+                                    // cache runtime wrappers.
                                     let import_specs: Vec<ImportSpecifier> = named
                                         .specifiers
                                         .iter()
@@ -1932,8 +1931,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                 if !*is_type_only {
                                                     // Now that we're converting this to an import,
                                                     // track it as a local export so the post-pass
-                                                    // can
-                                                    // register it with the cache runtime wrapper.
+                                                    // can register it.
                                                     let export_name = if let Some(exported) =
                                                         exported
                                                     {
@@ -1959,7 +1957,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         .collect();
 
                                     if !import_specs.is_empty() {
-                                        // Add import statement, preserving the span (and comments).
+                                        // Add import statement.
                                         self.extra_items.push(ModuleItem::ModuleDecl(
                                             ModuleDecl::Import(ImportDecl {
                                                 span: named.span,
@@ -1972,8 +1970,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         ));
                                     }
 
-                                    // Remove original export...from statement.
-                                    // The post-pass will handle registration of these re-exports.
+                                    // Remove the original export...from statement. The post-pass
+                                    // will handle registration.
                                     continue;
                                 } else if named.specifiers.iter().any(|s| match s {
                                     ExportSpecifier::Namespace(_) | ExportSpecifier::Default(_) => {
@@ -1986,7 +1984,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             } else {
                                 // For cache files, handle mixed exports by selectively removing
                                 // specifiers that need runtime wrappers while keeping function
-                                // declarations
+                                // declarations.
                                 if in_cache_file {
                                     let mut indices_to_remove = Vec::new();
 
@@ -1999,28 +1997,28 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         {
                                             if !*is_type_only {
                                                 // Check if this identifier needs a cache runtime
-                                                // wrapper
+                                                // wrapper.
                                                 if self
                                                     .local_ids_that_may_need_cache_runtime_wrapper
                                                     .contains(&ident.to_id())
                                                 {
-                                                    // Mark for removal from export statement
-                                                    // (registration happens in post-pass)
+                                                    // Mark for removal (registration happens in
+                                                    // post-pass).
                                                     indices_to_remove.push(idx);
                                                 }
                                                 // Otherwise, keep the specifier (it's a function
-                                                // declaration that will be handled by the visitor)
+                                                // declaration that will be handled by the visitor).
                                             }
                                         }
                                     }
 
-                                    // Remove specifiers in reverse order to maintain indices
+                                    // Remove specifiers in reverse order to maintain indices.
                                     for idx in indices_to_remove.iter().rev() {
                                         named.specifiers.remove(*idx);
                                     }
 
                                     // If all non-type specifiers were removed, skip the export
-                                    // statement
+                                    // statement.
                                     if named.specifiers.is_empty()
                                         || named.specifiers.iter().all(|spec| {
                                             matches!(
@@ -2053,26 +2051,22 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         match &mut *default_expr.expr {
                             Expr::Fn(_) | Expr::Arrow(_) => {}
                             Expr::Ident(ident) => {
-                                // For cache files, strip the export if it needs a runtime wrapper.
-                                // We'll generate a new export when adding the runtime wrapper.
+                                // For cache files, remove the export if it needs a runtime wrapper
+                                // (we'll generate a new export when adding the wrapper).
                                 if in_cache_file {
                                     let needs_cache_runtime_wrapper = self
                                         .local_ids_that_may_need_cache_runtime_wrapper
                                         .contains(&ident.to_id());
 
-                                    // If this needs a cache runtime wrapper, remove the export
-                                    // statement. The post-pass will handle the registration.
                                     if needs_cache_runtime_wrapper {
                                         continue;
                                     }
                                 }
                             }
                             Expr::Call(_call) => {
-                                // For cache files, strip the export for call expressions.
-                                // We'll generate a new export when adding the runtime wrapper.
+                                // For cache files, remove the export for call expressions (we'll
+                                // generate a new export when adding the wrapper).
                                 if in_cache_file {
-                                    // Remove the export statement. The post-pass will handle the
-                                    // registration.
                                     continue;
                                 }
                             }
@@ -3245,8 +3239,8 @@ fn collect_idents_in_object_pat(props: &[ObjectPatProp], idents: &mut Vec<Ident>
     for prop in props {
         match prop {
             ObjectPatProp::KeyValue(KeyValuePatProp { value, .. }) => {
-                // For { foo: bar }, only collect 'bar' (the local binding), not 'foo'
-                // (the property key).
+                // For { foo: bar }, only collect 'bar' (the local binding), not 'foo' (the property
+                // key).
                 match &**value {
                     Pat::Ident(ident) => {
                         idents.push(ident.id.clone());
