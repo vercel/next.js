@@ -38,6 +38,8 @@ Create a `proxy.ts` (or `.js`) file in the project root, or inside `src` if appl
 
 ### Example
 
+You can export your proxy function as either a default export or a named `proxy` export:
+
 ```ts filename="proxy.ts" switcher
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -46,6 +48,9 @@ import type { NextRequest } from 'next/server'
 export function proxy(request: NextRequest) {
   return NextResponse.redirect(new URL('/home', request.url))
 }
+
+// Alternatively, you can use a default export:
+// export default function proxy(request: NextRequest) { ... }
 
 // See "Matching Paths" below to learn more
 export const config = {
@@ -60,6 +65,9 @@ import { NextResponse } from 'next/server'
 export function proxy(request) {
   return NextResponse.redirect(new URL('/home', request.url))
 }
+
+// Alternatively, you can use a default export:
+// export default function proxy(request) { ... }
 
 // See "Matching Paths" below to learn more
 export const config = {

@@ -889,7 +889,6 @@ describe('ReactRefreshLogBox app', () => {
        }
       `)
     }
-    // Do not highlight example.com but do highlight nextjs.org
     expect(
       await session.evaluate(
         () =>
@@ -898,7 +897,7 @@ describe('ReactRefreshLogBox app', () => {
             .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
             .length
       )
-    ).toBe(1)
+    ).toBe(2)
     expect(
       await session.evaluate(
         () =>
@@ -922,7 +921,7 @@ describe('ReactRefreshLogBox app', () => {
               ) as any
           ).href
       )
-    ).toBe(null)
+    ).toBe('http://example.com/')
   })
 
   // TODO-APP: Catch errors that happen before useEffect

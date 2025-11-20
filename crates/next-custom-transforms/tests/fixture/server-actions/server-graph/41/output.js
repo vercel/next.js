@@ -10,18 +10,18 @@ export const $$RSC_SERVER_ACTION_0 = async function fn($$ACTION_CLOSURE_BOUND) {
     };
 };
 registerServerReference($$RSC_SERVER_ACTION_0, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);
+const $$RSC_SERVER_CACHE_1_INNER = async function Component({ foo }) {
+    const a = 123;
+    var fn = $$RSC_SERVER_ACTION_0.bind(null, encryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", a, foo));
+    const data = await fn();
+    // @ts-expect-error: data is not a valid react child
+    return <div>{data}</div>;
+};
 export var $$RSC_SERVER_CACHE_1 = $$reactCache__(function Component() {
-    return $$cache__("default", "c0951c375b4a6a6e89d67b743ec5808127cfde405d", 0, async function Component({ foo }) {
-        const a = 123;
-        var fn = $$RSC_SERVER_ACTION_0.bind(null, encryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", a, foo));
-        const data = await fn();
-        // @ts-expect-error: data is not a valid react child
-        return <div>{data}</div>;
-    }, arguments);
+    return $$cache__("default", "c0951c375b4a6a6e89d67b743ec5808127cfde405d", 0, $$RSC_SERVER_CACHE_1_INNER, arguments);
 });
 registerServerReference($$RSC_SERVER_CACHE_1, "c0951c375b4a6a6e89d67b743ec5808127cfde405d", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_1, "name", {
-    value: "Component",
-    writable: false
+    value: "Component"
 });
 export var Component = $$RSC_SERVER_CACHE_1;

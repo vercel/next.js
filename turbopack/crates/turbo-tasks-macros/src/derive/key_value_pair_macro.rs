@@ -360,6 +360,20 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                 }
             }
 
+            pub fn extend(&mut self, iterator: impl Iterator<Item = #ident>) -> bool {
+                match self {
+                    #(
+                        #storage_name::#variant_names { storage } => {
+                            storage.extend(iterator.map(|item| match item {
+                                #storage_pattern => (#storage_key, value),
+                                _ => unreachable!(),
+                            }))
+                        }
+                    )*
+                    _ => unreachable!(),
+                }
+            }
+
             pub fn remove(&mut self, key: &#key_name) -> Option<#value_name> {
                 match (self, *key) {
                     #(

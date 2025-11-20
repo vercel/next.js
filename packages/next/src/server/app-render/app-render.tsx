@@ -408,8 +408,8 @@ function makeGetDynamicParamFromSegment(
     if (!segmentParam) {
       return null
     }
-    const segmentKey = segmentParam.param
-    const dynamicParamType = dynamicParamTypes[segmentParam.type]
+    const segmentKey = segmentParam.paramName
+    const dynamicParamType = dynamicParamTypes[segmentParam.paramType]
     return getDynamicParam(
       interpolatedParams,
       segmentKey,
@@ -453,7 +453,7 @@ async function generateDynamicRSCPayload(
   ctx: AppRenderContext,
   options?: {
     actionResult?: ActionResult
-    skipFlight?: boolean
+    skipPageRendering?: boolean
     runtimePrefetchSentinel?: number
   }
 ): Promise<RSCPayload> {
@@ -485,7 +485,7 @@ async function generateDynamicRSCPayload(
 
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
 
-  if (!options?.skipFlight) {
+  if (!options?.skipPageRendering) {
     const preloadCallbacks: PreloadCallbacks = []
 
     const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
@@ -588,10 +588,11 @@ async function generateDynamicFlightRenderResult(
   requestStore: RequestStore,
   options?: {
     actionResult: ActionResult
-    skipFlight: boolean
+    skipPageRendering: boolean
     componentTree?: CacheNodeSeedData
     preloadCallbacks?: PreloadCallbacks
     temporaryReferences?: WeakMap<any, string>
+    waitUntil?: Promise<unknown>
   }
 ): Promise<RenderResult> {
   const {
@@ -649,9 +650,11 @@ async function generateDynamicFlightRenderResult(
     }
   )
 
-  return new FlightRenderResult(flightReadableStream, {
-    fetchMetrics: workStore.fetchMetrics,
-  })
+  return new FlightRenderResult(
+    flightReadableStream,
+    { fetchMetrics: workStore.fetchMetrics },
+    options?.waitUntil
+  )
 }
 
 type RenderToReadableStreamServerOptions = NonNullable<
@@ -1129,7 +1132,7 @@ function createRuntimePrefetchTransformStream(
         controller.enqueue(replace)
         // If there are bytes in the currentChunk after the match enqueue them
         if (currentIndex + searchLen < currentChunk.length) {
-          controller.enqueue(currentChunk.subarray(currentIndex + searchLen))
+          controller.enqueue(currentChunk.slice(currentIndex + searchLen))
         }
         // If we have a next chunk we enqueue it now
         if (nextChunk) {

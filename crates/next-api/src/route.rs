@@ -9,7 +9,7 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     module_graph::{GraphEntries, ModuleGraph},
-    output::OutputAssets,
+    output::{OptionOutputAsset, OutputAssets},
 };
 
 use crate::{operation::OptionEndpoint, paths::ServerPath, project::Project};
@@ -72,6 +72,10 @@ pub trait Endpoint {
     }
     #[turbo_tasks::function]
     fn module_graphs(self: Vc<Self>) -> Vc<ModuleGraphs>;
+    #[turbo_tasks::function]
+    fn polyfill_asset(self: Vc<Self>) -> Vc<OptionOutputAsset> {
+        Vc::cell(None)
+    }
 }
 
 #[derive(

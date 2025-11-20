@@ -1,0 +1,41 @@
+{
+  "name": "@next/bundle-analyzer-ui",
+  "version": "16.0.2-canary.16",
+  "private": true,
+  "scripts": {
+    "build": "next build --no-mangling",
+    "dev": "next dev",
+    "lint": "eslint .",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "1.1.4",
+    "@radix-ui/react-popover": "1.1.4",
+    "@radix-ui/react-slot": "1.1.1",
+    "@radix-ui/react-toggle-group": "1.1.1",
+    "autoprefixer": "^10.4.20",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "1.0.4",
+    "lucide-react": "^0.454.0",
+    "next": "16.0.1",
+    "next-themes": "^0.4.6",
+    "polished": "^4.3.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "swr": "^2.2.4",
+    "tailwind-merge": "^2.5.5",
+    "tailwindcss-animate": "^1.0.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.9",
+    "@types/node": "^22",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "inliner": "1.13.1",
+    "postcss": "^8.5",
+    "tailwindcss": "^4.1.9",
+    "tw-animate-css": "1.3.3",
+    "typescript": "^5"
+  }
+}

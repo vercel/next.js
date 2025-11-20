@@ -14,7 +14,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference},
 };
 
 use crate::project::Project;
@@ -58,6 +58,9 @@ impl NftJsonAsset {
         .cell()
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for NftJsonAsset {}
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for NftJsonAsset {
@@ -454,7 +457,7 @@ impl Visit<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)>
         node: &(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>),
     ) -> Self::EdgesFuture {
         let client_root = self.client_root.clone();
-        let exclude_glob = self.exclude_glob.clone();
+        let exclude_glob: Option<ReadRef<Glob>> = self.exclude_glob.clone();
         get_referenced_server_assets(self.emit_spans, node.0, client_root, exclude_glob)
     }
 
@@ -478,7 +481,7 @@ async fn get_referenced_server_assets(
     client_root: Option<FileSystemPath>,
     exclude_glob: Option<ReadRef<Glob>>,
 ) -> Result<Vec<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)>> {
-    let refs = asset.references().await?;
+    let refs = asset.references().all_assets().await?;
 
     refs.iter()
         .map(async |asset| {
