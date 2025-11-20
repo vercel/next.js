@@ -46,9 +46,15 @@ export function getSpecialModuleType(
 let IDENT_ATTRIBUTES_REGEXP =
   /^(.+?)(?: \{(.*)\})?(?: \[(.*)\])?(?: \((.*?)\))?(?: <(.*?)>)?$/
 
-export function splitIdent(ident: string) {
-  let [match, fullPath, extra, layer, moduleType, treeShaking] =
+export function splitIdent(ident: string): {
+  fullPath: string
+  templateArgs: string
+  layer: string
+  moduleType: string
+  treeShaking: string
+} {
+  let [match, fullPath, templateArgs, layer, moduleType, treeShaking] =
     IDENT_ATTRIBUTES_REGEXP.exec(ident) || ['']
   ident = ident.substring(0, ident.length - match.length)
-  return { fullPath, extra, layer, moduleType, treeShaking }
+  return { fullPath, templateArgs, layer, moduleType, treeShaking }
 }
