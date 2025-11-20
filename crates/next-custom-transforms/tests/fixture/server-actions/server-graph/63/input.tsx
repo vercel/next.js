@@ -26,4 +26,6 @@ export const wrapped = wrap(
 )
 
 export default Layout
-export { Other, getStuff }
+export { Other, getStuff, staticallyKnownFunction }
+
+async function staticallyKnownFunction() {}

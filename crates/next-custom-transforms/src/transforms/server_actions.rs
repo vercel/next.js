@@ -1976,85 +1976,138 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     disallowed_export_span = named.span;
                                 }
                             } else {
-                                let mut has_export_needing_wrapper = false;
-                                for spec in &mut named.specifiers {
-                                    if let ExportSpecifier::Named(ExportNamedSpecifier {
-                                        orig: ModuleExportName::Ident(ident),
-                                        exported,
-                                        is_type_only,
-                                        ..
-                                    }) = spec
-                                    {
-                                        if !*is_type_only {
-                                            let needs_cache_runtime_wrapper = in_cache_file
-                                                && self
-                                                    .local_ids_that_may_need_cache_runtime_wrapper
-                                                    .contains(&ident.to_id());
+                                // For cache files, handle mixed exports by selectively removing
+                                // specifiers that need runtime wrappers while keeping function
+                                // declarations
+                                if in_cache_file {
+                                    let mut indices_to_remove = Vec::new();
 
-                                            if let Some(export_name) = exported {
-                                                if let ModuleExportName::Ident(_) = export_name {
-                                                    // export { foo as bar }
-                                                    self.server_reference_exports.push(
-                                                        ServerReferenceExport {
-                                                            ident: ident.clone(),
-                                                            export_name: export_name.clone(),
-                                                            reference_id: self
-                                                                .generate_server_reference_id(
-                                                                    export_name,
-                                                                    in_cache_file,
-                                                                    None,
-                                                                ),
-                                                            needs_cache_runtime_wrapper,
-                                                        },
-                                                    );
-                                                } else if let ModuleExportName::Str(_) =
-                                                    export_name
+                                    for (idx, spec) in named.specifiers.iter().enumerate() {
+                                        if let ExportSpecifier::Named(ExportNamedSpecifier {
+                                            orig: ModuleExportName::Ident(ident),
+                                            is_type_only,
+                                            ..
+                                        }) = spec
+                                        {
+                                            if !*is_type_only {
+                                                // Check if this identifier needs a cache runtime
+                                                // wrapper
+                                                if self
+                                                    .local_ids_that_may_need_cache_runtime_wrapper
+                                                    .contains(&ident.to_id())
                                                 {
-                                                    // export { foo as "bar" }
+                                                    // Mark for removal from export statement
+                                                    indices_to_remove.push(idx);
+
+                                                    // Determine export name for registration
+                                                    let export_name =
+                                                        if let ExportSpecifier::Named(
+                                                            ExportNamedSpecifier {
+                                                                exported: Some(exported),
+                                                                ..
+                                                            },
+                                                        ) = spec
+                                                        {
+                                                            exported.clone()
+                                                        } else {
+                                                            ModuleExportName::Ident(
+                                                                ident.clone().into(),
+                                                            )
+                                                        };
+
+                                                    // Register for runtime wrapping
                                                     self.server_reference_exports.push(
                                                         ServerReferenceExport {
                                                             ident: ident.clone(),
                                                             export_name: export_name.clone(),
                                                             reference_id: self
                                                                 .generate_server_reference_id(
-                                                                    export_name,
-                                                                    in_cache_file,
+                                                                    &export_name,
+                                                                    true,
                                                                     None,
                                                                 ),
-                                                            needs_cache_runtime_wrapper,
+                                                            needs_cache_runtime_wrapper: true,
                                                         },
                                                     );
                                                 }
-                                            } else {
-                                                // export { foo }
-                                                self.server_reference_exports.push(
-                                                    ServerReferenceExport {
-                                                        ident: ident.clone(),
-                                                        export_name: ModuleExportName::Ident(ident.clone()),
-                                                        reference_id: self
-                                                            .generate_server_reference_id(
-                                                                &ModuleExportName::Ident(ident.clone()),
-                                                                in_cache_file,
-                                                                None,
-                                                            ),
-                                                        needs_cache_runtime_wrapper,
-                                                    },
-                                                );
-                                            }
-
-                                            if needs_cache_runtime_wrapper {
-                                                has_export_needing_wrapper = true;
+                                                // Otherwise, keep the specifier (it's a function
+                                                // declaration
+                                                // that will be handled by the visitor)
                                             }
                                         }
-                                    } else {
-                                        disallowed_export_span = named.span;
                                     }
-                                }
 
-                                // If this export needs a cache runtime wrapper,
-                                // remove the export statement entirely
-                                if in_cache_file && has_export_needing_wrapper {
-                                    continue;
+                                    // Remove specifiers in reverse order to maintain indices
+                                    for idx in indices_to_remove.iter().rev() {
+                                        named.specifiers.remove(*idx);
+                                    }
+
+                                    // If all non-type specifiers were removed, skip the export
+                                    // statement
+                                    if named.specifiers.is_empty()
+                                        || named.specifiers.iter().all(|spec| {
+                                            matches!(
+                                                spec,
+                                                ExportSpecifier::Named(ExportNamedSpecifier {
+                                                    is_type_only: true,
+                                                    ..
+                                                })
+                                            )
+                                        })
+                                    {
+                                        continue;
+                                    }
+                                } else {
+                                    // For action files, register all exports
+                                    for spec in &mut named.specifiers {
+                                        if let ExportSpecifier::Named(ExportNamedSpecifier {
+                                            orig: ModuleExportName::Ident(ident),
+                                            exported,
+                                            is_type_only,
+                                            ..
+                                        }) = spec
+                                        {
+                                            if !*is_type_only {
+                                                if let Some(export_name) = exported {
+                                                    // export { foo as bar } or export { foo as
+                                                    // "bar" }
+                                                    self.server_reference_exports.push(
+                                                        ServerReferenceExport {
+                                                            ident: ident.clone(),
+                                                            export_name: export_name.clone(),
+                                                            reference_id: self
+                                                                .generate_server_reference_id(
+                                                                    export_name,
+                                                                    false,
+                                                                    None,
+                                                                ),
+                                                            needs_cache_runtime_wrapper: false,
+                                                        },
+                                                    );
+                                                } else {
+                                                    // export { foo }
+                                                    let export_name = ModuleExportName::Ident(
+                                                        ident.clone().into(),
+                                                    );
+                                                    self.server_reference_exports.push(
+                                                        ServerReferenceExport {
+                                                            ident: ident.clone(),
+                                                            export_name: export_name.clone(),
+                                                            reference_id: self
+                                                                .generate_server_reference_id(
+                                                                    &export_name,
+                                                                    false,
+                                                                    None,
+                                                                ),
+                                                            needs_cache_runtime_wrapper: false,
+                                                        },
+                                                    );
+                                                }
+                                            }
+                                        } else {
+                                            disallowed_export_span = named.span;
+                                        }
+                                    }
                                 }
                             }
                         }
