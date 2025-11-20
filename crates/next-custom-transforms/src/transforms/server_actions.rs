@@ -1854,12 +1854,19 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             Decl::Var(var) => {
                                 let mut has_export_needing_wrapper = false;
 
-                                // Check for literal exports and cache runtime wrappers
+                                // Check for disallowed exports and cache runtime wrappers.
                                 for decl in &var.decls {
-                                    // Validation: check for literal exports
-                                    if let Some(init) = &decl.init {
-                                        if let Expr::Lit(_) = &**init {
-                                            disallowed_export_span = *span;
+                                    // Validation: Disallow exporting literals, objects, and arrays
+                                    // directly. Destructuring patterns are allowed since we can't
+                                    // statically know if the destructured value is a function.
+                                    if let Pat::Ident(_) = &decl.name {
+                                        if let Some(init) = &decl.init {
+                                            match &**init {
+                                                Expr::Lit(_) | Expr::Object(_) | Expr::Array(_) => {
+                                                    disallowed_export_span = *span;
+                                                }
+                                                _ => {}
+                                            }
                                         }
                                     }
 
