@@ -403,11 +403,11 @@ export async function Widget() {
 }
 ```
 
-**With explicit parent `cacheLife`**: The `Dashboard` cache uses its own lifetime (hours). When the Dashboard cache hits, it returns the complete cached output including the widget's data. The parent cache extends the child's output lifetime, the widget won't refresh on its own schedule while served from the parent cache.
+**With explicit parent `cacheLife`**: The `Dashboard` cache uses its own lifetime (hours), regardless of the child's lifetime. When the Dashboard cache hits, it returns the complete cached output including the widget's data. The parent's explicit `cacheLife` always takes precedence - it can be longer or shorter than the children's lifetimes.
 
-**Without explicit parent `cacheLife`**: If you **remove** `cacheLife('hours')` from the `Dashboard`, the parent cache adopts the shortest child lifetime. In this case, the `Dashboard` would revalidate every few minutes to match the `widget` timing.
+**Without explicit parent `cacheLife`**: If the `Dashboard` has `use cache` but no `cacheLife` call, it uses the `default` profile, and nested children can only reduce this default value to their shorter lifetimes. The parent cannot be extended beyond the default by children with longer lifetimes.
 
-> **Good to know**: It is recommended to specify an explicit `cacheLife` for each `use cache` directive. Relying on implicit lifetimes (where a parent adopts the shortest child lifetime) makes cache behavior harder to understand and maintain, especially as your component tree grows.
+> **Good to know**: It is recommended to always specify an explicit `cacheLife` for each `use cache` directive. This makes cache behavior predictable and easier to understand.
 
 ### Conditional cache lifetimes
 
