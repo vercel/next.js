@@ -2,7 +2,11 @@ import type { ReactDOMServerReadableStream } from 'react-dom/server'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { DetachedPromise } from '../../lib/detached-promise'
-import { scheduleImmediate, atLeastOneTask } from '../../lib/scheduler'
+import {
+  scheduleImmediate,
+  atLeastOneTask,
+  waitAtLeastOneReactRenderTask,
+} from '../../lib/scheduler'
 import { ENCODED_TAGS } from './encoded-tags'
 import {
   indexOfUint8Array,
@@ -797,9 +801,13 @@ export async function continueFizzStream(
   // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
-  // If we're generating static HTML we need to wait for it to resolve before continuing.
   if (isStaticGeneration) {
+    // If we're generating static HTML we need to wait for it to resolve before continuing.
     await renderStream.allReady
+  } else {
+    // Otherwise, we want to make sure Fizz is done with all microtasky work
+    // before we start pulling the stream and cause a flush.
+    await waitAtLeastOneReactRenderTask()
   }
 
   return chainTransformers(renderStream, [
