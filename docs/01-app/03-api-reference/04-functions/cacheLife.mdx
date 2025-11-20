@@ -407,7 +407,7 @@ export async function Widget() {
 
 **Without explicit parent `cacheLife`**: If the `Dashboard` has `use cache` but no `cacheLife` call, it uses the `default` profile, and nested children can only reduce this default value to their shorter lifetimes. The parent cannot be extended beyond the default by children with longer lifetimes.
 
-> **Good to know**: It is recommended to always specify an explicit `cacheLife` for each `use cache` directive. This makes cache behavior predictable and easier to understand.
+> **Good to know**: It is recommended to specify an explicit `cacheLife` for each `use cache` directive. With explicit values, you can inspect a component and immediately know its cache behavior regardless of its children. Without explicit values, the behavior becomes dependent on nested cache lifetimes, making it harder to reason about.
 
 ### Conditional cache lifetimes
 
