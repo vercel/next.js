@@ -1,16 +1,18 @@
 'use cache'
 
 // @ts-ignore
-import { getCachedStuff, wrap } from './foo'
+import { getStuff, wrap } from './foo'
 // @ts-ignore
 export { getData } from './data'
 
 export const getCachedData = async () => {
-  // This one already worked before.
-  return getCachedStuff()
+  // This is not using the wrapped version of getStuff, as we're only
+  // runtime-wrapping what flows out of the module, not into it. Would one
+  // expect this to be cached?
+  return getStuff()
 }
 
-export const aliased = getCachedStuff
+export const aliased = getStuff
 
 const Layout = wrap(async () => <div>Layout</div>)
 const Other = wrap(async () => <div>Other</div>)
@@ -24,4 +26,6 @@ export const wrapped = wrap(
 )
 
 export default Layout
-export { Other, getCachedStuff }
+export { Other, getStuff, staticallyKnownFunction }
+
+async function staticallyKnownFunction() {}
