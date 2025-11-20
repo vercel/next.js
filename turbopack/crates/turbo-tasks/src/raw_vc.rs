@@ -103,6 +103,22 @@ impl Debug for RawVc {
     }
 }
 
+impl Display for RawVc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RawVc::TaskOutput(task_id) => write!(f, "output of task {}", **task_id),
+            RawVc::TaskCell(task_id, cell_id) => {
+                write!(f, "{} of task {}", cell_id, **task_id)
+            }
+            RawVc::LocalOutput(execution_id, local_task_id, task_persistence) => write!(
+                f,
+                "output of local task {} ({}, {})",
+                **local_task_id, **execution_id, task_persistence
+            ),
+        }
+    }
+}
+
 impl RawVc {
     pub fn is_resolved(&self) -> bool {
         match self {

@@ -17,6 +17,7 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
+    output::OutputAssetsReference,
     source_map::utils::{absolute_fileify_source_map, relative_fileify_source_map},
 };
 
@@ -223,13 +224,19 @@ impl EcmascriptChunkItemWithAsyncInfo {
 }
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptChunkItem: ChunkItem {
+pub trait EcmascriptChunkItem: ChunkItem + OutputAssetsReference {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent>;
+
+    /// Fetches the content of the chunk item with async module info.
+    /// When `estimated` is true, it's ok to provide an estimated content, since it's only used for
+    /// compute the chunking. When `estimated` is true, this function should not invoke other
+    /// chunking operations that would cause cycles.
     #[turbo_tasks::function]
     fn content_with_async_module_info(
         self: Vc<Self>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Vc<EcmascriptChunkItemContent> {
         self.content()
     }
@@ -256,7 +263,7 @@ async fn module_factory_with_code_generation_issue(
     async_module_info: Option<Vc<AsyncModuleInfo>>,
 ) -> Result<Vc<Code>> {
     let content = match chunk_item
-        .content_with_async_module_info(async_module_info)
+        .content_with_async_module_info(async_module_info, false)
         .await
     {
         Ok(item) => item.module_factory().await,

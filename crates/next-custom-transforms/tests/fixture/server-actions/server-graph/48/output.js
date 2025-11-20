@@ -1,5 +1,4 @@
 /* __next_internal_action_entry_do_not_use__ {"60079087479e4c103d815f273878c7d1b8e902cc39":"action3","70f14702b5a021dd117f7ec7a3c838f397c2046d3b":"action","7fc18c215a6b7cdc64bf709f3a714ffdef1bf9651d":"default","e03128060c414d59f8552e4788b846c0d2b7f74743":"$$RSC_SERVER_CACHE_0"} */ import { registerServerReference } from "private-next-rsc-server-reference";
-import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 import { cache as $$reactCache__ } from "react";
 // Should be 0 111000 0, which is "70" in hex.

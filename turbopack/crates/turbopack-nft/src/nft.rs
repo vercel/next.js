@@ -20,7 +20,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{IssueReporter, IssueSeverity, handle_issues},
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     reference::all_assets_from_entries,
     reference_type::ReferenceType,
     traced_asset::TracedAsset,
@@ -150,7 +150,7 @@ async fn to_graph(asset: ResolvedVc<Box<dyn OutputAsset>>, max_depth: usize) -> 
 
     let mut result = vec![];
     while let Some((depth, asset)) = queue.pop() {
-        let references = asset.references().await?;
+        let references = asset.references().all_assets().await?;
         let mut indent = String::new();
         for _ in 0..depth {
             indent.push_str("  ");

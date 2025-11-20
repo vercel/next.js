@@ -56,7 +56,6 @@ p.env.NODE_ENV == 'production'
   ? console.log('production')
   : console.log('development')
 
-// TODO short-circuit is not implemented yet
 p.env.NODE_ENV != 'production' && console.log('development')
 p.env.NODE_ENV == 'production' && console.log('production')
 
