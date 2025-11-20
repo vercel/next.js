@@ -57,7 +57,6 @@ import {
   NEXT_URL,
   RSC_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
-  NEXT_HMR_REFRESH_HASH_COOKIE,
   NEXT_REQUEST_ID_HEADER,
   NEXT_HTML_REQUEST_ID_HEADER,
 } from '../../client/components/app-router-headers'
@@ -178,6 +177,7 @@ import {
 } from './app-render-render-utils'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import {
+  getHmrRefreshHash,
   workUnitAsyncStorage,
   type PrerenderStore,
 } from './work-unit-async-storage.external'
@@ -782,10 +782,11 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     onFlightDataRenderError
   )
 
-  // If we decide to validate this render we will assign this function when the
-  // payload is constructed.
-  let resolveValidation: null | ReturnType<typeof createValidationOutlet>[0] =
-    null
+  // We only validate RSC requests if it is for HMR refreshes since we know we
+  // will render all the layouts necessary to perform the validation.
+  const shouldValidate =
+    !isBypassingCachesInDev(renderOpts, initialRequestStore) &&
+    initialRequestStore.isHmrRefresh === true
 
   const getPayload = async (requestStore: RequestStore) => {
     const payload: RSCPayload &
@@ -803,18 +804,9 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       payload._bypassCachesInDev = createElement(WarnForBypassCachesInDev, {
         route: workStore.route,
       })
-    } else if (requestStore.isHmrRefresh) {
-      // We only validate RSC requests if it is for HMR refreshes since
-      // we know we will render all the layouts necessary to perform the validation.
-      // We also must add the canonical URL part of the payload
-
-      // Placing the validation outlet in the payload is safe
-      // even if we end up discarding a render and restarting,
-      // because we're not going to wait for the stream to complete,
-      // so leaving the validation unresolved is fine.
-      const [validationResolver, validationOutlet] = createValidationOutlet()
-      resolveValidation = validationResolver
-      payload._validation = validationOutlet
+    } else if (shouldValidate) {
+      // If this payload will be used for validation, it needs to contain the
+      // canonical URL. Without it we'd get an error.
       payload.c = prepareInitialCanonicalUrl(url)
     }
 
@@ -855,7 +847,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       onError
     )
 
-    if (resolveValidation) {
+    if (shouldValidate) {
       let validationDebugChannelClient: Readable | undefined = undefined
       if (returnedDebugChannel) {
         const [t1, t2] = returnedDebugChannel.clientSide.readable.tee()
@@ -3587,14 +3579,6 @@ function createDebugChannel(): DebugChannelPair | undefined {
   }
 }
 
-function createValidationOutlet() {
-  let resolveValidation: (value: ReactNode) => void
-  let outlet = new Promise<ReactNode>((resolve) => {
-    resolveValidation = resolve
-  })
-  return [resolveValidation!, outlet] as const
-}
-
 /**
  * Logs the given messages, and sends the error instances to the browser as an
  * RSC stream, where they can be deserialized and logged (or otherwise presented
@@ -3684,9 +3668,7 @@ async function spawnStaticShellValidationInDev(
     getDynamicParamFromSegment
   )
 
-  const hmrRefreshHash = requestStore.cookies.get(
-    NEXT_HMR_REFRESH_HASH_COOKIE
-  )?.value
+  const hmrRefreshHash = getHmrRefreshHash(workStore, requestStore)
 
   // We don't need to continue the prerender process if we already
   // detected invalid dynamic usage in the initial prerender phase.
