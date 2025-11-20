@@ -291,7 +291,7 @@ export async function generateStaticParams() {
 }
 ```
 
-> **Good to know:** You must always return an array from `generateStaticParams`, even if it's empty. Otherwise, the route will be dynamically rendered.
+> **Good to know:** You must always return an array from `generateStaticParams`, even if it's empty. When [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, return a placeholder for build-time validation (e.g. `[{slug: '__placeholader__'}]`). Otherwise, the route will be dynamically rendered.
 
 ```jsx filename="app/changelog/[slug]/page.js"
 export const dynamic = 'force-static'
