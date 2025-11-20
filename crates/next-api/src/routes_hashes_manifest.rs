@@ -1,8 +1,6 @@
 use anyhow::Result;
 use serde::Serialize;
-use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
-};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 use turbopack_core::{
@@ -23,28 +21,23 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub struct EndpointHashes {
     pub sources_hash: u64,
-    pub modules_hash: u64,
     pub outputs_hash: u64,
 }
 
 impl EndpointHashes {
     pub fn merge<'l>(iterator: impl Iterator<Item = (&'l str, &'l EndpointHashes)>) -> Self {
         let mut sources_hasher = Xxh3Hash64Hasher::new();
-        let mut modules_hasher = Xxh3Hash64Hasher::new();
         let mut outputs_hasher = Xxh3Hash64Hasher::new();
 
         for (key, hashes) in iterator {
             key.deterministic_hash(&mut sources_hasher);
-            key.deterministic_hash(&mut modules_hasher);
             key.deterministic_hash(&mut outputs_hasher);
             hashes.sources_hash.deterministic_hash(&mut sources_hasher);
-            hashes.modules_hash.deterministic_hash(&mut modules_hasher);
             hashes.outputs_hash.deterministic_hash(&mut outputs_hasher);
         }
 
         Self {
             sources_hash: sources_hasher.finish(),
-            modules_hash: modules_hasher.finish(),
             outputs_hash: outputs_hasher.finish(),
         }
     }
@@ -90,12 +83,6 @@ pub async fn endpoint_hashes(
         .try_join()
         .await?;
 
-    let modules_hashes = all_modules
-        .iter()
-        .map(|module| module.content().hash())
-        .try_join()
-        .await?;
-
     let output_assets = expand_output_assets(
         outputs
             .await?
@@ -119,13 +106,6 @@ pub async fn endpoint_hashes(
         }
         hasher.finish()
     };
-    let modules_hash = {
-        let mut hasher = Xxh3Hash64Hasher::new();
-        for hash in modules_hashes.iter() {
-            hash.deterministic_hash(&mut hasher);
-        }
-        hasher.finish()
-    };
     let outputs_hash = {
         let mut hasher = Xxh3Hash64Hasher::new();
         for hash in outputs_hashes.iter() {
@@ -136,7 +116,6 @@ pub async fn endpoint_hashes(
 
     Ok(EndpointHashes {
         sources_hash,
-        modules_hash,
         outputs_hash,
     }
     .cell())
@@ -151,7 +130,6 @@ struct RoutesHashesManifest<'l> {
 #[serde(rename_all = "camelCase")]
 pub struct EndpointHashStrings {
     pub sources_hash: String,
-    pub modules_hash: String,
     pub outputs_hash: String,
 }
 
@@ -307,7 +285,6 @@ impl Asset for RoutesHashesManifestAsset {
                         *k,
                         EndpointHashStrings {
                             sources_hash: format!("{:016x}", v.sources_hash),
-                            modules_hash: format!("{:016x}", v.modules_hash),
                             outputs_hash: format!("{:016x}", v.outputs_hash),
                         },
                     )
