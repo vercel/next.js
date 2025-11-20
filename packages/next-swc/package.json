@@ -1,6 +1,6 @@
 {
   "name": "@next/swc",
-  "version": "16.0.2-canary.26",
+  "version": "16.0.2-canary.27",
   "private": true,
   "files": [
     "native/"
