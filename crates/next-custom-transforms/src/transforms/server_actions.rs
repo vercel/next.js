@@ -1735,6 +1735,17 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             ModuleExportName::Ident(ident.clone()),
                                         );
                                     }
+
+                                    // Track which exported var declarations may need cache runtime
+                                    // wrappers
+                                    if let Pat::Ident(ident_pat) = &decl.name {
+                                        if let Some(init) = &decl.init {
+                                            if may_need_cache_runtime_wrapper(init) {
+                                                self.local_ids_that_may_need_cache_runtime_wrapper
+                                                    .insert(ident_pat.id.to_id());
+                                            }
+                                        }
+                                    }
                                 }
                             }
                             _ => {}
@@ -1831,27 +1842,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     collect_idents_in_pat(&decl.name, &mut idents);
 
                                     for ident in idents {
-                                        let needs_cache_runtime_wrapper = if !in_cache_file {
-                                            false
-                                        } else {
-                                            if self
+                                        let needs_cache_runtime_wrapper = in_cache_file
+                                            && self
                                                 .local_ids_that_may_need_cache_runtime_wrapper
-                                                .contains(&ident.to_id())
-                                            {
-                                                true
-                                            } else if let Pat::Ident(_) = &decl.name {
-                                                decl.init
-                                                    .as_ref()
-                                                    .map(|init| {
-                                                        may_need_cache_runtime_wrapper(init)
-                                                    })
-                                                    .unwrap_or(false)
-                                            } else {
-                                                // Destructuring: can't determine type at compile
-                                                // time
-                                                true
-                                            }
-                                        };
+                                                .contains(&ident.to_id());
 
                                         self.server_reference_exports.push(ServerReferenceExport {
                                             ident: ident.clone(),
