@@ -18,25 +18,30 @@
     function createPortal$1(children, containerInfo, implementation) {
       var key =
         3 < arguments.length && void 0 !== arguments[3] ? arguments[3] : null;
-      try {
-        testStringCoercion(key);
-        var JSCompiler_inline_result = !1;
-      } catch (e) {
-        JSCompiler_inline_result = !0;
+      if (null == key) key = null;
+      else if (key === REACT_OPTIMISTIC_KEY) key = REACT_OPTIMISTIC_KEY;
+      else {
+        try {
+          testStringCoercion(key);
+          var JSCompiler_inline_result = !1;
+        } catch (e) {
+          JSCompiler_inline_result = !0;
+        }
+        JSCompiler_inline_result &&
+          (console.error(
+            "The provided key is an unsupported type %s. This value must be coerced to a string before using it here.",
+            ("function" === typeof Symbol &&
+              Symbol.toStringTag &&
+              key[Symbol.toStringTag]) ||
+              key.constructor.name ||
+              "Object"
+          ),
+          testStringCoercion(key));
+        key = "" + key;
       }
-      JSCompiler_inline_result &&
-        (console.error(
-          "The provided key is an unsupported type %s. This value must be coerced to a string before using it here.",
-          ("function" === typeof Symbol &&
-            Symbol.toStringTag &&
-            key[Symbol.toStringTag]) ||
-            key.constructor.name ||
-            "Object"
-        ),
-        testStringCoercion(key));
       return {
         $$typeof: REACT_PORTAL_TYPE,
-        key: null == key ? null : "" + key,
+        key: key,
         children: children,
         containerInfo: containerInfo,
         implementation: implementation
@@ -102,6 +107,7 @@
         findDOMNode: null
       },
       REACT_PORTAL_TYPE = Symbol.for("react.portal"),
+      REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
       ReactSharedInternals =
         React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
     ("function" === typeof Map &&
@@ -416,7 +422,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.3.0-canary-0972e239-20251118";
+    exports.version = "19.3.0-canary-8ac5f4eb-20251119";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
