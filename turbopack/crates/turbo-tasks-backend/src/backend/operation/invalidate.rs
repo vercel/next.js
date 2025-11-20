@@ -224,6 +224,7 @@ pub fn make_task_dirty_internal(
         #[cfg(feature = "trace_task_dirty")]
         let _span = tracing::trace_span!(
             "make task stale",
+            task_id = display(task_id),
             name = ctx.get_task_description(task_id),
             cause = %TaskDirtyCauseInContext::new(&cause, ctx)
         )
@@ -244,6 +245,7 @@ pub fn make_task_dirty_internal(
             #[cfg(feature = "trace_task_dirty")]
             let _span = tracing::trace_span!(
                 "task already dirty",
+                task_id = display(task_id),
                 name = ctx.get_task_description(task_id),
                 cause = %TaskDirtyCauseInContext::new(&cause, ctx)
             )
@@ -275,6 +277,7 @@ pub fn make_task_dirty_internal(
     #[cfg(feature = "trace_task_dirty")]
     let _span = tracing::trace_span!(
         "make task dirty",
+        task_id = display(task_id),
         name = ctx.get_task_description(task_id),
         cause = %TaskDirtyCauseInContext::new(&cause, ctx)
     )

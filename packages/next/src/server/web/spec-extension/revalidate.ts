@@ -55,7 +55,7 @@ export function updateTag(tag: string) {
 /**
  * This function allows you to refresh client cache from server actions.
  * It's useful as dynamic data can be cached on the client which won't
- * be refreshed by expireTag
+ * be refreshed by updateTag
  */
 export function refresh() {
   const workStore = workAsyncStorage.getStore()
@@ -179,6 +179,8 @@ function revalidate(
           // status being flipped when revalidating a static page with a server
           // action.
           workUnitStore.usedDynamic = true
+          // TODO(restart-on-cache-miss): we should do a sync IO error here in dev
+          // to match prerender behavior
         }
         break
       default:

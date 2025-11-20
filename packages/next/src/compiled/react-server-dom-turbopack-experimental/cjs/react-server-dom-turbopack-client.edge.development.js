@@ -1681,16 +1681,12 @@
           100
         )));
     }
-    function createErrorChunk(response, error) {
-      return new ReactPromise("rejected", null, error);
-    }
     function filterDebugInfo(response, value) {
       if (null !== response._debugEndTime) {
         response = response._debugEndTime - performance.timeOrigin;
         for (var debugInfo = [], i = 0; i < value._debugInfo.length; i++) {
           var info = value._debugInfo[i];
           if ("number" === typeof info.time && info.time > response) break;
-          if (null != info.awaited && info.awaited.end > response) break;
           debugInfo.push(info);
         }
         value._debugInfo = debugInfo;
@@ -2115,7 +2111,7 @@
         chunk = chunks.get(id);
       chunk ||
         ((chunk = response._closed
-          ? createErrorChunk(response, response._closedReason)
+          ? new ReactPromise("rejected", null, response._closedReason)
           : createPendingChunk(response)),
         chunks.set(id, chunk));
       return chunk;
@@ -3038,7 +3034,6 @@
           (resolveChunkDebugInfo(response, streamState, chunk),
           "pending" === chunk.status)
         ) {
-          releasePendingChunk(response, chunk);
           id = chunk.value;
           if (null != chunk._debugChunk) {
             streamState = initializingHandler;
@@ -3073,7 +3068,9 @@
               moveDebugInfoFromChunkToInnerValue(chunk, stream));
         }
       } else
-        (stream = new ReactPromise("fulfilled", stream, controller)),
+        0 === response._pendingChunks++ &&
+          (response._weakResponse.response = response),
+          (stream = new ReactPromise("fulfilled", stream, controller)),
           resolveChunkDebugInfo(response, streamState, stream),
           chunks.set(id, stream);
     }
@@ -4457,7 +4454,7 @@
           chunk
             ? (resolveChunkDebugInfo(response, streamState, chunk),
               triggerErrorOnChunk(response, chunk, stringDecoder))
-            : ((buffer = createErrorChunk(response, stringDecoder)),
+            : ((buffer = new ReactPromise("rejected", null, stringDecoder)),
               resolveChunkDebugInfo(response, streamState, buffer),
               tag.set(id, buffer));
           break;
@@ -4514,29 +4511,11 @@
           startAsyncIterable(response, id, !0, streamState);
           break;
         case 67:
-          (response = response._chunks.get(id)) &&
-            "fulfilled" === response.status &&
-            response.reason.close("" === buffer ? '"$undefined"' : buffer);
-          break;
-        case 80:
-          buffer = JSON.parse(buffer);
-          buffer = buildFakeCallStack(
-            response,
-            buffer.stack,
-            buffer.env,
-            !1,
-            Error.bind(null, buffer.reason || "")
-          );
-          tag = response._debugRootTask;
-          tag = null != tag ? tag.run(buffer) : buffer();
-          tag.$$typeof = REACT_POSTPONE_TYPE;
-          buffer = response._chunks;
-          (chunk = buffer.get(id))
-            ? (resolveChunkDebugInfo(response, streamState, chunk),
-              triggerErrorOnChunk(response, chunk, tag))
-            : ((tag = createErrorChunk(response, tag)),
-              resolveChunkDebugInfo(response, streamState, tag),
-              buffer.set(id, tag));
+          (id = response._chunks.get(id)) &&
+            "fulfilled" === id.status &&
+            (0 === --response._pendingChunks &&
+              (response._weakResponse.response = null),
+            id.reason.close("" === buffer ? '"$undefined"' : buffer));
           break;
         default:
           if ("" === buffer) {
@@ -4611,7 +4590,7 @@
                 owner = initializingHandler;
                 initializingHandler = owner.parent;
                 if (owner.errored) {
-                  stack = createErrorChunk(response, owner.reason);
+                  stack = new ReactPromise("rejected", null, owner.reason);
                   initializeElement(response, value, null);
                   owner = {
                     name: getComponentNameFromType(value.type) || "",
@@ -4728,6 +4707,7 @@
                 65 === rowState ||
                 79 === rowState ||
                 111 === rowState ||
+                98 === rowState ||
                 85 === rowState ||
                 83 === rowState ||
                 115 === rowState ||
@@ -4768,14 +4748,21 @@
                 endTime,
                 debugInfo - i
               )),
-                processFullBinaryRow(
-                  response,
-                  _ref,
-                  rowID,
-                  rowTag,
-                  buffer,
-                  rowLength
-                ),
+                98 === rowTag
+                  ? resolveBuffer(
+                      response,
+                      rowID,
+                      debugInfo === chunkLength ? rowLength : rowLength.slice(),
+                      _ref
+                    )
+                  : processFullBinaryRow(
+                      response,
+                      _ref,
+                      rowID,
+                      rowTag,
+                      buffer,
+                      rowLength
+                    ),
                 (i = debugInfo),
                 3 === rowState && i++,
                 (rowLength = rowID = rowTag = rowState = 0),
@@ -4786,8 +4773,10 @@
                 endTime,
                 value.byteLength - i
               );
-              buffer.push(value);
-              rowLength -= value.byteLength;
+              98 === rowTag
+                ? ((rowLength -= value.byteLength),
+                  resolveBuffer(response, rowID, value, _ref))
+                : (buffer.push(value), (rowLength -= value.byteLength));
               break;
             }
           }
@@ -4826,7 +4815,6 @@
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
-      REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,

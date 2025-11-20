@@ -20,6 +20,12 @@ export default function Page() {
         <li>
           <Link href="/apis/123">/apis/123</Link>
         </li>
+        <li>
+          <Link href="/sync-io/static">/sync-io/static</Link>
+        </li>
+        <li>
+          <Link href="/sync-io/runtime">/sync-io/runtime</Link>
+        </li>
       </ul>
     </main>
   )

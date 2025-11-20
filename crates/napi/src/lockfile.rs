@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::Context;
 use napi::bindgen_prelude::External;
+use napi_derive::napi;
 
 /// A wrapper around [`File`] that is passed to JS, and is set to `None` when [`lockfile_unlock`] is
 /// called.

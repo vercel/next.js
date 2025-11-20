@@ -3,29 +3,29 @@ import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 import { cache as $$reactCache__ } from "react";
 import { Client } from 'components';
-export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function // Should be 1 110000 0, which is "e0" in hex (counts as two params,
+const $$RSC_SERVER_CACHE_0_INNER = async function // Should be 1 110000 0, which is "e0" in hex (counts as two params,
 // because of the encrypted bound args param)
-fn1() {
-    return $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 2, async function([$$ACTION_ARG_0, $$ACTION_ARG_1], c) {
-        return $$ACTION_ARG_0 + $$ACTION_ARG_1 + c;
-    }, arguments);
+fn1([$$ACTION_ARG_0, $$ACTION_ARG_1], c) {
+    return $$ACTION_ARG_0 + $$ACTION_ARG_1 + c;
+};
+export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function fn1() {
+    return $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 2, $$RSC_SERVER_CACHE_0_INNER, arguments);
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
-    value: "fn1",
-    writable: false
+    value: "fn1"
 });
-export var $$RSC_SERVER_CACHE_1 = $$reactCache__(function // Should be 1 100000 0, which is "c0" in hex (counts as one param,
+const $$RSC_SERVER_CACHE_1_INNER = async function // Should be 1 100000 0, which is "c0" in hex (counts as one param,
 // because of the encrypted bound args param)
-fn2() {
-    return $$cache__("default", "c0951c375b4a6a6e89d67b743ec5808127cfde405d", 2, async function fn2([$$ACTION_ARG_0, $$ACTION_ARG_1]) {
-        return $$ACTION_ARG_0 + $$ACTION_ARG_1;
-    }, arguments);
+fn2([$$ACTION_ARG_0, $$ACTION_ARG_1]) {
+    return $$ACTION_ARG_0 + $$ACTION_ARG_1;
+};
+export var $$RSC_SERVER_CACHE_1 = $$reactCache__(function fn2() {
+    return $$cache__("default", "c0951c375b4a6a6e89d67b743ec5808127cfde405d", 2, $$RSC_SERVER_CACHE_1_INNER, arguments);
 });
 registerServerReference($$RSC_SERVER_CACHE_1, "c0951c375b4a6a6e89d67b743ec5808127cfde405d", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_1, "name", {
-    value: "fn2",
-    writable: false
+    value: "fn2"
 });
 export const $$RSC_SERVER_ACTION_2 = async function // Should be 0 110000 0, which is "60" in hex (counts as two params,
 // because of the encrypted bound args param)

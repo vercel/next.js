@@ -1788,7 +1788,11 @@ impl JsValue {
                         "module",
                         "The Node.js `module` module: https://nodejs.org/api/module.html",
                     ),
-                    WellKnownObjectKind::ChildProcess | WellKnownObjectKind::ChildProcessDefault => (
+                    WellKnownObjectKind::WorkerThreadsModule | WellKnownObjectKind::WorkerThreadsModuleDefault => (
+                        "worker_threads",
+                        "The Node.js `worker_threads` module: https://nodejs.org/api/worker_threads.html",
+                    ),
+                    WellKnownObjectKind::ChildProcessModule | WellKnownObjectKind::ChildProcessModuleDefault => (
                         "child_process",
                         "The Node.js child_process module: https://nodejs.org/api/child_process.html",
                     ),
@@ -1796,7 +1800,7 @@ impl JsValue {
                         "os",
                         "The Node.js os module: https://nodejs.org/api/os.html",
                     ),
-                    WellKnownObjectKind::NodeProcess => (
+                    WellKnownObjectKind::NodeProcessModule => (
                         "process",
                         "The Node.js process module: https://nodejs.org/api/process.html",
                     ),
@@ -1953,6 +1957,10 @@ impl JsValue {
                     WellKnownFunctionKind::NodeProtobufLoad => (
                       "load/loadSync".to_string(),
                       "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node"
+                    ),
+                    WellKnownFunctionKind::NodeWorkerConstructor => (
+                      "Worker".to_string(),
+                      "The Node.js worker_threads Worker constructor: https://nodejs.org/api/worker_threads.html#worker_threads_class_worker"
                     ),
                     WellKnownFunctionKind::WorkerConstructor => (
                       "Worker".to_string(),
@@ -3468,11 +3476,13 @@ pub enum WellKnownObjectKind {
     ModuleModuleDefault,
     UrlModule,
     UrlModuleDefault,
-    ChildProcess,
-    ChildProcessDefault,
+    WorkerThreadsModule,
+    WorkerThreadsModuleDefault,
+    ChildProcessModule,
+    ChildProcessModuleDefault,
     OsModule,
     OsModuleDefault,
-    NodeProcess,
+    NodeProcessModule,
     NodeProcessArgv,
     NodeProcessEnv,
     NodePreGyp,
@@ -3492,9 +3502,10 @@ impl WellKnownObjectKind {
             Self::PathModule => Some(&["path"]),
             Self::FsModule => Some(&["fs"]),
             Self::UrlModule => Some(&["url"]),
-            Self::ChildProcess => Some(&["child_process"]),
+            Self::ChildProcessModule => Some(&["child_process"]),
             Self::OsModule => Some(&["os"]),
-            Self::NodeProcess => Some(&["process"]),
+            Self::WorkerThreadsModule => Some(&["worker_threads"]),
+            Self::NodeProcessModule => Some(&["process"]),
             Self::NodeProcessArgv => Some(&["process", "argv"]),
             Self::NodeProcessEnv => Some(&["process", "env"]),
             Self::NodeBuffer => Some(&["Buffer"]),
@@ -3623,6 +3634,8 @@ pub enum WellKnownFunctionKind {
     NodeResolveFrom,
     NodeProtobufLoad,
     WorkerConstructor,
+    // The worker_threads Worker class
+    NodeWorkerConstructor,
     URLConstructor,
 }
 
@@ -3797,7 +3810,7 @@ pub mod test_utils {
                 ),
                 "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
                 "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-                "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
+                "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule),
                 "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
                 "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
                 _ => v.into_unknown(true, "unknown global"),
@@ -4094,15 +4107,14 @@ mod tests {
                                 .await;
                                 resolved.push((format!("{parent} -> {i} conditional"), condition));
                                 match *kind {
-                                    ConditionalKind::If { then } => {
-                                        queue
-                                            .extend(then.effects.into_iter().rev().map(|e| (i, e)));
-                                    }
-                                    ConditionalKind::Else { r#else } => {
+                                    ConditionalKind::If { then: block }
+                                    | ConditionalKind::Else { r#else: block }
+                                    | ConditionalKind::Labeled { body: block } => {
                                         queue.extend(
-                                            r#else.effects.into_iter().rev().map(|e| (i, e)),
+                                            block.effects.into_iter().rev().map(|e| (i, e)),
                                         );
                                     }
+
                                     ConditionalKind::IfElse { then, r#else }
                                     | ConditionalKind::Ternary { then, r#else } => {
                                         queue.extend(
@@ -4123,12 +4135,10 @@ mod tests {
                                             );
                                         }
                                     }
-                                    ConditionalKind::And { expr }
-                                    | ConditionalKind::Or { expr }
-                                    | ConditionalKind::NullishCoalescing { expr }
-                                    | ConditionalKind::Labeled { body: expr } => {
-                                        queue
-                                            .extend(expr.effects.into_iter().rev().map(|e| (i, e)));
+                                    ConditionalKind::And { rhs_effects }
+                                    | ConditionalKind::Or { rhs_effects }
+                                    | ConditionalKind::NullishCoalescing { rhs_effects } => {
+                                        queue.extend(rhs_effects.into_iter().rev().map(|e| (i, e)));
                                     }
                                 };
                                 steps

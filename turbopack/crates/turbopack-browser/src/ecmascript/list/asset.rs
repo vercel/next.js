@@ -7,7 +7,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, EvaluatableAssets},
     ident::AssetIdent,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     version::VersionedContent,
 };
 
@@ -70,6 +70,14 @@ impl ValueToString for EcmascriptDevChunkList {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for EcmascriptDevChunkList {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
+        OutputAssetsWithReferenced::from_assets(*self.chunks)
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl OutputAsset for EcmascriptDevChunkList {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
@@ -92,11 +100,6 @@ impl OutputAsset for EcmascriptDevChunkList {
         Ok(this
             .chunking_context
             .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<OutputAssets> {
-        *self.chunks
     }
 }
 

@@ -2298,7 +2298,7 @@ export default abstract class Server<
           if (smallestFallbackRouteParams) {
             addRequestMeta(
               req,
-              'devValidatingFallbackParams',
+              'devFallbackParams',
               createOpaqueFallbackRouteParams(smallestFallbackRouteParams)!
             )
           }

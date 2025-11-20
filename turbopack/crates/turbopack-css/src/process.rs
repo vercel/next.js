@@ -43,15 +43,6 @@ use crate::{
     },
 };
 
-#[derive(Debug)]
-pub struct StyleSheetLike<'i, 'o>(pub(crate) StyleSheet<'i, 'o>);
-
-impl PartialEq for StyleSheetLike<'_, '_> {
-    fn eq(&self, _: &Self) -> bool {
-        false
-    }
-}
-
 pub type CssOutput = (ToCssResult, Option<Rope>);
 
 #[turbo_tasks::value(transparent)]
@@ -94,60 +85,49 @@ async fn get_lightningcss_browser_targets(
     }
 }
 
-impl StyleSheetLike<'_, '_> {
-    pub fn to_static(
-        &self,
-        options: ParserOptions<'static, 'static>,
-    ) -> StyleSheetLike<'static, 'static> {
-        StyleSheetLike(stylesheet_into_static(&self.0, options))
-    }
+async fn stylesheet_to_css(
+    ss: &StyleSheet<'_, '_>,
+    code: &str,
+    minify_type: MinifyType,
+    enable_srcmap: bool,
+    handle_nesting: bool,
+    mut origin_source_map: Option<parcel_sourcemap::SourceMap>,
+    environment: Option<ResolvedVc<Environment>>,
+) -> Result<CssOutput> {
+    let mut srcmap = if enable_srcmap {
+        Some(parcel_sourcemap::SourceMap::new(""))
+    } else {
+        None
+    };
 
-    pub async fn to_css(
-        &self,
-        code: &str,
-        minify_type: MinifyType,
-        enable_srcmap: bool,
-        handle_nesting: bool,
-        mut origin_source_map: Option<parcel_sourcemap::SourceMap>,
-        environment: Option<ResolvedVc<Environment>>,
-    ) -> Result<CssOutput> {
-        let ss = &self.0;
-        let mut srcmap = if enable_srcmap {
-            Some(parcel_sourcemap::SourceMap::new(""))
+    let targets =
+        *get_lightningcss_browser_targets(environment.as_deref().copied(), handle_nesting).await?;
+
+    let result = ss.to_css(PrinterOptions {
+        minify: matches!(minify_type, MinifyType::Minify { .. }),
+        source_map: srcmap.as_mut(),
+        targets,
+        analyze_dependencies: None,
+        ..Default::default()
+    })?;
+
+    if let Some(srcmap) = &mut srcmap {
+        debug_assert_eq!(ss.sources.len(), 1);
+
+        if let Some(origin_source_map) = origin_source_map.as_mut() {
+            let _ = srcmap.extends(origin_source_map);
         } else {
-            None
-        };
-
-        let targets =
-            *get_lightningcss_browser_targets(environment.as_deref().copied(), handle_nesting)
-                .await?;
-
-        let result = ss.to_css(PrinterOptions {
-            minify: matches!(minify_type, MinifyType::Minify { .. }),
-            source_map: srcmap.as_mut(),
-            targets,
-            analyze_dependencies: None,
-            ..Default::default()
-        })?;
-
-        if let Some(srcmap) = &mut srcmap {
-            debug_assert_eq!(ss.sources.len(), 1);
-
-            if let Some(origin_source_map) = origin_source_map.as_mut() {
-                let _ = srcmap.extends(origin_source_map);
-            } else {
-                srcmap.add_sources(ss.sources.clone());
-                srcmap.set_source_content(0, code)?;
-            }
+            srcmap.add_sources(ss.sources.clone());
+            srcmap.set_source_content(0, code)?;
         }
-
-        let srcmap = match srcmap {
-            Some(srcmap) => Some(generate_css_source_map(&srcmap)?),
-            None => None,
-        };
-
-        Ok((result, srcmap))
     }
+
+    let srcmap = match srcmap {
+        Some(srcmap) => Some(generate_css_source_map(&srcmap)?),
+        None => None,
+    };
+
+    Ok((result, srcmap))
 }
 
 /// Multiple [ModuleReference]s
@@ -161,7 +141,7 @@ pub enum ParseCssResult {
         code: ResolvedVc<FileContent>,
 
         #[turbo_tasks(trace_ignore)]
-        stylesheet: StyleSheetLike<'static, 'static>,
+        stylesheet: StyleSheet<'static, 'static>,
 
         references: ResolvedVc<ModuleReferences>,
 
@@ -228,9 +208,16 @@ pub async fn process_css_with_placeholder(
 
             // We use NoMinify because this is not a final css. We need to replace url references,
             // and we do final codegen with proper minification.
-            let (result, _) = stylesheet
-                .to_css(&code, MinifyType::NoMinify, false, false, None, environment)
-                .await?;
+            let (result, _) = stylesheet_to_css(
+                stylesheet,
+                &code,
+                MinifyType::NoMinify,
+                false,
+                false,
+                None,
+                environment,
+            )
+            .await?;
 
             let exports = result.exports.map(|exports| {
                 let mut exports = exports.into_iter().collect::<FxIndexMap<_, _>>();
@@ -275,7 +262,7 @@ pub async fn finalize_css(
                     options,
                     code,
                     ..
-                } => (stylesheet.to_static(options.clone()), *code),
+                } => (stylesheet_into_static(stylesheet, options.clone()), *code),
                 ParseCssResult::Unparsable => return Ok(FinalCssResult::Unparsable.cell()),
                 ParseCssResult::NotFound => return Ok(FinalCssResult::NotFound.cell()),
             };
@@ -305,16 +292,16 @@ pub async fn finalize_css(
                 None
             };
 
-            let (result, srcmap) = stylesheet
-                .to_css(
-                    &code,
-                    minify_type,
-                    true,
-                    true,
-                    origin_source_map,
-                    environment,
-                )
-                .await?;
+            let (result, srcmap) = stylesheet_to_css(
+                &stylesheet,
+                &code,
+                minify_type,
+                true,
+                true,
+                origin_source_map,
+                environment,
+            )
+            .await?;
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
@@ -435,7 +422,7 @@ async fn process_content(
         ..Default::default()
     };
 
-    let stylesheet = StyleSheetLike({
+    let stylesheet = {
         let warnings: Arc<RwLock<_>> = Default::default();
 
         match StyleSheet::parse(
@@ -455,10 +442,7 @@ async fn process_content(
                     }
                 }
 
-                // We need to collect here because we need to avoid holding the lock while calling
-                // `.await` in the loop.
-                let warnings = warnings.read().unwrap().iter().cloned().collect::<Vec<_>>();
-                for err in warnings.iter() {
+                for err in warnings.read().unwrap().iter() {
                     match err.kind {
                         lightningcss::error::ParserError::UnexpectedToken(_)
                         | lightningcss::error::ParserError::UnexpectedImportRule
@@ -546,10 +530,10 @@ async fn process_content(
                 return Ok(ParseCssResult::Unparsable.cell());
             }
         }
-    });
+    };
 
     let config = without_warnings(config);
-    let mut stylesheet = stylesheet.to_static(config.clone());
+    let mut stylesheet = stylesheet_into_static(&stylesheet, config.clone());
 
     let (references, url_references) =
         analyze_references(&mut stylesheet, source, origin, import_context).await?;

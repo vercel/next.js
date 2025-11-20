@@ -93,7 +93,7 @@ export class NextInstance {
   public forcedPort?: string
   public subDir: string = ''
   public startServerTimeout: number = 10_000 // 10 seconds
-  public serverReadyPattern: RegExp = / ✓ Ready in /
+  public serverReadyPattern: RegExp = /✓ Ready in /
   patchFileDelay: number = 0
 
   constructor(opts: NextInstanceOpts) {
@@ -784,7 +784,7 @@ export class NextInstance {
     const responsePromise = new Promise<Response>((resolve, reject) => {
       const timer = setTimeout(() => {
         reject(`Timed out waiting for the response of ${url}`)
-      }, 10_000)
+      }, 30_000)
 
       resolveResponse = (response: Response) => {
         clearTimeout(timer)

@@ -123,8 +123,8 @@ export interface NapiProjectOptions {
    */
   projectPath: RcStr
   /**
-   * A path where to emit the build outputs, relative to [`Project::project_path`], always Unix
-   * path. Corresponds to next.config.js's `distDir`.
+   * A path where tracing output will be written to and/or cache is read/written.
+   * Usually equal to the `distDir` in next.config.js.
    * E.g. `.next`
    */
   distDir: RcStr
@@ -172,12 +172,6 @@ export interface NapiPartialProjectOptions {
    * E.g. `apps/my-app`
    */
   projectPath?: RcStr
-  /**
-   * A path where to emit the build outputs, relative to [`Project::project_path`], always a
-   * Unix path. Corresponds to next.config.js's `distDir`.
-   * E.g. `.next`
-   */
-  distDir?: RcStr | undefined | null
   /** Filesystem watcher options. */
   watch?: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
@@ -297,6 +291,9 @@ export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+export declare function projectEntrypoints(project: {
+  __napiType: 'Project'
+}): Promise<TurbopackResult>
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
@@ -373,6 +370,10 @@ export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
   filePath: RcStr
 ): string | null
+export declare function projectWriteAnalyzeData(
+  project: { __napiType: 'Project' },
+  appDirOnly: boolean
+): Promise<TurbopackResult>
 /**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *

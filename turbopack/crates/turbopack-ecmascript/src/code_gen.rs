@@ -16,6 +16,7 @@ use turbopack_core::{chunk::ChunkingContext, reference::ModuleReference};
 
 use crate::{
     ScopeHoistingContext,
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     references::{
         AstPath,
         amd::AmdDefineWithDependenciesCodeGen,
@@ -31,8 +32,10 @@ use crate::{
             dynamic::EsmAsyncAssetReferenceCodeGen, module_id::EsmModuleIdAssetReferenceCodeGen,
             url::UrlAssetReferenceCodeGen,
         },
+        exports_info::{ExportsInfoBinding, ExportsInfoRef},
         ident::IdentReplacement,
         member::MemberReplacement,
+        replace_parent_with_child::ReplaceParentWithChild,
         require_context::RequireContextAssetReferenceCodeGen,
         unreachable::Unreachable,
         worker::WorkerAssetReferenceCodeGen,
@@ -171,7 +174,9 @@ impl_modify!(visit_mut_block_stmt, BlockStmt);
 impl_modify!(visit_mut_switch_case, SwitchCase);
 impl_modify!(visit_mut_program, Program);
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+)]
 pub enum CodeGen {
     // AMD occurs very rarely and makes the enum much bigger
     AmdDefineWithDependenciesCodeGen(Box<AmdDefineWithDependenciesCodeGen>),
@@ -181,6 +186,8 @@ pub enum CodeGen {
     DynamicExpression(DynamicExpression),
     EsmBinding(EsmBinding),
     EsmModuleItem(EsmModuleItem),
+    ExportsInfoBinding(ExportsInfoBinding),
+    ExportsInfoRef(ExportsInfoRef),
     IdentReplacement(IdentReplacement),
     ImportMetaBinding(ImportMetaBinding),
     ImportMetaRef(ImportMetaRef),
@@ -193,6 +200,7 @@ pub enum CodeGen {
     RequireContextAssetReferenceCodeGen(RequireContextAssetReferenceCodeGen),
     UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen),
     WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen),
+    ReplaceParentWithChild(ReplaceParentWithChild),
 }
 
 impl CodeGen {
@@ -200,15 +208,19 @@ impl CodeGen {
         &self,
         ctx: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        exports: ResolvedVc<EcmascriptExports>,
     ) -> Result<CodeGeneration> {
         match self {
             Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(ctx).await,
             Self::CjsRequireCacheAccess(v) => v.code_generation(ctx).await,
-            Self::ConstantConditionCodeGen(v) => v.code_generation(ctx).await,
-            Self::ConstantValueCodeGen(v) => v.code_generation(ctx).await,
+            Self::ConstantConditionCodeGen(v) => v.code_generation(),
+            Self::ConstantValueCodeGen(v) => v.code_generation(),
             Self::DynamicExpression(v) => v.code_generation(ctx).await,
             Self::EsmBinding(v) => v.code_generation(ctx, scope_hoisting_context).await,
             Self::EsmModuleItem(v) => v.code_generation(ctx).await,
+            Self::ExportsInfoBinding(v) => v.code_generation(ctx, module, exports).await,
+            Self::ExportsInfoRef(v) => v.code_generation(ctx).await,
             Self::IdentReplacement(v) => v.code_generation(ctx).await,
             Self::ImportMetaBinding(v) => v.code_generation(ctx).await,
             Self::ImportMetaRef(v) => v.code_generation(ctx).await,
@@ -221,6 +233,7 @@ impl CodeGen {
             Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::ReplaceParentWithChild(v) => v.code_generation(),
         }
     }
 }

@@ -13,10 +13,8 @@ const nextConfigWithUseCache: NextConfig = {
   experimental: { useCache: true },
 }
 
-const isRspack = !!process.env.NEXT_RSPACK
-
 describe('use-cache-without-experimental-flag', () => {
-  const { next, isNextStart, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextStart, isTurbopack, skipped, isRspack } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
     skipDeployment: true,

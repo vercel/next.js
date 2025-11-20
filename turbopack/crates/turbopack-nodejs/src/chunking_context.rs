@@ -75,6 +75,11 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn nested_async_availability(mut self, enable_nested_async_availability: bool) -> Self {
+        self.chunking_context.enable_nested_async_availability = enable_nested_async_availability;
+        self
+    }
+
     pub fn module_merging(mut self, enable_module_merging: bool) -> Self {
         self.chunking_context.enable_module_merging = enable_module_merging;
         self
@@ -168,6 +173,8 @@ pub struct NodeJsChunkingContext {
     runtime_type: RuntimeType,
     /// Enable tracing for this chunking
     enable_file_tracing: bool,
+    /// Enable nested async availability for this chunking
+    enable_nested_async_availability: bool,
     /// Enable module merging
     enable_module_merging: bool,
     /// Enable dynamic chunk content loading.
@@ -215,6 +222,7 @@ impl NodeJsChunkingContext {
                 asset_prefix: None,
                 asset_prefixes: Default::default(),
                 enable_file_tracing: false,
+                enable_nested_async_availability: false,
                 enable_module_merging: false,
                 enable_dynamic_chunk_content_loading: false,
                 environment,
@@ -307,6 +315,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
+    fn is_nested_async_availability_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_nested_async_availability)
+    }
+
+    #[turbo_tasks::function]
     fn is_module_merging_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_module_merging)
     }
@@ -374,6 +387,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     fn reference_chunk_source_maps(&self, _chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool> {
         Vc::cell(match self.source_maps_type {
             SourceMapsType::Full => true,
+            SourceMapsType::Partial => true,
             SourceMapsType::None => false,
         })
     }
@@ -382,6 +396,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     fn reference_module_source_maps(&self, _module: Vc<Box<dyn Module>>) -> Vc<bool> {
         Vc::cell(match self.source_maps_type {
             SourceMapsType::Full => true,
+            SourceMapsType::Partial => true,
             SourceMapsType::None => false,
         })
     }
@@ -439,6 +454,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             let MakeChunkGroupResult {
                 chunks,
                 referenced_output_assets,
+                references,
                 availability_info,
             } = make_chunk_group(
                 modules,
@@ -457,6 +473,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
                 referenced_assets: ResolvedVc::cell(referenced_output_assets),
+                references: ResolvedVc::cell(references),
                 availability_info,
             }
             .cell())
@@ -489,6 +506,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             let MakeChunkGroupResult {
                 chunks,
                 mut referenced_output_assets,
+                references,
                 availability_info,
             } = make_chunk_group(
                 entries,
@@ -520,6 +538,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                     evaluatable_assets,
                     *module,
                     Vc::cell(referenced_output_assets),
+                    Vc::cell(references),
                     module_graph,
                     *self,
                 )

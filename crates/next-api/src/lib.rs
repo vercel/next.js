@@ -3,6 +3,7 @@
 #![feature(arbitrary_self_types_pointers)]
 #![feature(impl_trait_in_assoc_type)]
 
+pub mod analyze;
 mod app;
 mod client_references;
 mod dynamic_imports;

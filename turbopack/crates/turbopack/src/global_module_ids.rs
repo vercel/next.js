@@ -26,7 +26,7 @@ pub async fn get_global_module_id_strategy(
         let module_idents = graphs
             .iter()
             .flat_map(|graph| graph.iter_nodes())
-            .map(|m| m.module.ident());
+            .map(|m| m.ident());
 
         // And additionally, all the modules that are inserted by chunking (i.e. async loaders)
         let mut async_idents = vec![];
@@ -39,7 +39,7 @@ pub async fn get_global_module_id_strategy(
                 },
             ) = parent
             {
-                let module = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current.module)
+                let module = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current)
                     .context("expected chunkable module for async reference")?;
                 async_idents.push(AsyncLoaderModule::asset_ident_for(*module));
             }

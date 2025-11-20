@@ -388,6 +388,12 @@ export interface ExperimentalConfig {
   optimizeServerReact?: boolean
 
   /**
+   * Displays an indicator when a React Transition has no other indicator rendered.
+   * This includes displaying an indicator on client-side navigations.
+   */
+  transitionIndicator?: boolean
+
+  /**
    * A target memory limit for turbo, in bytes.
    */
   turbopackMemoryLimit?: number
@@ -408,6 +414,18 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
+   * Enable nested async chunking for client side assets. Defaults to true in build mode and false in dev mode.
+   * This optimization computes all possible paths through dynamic imports in the applications to figure out the modules needed at dynamic imports for every path.
+   */
+  turbopackClientSideNestedAsyncChunking?: boolean
+
+  /**
+   * Enable nested async chunking for server side assets. Defaults to false in dev and build mode.
+   * This optimization computes all possible paths through dynamic imports in the applications to figure out the modules needed at dynamic imports for every path.
+   */
+  turbopackServerSideNestedAsyncChunking?: boolean
+
+  /**
    * Enable filesystem cache for the turbopack dev server.
    */
   turbopackFileSystemCacheForDev?: boolean
@@ -421,6 +439,11 @@ export interface ExperimentalConfig {
    * Enable source maps. Defaults to true.
    */
   turbopackSourceMaps?: boolean
+
+  /**
+   * Enable extraction of source maps from input files. Defaults to true.
+   */
+  turbopackInputSourceMaps?: boolean
 
   /**
    * Enable tree shaking for the turbopack dev server and build.
@@ -1450,7 +1473,6 @@ export const defaultConfig = Object.freeze({
     appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
-    serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
@@ -1515,6 +1537,7 @@ export const defaultConfig = Object.freeze({
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
+    transitionIndicator: false,
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,

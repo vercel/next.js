@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use napi_derive::napi;
+
 #[napi]
 pub fn start_turbopack_trace_server(path: String, port: Option<u16>) {
     let path_buf = PathBuf::from(path);

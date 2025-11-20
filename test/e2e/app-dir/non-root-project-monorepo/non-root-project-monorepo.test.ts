@@ -8,7 +8,7 @@ import {
 import * as path from 'path'
 
 describe('non-root-project-monorepo', () => {
-  const { next, skipped, isTurbopack, isNextDev } = nextTestSetup({
+  const { next, skipped, isTurbopack, isNextDev, isRspack } = nextTestSetup({
     files: {
       apps: new FileRef(path.resolve(__dirname, 'apps')),
       packages: new FileRef(path.resolve(__dirname, 'packages')),
@@ -23,7 +23,6 @@ describe('non-root-project-monorepo', () => {
     installCommand: 'pnpm i',
     skipDeployment: true,
   })
-  const isRspack = !!process.env.NEXT_RSPACK
 
   if (skipped) {
     return

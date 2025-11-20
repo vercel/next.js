@@ -10,12 +10,13 @@ verify_sst_content = []
 strict_checks = []
 stats = ["quick_cache/stats"]
 print_stats = ["stats"]
+verbose_log = []
 
 [dependencies]
 anyhow = { workspace = true }
 either = { workspace = true }
 pot = "3.0.0"
-byteorder = "1.5.0"
+byteorder = { workspace = true }
 jiff = "0.2.10"
 lzzzz = "1.1.0"
 memmap2 = "0.9.5"

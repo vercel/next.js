@@ -73,7 +73,9 @@ impl IntoCodeGenReference for EsmModuleIdAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+)]
 pub struct EsmModuleIdAssetReferenceCodeGen {
     path: AstPath,
     reference: ResolvedVc<EsmModuleIdAssetReference>,

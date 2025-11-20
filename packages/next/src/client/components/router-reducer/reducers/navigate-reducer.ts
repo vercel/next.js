@@ -67,7 +67,7 @@ export function generateSegmentsFromPatch(
   return segments
 }
 
-function handleNavigationResult(
+export function handleNavigationResult(
   url: URL,
   state: ReadonlyReducerState,
   mutable: Mutable,
@@ -112,7 +112,13 @@ function handleNavigationResult(
       mutable.patchedTree = result.data.flightRouterState
       mutable.renderedSearch = result.data.renderedSearch
       mutable.canonicalUrl = result.data.canonicalUrl
-      mutable.scrollableSegments = result.data.scrollableSegments
+      // TODO: During a refresh, we don't set the `scrollableSegments`. There's
+      // some confusing and subtle logic in `handleMutable` that decides what
+      // to do when `shouldScroll` is set but `scrollableSegments` is not. I'm
+      // not convinced it's totally coherent but the tests assert on this
+      // particular behavior so I've ported the logic as-is from the previous
+      // router implementation, for now.
+      mutable.scrollableSegments = result.data.scrollableSegments ?? undefined
       mutable.shouldScroll = result.data.shouldScroll
       mutable.hashFragment = result.data.hash
       return handleMutable(state, mutable)

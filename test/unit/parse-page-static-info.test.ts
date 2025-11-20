@@ -1,4 +1,5 @@
 import { getPagesPageStaticInfo } from 'next/dist/build/analysis/get-page-static-info'
+import { installBindings } from 'next/dist/build/swc/install-bindings'
 import { PAGE_TYPES } from 'next/dist/lib/page-types'
 import { join } from 'path'
 
@@ -9,6 +10,9 @@ function createNextConfig() {
 }
 
 describe('parse page static info', () => {
+  beforeAll(async () => {
+    await installBindings()
+  })
   it('should parse nodejs runtime correctly', async () => {
     const { runtime, getServerSideProps, getStaticProps } =
       await getPagesPageStaticInfo({

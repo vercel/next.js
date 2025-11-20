@@ -4,12 +4,10 @@ import path from 'path'
 import { outdent } from 'outdent'
 
 describe('ReactRefreshLogBox-builtins app', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { isTurbopack, next, isRspack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
-
-  const isRspack = !!process.env.NEXT_RSPACK
 
   // Module trace is only available with webpack 5
   test('Node.js builtins', async () => {
@@ -135,10 +133,10 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "label": "Build Error",
          "source": "./index.js
          × Module not found: Can't resolve 'b' in '<FIXME-project-root>'
-          ╭─[2:17]
+          ╭─[2:0]
         1 │ import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
         2 │ import Comp from 'b';
-          ·                  ───
+          · ─────────────────────
         3 │ export default function Oops() {
         4 │     return /*#__PURE__*/ _jsxDEV("div", {
           ╰────
@@ -204,10 +202,10 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "label": "Build Error",
          "source": "./app/page.js
          × Module not found: Can't resolve 'b' in '<FIXME-project-root>/app'
-          ╭─[2:17]
+          ╭─[2:0]
         1 │ /* __next_internal_client_entry_do_not_use__ default auto */ import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
         2 │ import Comp from 'b';
-          ·                  ───
+          · ─────────────────────
         3 │ export default function Oops() {
         4 │     return /*#__PURE__*/ _jsxDEV("div", {
           ╰────
@@ -270,10 +268,10 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "label": "Build Error",
          "source": "./app/page.js
          × Module not found: Can't resolve './non-existent.css' in '<FIXME-project-root>/app'
-          ╭─[2:7]
+          ╭─[2:0]
         1 │ /* __next_internal_client_entry_do_not_use__ default auto */ import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
         2 │ import './non-existent.css';
-          ·        ────────────────────
+          · ────────────────────────────
         3 │ export default function Page(props) {
         4 │     return /*#__PURE__*/ _jsxDEV("p", {
           ╰────",

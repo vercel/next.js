@@ -12,7 +12,7 @@ use crate::{
     chunk::ChunkingContext,
     ident::AssetIdent,
     introspect::{Introspectable, IntrospectableChildren},
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     source_map::{GenerateSourceMap, SourceMap},
 };
 
@@ -64,6 +64,9 @@ impl SourceMapAsset {
         .cell()
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for SourceMapAsset {}
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for SourceMapAsset {

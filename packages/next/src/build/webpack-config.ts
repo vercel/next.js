@@ -61,7 +61,6 @@ import loadJsConfig, {
   type JsConfig,
   type ResolvedBaseUrl,
 } from './load-jsconfig'
-import { loadBindings } from './swc'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
@@ -287,6 +286,10 @@ export function hasExternalOtelApiPackage(): boolean {
 
 const UNSAFE_CACHE_REGEX = /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/
 
+const NEGATIVE_UNSAFE_CACHE_REGEX = new RegExp(
+  `^(?!.*${UNSAFE_CACHE_REGEX.source}).*$`
+)
+
 export function getCacheDirectories(
   configs: webpack.Configuration[]
 ): Set<string> {
@@ -416,11 +419,6 @@ export default async function getBaseWebpackConfig(
       )}" https://nextjs.org/docs/messages/swc-disabled`
     )
     loggedSwcDisabled = true
-  }
-
-  // eagerly load swc bindings instead of waiting for transform calls
-  if (!babelConfigFile && isClient) {
-    await loadBindings(config.experimental.useWasmBinary)
   }
 
   // since `pages` doesn't always bundle by default we need to
@@ -2257,12 +2255,8 @@ export default async function getBaseWebpackConfig(
   }
 
   if (isRspack) {
-    // @ts-ignore
-    // Disable Rspack's incremental buildChunkGraph due to Next.js compatibility issues
-    // TODO: Remove this workaround after Rspack 1.5.1 release
-    webpack5Config.experiments.incremental = {
-      buildChunkGraph: false,
-    }
+    // The layers experiment is now stable in Rspack
+    delete webpack5Config.experiments!.layers
   }
 
   webpack5Config.module!.parser = {
@@ -2488,11 +2482,22 @@ export default async function getBaseWebpackConfig(
 
   if (dev) {
     if (webpackConfig.module) {
-      webpackConfig.module.unsafeCache = (module: any) =>
-        !UNSAFE_CACHE_REGEX.test(module.resource)
+      if (isRspack) {
+        ;(webpackConfig.module.unsafeCache as any) = NEGATIVE_UNSAFE_CACHE_REGEX
+      } else {
+        webpackConfig.module.unsafeCache = (module: any) =>
+          !UNSAFE_CACHE_REGEX.test(module.resource)
+      }
     } else {
-      webpackConfig.module = {
-        unsafeCache: (module: any) => !UNSAFE_CACHE_REGEX.test(module.resource),
+      if (isRspack) {
+        ;(webpackConfig.module as any) = {
+          unsafeCache: NEGATIVE_UNSAFE_CACHE_REGEX,
+        }
+      } else {
+        webpackConfig.module = {
+          unsafeCache: (module: any) =>
+            !UNSAFE_CACHE_REGEX.test(module.resource),
+        }
       }
     }
   }

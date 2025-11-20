@@ -3,6 +3,11 @@ import { DebugRenderKind } from '../../../../shared'
 
 type AnySearchParams = { [key: string]: string | string[] | undefined }
 
+export const unstable_prefetch = {
+  mode: 'runtime',
+  samples: [{ cookies: [] }],
+}
+
 export default async function Page({
   searchParams,
 }: {

@@ -18,10 +18,11 @@ This page will walk you through how you can fetch data in [Server and Client Com
 
 ### Server Components
 
-You can fetch data in Server Components using:
+You can fetch data in Server Components using any asynchronous I/O, such as:
 
 1. The [`fetch` API](#with-the-fetch-api)
 2. An [ORM or database](#with-an-orm-or-database)
+3. Reading from the filesystem using Node.js APIs like `fs`
 
 #### With the `fetch` API
 
@@ -285,7 +286,7 @@ To improve the initial load time and user experience, you can use streaming to b
   height="785"
 />
 
-There are two ways you can implement streaming in your application:
+There are two ways you can leverage streaming in your application:
 
 1. Wrapping a page with a [`loading.js` file](#with-loadingjs)
 2. Wrapping a component with [`<Suspense>`](#with-suspense)
@@ -356,7 +357,7 @@ export default function BlogPage() {
         <p>Read the latest posts below.</p>
       </header>
       <main>
-        {/* Any content wrapped in a <Suspense> boundary will be streamed */}
+        {/* If there's any dynamic content inside this boundary, it will be streamed in */}
         <Suspense fallback={<BlogListSkeleton />}>
           <BlogList />
         </Suspense>
@@ -380,7 +381,7 @@ export default function BlogPage() {
         <p>Read the latest posts below.</p>
       </header>
       <main>
-        {/* Any content wrapped in a <Suspense> boundary will be streamed */}
+        {/* If there's any dynamic content inside this boundary, it will be streamed in */}
         <Suspense fallback={<BlogListSkeleton />}>
           <BlogList />
         </Suspense>
@@ -400,19 +401,9 @@ In development, you can preview and inspect the loading state of your components
 
 ### Sequential data fetching
 
-Sequential data fetching happens when nested components in a tree each fetch their own data and the requests are not [deduplicated](/docs/app/guides/caching#request-memoization), leading to longer response times.
+Sequential data fetching happens when one request depends on data from another.
 
-<Image
-  alt="Sequential and Parallel Data Fetching"
-  srcLight="/docs/light/sequential-parallel-data-fetching.png"
-  srcDark="/docs/dark/sequential-parallel-data-fetching.png"
-  width="1600"
-  height="525"
-/>
-
-There may be cases where you want this pattern because one fetch depends on the result of the other.
-
-For example, the `<Playlists>` component will only start fetching data once the `<Artist>` component has finished fetching data because `<Playlists>` depends on the `artistID` prop:
+For example, `<Playlists>` can only fetch data after `<Artist>` completes because it needs the `artistID`:
 
 ```tsx filename="app/artist/[username]/page.tsx" switcher
 export default async function Page({
@@ -482,7 +473,9 @@ async function Playlists({ artistID }) {
 }
 ```
 
-To improve the user experience, you should use [React `<Suspense>`](/docs/app/getting-started/linking-and-navigating#streaming) to show a `fallback` while data is being fetch. This will enable [streaming](#streaming) and prevent the whole route from being blocked by the sequential data requests.
+In this example, `<Suspense>` allows the playlists to stream in after the artist data loads. However, the page still waits for the artist data before displaying anything. To prevent this, you can wrap the entire page component in a `<Suspense>` boundary (for example, using a [`loading.js` file](#with-loadingjs)) to show a loading state immediately.
+
+Ensure your data source can resolve the first request quickly, as it blocks everything else. If you can't optimize the request further, consider [caching](#deduplicate-requests-and-cache-data) the result if the data changes infrequently.
 
 ### Parallel data fetching
 
@@ -597,11 +590,12 @@ export default async function Page({
   return isAvailable ? <Item id={id} /> : null
 }
 
-export const preload = (id: string) => {
+const preload = (id: string) => {
   // void evaluates the given expression and returns undefined
   // https://developer.mozilla.org/docs/Web/JavaScript/Reference/Operators/void
   void getItem(id)
 }
+
 export async function Item({ id }: { id: string }) {
   const result = await getItem(id)
   // ...
@@ -621,11 +615,12 @@ export default async function Page({ params }) {
   return isAvailable ? <Item id={id} /> : null
 }
 
-export const preload = (id) => {
+const preload = (id) => {
   // void evaluates the given expression and returns undefined
   // https://developer.mozilla.org/docs/Web/JavaScript/Reference/Operators/void
   void getItem(id)
 }
+
 export async function Item({ id }) {
   const result = await getItem(id)
   // ...
