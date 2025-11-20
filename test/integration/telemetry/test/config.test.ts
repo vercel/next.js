@@ -21,10 +21,11 @@ describe('config telemetry', () => {
           path.join(appDir, 'next.config.js')
         )
 
-        const { stderr } = await nextBuild(appDir, [], {
+        const { code, stderr } = await nextBuild(appDir, [], {
           stderr: true,
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
+        expect(code).toBe(0)
 
         await fs.rename(
           path.join(appDir, 'next.config.js'),
@@ -51,10 +52,11 @@ describe('config telemetry', () => {
           path.join(appDir, 'next.config.js')
         )
 
-        const { stderr } = await nextBuild(appDir, [], {
+        const { code, stderr } = await nextBuild(appDir, [], {
           stderr: true,
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
+        expect(code).toBe(0)
 
         await fs.rename(
           path.join(appDir, 'next.config.js'),
@@ -140,10 +142,11 @@ describe('config telemetry', () => {
           'module.exports = { output: "export" }'
         )
         try {
-          const { stderr } = await nextBuild(appDir, [], {
+          const { code, stderr } = await nextBuild(appDir, [], {
             stderr: true,
             env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
+          expect(code).toBe(0)
 
           try {
             const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
@@ -164,10 +167,12 @@ describe('config telemetry', () => {
       ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemery for usage of image, script & dynamic',
         async () => {
-          const { stderr } = await nextBuild(appDir, [], {
+          const { code, stderr } = await nextBuild(appDir, [], {
             stderr: true,
             env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(code).toBe(0)
           const featureUsageEvents = findAllTelemetryEvents(
             stderr,
             'NEXT_BUILD_FEATURE_USAGE'
@@ -208,10 +213,12 @@ describe('config telemetry', () => {
             path.join(appDir, 'jsconfig.swc'),
             path.join(appDir, 'jsconfig.json')
           )
-          const { stderr } = await nextBuild(appDir, [], {
+          const { code, stderr } = await nextBuild(appDir, [], {
             stderr: true,
             env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(code).toBe(0)
           await fs.rename(
             path.join(appDir, 'next.config.js'),
             path.join(appDir, 'next.config.swc')
@@ -266,10 +273,11 @@ describe('config telemetry', () => {
           path.join(appDir, 'next.config.js')
         )
 
-        const { stderr } = await nextBuild(appDir, [], {
+        const { code, stderr } = await nextBuild(appDir, [], {
           stderr: true,
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
+        expect(code).toBe(0)
 
         await fs.rename(
           path.join(appDir, 'next.config.js'),
@@ -292,10 +300,11 @@ describe('config telemetry', () => {
           path.join(appDir, 'next.config.js')
         )
 
-        const { stderr } = await nextBuild(appDir, [], {
+        const { code, stderr } = await nextBuild(appDir, [], {
           stderr: true,
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
+        expect(code).toBe(0)
 
         await fs.rename(
           path.join(appDir, 'next.config.js'),
@@ -318,10 +327,11 @@ describe('config telemetry', () => {
           path.join(appDir, 'next.config.js')
         )
 
-        const { stderr } = await nextBuild(appDir, [], {
+        const { code, stderr } = await nextBuild(appDir, [], {
           stderr: true,
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
+        expect(code).toBe(0)
 
         await fs.rename(
           path.join(appDir, 'next.config.js'),
@@ -344,10 +354,11 @@ describe('config telemetry', () => {
           `export function middleware () { }`
         )
 
-        const { stderr } = await nextBuild(appDir, [], {
+        const { code, stderr } = await nextBuild(appDir, [], {
           stderr: true,
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
+        expect(code).toBe(0)
 
         await fs.remove(path.join(appDir, 'middleware.js'))
 
@@ -376,10 +387,11 @@ describe('config telemetry', () => {
           path.join(appDir, 'package.json')
         )
 
-        const { stderr } = await nextBuild(appDir, [], {
+        const { code, stderr } = await nextBuild(appDir, [], {
           stderr: true,
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
+        expect(code).toBe(0)
 
         await fs.rename(
           path.join(appDir, 'next.config.js'),
@@ -414,10 +426,12 @@ describe('config telemetry', () => {
       ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemetry for usage of next/legacy/image',
         async () => {
-          const { stderr } = await nextBuild(appDir, [], {
+          const { code, stderr } = await nextBuild(appDir, [], {
             stderr: true,
             env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(code).toBe(0)
           const featureUsageEvents = findAllTelemetryEvents(
             stderr,
             'NEXT_BUILD_FEATURE_USAGE'
@@ -442,10 +456,12 @@ describe('config telemetry', () => {
         'emits telemetry for usage of @vercel/og',
         async () => {
           // Test vercelImageGeneration telemetry tracking
-          const { stderr } = await nextBuild(appDir, [], {
+          const { code, stderr } = await nextBuild(appDir, [], {
             stderr: true,
             env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(code).toBe(0)
           const featureUsageEvents = findAllTelemetryEvents(
             stderr,
             'NEXT_BUILD_FEATURE_USAGE'
@@ -467,10 +483,12 @@ describe('config telemetry', () => {
             path.join(appDir, 'next.config.js')
           )
 
-          const { stderr } = await nextBuild(appDir, [], {
+          const { code, stderr } = await nextBuild(appDir, [], {
             stderr: true,
             env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(code).toBe(0)
 
           await fs.rename(
             path.join(appDir, 'next.config.js'),
@@ -498,10 +516,12 @@ describe('config telemetry', () => {
             path.join(appDir, 'next.config.js')
           )
 
-          const { stderr } = await nextBuild(appDir, [], {
+          const { code, stderr } = await nextBuild(appDir, [], {
             stderr: true,
             env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(code).toBe(0)
 
           await fs.rename(
             path.join(appDir, 'next.config.js'),
@@ -526,10 +546,11 @@ describe('config telemetry', () => {
       )
 
       it('emits telemetry for default React Compiler options', async () => {
-        const { stderr } = await nextBuild(appDir, [], {
+        const { code, stderr } = await nextBuild(appDir, [], {
           stderr: true,
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
+        expect(code).toBe(0)
 
         try {
           const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
@@ -622,10 +643,12 @@ describe('config telemetry', () => {
           await fs.move(path.join(appDir, 'app'), path.join(appDir, '~app'))
           await fs.move(path.join(appDir, '_app'), path.join(appDir, 'app'))
 
-          const { stderr } = await nextBuild(appDir, [], {
+          const { code, stderr } = await nextBuild(appDir, [], {
             stderr: true,
             env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(code).toBe(0)
 
           await fs.rename(
             path.join(appDir, 'next.config.js'),
@@ -661,10 +684,11 @@ describe('config telemetry', () => {
         )
 
         try {
-          const { stderr } = await nextBuild(appDir, [], {
+          const { code, stderr } = await nextBuild(appDir, [], {
             stderr: true,
             env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
+          expect(code).toBe(0)
 
           try {
             const featureUsageEvents = findAllTelemetryEvents(
