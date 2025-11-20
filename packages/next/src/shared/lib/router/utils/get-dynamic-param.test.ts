@@ -7,7 +7,6 @@ import {
 import type { Params } from '../../../../server/request/params'
 import { InvariantError } from '../../invariant-error'
 import { createMockOpaqueFallbackRouteParams } from '../../../../server/app-render/postponed-state.test'
-import type { LoaderTree } from '../../../../server/lib/app-dir-module'
 
 describe('getDynamicParam', () => {
   describe('basic dynamic parameters (d, di)', () => {
@@ -403,60 +402,43 @@ describe('parseMatchedParameter', () => {
   })
 })
 
+// Helper to create LoaderTree structures for testing
+type TestLoaderTree = [
+  segment: string,
+  parallelRoutes: { [key: string]: TestLoaderTree },
+  modules: Record<string, unknown>,
+]
+
+function createLoaderTree(
+  segment: string,
+  parallelRoutes: { [key: string]: TestLoaderTree } = {},
+  children?: TestLoaderTree
+): TestLoaderTree {
+  const routes = children ? { ...parallelRoutes, children } : parallelRoutes
+  return [segment, routes, {}]
+}
+
 describe('interpolateParallelRouteParams', () => {
   it('should interpolate parallel route params', () => {
-    const loaderTree = [
+    const loaderTree = createLoaderTree(
       '',
-      {
-        children: [
-          'optional-catch-all',
-          {
-            children: [
-              '[[...path]]',
-              {
-                children: [
-                  '__PAGE__',
-                  {},
-                  {
-                    page: [
-                      null,
-                      '/private/var/folders/xy/84vxj27s21x2brb851sdl_5c0000gn/T/next-install-1265b780415069863d37bb613af21623e2ce3eecc0c3a770cbbc66e0a4cf18aa/app/optional-catch-all/[[...path]]/page.tsx',
-                    ],
-                  },
-                ],
-              },
-              {
-                layout: [
-                  null,
-                  '/private/var/folders/xy/84vxj27s21x2brb851sdl_5c0000gn/T/next-install-1265b780415069863d37bb613af21623e2ce3eecc0c3a770cbbc66e0a4cf18aa/app/optional-catch-all/[[...path]]/layout.tsx',
-                ],
-              },
-            ],
-          },
-          {},
-        ],
-      },
-      {
-        'global-error': [
-          null,
-          'next/dist/client/components/builtin/global-error.js',
-        ],
-        'not-found': [null, 'next/dist/client/components/builtin/not-found.js'],
-        forbidden: [null, 'next/dist/client/components/builtin/forbidden.js'],
-        unauthorized: [
-          null,
-          'next/dist/client/components/builtin/unauthorized.js',
-        ],
-      },
-    ] as unknown as LoaderTree
+      {},
+      createLoaderTree(
+        'optional-catch-all',
+        {
+          modal: createLoaderTree('[[...catchAll]]'),
+        },
+        createLoaderTree('[[...path]]')
+      )
+    )
 
     expect(
       interpolateParallelRouteParams(
         loaderTree,
-        {},
+        { path: ['foo', 'bar'] },
         '/optional-catch-all/[[...path]]',
         null
       )
-    ).toEqual({})
+    ).toEqual({ path: ['foo', 'bar'], catchAll: ['foo', 'bar'] })
   })
 })

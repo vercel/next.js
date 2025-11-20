@@ -1,14 +1,9 @@
-0 -> 1 conditional = true
-
-0 -> 2 call = import*0*("a")
+0 -> 1 call = import*0*("a")
 - *0* import: The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
 
-0 -> 5 free var = FreeVar(process)
+0 -> 4 free var = FreeVar(process)
 
-0 -> 6 conditional = (process.env*0*["NEXT_RUNTIME"] === "edge")
-- *0* process.env: The Node.js process.env property: https://nodejs.org/api/process.html#processenv
-
-0 -> 7 call = import*0*(
+0 -> 5 call = import*0*(
     (???*1* ? "next/dist/compiled/@vercel/og/index.edge.js" : "next/dist/compiled/@vercel/og/index.node.js")
 )
 - *0* import: The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
@@ -16,21 +11,21 @@
   ⚠️  nested operation
 - *2* process.env: The Node.js process.env property: https://nodejs.org/api/process.html#processenv
 
-0 -> 8 conditional = true
+0 -> 6 conditional = true
 
-8 -> 9 call = import*0*("a")
+6 -> 7 call = import*0*("a")
 - *0* import: The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
 
-8 -> 10 call = import*0*("b")
+6 -> 8 call = import*0*("b")
 - *0* import: The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
 
-0 -> 11 conditional = true
+0 -> 9 conditional = true
 
-0 -> 14 conditional = true
+0 -> 12 conditional = true
 
-14 -> 15 unreachable = ???*0*
+12 -> 13 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 16 call = import*0*("c")
+0 -> 14 call = import*0*("c")
 - *0* import: The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports

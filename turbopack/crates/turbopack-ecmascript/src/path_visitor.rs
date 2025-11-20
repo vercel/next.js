@@ -88,7 +88,7 @@ impl<'a> ApplyVisitors<'a, '_> {
             let kind = ast_path[index];
             if let Some(visitors) = find_range(current_visitors, &kind, index) {
                 // visitors contains all items that match kind at index. Some of them terminate
-                // here, some need furth visiting. The terminating items are at the start due to
+                // here, some need further visiting. The terminating items are at the start due to
                 // sorting of the list.
                 index += 1;
 

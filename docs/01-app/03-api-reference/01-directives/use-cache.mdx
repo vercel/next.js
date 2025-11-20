@@ -16,7 +16,11 @@ related:
 
 The `use cache` directive allows you to mark a route, React component, or a function as cacheable. It can be used at the top of a file to indicate that all exports in the file should be cached, or inline at the top of function or component to cache the return value.
 
-> **Good to know:** For caching user-specific content that requires access to cookies or headers, see [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private).
+> **Good to know:**
+>
+> - To use cookies or headers, read them outside cached scopes and pass values as arguments. This is the preferred pattern.
+> - If the in-memory cache isn't sufficient for runtime data, [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote) allows platforms to provide a dedicated cache handler, though it may come with its own costs.
+> - For compliance requirements where data must never be cached on the server, or when a deeply nested component needs to access runtime APIs and restructuring would be disruptive, see [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private).
 
 ## Usage
 
@@ -65,68 +69,207 @@ export async function getData() {
 }
 ```
 
+> **Good to know**: When used at file level, all function exports must be async functions.
+
 ## How `use cache` works
 
 ### Cache keys
 
 A cache entry's key is generated using a serialized version of its inputs, which includes:
 
-- Build ID (generated for each build)
-- Function ID (a secure identifier unique to the function)
-- The [serializable](https://react.dev/reference/rsc/use-server#serializable-parameters-and-return-values) function arguments (or props).
+1. **Build ID** - Unique per build, changing this invalidates all cache entries
+2. **Function ID** - A secure hash of the function's location and signature in the codebase
+3. **Serializable arguments** - Props (for components) or function arguments
+4. **HMR refresh hash** (development only) - Invalidates cache on hot module replacement
 
-The arguments passed to the cached function, as well as any values it reads from the parent scope automatically become a part of the key. This means, the same cache entry will be reused as long as its inputs are the same.
+When a cached function references variables from outer scopes, those variables are automatically captured and bound as arguments, making them part of the cache key.
 
-## Non-serializable arguments
+```tsx filename="lib/data.ts"
+async function Component({ userId }: { userId: string }) {
+  const getData = async (filter: string) => {
+    'use cache'
+    // Cache key includes both userId (from closure) and filter (argument)
+    return fetch(`/api/users/${userId}/data?filter=${filter}`)
+  }
 
-Any non-serializable arguments, props, or closed-over values will turn into references inside the cached function, and can be only passed through and not inspected nor modified. These non-serializable values will be filled in at the request time and won't become a part of the cache key.
-
-For example, a cached function can take in JSX as a `children` prop and return `<div>{children}</div>`, but it won't be able to introspect the actual `children` object. This allows you to nest uncached content inside a cached component.
-
-```tsx filename="app/ui/cached-component.tsx" switcher
-async function CachedComponent({ children }: { children: ReactNode }) {
-  'use cache'
-  return <div>{children}</div>
+  return getData('active')
 }
 ```
 
-```jsx filename="app/ui/cached-component.js" switcher
-async function CachedComponent({ children }) {
+In the snippet above, `userId` is captured from the outer scope and `filter` is passed as an argument, so both become part of the `getData` function's cache key. This means different user and filter combinations will have separate cache entries.
+
+## Serialization
+
+Arguments to cached functions and their return values must be serializable.
+
+For a complete reference, see:
+
+- [Serializable arguments](https://react.dev/reference/rsc/use-server#serializable-parameters-and-return-values) - Uses **React Server Components** serialization
+- [Serializable return types](https://react.dev/reference/rsc/use-client#serializable-types) - Uses **React Client Components** serialization
+
+> **Good to know:** Arguments and return values use different serialization systems. Server Component serialization (for arguments) is more restrictive than Client Component serialization (for return values). This means you can return JSX elements but cannot accept them as arguments unless using pass-through patterns.
+
+### Supported types
+
+**Arguments:**
+
+- Primitives: `string`, `number`, `boolean`, `null`, `undefined`
+- Plain objects: `{ key: value }`
+- Arrays: `[1, 2, 3]`
+- Dates, Maps, Sets, TypedArrays, ArrayBuffers
+- React elements (as pass-through only)
+
+**Return values:**
+
+- Same as arguments, plus JSX elements
+
+### Unsupported types
+
+- Class instances
+- Functions (except as pass-through)
+- Symbols, WeakMaps, WeakSets
+- URL instances
+
+```tsx filename="app/components/user-card.tsx"
+// Valid - primitives and plain objects
+async function UserCard({
+  id,
+  config,
+}: {
+  id: string
+  config: { theme: string }
+}) {
   'use cache'
-  return <div>{children}</div>
+  return <div>{id}</div>
+}
+
+// Invalid - class instance
+async function UserProfile({ user }: { user: UserClass }) {
+  'use cache'
+  // Error: Cannot serialize class instance
+  return <div>{user.name}</div>
 }
 ```
 
-## Return values
+### Pass-through (non-serializable arguments)
 
-The return value of the cacheable function must be serializable props. This ensures that the cached data can be stored and retrieved correctly.
+You can accept non-serializable values **as long as you don't introspect them**. This enables composition patterns with `children` and Server Actions:
 
-> **Good to know:** The supported types for arguments and the supported types for returned values are **not the same**. For more details, refer to [Serializable Parameters and Return Values](https://react.dev/reference/rsc/use-server#serializable-parameters-and-return-values) for function arguments and [Serializable Types](https://react.dev/reference/rsc/use-client#serializable-types) for return values.
+```tsx filename="app/components/cached-wrapper.tsx"
+async function CachedWrapper({ children }: { children: ReactNode }) {
+  'use cache'
+  // Don't read or modify children - just pass it through
+  return (
+    <div className="wrapper">
+      <header>Cached Header</header>
+      {children}
+    </div>
+  )
+}
 
-## `use cache` at build time
+// Usage: children can be dynamic
+export default function Page() {
+  return (
+    <CachedWrapper>
+      <DynamicComponent /> {/* Not cached, passed through */}
+    </CachedWrapper>
+  )
+}
+```
 
-When used at the top of a [layout](/docs/app/api-reference/file-conventions/layout) or [page](/docs/app/api-reference/file-conventions/page), the route segment will be prerendered, allowing it to later be [revalidated](#during-revalidation).
+You can also pass Server Actions through cached components:
 
-This means `use cache` cannot be used with [runtime data](/docs/app/getting-started/cache-components#1-suspense-for-runtime-data) like `cookies` or `headers`.
+```tsx filename="app/components/cached-form.tsx"
+async function CachedForm({ action }: { action: () => Promise<void> }) {
+  'use cache'
+  // Don't call action here - just pass it through
+  return <form action={action}>{/* ... */}</form>
+}
+```
 
-> **Note:** If you need to cache content that depends on cookies, headers, or search params, use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead.
+## Constraints
+
+Cached functions and components **cannot** directly access runtime APIs like `cookies()`, `headers()`, or `searchParams`. Instead, read these values outside the cached scope and pass them as arguments.
+
+### Runtime caching considerations
+
+While `use cache` is designed primarily to include dynamic data in the static shell, it can also cache data at runtime using in-memory LRU (Least Recently Used) storage.
+
+Runtime cache behavior depends on your hosting environment:
+
+| Environment     | Runtime Caching Behavior                                                                                                                                          |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Serverless**  | Cache entries may not persist across requests (each request can be a different instance). Build-time caching works normally.                                      |
+| **Self-hosted** | Cache entries persist across requests. Control cache size with [`cacheMaxMemorySize`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath). |
+
+If the default in-memory cache isn't enough, consider **[`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)** which allows platforms to provide a dedicated cache handler (like Redis or KV database). This helps reduce hits against data sources not scaled to your total traffic, though it comes with costs (storage, network latency, platform fees).
+
+Very rarely, for compliance requirements where certain data must never be cached on the server (even ephemerally), or when a component within a `use cache` scope needs to access runtime APIs like `cookies()` and restructuring the component tree is impractical, you might need **[`use cache: private`](/docs/app/api-reference/directives/use-cache-private)**.
 
 ## `use cache` at runtime
 
-On the **server**, the cache entries of individual components or functions will be cached in-memory by default. You can customize the cache storage by configuring [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers) in your `next.config.js` file.
+On the **server**, cache entries are stored in-memory and respect the `revalidate` and `expire` times from your `cacheLife` configuration. You can customize the cache storage by configuring [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers) in your `next.config.js` file.
 
-Then, on the **client**, any content returned from the server cache will be stored in the browser's memory for the duration of the session or until [revalidated](#during-revalidation).
+On the **client**, content from the server cache is stored in the browser's memory for the duration defined by the `stale` time. The client router enforces a **minimum 30-second stale time**, regardless of configuration.
 
-## During revalidation
+The `x-nextjs-stale-time` response header communicates cache lifetime from server to client, ensuring coordinated behavior.
 
-By default, `use cache` has server-side revalidation period of **15 minutes**. While this period may be useful for content that doesn't require frequent updates, you can use the `cacheLife` and `cacheTag` APIs to configure when the individual cache entries should be revalidated.
+## Revalidation
 
-- [`cacheLife`](/docs/app/api-reference/functions/cacheLife): Configure the cache entry lifetime.
-- [`cacheTag`](/docs/app/api-reference/functions/cacheTag): Create tags for on-demand revalidation.
+By default, `use cache` uses the `default` profile with these settings:
 
-Both of these APIs integrate across the client and server caching layers, meaning you can configure your caching semantics in one place and have them apply everywhere.
+- **stale**: 5 minutes (client-side)
+- **revalidate**: 15 minutes (server-side)
+- **expire**: Never expires by time
 
-See the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) and [`cacheTag`](/docs/app/api-reference/functions/cacheTag) API docs for more information.
+```tsx filename="lib/data.ts"
+async function getData() {
+  'use cache'
+  // Implicitly uses default profile
+  return fetch('/api/data')
+}
+```
+
+### Customizing cache lifetime
+
+Use the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) function to customize cache duration:
+
+```tsx filename="lib/data.ts"
+import { cacheLife } from 'next/cache'
+
+async function getData() {
+  'use cache'
+  cacheLife('hours') // Use built-in 'hours' profile
+  return fetch('/api/data')
+}
+```
+
+### On-demand revalidation
+
+Use [`cacheTag`](/docs/app/api-reference/functions/cacheTag), [`updateTag`](/docs/app/api-reference/functions/updateTag), or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) for on-demand cache invalidation:
+
+```tsx filename="lib/data.ts"
+import { cacheTag } from 'next/cache'
+
+async function getProducts() {
+  'use cache'
+  cacheTag('products')
+  return fetch('/api/products')
+}
+```
+
+```tsx filename="app/actions.ts"
+'use server'
+
+import { updateTag } from 'next/cache'
+
+export async function updateProduct() {
+  await db.products.update(...)
+  updateTag('products') // Invalidates all 'products' caches
+}
+```
+
+Both `cacheLife` and `cacheTag` integrate across client and server caching layers, meaning you configure your caching semantics in one place and they apply everywhere.
 
 ## Examples
 
@@ -142,7 +285,7 @@ export default async function Layout({ children }: { children: ReactNode }) {
 }
 ```
 
-```jsx filename="app/page.tsx" switcher
+```jsx filename="app/layout.js" switcher
 'use cache'
 
 export default async function Layout({ children }) {
@@ -189,7 +332,6 @@ export default async function Page() {
 > **Good to know**:
 >
 > - If `use cache` is added only to the `layout` or the `page`, only that route segment and any components imported into it will be cached.
-> - If any of the nested children in the route use [Dynamic APIs](/docs/app/guides/caching#dynamic-rendering), then the route will opt out of pre-rendering.
 
 ### Caching a component's output with `use cache`
 
@@ -320,7 +462,7 @@ export default async function Page() {
     await db.update(...)
   }
 
-  return <CacheComponent performUpdate={performUpdate} />
+  return <CachedComponent performUpdate={performUpdate} />
 }
 
 async function CachedComponent({
@@ -344,7 +486,7 @@ export default async function Page() {
     await db.update(...)
   }
 
-  return <CacheComponent performUpdate={performUpdate} />
+  return <CachedComponent performUpdate={performUpdate} />
 }
 
 async function CachedComponent({ performUpdate }) {
@@ -373,6 +515,84 @@ export default function ClientComponent({ action }) {
   return <button onClick={action}>Update</button>
 }
 ```
+
+## Troubleshooting
+
+### Build Hangs (Cache Timeout)
+
+If your build hangs, you're accessing Promises that resolve to dynamic or runtime data, created outside a `use cache` boundary. The cached function waits for data that can't resolve during the build, causing a timeout after 50 seconds.
+
+When the build timeouts you'll see this error message:
+
+> Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".
+
+Common ways this happens: passing such Promises as props, accessing them via closure, or retrieving them from shared storage (Maps).
+
+> **Good to know:** Directly calling `cookies()` or `headers()` inside `use cache` fails immediately with a [different error](/docs/messages/next-request-in-use-cache), not a timeout.
+
+**Passing runtime data Promises as props:**
+
+```tsx filename="app/page.tsx"
+import { cookies } from 'next/headers'
+import { Suspense } from 'react'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <Dynamic />
+    </Suspense>
+  )
+}
+
+async function Dynamic() {
+  const cookieStore = cookies()
+  return <Cached promise={cookieStore} /> // Build hangs
+}
+
+async function Cached({ promise }: { promise: Promise<unknown> }) {
+  'use cache'
+  const data = await promise // Waits for runtime data during build
+  return <p>..</p>
+}
+```
+
+Await the `cookies` store in the `Dynamic` component, and pass a cookie value to the `Cached` component.
+
+**Shared deduplication storage:**
+
+```tsx filename="app/page.tsx"
+// Problem: Map stores dynamic Promises, accessed by cached code
+import { Suspense } from 'react'
+
+const cache = new Map<string, Promise<string>>()
+
+export default function Page() {
+  return (
+    <>
+      <Suspense fallback={<div>Loading...</div>}>
+        <Dynamic id="data" />
+      </Suspense>
+      <Cached id="data" />
+    </>
+  )
+}
+
+async function Dynamic({ id }: { id: string }) {
+  // Stores dynamic Promise in shared Map
+  cache.set(
+    id,
+    fetch(`https://api.example.com/${id}`).then((r) => r.text())
+  )
+  return <p>Dynamic</p>
+}
+
+async function Cached({ id }: { id: string }) {
+  'use cache'
+  return <p>{await cache.get(id)}</p> // Build hangs - retrieves dynamic Promise
+}
+```
+
+Use Next.js's built-in `fetch()` deduplication or use separate Maps for cached and uncached contexts.
 
 ## Platform Support
 

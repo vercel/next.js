@@ -388,6 +388,20 @@ export class AnalyzeData {
     return { client, server, traced, js, css, json, asset }
   }
 
+  isPolyfillModule(index: number): boolean {
+    const fullSourcePath = this.getFullSourcePath(index)
+    return fullSourcePath.endsWith(
+      'node_modules/next/dist/build/polyfills/polyfill-module.js'
+    )
+  }
+
+  isPolyfillNoModule(index: number): boolean {
+    const fullSourcePath = this.getFullSourcePath(index)
+    return fullSourcePath.endsWith(
+      'node_modules/next/dist/build/polyfills/polyfill-nomodule.js'
+    )
+  }
+
   // Get the raw header for debugging
   getRawAnalyzeHeader(): AnalyzeDataHeader {
     return this.analyzeHeader

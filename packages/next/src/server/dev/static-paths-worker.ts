@@ -20,6 +20,7 @@ import { buildPagesStaticPaths } from '../../build/static-paths/pages'
 import { createIncrementalCache } from '../../export/helpers/create-incremental-cache'
 import type { AppPageRouteModule } from '../route-modules/app-page/module'
 import type { AppRouteRouteModule } from '../route-modules/app-route/module'
+import { parseAppRoute } from '../../shared/lib/router/routes/app'
 
 type RuntimeConfig = {
   pprConfig: ExperimentalPPRConfig | undefined
@@ -111,6 +112,13 @@ export async function loadStaticPaths({
       routeModule as AppPageRouteModule | AppRouteRouteModule
     )
 
+    const route = parseAppRoute(pathname, true)
+    if (route.dynamicSegments.length === 0) {
+      throw new InvariantError(
+        `Expected a dynamic route, but got a static route: ${pathname}`
+      )
+    }
+
     const isRoutePPREnabled =
       isAppPageRouteModule(routeModule) &&
       checkIsRoutePPREnabled(config.pprConfig)
@@ -120,6 +128,7 @@ export async function loadStaticPaths({
     return buildAppStaticPaths({
       dir,
       page: pathname,
+      route,
       cacheComponents: config.cacheComponents,
       segments,
       distDir,

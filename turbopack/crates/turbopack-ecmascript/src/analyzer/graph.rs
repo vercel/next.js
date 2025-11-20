@@ -45,6 +45,11 @@ impl EffectsBlock {
     pub fn is_empty(&self) -> bool {
         self.effects.is_empty()
     }
+    fn normalize(&mut self) {
+        for e in self.effects.iter_mut() {
+            e.normalize();
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -70,47 +75,52 @@ pub enum ConditionalKind {
         r#else: Box<EffectsBlock>,
     },
     /// The expression on the right side of the `&&` operator.
-    And { expr: Box<EffectsBlock> },
+    And { rhs_effects: Vec<Effect> },
     /// The expression on the right side of the `||` operator.
-    Or { expr: Box<EffectsBlock> },
+    Or { rhs_effects: Vec<Effect> },
     /// The expression on the right side of the `??` operator.
-    NullishCoalescing { expr: Box<EffectsBlock> },
+    NullishCoalescing { rhs_effects: Vec<Effect> },
     /// The expression on the right side of a labeled statement.
     Labeled { body: Box<EffectsBlock> },
 }
 
 impl ConditionalKind {
+    fn is_empty(&self) -> bool {
+        match self {
+            ConditionalKind::If { then: block }
+            | ConditionalKind::Else { r#else: block }
+            | ConditionalKind::Labeled { body: block } => block.effects.is_empty(),
+            ConditionalKind::IfElse { then, r#else, .. }
+            | ConditionalKind::Ternary { then, r#else, .. } => then.is_empty() && r#else.is_empty(),
+            ConditionalKind::And { rhs_effects, .. }
+            | ConditionalKind::Or { rhs_effects, .. }
+            | ConditionalKind::NullishCoalescing { rhs_effects, .. } => rhs_effects.is_empty(),
+            ConditionalKind::IfElseMultiple { then, r#else, .. } => {
+                then.iter().chain(r#else.iter()).all(|b| b.is_empty())
+            }
+        }
+    }
     /// Normalizes all contained values.
     pub fn normalize(&mut self) {
         match self {
             ConditionalKind::If { then: block }
             | ConditionalKind::Else { r#else: block }
-            | ConditionalKind::And { expr: block, .. }
-            | ConditionalKind::Or { expr: block, .. }
-            | ConditionalKind::NullishCoalescing { expr: block, .. } => {
-                for effect in &mut block.effects {
-                    effect.normalize();
-                }
-            }
+            | ConditionalKind::Labeled { body: block } => block.normalize(),
             ConditionalKind::IfElse { then, r#else, .. }
             | ConditionalKind::Ternary { then, r#else, .. } => {
-                for effect in &mut then.effects {
-                    effect.normalize();
-                }
-                for effect in &mut r#else.effects {
+                then.normalize();
+                r#else.normalize();
+            }
+            ConditionalKind::And { rhs_effects, .. }
+            | ConditionalKind::Or { rhs_effects, .. }
+            | ConditionalKind::NullishCoalescing { rhs_effects, .. } => {
+                for effect in rhs_effects.iter_mut() {
                     effect.normalize();
                 }
             }
             ConditionalKind::IfElseMultiple { then, r#else, .. } => {
                 for block in then.iter_mut().chain(r#else.iter_mut()) {
-                    for effect in &mut block.effects {
-                        effect.normalize();
-                    }
-                }
-            }
-            ConditionalKind::Labeled { body } => {
-                for effect in &mut body.effects {
-                    effect.normalize();
+                    block.normalize();
                 }
             }
         }
@@ -131,9 +141,7 @@ impl EffectArg {
             EffectArg::Value(value) => value.normalize(),
             EffectArg::Closure(value, effects) => {
                 value.normalize();
-                for effect in &mut effects.effects {
-                    effect.normalize();
-                }
+                effects.normalize();
             }
             EffectArg::Spread => {}
         }
@@ -2352,6 +2360,49 @@ impl VisitAstPath for Analyzer<'_> {
         );
     }
 
+    fn visit_bin_expr<'ast: 'r, 'r>(
+        &mut self,
+        expr: &'ast BinExpr,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        // Some binary operators have control flow semantics.
+        match expr.op {
+            BinaryOp::LogicalAnd | BinaryOp::LogicalOr | BinaryOp::NullishCoalescing => {
+                // Visit the left hand node
+                {
+                    let mut ast_path =
+                        ast_path.with_guard(AstParentNodeRef::BinExpr(expr, BinExprField::Left));
+                    expr.left.visit_with_ast_path(self, &mut ast_path);
+                };
+                let prev_effects = take(&mut self.effects);
+                let rhs_effects = {
+                    let mut ast_path =
+                        ast_path.with_guard(AstParentNodeRef::BinExpr(expr, BinExprField::Right));
+                    expr.right.visit_with_ast_path(self, &mut ast_path);
+                    take(&mut self.effects)
+                };
+                self.effects = prev_effects;
+                self.add_conditional_effect(
+                    &expr.left,
+                    ast_path,
+                    AstParentKind::BinExpr(BinExprField::Left),
+                    expr.span(),
+                    match expr.op {
+                        BinaryOp::LogicalAnd => ConditionalKind::And { rhs_effects },
+                        BinaryOp::LogicalOr => ConditionalKind::Or { rhs_effects },
+                        BinaryOp::NullishCoalescing => {
+                            ConditionalKind::NullishCoalescing { rhs_effects }
+                        }
+                        _ => unreachable!(),
+                    },
+                );
+            }
+            _ => <BinExpr as VisitWithAstPath<Self>>::visit_children_with_ast_path(
+                expr, self, ast_path,
+            ),
+        }
+    }
+
     fn visit_if_stmt<'ast: 'r, 'r>(
         &mut self,
         stmt: &'ast IfStmt,
@@ -2622,7 +2673,7 @@ impl Analyzer<'_> {
         {
             return;
         }
-        let condition = Box::new(self.eval_context.eval(test));
+        let condition = self.eval_context.eval(test);
         if condition.is_unknown() {
             if let Some(mut then) = then {
                 self.effects.append(&mut then.effects);
@@ -2632,6 +2683,7 @@ impl Analyzer<'_> {
             }
             return;
         }
+        let condition = Box::new(condition);
         match (early_return_when_true, early_return_when_false) {
             (true, false) => {
                 self.early_return_stack.push(EarlyReturn::Conditional {
@@ -2659,20 +2711,21 @@ impl Analyzer<'_> {
             }
             (false, false) | (true, true) => {
                 let kind = match (then, r#else) {
-                    (Some(then), Some(r#else)) => ConditionalKind::IfElse { then, r#else },
-                    (Some(then), None) => ConditionalKind::If { then },
-                    (None, Some(r#else)) => ConditionalKind::Else { r#else },
-                    (None, None) => {
-                        // No effects, ignore
-                        return;
-                    }
+                    (Some(then), Some(r#else)) => Some(ConditionalKind::IfElse { then, r#else }),
+                    (Some(then), None) => Some(ConditionalKind::If { then }),
+                    (None, Some(r#else)) => Some(ConditionalKind::Else { r#else }),
+                    (None, None) => None,
                 };
-                self.add_effect(Effect::Conditional {
-                    condition,
-                    kind: Box::new(kind),
-                    ast_path: as_parent_path_with(ast_path, condition_ast_kind),
-                    span,
-                });
+                if let Some(kind) = kind
+                    && !kind.is_empty()
+                {
+                    self.add_effect(Effect::Conditional {
+                        condition,
+                        kind: Box::new(kind),
+                        ast_path: as_parent_path_with(ast_path, condition_ast_kind),
+                        span,
+                    });
+                }
                 if early_return_when_false && early_return_when_true {
                     self.early_return_stack.push(EarlyReturn::Always {
                         prev_effects: take(&mut self.effects),
@@ -2691,7 +2744,10 @@ impl Analyzer<'_> {
         span: Span,
         mut cond_kind: ConditionalKind,
     ) {
-        let condition = Box::new(self.eval_context.eval(test));
+        if cond_kind.is_empty() {
+            return;
+        }
+        let condition = self.eval_context.eval(test);
         if condition.is_unknown() {
             match &mut cond_kind {
                 ConditionalKind::If { then } => {
@@ -2713,10 +2769,10 @@ impl Analyzer<'_> {
                         self.effects.append(&mut block.effects);
                     }
                 }
-                ConditionalKind::And { expr }
-                | ConditionalKind::Or { expr }
-                | ConditionalKind::NullishCoalescing { expr } => {
-                    self.effects.append(&mut expr.effects);
+                ConditionalKind::And { rhs_effects }
+                | ConditionalKind::Or { rhs_effects }
+                | ConditionalKind::NullishCoalescing { rhs_effects } => {
+                    self.effects.append(rhs_effects);
                 }
                 ConditionalKind::Labeled { body } => {
                     self.effects.append(&mut body.effects);
@@ -2724,7 +2780,7 @@ impl Analyzer<'_> {
             }
         } else {
             self.add_effect(Effect::Conditional {
-                condition,
+                condition: Box::new(condition),
                 kind: Box::new(cond_kind),
                 ast_path: as_parent_path_with(ast_path, ast_kind),
                 span,

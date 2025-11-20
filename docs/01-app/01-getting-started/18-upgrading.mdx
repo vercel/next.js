@@ -12,10 +12,16 @@ related:
 
 ## Latest version
 
-To update to the latest version of Next.js, you can use the `upgrade` codemod:
+To update to the latest version of Next.js, you can use the `upgrade` command:
 
 ```bash filename="Terminal"
-npx @next/codemod@latest upgrade latest
+next upgrade
+```
+
+Next.js 15 and earlier do not support the `upgrade` command and need to use a separate package instead:
+
+```bash filename="Terminal"
+npx @next/codemod@canary upgrade latest
 ```
 
 If you prefer to upgrade manually, install the latest Next.js and React versions:

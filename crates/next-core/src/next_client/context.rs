@@ -426,6 +426,7 @@ pub struct ClientChunkingContextOptions {
     pub source_maps: Vc<bool>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub nested_async_chunking: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub should_use_absolute_url_references: Vc<bool>,
 }
@@ -448,6 +449,7 @@ pub async fn get_client_chunking_context(
         source_maps,
         no_mangling,
         scope_hoisting,
+        nested_async_chunking,
         debug_ids,
         should_use_absolute_url_references,
     } = options;
@@ -484,7 +486,8 @@ pub async fn get_client_chunking_context(
     .export_usage(*export_usage.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .debug_ids(*debug_ids.await?)
-    .should_use_absolute_url_references(*should_use_absolute_url_references.await?);
+    .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
+    .nested_async_availability(*nested_async_chunking.await?);
 
     if next_mode.is_development() {
         builder = builder
@@ -510,7 +513,6 @@ pub async fn get_client_chunking_context(
                 },
             )
             .use_content_hashing(ContentHashing::Direct { length: 16 })
-            .nested_async_availability(true)
             .module_merging(*scope_hoisting.await?);
     }
 
