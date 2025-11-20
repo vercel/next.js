@@ -162,12 +162,11 @@ pub struct NextConfig {
 #[turbo_tasks::value_impl]
 impl NextConfig {
     #[turbo_tasks::function]
-    pub fn with_production_browser_source_maps(&self) -> Vc<Self> {
-        Self {
-            production_browser_source_maps: true,
-            ..self.clone()
-        }
-        .cell()
+    pub fn with_analyze_config(&self) -> Vc<Self> {
+        let mut new = self.clone();
+        new.experimental.turbopack_source_maps = Some(true);
+        new.experimental.turbopack_input_source_maps = Some(false);
+        new.cell()
     }
 }
 
