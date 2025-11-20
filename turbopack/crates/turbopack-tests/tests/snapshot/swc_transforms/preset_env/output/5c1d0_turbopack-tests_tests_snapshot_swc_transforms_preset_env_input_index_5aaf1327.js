@@ -11,6 +11,12 @@ const CHUNK_BASE_PATH = "";
 const CHUNK_SUFFIX_PATH = "";
 const RELATIVE_ROOT_PATH = "../../../../../../..";
 const RUNTIME_PUBLIC_PATH = "";
+/**
+ * This file contains runtime types and functions that are shared between all
+ * TurboPack ECMAScript runtimes.
+ *
+ * It will be prepended to the runtime code of each runtime.
+ */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-types.d.ts" />
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
         var info = gen[key](arg);
@@ -725,6 +731,15 @@ function applyModuleFactoryName(factory) {
         value: 'module evaluation'
     });
 }
+/**
+ * This file contains runtime types and functions that are shared between all
+ * Turbopack *development* ECMAScript runtimes.
+ *
+ * It will be appended to the runtime code of each runtime right after the
+ * shared runtime utils.
+ */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../base/globals.d.ts" />
+/// <reference path="../../../shared/runtime-utils.ts" />
+// Used in WebWorkers to tell the runtime about the chunk base path
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
         var info = gen[key](arg);
@@ -1255,6 +1270,13 @@ function registerChunk(registration) {
     }
     return BACKEND.registerChunk(chunkPath, runtimeParams);
 }
+/**
+ * This file contains the runtime code specific to the Turbopack development
+ * ECMAScript DOM runtime.
+ *
+ * It will be appended to the base development runtime code.
+ */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
+/// <reference path="../../../shared/runtime-types.d.ts" />
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
         var info = gen[key](arg);
