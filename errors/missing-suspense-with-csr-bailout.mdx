@@ -173,6 +173,16 @@ module.exports = {
 
 This configuration option will be removed in a future major version.
 
+## Debugging
+
+If you're having trouble locating where `useSearchParams()` is being used without a Suspense boundary (for example, the error message is unclear or points to an incorrect route like `/404` or `/500`), you can get more detailed stack traces by running:
+
+```bash
+next build --debug-prerender
+```
+
+This provides unminified stack traces with source maps, making it easier to pinpoint the exact component and route causing the issue.
+
 ## Useful Links
 
 - [`useSearchParams`](/docs/app/api-reference/functions/use-search-params)
