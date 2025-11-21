@@ -2,7 +2,7 @@ import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { SpecialModule } from './types'
 import { NetworkError } from './errors'
-import { AnalyzeData } from './analyze-data'
+import { AnalyzeData, SourceIndex } from './analyze-data'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -29,7 +29,7 @@ export async function jsonFetcher<T>(url: string): Promise<T> {
 
 export function getSpecialModuleType(
   analyzeData: AnalyzeData | undefined,
-  sourceIndex: number | null
+  sourceIndex: SourceIndex | null
 ): SpecialModule | null {
   if (!analyzeData || sourceIndex == null) return null
 
@@ -41,4 +41,20 @@ export function getSpecialModuleType(
   }
 
   return null
+}
+
+let IDENT_ATTRIBUTES_REGEXP =
+  /^(.+?)(?: \{(.*)\})?(?: \[(.*)\])?(?: \((.*?)\))?(?: <(.*?)>)?$/
+
+export function splitIdent(ident: string): {
+  fullPath: string
+  templateArgs: string
+  layer: string
+  moduleType: string
+  treeShaking: string
+} {
+  let [match, fullPath, templateArgs, layer, moduleType, treeShaking] =
+    IDENT_ATTRIBUTES_REGEXP.exec(ident) || ['']
+  ident = ident.substring(0, ident.length - match.length)
+  return { fullPath, templateArgs, layer, moduleType, treeShaking }
 }
