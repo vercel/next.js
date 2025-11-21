@@ -170,7 +170,10 @@ import {
   createReactServerPrerenderResultFromRender,
   prerenderAndAbortInSequentialTasks,
 } from './app-render-prerender-utils'
-import { printDebugThrownValueForProspectiveRender } from './prospective-render-utils'
+import {
+  Phase,
+  printDebugThrownValueForProspectiveRender,
+} from './prospective-render-utils'
 import {
   pipelineInSequentialTasks,
   scheduleInSequentialTasks,
@@ -1073,7 +1076,11 @@ async function prospectiveRuntimeServerPrerender(
           process.env.NEXT_DEBUG_BUILD ||
           process.env.__NEXT_VERBOSE_LOGGING
         ) {
-          printDebugThrownValueForProspectiveRender(err, workStore.route)
+          printDebugThrownValueForProspectiveRender(
+            err,
+            workStore.route,
+            Phase.ProspectiveRender
+          )
         }
       },
       // We don't want to stop rendering until the cacheSignal is complete so we pass
@@ -1110,7 +1117,11 @@ async function prospectiveRuntimeServerPrerender(
     ) {
       // We don't normally log these errors because we are going to retry anyway but
       // it can be useful for debugging Next.js itself to get visibility here when needed
-      printDebugThrownValueForProspectiveRender(err, workStore.route)
+      printDebugThrownValueForProspectiveRender(
+        err,
+        workStore.route,
+        Phase.ProspectiveRender
+      )
     }
     return null
   }
@@ -3832,7 +3843,11 @@ async function warmupModuleCacheForRuntimeValidationInDev(
         ) {
           // We don't normally log these errors because we are going to retry anyway but
           // it can be useful for debugging Next.js itself to get visibility here when needed
-          printDebugThrownValueForProspectiveRender(err, workStore.route)
+          printDebugThrownValueForProspectiveRender(
+            err,
+            workStore.route,
+            Phase.ProspectiveRender
+          )
         }
       },
       // We don't need bootstrap scripts in this prerender
@@ -3863,7 +3878,11 @@ async function warmupModuleCacheForRuntimeValidationInDev(
     ) {
       // We don't normally log these errors because we are going to retry anyway but
       // it can be useful for debugging Next.js itself to get visibility here when needed
-      printDebugThrownValueForProspectiveRender(err, workStore.route)
+      printDebugThrownValueForProspectiveRender(
+        err,
+        workStore.route,
+        Phase.ProspectiveRender
+      )
     }
   })
 
@@ -4350,7 +4369,11 @@ async function prerenderToStream(
               process.env.NEXT_DEBUG_BUILD ||
               process.env.__NEXT_VERBOSE_LOGGING
             ) {
-              printDebugThrownValueForProspectiveRender(err, workStore.route)
+              printDebugThrownValueForProspectiveRender(
+                err,
+                workStore.route,
+                Phase.ProspectiveRender
+              )
             }
           },
           // We don't want to stop rendering until the cacheSignal is complete so we pass
@@ -4402,7 +4425,11 @@ async function prerenderToStream(
         ) {
           // We don't normally log these errors because we are going to retry anyway but
           // it can be useful for debugging Next.js itself to get visibility here when needed
-          printDebugThrownValueForProspectiveRender(err, workStore.route)
+          printDebugThrownValueForProspectiveRender(
+            err,
+            workStore.route,
+            Phase.ProspectiveRender
+          )
         }
       }
 
@@ -4473,7 +4500,11 @@ async function prerenderToStream(
               ) {
                 // We don't normally log these errors because we are going to retry anyway but
                 // it can be useful for debugging Next.js itself to get visibility here when needed
-                printDebugThrownValueForProspectiveRender(err, workStore.route)
+                printDebugThrownValueForProspectiveRender(
+                  err,
+                  workStore.route,
+                  Phase.ProspectiveRender
+                )
               }
             },
             bootstrapScripts: [bootstrapScript],
@@ -4503,7 +4534,11 @@ async function prerenderToStream(
           ) {
             // We don't normally log these errors because we are going to retry anyway but
             // it can be useful for debugging Next.js itself to get visibility here when needed
-            printDebugThrownValueForProspectiveRender(err, workStore.route)
+            printDebugThrownValueForProspectiveRender(
+              err,
+              workStore.route,
+              Phase.ProspectiveRender
+            )
           }
         })
 
