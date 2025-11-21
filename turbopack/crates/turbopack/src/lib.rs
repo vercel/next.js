@@ -912,15 +912,22 @@ impl AssetContext for ModuleAssetContext {
                                         .enable_externals_tracing
                                 {
                                     // result.affecting_sources can be ignored for tracing, as this
-                                    // request will later be resolved relative to tracing_root
-                                    // anyway.
+                                    // request will later be resolved relative to tracing_root (or
+                                    // the .next/node_modules/lodash-1238123 symlink) anyway.
 
                                     let options = options.await?;
                                     let origin = PlainResolveOrigin::new(
                                         Vc::upcast(externals_tracing_module_context(
                                             *options.compile_time_info,
                                         )),
-                                        options.tracing_root.join("_")?,
+                                        // If target is specified, a symlink will be created to
+                                        // make the folder
+                                        // itself available, but we still need to trace
+                                        // resolving the individual file(s) inside the package.
+                                        target
+                                            .as_ref()
+                                            .unwrap_or(&options.tracing_root)
+                                            .join("_")?,
                                     );
                                     CachedExternalTracingMode::Traced {
                                         origin: ResolvedVc::upcast(origin.to_resolved().await?),
