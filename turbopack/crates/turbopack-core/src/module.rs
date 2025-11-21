@@ -2,7 +2,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
 use turbo_tasks_fs::glob::Glob;
 
-use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences, source::OptionSource};
+use crate::{ident::AssetIdent, reference::ModuleReferences, source::OptionSource};
 
 #[derive(Clone, Copy, Debug, TaskInput, Hash)]
 #[turbo_tasks::value(shared)]
@@ -14,7 +14,7 @@ pub enum StyleType {
 /// A module. This usually represents parsed source code, which has references
 /// to other modules.
 #[turbo_tasks::value_trait]
-pub trait Module: Asset {
+pub trait Module {
     /// The identifier of the [Module]. It's expected to be unique and capture
     /// all properties of the [Module].
     #[turbo_tasks::function]
@@ -55,7 +55,7 @@ pub trait Module: Asset {
 }
 
 #[turbo_tasks::value_trait]
-pub trait StyleModule: Module + Asset {
+pub trait StyleModule: Module {
     /// The style type of the module.
     #[turbo_tasks::function]
     fn style_type(&self) -> Vc<StyleType>;

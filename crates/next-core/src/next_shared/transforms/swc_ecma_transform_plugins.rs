@@ -36,11 +36,12 @@ pub async fn get_swc_ecma_transform_rule_impl(
     enable_mdx_rs: bool,
 ) -> Result<Option<ModuleRule>> {
     use anyhow::bail;
-    use turbo_tasks::TryFlatJoinIterExt;
+    use turbo_tasks::{TryFlatJoinIterExt, ValueToString};
     use turbo_tasks_fs::FileContent;
     use turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext};
     use turbopack_core::{
         asset::Asset,
+        module::Module,
         reference_type::{CommonJsReferenceSubType, ReferenceType},
         resolve::{handle_resolve_error, parse::Request, resolve},
     };
@@ -99,7 +100,16 @@ pub async fn get_swc_ecma_transform_rule_impl(
                     return Ok(None);
                 };
 
-                let content = &*plugin_module.content().file_content().await?;
+                let Some(plugin_source) = &*plugin_module.source().await? else {
+                    use anyhow::bail;
+
+                    bail!(
+                        "Expected source for plugin module: {}",
+                        plugin_module.ident().to_string().await?
+                    );
+                };
+
+                let content = &*plugin_source.content().file_content().await?;
                 let FileContent::Content(file) = content else {
                     bail!("Expected file content for plugin module");
                 };

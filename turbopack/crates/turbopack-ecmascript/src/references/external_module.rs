@@ -4,9 +4,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{FileContent, FileSystem, VirtualFileSystem, glob::Glob, rope::RopeBuilder};
+use turbo_tasks_fs::{FileSystem, VirtualFileSystem, glob::Glob, rope::RopeBuilder};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::{AssetIdent, Layer},
     module::Module,
@@ -314,15 +313,6 @@ impl Module for CachedExternalModule {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for CachedExternalModule {
-    #[turbo_tasks::function]
-    fn content(self: Vc<Self>) -> Vc<AssetContent> {
-        // should be `NotFound` as this function gets called to detect source changes
-        AssetContent::file(FileContent::NotFound.cell())
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl ChunkableModule for CachedExternalModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
@@ -446,14 +436,6 @@ impl ModuleWithoutSelfAsync {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for ModuleWithoutSelfAsync {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.module.content()
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl Module for ModuleWithoutSelfAsync {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
@@ -462,7 +444,7 @@ impl Module for ModuleWithoutSelfAsync {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
-        Vc::cell(None)
+        self.module.source()
     }
 
     #[turbo_tasks::function]
