@@ -162,7 +162,6 @@
     "@modelcontextprotocol/sdk": "1.18.1",
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/triples": "1.2.0",
-    "@next/bundle-analyzer-ui": "16.0.2-canary.27",
     "@next/font": "16.0.2-canary.28",
     "@next/polyfill-module": "16.0.2-canary.28",
     "@next/polyfill-nomodule": "16.0.2-canary.28",
