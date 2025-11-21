@@ -26,7 +26,7 @@ interface ImportChainProps {
   analyzeData: AnalyzeData
   modulesData: ModulesData
   depthMap: Map<ModuleIndex, number>
-  filterSource?: (sourceIndex: number) => boolean
+  environmentFilter: 'client' | 'server'
 }
 
 interface ChainLevel {
@@ -48,6 +48,7 @@ interface ChainLevel {
 interface DependentInfo {
   moduleIndex: number
   sourceIndex: number | undefined
+  ident: string
   isAsync: boolean
   depth: number
 }
@@ -116,6 +117,7 @@ export function ImportChain({
   analyzeData,
   modulesData,
   depthMap,
+  environmentFilter,
 }: ImportChainProps) {
   // Filter to include only the current route
   const [showAll, setShowAll] = useState(false)
@@ -155,7 +157,22 @@ export function ImportChain({
     // Get all module indices for the starting source
     const startModuleIndices = getModuleIndicesFromSourceIndex(
       startFileId
-    ).filter((moduleIndex) => showAll || depthMap.has(moduleIndex))
+    ).filter((moduleIndex) => {
+      if (!showAll && !depthMap.has(moduleIndex)) {
+        return false
+      }
+      let module = modulesData.module(moduleIndex)
+      let layer = splitIdent(module?.ident || '').layer
+      if (layer) {
+        if (environmentFilter === 'client' && /ssr|rsc|route|api/.test(layer)) {
+          return false
+        }
+        if (environmentFilter === 'server' && /client/.test(layer)) {
+          return false
+        }
+      }
+      return true
+    })
     if (startModuleIndices.length === 0) return result
 
     // Get the selected index for the start modules (default to 0)
@@ -217,9 +234,11 @@ export function ImportChain({
       const dependentsInfo: DependentInfo[] = validDependents.map(
         ({ index: moduleIndex, async: isAsync, depth }) => {
           const sourceIndex = getSourceIndexFromModuleIndex(moduleIndex)
+          let ident = modulesData.module(moduleIndex)?.ident || ''
           return {
             moduleIndex,
             sourceIndex,
+            ident,
             isAsync,
             depth,
           }
@@ -228,8 +247,16 @@ export function ImportChain({
 
       // Sort: sync first, async second, then by source presence, then by depth
       dependentsInfo.sort((a, b) => {
-        // Finally sort by depth (smallest first)
-        return a.depth - b.depth
+        // Sort by depth (smallest first)
+        if (a.depth !== b.depth) {
+          return a.depth - b.depth
+        }
+        // Sort by ident length (shortest first)
+        if (a.ident.length !== b.ident.length) {
+          return a.ident.length - b.ident.length
+        }
+        // Sort by ident
+        return a.ident.localeCompare(b.ident)
       })
 
       // Get the selected index for this level (default to 0)
@@ -269,6 +296,7 @@ export function ImportChain({
     selectedIndices,
     showAll,
     depthMap,
+    environmentFilter,
   ])
 
   const handlePrevious = (levelIndex: number) => {
@@ -401,7 +429,7 @@ export function ImportChain({
                         <PanelTop className="w-3 h-3 text-green-500" />
                       </div>
                     ) : (
-                      <div title="On client layer, but not included on client-side of this route (might be tree shaken)">
+                      <div title="On client layer, but not included on client-side of this route (might be optimized away)">
                         <PanelTop className="w-3 h-3 text-gray-500" />
                       </div>
                     ))}
@@ -411,7 +439,7 @@ export function ImportChain({
                         <Globe className="w-3 h-3 text-blue-500" />
                       </div>
                     ) : (
-                      <div title="On server-side rendering layer, but not included on server-side of this route (might be tree shaken)">
+                      <div title="On server-side rendering layer, but not included on server-side of this route (might be optimized away)">
                         <Globe className="w-3 h-3 text-gray-500" />
                       </div>
                     ))}
@@ -421,7 +449,7 @@ export function ImportChain({
                         <Server className="w-3 h-3 text-orange-500" />
                       </div>
                     ) : (
-                      <div title="On Server Component layer, but not included on server-side of this route (might be tree shaken)">
+                      <div title="On Server Component layer, but not included on server-side of this route (might be optimized away)">
                         <Server className="w-3 h-3 text-gray-500" />
                       </div>
                     ))}
@@ -431,7 +459,7 @@ export function ImportChain({
                         <SquareFunction className="w-3 h-3 text-red-500" />
                       </div>
                     ) : (
-                      <div title="On API route layer, but not included on server-side of this route (might be tree shaken)">
+                      <div title="On API route layer, but not included on server-side of this route (might be optimized away)">
                         <SquareFunction className="w-3 h-3 text-gray-500" />
                       </div>
                     ))}
@@ -442,11 +470,10 @@ export function ImportChain({
                 {level.treeShaking && (
                   <div className="text-xs text-foreground text-center">
                     {level.treeShaking === 'locals'
-                      ? '(only the local declarations of the module)'
-                      : level.treeShaking ===
-                          '(only the module evaluation part of the module)'
-                        ? ''
-                        : `(only the ${level.treeShaking} part of the module)`}
+                      ? '(local declarations only)'
+                      : level.treeShaking === 'module evaluation'
+                        ? '(only the module evaluation part of the module)'
+                        : `(${level.treeShaking})`}
                   </div>
                 )}
               </div>

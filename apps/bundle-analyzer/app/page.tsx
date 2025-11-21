@@ -30,7 +30,9 @@ function formatBytes(bytes: number): string {
 
 export default function Home() {
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null)
-  const [environmentFilter, setEnvironmentFilter] = useState<string>('client')
+  const [environmentFilter, setEnvironmentFilter] = useState<
+    'client' | 'server'
+  >('client')
   const [typeFilter, setTypeFilter] = useState<string[]>(['js', 'css', 'json'])
   const [selectedSourceIndex, setSelectedSourceIndex] = useState<number | null>(
     null
@@ -181,7 +183,7 @@ export default function Home() {
                 className="mr-4"
                 value={environmentFilter}
                 onValueChange={(value) => {
-                  if (value) setEnvironmentFilter(value)
+                  if (value) setEnvironmentFilter(value as 'client' | 'server')
                 }}
                 size="sm"
               >
@@ -342,7 +344,7 @@ export default function Home() {
                           analyzeData={analyzeData}
                           modulesData={modulesData}
                           depthMap={moduleDepthMap}
-                          filterSource={filterSource}
+                          environmentFilter={environmentFilter}
                         />
                       )}
                       {(() => {
