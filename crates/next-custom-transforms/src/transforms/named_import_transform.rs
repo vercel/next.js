@@ -5,7 +5,7 @@ use swc_core::{
     common::DUMMY_SP,
     ecma::{
         ast::*,
-        visit::{VisitMut, visit_mut_pass},
+        visit::{visit_mut_pass, VisitMut},
     },
 };
 
