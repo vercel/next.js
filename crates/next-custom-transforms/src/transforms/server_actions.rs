@@ -1964,13 +1964,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                     // Now that we're converting this to an import,
                                                     // track it as a local export so the post-pass
                                                     // can register it.
-                                                    let export_name = if let Some(exported) =
-                                                        exported
-                                                    {
-                                                        exported.clone()
-                                                    } else {
-                                                        ModuleExportName::Ident(orig.clone().into())
-                                                    };
+                                                    let export_name =
+                                                        if let Some(exported) = exported {
+                                                            exported.clone()
+                                                        } else {
+                                                            ModuleExportName::Ident(orig.clone())
+                                                        };
 
                                                     self.export_name_by_local_id
                                                         .insert(orig.to_id(), export_name);
