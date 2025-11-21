@@ -22,9 +22,9 @@
   "jest.runMode": "on-demand",
   // Debugging.
   "debug.javascript.unmapMissingSources": true,
-  "files.exclude": {
-    "*[!test]**/node_modules": true
-  },
+  // "files.exclude": {
+  //   "*[!test]**/node_modules": true
+  // },
   // Ensure enough terminal history is preserved when running tests.
   "terminal.integrated.scrollback": 10000,
   // Configure todo-tree to exclude node_modules, dist, and compiled.

@@ -1,5 +1,8 @@
 module.exports = {
+  serverExternalPackages: ['lodash'],
   experimental: {
-    appDir: true,
+    turbopackModuleIds: 'named',
+    turbopackMinify: false,
+    turbopackScopeHoisting: false,
   },
 }
