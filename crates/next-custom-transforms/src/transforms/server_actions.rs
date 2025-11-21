@@ -157,7 +157,6 @@ pub fn server_actions<C: Comments>(
         start_pos: BytePos(0),
         file_directive: None,
         current_export_name: None,
-        in_default_export_decl: false,
         fn_decl_ident: None,
         in_callee: false,
         has_action: false,
@@ -233,7 +232,6 @@ struct ServerActions<C: Comments> {
     start_pos: BytePos,
     file_directive: Option<Directive>,
     current_export_name: Option<ModuleExportName>,
-    in_default_export_decl: bool,
     fn_decl_ident: Option<Ident>,
     in_callee: bool,
     has_action: bool,
@@ -360,6 +358,13 @@ impl<C: Comments> ServerActions<C> {
         result.rotate_right(1);
 
         Atom::from(hex_encode(result))
+    }
+
+    fn is_default_export(&self) -> bool {
+        matches!(
+            self.current_export_name,
+            Some(ModuleExportName::Ident(ref i)) if i.sym == *"default"
+        )
     }
 
     fn gen_action_ident(&mut self) -> Atom {
@@ -907,7 +912,7 @@ impl<C: Comments> ServerActions<C> {
 
         if let Some(Ident { ref sym, .. }) = fn_name {
             assign_name_to_ident(&cache_ident, sym.as_str(), &mut self.hoisted_extra_items);
-        } else if self.in_default_export_decl {
+        } else if self.is_default_export() {
             assign_name_to_ident(&cache_ident, "default", &mut self.hoisted_extra_items);
         }
 
@@ -978,7 +983,7 @@ impl<C: Comments> ServerActions<C> {
                 export_name: export_name.clone(),
                 reference_id: reference_id.clone(),
             });
-        } else if self.in_default_export_decl {
+        } else if self.is_default_export() {
             let action_ident = Ident::new(self.gen_action_ident(), span, self.private_ctxt);
             let reference_id = self.generate_server_reference_id(export_name, false, params);
 
@@ -1034,7 +1039,7 @@ impl<C: Comments> ServerActions<C> {
                 export_name: export_name.clone(),
                 reference_id: reference_id.clone(),
             });
-        } else if self.in_default_export_decl {
+        } else if self.is_default_export() {
             let cache_ident = Ident::new(self.gen_cache_ident(), span, self.private_ctxt);
             let reference_id = self.generate_server_reference_id(export_name, true, params);
 
@@ -1062,20 +1067,16 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_export_default_decl(&mut self, decl: &mut ExportDefaultDecl) {
         let old_current_export_name = self.current_export_name.take();
         self.current_export_name = Some(ModuleExportName::Ident(atom!("default").into()));
-        let old_in_default_export_decl = replace(&mut self.in_default_export_decl, true);
         self.rewrite_default_fn_expr_to_proxy_expr = None;
         decl.decl.visit_mut_with(self);
         self.current_export_name = old_current_export_name;
-        self.in_default_export_decl = old_in_default_export_decl;
     }
 
     fn visit_mut_export_default_expr(&mut self, expr: &mut ExportDefaultExpr) {
         let old_current_export_name = self.current_export_name.take();
         self.current_export_name = Some(ModuleExportName::Ident(atom!("default").into()));
-        let old_in_default_export_decl = replace(&mut self.in_default_export_decl, true);
         expr.expr.visit_mut_with(self);
         self.current_export_name = old_current_export_name;
-        self.in_default_export_decl = old_in_default_export_decl;
 
         // For 'use server' files with call expressions as default exports,
         // hoist the call expression to a const declarator and register it as an export.
@@ -1140,13 +1141,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let should_track_names = directive.is_some() || self.should_track_names;
             let old_should_track_names = replace(&mut self.should_track_names, should_track_names);
             let old_current_export_name = self.current_export_name.take();
-            let old_in_default_export_decl = replace(&mut self.in_default_export_decl, false);
             let old_fn_decl_ident = self.fn_decl_ident.take();
             f.visit_mut_children_with(self);
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
             self.current_export_name = old_current_export_name;
-            self.in_default_export_decl = old_in_default_export_decl;
             self.fn_decl_ident = old_fn_decl_ident;
         }
 
@@ -1241,7 +1240,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     f,
                 );
 
-                if self.in_default_export_decl {
+                if self.is_default_export() {
                     // This function expression is also the default export:
                     // `export default async function() {}`
                     // This specific case (default export) isn't handled by `visit_mut_expr`.
@@ -1277,7 +1276,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     fn_name,
                 );
 
-                if self.in_default_export_decl {
+                if self.is_default_export() {
                     // This function expression is also the default export:
                     // `export default async function() {}`
                     // This specific case (default export) isn't handled by `visit_mut_expr`.
@@ -1356,7 +1355,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let should_track_names = directive.is_some() || self.should_track_names;
             let old_should_track_names = replace(&mut self.should_track_names, should_track_names);
             let old_current_export_name = self.current_export_name.take();
-            let old_in_default_export_decl = replace(&mut self.in_default_export_decl, false);
             {
                 for n in &mut a.params {
                     collect_idents_in_pat(n, &mut self.declared_idents);
@@ -1366,7 +1364,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
             self.current_export_name = old_current_export_name;
-            self.in_default_export_decl = old_in_default_export_decl;
         }
 
         let mut child_names = take(&mut self.names);
