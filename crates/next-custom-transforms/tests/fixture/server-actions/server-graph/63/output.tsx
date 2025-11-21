@@ -3,6 +3,8 @@ import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 import { cache as $$reactCache__ } from "react";
 // @ts-ignore
 import { getStuff, wrap, type Stuff } from './foo';
+// @ts-ignore
+import { getData } from './data';
 const $$RSC_SERVER_CACHE_0_INNER = async function getCachedData() {
     // This is not using the wrapped version of getStuff, as we're only
     // runtime-wrapping what flows out of the module, not into it. Would one
@@ -17,8 +19,6 @@ Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
     value: "getCachedData"
 });
 export const getCachedData = $$RSC_SERVER_CACHE_0;
-// @ts-ignore
-import { getData } from './data';
 const aliased = getStuff;
 const Layout = wrap(async ()=><div>Layout</div>);
 const Other = wrap(async ()=><div>Other</div>);
