@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::{borrow::Cow, io::Write};
 
 use anyhow::Result;
 use byteorder::{BE, WriteBytesExt};
@@ -23,7 +23,7 @@ use turbopack_core::{
     reference::all_assets_from_entries,
 };
 
-use crate::route::{Endpoint, ModuleGraphs};
+use crate::route::ModuleGraphs;
 
 #[derive(
     Default, Clone, Debug, Deserialize, Eq, NonLocalValue, PartialEq, Serialize, TraceRawVcs,
@@ -371,9 +371,16 @@ pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc
         let output_file_index = builder.add_output_file(AnalyzeOutputFile { filename });
         let chunk_parts = split_output_asset_into_parts(*asset).await?;
         for chunk_part in chunk_parts {
-            let source_index = builder
-                .ensure_source(chunk_part.source.trim_start_matches(&prefix))
-                .1;
+            let decoded_source = urlencoding::decode(&chunk_part.source)?;
+            let source = if let Some(stripped) = decoded_source.strip_prefix(&prefix) {
+                Cow::Borrowed(stripped)
+            } else {
+                Cow::Owned(format!(
+                    "[project]/{}",
+                    decoded_source.trim_start_matches("../")
+                ))
+            };
+            let source_index = builder.ensure_source(&source).1;
             let chunk_part_index = builder.add_chunk_part(AnalyzeChunkPart {
                 source_index,
                 output_file_index,
@@ -533,13 +540,6 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
     Ok(FileContent::Content(File::from(rope)).cell())
 }
 
-#[turbo_tasks::function]
-pub async fn analyze_endpoint(endpoint: Vc<Box<dyn Endpoint>>) -> Result<Vc<FileContent>> {
-    Ok(analyze_output_assets(
-        *endpoint.output().await?.output_assets,
-    ))
-}
-
 #[turbo_tasks::value]
 pub struct AnalyzeDataOutputAsset {
     pub path: FileSystemPath,
@@ -549,10 +549,13 @@ pub struct AnalyzeDataOutputAsset {
 #[turbo_tasks::value_impl]
 impl AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
-    pub async fn new(path: FileSystemPath, output_assets: Vc<OutputAssets>) -> Result<Vc<Self>> {
+    pub async fn new(
+        path: FileSystemPath,
+        output_assets: ResolvedVc<OutputAssets>,
+    ) -> Result<Vc<Self>> {
         Ok(Self {
             path,
-            output_assets: output_assets.to_resolved().await?,
+            output_assets,
         }
         .cell())
     }

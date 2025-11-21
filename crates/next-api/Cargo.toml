@@ -40,6 +40,7 @@ turbopack-ecmascript = { workspace = true }
 turbopack-node = { workspace = true }
 turbopack-nodejs = { workspace = true }
 turbopack-wasm = { workspace = true }
+urlencoding = { workspace = true }
 
 [dev-dependencies]
 turbo-tasks-malloc = { workspace = true }
