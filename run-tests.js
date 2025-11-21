@@ -886,17 +886,17 @@ ${ENDGROUP}`)
   return hadFailures
 }
 
-main()
-  .then((hadFailures) => {
+main().then(
+  (hadFailures) => {
     if (hadFailures) {
       console.error('Some tests failed')
       return cleanUpAndExit(1)
     } else {
       return cleanUpAndExit(0)
     }
-  })
-  .catch((err) => {
-    console.error(err)
-    // Retry cleanup one more time.
+  },
+  (reason) => {
+    console.error(reason)
     return cleanUpAndExit(1)
-  })
+  }
+)
