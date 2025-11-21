@@ -11,7 +11,7 @@ use swc_core::{
     },
     ecma::{
         ast::*,
-        visit::{fold_pass, noop_fold_type, Fold, FoldWith},
+        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
     },
 };
 
@@ -19,7 +19,7 @@ static SSG_EXPORTS: &[&str; 3] = &["getStaticProps", "getStaticPaths", "getServe
 
 /// Note: This paths requires running `resolver` **before** running this.
 pub fn next_ssg(eliminated_packages: Rc<RefCell<FxHashSet<Atom>>>) -> impl Pass {
-    fold_pass(Repeat::new(NextSsg {
+    visit_mut_pass(Repeat::new(NextSsg {
         state: State {
             eliminated_packages,
             ..Default::default()
@@ -120,32 +120,28 @@ impl Analyzer<'_> {
     }
 }
 
-impl Fold for Analyzer<'_> {
+impl VisitMut for Analyzer<'_> {
     // This is important for reducing binary sizes.
-    noop_fold_type!();
+    noop_visit_mut_type!();
 
-    fn fold_binding_ident(&mut self, i: BindingIdent) -> BindingIdent {
+    fn visit_mut_binding_ident(&mut self, i: &mut BindingIdent) {
         if !self.in_lhs_of_var || self.in_data_fn {
             self.add_ref(i.id.to_id());
         }
-
-        i
     }
 
-    fn fold_export_named_specifier(&mut self, s: ExportNamedSpecifier) -> ExportNamedSpecifier {
+    fn visit_mut_export_named_specifier(&mut self, s: &mut ExportNamedSpecifier) {
         if let ModuleExportName::Ident(id) = &s.orig {
             if !SSG_EXPORTS.contains(&&*id.sym) {
                 self.add_ref(id.to_id());
             }
         }
-
-        s
     }
 
-    fn fold_export_decl(&mut self, s: ExportDecl) -> ExportDecl {
+    fn visit_mut_export_decl(&mut self, s: &mut ExportDecl) {
         if let Decl::Var(d) = &s.decl {
             if d.decls.is_empty() {
-                return s;
+                return;
             }
 
             if let Pat::Ident(id) = &d.decls[0].name {
@@ -155,20 +151,18 @@ impl Fold for Analyzer<'_> {
             }
         }
 
-        s.fold_children_with(self)
+        s.visit_mut_children_with(self)
     }
 
-    fn fold_expr(&mut self, e: Expr) -> Expr {
-        let e = e.fold_children_with(self);
+    fn visit_mut_expr(&mut self, e: &mut Expr) {
+        e.visit_mut_children_with(self);
 
         if let Expr::Ident(i) = &e {
             self.add_ref(i.to_id());
         }
-
-        e
     }
 
-    fn fold_jsx_element(&mut self, jsx: JSXElement) -> JSXElement {
+    fn visit_mut_jsx_element(&mut self, jsx: &mut JSXElement) {
         fn get_leftmost_id_member_expr(e: &JSXMemberExpr) -> Id {
             match &e.obj {
                 JSXObject::Ident(i) => i.to_id(),
@@ -186,10 +180,10 @@ impl Fold for Analyzer<'_> {
             _ => {}
         }
 
-        jsx.fold_children_with(self)
+        jsx.visit_mut_children_with(self);
     }
 
-    fn fold_fn_decl(&mut self, f: FnDecl) -> FnDecl {
+    fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
         let old_in_data = self.in_data_fn;
 
         self.state.cur_declaring.insert(f.ident.to_id());
@@ -197,7 +191,7 @@ impl Fold for Analyzer<'_> {
         if let Ok(is_data_identifier) = self.state.is_data_identifier(&f.ident) {
             self.in_data_fn |= is_data_identifier;
         } else {
-            return f;
+            return;
         }
         tracing::trace!(
             "ssg: Handling `{}{:?}`; in_data_fn = {:?}",
@@ -206,42 +200,39 @@ impl Fold for Analyzer<'_> {
             self.in_data_fn
         );
 
-        let f = f.fold_children_with(self);
+        f.visit_mut_children_with(self);
 
         self.state.cur_declaring.remove(&f.ident.to_id());
 
         self.in_data_fn = old_in_data;
-
-        f
     }
 
-    fn fold_fn_expr(&mut self, f: FnExpr) -> FnExpr {
-        let f = f.fold_children_with(self);
+    fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
+        f.visit_mut_children_with(self);
 
         if let Some(id) = &f.ident {
             self.add_ref(id.to_id());
         }
-
-        f
     }
 
     /// Drops [ExportDecl] if all specifiers are removed.
-    fn fold_module_item(&mut self, s: ModuleItem) -> ModuleItem {
+    fn visit_mut_module_item(&mut self, s: &mut ModuleItem) {
         match s {
             ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e)) if !e.specifiers.is_empty() => {
-                let e = e.fold_with(self);
+                e.visit_mut_with(self);
 
                 if e.specifiers.is_empty() {
-                    return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+                    *s = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+                    return;
                 }
 
-                return ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e));
+                return;
             }
             _ => {}
         };
 
         // Visit children to ensure that all references is added to the scope.
-        let s = s.fold_children_with(self);
+        s.visit_mut_children_with(self);
 
         if let ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(e)) = &s {
             match &e.decl {
@@ -249,44 +240,36 @@ impl Fold for Analyzer<'_> {
                     // Drop getStaticProps.
                     if let Ok(is_data_identifier) = self.state.is_data_identifier(&f.ident) {
                         if is_data_identifier {
-                            return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+                            *s = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
                         }
-                    } else {
-                        return s;
                     }
                 }
 
                 Decl::Var(d) => {
                     if d.decls.is_empty() {
-                        return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+                        *s = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
                     }
                 }
                 _ => {}
             }
         }
-
-        s
     }
 
-    fn fold_named_export(&mut self, mut n: NamedExport) -> NamedExport {
+    fn visit_mut_named_export(&mut self, n: &mut NamedExport) {
         if n.src.is_some() {
-            n.specifiers = n.specifiers.fold_with(self);
+            n.specifiers.visit_mut_with(self);
         }
-
-        n
     }
 
-    fn fold_prop(&mut self, p: Prop) -> Prop {
-        let p = p.fold_children_with(self);
+    fn visit_mut_prop(&mut self, p: &mut Prop) {
+        p.visit_mut_children_with(self);
 
         if let Prop::Shorthand(i) = &p {
             self.add_ref(i.to_id());
         }
-
-        p
     }
 
-    fn fold_var_declarator(&mut self, mut v: VarDeclarator) -> VarDeclarator {
+    fn visit_mut_var_declarator(&mut self, v: &mut VarDeclarator) {
         let old_in_data = self.in_data_fn;
 
         if let Pat::Ident(name) = &v.name {
@@ -295,23 +278,21 @@ impl Fold for Analyzer<'_> {
                     self.in_data_fn = true;
                 }
             } else {
-                return v;
+                return;
             }
         }
 
         let old_in_lhs_of_var = self.in_lhs_of_var;
 
         self.in_lhs_of_var = true;
-        v.name = v.name.fold_with(self);
+        v.name.visit_mut_with(self);
 
         self.in_lhs_of_var = false;
-        v.init = v.init.fold_with(self);
+        v.init.visit_mut_with(self);
 
         self.in_lhs_of_var = old_in_lhs_of_var;
 
         self.in_data_fn = old_in_data;
-
-        v
     }
 }
 
@@ -327,9 +308,9 @@ impl NextSsg {
     }
 
     /// Mark identifiers in `n` as a candidate for removal.
-    fn mark_as_candidate<N>(&mut self, n: N) -> N
+    fn mark_as_candidate<N>(&mut self, n: &mut N)
     where
-        N: for<'aa> FoldWith<Analyzer<'aa>>,
+        N: for<'aa> VisitMutWith<Analyzer<'aa>>,
     {
         tracing::debug!("mark_as_candidate");
 
@@ -341,9 +322,8 @@ impl NextSsg {
             in_data_fn: true,
         };
 
-        let n = n.fold_with(&mut v);
+        n.visit_mut_with(&mut v);
         self.state.should_run_again = true;
-        n
     }
 }
 
@@ -359,18 +339,15 @@ impl Repeated for NextSsg {
     }
 }
 
-/// `VisitMut` is faster than [Fold], but we use [Fold] because it's much easier
-/// to read.
-///
-/// Note: We don't implement `fold_script` because next.js doesn't use it.
-impl Fold for NextSsg {
+/// Note: We don't implement `visit_mut_script` because next.js doesn't use it.
+impl VisitMut for NextSsg {
     // This is important for reducing binary sizes.
-    noop_fold_type!();
+    noop_visit_mut_type!();
 
-    fn fold_import_decl(&mut self, mut i: ImportDecl) -> ImportDecl {
+    fn visit_mut_import_decl(&mut self, i: &mut ImportDecl) {
         // Imports for side effects.
         if i.specifiers.is_empty() {
-            return i;
+            return;
         }
 
         let import_src = &i.src.value;
@@ -403,11 +380,9 @@ impl Fold for NextSsg {
                 }
             }
         });
-
-        i
     }
 
-    fn fold_module(&mut self, mut m: Module) -> Module {
+    fn visit_mut_module(&mut self, m: &mut Module) {
         tracing::info!("ssg: Start");
         {
             // Fill the state.
@@ -416,7 +391,7 @@ impl Fold for NextSsg {
                 in_lhs_of_var: false,
                 in_data_fn: false,
             };
-            m = m.fold_with(&mut v);
+            m.visit_mut_with(&mut v);
         }
 
         // TODO: Use better detection logic
@@ -424,35 +399,34 @@ impl Fold for NextSsg {
         //     return m;
         // }
 
-        m.fold_children_with(self)
+        m.visit_mut_children_with(self)
     }
 
-    fn fold_module_item(&mut self, i: ModuleItem) -> ModuleItem {
-        if let ModuleItem::ModuleDecl(ModuleDecl::Import(i)) = i {
-            let is_for_side_effect = i.specifiers.is_empty();
-            let i = i.fold_with(self);
+    fn visit_mut_module_item(&mut self, i: &mut ModuleItem) {
+        if let ModuleItem::ModuleDecl(ModuleDecl::Import(decl)) = i {
+            let is_for_side_effect = decl.specifiers.is_empty();
+            decl.visit_mut_with(self);
 
-            if !is_for_side_effect && i.specifiers.is_empty() {
-                return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+            if !is_for_side_effect && decl.specifiers.is_empty() {
+                *i = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+                return;
             }
 
-            return ModuleItem::ModuleDecl(ModuleDecl::Import(i));
+            return;
         }
 
-        let i = i.fold_children_with(self);
+        i.visit_mut_children_with(self);
 
         match &i {
             ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e)) if e.specifiers.is_empty() => {
-                return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+                *i = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
             }
             _ => {}
         }
-
-        i
     }
 
-    fn fold_module_items(&mut self, mut items: Vec<ModuleItem>) -> Vec<ModuleItem> {
-        items = items.fold_children_with(self);
+    fn visit_mut_module_items(&mut self, items: &mut Vec<ModuleItem>) {
+        items.visit_mut_children_with(self);
 
         // Drop nodes.
         items.retain(|s| !matches!(s, ModuleItem::Stmt(Stmt::Empty(..))));
@@ -485,7 +459,7 @@ impl Fold for NextSsg {
                 });
 
                 let mut new = Vec::with_capacity(items.len() + 1);
-                for item in take(&mut items) {
+                for item in take(items) {
                     if let ModuleItem::ModuleDecl(
                         ModuleDecl::ExportNamed(..)
                         | ModuleDecl::ExportDecl(..)
@@ -509,15 +483,13 @@ impl Fold for NextSsg {
                     new.push(item);
                 }
 
-                return new;
+                *items = new;
             }
         }
-
-        items
     }
 
-    fn fold_named_export(&mut self, mut n: NamedExport) -> NamedExport {
-        n.specifiers = n.specifiers.fold_with(self);
+    fn visit_mut_named_export(&mut self, n: &mut NamedExport) {
+        n.specifiers.visit_mut_with(self);
 
         n.specifiers.retain(|s| {
             let preserve = match s {
@@ -563,16 +535,14 @@ impl Fold for NextSsg {
                 Err(_) => false,
             }
         });
-
-        n
     }
 
     /// This methods returns [Pat::Invalid] if the pattern should be removed.
-    fn fold_pat(&mut self, mut p: Pat) -> Pat {
-        p = p.fold_children_with(self);
+    fn visit_mut_pat(&mut self, p: &mut Pat) {
+        p.visit_mut_children_with(self);
 
         if self.in_lhs_of_var {
-            match &mut p {
+            match p {
                 Pat::Ident(name) => {
                     if self.should_remove(name.id.to_id()) {
                         self.state.should_run_again = true;
@@ -582,7 +552,7 @@ impl Fold for NextSsg {
                             name.id.ctxt
                         );
 
-                        return Pat::Invalid(Invalid { span: DUMMY_SP });
+                        *p = Pat::Invalid(Invalid { span: DUMMY_SP });
                     }
                 }
                 Pat::Array(arr) => {
@@ -590,104 +560,77 @@ impl Fold for NextSsg {
                         arr.elems.retain(|e| !matches!(e, Some(Pat::Invalid(..))));
 
                         if arr.elems.is_empty() {
-                            return Pat::Invalid(Invalid { span: DUMMY_SP });
+                            *p = Pat::Invalid(Invalid { span: DUMMY_SP });
                         }
                     }
                 }
                 Pat::Object(obj) => {
                     if !obj.props.is_empty() {
-                        obj.props = take(&mut obj.props)
-                            .into_iter()
-                            .filter_map(|prop| match prop {
-                                ObjectPatProp::KeyValue(prop) => {
-                                    if prop.value.is_invalid() {
-                                        None
-                                    } else {
-                                        Some(ObjectPatProp::KeyValue(prop))
-                                    }
-                                }
-                                ObjectPatProp::Assign(prop) => {
-                                    if self.should_remove(prop.key.to_id()) {
-                                        self.mark_as_candidate(prop.value);
+                        obj.props.retain_mut(|prop| match prop {
+                            ObjectPatProp::KeyValue(prop) => !prop.value.is_invalid(),
+                            ObjectPatProp::Assign(prop) => {
+                                if self.should_remove(prop.key.to_id()) {
+                                    self.mark_as_candidate(&mut prop.value);
 
-                                        None
-                                    } else {
-                                        Some(ObjectPatProp::Assign(prop))
-                                    }
+                                    false
+                                } else {
+                                    true
                                 }
-                                ObjectPatProp::Rest(prop) => {
-                                    if prop.arg.is_invalid() {
-                                        None
-                                    } else {
-                                        Some(ObjectPatProp::Rest(prop))
-                                    }
-                                }
-                            })
-                            .collect();
+                            }
+                            ObjectPatProp::Rest(prop) => !prop.arg.is_invalid(),
+                        });
 
                         if obj.props.is_empty() {
-                            return Pat::Invalid(Invalid { span: DUMMY_SP });
+                            *p = Pat::Invalid(Invalid { span: DUMMY_SP });
                         }
                     }
                 }
                 Pat::Rest(rest) => {
                     if rest.arg.is_invalid() {
-                        return Pat::Invalid(Invalid { span: DUMMY_SP });
+                        *p = Pat::Invalid(Invalid { span: DUMMY_SP });
                     }
                 }
                 _ => {}
             }
         }
-
-        p
     }
 
     #[allow(clippy::single_match)]
-    fn fold_stmt(&mut self, mut s: Stmt) -> Stmt {
-        match s {
-            Stmt::Decl(Decl::Fn(f)) => {
-                if self.should_remove(f.ident.to_id()) {
-                    self.mark_as_candidate(f.function);
-                    return Stmt::Empty(EmptyStmt { span: DUMMY_SP });
-                }
-
-                s = Stmt::Decl(Decl::Fn(f));
+    fn visit_mut_stmt(&mut self, s: &mut Stmt) {
+        if let Stmt::Decl(Decl::Fn(f)) = s {
+            if self.should_remove(f.ident.to_id()) {
+                self.mark_as_candidate(&mut f.function);
+                *s = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
+                return;
             }
-            _ => {}
         }
 
-        let s = s.fold_children_with(self);
+        s.visit_mut_children_with(self);
         match s {
             Stmt::Decl(Decl::Var(v)) if v.decls.is_empty() => {
-                return Stmt::Empty(EmptyStmt { span: DUMMY_SP });
+                *s = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
             }
             _ => {}
         }
-
-        s
     }
 
     /// This method make `name` of [VarDeclarator] to [Pat::Invalid] if it
     /// should be removed.
-    fn fold_var_declarator(&mut self, mut d: VarDeclarator) -> VarDeclarator {
+    fn visit_mut_var_declarator(&mut self, d: &mut VarDeclarator) {
         let old = self.in_lhs_of_var;
         self.in_lhs_of_var = true;
-        let name = d.name.fold_with(self);
+        d.name.visit_mut_with(self);
 
         self.in_lhs_of_var = false;
-        if name.is_invalid() {
-            d.init = self.mark_as_candidate(d.init);
+        if d.name.is_invalid() {
+            self.mark_as_candidate(&mut d.init);
         }
-        let init = d.init.fold_with(self);
+        d.init.visit_mut_with(self);
         self.in_lhs_of_var = old;
-
-        VarDeclarator { name, init, ..d }
     }
 
-    fn fold_var_declarators(&mut self, mut decls: Vec<VarDeclarator>) -> Vec<VarDeclarator> {
-        decls = decls.fold_children_with(self);
+    fn visit_mut_var_declarators(&mut self, decls: &mut Vec<VarDeclarator>) {
+        decls.visit_mut_children_with(self);
         decls.retain(|d| !d.name.is_invalid());
-
-        decls
     }
 }

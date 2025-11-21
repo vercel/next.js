@@ -5,7 +5,7 @@ use swc_core::{
     common::DUMMY_SP,
     ecma::{
         ast::*,
-        visit::{fold_pass, Fold},
+        visit::{visit_mut_pass, VisitMut},
     },
 };
 
@@ -14,8 +14,8 @@ pub struct Config {
     pub packages: Vec<String>,
 }
 
-pub fn named_import_transform(config: Config) -> impl Pass {
-    fold_pass(NamedImportTransform {
+pub fn named_import_transform(config: Config) -> impl Pass + VisitMut {
+    visit_mut_pass(NamedImportTransform {
         packages: config.packages,
     })
 }
@@ -25,9 +25,8 @@ struct NamedImportTransform {
     packages: Vec<String>,
 }
 
-/// TODO: Implement this as a [Pass] instead of a full visitor ([Fold])
-impl Fold for NamedImportTransform {
-    fn fold_import_decl(&mut self, decl: ImportDecl) -> ImportDecl {
+impl VisitMut for NamedImportTransform {
+    fn visit_mut_import_decl(&mut self, decl: &mut ImportDecl) {
         // Match named imports and check if it's included in the packages
         let src_value = &decl.src.value;
 
@@ -75,18 +74,12 @@ impl Fold for NamedImportTransform {
                     src_value.to_string_lossy()
                 );
 
-                // Create a new import declaration, keep everything the same except the source
-                let mut new_decl = decl.clone();
-                *new_decl.src = Str {
+                *decl.src = Str {
                     span: DUMMY_SP,
                     value: new_src.into(),
                     raw: None,
                 };
-
-                return new_decl;
             }
         }
-
-        decl
     }
 }
