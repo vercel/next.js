@@ -4280,6 +4280,7 @@ dependencies = [
  "turbopack-node",
  "turbopack-nodejs",
  "turbopack-wasm",
+ "urlencoding",
  "vergen",
 ]
 

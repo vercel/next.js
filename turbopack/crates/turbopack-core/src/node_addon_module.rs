@@ -7,7 +7,6 @@ use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 
 use crate::{
-    asset::{Asset, AssetContent},
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
@@ -99,14 +98,6 @@ impl Module for NodeAddonModule {
 
         // Most addon modules don't have references to other modules.
         Ok(ModuleReferences::empty())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for NodeAddonModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
     }
 }
 
