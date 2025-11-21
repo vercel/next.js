@@ -94,12 +94,40 @@ pub struct CachedExternalModule {
 }
 
 impl CachedExternalModule {
-    pub fn request(&self) -> Cow<'_, str> {
+    pub fn virtual_package(&self) -> Option<String> {
         if let Some(target) = &self.target {
             use turbo_tasks_hash::DeterministicHash;
             let mut hasher = Xxh3Hash64Hasher::new();
             target.path.deterministic_hash(&mut hasher);
-            Cow::Owned(format!("{}-{}", self.request, encode_hex(hasher.finish())))
+            let hash = encode_hex(hasher.finish());
+
+            let parent = target.parent();
+            let parent_filename = parent.file_name();
+            let filename = target.file_name();
+            if parent_filename.starts_with('@') {
+                Some(format!("{}-{}-{}", parent_filename, filename, hash))
+            } else {
+                Some(format!("{}-{}", filename, hash))
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn request(&self) -> Cow<'_, str> {
+        if let Some(virtual_package) = self.virtual_package() {
+            let request = if self.request.starts_with("@") {
+                // Split off org
+                self.request.split_once("/").unwrap().1
+            } else {
+                &*self.request
+            };
+
+            if let Some((_, subpath)) = request.split_once("/") {
+                Cow::Owned(format!("{}/{}", virtual_package, subpath))
+            } else {
+                Cow::Owned(virtual_package)
+            }
         } else {
             Cow::Borrowed(&*self.request)
         }
@@ -410,12 +438,12 @@ impl OutputAssetsReference for CachedExternalModuleChunkItem {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
         let module = self.module.await?;
-        let assets = if let Some(target) = &module.target {
+        let assets = if let Some(virtual_package) = module.virtual_package() {
             ResolvedVc::cell(vec![ResolvedVc::upcast(
                 ExternalsSymlinkAsset::new(
                     *self.chunking_context,
-                    module.request().into_owned().into(),
-                    target.clone(),
+                    virtual_package.into(),
+                    module.target.clone().unwrap(),
                 )
                 .to_resolved()
                 .await?,
