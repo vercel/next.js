@@ -819,8 +819,8 @@ ${ENDGROUP}`)
     }
   }
 
-  if (hadFailures) {
-    // TODO: Does it make sense to update timings if there were failures?
+  if (hadFailures && !shouldContinueTestsOnError) {
+    // TODO: Does it make sense to update timings if there were failures if without shouldContinueTestsOnError?
     return hadFailures
   }
 
