@@ -85,7 +85,7 @@ impl ModuleReference for WebpackChunkAssetReference {
             } => {
                 // TODO determine filename from chunk_request_expr
                 let chunk_id = match &self.chunk_id {
-                    Lit::Str(str) => str.value.to_string(),
+                    Lit::Str(str) => str.value.to_string_lossy().into_owned(),
                     Lit::Num(num) => format!("{num}"),
                     _ => todo!(),
                 };
@@ -108,7 +108,7 @@ impl ValueToString for WebpackChunkAssetReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
         let chunk_id = match &self.chunk_id {
-            Lit::Str(str) => str.value.to_string(),
+            Lit::Str(str) => str.value.to_string_lossy().into_owned(),
             Lit::Num(num) => format!("{num}"),
             _ => todo!(),
         };

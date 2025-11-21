@@ -369,14 +369,14 @@ fn all_export_names(program: &Program) -> Vec<Atom> {
                                             .as_ref()
                                             .unwrap_or(&named.orig)
                                             .atom()
-                                            .clone(),
+                                            .into_owned(),
                                     );
                                 }
                                 ExportSpecifier::Default(_) => {
                                     exports.push(atom!("default"));
                                 }
                                 ExportSpecifier::Namespace(e) => {
-                                    exports.push(e.name.atom().clone());
+                                    exports.push(e.name.atom().into_owned());
                                 }
                             }
                         }

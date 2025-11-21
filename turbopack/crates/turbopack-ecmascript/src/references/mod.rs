@@ -41,7 +41,7 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    atoms::{Atom, atom},
+    atoms::{Atom, Wtf8Atom, atom},
     common::{
         GLOBALS, Globals, Span, Spanned,
         comments::{CommentKind, Comments},
@@ -755,7 +755,7 @@ async fn analyze_ecmascript_module_internal(
             let mut should_add_evaluation = false;
             let reference = EsmAssetReference::new(
                 origin,
-                RcStr::from(&*r.module_path),
+                RcStr::from(&*r.module_path.to_string_lossy()),
                 r.issue_source
                     .unwrap_or_else(|| IssueSource::from_source_only(source)),
                 r.annotations.clone(),
@@ -774,7 +774,7 @@ async fn analyze_ecmascript_module_internal(
                                 "Internal imports only exist in reexports only mode when \
                                  importing {:?} from {}",
                                 r.imported_symbol,
-                                r.module_path
+                                r.module_path.to_string_lossy()
                             );
                         }
                         if matches!(&r.imported_symbol, ImportedSymbol::PartEvaluation(_)) {
@@ -3454,7 +3454,9 @@ impl StaticAnalyser {
 
     fn evaluate_expr(&self, expr: &Expr) -> StaticExpr {
         match expr {
-            Expr::Lit(Lit::Str(str)) => StaticExpr::String(str.value.to_string()),
+            Expr::Lit(Lit::Str(str)) => {
+                StaticExpr::String(str.value.to_string_lossy().into_owned())
+            }
             Expr::Ident(ident) => {
                 let str = ident.sym.to_string();
                 match self.imports.get(&str) {
@@ -3761,7 +3763,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         let path = as_parent_path(ast_path).into();
-        let src = import.src.value.to_string();
+        let src = import.src.value.to_string_lossy().into_owned();
         import.visit_children_with_ast_path(self, ast_path);
         if import.type_only {
             return;
@@ -3776,7 +3778,9 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                                 src.clone(),
                                 vec![match &named.imported {
                                     Some(ModuleExportName::Ident(ident)) => ident.sym.to_string(),
-                                    Some(ModuleExportName::Str(str)) => str.value.to_string(),
+                                    Some(ModuleExportName::Str(str)) => {
+                                        str.value.to_string_lossy().into_owned()
+                                    }
                                     None => named.local.sym.to_string(),
                                 }],
                             ),
@@ -3816,7 +3820,8 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             && let [ExprOrSpread { spread: None, expr }] = &call.args[..]
             && let Some(Lit::Str(str)) = expr.as_lit()
         {
-            self.webpack_runtime = Some((str.value.as_str().into(), call.span));
+            self.webpack_runtime =
+                Some((str.value.to_string_lossy().into_owned().into(), call.span));
             return;
         }
         decl.visit_children_with_ast_path(self, ast_path);
@@ -3915,11 +3920,13 @@ impl From<Vec<AstParentKind>> for AstPath {
 }
 
 pub static TURBOPACK_HELPER: Lazy<Atom> = Lazy::new(|| atom!("__turbopack-helper__"));
+pub static TURBOPACK_HELPER_WTF8: Lazy<Wtf8Atom> =
+    Lazy::new(|| atom!("__turbopack-helper__").into());
 
 pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
     let annotations = ImportAnnotations::parse(import.with.as_deref());
 
-    annotations.get(&TURBOPACK_HELPER).is_some()
+    annotations.get(&TURBOPACK_HELPER_WTF8).is_some()
 }
 
 pub fn is_swc_helper_import(import: &ImportDecl) -> bool {

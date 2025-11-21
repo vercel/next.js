@@ -1,14 +1,14 @@
 use swc_core::{
+    atoms::Wtf8Atom,
     common::errors::HANDLER,
     ecma::{
         ast::*,
-        atoms::Atom,
         visit::{noop_visit_type, Visit},
     },
 };
 
 pub struct FontFunctionsCollector<'a> {
-    pub font_loaders: &'a [Atom],
+    pub font_loaders: &'a [Wtf8Atom],
     pub state: &'a mut super::State,
 }
 

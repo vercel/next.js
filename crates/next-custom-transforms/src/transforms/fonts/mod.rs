@@ -1,6 +1,7 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use swc_core::{
+    atoms::Wtf8Atom,
     common::{BytePos, Spanned},
     ecma::{
         ast::{Id, ModuleItem, Pass},
@@ -16,7 +17,7 @@ mod font_imports_generator;
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
-    pub font_loaders: Vec<Atom>,
+    pub font_loaders: Vec<Wtf8Atom>,
     pub relative_file_path_from_root: Atom,
 }
 
@@ -31,7 +32,7 @@ pub fn next_font_loaders(config: Config) -> impl Pass + VisitMut {
 
 #[derive(Debug)]
 pub struct FontFunction {
-    loader: Atom,
+    loader: Wtf8Atom,
     function_name: Option<Atom>,
 }
 #[derive(Debug, Default)]

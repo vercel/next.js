@@ -383,12 +383,12 @@ impl Fold for NextSsg {
                     if self.state.is_server_props
                         // filter out non-packages import
                         // third part packages must start with `a-z` or `@`
-                        && import_src.starts_with(|c: char| c.is_ascii_lowercase() || c == '@')
+                        && import_src.as_str().unwrap_or_default().starts_with(|c: char| c.is_ascii_lowercase() || c == '@')
                     {
                         self.state
                             .eliminated_packages
                             .borrow_mut()
-                            .insert(import_src.clone());
+                            .insert(import_src.clone().to_atom_lossy().into_owned());
                     }
                     tracing::trace!(
                         "Dropping import `{}{:?}` because it should be removed",

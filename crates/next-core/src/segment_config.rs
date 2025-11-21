@@ -417,7 +417,7 @@ pub async fn parse_segment_config_from_source(
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(decl)) => match &decl.decl {
                         Decl::Class(decl) => {
                             parse(
-                                &decl.ident.sym,
+                                Cow::Borrowed(decl.ident.sym.as_str()),
                                 Some(Cow::Owned(Expr::Class(ClassExpr {
                                     ident: None,
                                     class: decl.class.clone(),
@@ -428,7 +428,7 @@ pub async fn parse_segment_config_from_source(
                         }
                         Decl::Fn(decl) => {
                             parse(
-                                &decl.ident.sym,
+                                Cow::Borrowed(decl.ident.sym.as_str()),
                                 Some(Cow::Owned(Expr::Fn(FnExpr {
                                     ident: None,
                                     function: decl.function.clone(),
@@ -446,7 +446,7 @@ pub async fn parse_segment_config_from_source(
                                 let key = &ident.id.sym;
 
                                 parse(
-                                    key,
+                                    Cow::Borrowed(key.as_str()),
                                     Some(
                                         decl.init.as_deref().map(Cow::Borrowed).unwrap_or_else(
                                             || Cow::Owned(*Expr::undefined(DUMMY_SP)),
@@ -470,8 +470,10 @@ pub async fn parse_segment_config_from_source(
                             if let ExportSpecifier::Named(named) = specifier {
                                 parse(
                                     match named.exported.as_ref().unwrap_or(&named.orig) {
-                                        ModuleExportName::Ident(ident) => &ident.sym,
-                                        ModuleExportName::Str(s) => &*s.value,
+                                        ModuleExportName::Ident(ident) => {
+                                            Cow::Borrowed(ident.sym.as_str())
+                                        }
+                                        ModuleExportName::Str(s) => s.value.to_string_lossy(),
                                     },
                                     None,
                                     specifier.span(),
@@ -560,7 +562,7 @@ async fn parse_config_value(
     mode: ParseSegmentMode,
     config: &mut NextSegmentConfig,
     eval_context: &EvalContext,
-    key: &str,
+    key: Cow<'_, str>,
     init: Option<Cow<'_, Expr>>,
     span: Span,
 ) -> Result<()> {
@@ -586,7 +588,7 @@ async fn parse_config_value(
         })
     };
 
-    match key {
+    match &*key {
         "config" => {
             let Some(value) = get_value() else {
                 return invalid_config(

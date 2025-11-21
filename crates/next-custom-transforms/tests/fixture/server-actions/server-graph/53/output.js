@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ {"0090b5db271335765a4b0eab01f044b381b5ebd5cd":"$$RSC_SERVER_ACTION_1","803128060c414d59f8552e4788b846c0d2b7f74743":"$$RSC_SERVER_CACHE_0"} */ import { registerServerReference } from "private-next-rsc-server-reference";
+import { registerServerReference } from "private-next-rsc-server-reference";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 import { cache as $$reactCache__ } from "react";
 const $$RSC_SERVER_CACHE_0_INNER = async function foo() {};
@@ -11,7 +11,7 @@ Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
 });
 export const $$RSC_SERVER_ACTION_1 = async function bar() {};
 registerServerReference($$RSC_SERVER_ACTION_1, "0090b5db271335765a4b0eab01f044b381b5ebd5cd", null);
-export const obj = {
+/* __next_internal_action_entry_do_not_use__ {"0090b5db271335765a4b0eab01f044b381b5ebd5cd":"$$RSC_SERVER_ACTION_1","803128060c414d59f8552e4788b846c0d2b7f74743":"$$RSC_SERVER_CACHE_0"} */ export const obj = {
     foo: $$RSC_SERVER_CACHE_0,
     bar: $$RSC_SERVER_ACTION_1
 };

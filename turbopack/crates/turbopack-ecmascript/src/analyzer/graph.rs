@@ -404,7 +404,7 @@ impl EvalContext {
     fn eval_prop_name(&self, prop: &PropName) -> JsValue {
         match prop {
             PropName::Ident(ident) => ident.sym.clone().into(),
-            PropName::Str(str) => str.value.clone().into(),
+            PropName::Str(str) => str.value.clone().to_atom_lossy().into_owned().into(),
             PropName::Num(num) => num.value.into(),
             PropName::Computed(ComputedPropName { expr, .. }) => self.eval(expr),
             PropName::BigInt(bigint) => (*bigint.value.clone()).into(),
@@ -438,7 +438,7 @@ impl EvalContext {
                     match &e.cooked {
                         Some(v) => {
                             if !v.is_empty() {
-                                values.push(JsValue::from(v.clone()));
+                                values.push(JsValue::from(v.clone().to_atom_lossy().into_owned()));
                             }
                         }
                         // This is actually unreachable
