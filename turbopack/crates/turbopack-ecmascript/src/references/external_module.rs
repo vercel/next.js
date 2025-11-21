@@ -103,11 +103,11 @@ impl CachedExternalModule {
 
             let parent = target.parent();
             let parent_filename = parent.file_name();
-            let filename = target.file_name();
+            let pkg = target.file_name();
             if parent_filename.starts_with('@') {
-                Some(format!("{}-{}-{}", parent_filename, filename, hash))
+                Some(format!("{}/{}-{}", parent_filename, pkg, hash))
             } else {
-                Some(format!("{}-{}", filename, hash))
+                Some(format!("{}-{}", pkg, hash))
             }
         } else {
             None
@@ -116,14 +116,14 @@ impl CachedExternalModule {
 
     pub fn request(&self) -> Cow<'_, str> {
         if let Some(virtual_package) = self.virtual_package() {
-            let request = if self.request.starts_with("@") {
+            let request = if self.request.starts_with('@') {
                 // Split off org
-                self.request.split_once("/").unwrap().1
+                self.request.split_once('/').unwrap().1
             } else {
                 &*self.request
             };
 
-            if let Some((_, subpath)) = request.split_once("/") {
+            if let Some((_, subpath)) = request.split_once('/') {
                 Cow::Owned(format!("{}/{}", virtual_package, subpath))
             } else {
                 Cow::Owned(virtual_package)
