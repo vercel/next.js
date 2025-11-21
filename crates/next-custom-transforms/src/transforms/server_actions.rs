@@ -1776,7 +1776,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 let mut disallowed_export_span = DUMMY_SP;
 
                 match &mut stmt {
-                    // Validate export decl
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, span })) => {
                         match decl {
                             Decl::Var(var) => {
@@ -1798,7 +1797,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }
                         }
                     }
-                    // Validate export named
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
                         if !named.type_only && named.src.is_some() {
                             // export { foo } from './foo'
@@ -1810,7 +1808,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }
                         }
                     }
-                    // Validate default exports
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl {
                         decl,
                         span,
@@ -1820,7 +1817,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             disallowed_export_span = *span;
                         }
                     },
-                    // Validate export all
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(default_expr)) => {
+                        match &mut *default_expr.expr {
+                            Expr::Fn(_) | Expr::Arrow(_) | Expr::Ident(_) | Expr::Call(_) => {}
+                            _ => {
+                                disallowed_export_span = default_expr.span;
+                            }
+                        }
+                    }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportAll(ExportAll {
                         span,
                         type_only,
