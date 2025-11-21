@@ -134,7 +134,11 @@ pub enum ImportMapping {
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub enum ReplacedImportMapping {
-    External(Option<RcStr>, ExternalType, ExternalTraced),
+    External {
+        name_override: Option<RcStr>,
+        ty: ExternalType,
+        traced: ExternalTraced,
+    },
     PrimaryAlternativeExternal {
         name: Option<RcStr>,
         ty: ExternalType,
@@ -190,9 +194,11 @@ impl AliasTemplate for Vc<ImportMapping> {
         Box::pin(async move {
             let this = &*self.await?;
             Ok(match this {
-                ImportMapping::External(name, ty, traced) => {
-                    ReplacedImportMapping::External(name.clone(), *ty, *traced)
-                }
+                ImportMapping::External(name, ty, traced) => ReplacedImportMapping::External {
+                    name_override: name.clone(),
+                    ty: *ty,
+                    traced: *traced,
+                },
                 ImportMapping::PrimaryAlternativeExternal {
                     name,
                     ty,
@@ -233,13 +239,20 @@ impl AliasTemplate for Vc<ImportMapping> {
             Ok(match this {
                 ImportMapping::External(name, ty, traced) => {
                     if let Some(name) = name {
-                        ReplacedImportMapping::External(
-                            capture.spread_into_star(name).as_constant_string().cloned(),
-                            *ty,
-                            *traced,
-                        )
+                        ReplacedImportMapping::External {
+                            name_override: capture
+                                .spread_into_star(name)
+                                .as_constant_string()
+                                .cloned(),
+                            ty: *ty,
+                            traced: *traced,
+                        }
                     } else {
-                        ReplacedImportMapping::External(None, *ty, *traced)
+                        ReplacedImportMapping::External {
+                            name_override: None,
+                            ty: *ty,
+                            traced: *traced,
+                        }
                     }
                 }
                 ImportMapping::PrimaryAlternativeExternal {
@@ -393,7 +406,11 @@ pub struct ResolvedMap {
 #[derive(Clone)]
 pub enum ImportMapResult {
     Result(ResolvedVc<ResolveResult>),
-    External(RcStr, ExternalType, ExternalTraced),
+    External {
+        name: RcStr,
+        ty: ExternalType,
+        traced: ExternalTraced,
+    },
     AliasExternal {
         name: RcStr,
         ty: ExternalType,
@@ -412,8 +429,12 @@ async fn import_mapping_to_result(
 ) -> Result<ImportMapResult> {
     Ok(match &*mapping.await? {
         ReplacedImportMapping::Direct(result) => ImportMapResult::Result(*result),
-        ReplacedImportMapping::External(name, ty, traced) => ImportMapResult::External(
-            if let Some(name) = name {
+        ReplacedImportMapping::External {
+            name_override,
+            ty,
+            traced,
+        } => ImportMapResult::External {
+            name: if let Some(name) = name_override {
                 name.clone()
             } else if let Some(request) = request.await?.request() {
                 request
@@ -423,9 +444,9 @@ async fn import_mapping_to_result(
                     request.request_pattern().await?.describe_as_string()
                 )
             },
-            *ty,
-            *traced,
-        ),
+            ty: *ty,
+            traced: *traced,
+        },
         ReplacedImportMapping::PrimaryAlternativeExternal {
             name,
             ty,
@@ -480,7 +501,7 @@ impl ValueToString for ImportMapResult {
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         match self {
             ImportMapResult::Result(_) => Ok(Vc::cell(rcstr!("Resolved by import map"))),
-            ImportMapResult::External(_, _, _) => Ok(Vc::cell(rcstr!("TODO external"))),
+            ImportMapResult::External { .. } => Ok(Vc::cell(rcstr!("TODO external"))),
             ImportMapResult::AliasExternal { .. } => Ok(Vc::cell(rcstr!("TODO external"))),
             ImportMapResult::Alias(request, context) => {
                 let s = if let Some(path) = context {
