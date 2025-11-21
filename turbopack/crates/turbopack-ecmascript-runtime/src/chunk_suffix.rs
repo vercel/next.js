@@ -6,6 +6,7 @@ pub enum ChunkSuffix {
     None,
     /// A constant suffix to append to chunk URLs.
     Constant(RcStr),
-    /// Read the chunk suffix from the `src` attribute of the current script tag.
+    /// Use the query string of the `src` attribute of the current script tag as a suffix for chunk
+    /// loading.
     FromScriptSrc,
 }
