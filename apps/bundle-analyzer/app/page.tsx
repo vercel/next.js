@@ -4,6 +4,7 @@ import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { ImportChain } from '@/components/import-chain'
+import { ErrorState } from '@/components/error-state'
 import {
   RouteTypeahead,
   type RouteTypeaheadRef,
@@ -14,8 +15,9 @@ import { Input } from '@/components/ui/input'
 import { Skeleton, TreemapSkeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
+import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
 import { SpecialModule } from '@/lib/types'
-import { getSpecialModuleType } from '@/lib/utils'
+import { getSpecialModuleType, fetchStrict } from '@/lib/utils'
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B'
@@ -28,7 +30,9 @@ function formatBytes(bytes: number): string {
 
 export default function Home() {
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null)
-  const [environmentFilter, setEnvironmentFilter] = useState<string>('client')
+  const [environmentFilter, setEnvironmentFilter] = useState<
+    'client' | 'server'
+  >('client')
   const [typeFilter, setTypeFilter] = useState<string[]>(['js', 'css', 'json'])
   const [selectedSourceIndex, setSelectedSourceIndex] = useState<number | null>(
     null
@@ -99,6 +103,14 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  // Compute module depth map from active entries
+  const moduleDepthMap = useMemo(() => {
+    if (!modulesData || !analyzeData) return new Map()
+
+    const activeEntries = computeActiveEntries(modulesData, analyzeData)
+    return computeModuleDepthMap(modulesData, activeEntries)
+  }, [modulesData, analyzeData])
+
   const filterSource = useMemo(() => {
     if (!analyzeData) return undefined
 
@@ -164,12 +176,6 @@ export default function Home() {
         </div>
 
         <div className="basis-2/3 flex justify-end">
-          {error && (
-            <div className="text-sm text-red-600 font-medium">
-              Error: {error?.message}
-            </div>
-          )}
-
           {analyzeData && (
             <>
               <ToggleGroup
@@ -177,7 +183,7 @@ export default function Home() {
                 className="mr-4"
                 value={environmentFilter}
                 onValueChange={(value) => {
-                  if (value) setEnvironmentFilter(value)
+                  if (value) setEnvironmentFilter(value as 'client' | 'server')
                 }}
                 size="sm"
               >
@@ -227,7 +233,9 @@ export default function Home() {
       </div>
 
       <div className="flex-1 flex min-h-0">
-        {isAnyLoading ? (
+        {error && !analyzeData ? (
+          <ErrorState error={error} />
+        ) : isAnyLoading ? (
           <>
             <div className="flex-1 min-w-0 p-4 bg-background">
               <TreemapSkeleton />
@@ -335,7 +343,8 @@ export default function Home() {
                           startFileId={selectedSourceIndex}
                           analyzeData={analyzeData}
                           modulesData={modulesData}
-                          filterSource={filterSource}
+                          depthMap={moduleDepthMap}
+                          environmentFilter={environmentFilter}
                         />
                       )}
                       {(() => {
@@ -413,13 +422,4 @@ async function fetchAnalyzeData(url: string): Promise<AnalyzeData> {
 async function fetchModulesData(url: string): Promise<ModulesData> {
   const resp = await fetchStrict(url)
   return new ModulesData(await resp.arrayBuffer())
-}
-
-function fetchStrict(url: string): Promise<Response> {
-  return fetch(url).then((res) => {
-    if (!res.ok) {
-      throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`)
-    }
-    return res
-  })
 }

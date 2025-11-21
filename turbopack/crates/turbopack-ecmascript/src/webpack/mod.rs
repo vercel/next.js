@@ -3,7 +3,6 @@ use swc_core::ecma::ast::Lit;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
@@ -56,16 +55,13 @@ impl Module for WebpackModuleAsset {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
     fn references(&self) -> Vc<ModuleReferences> {
         module_references(*self.source, *self.runtime, *self.transforms)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for WebpackModuleAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
     }
 }
 
@@ -89,7 +85,7 @@ impl ModuleReference for WebpackChunkAssetReference {
             } => {
                 // TODO determine filename from chunk_request_expr
                 let chunk_id = match &self.chunk_id {
-                    Lit::Str(str) => str.value.to_string(),
+                    Lit::Str(str) => str.value.to_string_lossy().into_owned(),
                     Lit::Num(num) => format!("{num}"),
                     _ => todo!(),
                 };
@@ -112,7 +108,7 @@ impl ValueToString for WebpackChunkAssetReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
         let chunk_id = match &self.chunk_id {
-            Lit::Str(str) => str.value.to_string(),
+            Lit::Str(str) => str.value.to_string_lossy().into_owned(),
             Lit::Num(num) => format!("{num}"),
             _ => todo!(),
         };

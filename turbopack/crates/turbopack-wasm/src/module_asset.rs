@@ -3,7 +3,6 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{IntoTraitRef, ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
         chunk_group::references_to_output_assets,
@@ -16,7 +15,7 @@ use turbopack_core::{
     reference::{ModuleReferences, SingleChunkableModuleReference},
     reference_type::ReferenceType,
     resolve::{ExportUsage, origin::ResolveOrigin, parse::Request},
-    source::Source,
+    source::{OptionSource, Source},
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -131,6 +130,11 @@ impl Module for WebAssemblyModuleAsset {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(ResolvedVc::upcast(self.source)))
+    }
+
+    #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
         self.loader().references()
     }
@@ -138,14 +142,6 @@ impl Module for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
     fn is_self_async(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(true)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for WebAssemblyModuleAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
     }
 }
 

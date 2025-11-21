@@ -12,8 +12,10 @@ import type { NormalizedFlightData } from '../../flight-data-helpers'
 import { fetchServerResponse } from '../router-reducer/fetch-server-response'
 import {
   startPPRNavigation,
+  startPPRRefresh,
   listenForDynamicRequest,
   type Task as PPRNavigationTask,
+  type NavigationRequestAccumulation,
 } from '../router-reducer/ppr-navigations'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import {
@@ -28,6 +30,7 @@ import {
 import { createCacheKey } from './cache-key'
 import { addSearchParamsIfPageSegment } from '../../../shared/lib/segment'
 import { NavigationResultTag } from './types'
+import { hasInterceptionRouteInCurrentTree } from '../router-reducer/reducers/has-interception-route-in-current-tree'
 
 type MPANavigationResult = {
   tag: NavigationResultTag.MPA
@@ -49,7 +52,7 @@ type SuccessfulNavigationResult = {
     cacheNode: CacheNode
     canonicalUrl: string
     renderedSearch: string
-    scrollableSegments: Array<FlightSegmentPath>
+    scrollableSegments: Array<FlightSegmentPath> | null
     shouldScroll: boolean
     hash: string
   }
@@ -218,6 +221,81 @@ export function navigate(
   }
 }
 
+export function refresh(
+  currentUrl: URL,
+  currentFlightRouterState: FlightRouterState,
+  currentNextUrl: string | null,
+  currentRenderedSearch: string,
+  currentCanonicalUrl: string
+): SuccessfulNavigationResult | NoOpNavigationResult | MPANavigationResult {
+  // A refresh is a special case of a navigation where all the dynamic data
+  // on the current router is re-fetched. Most of the logic is handled within
+  // the ppr-navigations module. The main difference here is that we call
+  // startPPRRefresh instead of startPPRNavigation.
+  const now = Date.now()
+  const shouldScroll = true
+  const accumulation: NavigationRequestAccumulation = {
+    scrollableSegments: [],
+    separateRefreshUrls: null,
+  }
+  const task = startPPRRefresh(
+    now,
+    currentFlightRouterState,
+    currentNextUrl,
+    accumulation
+  )
+  if (task !== null) {
+    if (task.dynamicRequestTree !== null) {
+      // If the current tree was intercepted, the nextUrl should be included in
+      // the request. This is to ensure that the refresh request doesn't get
+      // intercepted, accidentally triggering the interception route.
+      // TODO: This logic was copied from the old implementation. It works, but
+      // a simpler way to model this would be to track whether any navigation
+      // has occurred since the initial (SSR) navigation, since that's the only
+      // one that should not be intercepted.
+      const includeNextUrl = hasInterceptionRouteInCurrentTree(
+        currentFlightRouterState
+      )
+      listenForDynamicRequest(
+        currentUrl,
+        includeNextUrl ? currentNextUrl : null,
+        task,
+        task.dynamicRequestTree,
+        null,
+        accumulation
+      )
+    }
+
+    const newTree = task.route
+    const newCacheNode = task.node
+    if (newTree !== null && newCacheNode !== null) {
+      // Re-render with the new data. All the other data remains the same.
+      return {
+        tag: NavigationResultTag.Success,
+        data: {
+          flightRouterState: newTree,
+          cacheNode: newCacheNode,
+          canonicalUrl: currentCanonicalUrl,
+          renderedSearch: currentRenderedSearch,
+          // During a refresh, we don't set the `scrollableSegments`. See
+          // corresponding comment in navigate-reducer.ts for context.
+          scrollableSegments: null,
+          shouldScroll,
+          hash: currentUrl.hash,
+        },
+      }
+    }
+  }
+
+  return {
+    tag: NavigationResultTag.NoOp,
+    data: {
+      canonicalUrl: currentCanonicalUrl,
+      shouldScroll,
+    },
+  }
+}
+
 function navigateUsingPrefetchedRouteTree(
   now: number,
   url: URL,
@@ -241,7 +319,10 @@ function navigateUsingPrefetchedRouteTree(
   // TODO: Eventually updateCacheNodeOnNavigation (or the equivalent) should
   // read from the Segment Cache directly. It's only structured this way for now
   // so we can share code with the old prefetching implementation.
-  const scrollableSegments: Array<FlightSegmentPath> = []
+  const accumulation: NavigationRequestAccumulation = {
+    scrollableSegments: [],
+    separateRefreshUrls: null,
+  }
   const task = startPPRNavigation(
     now,
     currentUrl,
@@ -252,29 +333,25 @@ function navigateUsingPrefetchedRouteTree(
     prefetchHead,
     isPrefetchHeadPartial,
     isSamePageNavigation,
-    scrollableSegments
+    accumulation
   )
   if (task !== null) {
-    const dynamicRequestTree = task.dynamicRequestTree
-    if (dynamicRequestTree !== null) {
-      const promiseForDynamicServerResponse = fetchServerResponse(
-        new URL(canonicalUrl, url.origin),
-        {
-          flightRouterState: dynamicRequestTree,
-          nextUrl,
-        }
+    if (task.dynamicRequestTree !== null) {
+      listenForDynamicRequest(
+        url,
+        nextUrl,
+        task,
+        task.dynamicRequestTree,
+        null,
+        accumulation
       )
-      listenForDynamicRequest(task, promiseForDynamicServerResponse)
-    } else {
-      // The prefetched tree does not contain dynamic holes — it's
-      // fully static. We can skip the dynamic request.
     }
     return navigationTaskToResult(
       task,
       currentCacheNode,
       canonicalUrl,
       renderedSearch,
-      scrollableSegments,
+      accumulation.scrollableSegments,
       shouldScroll,
       hash
     )
@@ -509,7 +586,10 @@ async function navigateDynamicallyWithNoPrefetch(
   const isPrefetchHeadPartial = true
 
   // Now we proceed exactly as we would for normal navigation.
-  const scrollableSegments: Array<FlightSegmentPath> = []
+  const accumulation: NavigationRequestAccumulation = {
+    scrollableSegments: [],
+    separateRefreshUrls: null,
+  }
   const task = startPPRNavigation(
     now,
     currentUrl,
@@ -520,7 +600,7 @@ async function navigateDynamicallyWithNoPrefetch(
     prefetchHead,
     isPrefetchHeadPartial,
     isSamePageNavigation,
-    scrollableSegments
+    accumulation
   )
   if (task !== null) {
     // In this case, we've already sent the dynamic request, so we don't
@@ -531,9 +611,15 @@ async function navigateDynamicallyWithNoPrefetch(
     // was present in the cache, but the route tree was not. E.g. navigating
     // to a URL that was not prefetched but rewrites to a different URL
     // that was.
-    const hasDynamicHoles = task.dynamicRequestTree !== null
-    if (hasDynamicHoles) {
-      listenForDynamicRequest(task, promiseForDynamicServerResponse)
+    if (task.dynamicRequestTree !== null) {
+      listenForDynamicRequest(
+        url,
+        nextUrl,
+        task,
+        task.dynamicRequestTree,
+        promiseForDynamicServerResponse,
+        accumulation
+      )
     } else {
       // The prefetched tree does not contain dynamic holes — it's
       // fully static. We don't need to process the server response further.
@@ -543,7 +629,7 @@ async function navigateDynamicallyWithNoPrefetch(
       currentCacheNode,
       createHrefFromUrl(canonicalUrl),
       renderedSearch,
-      scrollableSegments,
+      accumulation.scrollableSegments,
       shouldScroll,
       hash
     )

@@ -4,7 +4,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::DirectoryContent;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     ident::AssetIdent,
     module::Module,
     raw_module::RawModule,
@@ -46,6 +46,11 @@ impl Module for TsConfigModuleAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident()
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
     }
 
     #[turbo_tasks::function]
@@ -172,14 +177,6 @@ impl Module for TsConfigModuleAsset {
             }
         }
         Ok(Vc::cell(references))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for TsConfigModuleAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
     }
 }
 

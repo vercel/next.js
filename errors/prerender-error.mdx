@@ -131,9 +131,20 @@ export default function Page() {
 }
 ```
 
+## Debugging
+
+For additional debugging information when troubleshooting prerender errors, you can run:
+
+```bash
+next build --debug-prerender
+```
+
+This provides unminified stack traces with source maps, making it easier to pinpoint the exact component and route causing the issue.
+
 ## Additional Resources
 
 - [Handling Errors in Next.js](/docs/app/getting-started/error-handling)
 - [Data Fetching in Next.js](/docs/app/getting-started/fetching-data)
+- [Debugging prerender errors](/docs/app/api-reference/cli/next#debugging-prerender-errors)
 
 If you continue to experience issues after trying these solutions, consider checking your server logs for more detailed error messages or reaching out to the Next.js community for support.

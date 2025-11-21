@@ -70,6 +70,12 @@ enum ThisStatus {
     Forbidden { directive: Directive },
 }
 
+struct ServerReferenceExport {
+    ident: Ident,
+    export_name: Atom,
+    reference_id: Atom,
+}
+
 #[derive(Clone, Debug)]
 enum ServerActionsErrorKind {
     ExportedSyncFunction {
@@ -130,10 +136,6 @@ enum ServerActionsErrorKind {
     },
 }
 
-/// A mapping of hashed action id to the action's exported function name.
-// Using BTreeMap to ensure the order of the actions is deterministic.
-pub type ActionsMap = BTreeMap<Atom, Atom>;
-
 #[tracing::instrument(level = tracing::Level::TRACE, skip_all)]
 pub fn server_actions<C: Comments>(
     file_name: &FileName,
@@ -169,8 +171,6 @@ pub fn server_actions<C: Comments>(
         names: Default::default(),
         declared_idents: Default::default(),
 
-        exported_idents: Default::default(),
-
         // This flag allows us to rewrite `function foo() {}` to `const foo = createProxy(...)`.
         rewrite_fn_decl_to_proxy_decl: None,
         rewrite_default_fn_expr_to_proxy_expr: None,
@@ -179,7 +179,8 @@ pub fn server_actions<C: Comments>(
         annotations: Default::default(),
         extra_items: Default::default(),
         hoisted_extra_items: Default::default(),
-        export_actions: Default::default(),
+        reference_ids_by_export_name: Default::default(),
+        server_reference_exports: Default::default(),
 
         private_ctxt: SyntaxContext::empty().apply_mark(Mark::new()),
 
@@ -190,18 +191,22 @@ pub fn server_actions<C: Comments>(
     })
 }
 
-/// Serializes the Server Actions into a magic comment prefixed by
+/// Serializes the Server References into a magic comment prefixed by
 /// `__next_internal_action_entry_do_not_use__`.
-fn generate_server_actions_comment(
-    actions: &ActionsMap,
+fn generate_server_references_comment(
+    export_names_ordered_by_reference_id: &BTreeMap<&Atom, &Atom>,
     entry_path_query: Option<(&str, &str)>,
 ) -> String {
     format!(
         " __next_internal_action_entry_do_not_use__ {} ",
         if let Some(entry_path_query) = entry_path_query {
-            serde_json::to_string(&(actions, entry_path_query.0, entry_path_query.1))
+            serde_json::to_string(&(
+                export_names_ordered_by_reference_id,
+                entry_path_query.0,
+                entry_path_query.1,
+            ))
         } else {
-            serde_json::to_string(&actions)
+            serde_json::to_string(&export_names_ordered_by_reference_id)
         }
         .unwrap()
     )
@@ -239,16 +244,15 @@ struct ServerActions<C: Comments> {
     rewrite_default_fn_expr_to_proxy_expr: Option<Box<Expr>>,
     rewrite_expr_to_proxy_expr: Option<Box<Expr>>,
 
-    exported_idents: Vec<(
-        /* ident */ Ident,
-        /* name */ Atom,
-        /* id */ Atom,
-    )>,
-
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
     hoisted_extra_items: Vec<ModuleItem>,
-    export_actions: Vec<(/* name */ Atom, /* id */ Atom)>,
+
+    /// A map of all server references (inline + exported): export_name -> reference_id
+    reference_ids_by_export_name: FxIndexMap<Atom, Atom>,
+
+    /// A list of server references for originally exported server functions only.
+    server_reference_exports: Vec<ServerReferenceExport>,
 
     private_ctxt: SyntaxContext,
 
@@ -460,8 +464,8 @@ impl<C: Comments> ServerActions<C> {
         let action_id = self.generate_server_reference_id(&action_name, false, Some(&new_params));
 
         self.has_action = true;
-        self.export_actions
-            .push((action_name.clone(), action_id.clone()));
+        self.reference_ids_by_export_name
+            .insert(action_name.clone(), action_id.clone());
 
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
@@ -612,8 +616,8 @@ impl<C: Comments> ServerActions<C> {
         let action_id = self.generate_server_reference_id(&action_name, false, Some(&new_params));
 
         self.has_action = true;
-        self.export_actions
-            .push((action_name.clone(), action_id.clone()));
+        self.reference_ids_by_export_name
+            .insert(action_name.clone(), action_id.clone());
 
         function.body.visit_mut_with(&mut ClosureReplacer {
             used_ids: &ids_from_closure,
@@ -742,8 +746,8 @@ impl<C: Comments> ServerActions<C> {
         let reference_id = self.generate_server_reference_id(&export_name, true, Some(&new_params));
 
         self.has_cache = true;
-        self.export_actions
-            .push((export_name.clone(), reference_id.clone()));
+        self.reference_ids_by_export_name
+            .insert(export_name.clone(), reference_id.clone());
 
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
@@ -826,8 +830,8 @@ impl<C: Comments> ServerActions<C> {
         let reference_id = self.generate_server_reference_id(&cache_name, true, Some(&new_params));
 
         self.has_cache = true;
-        self.export_actions
-            .push((cache_name.clone(), reference_id.clone()));
+        self.reference_ids_by_export_name
+            .insert(cache_name.clone(), reference_id.clone());
 
         function.body.visit_mut_with(&mut ClosureReplacer {
             used_ids: &ids_from_closure,
@@ -1419,7 +1423,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 let (is_action_fn, is_cache_fn) =
                                     has_body_directive(&f.function.body);
 
-                                let ref_id = if is_action_fn {
+                                let is_cache = if is_action_fn {
                                     false
                                 } else if is_cache_fn {
                                     true
@@ -1433,15 +1437,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 // TODO(shu): This is a workaround. We should have a better way
                                 // to skip self-annotated exports here.
                                 if !(is_cache_fn && self.config.is_react_server_layer) {
-                                    self.exported_idents.push((
-                                        f.ident.clone(),
-                                        f.ident.sym.clone(),
-                                        self.generate_server_reference_id(
+                                    self.server_reference_exports.push(ServerReferenceExport {
+                                        ident: f.ident.clone(),
+                                        export_name: f.ident.sym.clone(),
+                                        reference_id: self.generate_server_reference_id(
                                             f.ident.sym.as_ref(),
-                                            ref_id,
+                                            is_cache,
                                             Some(&f.function.params),
                                         ),
-                                    ));
+                                    });
                                 }
                             }
                             Decl::Var(var) => {
@@ -1450,15 +1454,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 collect_idents_in_var_decls(&var.decls, &mut idents);
 
                                 for ident in &idents {
-                                    self.exported_idents.push((
-                                        ident.clone(),
-                                        ident.sym.clone(),
-                                        self.generate_server_reference_id(
+                                    self.server_reference_exports.push(ServerReferenceExport {
+                                        ident: ident.clone(),
+                                        export_name: ident.sym.clone(),
+                                        reference_id: self.generate_server_reference_id(
                                             ident.sym.as_ref(),
                                             in_cache_file,
                                             None,
                                         ),
-                                    ));
+                                    });
                                 }
 
                                 for decl in &mut var.decls {
@@ -1499,47 +1503,25 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     }) = spec
                                     {
                                         if !*is_type_only {
-                                            if let Some(export_name) = exported {
-                                                if let ModuleExportName::Ident(Ident {
-                                                    sym, ..
-                                                }) = export_name
-                                                {
-                                                    // export { foo as bar }
-                                                    self.exported_idents.push((
-                                                        ident.clone(),
-                                                        sym.clone(),
-                                                        self.generate_server_reference_id(
-                                                            sym.as_ref(),
-                                                            in_cache_file,
-                                                            None,
-                                                        ),
-                                                    ));
-                                                } else if let ModuleExportName::Str(str) =
-                                                    export_name
-                                                {
-                                                    // export { foo as "bar" }
-                                                    self.exported_idents.push((
-                                                        ident.clone(),
-                                                        str.value.clone(),
-                                                        self.generate_server_reference_id(
-                                                            str.value.as_ref(),
-                                                            in_cache_file,
-                                                            None,
-                                                        ),
-                                                    ));
-                                                }
-                                            } else {
-                                                // export { foo }
-                                                self.exported_idents.push((
-                                                    ident.clone(),
-                                                    ident.sym.clone(),
-                                                    self.generate_server_reference_id(
-                                                        ident.sym.as_ref(),
-                                                        in_cache_file,
-                                                        None,
-                                                    ),
-                                                ));
-                                            }
+                                            // export { foo as bar }
+                                            // export { foo as "bar" }
+                                            // export { foo }
+                                            let export_name = exported.as_ref().map_or_else(
+                                                || ident.sym.clone(),
+                                                |i| i.atom().into_owned(),
+                                            );
+                                            let id = self.generate_server_reference_id(
+                                                &export_name,
+                                                in_cache_file,
+                                                None,
+                                            );
+                                            self.server_reference_exports.push(
+                                                ServerReferenceExport {
+                                                    ident: ident.clone(),
+                                                    export_name,
+                                                    reference_id: id,
+                                                },
+                                            );
                                         }
                                     } else {
                                         disallowed_export_span = named.span;
@@ -1577,11 +1559,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                                 if let Some(ident) = &f.ident {
                                     // export default function foo() {}
-                                    self.exported_idents.push((
-                                        ident.clone(),
-                                        atom!("default"),
-                                        ref_id,
-                                    ));
+                                    self.server_reference_exports.push(ServerReferenceExport {
+                                        ident: ident.clone(),
+                                        export_name: atom!("default"),
+                                        reference_id: ref_id,
+                                    });
                                 } else {
                                     // export default function() {}
                                     // Use the span from the function expression
@@ -1595,11 +1577,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                                     f.ident = Some(new_ident.clone());
 
-                                    self.exported_idents.push((
-                                        new_ident.clone(),
-                                        atom!("default"),
-                                        ref_id,
-                                    ));
+                                    self.server_reference_exports.push(ServerReferenceExport {
+                                        ident: new_ident.clone(),
+                                        export_name: atom!("default"),
+                                        reference_id: ref_id,
+                                    });
 
                                     assign_name_to_ident(
                                         &new_ident,
@@ -1651,10 +1633,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         self.private_ctxt,
                                     );
 
-                                    self.exported_idents.push((
-                                        new_ident.clone(),
-                                        atom!("default"),
-                                        self.generate_server_reference_id(
+                                    self.server_reference_exports.push(ServerReferenceExport {
+                                        ident: new_ident.clone(),
+                                        export_name: atom!("default"),
+                                        reference_id: self.generate_server_reference_id(
                                             "default",
                                             is_cache,
                                             Some(
@@ -1665,7 +1647,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                     .collect(),
                                             ),
                                         ),
-                                    ));
+                                    });
 
                                     create_var_declarator(&new_ident, &mut self.extra_items);
                                     assign_name_to_ident(
@@ -1680,15 +1662,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }
                             Expr::Ident(ident) => {
                                 // export default foo
-                                self.exported_idents.push((
-                                    ident.clone(),
-                                    atom!("default"),
-                                    self.generate_server_reference_id(
+                                self.server_reference_exports.push(ServerReferenceExport {
+                                    ident: ident.clone(),
+                                    export_name: atom!("default"),
+                                    reference_id: self.generate_server_reference_id(
                                         "default",
                                         in_cache_file,
                                         None,
                                     ),
-                                ));
+                                });
                             }
                             Expr::Call(call) => {
                                 // export default fn()
@@ -1698,15 +1680,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 let new_ident =
                                     Ident::new(self.gen_action_ident(), span, self.private_ctxt);
 
-                                self.exported_idents.push((
-                                    new_ident.clone(),
-                                    atom!("default"),
-                                    self.generate_server_reference_id(
+                                self.server_reference_exports.push(ServerReferenceExport {
+                                    ident: new_ident.clone(),
+                                    export_name: atom!("default"),
+                                    reference_id: self.generate_server_reference_id(
                                         "default",
                                         in_cache_file,
                                         None,
                                     ),
-                                ));
+                                });
 
                                 create_var_declarator(&new_ident, &mut self.extra_items);
                                 assign_name_to_ident(&new_ident, "default", &mut self.extra_items);
@@ -1763,26 +1745,18 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
         }
 
-        let mut actions = self.export_actions.take();
-
         if in_action_file || in_cache_file && !self.config.is_react_server_layer {
-            actions.extend(
-                self.exported_idents
+            self.reference_ids_by_export_name.extend(
+                self.server_reference_exports
                     .iter()
-                    .map(|e| (e.1.clone(), e.2.clone())),
+                    .map(|e| (e.export_name.clone(), e.reference_id.clone())),
             );
 
-            if !actions.is_empty() {
+            if !self.reference_ids_by_export_name.is_empty() {
                 self.has_action |= in_action_file;
                 self.has_cache |= in_cache_file;
             }
         };
-
-        // Make it a hashmap of id -> name.
-        let actions = actions
-            .into_iter()
-            .map(|a| (a.1, a.0))
-            .collect::<ActionsMap>();
 
         // If it's compiled in the client layer, each export field needs to be
         // wrapped by a reference creation call.
@@ -1823,7 +1797,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     ],
                     src: Box::new(Str {
                         span: DUMMY_SP,
-                        value: atom!("private-next-rsc-action-client-wrapper"),
+                        value: atom!("private-next-rsc-action-client-wrapper").into(),
                         raw: None,
                     }),
                     type_only: false,
@@ -1836,7 +1810,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         // If it's a "use server" or a "use cache" file, all exports need to be annotated.
         if should_track_exports {
-            for (ident, export_name, ref_id) in self.exported_idents.iter() {
+            for ServerReferenceExport {
+                ident,
+                export_name,
+                reference_id: ref_id,
+            } in &self.server_reference_exports
+            {
                 if !self.config.is_react_server_layer {
                     if export_name == "default" {
                         let export_expr = ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
@@ -1943,7 +1922,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 new.append(&mut self.extra_items);
 
                 // For "use cache" files, there's no need to do extra annotations.
-                if !in_cache_file && !self.exported_idents.is_empty() {
+                if !in_cache_file && !self.server_reference_exports.is_empty() {
                     let ensure_ident = private_ident!("ensureServerEntryExports");
                     new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                         span: DUMMY_SP,
@@ -1955,7 +1934,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         })],
                         src: Box::new(Str {
                             span: DUMMY_SP,
-                            value: atom!("private-next-rsc-action-validate"),
+                            value: atom!("private-next-rsc-action-validate").into(),
                             raw: None,
                         }),
                         type_only: false,
@@ -1972,9 +1951,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 expr: Box::new(Expr::Array(ArrayLit {
                                     span: DUMMY_SP,
                                     elems: self
-                                        .exported_idents
+                                        .server_reference_exports
                                         .iter()
-                                        .map(|(ident, _, _)| {
+                                        .map(|ServerReferenceExport { ident, .. }| {
                                             Some(ExprOrSpread {
                                                 spread: None,
                                                 expr: Box::new(Expr::Ident(ident.clone())),
@@ -2006,7 +1985,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 })],
                 src: Box::new(Str {
                     span: DUMMY_SP,
-                    value: atom!("private-next-rsc-cache-wrapper"),
+                    value: atom!("private-next-rsc-cache-wrapper").into(),
                     raw: None,
                 }),
                 type_only: false,
@@ -2024,7 +2003,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 })],
                 src: Box::new(Str {
                     span: DUMMY_SP,
-                    value: atom!("react"),
+                    value: atom!("react").into(),
                     raw: None,
                 }),
                 type_only: false,
@@ -2049,7 +2028,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 })],
                 src: Box::new(Str {
                     span: DUMMY_SP,
-                    value: atom!("private-next-rsc-server-reference"),
+                    value: atom!("private-next-rsc-server-reference").into(),
                     raw: None,
                 }),
                 type_only: false,
@@ -2081,7 +2060,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     ],
                     src: Box::new(Str {
                         span: DUMMY_SP,
-                        value: atom!("private-next-rsc-action-encryption"),
+                        value: atom!("private-next-rsc-action-encryption").into(),
                         raw: None,
                     }),
                     type_only: false,
@@ -2096,6 +2075,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if self.has_action || self.has_cache {
+            // Flip the map and convert it to a BTreeMap for deterministic
+            // ordering in the server references comment.
+            let export_names_ordered_by_reference_id = self
+                .reference_ids_by_export_name
+                .iter()
+                .map(|(export_name, reference_id)| (reference_id, export_name))
+                .collect::<BTreeMap<_, _>>();
+
             if self.config.is_react_server_layer {
                 // Prepend a special comment to the top of the file.
                 self.comments.add_leading(
@@ -2103,8 +2090,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     Comment {
                         span: DUMMY_SP,
                         kind: CommentKind::Block,
-                        text: generate_server_actions_comment(
-                            &actions,
+                        text: generate_server_references_comment(
+                            &export_names_ordered_by_reference_id,
                             match self.mode {
                                 ServerActionsMode::Webpack => None,
                                 ServerActionsMode::Turbopack => Some(("", "")),
@@ -2121,7 +2108,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             Comment {
                                 span: DUMMY_SP,
                                 kind: CommentKind::Block,
-                                text: generate_server_actions_comment(&actions, None).into(),
+                                text: generate_server_references_comment(
+                                    &export_names_ordered_by_reference_id,
+                                    None,
+                                )
+                                .into(),
                             },
                         );
                         new.push(client_layer_import.unwrap());
@@ -2165,8 +2156,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             Comment {
                                                 span: DUMMY_SP,
                                                 kind: CommentKind::Block,
-                                                text: generate_server_actions_comment(
-                                                    &std::iter::once((ref_id, export)).collect(),
+                                                text: generate_server_references_comment(
+                                                    &std::iter::once((&ref_id, &export)).collect(),
                                                     Some((
                                                         &self.file_name,
                                                         self.file_query.as_ref().map_or("", |v| v),
@@ -2806,26 +2797,27 @@ impl DirectiveVisitor<'_> {
                     } else {
                         emit_error(ServerActionsErrorKind::MisplacedDirective {
                             span: *span,
-                            directive: value.to_string(),
+                            directive: value.to_string_lossy().into_owned(),
                             location: self.location.clone(),
                         });
                     }
-                } else if detect_similar_strings(value, "use server") {
+                } else if detect_similar_strings(&value.to_string_lossy(), "use server") {
                     // Detect typo of "use server"
                     emit_error(ServerActionsErrorKind::MisspelledDirective {
                         span: *span,
-                        directive: value.to_string(),
+                        directive: value.to_string_lossy().into_owned(),
                         expected_directive: "use server".to_string(),
                     });
                 } else if value == "use action" {
                     emit_error(ServerActionsErrorKind::MisspelledDirective {
                         span: *span,
-                        directive: value.to_string(),
+                        directive: value.to_string_lossy().into_owned(),
                         expected_directive: "use server".to_string(),
                     });
                 } else
                 // `use cache` or `use cache: foo`
-                if let Some(rest) = value.strip_prefix("use cache") {
+                if let Some(rest) = value.as_str().and_then(|s| s.strip_prefix("use cache"))
+                {
                     // Increment telemetry counter tracking usage of "use cache" directives
 
                     if in_fn_body && !allow_inline {
@@ -2841,7 +2833,7 @@ impl DirectiveVisitor<'_> {
                         if !self.config.use_cache_enabled {
                             emit_error(ServerActionsErrorKind::UseCacheWithoutCacheComponents {
                                 span: *span,
-                                directive: value.to_string(),
+                                directive: value.to_string_lossy().into_owned(),
                             });
                         }
 
@@ -2856,7 +2848,7 @@ impl DirectiveVisitor<'_> {
                         }
 
                         if rest.starts_with(": ") {
-                            let cache_kind = RcStr::from(rest.split_at(": ".len()).1);
+                            let cache_kind = RcStr::from(rest.split_at(": ".len()).1.to_string());
 
                             if !cache_kind.is_empty() {
                                 if !self.config.cache_kinds.contains(&cache_kind) {
@@ -2895,7 +2887,7 @@ impl DirectiveVisitor<'_> {
 
                         emit_error(ServerActionsErrorKind::MisspelledDirective {
                             span: *span,
-                            directive: value.to_string(),
+                            directive: value.to_string_lossy().into_owned(),
                             expected_directive,
                         });
 
@@ -2903,16 +2895,16 @@ impl DirectiveVisitor<'_> {
                     } else {
                         emit_error(ServerActionsErrorKind::MisplacedDirective {
                             span: *span,
-                            directive: value.to_string(),
+                            directive: value.to_string_lossy().into_owned(),
                             location: self.location.clone(),
                         });
                     }
                 } else {
                     // Detect typo of "use cache"
-                    if detect_similar_strings(value, "use cache") {
+                    if detect_similar_strings(&value.to_string_lossy(), "use cache") {
                         emit_error(ServerActionsErrorKind::MisspelledDirective {
                             span: *span,
-                            directive: value.to_string(),
+                            directive: value.to_string_lossy().into_owned(),
                             expected_directive: "use cache".to_string(),
                         });
                     }
@@ -2928,7 +2920,9 @@ impl DirectiveVisitor<'_> {
                 ..
             }) => {
                 // Match `("use server")`.
-                if value == "use server" || detect_similar_strings(value, "use server") {
+                if value == "use server"
+                    || detect_similar_strings(&value.to_string_lossy(), "use server")
+                {
                     if self.is_allowed_position {
                         emit_error(ServerActionsErrorKind::WrappedDirective {
                             span: *span,
@@ -2941,7 +2935,9 @@ impl DirectiveVisitor<'_> {
                             location: self.location.clone(),
                         });
                     }
-                } else if value == "use cache" || detect_similar_strings(value, "use cache") {
+                } else if value == "use cache"
+                    || detect_similar_strings(&value.to_string_lossy(), "use cache")
+                {
                     if self.is_allowed_position {
                         emit_error(ServerActionsErrorKind::WrappedDirective {
                             span: *span,

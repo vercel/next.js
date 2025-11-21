@@ -126,6 +126,11 @@ import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
+import {
+  sendSerializedErrorsToClient,
+  sendSerializedErrorsToClientForHtmlRequest,
+  setErrorsRscStreamForHtmlRequest,
+} from './serialized-errors'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -274,6 +279,7 @@ export async function createHotReloaderTurbopack(
       previewProps: opts.fsChecker.prerenderManifest.preview,
       browserslistQuery: supportedBrowsers.join(', '),
       noMangling: false,
+      writeRoutesHashesManifest: false,
       currentNodeJsVersion,
     },
     {
@@ -907,6 +913,16 @@ export async function createHotReloaderTurbopack(
           } else {
             onUpgrade(client, { isLegacyClient: true })
           }
+
+          connectReactDebugChannelForHtmlRequest(
+            htmlRequestId,
+            sendToClient.bind(null, client)
+          )
+
+          sendSerializedErrorsToClientForHtmlRequest(
+            htmlRequestId,
+            sendToClient.bind(null, client)
+          )
         } else {
           clientsWithoutHtmlRequestId.add(client)
           onUpgrade(client, { isLegacyClient: true })
@@ -1098,13 +1114,6 @@ export async function createHotReloaderTurbopack(
           }
 
           sendToClient(client, syncMessage)
-
-          if (htmlRequestId) {
-            connectReactDebugChannelForHtmlRequest(
-              htmlRequestId,
-              sendToClient.bind(null, client)
-            )
-          }
         })()
       })
     },
@@ -1182,6 +1191,22 @@ export async function createHotReloaderTurbopack(
           debugChannel,
           sendToClient.bind(null, client)
         )
+      }
+    },
+
+    sendErrorsToBrowser(errorsRscStream, htmlRequestId) {
+      const client = clientsByHtmlRequestId.get(htmlRequestId)
+
+      if (client) {
+        // If the client is connected, we can send the errors immediately.
+        sendSerializedErrorsToClient(
+          errorsRscStream,
+          sendToClient.bind(null, client)
+        )
+      } else {
+        // Otherwise, store the errors stream so that we can send it when the
+        // client connects.
+        setErrorsRscStreamForHtmlRequest(htmlRequestId, errorsRscStream)
       }
     },
 

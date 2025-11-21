@@ -1,12 +1,16 @@
 ---
-title: Cannot access Request information or uncached data in `generateMetadata()` in an otherwise entirely static route
+title: Cannot access Runtime data or uncached data in `generateMetadata()` or file-based Metadata in an otherwise entirely static route
 ---
 
 ## Why This Error Occurred
 
-When `cacheComponents` is enabled, Next.js requires that `generateMetadata()` not depend on uncached data or Request data unless some other part of the page also has similar requirements. The reason for this is that while you normally control your intention for what is allowed to be dynamic by adding or removing Suspense boundaries in your Layout and Page components you are not in control of rendering metadata itself.
+When `cacheComponents` is enabled, Next.js requires that Document Metadata not depend on uncached data or Runtime data (`cookies()`, `headers()`, `params`, `searchParams`) unless some other part of the page also has similar requirements.
 
-The heuristic Next.js uses to understand your intent with `generateMetadata()` is to look at the data requirements of the rest of the route. If other components depend on Request data or uncached data, then we allow `generateMetadata()` to have similar data requirements. If the rest of your page has no dependence on this type of data, we require that `generateMetadata()` also not have this type of data dependence.
+Next.js determines if a page is entirely static or partially static by looking at whether any part of the page cannot be prerendered.
+
+Typically you control the which parts of a page can be prerendered by adding `"use cache"` to Components or data functions and by avoiding Runtime data like `cookies()` or `searchParams`. However, Metadata can be defined in functions (`generateMetadata()`) defined far from your Page content. Additionally Metadata can implicitly depend on Runtime data when using file-based Metadata such as an icon inside a route with a dynamic param. It would be easy for Metadata to accidentally make an otherwise entirely static page have a dynamic component.
+
+To prevent anwanted partially dynamic pages, Next.js expects pages that are otherwise entirely prerenderable to also have prerenderable Metadata.
 
 ## Possible Ways to Fix It
 
@@ -141,7 +145,7 @@ export default function Page() {
 }
 ```
 
-Note: The reason to structure this `DynamicMarker` as a self-contained Suspense boundary is to avoid blocking the actual content of the page from being prerendered. When Partial Prerendering is enabled alongside `cacheComponents`, the static shell will still contain all of the prerenderable content, and only the metadata will stream in dynamically.
+Note: The reason to structure this `DynamicMarker` as a self-contained Suspense boundary is to avoid blocking the actual content of the page from being prerendered.
 
 ## Useful Links
 

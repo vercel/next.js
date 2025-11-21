@@ -1,11 +1,10 @@
 use std::collections::BTreeMap;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     module::Module,
@@ -13,6 +12,7 @@ use turbopack_core::{
     output::OutputAssetsReference,
     reference::{ModuleReferences, SingleChunkableModuleReference},
     resolve::ExportUsage,
+    source::OptionSource,
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -53,6 +53,11 @@ impl Module for NextDynamicEntryModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![ResolvedVc::upcast(
             SingleChunkableModuleReference::new(
@@ -63,14 +68,6 @@ impl Module for NextDynamicEntryModule {
             .to_resolved()
             .await?,
         )]))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for NextDynamicEntryModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("Next.js Server Component module has no content")
     }
 }
 

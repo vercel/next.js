@@ -190,38 +190,38 @@ pub enum AstPathRange {
 /// Converts a module value (ie an import) to a well known object,
 /// which we specifically handle.
 pub fn module_value_to_well_known_object(module_value: &ModuleValue) -> Option<JsValue> {
-    Some(match &*module_value.module {
-        "node:path" | "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
-        "node:fs/promises" | "fs/promises" => {
+    Some(match module_value.module.as_bytes() {
+        b"node:path" | b"path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
+        b"node:fs/promises" | b"fs/promises" => {
             JsValue::WellKnownObject(WellKnownObjectKind::FsModule)
         }
-        "node:fs" | "fs" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
-        "node:child_process" | "child_process" => {
+        b"node:fs" | b"fs" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
+        b"node:child_process" | b"child_process" => {
             JsValue::WellKnownObject(WellKnownObjectKind::ChildProcessModule)
         }
-        "node:os" | "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
-        "node:process" | "process" => {
+        b"node:os" | b"os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
+        b"node:process" | b"process" => {
             JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule)
         }
-        "node:url" | "url" => JsValue::WellKnownObject(WellKnownObjectKind::UrlModule),
-        "node:module" | "module" => JsValue::WellKnownObject(WellKnownObjectKind::ModuleModule),
-        "node:worker_threads" | "worker_threads" => {
+        b"node:url" | b"url" => JsValue::WellKnownObject(WellKnownObjectKind::UrlModule),
+        b"node:module" | b"module" => JsValue::WellKnownObject(WellKnownObjectKind::ModuleModule),
+        b"node:worker_threads" | b"worker_threads" => {
             JsValue::WellKnownObject(WellKnownObjectKind::WorkerThreadsModule)
         }
-        "node-pre-gyp" | "@mapbox/node-pre-gyp" => {
+        b"node-pre-gyp" | b"@mapbox/node-pre-gyp" => {
             JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp)
         }
-        "node-gyp-build" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild),
-        "node:bindings" | "bindings" => {
+        b"node-gyp-build" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild),
+        b"node:bindings" | b"bindings" => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings)
         }
-        "express" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpress),
-        "strong-globalize" => {
+        b"express" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpress),
+        b"strong-globalize" => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::NodeStrongGlobalize)
         }
-        "resolve-from" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom),
-        "@grpc/proto-loader" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader),
-        "fs-extra" => JsValue::WellKnownObject(WellKnownObjectKind::FsExtraModule),
+        b"resolve-from" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom),
+        b"@grpc/proto-loader" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader),
+        b"fs-extra" => JsValue::WellKnownObject(WellKnownObjectKind::FsExtraModule),
         _ => return None,
     })
 }
