@@ -19,8 +19,8 @@ The `use cache` directive allows you to mark a route, React component, or a func
 > **Good to know:**
 >
 > - To use cookies or headers, read them outside cached scopes and pass values as arguments. This is the preferred pattern.
-> - If the in-memory cache isn't sufficient for runtime data, [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote) allows platforms to provide a dedicated cache handler, though it may come with its own costs.
-> - For compliance requirements where data must never be cached on the server, or when a deeply nested component needs to access runtime APIs and restructuring would be disruptive, see [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private).
+> - If the in-memory cache isn't sufficient for runtime data, [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote) allows platforms to provide a dedicated cache handler, though it requires a network roundtrip to check the cache and typically incurs platform fees.
+> - For compliance requirements or when you can't refactor to pass runtime data as arguments to a `use cache` scope, see [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private).
 
 ## Usage
 
@@ -199,12 +199,12 @@ Runtime cache behavior depends on your hosting environment:
 
 | Environment     | Runtime Caching Behavior                                                                                                                                          |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Serverless**  | Cache entries may not persist across requests (each request can be a different instance). Build-time caching works normally.                                      |
+| **Serverless**  | Cache entries typically don't persist across requests (each request can be a different instance). Build-time caching works normally.                              |
 | **Self-hosted** | Cache entries persist across requests. Control cache size with [`cacheMaxMemorySize`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath). |
 
 If the default in-memory cache isn't enough, consider **[`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)** which allows platforms to provide a dedicated cache handler (like Redis or KV database). This helps reduce hits against data sources not scaled to your total traffic, though it comes with costs (storage, network latency, platform fees).
 
-Very rarely, for compliance requirements where certain data must never be cached on the server (even ephemerally), or when a component within a `use cache` scope needs to access runtime APIs like `cookies()` and restructuring the component tree is impractical, you might need **[`use cache: private`](/docs/app/api-reference/directives/use-cache-private)**.
+Very rarely, for compliance requirements or when you can't refactor your code to pass runtime data as arguments to a `use cache` scope, you might need [`use cache: private`](/docs/app/api-reference/directives/use-cache-private).
 
 ## `use cache` at runtime
 
