@@ -20,6 +20,7 @@ import type {
   SourceIndex,
 } from '@/lib/analyze-data'
 import { splitIdent } from '@/lib/utils'
+import clsx from 'clsx'
 
 interface ImportChainProps {
   startFileId: number
@@ -53,52 +54,61 @@ interface DependentInfo {
   depth: number
 }
 
-function getPathDifference(currentPath: string, previousPath: string | null) {
-  if (!previousPath) {
-    return { common: '', different: currentPath }
-  }
+type PathPart = {
+  segment: string
+  isCommon: boolean
+  isLastCommon: boolean
+  isPackageName: boolean
+  isInfrastructure: boolean
+}
 
-  const currentSegments = currentPath.split('/')
-  const previousSegments = previousPath.split('/')
+function spitPathSegments(path: string): string[] {
+  return Array.from(path.matchAll(/(.+?(?:\/|$))/g)).map(([i]) => i)
+}
+
+function getPathParts(
+  currentPath: string,
+  previousPath: string | null
+): PathPart[] {
+  const currentSegments = spitPathSegments(currentPath)
 
   let commonCount = 0
-  const minLength = Math.min(currentSegments.length, previousSegments.length)
+  if (previousPath) {
+    const previousSegments = spitPathSegments(previousPath)
 
-  for (let i = 0; i < minLength; i++) {
-    if (currentSegments[i] === previousSegments[i]) {
-      commonCount++
-    } else {
-      break
+    const minLength = Math.min(currentSegments.length, previousSegments.length)
+
+    for (let i = 0; i < minLength; i++) {
+      if (currentSegments[i] === previousSegments[i]) {
+        commonCount++
+      } else {
+        break
+      }
     }
   }
 
-  const commonSegments = currentSegments.slice(0, commonCount)
-  const differentSegments = currentSegments.slice(commonCount)
-
-  const common =
-    commonSegments.length === 0
-      ? ''
-      : differentSegments.length === 0
-        ? `${commonSegments.join('/')}`
-        : `${commonSegments.join('/')}/`
-  return {
-    common,
-    different: differentSegments.join('/'),
+  let infrastructureCount = 0
+  let packageNameCount = 0
+  let nodeModulesIndex = currentSegments.lastIndexOf('node_modules/')
+  if (nodeModulesIndex === -1) {
+    nodeModulesIndex = currentSegments.length
+  } else {
+    infrastructureCount = nodeModulesIndex + 1
+    if (currentSegments[nodeModulesIndex + 1]?.startsWith('@')) {
+      packageNameCount = 2
+    } else {
+      packageNameCount = 1
+    }
   }
-}
 
-const insertLineBreaks = (path: string) => {
-  const segments = path.split('/')
-  return segments.map((segment, i) => (
-    <span
-      key={`${segment}-${i}`}
-      className={segment.length > 20 ? 'break-all' : ''}
-    >
-      {segment}
-      {i < segments.length - 1 && '/'}
-      <wbr />
-    </span>
-  ))
+  return currentSegments.map((segment, i) => ({
+    segment,
+    isCommon: i < commonCount,
+    isLastCommon: i === commonCount - 1,
+    isInfrastructure: i < infrastructureCount,
+    isPackageName:
+      i >= infrastructureCount && i < infrastructureCount + packageNameCount,
+  }))
 }
 
 function getTitle(level: ChainLevel) {
@@ -330,10 +340,7 @@ export function ImportChain({
       <div className="space-y-0">
         {chain.map((level, index) => {
           const previousPath = index > 0 ? chain[index - 1].path : null
-          const { common, different } = getPathDifference(
-            level.path,
-            previousPath
-          )
+          const parts = getPathParts(level.path, previousPath)
 
           const flags =
             level.sourceIndex !== undefined
@@ -402,21 +409,35 @@ export function ImportChain({
                     className="font-mono text-xs text-foreground text-center block break-words"
                     title={getTitle(level)}
                   >
-                    {index === 0 ? (
-                      <span className="font-normal">
-                        {insertLineBreaks(level.path)}
-                      </span>
-                    ) : (
-                      <>
-                        {common && (
-                          <span className="font-normal text-muted-foreground/60">
-                            {insertLineBreaks(common)}
-                          </span>
-                        )}
-                        <span className="font-bold">
-                          {insertLineBreaks(different)}
+                    {parts.map(
+                      (
+                        {
+                          segment,
+                          isCommon,
+                          isLastCommon,
+                          isInfrastructure,
+                          isPackageName,
+                        },
+                        i
+                      ) => (
+                        <span
+                          key={i}
+                          className={clsx(
+                            segment.length > 20 && 'break-all',
+                            isCommon &&
+                              !isLastCommon &&
+                              !isPackageName &&
+                              !isInfrastructure &&
+                              'text-muted-foreground/80',
+                            !isCommon && !isInfrastructure && 'font-bold',
+                            isInfrastructure && 'text-muted-foreground/50',
+                            isPackageName && 'text-orange-500'
+                          )}
+                        >
+                          {segment}
+                          <wbr />
                         </span>
-                      </>
+                      )
                     )}
                   </span>
                 </div>
