@@ -106,7 +106,7 @@ pub async fn get_browser_runtime_code(
             writedoc!(
                 code,
                 r#"
-                    const CHUNK_SUFFIX_PATH = "";
+                    const CHUNK_SUFFIX = "";
                 "#
             )?;
         }
@@ -114,7 +114,7 @@ pub async fn get_browser_runtime_code(
             writedoc!(
                 code,
                 r#"
-                    const CHUNK_SUFFIX_PATH = {};
+                    const CHUNK_SUFFIX = {};
                 "#,
                 StringifyJs(suffix.as_str())
             )?;
@@ -123,7 +123,7 @@ pub async fn get_browser_runtime_code(
             writedoc!(
                 code,
                 r#"
-                    const CHUNK_SUFFIX_PATH = document?.currentScript?.getAttribute?.('src')?.replace(/^(.*(?=\?)|^.*$)/, "") || "";
+                    const CHUNK_SUFFIX = (self.TURBOPACK_CHUNK_SUFFIX ?? document?.currentScript?.getAttribute?.('src')?.replace(/^(.*(?=\?)|^.*$)/, "")) || "";
                 "#
             )?;
         }
