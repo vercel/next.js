@@ -100,7 +100,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     ident::AssetIdent,
-    module::{Module, OptionModule},
+    module::{Module, ModuleSideEffects, OptionModule},
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     reference::ModuleReferences,
@@ -778,7 +778,7 @@ impl Module for EcmascriptModuleAsset {
         Ok(if *pkg_side_effect_free.await? {
             pkg_side_effect_free
         } else {
-            Vc::cell(self.analyze().await?.has_side_effect_free_directive)
+            Vc::cell(self.analyze().await?.side_effects == ModuleSideEffects::SideEffectFree)
         })
     }
 }

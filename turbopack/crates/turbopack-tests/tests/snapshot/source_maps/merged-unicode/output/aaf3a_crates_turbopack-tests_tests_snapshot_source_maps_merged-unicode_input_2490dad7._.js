@@ -11,17 +11,6 @@ module.exports = {};
 __turbopack_context__.s([], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/entry-base.js [test] (ecmascript)");
 // MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/params.js [test] (ecmascript)
 ;
-// MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/reflect-utils.js [test] (ecmascript)
-;
-// This regex will have fast negatives meaning valid identifiers may not pass
-// this test. However this is only used during static generation to provide hints
-// about why a page bailed out of some or all prerendering and we can use bracket notation
-// for example while `ಠ_ಠ` is a valid identifier it's ok to print `searchParams['ಠ_ಠ']`
-// even if this would have been fine too `searchParams.ಠ_ಠ`
-const isDefinitelyAValidIdentifier = /s/;
-function describeStringPropertyAccess(target, prop) {}
-function describeHasCheckingStringProperty(target, prop) {}
-const wellKnownProperties = new Set([]);
 ;
 // MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/collect-segment-data.js [test] (ecmascript)
 ;
