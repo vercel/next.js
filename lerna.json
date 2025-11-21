@@ -2,7 +2,8 @@
   "npmClient": "pnpm",
   "useWorkspaces": true,
   "packages": [
-    "packages/*"
+    "packages/*",
+    "apps/bundle-analyzer"
   ],
   "command": {
     "version": {
