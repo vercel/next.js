@@ -285,7 +285,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 let node_resolve_options =
                     node_cjs_resolve_options(lookup_path.root().owned().await?);
                 let node_resolved = resolve(
-                    self.project_path.clone(),
+                    lookup_path.clone(),
                     reference_type.clone(),
                     request,
                     node_resolve_options,
