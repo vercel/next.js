@@ -538,11 +538,11 @@ impl VisitMut for NextSsg {
     }
 
     /// This methods returns [Pat::Invalid] if the pattern should be removed.
-    fn visit_mut_pat(&mut self, mut p: &mut Pat) {
+    fn visit_mut_pat(&mut self, p: &mut Pat) {
         p.visit_mut_children_with(self);
 
         if self.in_lhs_of_var {
-            match &mut p {
+            match p {
                 Pat::Ident(name) => {
                     if self.should_remove(name.id.to_id()) {
                         self.state.should_run_again = true;
@@ -566,34 +566,19 @@ impl VisitMut for NextSsg {
                 }
                 Pat::Object(obj) => {
                     if !obj.props.is_empty() {
-                        obj.props = take(&mut obj.props)
-                            .into_iter()
-                            .filter_map(|prop| match prop {
-                                ObjectPatProp::KeyValue(prop) => {
-                                    if prop.value.is_invalid() {
-                                        None
-                                    } else {
-                                        Some(ObjectPatProp::KeyValue(prop))
-                                    }
-                                }
-                                ObjectPatProp::Assign(mut prop) => {
-                                    if self.should_remove(prop.key.to_id()) {
-                                        self.mark_as_candidate(&mut prop.value);
+                        obj.props.retain_mut(|prop| match prop {
+                            ObjectPatProp::KeyValue(prop) => !prop.value.is_invalid(),
+                            ObjectPatProp::Assign(prop) => {
+                                if self.should_remove(prop.key.to_id()) {
+                                    self.mark_as_candidate(&mut prop.value);
 
-                                        None
-                                    } else {
-                                        Some(ObjectPatProp::Assign(prop))
-                                    }
+                                    false
+                                } else {
+                                    true
                                 }
-                                ObjectPatProp::Rest(prop) => {
-                                    if prop.arg.is_invalid() {
-                                        None
-                                    } else {
-                                        Some(ObjectPatProp::Rest(prop))
-                                    }
-                                }
-                            })
-                            .collect();
+                            }
+                            ObjectPatProp::Rest(prop) => !prop.arg.is_invalid(),
+                        });
 
                         if obj.props.is_empty() {
                             *p = Pat::Invalid(Invalid { span: DUMMY_SP });
