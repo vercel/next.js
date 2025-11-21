@@ -37,9 +37,10 @@ const nextConfig = {
 export default nextConfig
 ```
 
+`cacheLife` requires the `use cache` directive, which must be placed at the file level or at the top of an async function or component
+
 > **Good to know**:
 >
-> - `cacheLife` requires the `use cache` directive, which must be placed at the file level or at the top of an async function or component
 > - If used, `cacheLife` should be placed within the function whose output is being cached, even when the `use cache` directive is at file level
 > - Only one `cacheLife` call should execute per function invocation. You can call `cacheLife` in different control flow branches, but ensure only one executes per run. See the [conditional cache lifetimes](#conditional-cache-lifetimes) example
 
@@ -417,7 +418,7 @@ export default async function Dashboard() {
 }
 ```
 
-> **Good to know**: It is recommended to specify an explicit `cacheLife`. With explicit lifetime values, you can inspect a cache and immediately know its behavior without tracing through nested caches. Without explicit lifetime values, the behavior becomes dependent on inner cache lifetimes, making it harder to reason about.
+**It is recommended to specify an explicit `cacheLife`.** With explicit lifetime values, you can inspect a cached function or component and immediately know its behavior without tracing through nested caches. Without explicit lifetime values, the behavior becomes dependent on inner cache lifetimes, making it harder to reason about.
 
 ### Conditional cache lifetimes
 
@@ -449,11 +450,11 @@ async function getPostContent(slug: string) {
 }
 ```
 
-This pattern is useful when different outcomes need different cache durations, such as errors vs. success, or missing vs. available content.
+This pattern is useful when different outcomes need different cache durations, for example, when an item is missing but is likely to be available later.
 
 #### Using dynamic cache lifetimes from data
 
-For dynamic cache behavior based on external data (like CMS settings), use inline objects instead of profile names to avoid validation complexity:
+If you want to calculate cache lifetime at runtime, for example by reading it from the fetched data, use an [inline cache profile](#inline-cache-profiles) object:
 
 ```tsx filename="lib/posts.ts" highlight={15,16,17}
 import { cacheLife, cacheTag } from 'next/cache'
@@ -478,5 +479,3 @@ async function getPostContent(slug: string) {
   return post.data
 }
 ```
-
-> **Good to know**: Invalid profile names passed to `cacheLife` will throw runtime errors. When using external data, inline objects with fallback values are recommended.
