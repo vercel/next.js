@@ -898,7 +898,12 @@ impl AssetContext for ModuleAssetContext {
                                 ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
                             }
                         }
-                        ResolveResultItem::External { name, ty, traced } => {
+                        ResolveResultItem::External {
+                            name,
+                            ty,
+                            traced,
+                            target,
+                        } => {
                             let replacement = if replace_externals {
                                 let analyze_mode = if traced == ExternalTraced::Traced
                                     && let Some(options) = &self
@@ -924,7 +929,8 @@ impl AssetContext for ModuleAssetContext {
                                     CachedExternalTracingMode::Untraced
                                 };
 
-                                replace_external(&name, ty, import_externals, analyze_mode).await?
+                                replace_external(&name, ty, target, import_externals, analyze_mode)
+                                    .await?
                             } else {
                                 None
                             };
@@ -1051,6 +1057,7 @@ pub async fn emit_assets_into_dir_operation(
 pub async fn replace_external(
     name: &RcStr,
     ty: ExternalType,
+    target: Option<FileSystemPath>,
     import_externals: bool,
     analyze_mode: CachedExternalTracingMode,
 ) -> Result<Option<ModuleResolveResultItem>> {
@@ -1071,7 +1078,7 @@ pub async fn replace_external(
         }
     };
 
-    let module = CachedExternalModule::new(name.clone(), external_type, analyze_mode)
+    let module = CachedExternalModule::new(name.clone(), target, external_type, analyze_mode)
         .to_resolved()
         .await?;
 

@@ -444,6 +444,7 @@ pub enum ResolveResultItem {
         name: RcStr,
         ty: ExternalType,
         traced: ExternalTraced,
+        target: Option<FileSystemPath>,
     },
     Ignore,
     Error(ResolvedVc<RcStr>),
@@ -524,10 +525,19 @@ impl ValueToString for ResolveResult {
                     name: s,
                     ty,
                     traced,
+                    target,
                 } => {
                     result.push_str("external ");
                     result.push_str(s);
-                    write!(result, " ({ty}, {traced})")?;
+                    write!(
+                        result,
+                        " ({ty}, {traced}, {:?})",
+                        if let Some(target) = target {
+                            Some(target.value_to_string().await?)
+                        } else {
+                            None
+                        }
+                    )?;
                 }
                 ResolveResultItem::Ignore => {
                     result.push_str("ignore");
@@ -656,8 +666,13 @@ impl ResolveResult {
                             request,
                             match item {
                                 ResolveResultItem::Source(source) => asset_fn(source).await?,
-                                ResolveResultItem::External { name, ty, traced } => {
-                                    if traced == ExternalTraced::Traced {
+                                ResolveResultItem::External {
+                                    name,
+                                    ty,
+                                    traced,
+                                    target,
+                                } => {
+                                    if traced == ExternalTraced::Traced || target.is_some() {
                                         // Should use map_primary_items instead
                                         bail!("map_module doesn't handle traced externals");
                                     }
@@ -2009,6 +2024,7 @@ async fn resolve_internal_inline(
                             name: uri,
                             ty: ExternalType::Url,
                             traced: ExternalTraced::Untraced,
+                            target: None,
                         },
                     )
                 }
@@ -2026,6 +2042,7 @@ async fn resolve_internal_inline(
                         name: uri,
                         ty: ExternalType::Url,
                         traced: ExternalTraced::Untraced,
+                        target: None,
                     },
                 )
             }
@@ -2751,13 +2768,17 @@ async fn resolve_import_map_result(
                 ))
             }
         }
-        ImportMapResult::External { name, ty, traced } => {
-            Some(*ResolveResult::primary(ResolveResultItem::External {
-                name: name.clone(),
-                ty: *ty,
-                traced: *traced,
-            }))
-        }
+        ImportMapResult::External {
+            name,
+            ty,
+            traced,
+            target,
+        } => Some(*ResolveResult::primary(ResolveResultItem::External {
+            name: name.clone(),
+            ty: *ty,
+            traced: *traced,
+            target: target.clone(),
+        })),
         ImportMapResult::AliasExternal {
             name,
             ty,
@@ -2793,6 +2814,7 @@ async fn resolve_import_map_result(
                         name: name.clone(),
                         ty: *ty,
                         traced: *traced,
+                        target: None,
                     }))
                 } else {
                     None

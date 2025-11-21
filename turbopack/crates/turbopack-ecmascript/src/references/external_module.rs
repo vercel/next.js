@@ -1,17 +1,21 @@
-use std::{fmt::Display, io::Write};
+use std::{borrow::Cow, fmt::Display, io::Write};
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{FileContent, FileSystem, VirtualFileSystem, glob::Glob, rope::RopeBuilder};
+use turbo_tasks_fs::{FileContent, FileSystem, FileSystemPath, LinkType, VirtualFileSystem, glob::Glob, rope::RopeBuilder};
+use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::{AssetIdent, Layer},
     module::Module,
     module_graph::ModuleGraph,
-    output::OutputAssetsReference,
+    output::{
+        OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsReferences,
+        OutputAssetsWithReferenced,
+    },
     raw_module::RawModule,
     reference::{ModuleReference, ModuleReferences, TracedModuleReference},
     reference_type::ReferenceType,
@@ -84,8 +88,22 @@ impl Display for CachedExternalType {
 #[turbo_tasks::value]
 pub struct CachedExternalModule {
     request: RcStr,
+    target: Option<FileSystemPath>,
     external_type: CachedExternalType,
     analyze_mode: CachedExternalTracingMode,
+}
+
+impl CachedExternalModule {
+    pub fn request(&self) -> Cow<'_, str> {
+        if let Some(target) = &self.target {
+            use turbo_tasks_hash::DeterministicHash;
+            let mut hasher = Xxh3Hash64Hasher::new();
+            target.path.deterministic_hash(&mut hasher);
+            Cow::Owned(format!("{}-{}", self.request, encode_hex(hasher.finish())))
+        } else {
+            Cow::Borrowed(&*self.request)
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -93,11 +111,13 @@ impl CachedExternalModule {
     #[turbo_tasks::function]
     pub fn new(
         request: RcStr,
+        target: Option<FileSystemPath>,
         external_type: CachedExternalType,
         analyze_mode: CachedExternalTracingMode,
     ) -> Vc<Self> {
         Self::cell(CachedExternalModule {
             request,
+            target,
             external_type,
             analyze_mode,
         })
@@ -112,7 +132,16 @@ impl CachedExternalModule {
                 writeln!(
                     code,
                     "const mod = await {TURBOPACK_EXTERNAL_IMPORT}({});",
-                    StringifyJs(&self.request)
+                    StringifyJs(&self.request())
+                )?;
+            }
+            CachedExternalType::EcmaScriptViaRequire | CachedExternalType::CommonJs => {
+                let request = self.request();
+                writeln!(
+                    code,
+                    "const mod = {TURBOPACK_EXTERNAL_REQUIRE}({}, () => require({}));",
+                    StringifyJs(&request),
+                    StringifyJs(&request)
                 )?;
             }
             CachedExternalType::Global => {
@@ -180,14 +209,6 @@ impl CachedExternalModule {
                     writeln!(code, "const mod = undefined;")?;
                 }
             }
-            CachedExternalType::EcmaScriptViaRequire | CachedExternalType::CommonJs => {
-                writeln!(
-                    code,
-                    "const mod = {TURBOPACK_EXTERNAL_REQUIRE}({}, () => require({}));",
-                    StringifyJs(&self.request),
-                    StringifyJs(&self.request)
-                )?;
-            }
         }
 
         writeln!(code)?;
@@ -219,10 +240,16 @@ impl Module for CachedExternalModule {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let fs = VirtualFileSystem::new_with_name(rcstr!("externals"));
 
-        Ok(AssetIdent::from_path(fs.root().await?.join(&self.request)?)
+        let mut ident = AssetIdent::from_path(fs.root().await?.join(&self.request)?)
             .with_layer(Layer::new(rcstr!("external")))
             .with_modifier(self.request.clone())
-            .with_modifier(self.external_type.to_string().into()))
+            .with_modifier(self.external_type.to_string().into());
+
+        if let Some(target) = &self.target {
+            ident = ident.with_modifier(target.value_to_string().owned().await?);
+        }
+
+        Ok(ident)
     }
 
     #[turbo_tasks::function]
@@ -379,7 +406,31 @@ pub struct CachedExternalModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAssetsReference for CachedExternalModuleChunkItem {}
+impl OutputAssetsReference for CachedExternalModuleChunkItem {
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let module = self.module.await?;
+        let assets = if let Some(target) = &module.target {
+            ResolvedVc::cell(vec![ResolvedVc::upcast(
+                ExternalsSymlinkAsset::new(
+                    *self.chunking_context,
+                    module.request().into_owned().into(),
+                    target.clone(),
+                )
+                .to_resolved()
+                .await?,
+            )])
+        } else {
+            OutputAssets::empty_resolved()
+        };
+        Ok(OutputAssetsWithReferenced {
+            assets,
+            referenced_assets: OutputAssets::empty_resolved(),
+            references: OutputAssetsReferences::empty_resolved(),
+        }
+        .cell())
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for CachedExternalModuleChunkItem {
@@ -471,4 +522,76 @@ impl Module for ModuleWithoutSelfAsync {
     }
 
     // Don't override and use default is_self_async that always returns false
+}
+
+#[derive(Debug)]
+#[turbo_tasks::value(shared)]
+pub struct ExternalsSymlinkAsset {
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    virtual_package: RcStr,
+    target: FileSystemPath,
+}
+#[turbo_tasks::value_impl]
+impl ExternalsSymlinkAsset {
+    #[turbo_tasks::function]
+    pub fn new(
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        virtual_package: RcStr,
+        target: FileSystemPath,
+    ) -> Vc<Self> {
+        ExternalsSymlinkAsset {
+            chunking_context,
+            virtual_package,
+            target,
+        }
+        .cell()
+    }
+}
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for ExternalsSymlinkAsset {}
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for ExternalsSymlinkAsset {
+    #[turbo_tasks::function]
+    async fn path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(self
+            .chunking_context
+            .output_root()
+            .await?
+            .join("node_modules")?
+            .join(&self.virtual_package)?
+            .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for ExternalsSymlinkAsset {
+    #[turbo_tasks::function]
+    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        let this = self.await?;
+        // context.root [project]/
+        // context.output [output]/bench/app-router-server/.next
+        // context.output_root_to_root_path ../../..
+
+        // path [output]/bench/app-router-server/.next/node_modules/lodash-ee4fa714b6d81ca3
+        // target [project]/node_modules/.pnpm/lodash@3.10.1/node_modules/lodash
+
+        // TODO figure this out properly, what if output and project FSs have different roots?
+        let path_on_project_fs = this.target.root().await?.join(&self.path().await?.path)?;
+        let Some(target_rel) = path_on_project_fs
+            .parent()
+            .get_relative_path_to(&this.target)
+        else {
+            bail!(
+                "cannot determine relative path to {}",
+                this.target.value_to_string().await?
+            );
+        };
+
+        Ok(AssetContent::Redirect {
+            target: target_rel,
+            link_type: LinkType::DIRECTORY,
+        }
+        .cell())
+    }
 }
