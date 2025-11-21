@@ -116,6 +116,10 @@ export interface RenderOptsPartial {
     htmlRequestId: string,
     requestId: string
   ) => void
+  sendErrorsToBrowser?: (
+    errorsRscStream: ReadableStream<Uint8Array>,
+    htmlRequestId: string
+  ) => void
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
   onInstrumentationRequestError?: ServerOnInstrumentationRequestError

@@ -112,12 +112,7 @@ describe('react-performance-track', () => {
 
     const track = await browser.eval('window.reactServerRequests.getSnapshot()')
     // TODO: Should include "draftMode [Prefetchable]".
-    expect(track).toEqual([
-      {
-        name: '\u200b',
-        properties: [],
-      },
-    ])
+    expect(track).toEqual([])
   })
 
   it('should show headers', async () => {

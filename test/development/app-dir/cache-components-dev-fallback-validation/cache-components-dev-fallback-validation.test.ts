@@ -74,7 +74,6 @@ describe('Cache Components Fallback Validation', () => {
            |                          ^",
          "stack": [
            "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -103,7 +102,6 @@ describe('Cache Components Fallback Validation', () => {
            |                          ^",
          "stack": [
            "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -135,7 +133,6 @@ describe('Cache Components Fallback Validation', () => {
            |                          ^",
          "stack": [
            "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -164,7 +161,6 @@ describe('Cache Components Fallback Validation', () => {
            |                          ^",
          "stack": [
            "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -196,7 +192,6 @@ describe('Cache Components Fallback Validation', () => {
            |                          ^",
          "stack": [
            "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -225,7 +220,6 @@ describe('Cache Components Fallback Validation', () => {
            |                          ^",
          "stack": [
            "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -261,7 +255,6 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -290,7 +283,6 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -322,7 +314,6 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -351,7 +342,6 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -383,7 +373,6 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -412,7 +401,6 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -444,7 +432,6 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -473,7 +460,6 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -505,7 +491,6 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -534,7 +519,6 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -566,7 +550,6 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)
@@ -595,7 +578,6 @@ describe('Cache Components Fallback Validation', () => {
             |   ^",
          "stack": [
            "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
-           "ReportValidation <anonymous>",
          ],
        }
       `)

@@ -115,6 +115,11 @@ import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
+import {
+  sendSerializedErrorsToClient,
+  sendSerializedErrorsToClientForHtmlRequest,
+  setErrorsRscStreamForHtmlRequest,
+} from './serialized-errors'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -646,6 +651,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           htmlRequestId,
           this.sendToClient.bind(this, client)
         )
+
+        sendSerializedErrorsToClientForHtmlRequest(
+          htmlRequestId,
+          this.sendToClient.bind(this, client)
+        )
+
         if (enableCacheComponents) {
           const status = this.cacheStatusesByRequestId.get(htmlRequestId)
           if (status) {
@@ -1798,6 +1809,25 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         debugChannel,
         this.sendToClient.bind(this, client)
       )
+    }
+  }
+
+  public sendErrorsToBrowser(
+    errorsRscStream: ReadableStream<Uint8Array>,
+    htmlRequestId: string
+  ): void {
+    const client = this.webpackHotMiddleware?.getClient(htmlRequestId)
+
+    if (client) {
+      // If the client is connected, we can send the errors immediately.
+      sendSerializedErrorsToClient(
+        errorsRscStream,
+        this.sendToClient.bind(this, client)
+      )
+    } else {
+      // Otherwise, store the errors stream so that we can send it when the
+      // client connects.
+      setErrorsRscStreamForHtmlRequest(htmlRequestId, errorsRscStream)
     }
   }
 

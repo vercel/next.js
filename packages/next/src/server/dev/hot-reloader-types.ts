@@ -40,6 +40,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
 
   // Binary messages:
   REACT_DEBUG_CHUNK = 0,
+  ERRORS_TO_SHOW_IN_BROWSER = 1,
 }
 
 export const enum HMR_MESSAGE_SENT_TO_SERVER {
@@ -157,6 +158,11 @@ export interface ReactDebugChunkMessage {
   chunk: Uint8Array | null
 }
 
+export interface ErrorsToShowInBrowserMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER
+  serializedErrors: Uint8Array
+}
+
 export interface RequestCurrentErrorStateMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE
   requestId: string
@@ -189,6 +195,7 @@ export type HmrMessageSentToBrowser =
   | ServerErrorMessage
   | AppIsrManifestMessage
   | DevToolsConfigMessage
+  | ErrorsToShowInBrowserMessage
   | ReactDebugChunkMessage
   | RequestCurrentErrorStateMessage
   | RequestPageMetadataMessage
@@ -234,6 +241,10 @@ export interface NextJsHotReloaderInterface {
     debugChannel: ReactDebugChannelForBrowser,
     htmlRequestId: string,
     requestId: string
+  ): void
+  sendErrorsToBrowser(
+    errorsRscStream: ReadableStream<Uint8Array>,
+    htmlRequestId: string
   ): void
   getCompilationErrors(page: string): Promise<any[]>
   onHMR(

@@ -30,7 +30,6 @@ describe('Cache Components Dev Errors', () => {
        "stack": [
          "Page app/error/page.tsx (2:23)",
          "Page <anonymous>",
-         "ReportValidation <anonymous>",
        ],
      }
     `)
@@ -60,7 +59,6 @@ describe('Cache Components Dev Errors', () => {
        "stack": [
          "Page app/error/page.tsx (2:23)",
          "Page <anonymous>",
-         "ReportValidation <anonymous>",
        ],
      }
     `)
@@ -118,7 +116,6 @@ describe('Cache Components Dev Errors', () => {
          |         ^",
        "stack": [
          "Page app/no-accessed-data/page.js (2:9)",
-         "ReportValidation <anonymous>",
        ],
      }
     `)
