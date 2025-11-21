@@ -173,8 +173,19 @@ module.exports = {
 
 This configuration option will be removed in a future major version.
 
+## Debugging
+
+If you're having trouble locating where `useSearchParams()` is being used without a Suspense boundary, you can get more detailed stack traces by running:
+
+```bash
+next build --debug-prerender
+```
+
+This provides unminified stack traces with source maps, making it easier to pinpoint the exact component and route causing the issue.
+
 ## Useful Links
 
 - [`useSearchParams`](/docs/app/api-reference/functions/use-search-params)
 - [`connection`](/docs/app/api-reference/functions/connection)
 - [Dynamic Rendering guide](/docs/app/guides/caching#dynamic-rendering)
+- [Debugging prerender errors](/docs/app/api-reference/cli/next#debugging-prerender-errors)
