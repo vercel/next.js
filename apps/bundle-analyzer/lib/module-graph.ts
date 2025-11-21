@@ -72,27 +72,25 @@ export function computeModuleDepthMap(
   activeEntries: ModuleIndex[]
 ): Map<ModuleIndex, number> {
   const depthMap = new Map<ModuleIndex, number>()
-  const queue: Array<{ moduleIndex: ModuleIndex; depth: number }> = []
+  const delayedModules = new Array<{ depth: number; queue: ModuleIndex[] }>()
 
   // Initialize queue with active entries
   for (const moduleIndex of activeEntries) {
-    if (!depthMap.has(moduleIndex)) {
-      depthMap.set(moduleIndex, 0)
-      queue.push({ moduleIndex, depth: 0 })
-    }
+    depthMap.set(moduleIndex, 0)
   }
 
   // BFS to compute depth
-  while (queue.length > 0) {
-    const { moduleIndex, depth } = queue.shift()!
-
+  // We need to insert new entries into the depth map in monotonic increasing order of depth
+  // so that we always process shallower modules before deeper ones
+  // This is important to avoid visiting modules multiple times and needing to decrease their depth
+  let i = 0
+  for (const [moduleIndex, depth] of depthMap) {
+    const newDepth = depth + 1
     // Process regular dependencies
     const dependencies = modulesData.moduleDependencies(moduleIndex)
     for (const depIndex of dependencies) {
       if (!depthMap.has(depIndex)) {
-        const newDepth = depth + 1
         depthMap.set(depIndex, newDepth)
-        queue.push({ moduleIndex: depIndex, depth: newDepth })
       }
     }
 
@@ -101,10 +99,44 @@ export function computeModuleDepthMap(
     for (const depIndex of asyncDependencies) {
       if (!depthMap.has(depIndex)) {
         const newDepth = depth + 1000
-        depthMap.set(depIndex, newDepth)
-        queue.push({ moduleIndex: depIndex, depth: newDepth })
+        // We can't directly insert async dependencies into the depth map
+        // because they might be processed before their parent module
+        // leading to incorrect depth assignment.
+        // Instead, we queue them to be processed later.
+        let delayedQueue = delayedModules.find((dq) => dq.depth === newDepth)
+        if (!delayedQueue) {
+          delayedQueue = { depth: newDepth, queue: [] }
+          delayedModules.push(delayedQueue)
+          // Keep delayed queues sorted by depth descending
+          delayedModules.sort((a, b) => b.depth - a.depth)
+        }
+        delayedQueue.queue.push(depIndex)
       }
     }
+
+    i++
+
+    // Check if we need to process the next delayed queue to insert its items into the depth map
+    // This happens when we reach the end of the current queue
+    // or the next delayed queue has the same depth so its items need to be processed now
+    while (
+      delayedModules.length > 0 &&
+      (i === depthMap.size ||
+        newDepth === delayedModules[delayedModules.length - 1].depth)
+    ) {
+      const { depth, queue } = delayedModules.pop()!
+      for (const depIndex of queue) {
+        if (!depthMap.has(depIndex)) {
+          depthMap.set(depIndex, depth)
+        }
+      }
+    }
+  }
+
+  if (delayedModules.length > 0) {
+    throw new Error(
+      'Internal error: delayed modules remain after BFS processing'
+    )
   }
 
   return depthMap
