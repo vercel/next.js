@@ -188,18 +188,19 @@ where
     EmitError: Fn(Span, String),
 {
     fn warn_if_nodejs_module(&self, span: Span, module_specifier: &Wtf8Atom) -> Option<()> {
-        let module_specifier = module_specifier.as_str()?;
+        let module_specifier_str = module_specifier.as_str()?;
         if self.guarded_runtime {
             return None;
         }
 
         // Node.js modules can be loaded with `node:` prefix or directly
-        if module_specifier.starts_with("node:") || NODEJS_MODULE_NAMES.contains(&module_specifier)
+        if module_specifier.starts_with("node:")
+            || NODEJS_MODULE_NAMES.contains(&module_specifier_str)
         {
             let loc = self.cm.lookup_line(span.lo).ok()?;
 
             let msg = format!(
-                "A Node.js module is loaded ('{module_specifier}' at line {}) which is not \
+                "A Node.js module is loaded ('{module_specifier_str}' at line {}) which is not \
                  supported in the Edge Runtime.
 Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime",
                 loc.line + 1

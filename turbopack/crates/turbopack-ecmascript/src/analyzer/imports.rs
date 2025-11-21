@@ -29,19 +29,19 @@ use crate::{
 pub struct ImportAnnotations {
     // TODO store this in more structured way
     #[turbo_tasks(trace_ignore)]
-    map: BTreeMap<Atom, Atom>,
+    map: BTreeMap<Wtf8Atom, Wtf8Atom>,
 }
 
 /// Enables a specified transition for the annotated import
-static ANNOTATION_TRANSITION: Lazy<Atom> =
+static ANNOTATION_TRANSITION: Lazy<Wtf8Atom> =
     Lazy::new(|| crate::annotations::ANNOTATION_TRANSITION.into());
 
 /// Changes the chunking type for the annotated import
-static ANNOTATION_CHUNKING_TYPE: Lazy<Atom> =
+static ANNOTATION_CHUNKING_TYPE: Lazy<Wtf8Atom> =
     Lazy::new(|| crate::annotations::ANNOTATION_CHUNKING_TYPE.into());
 
 /// Changes the type of the resolved module (only "json" is supported currently)
-static ATTRIBUTE_MODULE_TYPE: Lazy<Atom> = Lazy::new(|| atom!("type"));
+static ATTRIBUTE_MODULE_TYPE: Lazy<Wtf8Atom> = Lazy::new(|| atom!("type").into());
 
 impl ImportAnnotations {
     pub fn parse(with: Option<&ObjectLit>) -> ImportAnnotations {
@@ -64,16 +64,13 @@ impl ImportAnnotations {
             Some((&kv.key, str))
         }) {
             let key = match key {
-                PropName::Ident(ident) => Cow::Borrowed(ident.sym.as_str()),
-                PropName::Str(str) => str.value.to_string_lossy(),
+                PropName::Ident(ident) => ident.sym.clone().into(),
+                PropName::Str(str) => str.value.clone(),
                 // the rest are invalid, ignore for now till SWC ast is correct
                 _ => continue,
             };
 
-            map.insert(
-                key.into(),
-                value.value.to_string_lossy().into_owned().into(),
-            );
+            map.insert(key, value.value.clone());
         }
 
         ImportAnnotations { map }
@@ -98,29 +95,33 @@ impl ImportAnnotations {
                 continue;
             };
 
-            map.insert(key.as_str().into(), value.as_str().into());
+            map.insert(
+                key.as_atom().into_owned().into(),
+                value.as_atom().into_owned().into(),
+            );
         }
 
         Some(ImportAnnotations { map })
     }
 
     /// Returns the content on the transition annotation
-    pub fn transition(&self) -> Option<&str> {
+    pub fn transition(&self) -> Option<Cow<'_, str>> {
         self.get(&ANNOTATION_TRANSITION)
+            .map(|v| v.to_string_lossy())
     }
 
     /// Returns the content on the chunking-type annotation
-    pub fn chunking_type(&self) -> Option<&str> {
+    pub fn chunking_type(&self) -> Option<&Wtf8Atom> {
         self.get(&ANNOTATION_CHUNKING_TYPE)
     }
 
     /// Returns the content on the type attribute
-    pub fn module_type(&self) -> Option<&str> {
+    pub fn module_type(&self) -> Option<&Wtf8Atom> {
         self.get(&ATTRIBUTE_MODULE_TYPE)
     }
 
-    pub fn get(&self, key: &Atom) -> Option<&str> {
-        self.map.get(key).map(|w| w.as_str())
+    pub fn get(&self, key: &Wtf8Atom) -> Option<&Wtf8Atom> {
+        self.map.get(key)
     }
 }
 
@@ -128,12 +129,12 @@ impl Display for ImportAnnotations {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut it = self.map.iter();
         if let Some((k, v)) = it.next() {
-            write!(f, "{{ {k}: {v}")?
+            write!(f, "{{ {}: {}", k.to_string_lossy(), v.to_string_lossy())?
         } else {
             return f.write_str("{}");
         };
         for (k, v) in it {
-            write!(f, ", {k}: {v}")?
+            write!(f, ", {}: {}", k.to_string_lossy(), v.to_string_lossy())?
         }
         f.write_str(" }")
     }
