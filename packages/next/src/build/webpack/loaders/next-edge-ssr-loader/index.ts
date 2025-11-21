@@ -1,7 +1,14 @@
 import type webpack from 'webpack'
+import type { SizeLimit } from '../../../../types'
+import type { PagesRouteModuleOptions } from '../../../../server/route-modules/pages/module'
+import type { ProxyConfig } from '../../../analysis/get-page-static-info'
+
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
-import { stringifyRequest } from '../../stringify-request'
+import { RouteKind } from '../../../../server/route-kind'
+import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
+import { loadEntrypoint } from '../../../load-entrypoint'
+import type { PAGE_TYPES } from '../../../../lib/page-types'
 
 export type EdgeSSRLoaderQuery = {
   absolute500Path: string
@@ -9,16 +16,21 @@ export type EdgeSSRLoaderQuery = {
   absoluteDocumentPath: string
   absoluteErrorPath: string
   absolutePagePath: string
-  buildId: string
   dev: boolean
   isServerComponent: boolean
   page: string
   stringifiedConfig: string
   appDirLoader?: string
-  pagesType: 'app' | 'pages' | 'root'
+  pagesType: PAGE_TYPES
   sriEnabled: boolean
-  incrementalCacheHandlerPath?: string
+  cacheHandler?: string
+  cacheHandlers?: string
   preferredRegion: string | string[] | undefined
+  middlewareConfig: string
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedOrigins?: string[]
+  }
 }
 
 /*
@@ -33,26 +45,59 @@ function swapDistFolderWithEsmDistFolder(path: string) {
   return path.replace('next/dist/pages', 'next/dist/esm/pages')
 }
 
+function getRouteModuleOptions(page: string) {
+  const options: Omit<PagesRouteModuleOptions, 'userland' | 'components'> = {
+    definition: {
+      kind: RouteKind.PAGES,
+      page: normalizePagePath(page),
+      pathname: page,
+      // The following aren't used in production.
+      bundlePath: '',
+      filename: '',
+    },
+    // edge runtime doesn't read from distDir or projectDir
+    distDir: '',
+    relativeProjectDir: '',
+  }
+
+  return options
+}
+
 const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
   async function edgeSSRLoader(this) {
     const {
-      dev,
       page,
-      buildId,
       absolutePagePath,
       absoluteAppPath,
       absoluteDocumentPath,
       absolute500Path,
       absoluteErrorPath,
       isServerComponent,
-      stringifiedConfig,
+      stringifiedConfig: stringifiedConfigBase64,
       appDirLoader: appDirLoaderBase64,
       pagesType,
-      sriEnabled,
-      incrementalCacheHandlerPath,
+      cacheHandler,
+      cacheHandlers: cacheHandlersStringified,
       preferredRegion,
+      middlewareConfig: middlewareConfigBase64,
     } = this.getOptions()
 
+    const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}')
+
+    if (!cacheHandlers.default) {
+      cacheHandlers.default = require.resolve(
+        '../../../../server/lib/cache-handlers/default.external'
+      )
+    }
+
+    const middlewareConfig: ProxyConfig = JSON.parse(
+      Buffer.from(middlewareConfigBase64, 'base64').toString()
+    )
+
+    const stringifiedConfig = Buffer.from(
+      stringifiedConfigBase64 || '',
+      'base64'
+    ).toString()
     const appDirLoader = Buffer.from(
       appDirLoaderBase64 || '',
       'base64'
@@ -61,8 +106,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
 
     const buildInfo = getModuleBuildInfo(this._module as any)
     buildInfo.nextEdgeSSR = {
-      // @ts-expect-error === 'true' is correct because loader options are serialized as searchParams. Type needs to be fixed somehow.
-      isServerComponent: isServerComponent === 'true',
+      isServerComponent,
       page: page,
       isAppDir,
     }
@@ -70,116 +114,84 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       page,
       absolutePagePath,
       preferredRegion,
+      middlewareConfig,
     }
 
-    const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
-    const stringifiedAppPath = stringifyRequest(
-      this,
-      swapDistFolderWithEsmDistFolder(absoluteAppPath)
+    const pagePath = this.utils.contextify(
+      this.context || this.rootContext,
+      absolutePagePath
     )
-    const stringifiedErrorPath = stringifyRequest(
-      this,
-      swapDistFolderWithEsmDistFolder(absoluteErrorPath)
-    )
-    const stringifiedDocumentPath = stringifyRequest(
-      this,
-      swapDistFolderWithEsmDistFolder(absoluteDocumentPath)
-    )
-    const stringified500Path = absolute500Path
-      ? stringifyRequest(this, absolute500Path)
+    const appPath = absoluteAppPath
+      ? this.utils.contextify(
+          this.context || this.rootContext,
+          swapDistFolderWithEsmDistFolder(absoluteAppPath)
+        )
+      : ''
+    const errorPath = absoluteErrorPath
+      ? this.utils.contextify(
+          this.context || this.rootContext,
+          swapDistFolderWithEsmDistFolder(absoluteErrorPath)
+        )
+      : ''
+    const documentPath = absoluteDocumentPath
+      ? this.utils.contextify(
+          this.context || this.rootContext,
+          swapDistFolderWithEsmDistFolder(absoluteDocumentPath)
+        )
+      : ''
+    const userland500Path = absolute500Path
+      ? this.utils.contextify(
+          this.context || this.rootContext,
+          swapDistFolderWithEsmDistFolder(absolute500Path)
+        )
       : null
+
+    const stringifiedPagePath = JSON.stringify(pagePath)
 
     const pageModPath = `${appDirLoader}${stringifiedPagePath.substring(
       1,
       stringifiedPagePath.length - 1
     )}${isAppDir ? `?${WEBPACK_RESOURCE_QUERIES.edgeSSREntry}` : ''}`
 
-    const transformed = `
-    import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
-    import { getRender } from 'next/dist/esm/build/webpack/loaders/next-edge-ssr-loader/render'
-    import { IncrementalCache } from 'next/dist/esm/server/lib/incremental-cache'
-
-    enhanceGlobals()
-
-    const pagesType = ${JSON.stringify(pagesType)}
-    ${
-      isAppDir
-        ? `
-      import { renderToHTMLOrFlight as appRenderToHTML } from 'next/dist/esm/server/app-render/app-render'
-      import * as pageMod from ${JSON.stringify(pageModPath)}
-      const Document = null
-      const pagesRenderToHTML = null
-      const appMod = null
-      const errorMod = null
-      const error500Mod = null
-    `
-        : `
-      import Document from ${stringifiedDocumentPath}
-      import { renderToHTML as pagesRenderToHTML } from 'next/dist/esm/server/render'
-      import * as pageMod from ${stringifiedPagePath}
-      import * as appMod from ${stringifiedAppPath}
-      import * as errorMod from ${stringifiedErrorPath}
-      ${
-        stringified500Path
-          ? `import * as error500Mod from ${stringified500Path}`
-          : `const error500Mod = null`
-      }
-      const appRenderToHTML = null
-    `
+    if (isAppDir) {
+      return await loadEntrypoint(
+        'edge-ssr-app',
+        {
+          VAR_USERLAND: pageModPath,
+          VAR_PAGE: page,
+        },
+        {
+          nextConfig: stringifiedConfig,
+        },
+        {
+          incrementalCacheHandler: cacheHandler ?? null,
+        }
+      )
+    } else {
+      return await loadEntrypoint(
+        'edge-ssr',
+        {
+          VAR_USERLAND: pageModPath,
+          VAR_PAGE: page,
+          VAR_MODULE_DOCUMENT: documentPath,
+          VAR_MODULE_APP: appPath,
+          VAR_MODULE_GLOBAL_ERROR: errorPath,
+        },
+        {
+          nextConfig: stringifiedConfig,
+          pageRouteModuleOptions: JSON.stringify(getRouteModuleOptions(page)),
+          errorRouteModuleOptions: JSON.stringify(
+            getRouteModuleOptions('/_error')
+          ),
+          user500RouteModuleOptions: JSON.stringify(
+            getRouteModuleOptions('/500')
+          ),
+        },
+        {
+          userland500Page: userland500Path,
+          incrementalCacheHandler: cacheHandler ?? null,
+        }
+      )
     }
-
-    const incrementalCacheHandler = ${
-      incrementalCacheHandlerPath
-        ? `require("${incrementalCacheHandlerPath}")`
-        : 'null'
-    }
-
-    const buildManifest = self.__BUILD_MANIFEST
-    const prerenderManifest = self.__PRERENDER_MANIFEST
-    const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
-    const rscManifest = self.__RSC_MANIFEST
-    const rscCssManifest = self.__RSC_CSS_MANIFEST
-    const rscServerManifest = self.__RSC_SERVER_MANIFEST
-    const subresourceIntegrityManifest = ${
-      sriEnabled ? 'self.__SUBRESOURCE_INTEGRITY_MANIFEST' : 'undefined'
-    }
-    const nextFontManifest = self.__NEXT_FONT_MANIFEST
-
-    const render = getRender({
-      pagesType,
-      dev: ${dev},
-      page: ${JSON.stringify(page)},
-      appMod,
-      pageMod,
-      errorMod,
-      error500Mod,
-      Document,
-      buildManifest,
-      isAppPath: ${!!isAppDir},
-      prerenderManifest,
-      appRenderToHTML,
-      pagesRenderToHTML,
-      reactLoadableManifest,
-      clientReferenceManifest: ${isServerComponent} ? rscManifest : null,
-      serverCSSManifest: ${isServerComponent} ? rscCssManifest : null,
-      serverActionsManifest: ${isServerComponent} ? rscServerManifest : null,
-      subresourceIntegrityManifest,
-      config: ${stringifiedConfig},
-      buildId: ${JSON.stringify(buildId)},
-      nextFontManifest,
-      incrementalCacheHandler,
-    })
-
-    export const ComponentMod = pageMod
-
-    export default function(opts) {
-      return adapter({
-        ...opts,
-        IncrementalCache,
-        handler: render
-      })
-    }`
-
-    return transformed
   }
 export default edgeSSRLoader

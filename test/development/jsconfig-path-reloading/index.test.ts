@@ -1,8 +1,9 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
+  waitForRedbox,
+  waitForNoRedbox,
   check,
-  hasRedbox,
   renderViaHTTP,
   getRedboxSource,
 } from 'next-test-utils'
@@ -70,8 +71,8 @@ describe('jsconfig-path-reloading', () => {
         const html = await browser.eval('document.documentElement.innerHTML')
         expect(html).toContain('first button')
         expect(html).toContain('second button')
-        expect(html).toContain('first-data')
-        expect(html).not.toContain('second-data')
+        expect(html).toContain('id="first-data"')
+        expect(html).not.toContain('id="second-data"')
 
         await next.patchFile(
           indexPage,
@@ -81,7 +82,7 @@ describe('jsconfig-path-reloading', () => {
           )}`
         )
 
-        expect(await hasRedbox(browser, true)).toBe(true)
+        await waitForRedbox(browser)
         expect(await getRedboxSource(browser)).toContain('"@lib/second-data"')
 
         await next.patchFile(
@@ -102,7 +103,7 @@ describe('jsconfig-path-reloading', () => {
           )
         )
 
-        expect(await hasRedbox(browser, false)).toBe(false)
+        await waitForNoRedbox(browser)
 
         const html2 = await browser.eval('document.documentElement.innerHTML')
         expect(html2).toContain('first button')
@@ -114,7 +115,8 @@ describe('jsconfig-path-reloading', () => {
         await next.patchFile(tsConfigFile, tsconfigContent)
         await check(async () => {
           const html3 = await browser.eval('document.documentElement.innerHTML')
-          return html3.includes('first-data') && !html3.includes('second-data')
+          return html3.includes('id="first-data"') &&
+            !html3.includes('second-data')
             ? 'success'
             : html3
         }, 'success')
@@ -156,7 +158,7 @@ describe('jsconfig-path-reloading', () => {
           indexContent.replace('@mybutton', '@myotherbutton')
         )
 
-        expect(await hasRedbox(browser, false)).toBe(false)
+        await waitForNoRedbox(browser)
 
         await check(async () => {
           const html2 = await browser.eval('document.documentElement.innerHTML')

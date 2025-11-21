@@ -1,21 +1,17 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { sandbox } from './helpers'
+import { FileRef, nextTestSetup } from 'e2e-utils'
+import { createSandbox } from 'development-sandbox'
+import path from 'path'
 
 describe('ReactRefreshModule', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {},
-      skipStart: true,
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    skipStart: true,
   })
-  afterAll(() => next.destroy())
 
   it('should allow any variable names', async () => {
-    const { session, cleanup } = await sandbox(next, new Map([]))
-    expect(await session.hasRedbox(false)).toBe(false)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
+    await session.waitForNoRedbox()
 
     const variables = [
       '_a',
@@ -29,16 +25,15 @@ describe('ReactRefreshModule', () => {
       await session.patch(
         'pages/index.js',
         `import { default as ${variable} } from 'next/link'
+        console.log({ ${variable} })
         export default function Page() {
           return null
         }`
       )
-      expect(await session.hasRedbox(false)).toBe(false)
+      await session.waitForNoRedbox()
       expect(next.cliOutput).not.toContain(
         `'${variable}' has already been declared`
       )
     }
-
-    await cleanup()
   })
 })

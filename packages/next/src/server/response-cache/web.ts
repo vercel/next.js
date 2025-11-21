@@ -1,3 +1,4 @@
+import { DetachedPromise } from '../../lib/detached-promise'
 import type { ResponseCacheEntry, ResponseGenerator } from './types'
 
 /**
@@ -15,7 +16,9 @@ export default class WebResponseCache {
 
   constructor(minimalMode: boolean) {
     this.pendingResponses = new Map()
-    this.minimalMode = minimalMode
+    // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
+    // because we replace this.minimalMode to true in production bundles.
+    Object.assign(this, { minimalMode })
   }
 
   public get(
@@ -39,19 +42,16 @@ export default class WebResponseCache {
       return pendingResponse
     }
 
-    let resolver: (cacheEntry: ResponseCacheEntry | null) => void = () => {}
-    let rejecter: (error: Error) => void = () => {}
-    const promise: Promise<ResponseCacheEntry | null> = new Promise(
-      (resolve, reject) => {
-        resolver = resolve
-        rejecter = reject
-      }
-    )
+    const {
+      promise,
+      resolve: resolver,
+      reject: rejecter,
+    } = new DetachedPromise<ResponseCacheEntry | null>()
     if (pendingResponseKey) {
       this.pendingResponses.set(pendingResponseKey, promise)
     }
 
-    let resolved = false
+    let hasResolved = false
     const resolve = (cacheEntry: ResponseCacheEntry | null) => {
       if (pendingResponseKey) {
         // Ensure all reads from the cache get the latest value.
@@ -60,8 +60,8 @@ export default class WebResponseCache {
           Promise.resolve(cacheEntry)
         )
       }
-      if (!resolved) {
-        resolved = true
+      if (!hasResolved) {
+        hasResolved = true
         resolver(cacheEntry)
       }
     }
@@ -84,7 +84,7 @@ export default class WebResponseCache {
     // same promise until we've fully finished our work.
     ;(async () => {
       try {
-        const cacheEntry = await responseGenerator(resolved)
+        const cacheEntry = await responseGenerator({ hasResolved })
         const resolveValue =
           cacheEntry === null
             ? null
@@ -98,7 +98,7 @@ export default class WebResponseCache {
           resolve(resolveValue)
         }
 
-        if (key && cacheEntry && typeof cacheEntry.revalidate !== 'undefined') {
+        if (key && cacheEntry && cacheEntry.cacheControl) {
           this.previousCacheItem = {
             key: pendingResponseKey || key,
             entry: cacheEntry,
@@ -114,7 +114,7 @@ export default class WebResponseCache {
       } catch (err) {
         // while revalidating in the background we can't reject as
         // we already resolved the cache entry so log the error here
-        if (resolved) {
+        if (hasResolved) {
           console.error(err)
         } else {
           rejecter(err as Error)

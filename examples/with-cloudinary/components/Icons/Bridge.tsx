@@ -122,5 +122,5 @@ export default function Bridge() {
       <path d="M553 261L553 322" stroke="currentColor" />
       <path d="M571 282L571 325" stroke="currentColor" />
     </svg>
-  )
+  );
 }

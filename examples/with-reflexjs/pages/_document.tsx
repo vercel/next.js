@@ -1,5 +1,5 @@
-import NextDocument, { Html, Main, NextScript, Head } from 'next/document'
-import { InitializeColorMode } from 'reflexjs'
+import NextDocument, { Html, Main, NextScript, Head } from "next/document";
+import { InitializeColorMode } from "reflexjs";
 
 export default class Document extends NextDocument {
   render() {
@@ -12,6 +12,6 @@ export default class Document extends NextDocument {
           <NextScript />
         </body>
       </Html>
-    )
+    );
   }
 }

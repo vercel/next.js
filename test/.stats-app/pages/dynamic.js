@@ -1,6 +1,8 @@
 import dynamic from 'next/dynamic'
 
-const DynamicHello = dynamic(() => import('../components/hello'))
+const DynamicHello = dynamic(() =>
+  import('../components/hello').then((mod) => mod.Hello)
+)
 
 const Page = () => (
   <>

@@ -1,0 +1,62 @@
+[package]
+name = "turbo-tasks-fs"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+
+[lib]
+bench = false
+
+[[bench]]
+name = "mod"
+harness = false
+
+[features]
+default = []
+# Enables dynamic linking (and hot reloading) of embedded files/dirs.
+# A binary built with this option **is not portable**, the directory
+# path will be embedded into the binary.
+dynamic_embed_contents = []
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+auto-hash-map = { workspace = true }
+bitflags = "1.3.2"
+bytes = { workspace = true }
+concurrent-queue = { workspace = true }
+dashmap = { workspace = true }
+dunce = { workspace = true }
+futures = { workspace = true }
+include_dir = { version = "0.7.2", features = ["nightly"] }
+indexmap = { workspace = true }
+jsonc-parser = { version = "0.26.3", features = ["serde"] }
+mime = { workspace = true }
+notify = { workspace = true }
+parking_lot = { workspace = true }
+regex = { workspace = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true, features = ["rc"] }
+serde_bytes = { workspace = true }
+serde_json = { workspace = true }
+serde_path_to_error = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+triomphe = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbo-unix-path = { workspace = true }
+urlencoding = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
+rstest = { workspace = true }
+sha2 = "0.10.2"
+tempfile = { workspace = true }
+turbo-tasks-testing = { workspace = true }
+turbo-tasks-backend = { workspace = true }
+

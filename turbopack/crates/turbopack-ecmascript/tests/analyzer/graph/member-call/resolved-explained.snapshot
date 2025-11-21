@@ -1,0 +1,48 @@
+array = [1, 2, 3]
+
+arrays = ([1, 2, 3] | [4, 5, 6])
+
+concatenated_array = [1, 2, 3, 4, 5, 6, 7, 8, 9, `hello ${(2 | ???*0*)}`]
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+concatenated_array_options = [1, 2, 3, 7, 8, 9]
+
+item = (2 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+item_options = (2 | ???*0* | 5)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+pick_array1 = ([1, 2, 3, 4, 5, 6, ???*0*] | ???*1*)
+- *0* FreeVar(unknown)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *1* ???*2*["concat"]([4, 5, 6, ???*3*])
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *2* unknown mutation
+  ⚠️  This value might have side effects
+- *3* FreeVar(unknown)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+pick_array2 = (???*0* | ???*3*)
+- *0* ???*1*(4, 5, 6, ???*2*)
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *1* [1, 2, 3]["concat"]
+  ⚠️  non-num constant property on array
+- *2* FreeVar(unknown)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *3* ???*4*["concat"](4, 5, 6, ???*5*)
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *4* unknown mutation
+  ⚠️  This value might have side effects
+- *5* FreeVar(unknown)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects

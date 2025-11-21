@@ -1,6 +1,6 @@
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import path from 'path'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 const regexLikeIndexModule = /(?<!pages[\\/])index\.module\.(scss|sass|css)$/
 
@@ -23,7 +23,7 @@ export function getCssModuleLocalIdent(
   // Generate a hash to make the class name unique.
   const hash = loaderUtils.getHashDigest(
     Buffer.from(`filePath:${relativePath}#className:${exportName}`),
-    'md5',
+    'sha1',
     'base64',
     5
   )

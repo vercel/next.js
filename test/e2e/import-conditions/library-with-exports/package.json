@@ -1,0 +1,30 @@
+{
+  "name": "library-with-exports",
+  "version": "1.0.0",
+  "types": "./index.d.ts",
+  "exports": {
+    "./server-favoring-edge": {
+      "types": "./index.d.ts",
+      "worker": "./worker.js",
+      "workerd": "./workerd.js",
+      "edge-light": "./edge-light.js",
+      "node": "./node.js",
+      "browser": "./browser.js",
+      "default": "./default.js"
+    },
+    "./server-favoring-browser": {
+      "types": "./index.d.ts",
+      "worker": "./worker.js",
+      "workerd": "./workerd.js",
+      "browser": "./browser.js",
+      "node": "./node.js",
+      "edge-light": "./edge-light.js",
+      "default": "./default.js"
+    },
+    "./react": {
+      "types": "./index.d.ts",
+      "react-server": "./react-server.js",
+      "default": "./default.js"
+    }
+  }
+}

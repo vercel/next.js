@@ -3,7 +3,7 @@ import NodeAttributes from '../utils/node-attributes'
 
 const url = 'https://nextjs.org/docs/messages/google-font-display'
 
-export = defineRule({
+export default defineRule({
   meta: {
     docs: {
       description: 'Enforce font-display behavior with Google Fonts.',
@@ -33,7 +33,7 @@ export = defineRule({
           hrefValue.startsWith('https://fonts.googleapis.com/css')
 
         if (isGoogleFont) {
-          const params = new URLSearchParams(hrefValue.split('?')[1])
+          const params = new URLSearchParams(hrefValue.split('?', 2)[1])
           const displayValue = params.get('display')
 
           if (!params.has('display')) {

@@ -1,26 +1,22 @@
 /* eslint-env jest */
-import { sandbox } from './helpers'
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { createSandbox } from 'development-sandbox'
+import { FileRef, nextTestSetup } from 'e2e-utils'
+import path from 'path'
 
 // TODO: figure out why snapshots mismatch on GitHub actions
 // specifically but work in docker and locally
-describe.skip('ReactRefreshLogBox', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {},
-      skipStart: true,
-      dependencies: {
-        sass: 'latest',
-      },
-    })
+describe.skip('ReactRefreshLogBox scss', () => {
+  const { next } = nextTestSetup({
+    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    skipStart: true,
+    dependencies: {
+      sass: 'latest',
+    },
   })
-  afterAll(() => next.destroy())
 
   test('scss syntax errors', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.write('index.module.scss', `.button { font-size: 5px; }`)
     await session.patch(
@@ -37,20 +33,39 @@ describe.skip('ReactRefreshLogBox', () => {
       `
     )
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    await session.waitForNoRedbox()
 
     // Syntax error
     await session.patch('index.module.scss', `.button { font-size: :5px; }`)
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForRedbox()
     const source = await session.getRedboxSource()
     expect(source).toMatchSnapshot()
+  })
 
-    // Not local error
+  test('scss module pure selector error', async () => {
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
+
+    await session.write('index.module.scss', `.button { font-size: 5px; }`)
+    await session.patch(
+      'index.js',
+      `
+        import './index.module.scss';
+        export default () => {
+          return (
+            <div>
+              <p>lol</p>
+            </div>
+          )
+        }
+      `
+    )
+
+    // Checks for selectors that can't be prefixed.
+    // Selector "button" is not pure (pure selectors must contain at least one local class or id)
     await session.patch('index.module.scss', `button { font-size: 5px; }`)
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForRedbox()
     const source2 = await session.getRedboxSource()
     expect(source2).toMatchSnapshot()
-
-    await cleanup()
   })
 })

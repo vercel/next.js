@@ -22,9 +22,11 @@ export type ConfigurationContext = {
 
   sassOptions: any
   productionBrowserSourceMaps: boolean
+  serverSourceMaps: boolean
 
   transpilePackages: NextConfigComplete['transpilePackages']
 
+  // @ts-expect-error TODO: remove any
   future: NextConfigComplete['future']
   experimental: NextConfigComplete['experimental']
 }

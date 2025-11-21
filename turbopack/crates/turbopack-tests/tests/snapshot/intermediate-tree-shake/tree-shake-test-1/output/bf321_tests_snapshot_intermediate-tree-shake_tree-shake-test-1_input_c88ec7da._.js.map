@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/intermediate-tree-shake/tree-shake-test-1/input/index.js"],"sourcesContent":["import { getCat } from 'lib'\n\nconsole.log(`I like ${getCat()}`)\n"],"names":[],"mappings":"AAAA;;AAEA,QAAQ,GAAG,CAAC,CAAC,OAAO,EAAE,IAAA,0QAAM,KAAI"}},
+    {"offset": {"line": 12, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/intermediate-tree-shake/tree-shake-test-1/input/node_modules/lib/index.js"],"sourcesContent":["\nlet cat = \"cat\";\nlet dog = \"dog\";\n\nexport function getChimera() {\n  return cat + dog;\n}\n\nexport function getCat() {\n  return cat;\n}\n\nexport function getDog() {\n  return dog;\n}\n\n"],"names":[],"mappings":"AACA,IAAI,MAAM;AACV,IAAI,MAAM;AAEH,SAAS;IACd,OAAO,MAAM;AACf;AAEO,SAAS;IACd,OAAO;AACT;AAEO,SAAS;IACd,OAAO;AACT","ignoreList":[0]}}]
+}

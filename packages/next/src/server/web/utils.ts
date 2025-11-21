@@ -1,8 +1,23 @@
 import type { OutgoingHttpHeaders } from 'http'
+import {
+  NEXT_INTERCEPTION_MARKER_PREFIX,
+  NEXT_QUERY_PARAM_PREFIX,
+} from '../../lib/constants'
 
-export function fromNodeHeaders(object: OutgoingHttpHeaders): Headers {
+/**
+ * Converts a Node.js IncomingHttpHeaders object to a Headers object. Any
+ * headers with multiple values will be joined with a comma and space. Any
+ * headers that have an undefined value will be ignored and others will be
+ * coerced to strings.
+ *
+ * @param nodeHeaders the headers object to convert
+ * @returns the converted headers object
+ */
+export function fromNodeOutgoingHttpHeaders(
+  nodeHeaders: OutgoingHttpHeaders
+): Headers {
   const headers = new Headers()
-  for (let [key, value] of Object.entries(object)) {
+  for (let [key, value] of Object.entries(nodeHeaders)) {
     const values = Array.isArray(value) ? value : [value]
     for (let v of values) {
       if (typeof v === 'undefined') continue
@@ -92,8 +107,17 @@ export function splitCookiesString(cookiesString: string) {
   return cookiesStrings
 }
 
-export function toNodeHeaders(headers?: Headers): OutgoingHttpHeaders {
-  const result: OutgoingHttpHeaders = {}
+/**
+ * Converts a Headers object to a Node.js OutgoingHttpHeaders object. This is
+ * required to support the set-cookie header, which may have multiple values.
+ *
+ * @param headers the headers object to convert
+ * @returns the converted headers object
+ */
+export function toNodeOutgoingHttpHeaders(
+  headers: Headers
+): OutgoingHttpHeaders {
+  const nodeHeaders: OutgoingHttpHeaders = {}
   const cookies: string[] = []
   if (headers) {
     for (const [key, value] of headers.entries()) {
@@ -102,13 +126,13 @@ export function toNodeHeaders(headers?: Headers): OutgoingHttpHeaders {
         // set-cookie headers. We need to merge them into one header array
         // to represent all the cookies.
         cookies.push(...splitCookiesString(value))
-        result[key] = cookies.length === 1 ? cookies[0] : cookies
+        nodeHeaders[key] = cookies.length === 1 ? cookies[0] : cookies
       } else {
-        result[key] = value
+        nodeHeaders[key] = value
       }
     }
   }
-  return result
+  return nodeHeaders
 }
 
 /**
@@ -125,4 +149,18 @@ export function validateURL(url: string | URL): string {
       { cause: error }
     )
   }
+}
+
+/**
+ * Normalizes `nxtP` and `nxtI` query param values to remove the prefix.
+ * This function does not mutate the input key.
+ */
+export function normalizeNextQueryParam(key: string): null | string {
+  const prefixes = [NEXT_QUERY_PARAM_PREFIX, NEXT_INTERCEPTION_MARKER_PREFIX]
+  for (const prefix of prefixes) {
+    if (key !== prefix && key.startsWith(prefix)) {
+      return key.substring(prefix.length)
+    }
+  }
+  return null
 }

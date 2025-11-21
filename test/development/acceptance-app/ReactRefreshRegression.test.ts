@@ -1,27 +1,21 @@
 /* eslint-env jest */
-import { sandbox } from './helpers'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { createSandbox } from 'development-sandbox'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { check } from 'next-test-utils'
+import { outdent } from 'outdent'
 
 describe('ReactRefreshRegression app', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-      skipStart: true,
-      dependencies: {
-        'styled-components': '5.1.0',
-        '@next/mdx': 'canary',
-        '@mdx-js/loader': '0.18.0',
-        react: 'latest',
-        'react-dom': 'latest',
-      },
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    dependencies: {
+      'styled-components': '6.1.16',
+      '@next/mdx': 'canary',
+      '@mdx-js/loader': '2.2.1',
+      '@mdx-js/react': '2.2.1',
+    },
+    skipStart: true,
   })
-  afterAll(() => next.destroy())
 
   // https://github.com/vercel/next.js/issues/12422
   // TODO-APP: port to app directory
@@ -29,7 +23,7 @@ describe('ReactRefreshRegression app', () => {
     const files = new Map()
     files.set(
       'pages/_document.js',
-      `
+      outdent`
         import Document from 'next/document'
         import { ServerStyleSheet } from 'styled-components'
 
@@ -62,12 +56,13 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    const { session, cleanup } = await sandbox(next, files)
+    await using sandbox = await createSandbox(next, files)
+    const { session } = sandbox
 
     // We start here.
     await session.patch(
       'index.js',
-      `
+      outdent`
         import React from 'react'
         import styled from 'styled-components'
 
@@ -81,18 +76,18 @@ describe('ReactRefreshRegression app', () => {
     )
 
     // Verify no hydration mismatch:
-    expect(await session.hasRedbox(false)).toBe(false)
-
-    await cleanup()
+    await session.waitForNoRedbox()
   })
 
   // https://github.com/vercel/next.js/issues/13978
   test('can fast refresh a page with static generation', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'app/page.js',
-      `'use client'
+      outdent`
+        'use client'
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -118,7 +113,8 @@ describe('ReactRefreshRegression app', () => {
 
     await session.patch(
       'app/page.js',
-      `'use client'
+      outdent`
+        'use client'
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -141,17 +137,16 @@ describe('ReactRefreshRegression app', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
-
-    await cleanup()
   })
 
   // https://github.com/vercel/next.js/issues/13978
   test('can fast refresh a page with dynamic rendering', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'app/page.js',
-      `
+      outdent`
         export const revalidate = 0
 
         import Component from '../index'
@@ -162,7 +157,8 @@ describe('ReactRefreshRegression app', () => {
     )
     await session.patch(
       'index.js',
-      `'use client'
+      outdent`
+        'use client'
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -192,7 +188,8 @@ describe('ReactRefreshRegression app', () => {
 
     await session.patch(
       'index.js',
-      `'use client'
+      outdent`
+        'use client'
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -219,17 +216,16 @@ describe('ReactRefreshRegression app', () => {
       () => session.evaluate(() => document.querySelector('p').textContent),
       'Count: 2'
     )
-
-    await cleanup()
   })
 
   // https://github.com/vercel/next.js/issues/13978
   test('can fast refresh a page with config', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'app/page.js',
-      `
+      outdent`
         export const config = {}
 
         import Component from '../index'
@@ -241,7 +237,8 @@ describe('ReactRefreshRegression app', () => {
 
     await session.patch(
       'index.js',
-      `'use client'
+      outdent`
+        'use client'
         import { useCallback, useState } from 'react'
 
         export const config = {}
@@ -268,68 +265,68 @@ describe('ReactRefreshRegression app', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
-
-    await cleanup()
   })
 
   // https://github.com/vercel/next.js/issues/11504
   test('shows an overlay for anonymous function server-side error', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'app/page.js',
       `export default function () { throw new Error('boom'); }`
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForRedbox()
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
+    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
+      .toMatchInlineSnapshot(`
       "> 1 | export default function () { throw new Error('boom'); }
-          |                                   ^"
+          |                                    ^"
     `)
-
-    await cleanup()
   })
 
   test('shows an overlay for server-side error in server component', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'app/page.js',
       `export default function Page() { throw new Error('boom'); }`
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForRedbox()
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
+    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
+      .toMatchInlineSnapshot(`
       "> 1 | export default function Page() { throw new Error('boom'); }
-          |                                       ^"
+          |                                        ^"
     `)
-
-    await cleanup()
   })
 
   test('shows an overlay for server-side error in client component', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'app/page.js',
-      `'use client'
-      export default function Page() { throw new Error('boom'); }`
+      outdent`
+        'use client'
+        export default function Page() { throw new Error('boom'); }
+      `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForRedbox()
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
-      "  1 | 'use client'
-      > 2 | export default function Page() { throw new Error('boom'); }
-          |                                       ^"
-    `)
-
-    await cleanup()
+    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
+      .toMatchInlineSnapshot(`
+        "  1 | 'use client'
+        > 2 | export default function Page() { throw new Error('boom'); }
+            |                                        ^"
+      `)
   })
 
   // https://github.com/vercel/next.js/issues/13574
@@ -337,28 +334,30 @@ describe('ReactRefreshRegression app', () => {
     const files = new Map()
     files.set(
       'next.config.js',
-      `
+      outdent`
         const withMDX = require("@next/mdx")({
           extension: /\\.mdx?$/,
         });
         module.exports = withMDX({
           pageExtensions: ["js", "mdx"],
-          experimental: { appDir: true },
         });
       `
     )
     files.set('app/content.mdx', `Hello World!`)
     files.set(
       'app/page.js',
-      `'use client'
-    import MDX from './content.mdx'
-    export default function Page() {
-      return <div id="content"><MDX /></div>
-    }
-    `
+      outdent`
+        'use client'
+        import MDX from './content.mdx'
+        export default function Page() {
+          return <div id="content"><MDX /></div>
+        }
+      `
     )
 
-    const { session, cleanup } = await sandbox(next, files)
+    await using sandbox = await createSandbox(next, files)
+    const { session } = sandbox
+
     expect(
       await session.evaluate(
         () => document.querySelector('#content').textContent
@@ -367,7 +366,7 @@ describe('ReactRefreshRegression app', () => {
 
     let didNotReload = await session.patch('app/content.mdx', `Hello Foo!`)
     expect(didNotReload).toBe(true)
-    expect(await session.hasRedbox(false)).toBe(false)
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(
         () => document.querySelector('#content').textContent
@@ -376,13 +375,11 @@ describe('ReactRefreshRegression app', () => {
 
     didNotReload = await session.patch('app/content.mdx', `Hello Bar!`)
     expect(didNotReload).toBe(true)
-    expect(await session.hasRedbox(false)).toBe(false)
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(
         () => document.querySelector('#content').textContent
       )
     ).toBe('Hello Bar!')
-
-    await cleanup()
   })
 })

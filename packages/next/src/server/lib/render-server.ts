@@ -1,141 +1,181 @@
-import type { RequestHandler } from '../next'
-
-import v8 from 'v8'
-import http from 'http'
-import { isIPv6 } from 'net'
-
-// This is required before other imports to ensure the require hook is setup.
-import '../require-hook'
+import type { NextServer, RequestHandler, UpgradeHandler } from '../next'
+import type { DevBundlerService } from './dev-bundler-service'
+import type { PropagateToWorkersField } from './router-utils/types'
 
 import next from '../next'
-import { warn } from '../../build/output/log'
-import {
-  deleteCache as _deleteCache,
-  deleteAppClientCache as _deleteAppClientCache,
-} from '../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
-import { clearModuleContext as _clearModuleContext } from '../web/sandbox/context'
-import { getFreePort } from '../lib/worker-utils'
-export const WORKER_SELF_EXIT_CODE = 77
+import type { Span } from '../../trace'
+import type { ServerResponse } from 'http'
+import type { OnCacheEntryHandler } from '../request-meta'
+import { interopDefault } from '../../lib/interop-default'
+import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
 
-const MAXIMUM_HEAP_SIZE_ALLOWED =
-  (v8.getHeapStatistics().heap_size_limit / 1024 / 1024) * 0.9
+export type ServerInitResult = {
+  requestHandler: RequestHandler
+  upgradeHandler: UpgradeHandler
+  server: NextServer
+  // Make an effort to close upgraded HTTP requests (e.g. Turbopack HMR websockets)
+  closeUpgraded: () => void
+}
 
-let result:
-  | undefined
-  | {
-      port: number
-      hostname: string
+let initializations: Record<string, Promise<ServerInitResult> | undefined> = {}
+
+let sandboxContext: undefined | typeof import('../web/sandbox/context')
+
+if (process.env.NODE_ENV !== 'production') {
+  sandboxContext =
+    require('../web/sandbox/context') as typeof import('../web/sandbox/context')
+}
+
+export function clearAllModuleContexts() {
+  return sandboxContext?.clearAllModuleContexts()
+}
+
+export function clearModuleContext(target: string) {
+  return sandboxContext?.clearModuleContext(target)
+}
+
+export async function getServerField(
+  dir: string,
+  field: PropagateToWorkersField
+) {
+  const initialization = await initializations[dir]
+  if (!initialization) {
+    throw new Error('Invariant cant propagate server field, no app initialized')
+  }
+  const { server } = initialization
+  let wrappedServer = server['server']! // NextServer.server is private
+  return wrappedServer[field as keyof typeof wrappedServer]
+}
+
+export async function propagateServerField(
+  dir: string,
+  field: PropagateToWorkersField,
+  value: any
+) {
+  const initialization = await initializations[dir]
+  if (!initialization) {
+    throw new Error('Invariant cant propagate server field, no app initialized')
+  }
+  const { server } = initialization
+  let wrappedServer = server['server']
+  const _field = field as keyof NonNullable<typeof wrappedServer>
+
+  if (wrappedServer) {
+    if (typeof wrappedServer[_field] === 'function') {
+      // @ts-expect-error
+      await wrappedServer[_field].apply(
+        wrappedServer,
+        Array.isArray(value) ? value : []
+      )
+    } else {
+      // @ts-expect-error
+      wrappedServer[_field] = value
     }
-
-export function clearModuleContext(target: string, content: string) {
-  _clearModuleContext(target, content)
+  }
 }
 
-export function deleteAppClientCache() {
-  _deleteAppClientCache()
-}
-
-export function deleteCache(filePath: string) {
-  _deleteCache(filePath)
-}
-
-export async function initialize(opts: {
+async function initializeImpl(opts: {
   dir: string
   port: number
   dev: boolean
   minimalMode?: boolean
   hostname?: string
-  workerType: 'router' | 'render'
-  isNodeDebugging: boolean
   keepAliveTimeout?: number
-}): Promise<NonNullable<typeof result>> {
-  // if we already setup the server return as we only need to do
-  // this on first worker boot
-  if (result) {
-    return result
+  serverFields?: any
+  server?: any
+  experimentalTestProxy: boolean
+  experimentalHttpsServer: boolean
+  _ipcPort?: string
+  _ipcKey?: string
+  bundlerService: DevBundlerService | undefined
+  startServerSpan: Span | undefined
+  quiet?: boolean
+  onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
+}): Promise<ServerInitResult> {
+  const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
+  if (type) {
+    process.title = 'next-render-worker-' + type
   }
+
   let requestHandler: RequestHandler
+  let upgradeHandler: UpgradeHandler
 
-  const server = http.createServer((req, res) => {
-    return requestHandler(req, res)
-      .catch((err) => {
-        res.statusCode = 500
-        res.end('Internal Server Error')
-        console.error(err)
-      })
-      .finally(() => {
-        if (
-          process.memoryUsage().heapUsed / 1024 / 1024 >
-          MAXIMUM_HEAP_SIZE_ALLOWED
-        ) {
-          warn(
-            'The server is running out of memory, restarting to free up memory.'
-          )
-          server.close()
-          process.exit(WORKER_SELF_EXIT_CODE)
-        }
-      })
-  })
+  const server = next({
+    ...opts,
+    hostname: opts.hostname || 'localhost',
+    customServer: false,
+    httpServer: opts.server,
+    port: opts.port,
+  }) as NextServer // should return a NextServer when `customServer: false`
 
-  if (opts.keepAliveTimeout) {
-    server.keepAliveTimeout = opts.keepAliveTimeout
-  }
-
-  return new Promise(async (resolve, reject) => {
-    server.on('error', (err: NodeJS.ErrnoException) => {
-      console.error(`Invariant: failed to start render worker`, err)
-      process.exit(1)
-    })
-
-    let upgradeHandler: any
-
-    if (!opts.dev) {
-      server.on('upgrade', (req, socket, upgrade) => {
-        upgradeHandler(req, socket, upgrade)
-      })
+  // If we're in test mode and there's a debug cache entry handler available,
+  // then use it to wrap the request handler instead of using the default one.
+  if (
+    process.env.__NEXT_TEST_MODE &&
+    process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+  ) {
+    // This mirrors the sole implementation of this over in:
+    // test/production/standalone-mode/required-server-files/cache-entry-handler.js
+    const createOnCacheEntryHandlers = interopDefault(
+      await import(
+        formatDynamicImportPath(
+          opts.dir,
+          process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+        )
+      )
+    ) as (res: ServerResponse) => {
+      // TODO: remove onCacheEntry once onCacheEntryV2 is the default.
+      onCacheEntry: OnCacheEntryHandler
+      onCacheEntryV2: OnCacheEntryHandler
     }
 
-    server.on('listening', async () => {
-      try {
-        const addr = server.address()
-        const port = addr && typeof addr === 'object' ? addr.port : 0
+    // This is not to be used in any environment other than testing, as it is
+    // not memoized and is subject to constant change.
+    requestHandler = async (req, res, parsedUrl) => {
+      // Re re-create the entry handler for each request. This is not
+      // performant, and is only used in testing environments.
+      const {
+        // TODO: remove onCacheEntry once onCacheEntryV2 is the default.
+        onCacheEntry,
+        onCacheEntryV2,
+      } = createOnCacheEntryHandlers(res)
 
-        if (!port) {
-          console.error(`Invariant failed to detect render worker port`, addr)
-          process.exit(1)
-        }
+      // Get the request handler, using the entry handler as the metadata each
+      // request.
+      const handler = server.getRequestHandlerWithMetadata({
+        // TODO: remove onCacheEntry once onCacheEntryV2 is the default.
+        onCacheEntry,
+        onCacheEntryV2,
+      })
 
-        let hostname =
-          !opts.hostname || opts.hostname === '0.0.0.0'
-            ? 'localhost'
-            : opts.hostname
+      return handler(req, res, parsedUrl)
+    }
 
-        if (isIPv6(hostname)) {
-          hostname = hostname === '::' ? '[::1]' : `[${hostname}]`
-        }
-        result = {
-          port,
-          hostname,
-        }
-        const app = next({
-          ...opts,
-          _routerWorker: opts.workerType === 'router',
-          _renderWorker: opts.workerType === 'render',
-          hostname,
-          customServer: false,
-          httpServer: server,
-          port: opts.port,
-          isNodeDebugging: opts.isNodeDebugging,
-        })
+    upgradeHandler = server.getUpgradeHandler()
+  } else {
+    requestHandler = server.getRequestHandler()
+    upgradeHandler = server.getUpgradeHandler()
+  }
 
-        requestHandler = app.getRequestHandler()
-        upgradeHandler = app.getUpgradeHandler()
-        await app.prepare()
-        resolve(result)
-      } catch (err) {
-        return reject(err)
-      }
-    })
-    server.listen(await getFreePort(), opts.hostname)
-  })
+  await server.prepare(opts.serverFields)
+
+  return {
+    requestHandler,
+    upgradeHandler,
+    server,
+    closeUpgraded() {
+      opts.bundlerService?.close()
+    },
+  }
+}
+
+export async function initialize(
+  opts: Parameters<typeof initializeImpl>[0]
+): Promise<ServerInitResult> {
+  // if we already setup the server return as we only need to do
+  // this on first worker boot
+  if (initializations[opts.dir]) {
+    return initializations[opts.dir]!
+  }
+  return (initializations[opts.dir] = initializeImpl(opts))
 }

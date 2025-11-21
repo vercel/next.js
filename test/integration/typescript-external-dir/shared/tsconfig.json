@@ -2,7 +2,7 @@
   "compilerOptions": {
     "esModuleInterop": true,
     "module": "esnext",
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "target": "es5",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
@@ -11,7 +11,7 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "incremental": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true
   },

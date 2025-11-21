@@ -1,27 +1,19 @@
 /* eslint-env jest */
-import { sandbox } from './helpers'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { createSandbox } from 'development-sandbox'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
+import { outdent } from 'outdent'
 
 describe('ReactRefreshRequire app', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-      dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
-      },
-      skipStart: true,
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    skipStart: true,
   })
-  afterAll(() => next.destroy())
 
   // https://github.com/facebook/metro/blob/b651e535cd0fc5df6c0803b9aa647d664cb9a6c3/packages/metro/src/lib/polyfills/__tests__/require-test.js#L989-L1048
   test('re-runs accepted modules', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'index.js',
@@ -72,13 +64,12 @@ describe('ReactRefreshRequire app', () => {
     // TODO:
     // expect(Refresh.performReactRefresh).toHaveBeenCalled();
     // expect(Refresh.performFullRefresh).not.toHaveBeenCalled();
-
-    await cleanup()
   })
 
   // https://github.com/facebook/metro/blob/b651e535cd0fc5df6c0803b9aa647d664cb9a6c3/packages/metro/src/lib/polyfills/__tests__/require-test.js#L1050-L1137
   test('propagates a hot update to closest accepted module', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'index.js',
@@ -87,12 +78,12 @@ describe('ReactRefreshRequire app', () => {
 
     await session.write(
       './foo.js',
-      `
-      window.log.push('init FooV1');
-      require('./bar');
+      outdent`
+        window.log.push('init FooV1');
+        require('./bar');
 
-      // Exporting a component marks it as auto-accepting.
-      export default function Foo() {};
+        // Exporting a component marks it as auto-accepting.
+        export default function Foo() {};
       `
     )
 
@@ -144,10 +135,10 @@ describe('ReactRefreshRequire app', () => {
     await session.evaluate(() => ((window as any).log = []))
     await session.patch(
       './bar.js',
-      `
-      window.log.push('init BarV3');
-      // Exporting a component marks it as auto-accepting.
-      export default function Bar() {};
+      outdent`
+        window.log.push('init BarV3');
+        // Exporting a component marks it as auto-accepting.
+        export default function Bar() {};
       `
     )
     expect(await session.evaluate(() => (window as any).log)).toEqual([
@@ -165,9 +156,9 @@ describe('ReactRefreshRequire app', () => {
     await session.evaluate(() => ((window as any).log = []))
     await session.patch(
       './bar.js',
-      `
-      window.log.push('init BarV4');
-      export default function Bar() {};
+      outdent`
+        window.log.push('init BarV4');
+        export default function Bar() {};
       `
     )
     expect(await session.evaluate(() => (window as any).log)).toEqual([
@@ -177,12 +168,11 @@ describe('ReactRefreshRequire app', () => {
     // TODO:
     // expect(Refresh.performReactRefresh).toHaveBeenCalled();
     // expect(Refresh.performFullRefresh).not.toHaveBeenCalled();
-
-    await cleanup()
   })
   // https://github.com/facebook/metro/blob/b651e535cd0fc5df6c0803b9aa647d664cb9a6c3/packages/metro/src/lib/polyfills/__tests__/require-test.js#L1139-L1307
   test('propagates hot update to all inverse dependencies', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'index.js',
@@ -203,34 +193,34 @@ describe('ReactRefreshRequire app', () => {
 
     await session.write(
       'root.js',
-      `
-      window.log.push('init RootV1');
+      outdent`
+        window.log.push('init RootV1');
 
-      import './middleA';
-      import './middleB';
-      import './middleC';
+        import './middleA';
+        import './middleB';
+        import './middleC';
 
-      export default function Root() {};
+        export default function Root() {};
       `
     )
     await session.write(
       'middleA.js',
-      `
-      log.push('init MiddleAV1');
+      outdent`
+        log.push('init MiddleAV1');
 
-      import './leaf';
+        import './leaf';
 
-      export default function MiddleA() {};
+        export default function MiddleA() {};
       `
     )
     await session.write(
       'middleB.js',
-      `
-      log.push('init MiddleBV1');
+      outdent`
+        log.push('init MiddleBV1');
 
-      import './leaf';
+        import './leaf';
 
-      export default function MiddleB() {};
+        export default function MiddleB() {};
       `
     )
     // This one doesn't import leaf and also doesn't export a component (so it
@@ -290,12 +280,12 @@ describe('ReactRefreshRequire app', () => {
     await session.evaluate(() => ((window as any).log = []))
     await session.patch(
       'middleB.js',
-      `
-      log.push('init MiddleBV2');
+      outdent`
+        log.push('init MiddleBV2');
 
-      import './leaf';
+        import './leaf';
 
-      export default function MiddleB() {};
+        export default function MiddleB() {};
       `
     )
     expect(await session.evaluate(() => (window as any).log)).toEqual([
@@ -317,8 +307,6 @@ describe('ReactRefreshRequire app', () => {
     // TODO:
     // expect(Refresh.performReactRefresh).toHaveBeenCalled()
     // expect(Refresh.performFullRefresh).not.toHaveBeenCalled()
-
-    await cleanup()
   })
 
   // https://github.com/facebook/metro/blob/b651e535cd0fc5df6c0803b9aa647d664cb9a6c3/packages/metro/src/lib/polyfills/__tests__/require-test.js#L1309-L1406
@@ -379,7 +367,8 @@ describe('ReactRefreshRequire app', () => {
   // https://github.com/facebook/metro/blob/b651e535cd0fc5df6c0803b9aa647d664cb9a6c3/packages/metro/src/lib/polyfills/__tests__/require-test.js#L2373-L2472
   // TODO-APP: investigate why it fails in app
   test.skip('propagates a module that stops accepting in next version', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     // Accept in parent
     await session.write(
@@ -498,8 +487,6 @@ describe('ReactRefreshRequire app', () => {
 
     // expect(Refresh.performFullRefresh).toHaveBeenCalled();
     expect(didFullRefresh).toBe(true)
-
-    await cleanup()
   })
 
   // https://github.com/facebook/metro/blob/b651e535cd0fc5df6c0803b9aa647d664cb9a6c3/packages/metro/src/lib/polyfills/__tests__/require-test.js#L2474-L2521

@@ -8,7 +8,7 @@ import { ReflectAdapter } from './reflect'
 export class ReadonlyHeadersError extends Error {
   constructor() {
     super(
-      'Headers cannot be modified. Read more: https://nextjs.org/docs/api-reference/headers'
+      'Headers cannot be modified. Read more: https://nextjs.org/docs/app/api-reference/functions/headers'
     )
   }
 
@@ -18,11 +18,11 @@ export class ReadonlyHeadersError extends Error {
 }
 
 export type ReadonlyHeaders = Headers & {
-  /** @deprecated Method unavailable on `ReadonlyHeaders`. Read more: https://nextjs.org/docs/api-reference/headers */
+  /** @deprecated Method unavailable on `ReadonlyHeaders`. Read more: https://nextjs.org/docs/app/api-reference/functions/headers */
   append(...args: any[]): void
-  /** @deprecated Method unavailable on `ReadonlyHeaders`. Read more: https://nextjs.org/docs/api-reference/headers */
+  /** @deprecated Method unavailable on `ReadonlyHeaders`. Read more: https://nextjs.org/docs/app/api-reference/functions/headers */
   set(...args: any[]): void
-  /** @deprecated Method unavailable on `ReadonlyHeaders`. Read more: https://nextjs.org/docs/api-reference/headers */
+  /** @deprecated Method unavailable on `ReadonlyHeaders`. Read more: https://nextjs.org/docs/app/api-reference/functions/headers */
   delete(...args: any[]): void
 }
 export class HeadersAdapter extends Headers {
@@ -197,7 +197,7 @@ export class HeadersAdapter extends Headers {
     }
   }
 
-  public *entries(): IterableIterator<[string, string]> {
+  public *entries(): HeadersIterator<[string, string]> {
     for (const key of Object.keys(this.headers)) {
       const name = key.toLowerCase()
       // We assert here that this is a string because we got it from the
@@ -208,14 +208,14 @@ export class HeadersAdapter extends Headers {
     }
   }
 
-  public *keys(): IterableIterator<string> {
+  public *keys(): HeadersIterator<string> {
     for (const key of Object.keys(this.headers)) {
       const name = key.toLowerCase()
       yield name
     }
   }
 
-  public *values(): IterableIterator<string> {
+  public *values(): HeadersIterator<string> {
     for (const key of Object.keys(this.headers)) {
       // We assert here that this is a string because we got it from the
       // Object.keys() call above.
@@ -225,7 +225,7 @@ export class HeadersAdapter extends Headers {
     }
   }
 
-  public [Symbol.iterator](): IterableIterator<[string, string]> {
+  public [Symbol.iterator](): HeadersIterator<[string, string]> {
     return this.entries()
   }
 }

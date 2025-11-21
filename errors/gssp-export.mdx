@@ -1,0 +1,52 @@
+---
+title: '`getServerSideProps` Export Error'
+---
+
+## Why This Error Occurred
+
+You attempted to statically export your application via `output: 'export'` or `next export`, however, one or more of your pages uses `getServerSideProps`.
+
+It is not possible to use `getServerSideProps` without a server, so you'll need to use `next start` when self hosting or deploy to a provider like [Vercel](https://vercel.com).
+
+## Possible Ways to Fix It
+
+1. If you'd like to keep your application static, you can use `getStaticProps` instead of `getServerSideProps`.
+
+2. If you want to use server-side rendering, update your build command and remove `output: 'export'` and remove `next export`. For example, in your `package.json`:
+
+   ```diff
+   --- a/package.json
+   +++ b/package.json
+   @@ -1,7 +1,7 @@
+   {
+     "scripts": {
+       "dev": "next dev",
+   -    "build": "next build && next export",
+   +    "build": "next build",
+       "start": "next start"
+     }
+   }
+   ```
+
+   ```diff
+   --- a/next.config.js
+   +++ b/next.config.js
+   @@ -1,4 +1,4 @@
+   {
+     module.exports = {
+       reactStrictMode: true,
+   -    output: "export",
+     }
+   }
+   ```
+
+> **Note**:
+>
+> - Removing export does not mean your entire application is no longer static.
+> - Pages that use `getStaticProps` or [no lifecycle](/docs/pages/building-your-application/rendering/automatic-static-optimization) **will still be static**!
+
+## Useful Links
+
+- [Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization)
+- [`getStaticProps` documentation](/docs/pages/building-your-application/data-fetching/get-static-props)
+- [`exportPathMap` documentation](/docs/pages/api-reference/config/next-config-js/exportPathMap)

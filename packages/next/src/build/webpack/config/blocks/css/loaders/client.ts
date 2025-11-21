@@ -1,16 +1,20 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import { getRspackCore } from '../../../../../../shared/lib/get-rspack'
 
 export function getClientStyleLoader({
   hasAppDir,
   isAppDir,
   isDevelopment,
   assetPrefix,
+  experimentalInlineCss,
 }: {
   hasAppDir: boolean
   isAppDir?: boolean
   isDevelopment: boolean
   assetPrefix: string
+  experimentalInlineCss?: boolean
 }): webpack.RuleSetUseItem {
+  const isRspack = Boolean(process.env.NEXT_RSPACK)
   const shouldEnableApp = typeof isAppDir === 'boolean' ? isAppDir : hasAppDir
 
   // Keep next-style-loader for development mode in `pages/`
@@ -41,12 +45,16 @@ export function getClientStyleLoader({
     }
   }
 
-  const MiniCssExtractPlugin =
-    require('../../../../plugins/mini-css-extract-plugin').default
+  const MiniCssExtractPlugin = isRspack
+    ? getRspackCore().rspack.CssExtractRspackPlugin
+    : (
+        require('../../../../plugins/mini-css-extract-plugin') as typeof import('../../../../plugins/mini-css-extract-plugin')
+      ).default
+
   return {
     loader: MiniCssExtractPlugin.loader,
     options: {
-      publicPath: `${assetPrefix}/_next/`,
+      publicPath: experimentalInlineCss ? '/' : `${assetPrefix}/_next/`,
       esModule: false,
     },
   }

@@ -1,5 +1,5 @@
-export default function _classCheckPrivateStaticAccess(receiver, classConstructor) {
-  if (receiver !== classConstructor) {
-    throw new TypeError("Private static access of wrong provenance");
-  }
+import assertClassBrand from "./assertClassBrand.js";
+function _classCheckPrivateStaticAccess(s, a, r) {
+  return assertClassBrand(a, s, r);
 }
+export { _classCheckPrivateStaticAccess as default };

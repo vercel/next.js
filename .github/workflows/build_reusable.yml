@@ -1,0 +1,313 @@
+name: Build Reusable
+
+on:
+  workflow_call:
+    inputs:
+      afterBuild:
+        required: false
+        description: 'additional steps to run'
+        type: string
+      # Toggles the mold linker. The default linker is much slower and can run into OOMs.
+      # However, custom linkers won't work for wasm.
+      mold:
+        required: false
+        description: 'whether to use the mold linker'
+        type: string
+      skipInstallBuild:
+        required: false
+        description: 'whether to skip pnpm install && pnpm build'
+        type: string
+      skipNativeBuild:
+        required: false
+        description: 'whether to skip building native modules'
+        type: string
+      skipNativeInstall:
+        required: false
+        description: 'whether to skip native postinstall script'
+        type: string
+        default: 'yes'
+      uploadAnalyzerArtifacts:
+        required: false
+        description: 'whether to upload analyzer artifacts'
+        type: string
+      nodeVersion:
+        required: false
+        description: 'version of Node.js to use'
+        type: string
+      needsRust:
+        required: false
+        description: 'if rust is needed'
+        type: string
+      needsNextest:
+        required: false
+        description: 'if nextest rust dep is needed'
+        type: string
+      rustBuildProfile:
+        required: false
+        description: 'The profile to use for the build, default is `release-with-assertions`, also supports `` for debug and `release` for normal release'
+        type: string
+        default: 'release-with-assertions'
+      uploadSwcArtifact:
+        required: false
+        description: 'if swc artifact needs uploading'
+        type: string
+      rustCacheKey:
+        required: false
+        description: 'rustCacheKey to cache shared target assets'
+        type: string
+      stepName:
+        required: true
+        description: 'name of the step, to be used for the upload artifact unique key '
+        type: string
+      timeout_minutes:
+        description: 'Timeout in minutes'
+        required: false
+        type: number
+        default: 30
+      runs_on_labels:
+        description: 'List of runner labels'
+        required: false
+        type: string
+        default: '["self-hosted", "linux", "x64", "metal"]'
+      buildNativeTarget:
+        description: 'Target for build-native step'
+        required: false
+        type: string
+        default: 'x86_64-unknown-linux-gnu'
+      overrideProxyAddress:
+        description: Override the proxy address to use for the test
+        required: false
+        type: string
+        default: ''
+
+env:
+  NAPI_CLI_VERSION: 2.18.4
+  TURBO_VERSION: 2.5.5
+  NODE_LTS_VERSION: 20.9.0
+  # run-tests.js reads `TEST_CONCURRENCY` if no explicit `--concurrency` or `-c`
+  # argument is provided
+  TEST_CONCURRENCY: 8
+  # disable backtrace for test snapshots
+  RUST_BACKTRACE: 0
+
+  TURBO_TEAM: 'vercel'
+  TURBO_CACHE: 'remote:rw'
+
+  NEXT_TELEMETRY_DISABLED: 1
+  # allow not skipping install-native postinstall script if we don't have a binary available already
+  NEXT_SKIP_NATIVE_POSTINSTALL: ${{ inputs.skipNativeInstall == 'yes' && '1' || '' }}
+  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+  NEXT_JUNIT_TEST_REPORT: 'true'
+  DD_ENV: 'ci'
+  # Vercel KV Store for test timings
+  KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+  KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+  NEXT_TEST_JOB: 1
+  VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+  VERCEL_TEST_TEAM: vtest314-next-e2e-tests
+  NEXT_TEST_PREFER_OFFLINE: 1
+  NEXT_CI_RUNNER: ${{ inputs.runs_on_labels }}
+  NEXT_TEST_PROXY_ADDRESS: ${{ inputs.overrideProxyAddress || '' }}
+
+  # defaults to 256, but we run a lot of tests in parallel, so the limit should be lower
+  NEXT_TURBOPACK_IO_CONCURRENCY: 64
+
+jobs:
+  build:
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    runs-on: ${{ fromJson(inputs.runs_on_labels) }}
+
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+
+    outputs:
+      input_step_key: ${{ steps.var.outputs.input_step_key }}
+
+    steps:
+      - name: Check if fnm is installed
+        id: check-fnm
+        run: |
+          if [ -x "$(command -v fnm)" ]; then
+            echo "fnm found."
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "fnm not found."
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install fnm
+        if: steps.check-fnm.outputs.found != 'true'
+        run: |
+          curl -fsSL https://fnm.vercel.app/install | bash
+          export PATH="/home/runner/.local/share/fnm:$PATH"
+          echo "/home/runner/.local/share/fnm" >> $GITHUB_PATH
+          fnm env --json | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' | xargs -I {} echo "{}" >> $GITHUB_ENV
+
+      - name: Normalize input step names into path key
+        uses: actions/github-script@v7
+        id: var
+        with:
+          script: |
+            core.setOutput('input_step_key', '${{ inputs.stepName }}'.toLowerCase().replaceAll(/[/.]/g, '-').trim('-'));
+
+      - run: fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+      - run: fnm default ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+      - run: node -v
+      - name: Prepare corepack
+        if: ${{ contains(fromJson(inputs.runs_on_labels), 'ubuntu-latest') }}
+        run: |
+          npm i -g corepack@0.31
+      - run: corepack enable
+      - run: pwd
+
+      - run: rm -rf .git
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 25
+
+      # local action -> needs to run after checkout
+      - name: Install Rust
+        uses: ./.github/actions/setup-rust
+        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+
+      - name: 'Install mold linker'
+        if: ${{ inputs.mold == 'yes' }}
+        run: |
+          sudo apt update
+          sudo apt install -y mold
+          echo RUSTFLAGS=${RUSTFLAGS}\ -C\ link-arg=-fuse-ld=mold >> $GITHUB_ENV
+
+      - name: Install nextest
+        if: ${{ inputs.needsNextest == 'yes' }}
+        uses: taiki-e/install-action@nextest
+
+      - run: rustc --version
+        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+
+      - run: corepack prepare --activate yarn@1.22.19 && npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+
+      - name: Cache on ${{ github.ref_name }}
+        uses: ijjk/rust-cache@turbo-cache-v1.0.9
+        if: ${{ inputs.rustCacheKey }}
+        with:
+          cache-provider: 'turbo'
+          save-if: ${{ github.ref_name == 'canary' }}
+          shared-key: ${{ inputs.rustCacheKey }}-${{ inputs.buildNativeTarget }}-build-${{ inputs.rustBuildProfile }}-${{ hashFiles('.cargo/config.toml') }}
+
+      # clean up any previous artifacts to avoid hitting disk space limits
+      - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
+
+      # Configure a git user so that Create Next App can initialize git repos during integration tests.
+      - name: Set CI git user
+        run: |
+          git config --global user.name "vercel-ci-bot"
+          git config --global user.email "infra+ci@vercel.com"
+
+      - run: cargo clean
+        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+
+      # normalize versions before build-native for better cache hits
+      - run: node scripts/normalize-version-bump.js
+        name: normalize versions
+
+      - run: pnpm dlx turbo@${TURBO_VERSION} run build-native-${{ inputs.rustBuildProfile }} -v --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ inputs.buildNativeTarget }}
+        if: ${{ inputs.skipNativeBuild != 'yes' }}
+
+      - name: Upload next-swc artifact
+        if: ${{ inputs.uploadSwcArtifact == 'yes' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-swc-binary
+          path: packages/next-swc/native/next-swc.linux-x64-gnu.node
+
+      # undo normalize version changes for install/build
+      - run: git checkout .
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - run: pnpm install
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - name: Install node-file-trace test dependencies
+        if: ${{ inputs.needsNextest == 'yes' }}
+        working-directory: turbopack/crates/turbopack-tracing/tests/node-file-trace
+        run: pnpm install -r --side-effects-cache false
+
+      - run: ANALYZE=1 pnpm build
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      # Some packages e.g. `devlow-bench` depend on `pnpm build` to generate
+      # their `dist` directory. The first run of `pnpm install` will generate
+      # warnings because these don't exist yet.
+      #
+      # We need to run `pnpm install` a _second_ time to fix this. Fortunately,
+      # this second run is very fast and cheap.
+      - name: Re-run pnpm install to link built packages into node_modules/.bin
+        run: pnpm install
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - run: pnpm playwright install-deps
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - run: pnpm playwright install chromium
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - run: pnpm dlx turbo@${TURBO_VERSION} run get-test-timings -- --build ${{ github.sha }}
+
+      - run: ${{ inputs.afterBuild }}
+        # defaults.run.shell sets a stronger options (`-leo pipefail`)
+        # Set this back to github action's weaker defaults:
+        # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
+        #
+        # We must use a login shell: fnm installation may modify the `.profile`
+        shell: bash -le {0}
+        timeout-minutes: ${{ inputs.timeout_minutes }}
+
+      # This file messes up the tests because it influences the build root autodetection.
+      - name: Clean up stray files
+        if: ${{ always() }}
+        run: rm -f /tmp/package-lock.json
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: turbo-run-summary-${{ steps.var.outputs.input_step_key }}
+          path: .turbo/runs
+          if-no-files-found: ignore
+
+      - name: Upload bundle analyzer artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ inputs.uploadAnalyzerArtifacts == 'yes' }}
+        with:
+          name: webpack bundle analysis stats-${{ steps.var.outputs.input_step_key }}
+          path: packages/next/dist/compiled/next-server/report.*.html
+
+      - name: Upload test report to datadog
+        if: ${{ inputs.afterBuild && always() && !github.event.pull_request.head.repo.fork }}
+        run: |
+          # Add a `test.type` tag to distinguish between turbopack and next.js runs
+          # Add a `nextjs.test_session.name` tag to help identify the job
+          if [ -d ./test/test-junit-report ]; then
+            pnpm dlx @datadog/datadog-ci@2.45.1 junit upload \
+              --service nextjs \
+              --tags test.type:nextjs \
+              --tags test_session.name:"${{ inputs.stepName }}" \
+              ./test/test-junit-report
+          fi
+          if [ -d ./test/turbopack-test-junit-report ]; then
+            pnpm dlx @datadog/datadog-ci@2.45.1 junit upload \
+              --service nextjs \
+              --tags test.type:turbopack \
+              --tags test_session.name:"${{ inputs.stepName }}" \
+              ./test/turbopack-test-junit-report
+          fi
+
+      - name: Upload Playwright Snapshots
+        uses: actions/upload-artifact@v4
+        if: ${{ inputs.afterBuild && always() }}
+        with:
+          name: test-playwright-snapshots-${{ steps.var.outputs.input_step_key }}
+          path: |
+            test/traces
+          if-no-files-found: ignore

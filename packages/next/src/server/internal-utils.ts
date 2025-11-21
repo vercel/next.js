@@ -1,14 +1,8 @@
 import type { NextParsedUrlQuery } from './request-meta'
 
-const INTERNAL_QUERY_NAMES = [
-  '__nextFallback',
-  '__nextLocale',
-  '__nextInferredLocaleFromDefault',
-  '__nextDefaultLocale',
-  '__nextIsNotFound',
-] as const
+import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 
-const EXTENDED_INTERNAL_QUERY_NAMES = ['__nextDataReq'] as const
+const INTERNAL_QUERY_NAMES = [NEXT_RSC_UNION_QUERY] as const
 
 export function stripInternalQueries(query: NextParsedUrlQuery) {
   for (const name of INTERNAL_QUERY_NAMES) {
@@ -16,19 +10,11 @@ export function stripInternalQueries(query: NextParsedUrlQuery) {
   }
 }
 
-export function stripInternalSearchParams(
-  searchParams: URLSearchParams,
-  extended?: boolean
-) {
-  for (const name of INTERNAL_QUERY_NAMES) {
-    searchParams.delete(name)
-  }
+export function stripInternalSearchParams<T extends string | URL>(url: T): T {
+  const isStringUrl = typeof url === 'string'
+  const instance = isStringUrl ? new URL(url) : (url as URL)
 
-  if (extended) {
-    for (const name of EXTENDED_INTERNAL_QUERY_NAMES) {
-      searchParams.delete(name)
-    }
-  }
+  instance.searchParams.delete(NEXT_RSC_UNION_QUERY)
 
-  return searchParams
+  return (isStringUrl ? instance.toString() : instance) as T
 }

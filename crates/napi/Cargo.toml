@@ -1,0 +1,150 @@
+[package]
+edition = "2024"
+name = "next-swc-napi"
+version = "0.0.0"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# Instead of enabling all the plugin-related functionality by default, make it
+# overridable when built (i.e napi --build --features plugin). This is due to
+# some of transitive dependencies have features cannot be enabled at the same
+# time (i.e wasmer/default vs wasmer/js-default) while cargo merges all the
+# features at once.
+plugin = [
+    "swc_core/plugin_transform_host_native",
+    "swc_core/plugin_transform_host_native_filesystem_cache",
+    "swc_core/plugin_transform_host_native_shared_runtime",
+    "swc_core/plugin_backend_wasmer",
+    "next-custom-transforms/plugin",
+    "next-core/plugin",
+    "turbopack-ecmascript-plugins",
+    "turbopack-ecmascript-plugins/swc_ecma_transform_plugin",
+]
+
+image-webp = ["next-core/image-webp"]
+image-avif = ["next-core/image-avif"]
+# Enable all the available image codec support.
+# Currently this is identical to `image-webp`, as we are not able to build
+# other codecs easily yet.
+image-extended = ["image-webp"]
+
+# Enable dhat profiling allocator for heap profiling.
+__internal_dhat-heap = ["dhat"]
+# Enable dhat profiling allocator for ad hoc profiling.
+# [Note]: we do not have any ad hoc event in the codebase yet, so enabling this
+# effectively does nothing.
+__internal_dhat-ad-hoc = ["dhat"]
+
+# Enable support for the tokio console: https://github.com/tokio-rs/console
+tokio-console = ["dep:console-subscriber"]
+
+[lints]
+workspace = true
+
+[package.metadata.cargo-shear]
+ignored = [
+  # we need to set features on these packages when building for WASM, but we don't directly use them
+  "getrandom",
+  "iana-time-zone",
+  # the plugins feature needs to set a feature on this transitively depended-on package, we never
+  # directly import it
+  "turbopack-ecmascript-plugins",
+]
+
+[dependencies]
+anyhow = { workspace = true }
+console-subscriber = { workspace = true, optional = true }
+dhat = { workspace = true, optional = true }
+either = { workspace = true }
+flate2 = { workspace = true }
+futures-util = { workspace = true }
+owo-colors = { workspace = true }
+napi = { workspace = true }
+napi-derive = "2"
+next-custom-transforms = { workspace = true }
+next-taskless = { workspace = true }
+rand = { workspace = true }
+rustc-hash = { workspace = true }
+serde = "1"
+serde_json = "1"
+supports-hyperlinks = "3.1.0"
+terminal_hyperlink = "0.1.0"
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-chrome = "0.7.2"
+url = { workspace = true }
+urlencoding = { workspace = true }
+once_cell = { workspace = true }
+
+swc_core = { workspace = true, features = [
+    "base",
+    "common_concurrent",
+    "ecma_ast",
+    "ecma_ast_serde",
+    "ecma_codegen",
+    "ecma_helpers_inline",
+    "ecma_loader_lru",
+    "ecma_loader_node",
+    "ecma_minifier",
+    "ecma_parser",
+    "ecma_parser_typescript",
+    "ecma_transforms",
+    "ecma_transforms_optimization",
+    "ecma_transforms_react",
+    "ecma_transforms_typescript",
+    "ecma_utils",
+    "ecma_visit",
+] }
+
+# Dependencies for the native, non-wasm32 build.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+lightningcss-napi = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+turbo-rcstr = { workspace = true, features = ["napi"] }
+turbo-tasks = { workspace = true }
+turbo-tasks-backend = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-unix-path = { workspace = true }
+next-api = { workspace = true }
+next-build = { workspace = true }
+next-core = { workspace = true }
+
+mdxjs = { workspace = true, features = ["serializable"] }
+
+turbo-tasks-malloc = { workspace = true, default-features = false, features = [
+    "custom_allocator"
+] }
+
+turbopack-core = { workspace = true }
+turbopack-ecmascript-hmr-protocol = { workspace = true }
+turbopack-trace-utils = { workspace = true }
+turbopack-trace-server = { workspace = true }
+turbopack-ecmascript-plugins = { workspace = true, optional = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = "0.60"
+
+# Dependencies for the wasm32 build.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2.9", default-features = false, features = ["js"] }
+iana-time-zone = { version = "*", features = ["fallback"] }
+
+mdxjs = { workspace = true }
+
+turbo-tasks-malloc = { workspace = true, default-features = false }
+
+# wasi-only dependencies.
+[target.wasm32-wasip1-threads.dependencies]
+# this requires tokio_unstable currently.
+tokio = { workspace = true, features = ["full"] }
+
+[build-dependencies]
+anyhow = { workspace = true }
+napi-build = "2"
+serde = { workspace = true }
+serde_json = { workspace = true }
+vergen-gitcl = { workspace = true }
+

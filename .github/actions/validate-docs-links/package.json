@@ -1,0 +1,28 @@
+{
+  "private": true,
+  "type": "module",
+  "exports": "./dist/index.js",
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "build": "pnpm types && ncc build src/index.ts -m -o ./dist --license licenses.txt",
+    "types": "tsc"
+  },
+  "devDependencies": {
+    "@types/github-slugger": "^1.3.0",
+    "@vercel/ncc": "0.34.0",
+    "typescript": "5.1.6"
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.0",
+    "@actions/github": "^5.1.1",
+    "github-slugger": "1.2.0",
+    "gray-matter": "4.0.2",
+    "rehype-raw": "4.0.1",
+    "remark-parse": "7.0.1",
+    "remark-rehype": "5.0.0",
+    "unified": "8.4.1",
+    "unist-util-visit": "2.0.0"
+  }
+}

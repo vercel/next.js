@@ -1,5 +1,5 @@
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 
 describe('standalone mode and optimizeCss', () => {
@@ -29,7 +29,7 @@ describe('standalone mode and optimizeCss', () => {
         output: 'standalone',
       },
       dependencies: {
-        critters: 'latest',
+        critters: '0.0.16',
       },
     })
   })

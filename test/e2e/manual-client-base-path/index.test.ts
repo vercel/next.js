@@ -1,5 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import httpProxy from 'http-proxy'
 import { join } from 'path'
 import http from 'http'
@@ -152,6 +152,14 @@ describe('manual-client-base-path', () => {
     expect(await browser.eval('window.location.pathname')).toBe('/')
 
     await browser.forward()
+    await check(() => browser.elementByCss('#page').text(), 'another page')
+    expect(await browser.eval('window.location.pathname')).toBe('/another')
+
+    await browser.back()
+    await check(() => browser.elementByCss('#page').text(), 'index page')
+    expect(await browser.eval('window.location.pathname')).toBe('/')
+
+    await browser.elementByCss('#to-another-slash').click()
     await check(() => browser.elementByCss('#page').text(), 'another page')
     expect(await browser.eval('window.location.pathname')).toBe('/another')
 

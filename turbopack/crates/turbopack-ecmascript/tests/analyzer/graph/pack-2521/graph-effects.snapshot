@@ -1,0 +1,537 @@
+[
+    FreeVar {
+        var: "require",
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 33..40,
+    },
+    Call {
+        func: FreeVar(
+            "require",
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "./libvips",
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 33..53,
+        in_try: false,
+        new: false,
+    },
+    Call {
+        func: Variable(
+            (
+                "runtimePlatformArch",
+                #2,
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 79..100,
+        in_try: false,
+        new: false,
+    },
+    Member {
+        obj: FreeVar(
+            "console",
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "log",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 102..113,
+    },
+    FreeVar {
+        var: "console",
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+            MemberExpr(
+                Obj,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 102..109,
+    },
+    MemberCall {
+        obj: FreeVar(
+            "console",
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "log",
+                ),
+            ),
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "runtimePlatform:",
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        "runtimePlatform",
+                        #2,
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 102..150,
+        in_try: false,
+        new: false,
+    },
+    FreeVar {
+        var: "require",
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    6,
+                ),
+            ),
+            Stmt(
+                ForOf,
+            ),
+            ForOfStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Try,
+            ),
+            TryStmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 429..436,
+    },
+    Call {
+        func: FreeVar(
+            "require",
+        ),
+        args: [
+            Value(
+                Variable(
+                    (
+                        "path",
+                        #3,
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    6,
+                ),
+            ),
+            Stmt(
+                ForOf,
+            ),
+            ForOfStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Try,
+            ),
+            TryStmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 429..442,
+        in_try: true,
+        new: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "errors",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "push",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    6,
+                ),
+            ),
+            Stmt(
+                ForOf,
+            ),
+            ForOfStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Try,
+            ),
+            TryStmt(
+                Handler,
+            ),
+            CatchClause(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 508..519,
+    },
+    MemberCall {
+        obj: Variable(
+            (
+                "errors",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "push",
+                ),
+            ),
+        ),
+        args: [
+            Value(
+                Variable(
+                    (
+                        "err",
+                        #6,
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    6,
+                ),
+            ),
+            Stmt(
+                ForOf,
+            ),
+            ForOfStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Try,
+            ),
+            TryStmt(
+                Handler,
+            ),
+            CatchClause(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 508..524,
+        in_try: false,
+        new: false,
+    },
+]

@@ -1,13 +1,15 @@
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { NEXT_FONT_MANIFEST } from '../../../shared/lib/constants'
+import { traverseModules } from '../utils'
+import path from 'path'
 
 export type NextFontManifest = {
   pages: {
     [path: string]: string[]
   }
   app: {
-    [moduleRequest: string]: string[]
+    [entry: string]: string[]
   }
   appUsingSizeAdjust: boolean
   pagesUsingSizeAdjust: boolean
@@ -23,7 +25,7 @@ const PLUGIN_NAME = 'NextFontManifestPlugin'
  */
 function getPreloadedFontFiles(fontFiles: string[]) {
   return fontFiles.filter((file: string) =>
-    /\.p.(woff|woff2|eot|ttf|otf)$/.test(file)
+    /\.p\.(woff|woff2|eot|ttf|otf)$/.test(file)
   )
 }
 
@@ -51,34 +53,21 @@ function getPageIsUsingSizeAdjust(fontFiles: string[]) {
  * When creating the component tree in app-render it looks for font files to preload: manifest.app[moduleBeingRendered]
  */
 export class NextFontManifestPlugin {
-  private appDirEnabled: boolean
+  private appDir: undefined | string
 
-  constructor(options: { appDirEnabled: boolean }) {
-    this.appDirEnabled = options.appDirEnabled
+  constructor(options: { appDir: undefined | string }) {
+    this.appDir = options.appDir
   }
 
   apply(compiler: webpack.Compiler) {
     compiler.hooks.make.tap(PLUGIN_NAME, (compilation) => {
-      let nextFontModules: webpack.Module[]
-
-      // After all modules are created, we collect the modules that was created by next-font-loader.
-      if (this.appDirEnabled) {
-        compilation.hooks.finishModules.tap(PLUGIN_NAME, (modules) => {
-          const modulesArr = Array.from(modules)
-          nextFontModules = modulesArr.filter((mod: any) =>
-            mod?.loaders?.some(({ loader }: any) =>
-              loader.includes('next-font-loader/index.js')
-            )
-          )
-        })
-      }
-
+      // In this stage the font files are emitted and we can collect all files emitted by each chunkGroup (entry).
       compilation.hooks.processAssets.tap(
         {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        (assets: any) => {
+        () => {
           const nextFontManifest: NextFontManifest = {
             pages: {},
             app: {},
@@ -86,31 +75,52 @@ export class NextFontManifestPlugin {
             pagesUsingSizeAdjust: false,
           }
 
-          if (this.appDirEnabled) {
-            // In this stage the font files are emitted and we can collect all files emitted by each next/font module.
-            for (const mod of nextFontModules) {
-              if (!mod.buildInfo?.assets) continue
-              const modAssets = Object.keys(mod.buildInfo.assets)
-              const fontFiles: string[] = modAssets.filter((file: string) =>
-                /\.(woff|woff2|eot|ttf|otf)$/.test(file)
-              )
+          if (this.appDir) {
+            const appDirBase = path.dirname(this.appDir) + path.sep
 
-              // Look if size-adjust fallback font is being used
-              if (!nextFontManifest.appUsingSizeAdjust) {
-                nextFontManifest.appUsingSizeAdjust =
-                  getPageIsUsingSizeAdjust(fontFiles)
+            // After all modules are created, we collect the modules that was created by next-font-loader.
+            traverseModules(
+              compilation,
+              (mod, _chunk, chunkGroup) => {
+                if (mod?.request?.includes('/next-font-loader/index.js?')) {
+                  if (!mod.buildInfo?.assets) return
+
+                  const chunkEntryName = (appDirBase + chunkGroup.name).replace(
+                    /[\\/]/g,
+                    path.sep
+                  )
+
+                  const modAssets = Object.keys(mod.buildInfo.assets)
+                  const fontFiles: string[] = modAssets.filter((file: string) =>
+                    /\.(woff|woff2|eot|ttf|otf)$/.test(file)
+                  )
+
+                  // Look if size-adjust fallback font is being used
+                  if (!nextFontManifest.appUsingSizeAdjust) {
+                    nextFontManifest.appUsingSizeAdjust =
+                      getPageIsUsingSizeAdjust(fontFiles)
+                  }
+
+                  const preloadedFontFiles = getPreloadedFontFiles(fontFiles)
+
+                  // Add an entry of the module's font files in the manifest.
+                  // We'll add an entry even if no files should preload.
+                  // When an entry is present but empty, instead of preloading the font files, a preconnect tag is added.
+                  if (fontFiles.length > 0) {
+                    if (!nextFontManifest.app[chunkEntryName]) {
+                      nextFontManifest.app[chunkEntryName] = []
+                    }
+                    nextFontManifest.app[chunkEntryName].push(
+                      ...preloadedFontFiles
+                    )
+                  }
+                }
+              },
+              (chunkGroup) => {
+                // Only loop through entrypoints that are under app/.
+                return !!chunkGroup.name?.startsWith('app/')
               }
-
-              const preloadedFontFiles = getPreloadedFontFiles(fontFiles)
-
-              // Add an entry of the module's font files in the manifest.
-              // We'll add an entry even if no files should preload.
-              // When an entry is present but empty, instead of preloading the font files, a preconnect tag is added.
-              if (fontFiles.length > 0) {
-                nextFontManifest.app[(mod as any).userRequest] =
-                  preloadedFontFiles
-              }
-            }
+            )
           }
 
           // Look at all the entrypoints created for pages/.
@@ -144,14 +154,21 @@ export class NextFontManifestPlugin {
             }
           }
 
-          const manifest = JSON.stringify(nextFontManifest, null, 2)
+          const manifest = JSON.stringify(nextFontManifest, null)
           // Create manifest for edge
-          assets[`server/${NEXT_FONT_MANIFEST}.js`] = new sources.RawSource(
-            `self.__NEXT_FONT_MANIFEST=${manifest}`
+          compilation.emitAsset(
+            `server/${NEXT_FONT_MANIFEST}.js`,
+            new sources.RawSource(
+              `self.__NEXT_FONT_MANIFEST=${JSON.stringify(manifest)}`
+            ) as unknown as webpack.sources.RawSource
           )
+
           // Create manifest for server
-          assets[`server/${NEXT_FONT_MANIFEST}.json`] = new sources.RawSource(
-            manifest
+          compilation.emitAsset(
+            `server/${NEXT_FONT_MANIFEST}.json`,
+            new sources.RawSource(
+              manifest
+            ) as unknown as webpack.sources.RawSource
           )
         }
       )

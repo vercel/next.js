@@ -1,7 +1,0 @@
-
-  x NEXT_RSC_ERR_SERVER_IMPORT: client-only
-   ,-[input.js:8:1]
- 8 | 
- 9 | import 'client-only'
-   : ^^^^^^^^^^^^^^^^^^^^
-   `----

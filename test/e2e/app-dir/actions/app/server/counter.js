@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 
-export default function Counter({ inc, dec, double }) {
+export default function Counter({ inc, dec, double, slowInc }) {
   const [count, setCount] = useState(0)
 
   return (
     <div>
-      <h1>{count}</h1>
+      <h1 id="count">{count}</h1>
       <button
         id="inc"
         onClick={async () => {
@@ -16,6 +16,15 @@ export default function Counter({ inc, dec, double }) {
         }}
       >
         +1
+      </button>
+      <button
+        id="slow-inc"
+        onClick={async () => {
+          const newCount = await slowInc(count)
+          setCount(newCount)
+        }}
+      >
+        +1 (Slow)
       </button>
       <button
         id="dec"

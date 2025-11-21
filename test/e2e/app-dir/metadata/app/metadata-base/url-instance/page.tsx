@@ -5,6 +5,6 @@ export default function page() {
 export const metadata = {
   metadataBase: new URL('https://example.com/foo'),
   openGraph: {
-    url: new URL('http://https://outerspace.com/huozhi.png'),
+    url: new URL('https://outerspace.com/huozhi.png'),
   },
 }

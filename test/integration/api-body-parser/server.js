@@ -1,5 +1,4 @@
 const next = require('next')
-const bodyParser = require('body-parser')
 const express = require('express')
 
 const dev = process.env.NODE_ENV !== 'production'
@@ -12,9 +11,10 @@ const handleNextRequests = app.getRequestHandler()
 app.prepare().then(() => {
   const server = express()
 
-  server.use(bodyParser.json({ limit: '5mb' }))
+  server.use(express.json({ limit: '5mb' }))
 
   server.all('*', (req, res) => {
+    req.fromCustomServer = true
     handleNextRequests(req, res)
   })
 

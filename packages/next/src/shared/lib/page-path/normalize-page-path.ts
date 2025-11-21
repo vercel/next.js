@@ -12,16 +12,15 @@ import { NormalizeError } from '../utils'
  *  - `/index` -> `/index/index`
  */
 export function normalizePagePath(page: string): string {
-  const normalized = ensureLeadingSlash(
+  const normalized =
     /^\/index(\/|$)/.test(page) && !isDynamicRoute(page)
       ? `/index${page}`
       : page === '/'
-      ? '/index'
-      : page
-  )
+        ? '/index'
+        : ensureLeadingSlash(page)
 
   if (process.env.NEXT_RUNTIME !== 'edge') {
-    const { posix } = require('path')
+    const { posix } = require('path') as typeof import('path')
     const resolvedPage = posix.normalize(normalized)
     if (resolvedPage !== normalized) {
       throw new NormalizeError(

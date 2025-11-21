@@ -2,47 +2,47 @@ import type { NextConfigComplete } from '../server/config-shared'
 import type { Telemetry } from '../telemetry/storage'
 import type { Span } from '../trace'
 
-import path from 'path'
 import * as Log from './output/log'
-import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
-import { verifyAndLint } from '../lib/verifyAndLint'
+import { Worker } from '../lib/worker'
 import createSpinner from './spinner'
 import { eventTypeCheckCompleted } from '../telemetry/events'
 import isError from '../lib/is-error'
+import { hrtimeDurationToString } from './duration-to-string'
 
 /**
- * typescript will be loaded in "next/lib/verifyTypeScriptSetup" and
+ * typescript will be loaded in "next/lib/verify-typescript-setup" and
  * then passed to "next/lib/typescript/runTypeCheck" as a parameter.
  *
  * Since it is impossible to pass a function from main thread to a worker,
  * instead of running "next/lib/typescript/runTypeCheck" in a worker,
- * we will run entire "next/lib/verifyTypeScriptSetup" in a worker instead.
+ * we will run entire "next/lib/verify-typescript-setup" in a worker instead.
  */
 function verifyTypeScriptSetup(
   dir: string,
   distDir: string,
   intentDirs: string[],
   typeCheckPreflight: boolean,
-  tsconfigPath: string,
+  tsconfigPath: string | undefined,
   disableStaticImages: boolean,
   cacheDir: string | undefined,
   enableWorkerThreads: boolean | undefined,
   hasAppDir: boolean,
-  hasPagesDir: boolean
+  hasPagesDir: boolean,
+  isolatedDevBuild: boolean | undefined
 ) {
-  const typeCheckWorker = new JestWorker(
-    require.resolve('../lib/verifyTypeScriptSetup'),
+  const typeCheckWorker = new Worker(
+    require.resolve('../lib/verify-typescript-setup'),
     {
+      exposedMethods: ['verifyTypeScriptSetup'],
+      debuggerPortOffset: -1,
+      isolatedMemory: false,
       numWorkers: 1,
       enableWorkerThreads,
       maxRetries: 0,
     }
-  ) as JestWorker & {
-    verifyTypeScriptSetup: typeof import('../lib/verifyTypeScriptSetup').verifyTypeScriptSetup
+  ) as Worker & {
+    verifyTypeScriptSetup: typeof import('../lib/verify-typescript-setup').verifyTypeScriptSetup
   }
-
-  typeCheckWorker.getStdout().pipe(process.stdout)
-  typeCheckWorker.getStderr().pipe(process.stderr)
 
   return typeCheckWorker
     .verifyTypeScriptSetup({
@@ -55,10 +55,16 @@ function verifyTypeScriptSetup(
       cacheDir,
       hasAppDir,
       hasPagesDir,
+      isolatedDevBuild,
     })
     .then((result) => {
       typeCheckWorker.end()
       return result
+    })
+    .catch(() => {
+      // The error is already logged in the worker, we simply exit the main thread to prevent the
+      // `Jest worker encountered 1 child process exceptions, exceeding retry limit` from showing up
+      process.exit(1)
     })
 }
 
@@ -66,64 +72,42 @@ export async function startTypeChecking({
   cacheDir,
   config,
   dir,
-  ignoreESLint,
   nextBuildSpan,
   pagesDir,
-  runLint,
-  shouldLint,
   telemetry,
   appDir,
 }: {
   cacheDir: string
   config: NextConfigComplete
   dir: string
-  ignoreESLint: boolean
   nextBuildSpan: Span
   pagesDir?: string
-  runLint: boolean
-  shouldLint: boolean
   telemetry: Telemetry
   appDir?: string
 }) {
   const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
 
-  const eslintCacheDir = path.join(cacheDir, 'eslint/')
-
   if (ignoreTypeScriptErrors) {
     Log.info('Skipping validation of types')
   }
-  if (runLint && ignoreESLint) {
-    // only print log when build require lint while ignoreESLint is enabled
-    Log.info('Skipping linting')
+
+  let typeCheckingSpinnerPrefixText: string | undefined
+  let typeCheckingSpinner: ReturnType<typeof createSpinner> | undefined
+
+  if (!ignoreTypeScriptErrors) {
+    typeCheckingSpinnerPrefixText = 'Running TypeScript'
   }
 
-  let typeCheckingAndLintingSpinnerPrefixText: string | undefined
-  let typeCheckingAndLintingSpinner:
-    | ReturnType<typeof createSpinner>
-    | undefined
-
-  if (!ignoreTypeScriptErrors && shouldLint) {
-    typeCheckingAndLintingSpinnerPrefixText =
-      'Linting and checking validity of types'
-  } else if (!ignoreTypeScriptErrors) {
-    typeCheckingAndLintingSpinnerPrefixText = 'Checking validity of types'
-  } else if (shouldLint) {
-    typeCheckingAndLintingSpinnerPrefixText = 'Linting'
+  if (typeCheckingSpinnerPrefixText) {
+    typeCheckingSpinner = createSpinner(typeCheckingSpinnerPrefixText)
   }
 
-  // we will not create a spinner if both ignoreTypeScriptErrors and ignoreESLint are
-  // enabled, but we will still verifying project's tsconfig and dependencies.
-  if (typeCheckingAndLintingSpinnerPrefixText) {
-    typeCheckingAndLintingSpinner = createSpinner({
-      prefixText: `${Log.prefixes.info} ${typeCheckingAndLintingSpinnerPrefixText}`,
-    })
-  }
-
-  const typeCheckStart = process.hrtime()
+  const typeCheckAndLintStart = process.hrtime()
 
   try {
-    const [[verifyResult, typeCheckEnd]] = await Promise.all([
-      nextBuildSpan.traceChild('verify-typescript-setup').traceAsyncFn(() =>
+    const [verifyResult, typeCheckEnd] = await nextBuildSpan
+      .traceChild('run-typescript')
+      .traceAsyncFn(() =>
         verifyTypeScriptSetup(
           dir,
           config.distDir,
@@ -134,25 +118,21 @@ export async function startTypeChecking({
           cacheDir,
           config.experimental.workerThreads,
           !!appDir,
-          !!pagesDir
+          !!pagesDir,
+          config.experimental.isolatedDevBuild
         ).then((resolved) => {
-          const checkEnd = process.hrtime(typeCheckStart)
+          const checkEnd = process.hrtime(typeCheckAndLintStart)
           return [resolved, checkEnd] as const
         })
-      ),
-      shouldLint &&
-        nextBuildSpan.traceChild('verify-and-lint').traceAsyncFn(async () => {
-          await verifyAndLint(
-            dir,
-            eslintCacheDir,
-            config.eslint?.dirs,
-            config.experimental.workerThreads,
-            telemetry,
-            !!appDir
-          )
-        }),
-    ])
-    typeCheckingAndLintingSpinner?.stopAndPersist()
+      )
+
+    if (typeCheckingSpinner) {
+      typeCheckingSpinner.stop()
+
+      createSpinner(
+        `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
+      )?.stopAndPersist()
+    }
 
     if (!ignoreTypeScriptErrors && verifyResult) {
       telemetry.record(

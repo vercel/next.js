@@ -82,7 +82,7 @@ describe('next/font/local loader', () => {
 
       expect(css).toMatchInlineSnapshot(`
         "@font-face {
-        font-feature-settings: \\"smcp\\" on;
+        font-feature-settings: "smcp" on;
         ascent-override: 90%;
         font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
@@ -225,6 +225,37 @@ describe('next/font/local loader', () => {
         src: url(/_next/static/media/my-font.woff2) format('woff2');
         font-display: swap;
         font-weight: 700;
+        }
+        "
+      `)
+    })
+
+    test('Custom font-family in declarations', async () => {
+      const { css } = await nextFontLocalFontLoader({
+        functionName: '',
+        data: [
+          {
+            src: './my-font.woff2',
+            declarations: [{ prop: 'font-family', value: 'Custom Font' }],
+          },
+        ],
+        emitFontFile: () => '/_next/static/media/my-font.woff2',
+        resolve: jest.fn(),
+        isDev: false,
+        isServer: true,
+        variableName: 'myFont',
+        loaderContext: {
+          fs: {
+            readFile: (_: string, cb: any) => cb(null, 'fontdata'),
+          },
+        } as any,
+      })
+
+      expect(css).toMatchInlineSnapshot(`
+        "@font-face {
+        font-family: Custom Font;
+        src: url(/_next/static/media/my-font.woff2) format('woff2');
+        font-display: swap;
         }
         "
       `)

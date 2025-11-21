@@ -1,73 +1,65 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type {
   FlightRouterState,
-  FlightData,
   FlightSegmentPath,
-} from '../../../server/app-render/types'
-import { fetchServerResponse } from './fetch-server-response'
+} from '../../../shared/lib/app-router-types'
+import type { FetchServerResponseResult } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
 export const ACTION_NAVIGATE = 'navigate'
 export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
-export const ACTION_PREFETCH = 'prefetch'
-export const ACTION_FAST_REFRESH = 'fast-refresh'
+export const ACTION_HMR_REFRESH = 'hmr-refresh'
 export const ACTION_SERVER_ACTION = 'server-action'
 
-export type RouterChangeByServerResponse = (
-  previousTree: FlightRouterState,
-  flightData: FlightData,
-  overrideCanonicalUrl: URL | undefined
-) => void
-
-export type RouterNavigate = (
-  href: string,
-  navigateType: 'push' | 'replace',
-  forceOptimisticNavigation: boolean
-) => void
+export type RouterChangeByServerResponse = ({
+  navigatedAt,
+  previousTree,
+  serverResponse,
+}: {
+  navigatedAt: number
+  previousTree: FlightRouterState
+  serverResponse: FetchServerResponseResult
+}) => void
 
 export interface Mutable {
   mpaNavigation?: boolean
-  previousTree?: FlightRouterState
   patchedTree?: FlightRouterState
+  renderedSearch?: string
   canonicalUrl?: string
   scrollableSegments?: FlightSegmentPath[]
   pendingPush?: boolean
   cache?: CacheNode
-  prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
+  shouldScroll?: boolean
+  preserveCustomHistoryState?: boolean
+  onlyHashChange?: boolean
+  collectedDebugInfo?: Array<unknown>
 }
 
-export interface ServerActionMutable {
+export interface ServerActionMutable extends Mutable {
   inFlightServerAction?: Promise<any> | null
-  serverActionApplied?: boolean
-  previousTree?: FlightRouterState
-  previousUrl?: string
 }
 
 /**
  * Refresh triggers a refresh of the full page data.
- * - fetches the Flight data and fills subTreeData at the root of the cache.
+ * - fetches the Flight data and fills rsc at the root of the cache.
  * - The router state is updated at the root.
  */
 export interface RefreshAction {
   type: typeof ACTION_REFRESH
-  cache: CacheNode
-  mutable: Mutable
   origin: Location['origin']
 }
 
-export interface FastRefreshAction {
-  type: typeof ACTION_FAST_REFRESH
-  cache: CacheNode
-  mutable: Mutable
+export interface HmrRefreshAction {
+  type: typeof ACTION_HMR_REFRESH
   origin: Location['origin']
 }
 
 export type ServerActionDispatcher = (
   args: Omit<
     ServerActionAction,
-    'type' | 'mutable' | 'navigate' | 'changeByServerResponse'
+    'type' | 'mutable' | 'navigate' | 'changeByServerResponse' | 'cache'
   >
 ) => void
 
@@ -77,9 +69,7 @@ export interface ServerActionAction {
   actionArgs: any[]
   resolve: (value: any) => void
   reject: (reason?: any) => void
-  mutable: ServerActionMutable
-  navigate: RouterNavigate
-  changeByServerResponse: RouterChangeByServerResponse
+  didRevalidate?: boolean
 }
 
 /**
@@ -102,11 +92,6 @@ export interface ServerActionAction {
  *    - The cache is reused
  *    - If any cache nodes are missing they'll be fetched in layout-router and trigger the SERVER_PATCH action
  * - page was not prefetched
- *  - The navigate was called from `next/link` with `prefetch={false}`. This case is called `forceOptimisticNavigation`. It triggers an optimistic navigation so that loading spinners can be shown early if any.
- *    - Creates an optimistic router tree based on the provided url
- *    - Adds a cache node to the cache with a Flight data fetch that was eagerly started in the reducer
- *    - Flight data fetch is suspended in the layout-router
- *    - Triggers SERVER_PATCH action when the data comes back, this will apply the data to the cache and router state, at that point the optimistic router tree is replaced by the actual router tree.
  *  - The navigate was called from `next/router` (`router.push()` / `router.replace()`) / `next/link` without prefetched data available (e.g. the prefetch didn't come back from the server before clicking the link)
  *    - Flight data is fetched in the reducer (suspends the reducer)
  *    - Router state tree is created based on Flight data
@@ -123,22 +108,27 @@ export interface NavigateAction {
   isExternalUrl: boolean
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
-  forceOptimisticNavigation: boolean
-  cache: CacheNode
-  mutable: Mutable
+  shouldScroll: boolean
 }
 
 /**
  * Restore applies the provided router state.
- * - Only used for `popstate` (back/forward navigation) where a known router state has to be applied.
- * - Router state is applied as-is from the history state.
+ * - Used for `popstate` (back/forward navigation) where a known router state has to be applied.
+ * - Also used when syncing the router state with `pushState`/`replaceState` calls.
+ * - Router state is applied as-is from the history state, if available.
+ * - If the history state does not contain the router state, the existing router state is used.
  * - If any cache node is missing it will be fetched in layout-router during rendering and the server-patch case.
  * - If existing cache nodes match these are used.
  */
 export interface RestoreAction {
   type: typeof ACTION_RESTORE
   url: URL
+  historyState: AppHistoryState | undefined
+}
+
+export type AppHistoryState = {
   tree: FlightRouterState
+  renderedSearch: string
 }
 
 /**
@@ -148,11 +138,9 @@ export interface RestoreAction {
  */
 export interface ServerPatchAction {
   type: typeof ACTION_SERVER_PATCH
-  flightData: FlightData
+  navigatedAt: number
+  serverResponse: FetchServerResponseResult
   previousTree: FlightRouterState
-  overrideCanonicalUrl: URL | undefined
-  cache: CacheNode
-  mutable: Mutable
 }
 
 /**
@@ -174,13 +162,8 @@ export enum PrefetchKind {
  * - Adds the FlightData to the prefetch cache
  * - In ACTION_NAVIGATE the prefetch cache is checked and the router state tree and FlightData are applied.
  */
-export interface PrefetchAction {
-  type: typeof ACTION_PREFETCH
-  url: URL
-  kind: PrefetchKind
-}
 
-interface PushRef {
+export interface PushRef {
   /**
    * If the app-router should push a new history entry in app-router's useEffect()
    */
@@ -189,6 +172,10 @@ interface PushRef {
    * Multi-page navigation through location.href.
    */
   mpaNavigation: boolean
+  /**
+   * Skip applying the router state to the browser history state.
+   */
+  preserveCustomHistoryState: boolean
 }
 
 export type FocusAndScrollRef = {
@@ -204,14 +191,10 @@ export type FocusAndScrollRef = {
    * The paths of the segments that should be focused.
    */
   segmentPaths: FlightSegmentPath[]
-}
-
-export type PrefetchCacheEntry = {
-  treeAtTimeOfPrefetch: FlightRouterState
-  data: ReturnType<typeof fetchServerResponse> | null
-  kind: PrefetchKind
-  prefetchTime: number
-  lastUsedTime: number | null
+  /**
+   * If only the URLs hash fragment changed
+   */
+  onlyHashChange: boolean
 }
 
 /**
@@ -227,13 +210,8 @@ export type AppRouterState = {
   /**
    * The cache holds React nodes for every segment that is shown on screen as well as previously shown segments.
    * It also holds in-progress data requests.
-   * Prefetched data is stored separately in `prefetchCache`, that is applied during ACTION_NAVIGATE.
    */
   cache: CacheNode
-  /**
-   * Cache that holds prefetched Flight responses keyed by url.
-   */
-  prefetchCache: Map<string, PrefetchCacheEntry>
   /**
    * Decides if the update should create a new history entry and if the navigation has to trigger a browser navigation.
    */
@@ -247,20 +225,29 @@ export type AppRouterState = {
    * - This is the url you see in the browser.
    */
   canonicalUrl: string
+  renderedSearch: string
   /**
    * The underlying "url" representing the UI state, which is used for intercepting routes.
    */
   nextUrl: string | null
+
+  /**
+   * The previous next-url that was used previous to a dynamic navigation.
+   */
+  previousNextUrl: string | null
+
+  debugInfo: Array<unknown> | null
 }
 
 export type ReadonlyReducerState = Readonly<AppRouterState>
-export type ReducerState = AppRouterState
+export type ReducerState =
+  | (Promise<AppRouterState> & { _debugInfo?: Array<unknown> })
+  | AppRouterState
 export type ReducerActions = Readonly<
   | RefreshAction
   | NavigateAction
   | RestoreAction
   | ServerPatchAction
-  | PrefetchAction
-  | FastRefreshAction
+  | HmrRefreshAction
   | ServerActionAction
 >

@@ -1,29 +1,22 @@
 /* eslint-env jest */
-import { sandbox } from './helpers'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { createSandbox } from 'development-sandbox'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
+import { outdent } from 'outdent'
 
 describe('ReactRefresh app', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-      dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
-      },
-      skipStart: true,
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    skipStart: true,
   })
-  afterAll(() => next.destroy())
 
   test('can edit a component without losing state', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
+
     await session.patch(
       'index.js',
-      `
+      outdent`
         import { useCallback, useState } from 'react'
         export default function Index() {
           const [count, setCount] = useState(0)
@@ -43,7 +36,7 @@ describe('ReactRefresh app', () => {
     ).toBe('1')
     await session.patch(
       'index.js',
-      `
+      outdent`
         import { useCallback, useState } from 'react'
         export default function Index() {
           const [count, setCount] = useState(0)
@@ -64,15 +57,15 @@ describe('ReactRefresh app', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
-    await cleanup()
   })
 
   test('cyclic dependencies', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.write(
       'NudgeOverview.js',
-      `
+      outdent`
         import * as React from 'react';
 
         import { foo } from './routes';
@@ -88,7 +81,7 @@ describe('ReactRefresh app', () => {
 
     await session.write(
       'SurveyOverview.js',
-      `
+      outdent`
         const SurveyOverview = () => {
           return 100;
         };
@@ -99,7 +92,7 @@ describe('ReactRefresh app', () => {
 
     await session.write(
       'Milestones.js',
-      `
+      outdent`
         import React from 'react';
 
         import { fragment } from './DashboardPage';
@@ -115,7 +108,7 @@ describe('ReactRefresh app', () => {
 
     await session.write(
       'DashboardPage.js',
-      `
+      outdent`
         import React from 'react';
 
         import Milestones from './Milestones';
@@ -140,7 +133,7 @@ describe('ReactRefresh app', () => {
 
     await session.write(
       'routes.js',
-      `
+      outdent`
         import DashboardPage from './DashboardPage';
 
         export const foo = {};
@@ -154,7 +147,7 @@ describe('ReactRefresh app', () => {
 
     await session.patch(
       'index.js',
-      `
+      outdent`
         import * as React from 'react';
 
         import DashboardPage from './routes';
@@ -173,7 +166,7 @@ describe('ReactRefresh app', () => {
 
     let didFullRefresh = !(await session.patch(
       'SurveyOverview.js',
-      `
+      outdent`
         const SurveyOverview = () => {
           return 200;
         };
@@ -189,7 +182,7 @@ describe('ReactRefresh app', () => {
 
     didFullRefresh = !(await session.patch(
       'index.js',
-      `
+      outdent`
         import * as React from 'react';
 
         import DashboardPage from './routes';
@@ -209,7 +202,7 @@ describe('ReactRefresh app', () => {
 
     didFullRefresh = !(await session.patch(
       'SurveyOverview.js',
-      `
+      outdent`
         const SurveyOverview = () => {
           return 300;
         };
@@ -222,7 +215,5 @@ describe('ReactRefresh app', () => {
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Hello: 300')
     expect(didFullRefresh).toBe(false)
-
-    await cleanup()
   })
 })

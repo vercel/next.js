@@ -1,8 +1,10 @@
 'use client'
+import { use } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
-export default function Page({ params }) {
+export default function Page(props) {
+  const params = use(props.params)
   const router = useRouter()
   return (
     <>

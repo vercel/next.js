@@ -1,13 +1,12 @@
 const path = require('path')
-const fs = require('fs-extra')
-const getPort = require('get-port')
+const fs = require('fs/promises')
 const glob = require('../util/glob')
 const exec = require('../util/exec')
 const logger = require('../util/logger')
 const getDirSize = require('./get-dir-size')
 const collectStats = require('./collect-stats')
 const collectDiffs = require('./collect-diffs')
-const { statsAppDir, diffRepoDir, yarnEnvValues } = require('../constants')
+const { statsAppDir, diffRepoDir } = require('../constants')
 
 async function runConfigs(
   configs = [],
@@ -37,8 +36,8 @@ async function runConfigs(
       const curStatsAppPath = path.join(diffRepoDir, relativeStatsAppDir)
 
       // clean statsAppDir
-      await fs.remove(statsAppDir)
-      await fs.copy(curStatsAppPath, statsAppDir)
+      await fs.rm(statsAppDir, { recursive: true, force: true })
+      await fs.cp(curStatsAppPath, statsAppDir, { recursive: true })
 
       logger(`Copying ${curStatsAppPath} ${statsAppDir}`)
 
@@ -59,13 +58,7 @@ async function runConfigs(
 
       const buildStart = Date.now()
       console.log(
-        await exec(
-          `cd ${statsAppDir} && ${statsConfig.appBuildCommand}`,
-          false,
-          {
-            env: yarnEnvValues,
-          }
-        )
+        await exec(`cd ${statsAppDir} && ${statsConfig.appBuildCommand}`, false)
       )
       curStats.General.buildDuration = Date.now() - buildStart
 
@@ -77,7 +70,7 @@ async function runConfigs(
             ? result.replace(/(\.|-)[0-9a-f]{16}(\.|-)/g, '$1HASH$2')
             : rename.dest
           if (result === dest) continue
-          await fs.move(
+          await fs.rename(
             path.join(statsAppDir, result),
             path.join(statsAppDir, dest)
           )
@@ -160,13 +153,7 @@ async function runConfigs(
 
       const secondBuildStart = Date.now()
       console.log(
-        await exec(
-          `cd ${statsAppDir} && ${statsConfig.appBuildCommand}`,
-          false,
-          {
-            env: yarnEnvValues,
-          }
-        )
+        await exec(`cd ${statsAppDir} && ${statsConfig.appBuildCommand}`, false)
       )
       curStats.General.buildDurationCached = Date.now() - secondBuildStart
     }
@@ -185,7 +172,10 @@ async function runConfigs(
 }
 
 async function linkPkgs(pkgDir = '', pkgPaths) {
-  await fs.remove(path.join(pkgDir, 'node_modules'))
+  await fs.rm(path.join(pkgDir, 'node_modules'), {
+    recursive: true,
+    force: true,
+  })
 
   const pkgJsonPath = path.join(pkgDir, 'package.json')
   const pkgData = require(pkgJsonPath)
@@ -203,13 +193,9 @@ async function linkPkgs(pkgDir = '', pkgPaths) {
   }
   await fs.writeFile(pkgJsonPath, JSON.stringify(pkgData, null, 2), 'utf8')
 
-  await fs.remove(yarnEnvValues.YARN_CACHE_FOLDER)
   await exec(
     `cd ${pkgDir} && pnpm install --strict-peer-dependencies=false`,
-    false,
-    {
-      env: yarnEnvValues,
-    }
+    false
   )
 }
 

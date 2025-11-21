@@ -32,6 +32,11 @@ export default function Page(props) {
       </Link>
       <br />
 
+      <Link href="/another/" id="to-another-slash">
+        to /another
+      </Link>
+      <br />
+
       <Link href="/dynamic/first" id="to-dynamic">
         to /dynamic/first
       </Link>

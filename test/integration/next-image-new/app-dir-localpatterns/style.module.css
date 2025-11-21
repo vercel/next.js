@@ -1,0 +1,18 @@
+.displayFlex {
+  display: flex;
+}
+
+.mainContainer span {
+  margin: 57px;
+}
+
+.mainContainer img {
+  border-radius: 139px;
+}
+
+.overrideImg {
+  filter: opacity(0.5);
+  background-size: 30%;
+  background-image: url('data:image/png;base64,iVBORw0KGgo=');
+  background-position: 1px 2px;
+}

@@ -1,0 +1,20 @@
+id: resolved-vc-in-return-type
+valid:
+  - |
+    pub async fn ignore_this(x: ResolvedVc<MyType>) -> Result<ResolvedVc<MyType>> {}
+  - |
+    pub trait OtherTrait() {
+        fn ignore_this() -> ResolvedVc<MyType>;
+    }
+invalid:
+  - |
+    #[turbo_tasks::function]
+    pub async fn flag_this(x: ResolvedVc<MyType>) -> ResolvedVc<MyType> {}
+  - |
+    #[turbo_tasks::function]
+    pub async fn flag_this_too(x: ResolvedVc<MyType>) -> Result<ResolvedVc<MyType>> {}
+  - |
+    #[turbo_tasks::value_trait]
+    pub trait ValueTrait() {
+        fn flag_this() -> ResolvedVc<MyType>;
+    }

@@ -40,6 +40,10 @@ const setupTestDir = async (numFiles = 100) => {
 }
 
 describe('recursiveCopy', () => {
+  if (process.platform === 'win32') {
+    it('should skip on windows to avoid symlink issues', () => {})
+    return
+  }
   afterAll(() => fs.remove(testDir))
 
   it('should work', async () => {

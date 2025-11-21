@@ -1,0 +1,89 @@
+@import "@sass/abstracts/vars";
+@import "@sass/abstracts/mixins";
+@import "@fontawesome/scss/mixins";
+@import "@fontawesome/scss/variables";
+
+.navigation.navigation-mobile {
+  nav > ul {
+    border: none;
+    @include border-basic();
+  }
+  .rel-level1 {
+    cursor: pointer;
+    margin: 0;
+    background: $bg-basic-color;
+    > ul {
+      li {
+        position: relative;
+        a:before {
+          @include fa-icon();
+          content: $fa-var-chevron-right;
+          display: block;
+          position: absolute;
+          left: 0;
+          font-size: 10px;
+          top: 20px;
+          transform: translateY(-50%);
+        }
+      }
+      padding-left: 25px;
+      display: none;
+      background: $nav-bg-submenu;
+    }
+    &.submenu {
+      > ul {
+        display: none;
+      }
+      &:focus {
+        > .navigation-title:before {
+          transform: rotate(180deg);
+          transition: 0.6s;
+          transform-style: preserve-3d;
+        }
+        > ul {
+          display: block;
+        }
+      }
+      > .navigation-title {
+        position: relative;
+        &:before {
+          @include fa-icon();
+          content: $fa-var-chevron-down;
+          display: block;
+          position: absolute;
+          right: 10px;
+          font-size: 10px;
+          top: 20px;
+          transform: translateY(-50%);
+          transform: rotate(0);
+          transition: 0.6s;
+          transform-style: preserve-3d;
+        }
+      }
+    }
+    > .navigation-title {
+      border-bottom: 1px solid $border-basic-color;
+      margin: 0;
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+    .navigation-title {
+      padding: 10px;
+      > a {
+        text-decoration: none;
+        color: $text-basic;
+        display: inline;
+      }
+    }
+  }
+  .rel-level2 {
+    display: list-item;
+    .navigation-title > a {
+      font-weight: 500;
+    }
+    ul {
+      display: none;
+    }
+  }
+}

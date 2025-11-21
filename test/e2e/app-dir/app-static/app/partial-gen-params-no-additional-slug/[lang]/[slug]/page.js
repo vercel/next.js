@@ -1,4 +1,5 @@
 export const dynamicParams = false
+export const fetchCache = 'default-cache'
 
 export async function generateStaticParams() {
   const res = await fetch(
@@ -22,7 +23,8 @@ export async function generateStaticParams() {
   ]
 }
 
-export default function Page({ params }) {
+export default async function Page(props) {
+  const params = await props.params
   return (
     <>
       <p id="page">/partial-gen-params/[lang]/[slug]</p>

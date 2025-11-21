@@ -11,6 +11,6 @@ const nextConfig = {
     // JavaScript `RegExp`s. See https://docs.rs/regex.
     // reactRemoveProperties: { properties: ['^data-custom$'] },
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

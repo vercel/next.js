@@ -1,0 +1,15 @@
+.hero-banner {
+  .component-content {
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    height: 800px;
+
+    @include respond-to(mobile-large) {
+      height: 300px;
+    }
+  }
+  .sc-image-wrapper {
+    opacity: 0;
+  }
+}

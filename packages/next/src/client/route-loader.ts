@@ -1,8 +1,10 @@
 import type { ComponentType } from 'react'
-import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import type { ProxyMatcher } from '../build/analysis/get-page-static-info'
 import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
 import { __unsafeCreateTrustedScriptURL } from './trusted-types'
 import { requestIdleCallback } from './request-idle-callback'
+import { getDeploymentIdQueryOrEmptyString } from '../build/deployment-id'
+import { encodeURIPath } from '../shared/lib/encode-uri-path'
 
 // 3.8s was arbitrarily chosen as it's what https://web.dev/interactive
 // considers as "Good" time-to-interactive. We must assume something went
@@ -14,8 +16,15 @@ declare global {
   interface Window {
     __BUILD_MANIFEST?: Record<string, string[]>
     __BUILD_MANIFEST_CB?: Function
-    __MIDDLEWARE_MATCHERS?: MiddlewareMatcher[]
+    __MIDDLEWARE_MATCHERS?: ProxyMatcher[]
     __MIDDLEWARE_MANIFEST_CB?: Function
+    __REACT_LOADABLE_MANIFEST?: any
+    __DYNAMIC_CSS_MANIFEST?: any
+    __RSC_MANIFEST?: any
+    __RSC_SERVER_MANIFEST?: any
+    __NEXT_FONT_MANIFEST?: any
+    __SUBRESOURCE_INTEGRITY_MANIFEST?: string
+    __INTERCEPTION_ROUTE_REWRITE_MANIFEST?: string
   }
 }
 
@@ -45,12 +54,12 @@ interface Future<V> {
   resolve: (entrypoint: V) => void
   future: Promise<V>
 }
-function withFuture<T>(
+function withFuture<T extends object>(
   key: string,
   map: Map<string, Future<T> | T>,
   generator?: () => Promise<T>
 ): Promise<T> {
-  let entry: Future<T> | T | undefined = map.get(key)
+  let entry = map.get(key)
   if (entry) {
     if ('future' in entry) {
       return entry.future
@@ -61,11 +70,13 @@ function withFuture<T>(
   const prom: Promise<T> = new Promise<T>((resolve) => {
     resolver = resolve
   })
-  map.set(key, (entry = { resolve: resolver!, future: prom }))
+  map.set(key, { resolve: resolver!, future: prom })
   return generator
     ? generator()
-        // eslint-disable-next-line no-sequences
-        .then((value) => (resolver(value), value))
+        .then((value) => {
+          resolver(value)
+          return value
+        })
         .catch((err) => {
           map.delete(key)
           throw err
@@ -105,6 +116,10 @@ function hasPrefetch(link?: HTMLLinkElement): boolean {
 }
 
 const canPrefetch: boolean = hasPrefetch()
+
+const getAssetQueryString = () => {
+  return getDeploymentIdQueryOrEmptyString()
+}
 
 function prefetchViaDom(
   href: string,
@@ -246,7 +261,8 @@ function getFilesForRoute(
     const scriptUrl =
       assetPrefix +
       '/_next/static/chunks/pages' +
-      encodeURI(getAssetPathFromRoute(route, '.js'))
+      encodeURIPath(getAssetPathFromRoute(route, '.js')) +
+      getAssetQueryString()
     return Promise.resolve({
       scripts: [__unsafeCreateTrustedScriptURL(scriptUrl)],
       // Styles are handled by `style-loader` in development:
@@ -258,13 +274,15 @@ function getFilesForRoute(
       throw markAssetError(new Error(`Failed to lookup route: ${route}`))
     }
     const allFiles = manifest[route].map(
-      (entry) => assetPrefix + '/_next/' + encodeURI(entry)
+      (entry) => assetPrefix + '/_next/' + encodeURIPath(entry)
     )
     return {
       scripts: allFiles
         .filter((v) => v.endsWith('.js'))
-        .map((v) => __unsafeCreateTrustedScriptURL(v)),
-      css: allFiles.filter((v) => v.endsWith('.css')),
+        .map((v) => __unsafeCreateTrustedScriptURL(v) + getAssetQueryString()),
+      css: allFiles
+        .filter((v) => v.endsWith('.css'))
+        .map((v) => v + getAssetQueryString()),
     }
   })
 }
@@ -309,7 +327,7 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
 
     styleSheets.set(
       href,
-      (prom = fetch(href)
+      (prom = fetch(href, { credentials: 'same-origin' })
         .then((res) => {
           if (!res.ok) {
             throw new Error(`Failed to load stylesheet: ${href}`)

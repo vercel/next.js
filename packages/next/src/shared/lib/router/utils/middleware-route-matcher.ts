@@ -1,6 +1,6 @@
 import type { BaseNextRequest } from '../../../../server/base-http'
-import type { MiddlewareMatcher } from '../../../../build/analysis/get-page-static-info'
-import type { Params } from './route-matcher'
+import type { ProxyMatcher } from '../../../../build/analysis/get-page-static-info'
+import type { Params } from '../../../../server/request/params'
 import { matchHas } from './prepare-destination'
 
 export interface MiddlewareRouteMatch {
@@ -12,7 +12,7 @@ export interface MiddlewareRouteMatch {
 }
 
 export function getMiddlewareRouteMatcher(
-  matchers: MiddlewareMatcher[]
+  matchers: ProxyMatcher[]
 ): MiddlewareRouteMatch {
   return (
     pathname: string | null | undefined,

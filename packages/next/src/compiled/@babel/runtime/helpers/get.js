@@ -1,27 +1,11 @@
 var superPropBase = require("./superPropBase.js");
-
-function _get(target, property, receiver) {
-  if (typeof Reflect !== "undefined" && Reflect.get) {
-    module.exports = _get = Reflect.get;
-    module.exports["default"] = module.exports, module.exports.__esModule = true;
-  } else {
-    module.exports = _get = function _get(target, property, receiver) {
-      var base = superPropBase(target, property);
-      if (!base) return;
-      var desc = Object.getOwnPropertyDescriptor(base, property);
-
-      if (desc.get) {
-        return desc.get.call(receiver);
-      }
-
-      return desc.value;
-    };
-
-    module.exports["default"] = module.exports, module.exports.__esModule = true;
-  }
-
-  return _get(target, property, receiver || target);
+function _get() {
+  return module.exports = _get = "undefined" != typeof Reflect && Reflect.get ? Reflect.get.bind() : function (e, t, r) {
+    var p = superPropBase(e, t);
+    if (p) {
+      var n = Object.getOwnPropertyDescriptor(p, t);
+      return n.get ? n.get.call(arguments.length < 3 ? e : r) : n.value;
+    }
+  }, module.exports.__esModule = true, module.exports["default"] = module.exports, _get.apply(null, arguments);
 }
-
-module.exports = _get;
-module.exports["default"] = module.exports, module.exports.__esModule = true;
+module.exports = _get, module.exports.__esModule = true, module.exports["default"] = module.exports;

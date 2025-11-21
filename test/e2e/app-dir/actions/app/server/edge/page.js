@@ -1,7 +1,8 @@
 import Counter from '../counter'
 import Form from '../form'
 
-import dec, { inc } from '../actions'
+import dec from '../actions'
+import { inc } from '../actions-3'
 
 export default function Page() {
   const two = 2
