@@ -4,6 +4,9 @@ START_DIR=$PWD
 # gets last argument which should be the project dir
 for PROJECT_DIR in $@;do :;done
 
+# remove trailing slashes if any
+PROJECT_DIR=${PROJECT_DIR%/}
+
 if [ -z $PROJECT_DIR ];then
   echo "No project directory provided, exiting..."
   exit 1;
