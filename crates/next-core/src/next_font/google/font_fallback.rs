@@ -17,7 +17,7 @@ use crate::{
         issue::NextFontIssue,
         util::{FontFamilyType, get_scoped_font_family},
     },
-    util::load_next_js_templateon,
+    util::load_next_js_json_file,
 };
 
 /// An entry in the Google fonts metrics map
@@ -45,7 +45,7 @@ struct Fallback {
 // This JSON file is large, so we cache it in turbotasks
 #[turbo_tasks::function]
 async fn load_font_metrics(project_root: FileSystemPath) -> Result<Vc<FontMetricsMap>> {
-    let data: FontMetricsMap = load_next_js_templateon(
+    let data: FontMetricsMap = load_next_js_json_file(
         project_root,
         rcstr!("dist/server/capsize-font-metrics.json"),
     )

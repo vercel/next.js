@@ -73,7 +73,7 @@ use crate::{
     },
     util::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
-        get_transpiled_packages, internal_assets_conditions, load_next_js_templateon,
+        get_transpiled_packages, internal_assets_conditions, load_next_js_jsonc_file,
         module_styles_rule_condition,
     },
 };
@@ -162,9 +162,9 @@ pub async fn get_server_resolve_options_context(
             .await?;
 
     // Always load these predefined packages as external.
-    let mut external_packages: Vec<RcStr> = load_next_js_templateon(
+    let mut external_packages: Vec<RcStr> = load_next_js_jsonc_file(
         project_path.clone(),
-        rcstr!("dist/lib/server-external-packages.json"),
+        rcstr!("dist/lib/server-external-packages.jsonc"),
     )
     .await?;
 

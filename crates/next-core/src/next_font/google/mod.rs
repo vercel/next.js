@@ -52,7 +52,7 @@ use super::{
 };
 use crate::{
     embed_js::next_js_file_path, mode::NextMode, next_app::metadata::split_extension,
-    next_font::issue::NextFontIssue, util::load_next_js_templateon,
+    next_font::issue::NextFontIssue, util::load_next_js_json_file,
 };
 
 pub mod font_fallback;
@@ -466,7 +466,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
 
 #[turbo_tasks::function]
 async fn load_font_data(project_root: FileSystemPath) -> Result<Vc<FontData>> {
-    let data: FontData = load_next_js_templateon(
+    let data: FontData = load_next_js_json_file(
         project_root,
         rcstr!("dist/compiled/@next/font/dist/google/font-data.json"),
     )
