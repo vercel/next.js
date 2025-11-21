@@ -43,7 +43,6 @@ import {
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
-import { PrefetchRSCPathnameNormalizer } from '../../normalizers/request/prefetch-rsc'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
 import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 
@@ -425,9 +424,6 @@ export async function setupFsCheck(opts: {
     // Because we can't know if the app directory is enabled or not at this
     // stage, we assume that it is.
     rsc: new RSCPathnameNormalizer(),
-    prefetchRSC: opts.config.experimental.ppr
-      ? new PrefetchRSCPathnameNormalizer()
-      : undefined,
   }
 
   return {
@@ -483,9 +479,7 @@ export async function setupFsCheck(opts: {
       // Simulate minimal mode requests by normalizing RSC and postponed
       // requests.
       if (opts.minimalMode) {
-        if (normalizers.prefetchRSC?.match(itemPath)) {
-          itemPath = normalizers.prefetchRSC.normalize(itemPath, true)
-        } else if (normalizers.rsc.match(itemPath)) {
+        if (normalizers.rsc.match(itemPath)) {
           itemPath = normalizers.rsc.normalize(itemPath, true)
         }
       }

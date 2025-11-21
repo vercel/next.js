@@ -12,7 +12,6 @@ import {
 } from '../client/components/app-router-headers'
 import {
   RSC_SUFFIX,
-  RSC_PREFETCH_SUFFIX,
   RSC_SEGMENT_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
   NEXT_RESUME_HEADER,
@@ -123,7 +122,6 @@ export function generateRoutesManifest(
       didPostponeHeader: NEXT_DID_POSTPONE_HEADER,
       contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
       suffix: RSC_SUFFIX,
-      prefetchSuffix: RSC_PREFETCH_SUFFIX,
       prefetchSegmentHeader: NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
       prefetchSegmentSuffix: RSC_SEGMENT_SUFFIX,
       prefetchSegmentDirSuffix: RSC_SEGMENTS_DIR_SUFFIX,

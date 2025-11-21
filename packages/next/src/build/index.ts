@@ -24,7 +24,6 @@ import {
   PROXY_FILENAME,
   PAGES_DIR_ALIAS,
   INSTRUMENTATION_HOOK_FILENAME,
-  RSC_PREFETCH_SUFFIX,
   RSC_SUFFIX,
   PRERENDER_REVALIDATE_HEADER,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
@@ -200,11 +199,6 @@ import { RenderingMode } from './rendering-mode'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
-import {
-  buildInversePrefetchSegmentDataRoute,
-  buildPrefetchSegmentDataRoute,
-  type PrefetchSegmentDataRoute,
-} from '../server/lib/router-utils/build-prefetch-segment-data-route'
 
 import { turbopackBuild } from './turbopack-build'
 import { isFileSystemCacheEnabledForBuild } from '../shared/lib/turbopack/utils'
@@ -228,8 +222,12 @@ import {
   writeValidatorFile,
 } from '../server/lib/router-utils/route-types-utils'
 import { Lockfile } from './lockfile'
-import { validateAppPaths } from './validate-app-paths'
+import {
+  buildPrefetchSegmentDataRoute,
+  type PrefetchSegmentDataRoute,
+} from '../server/lib/router-utils/build-prefetch-segment-data-route'
 import { generateRoutesManifest } from './generate-routes-manifest'
+import { validateAppPaths } from './validate-app-paths'
 
 type Fallback = null | boolean | string
 
@@ -456,7 +454,6 @@ export type RoutesManifest = {
     varyHeader: string
     prefetchHeader: typeof NEXT_ROUTER_PREFETCH_HEADER
     suffix: typeof RSC_SUFFIX
-    prefetchSuffix: typeof RSC_PREFETCH_SUFFIX
     prefetchSegmentHeader: typeof NEXT_ROUTER_SEGMENT_PREFETCH_HEADER
     prefetchSegmentDirSuffix: typeof RSC_SEGMENTS_DIR_SUFFIX
     prefetchSegmentSuffix: typeof RSC_SEGMENT_SUFFIX
@@ -3212,26 +3209,6 @@ export default async function build(
                   dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
                 }
 
-                let prefetchDataRoute: string | null = null
-                // While we may only write the `.rsc` when the route does not
-                // have PPR enabled, we still want to generate the route when
-                // deployed so it doesn't 404. If the app has PPR enabled, we
-                // should add this key.
-                if (
-                  !isAppRouteHandler &&
-                  isAppPPREnabled &&
-                  // Don't add a prefetch data route if we have
-                  // cacheComponents enabled. This is
-                  // because we don't actually use the prefetch data route in
-                  // this case. This only applies if we have PPR enabled for
-                  // this route.
-                  !(config.cacheComponents && isRoutePPREnabled)
-                ) {
-                  prefetchDataRoute = path.posix.join(
-                    `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
-                  )
-                }
-
                 const meta = collectMeta(metadata)
                 const status =
                   route.pathname === UNDERSCORE_NOT_FOUND_ROUTE
@@ -3252,7 +3229,7 @@ export default async function build(
                   initialExpireSeconds: cacheControl.expire,
                   srcRoute: page,
                   dataRoute,
-                  prefetchDataRoute,
+                  prefetchDataRoute: undefined,
                   allowHeader: ALLOWED_HEADERS,
                 }
               } else {
@@ -3326,20 +3303,6 @@ export default async function build(
                   (r) => r.page === route.pathname
                 )
                 if (!isAppRouteHandler && isAppPPREnabled) {
-                  if (
-                    // Don't add a prefetch data route if we have
-                    // cacheComponents enabled. This is
-                    // because we don't actually use the prefetch data route in
-                    // this case. This only applies if we have PPR enabled for
-                    // this route.
-                    !config.cacheComponents ||
-                    !isRoutePPREnabled
-                  ) {
-                    prefetchDataRoute = path.posix.join(
-                      `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
-                    )
-                  }
-
                   // If the dynamic route wasn't found, then we need to create
                   // it. This ensures that for each fallback shell there's an
                   // entry in the app routes manifest which enables routing for
@@ -3406,27 +3369,6 @@ export default async function build(
                     dynamicRoute.prefetchSegmentDataRoutes.push(
                       builtSegmentDataRoute
                     )
-                  }
-                  // If the route has fallback root params, and we don't have
-                  // any segment paths, we need to write the inverse prefetch
-                  // segment data route so that it can first rewrite the /_tree
-                  // request to the prefetch RSC route. We also need to set the
-                  // `hasFallbackRootParams` flag so that we can simplify the
-                  // route regex for matching.
-                  else if (
-                    route.fallbackRootParams &&
-                    route.fallbackRootParams.length > 0
-                  ) {
-                    dynamicRoute.hasFallbackRootParams = true
-                    dynamicRoute.prefetchSegmentDataRoutes = [
-                      buildInversePrefetchSegmentDataRoute(
-                        dynamicRoute.page,
-                        // We use the special segment path of `/_tree` because it's
-                        // the first one sent by the client router so it's the only
-                        // one we need to rewrite to the regular prefetch RSC route.
-                        '/_tree'
-                      ),
-                    ]
                   }
                 }
 

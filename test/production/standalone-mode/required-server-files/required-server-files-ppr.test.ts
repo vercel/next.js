@@ -447,30 +447,6 @@ describe.skip('required server files app router', () => {
     expect(res.headers.has('x-nextjs-postponed')).toBeFalse()
   })
 
-  it('should handle prefetch RSC requests', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      '/dyn/first.prefetch.rsc',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/dyn/[slug]',
-          'x-now-route-matches': createNowRouteMatches({
-            slug: 'first',
-          }).toString(),
-        },
-      }
-    )
-
-    expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toEqual('text/x-component')
-    expect(res.headers.has('x-nextjs-postponed')).toBeTrue()
-
-    // We expect that because we're performing a prefetch, we should be a miss
-    // because it isn't handled by the cache handler.
-    expect(res.headers.get('x-nextjs-cache-entry-handler')).toBe('MISS_2')
-  })
-
   it('should use the postponed state for the RSC requests', async () => {
     // Let's parse the random number out of the HTML that was generated at build
     // time. We want to use that value as it's the one that's tied to the
