@@ -1,18 +1,12 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-css-tags'
 import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
-    ecmaVersion: 2018,
-    sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
-    },
-  },
-})
-const ruleTester = new RuleTester()
+import { rules } from '@next/eslint-plugin-next'
 
-ruleTester.run('no-css-tags', rule, {
+const NextESLintRule = rules['no-css-tags']
+
+const message =
+  'Do not include stylesheets manually. See: https://nextjs.org/docs/messages/no-css-tags'
+
+const tests = {
   valid: [
     `import {Head} from 'next/document';
 
@@ -80,8 +74,7 @@ ruleTester.run('no-css-tags', rule, {
       }`,
       errors: [
         {
-          message:
-            'Do not include stylesheets manually. See: https://nextjs.org/docs/messages/no-css-tags',
+          message,
           type: 'JSXOpeningElement',
         },
       ],
@@ -93,11 +86,25 @@ ruleTester.run('no-css-tags', rule, {
       </div>`,
       errors: [
         {
-          message:
-            'Do not include stylesheets manually. See: https://nextjs.org/docs/messages/no-css-tags',
+          message,
           type: 'JSXOpeningElement',
         },
       ],
     },
   ],
+}
+
+describe('no-css-tags', () => {
+  new RuleTester({
+    languageOptions: {
+      ecmaVersion: 2018,
+      sourceType: 'module',
+      parserOptions: {
+        ecmaFeatures: {
+          modules: true,
+          jsx: true,
+        },
+      },
+    },
+  }).run('eslint', NextESLintRule, tests)
 })

@@ -1,9 +1,9 @@
-import path = require('path')
+import path from 'path'
 import { defineRule } from '../utils/define-rule'
 
 const url = 'https://nextjs.org/docs/messages/no-head-element'
 
-export = defineRule({
+export default defineRule({
   meta: {
     docs: {
       description: 'Prevent usage of `<head>` element.',
@@ -17,7 +17,7 @@ export = defineRule({
   create(context) {
     return {
       JSXOpeningElement(node) {
-        const paths = context.getFilename()
+        const paths = context.filename
 
         const isInAppDir = () =>
           paths.includes(`app${path.sep}`) ||

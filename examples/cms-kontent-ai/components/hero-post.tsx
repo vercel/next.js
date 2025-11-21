@@ -1,19 +1,19 @@
-import Avatar from '../components/avatar'
-import DateFormatter from '../components/date-formatter'
-import CoverImage from '../components/cover-image'
-import Link from 'next/link'
+import Avatar from "../components/avatar";
+import DateFormatter from "../components/date-formatter";
+import CoverImage from "../components/cover-image";
+import Link from "next/link";
 
 type HeroPostProps = {
-  title: string
-  coverImage: string
-  date: string | null
-  excerpt: string
+  title: string;
+  coverImage: string;
+  date: string | null;
+  excerpt: string;
   author: {
-    name: string
-    picture: string
-  }
-  slug: string
-}
+    name: string;
+    picture: string;
+  };
+  slug: string;
+};
 
 export default function HeroPost({
   title,
@@ -45,5 +45,5 @@ export default function HeroPost({
         </div>
       </div>
     </section>
-  )
+  );
 }

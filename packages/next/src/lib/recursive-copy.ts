@@ -1,5 +1,6 @@
 import path from 'path'
-import { promises, constants, Dirent, Stats } from 'fs'
+import type { Dirent, Stats } from 'fs'
+import { promises, constants } from 'fs'
 import { Sema } from 'next/dist/compiled/async-sema'
 import isError from './is-error'
 
@@ -65,11 +66,14 @@ export async function recursiveCopy(
       // we remove the base path (from) and replace \ by / (windows)
       filter(item.replace(from, '').replace(/\\/g, '/'))
     ) {
-      await promises.copyFile(
-        item,
-        target,
-        overwrite ? undefined : COPYFILE_EXCL
-      )
+      await promises
+        .copyFile(item, target, overwrite ? undefined : COPYFILE_EXCL)
+        .catch((err) => {
+          // if overwrite is false we shouldn't fail on EEXIST
+          if (err.code !== 'EEXIST') {
+            throw err
+          }
+        })
       sema.release()
     } else {
       sema.release()

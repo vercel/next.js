@@ -1,0 +1,27 @@
+{
+  "name": "@vercel/webpack-nft",
+  "version": "0.0.15-alpha.2",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@vercel/experimental-nft": "workspace:*"
+  },
+  "peerDependencies": {
+    "webpack": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/webpack": "^5.28.0",
+    "webpack": "^5.75.0"
+  },
+  "scripts": {
+    "lint": "eslint src/",
+    "lint:prettier": "prettier -c . --cache --ignore-path=../../.prettierignore"
+  }
+}

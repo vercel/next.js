@@ -1,0 +1,183 @@
+---
+title: after
+description: API Reference for the after function.
+---
+
+`after` allows you to schedule work to be executed after a response (or prerender) is finished. This is useful for tasks and other side effects that should not block the response, such as logging and analytics.
+
+It can be used in [Server Components](/docs/app/getting-started/server-and-client-components) (including [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata)), [Server Actions](/docs/app/getting-started/updating-data), [Route Handlers](/docs/app/api-reference/file-conventions/route), and [Proxy](/docs/app/api-reference/file-conventions/proxy).
+
+The function accepts a callback that will be executed after the response (or prerender) is finished:
+
+```tsx filename="app/layout.tsx" switcher
+import { after } from 'next/server'
+// Custom logging function
+import { log } from '@/app/utils'
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  after(() => {
+    // Execute after the layout is rendered and sent to the user
+    log()
+  })
+  return <>{children}</>
+}
+```
+
+```jsx filename="app/layout.jsx" switcher
+import { after } from 'next/server'
+// Custom logging function
+import { log } from '@/app/utils'
+
+export default function Layout({ children }) {
+  after(() => {
+    // Execute after the layout is rendered and sent to the user
+    log()
+  })
+  return <>{children}</>
+}
+```
+
+> **Good to know:** `after` is not a [Dynamic API](/docs/app/guides/caching#dynamic-rendering) and calling it does not cause a route to become dynamic. If it's used within a static page, the callback will execute at build time, or whenever a page is revalidated.
+
+## Reference
+
+### Parameters
+
+- A callback function which will be executed after the response (or prerender) is finished.
+
+### Duration
+
+`after` will run for the platform's default or configured max duration of your route. If your platform supports it, you can configure the timeout limit using the [`maxDuration`](/docs/app/api-reference/file-conventions/route-segment-config#maxduration) route segment config.
+
+## Good to know
+
+- `after` will be executed even if the response didn't complete successfully. Including when an error is thrown or when `notFound` or `redirect` is called.
+- You can use React `cache` to deduplicate functions called inside `after`.
+- `after` can be nested inside other `after` calls, for example, you can create utility functions that wrap `after` calls to add additional functionality.
+
+## Examples
+
+### With request APIs
+
+You can use request APIs such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers) inside `after` in [Server Actions](/docs/app/getting-started/updating-data) and [Route Handlers](/docs/app/api-reference/file-conventions/route). This is useful for logging activity after a mutation. For example:
+
+```ts filename="app/api/route.ts" highlight={2,7-9} switcher
+import { after } from 'next/server'
+import { cookies, headers } from 'next/headers'
+import { logUserAction } from '@/app/utils'
+
+export async function POST(request: Request) {
+  // Perform mutation
+  // ...
+
+  // Log user activity for analytics
+  after(async () => {
+    const userAgent = (await headers().get('user-agent')) || 'unknown'
+    const sessionCookie =
+      (await cookies().get('session-id'))?.value || 'anonymous'
+
+    logUserAction({ sessionCookie, userAgent })
+  })
+
+  return new Response(JSON.stringify({ status: 'success' }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+```
+
+```js filename="app/api/route.js" highlight={2,7-9} switcher
+import { after } from 'next/server'
+import { cookies, headers } from 'next/headers'
+import { logUserAction } from '@/app/utils'
+
+export async function POST(request) {
+  // Perform mutation
+  // ...
+
+  // Log user activity for analytics
+  after(async () => {
+    const userAgent = (await headers().get('user-agent')) || 'unknown'
+    const sessionCookie =
+      (await cookies().get('session-id'))?.value || 'anonymous'
+
+    logUserAction({ sessionCookie, userAgent })
+  })
+
+  return new Response(JSON.stringify({ status: 'success' }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+```
+
+However, you cannot use these request APIs inside `after` in [Server Components](/docs/app/getting-started/server-and-client-components). This is because Next.js needs to know which part of the tree access the request APIs to support [Cache Components](/docs/app/getting-started/cache-components), but `after` runs after React's rendering lifecycle.
+
+## Platform Support
+
+| Deployment Option                                                   | Supported         |
+| ------------------------------------------------------------------- | ----------------- |
+| [Node.js server](/docs/app/getting-started/deploying#nodejs-server) | Yes               |
+| [Docker container](/docs/app/getting-started/deploying#docker)      | Yes               |
+| [Static export](/docs/app/getting-started/deploying#static-export)  | No                |
+| [Adapters](/docs/app/getting-started/deploying#adapters)            | Platform-specific |
+
+Learn how to [configure `after`](/docs/app/guides/self-hosting#after) when self-hosting Next.js.
+
+<details id="after-serverless">
+  <summary>Reference: supporting `after` for serverless platforms</summary>
+
+Using `after` in a serverless context requires waiting for asynchronous tasks to finish after the response has been sent. In Next.js and Vercel, this is achieved using a primitive called `waitUntil(promise)`, which extends the lifetime of a serverless invocation until all promises passed to [`waitUntil`](https://vercel.com/docs/functions/functions-api-reference#waituntil) have settled.
+
+If you want your users to be able to run `after`, you will have to provide your implementation of `waitUntil` that behaves in an analogous way.
+
+When `after` is called, Next.js will access `waitUntil` like this:
+
+```jsx
+const RequestContext = globalThis[Symbol.for('@next/request-context')]
+const contextValue = RequestContext?.get()
+const waitUntil = contextValue?.waitUntil
+```
+
+Which means that `globalThis[Symbol.for('@next/request-context')]` is expected to contain an object like this:
+
+```tsx
+type NextRequestContext = {
+  get(): NextRequestContextValue | undefined
+}
+
+type NextRequestContextValue = {
+  waitUntil?: (promise: Promise<any>) => void
+}
+```
+
+Here is an example of the implementation.
+
+```tsx
+import { AsyncLocalStorage } from 'node:async_hooks'
+
+const RequestContextStorage = new AsyncLocalStorage<NextRequestContextValue>()
+
+// Define and inject the accessor that next.js will use
+const RequestContext: NextRequestContext = {
+  get() {
+    return RequestContextStorage.getStore()
+  },
+}
+globalThis[Symbol.for('@next/request-context')] = RequestContext
+
+const handler = (req, res) => {
+  const contextValue = { waitUntil: YOUR_WAITUNTIL }
+  // Provide the value
+  return RequestContextStorage.run(contextValue, () => nextJsHandler(req, res))
+}
+```
+
+</details>
+
+## Version History
+
+| Version History | Description                  |
+| --------------- | ---------------------------- |
+| `v15.1.0`       | `after` became stable.       |
+| `v15.0.0-rc`    | `unstable_after` introduced. |

@@ -1,5 +1,5 @@
-import { ClassNames } from '@compiled/react'
-import { error } from '../style/colors'
+import { ClassNames } from "@compiled/react";
+import { error } from "../style/colors";
 
 export const BoxStyles = ({ children }) => (
   <ClassNames>
@@ -16,4 +16,4 @@ export const BoxStyles = ({ children }) => (
       })
     }
   </ClassNames>
-)
+);

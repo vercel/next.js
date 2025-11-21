@@ -1,0 +1,63 @@
+@import "@sass/abstracts/vars";
+@import "@sass/abstracts/mixins";
+
+.rich-text-lists,
+.field-featurelist {
+  ul {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    li {
+      @include font-size(1.3);
+      position: relative;
+      line-height: 21px;
+      list-style: none;
+      margin: 0;
+      padding: 5px 0 5px 25px;
+      &:before {
+        display: inline-block;
+        vertical-align: middle;
+        @include font-size(1.2);
+        font-family: "FontAwesome", sans-serif;
+        position: absolute;
+        top: 3px;
+        left: 0;
+        color: $text-basic;
+        text-align: center;
+        content: "\f00c";
+        width: 20px;
+        margin: 0 5px 0 0;
+        padding: 0;
+      }
+    }
+  }
+}
+.field-featurelist {
+  ul {
+    li {
+      &:before {
+        display: inline-block;
+        vertical-align: middle;
+        @include font-size(1.2);
+        font-family: "FontAwesome", sans-serif;
+        position: absolute;
+        top: 3px;
+        left: 0;
+        color: $text-basic;
+        text-align: center;
+        content: "\f046";
+        width: 20px;
+        margin: 0 5px 0 0;
+        padding: 0;
+      }
+    }
+  }
+}
+.media-link {
+  &.file-type-icon-media-link {
+    float: left;
+    .field-filetypeicon {
+      text-align: center;
+    }
+  }
+}

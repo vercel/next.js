@@ -1,7 +1,7 @@
-import Link from 'next/link'
-import styles from './styles.module.css'
+import Link from "next/link";
+import styles from "./styles.module.css";
 
-export const data = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+export const data = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 export default function PostCardGrid() {
   return (
@@ -34,5 +34,5 @@ export default function PostCardGrid() {
         ))}
       </div>
     </div>
-  )
+  );
 }

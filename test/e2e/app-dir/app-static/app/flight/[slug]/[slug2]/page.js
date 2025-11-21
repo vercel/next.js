@@ -2,8 +2,8 @@ import { cookies } from 'next/headers'
 
 import Refresh from './refresh'
 
-export default function Page() {
-  const cookieValue = cookies().get('test-cookie')
+export default async function Page() {
+  const cookieValue = (await cookies()).get('test-cookie')
   return (
     <>
       <Refresh />

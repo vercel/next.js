@@ -17,19 +17,19 @@ declare const code: {
     readonly devanagari: RegExp;
     readonly kannada: RegExp;
 };
-declare type Locale = keyof typeof code;
+type Locale = keyof typeof code;
 
 /**
  * This class handles everything related to fonts.
  */
 
-declare type Weight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
-declare type Style$1 = 'normal' | 'italic';
+type Weight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
+type FontStyle = 'normal' | 'italic';
 interface FontOptions {
     data: Buffer | ArrayBuffer;
     name: string;
     weight?: Weight;
-    style?: Style$1;
+    style?: FontStyle;
     lang?: string;
 }
 
@@ -151,7 +151,7 @@ interface SatoriNode {
 
 declare function init(yoga: Yoga): void;
 
-declare type SatoriOptions = ({
+type SatoriOptions = ({
     width: number;
     height: number;
 } | {
@@ -166,8 +166,9 @@ declare type SatoriOptions = ({
     loadAdditionalAsset?: (languageCode: string, segment: string) => Promise<string | Array<FontOptions>>;
     tailwindConfig?: TwConfig;
     onNodeDetected?: (node: SatoriNode) => void;
+    pointScaleFactor?: number;
 };
 
 declare function satori(element: ReactNode, options: SatoriOptions): Promise<string>;
 
-export { FontOptions as Font, Style$1 as FontStyle, Weight as FontWeight, Locale, SatoriNode, SatoriOptions, satori as default, init };
+export { FontOptions as Font, FontStyle, Weight as FontWeight, Locale, SatoriNode, SatoriOptions, satori as default, init };

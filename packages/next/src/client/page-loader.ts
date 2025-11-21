@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react'
 import type { RouteLoader } from './route-loader'
-import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import type { ProxyMatcher } from '../build/analysis/get-page-static-info'
 import { addBasePath } from './add-base-path'
 import { interpolateAs } from '../shared/lib/router/utils/interpolate-as'
 import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
@@ -9,10 +9,15 @@ import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../shared/lib/router/utils/parse-relative-url'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { createRouteLoader, getClientBuildManifest } from './route-loader'
+import {
+  DEV_CLIENT_PAGES_MANIFEST,
+  DEV_CLIENT_MIDDLEWARE_MANIFEST,
+  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
+} from '../shared/lib/constants'
 
 declare global {
   interface Window {
-    __DEV_MIDDLEWARE_MATCHERS?: MiddlewareMatcher[]
+    __DEV_MIDDLEWARE_MATCHERS?: ProxyMatcher[]
     __DEV_PAGES_MANIFEST?: { pages: string[] }
     __SSG_MANIFEST_CB?: () => void
     __SSG_MANIFEST?: Set<string>
@@ -31,7 +36,7 @@ export default class PageLoader {
   private assetPrefix: string
   private promisedSsgManifest: Promise<Set<string>>
   private promisedDevPagesManifest?: Promise<string[]>
-  private promisedMiddlewareMatchers?: Promise<MiddlewareMatcher[]>
+  private promisedMiddlewareMatchers?: Promise<ProxyMatcher[]>
 
   public routeLoader: RouteLoader
 
@@ -60,7 +65,8 @@ export default class PageLoader {
         return window.__DEV_PAGES_MANIFEST.pages
       } else {
         this.promisedDevPagesManifest ||= fetch(
-          `${this.assetPrefix}/_next/static/development/_devPagesManifest.json`
+          `${this.assetPrefix}/_next/static/development/${DEV_CLIENT_PAGES_MANIFEST}`,
+          { credentials: 'same-origin' }
         )
           .then((res) => res.json())
           .then((manifest: { pages: string[] }) => {
@@ -80,12 +86,41 @@ export default class PageLoader {
   }
 
   getMiddleware() {
-    if (process.env.NODE_ENV === 'production') {
+    // Webpack production
+    if (
+      process.env.NODE_ENV === 'production' &&
+      process.env.__NEXT_MIDDLEWARE_MATCHERS
+    ) {
       const middlewareMatchers = process.env.__NEXT_MIDDLEWARE_MATCHERS
       window.__MIDDLEWARE_MATCHERS = middlewareMatchers
-        ? (middlewareMatchers as any as MiddlewareMatcher[])
+        ? (middlewareMatchers as any as ProxyMatcher[])
         : undefined
       return window.__MIDDLEWARE_MATCHERS
+      // Turbopack production
+    } else if (process.env.NODE_ENV === 'production') {
+      if (window.__MIDDLEWARE_MATCHERS) {
+        return window.__MIDDLEWARE_MATCHERS
+      } else {
+        if (!this.promisedMiddlewareMatchers) {
+          // TODO: Decide what should happen when fetching fails instead of asserting
+          // @ts-ignore
+          this.promisedMiddlewareMatchers = fetch(
+            `${this.assetPrefix}/_next/static/${this.buildId}/${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`,
+            { credentials: 'same-origin' }
+          )
+            .then((res) => res.json())
+            .then((matchers: ProxyMatcher[]) => {
+              window.__MIDDLEWARE_MATCHERS = matchers
+              return matchers
+            })
+            .catch((err) => {
+              console.log(`Failed to fetch _devMiddlewareManifest`, err)
+            })
+        }
+        // TODO Remove this assertion as this could be undefined
+        return this.promisedMiddlewareMatchers!
+      }
+      // Development both Turbopack and Webpack
     } else {
       if (window.__DEV_MIDDLEWARE_MATCHERS) {
         return window.__DEV_MIDDLEWARE_MATCHERS
@@ -94,10 +129,11 @@ export default class PageLoader {
           // TODO: Decide what should happen when fetching fails instead of asserting
           // @ts-ignore
           this.promisedMiddlewareMatchers = fetch(
-            `${this.assetPrefix}/_next/static/${this.buildId}/_devMiddlewareManifest.json`
+            `${this.assetPrefix}/_next/static/${this.buildId}/${DEV_CLIENT_MIDDLEWARE_MANIFEST}`,
+            { credentials: 'same-origin' }
           )
             .then((res) => res.json())
-            .then((matchers: MiddlewareMatcher[]) => {
+            .then((matchers: ProxyMatcher[]) => {
               window.__DEV_MIDDLEWARE_MATCHERS = matchers
               return matchers
             })
@@ -140,8 +176,8 @@ export default class PageLoader {
       params.skipInterpolation
         ? asPathname
         : isDynamicRoute(route)
-        ? interpolateAs(hrefPathname, asPathname, query).result
-        : route
+          ? interpolateAs(hrefPathname, asPathname, query).result
+          : route
     )
   }
 

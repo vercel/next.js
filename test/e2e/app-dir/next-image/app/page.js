@@ -7,9 +7,16 @@ export default function Page() {
     <>
       <h2>app-page</h2>
       <Image id="app-page" src={testPng} quality={90} />
+      <Image
+        id="remote-app-page"
+        src="https://image-optimization-test.vercel.app/test.jpg"
+        width="200"
+        height="200"
+        quality={90}
+      />
       <Comp />
     </>
   )
 }
 
-export const runtime = 'experimental-edge'
+export const runtime = 'edge'

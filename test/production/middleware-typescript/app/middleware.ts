@@ -1,6 +1,6 @@
-import { NextMiddleware, NextResponse, URLPattern } from 'next/server'
+import { NextProxy, NextResponse, URLPattern, ProxyConfig } from 'next/server'
 
-export const middleware: NextMiddleware = function (request) {
+export const middleware: NextProxy = function (request) {
   const pattern = new URLPattern({
     pathname: '/:path',
   })
@@ -18,3 +18,8 @@ export const middleware: NextMiddleware = function (request) {
     })
   }
 }
+
+export const config = {
+  matcher: ['/:path*'],
+  regions: [],
+} satisfies ProxyConfig

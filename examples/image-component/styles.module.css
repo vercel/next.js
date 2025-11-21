@@ -23,7 +23,7 @@
 
 .inlineCode::before,
 .inlineCode::after {
-  content: '`';
+  content: "`";
 }
 
 .hr {
@@ -47,4 +47,18 @@
   text-align: center;
   padding-top: 40vh;
   text-shadow: 1px 1px 1px #3c5c5e;
+}
+
+.imgDark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .imgLight {
+    display: none;
+  }
+
+  .imgDark {
+    display: unset;
+  }
 }

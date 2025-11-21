@@ -1,4 +1,5 @@
-import { parseVersionInfo, VersionInfo } from './parse-version-info'
+import { parseVersionInfo } from './parse-version-info'
+import type { VersionInfo } from './parse-version-info'
 
 describe('parse version info', () => {
   test.each<
@@ -6,7 +7,7 @@ describe('parse version info', () => {
       installed: string,
       latest: string,
       canary: string,
-      staleness: VersionInfo['staleness']
+      staleness: VersionInfo['staleness'],
     ]
   >([
     ['12.0.0', '13.1.1', '13.0.1-canary.0', 'stale-major'],

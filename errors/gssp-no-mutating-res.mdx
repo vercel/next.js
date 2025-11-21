@@ -1,0 +1,21 @@
+---
+title: 'Must not access ServerResponse after `getServerSideProps` resolves'
+---
+
+## Why This Error Occurred
+
+`getServerSideProps()` surfaces a `ServerResponse` object through the `res` property of its `context` arg. This object is not intended to be accessed or changed after `getServerSideProps()` resolves.
+
+This is because the framework tries to optimize when items like headers or status codes are flushed to the browser. If they are changed after `getServerSideProps()` completes, we can't guarantee that the changes will work.
+
+For this reason, accessing the object after this time is disallowed.
+
+## Possible Ways to Fix It
+
+You can fix this error by moving any access of the `res` object into `getServerSideProps()` itself or any functions that run before `getServerSideProps()` returns.
+
+If you’re using a custom server and running into this problem due to session proxy like `next-session` or `express-session`, try installing the proxy in the server instead of `getServerSideProps()`.
+
+## Useful Links
+
+- [Data Fetching Docs](/docs/pages/building-your-application/data-fetching)

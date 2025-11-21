@@ -1,8 +1,8 @@
-import React from 'react'
-import { useOvermind } from '../overmind'
+import React from "react";
+import { useOvermind } from "../overmind";
 
 function Items() {
-  const { state } = useOvermind()
+  const { state } = useOvermind();
 
   return (
     <ul>
@@ -10,7 +10,7 @@ function Items() {
         <li key={item.id}>{item.title}</li>
       ))}
     </ul>
-  )
+  );
 }
 
-export default Items
+export default Items;

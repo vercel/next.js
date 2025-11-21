@@ -1,8 +1,8 @@
-import {
+import type {
   NodePath,
-  PluginObj,
   types as BabelTypes,
 } from 'next/dist/compiled/babel/core'
+import type { PluginObj } from 'next/dist/compiled/babel/core'
 import { SERVER_PROPS_SSG_CONFLICT } from '../../../lib/constants'
 import { SERVER_PROPS_ID, STATIC_PROPS_ID } from '../../../shared/lib/constants'
 
@@ -206,10 +206,10 @@ export default function nextTransformSsg({
                       p.node.type === 'ObjectProperty'
                         ? 'value'
                         : p.node.type === 'RestElement'
-                        ? 'argument'
-                        : (function () {
-                            throw new Error('invariant')
-                          })()
+                          ? 'argument'
+                          : (function () {
+                              throw new Error('invariant')
+                            })()
                     ) as NodePath<BabelTypes.Identifier>
                     if (isIdentifierReferenced(local)) {
                       variableState.refs.add(local)
@@ -329,8 +329,8 @@ export default function nextTransformSsg({
               ++count
 
               if (
-                t.isAssignmentExpression(sweepPath.parentPath) ||
-                t.isVariableDeclarator(sweepPath.parentPath)
+                t.isAssignmentExpression(sweepPath.parentPath.node) ||
+                t.isVariableDeclarator(sweepPath.parentPath.node)
               ) {
                 sweepPath.parentPath.remove()
               } else {
@@ -387,10 +387,10 @@ export default function nextTransformSsg({
                       p.node.type === 'ObjectProperty'
                         ? 'value'
                         : p.node.type === 'RestElement'
-                        ? 'argument'
-                        : (function () {
-                            throw new Error('invariant')
-                          })()
+                          ? 'argument'
+                          : (function () {
+                              throw new Error('invariant')
+                            })()
                     ) as NodePath<BabelTypes.Identifier>
 
                     if (refs.has(local) && !isIdentifierReferenced(local)) {

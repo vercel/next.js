@@ -1,0 +1,32 @@
+---
+title: No Script Tags In Head Component
+---
+
+## Why This Error Occurred
+
+A `<script>` tag was added using the `next/head` component.
+
+For the best performance, we recommend using `next/script`. Using `next/script` also ensures compatibility with React Suspense and streaming server-rendering.
+
+## Possible Ways to Fix It
+
+### Script Component
+
+The **Script component**, [`next/script`](/docs/pages/api-reference/components/script), allows you to optimally load third-party scripts anywhere in your Next.js application. It is an extension of the HTML `<script>` element and enables you to choose between multiple loading strategies to fit your use case.
+
+```jsx filename="pages/dashboard.js"
+import Script from 'next/script'
+
+export default function Dashboard() {
+  return (
+    <>
+      <Script src="https://example.com/script.js" />
+    </>
+  )
+}
+```
+
+## Useful Links
+
+- [Optimizing Scripts](/docs/pages/guides/scripts)
+- [`next/script` API Reference](/docs/pages/api-reference/components/script)

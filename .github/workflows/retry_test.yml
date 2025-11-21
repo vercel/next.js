@@ -1,0 +1,153 @@
+name: retry-tests
+
+on:
+  workflow_run:
+    # Make sure that required_job_conclusion knows what the name of the required
+    # job is in each workflow.
+    workflows: ['build-and-test', 'build-and-deploy']
+    branches: [canary]
+    types:
+      - completed
+
+env:
+  SLACK_WEBHOOK_URL: ${{ secrets.BROKEN_CANARY_SLACK_WEBHOOK_URL }}
+
+permissions:
+  actions: write
+
+jobs:
+  retry-on-failure:
+    name: retry failed jobs
+    # Retry the build-and-test workflow up to 3 times
+    if: >-
+      ${{ 
+        github.event.workflow_run.conclusion == 'failure' &&
+        github.repository == 'vercel/next.js' &&
+        github.event.workflow_run.run_attempt < 3
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check conclusion of required job
+        id: required_job_conclusion
+        uses: actions/github-script@v7
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          script: |
+            // See build-and-test.yml and build-and-deploy.yml for the required job names
+            const requiredJobName = {
+              'build-and-test': 'thank you, next',
+              'build-and-deploy': 'thank you, build',
+            }[context.payload.workflow_run.name]
+
+            async function rerunIfRequiredNotSuccessful() {
+              const result = await github.paginate.iterator(
+                'GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/jobs',
+                {
+                  attempt_number: context.payload.workflow_run.run_attempt,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: context.payload.workflow_run.id,
+                }
+              )
+
+              for await (const { data: jobs } of result) {
+                for (const job of jobs) {
+                  if (job.name === requiredJobName) {
+                    console.log(
+                      "Using conclusion '%s' from %s",
+                      job.conclusion,
+                      job.html_url
+                    )
+                    return job.conclusion
+                  }
+                }
+              }
+
+              console.log("Couldn't find job with name '%s'", requiredJobName)
+              return null
+            }
+
+            return await rerunIfRequiredNotSuccessful()
+      - name: send retry request to GitHub API
+        if: ${{ steps.required_job_conclusion.outputs.result != '"success"' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/rerun-failed-jobs
+
+  report-failure:
+    name: report failure to slack
+    # Report the failure to Slack if the build-and-test workflow has failed 3 times
+    # build-and-deploy is not retried so we always report it
+    if: >-
+      ${{ 
+        github.event.workflow_run.conclusion == 'failure' &&
+        github.event.workflow_run.run_attempt >= 3 &&
+        !github.event.workflow_run.head_repository.fork
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check conclusion of required job
+        id: required_job_conclusion
+        uses: actions/github-script@v7
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          script: |
+            // See build-and-test.yml and build-and-deploy.yml for the required job names
+            const requiredJobName = {
+              'build-and-test': 'thank you, next',
+              'build-and-deploy': 'thank you, build',
+            }[context.payload.workflow_run.name]
+
+            async function rerunIfRequiredNotSuccessful() {
+              const result = await github.paginate.iterator(
+                'GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/jobs',
+                {
+                  attempt_number: context.payload.workflow_run.run_attempt,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: context.payload.workflow_run.id,
+                }
+              )
+
+              for await (const { data: jobs } of result) {
+                for (const job of jobs) {
+                  if (job.name === requiredJobName) {
+                    console.log(
+                      "Using conclusion '%s' from %s",
+                      job.conclusion,
+                      job.html_url
+                    )
+                    return job.conclusion
+                  }
+                }
+              }
+
+              console.log("Couldn't find job with name '%s'", requiredJobName)
+              return null
+            }
+
+            return await rerunIfRequiredNotSuccessful()
+      - name: send webhook
+        if: ${{ steps.required_job_conclusion.outputs.result != '"success"' }}
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          # These urls are intentionally missing the protocol,
+          # allowing them to be transformed into actual links in the Slack workflow
+          # (through slightly hacky means).
+          payload: |
+            {
+              "commit_title": ${{ toJSON(github.event.workflow_run.display_title) }},
+              "commit_url": "github.com/${{ github.repository }}/commit/${{ github.event.workflow_run.head_sha }}",
+              "workflow_run_url": "github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/attempts/${{ github.event.workflow_run.run_attempt }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}

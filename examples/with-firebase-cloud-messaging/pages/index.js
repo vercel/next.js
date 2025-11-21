@@ -1,12 +1,12 @@
-import { useEffect } from 'react'
-import { firebaseCloudMessaging } from '../utils/webPush'
+import { useEffect } from "react";
+import { firebaseCloudMessaging } from "../utils/webPush";
 
 const Index = () => {
   useEffect(() => {
-    firebaseCloudMessaging.init()
-  }, [])
+    firebaseCloudMessaging.init();
+  }, []);
 
-  return <div>Next.js with firebase cloud messaging.</div>
-}
+  return <div>Next.js with firebase cloud messaging.</div>;
+};
 
-export default Index
+export default Index;

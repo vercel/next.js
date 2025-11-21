@@ -1,0 +1,9 @@
+@import 'b0.css';
+@import 'b1.css';
+@import 'b2.css';
+@import 'b3.css';
+@import 'b4.css';
+
+.b {
+  content: '16';
+}

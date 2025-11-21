@@ -1,8 +1,8 @@
-function a(v) {
-  return v
-}
-;['index.js'].forEach(f => {
-  require(a('./' + f))
+;['index.js'].forEach(async f => {
+  function a(v) {
+    return v
+  }
+  await import(a('./dynamic-file-imports/' + f))
 })
 
 export default () => 'Warn'

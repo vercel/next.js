@@ -1,5 +1,5 @@
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('Middleware fetches with body', () => {
@@ -178,35 +178,6 @@ describe('Middleware fetches with body', () => {
   })
 
   describe('with custom bodyParser sizeLimit (5mb)', () => {
-    it('should return 413 for body equal to 10mb', async () => {
-      const bodySize = 10 * 1024 * 1024
-      const body = 't'.repeat(bodySize)
-
-      const res = await fetchViaHTTP(
-        next.url,
-        '/api/size_limit_5mb',
-        {},
-        {
-          body,
-          method: 'POST',
-        }
-      )
-
-      try {
-        expect(res.status).toBe(413)
-
-        if (!(global as any).isNextDeploy) {
-          expect(res.statusText).toBe('Body exceeded 5mb limit')
-        }
-      } catch (err) {
-        // TODO: investigate occasional EPIPE errors causing
-        // a 500 status instead of a 413
-        if (res.status !== 500) {
-          throw err
-        }
-      }
-    })
-
     it('should return 413 for body greater than 5mb', async () => {
       const bodySize = 5 * 1024 * 1024 + 1
       const body = 'u'.repeat(bodySize)
@@ -307,5 +278,34 @@ describe('Middleware fetches with body', () => {
         data.rawBody.split('JKLM1N2O3P4Q5R6S7T8U9V0WaXbYcZdA').length
       ).toBe(bodySize / 32 + 1)
     })
+  })
+
+  it('should return 413 for body equal to 10mb', async () => {
+    const bodySize = 10 * 1024 * 1024
+    const body = 't'.repeat(bodySize)
+
+    const res = await fetchViaHTTP(
+      next.url,
+      '/api/size_limit_5mb',
+      {},
+      {
+        body,
+        method: 'POST',
+      }
+    )
+
+    try {
+      expect(res.status).toBe(413)
+
+      if (!(global as any).isNextDeploy) {
+        expect(res.statusText).toBe('Body exceeded 5mb limit')
+      }
+    } catch (err) {
+      // TODO: investigate occasional EPIPE errors causing
+      // a 500 status instead of a 413
+      if (res.status !== 500) {
+        throw err
+      }
+    }
   })
 })

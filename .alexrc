@@ -19,6 +19,13 @@
     "invalid",
     "remains",
     "special",
-    "white"
+    "white",
+    "deno",
+    "digitalocean",
+    "flightcontrol",
+    "fly.io",
+    "github",
+    "railway",
+    "sst"
   ]
 }

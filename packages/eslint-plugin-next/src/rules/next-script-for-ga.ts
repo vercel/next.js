@@ -19,7 +19,7 @@ const containsStr = (str, strList) => {
   return strList.some((s) => str.includes(s))
 }
 
-export = defineRule({
+export default defineRule({
   meta: {
     docs: {
       description,

@@ -1,0 +1,25 @@
+---
+title: No Server Import In Page
+---
+
+> Prevent usage of `next/server` outside of `proxy.js`.
+
+## Why This Error Occurred
+
+`next/server` was imported outside of `proxy.{js,ts}`.
+
+## Possible Ways to Fix It
+
+Only import and use `next/server` in a file located within the project root directory: `proxy.{js,ts}`.
+
+```ts filename="proxy.ts"
+import type { NextFetchEvent, NextRequest } from 'next/server'
+
+export function proxy(req: NextRequest, ev: NextFetchEvent) {
+  return new Response('Hello, world!')
+}
+```
+
+## Useful Links
+
+- [Proxy](/docs/pages/api-reference/file-conventions/proxy)

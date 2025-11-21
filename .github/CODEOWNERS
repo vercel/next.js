@@ -1,13 +1,2 @@
 # Learn how to add code owners here:
 # https://help.github.com/en/articles/about-code-owners
-
-# Codeowners now use Vercel Spaces
-# Search .vercel.approvers for all files
-
-*                                             @timneutkens @ijjk @shuding @huozhi @feedthejim
-
-# Image Component (@styfle)
-
-/**/*image*                                   @timneutkens @ijjk @shuding @styfle @huozhi @vercel/devex
-/**/*image*/**                                @timneutkens @ijjk @shuding @styfle @huozhi @vercel/devex
-

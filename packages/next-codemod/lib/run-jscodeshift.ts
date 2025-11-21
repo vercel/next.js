@@ -9,7 +9,16 @@ export default function runJscodeshift(
   // we run jscodeshift in the same process to be able to
   // share state between the main CRA transform and sub-transforms
   return Runner.run(transformerPath, files, {
-    ignorePattern: ['**/node_modules/**', '**/.next/**', '**/build/**'],
+    ignorePattern: [
+      '**/node_modules/**',
+      '**/.next/**',
+      '**/build/**',
+      // test files
+      '**/*.test.*',
+      '**/*.spec.*',
+      '**/__tests__/**',
+      '**/__mocks__/**',
+    ],
     extensions: 'tsx,ts,jsx,js',
     parser: 'tsx',
     verbose: 2,

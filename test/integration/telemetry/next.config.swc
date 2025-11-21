@@ -1,5 +1,4 @@
 module.exports = {
-  swcMinify: true,
   compiler: {
     relay: {
       // This should match relay.config.js

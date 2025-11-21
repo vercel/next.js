@@ -1,5 +1,5 @@
-import Container from '../components/container'
-import Image from 'next/image'
+import Container from "../components/container";
+import Image from "next/image";
 
 function HomePage() {
   return (
@@ -29,7 +29,7 @@ function HomePage() {
         />
       </div>
     </>
-  )
+  );
 }
 
-export default HomePage
+export default HomePage;

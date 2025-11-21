@@ -1,8 +1,15 @@
 # build output
 dist
+!.github/actions/*/dist
 .next
 target
 packages/next/wasm/@next
+tarballs/
+packages/**/*.tgz
+.errors/
+
+# rust compiler crashes
+rustc-ice-*.txt
 
 # dependencies
 node_modules
@@ -11,19 +18,22 @@ yarn.lock
 !/yarn.lock
 test/node_modules
 .pnpm-store/
+.github/**/node_modules
 
 # logs & pids
 *.log
 pids
 *.cpuprofile
+*.heapsnapshot
 
 # coverage
 .nyc_output
 coverage
 
 # test output
-test/**/out*
+test/**/out/*
 test/**/next-env.d.ts
+test/**/.next*
 .DS_Store
 /e2e-tests
 test/tmp/**
@@ -36,7 +46,7 @@ test/traces
 .nvmrc
 
 # examples
-examples/**/out
+examples/**/out/*
 examples/**/.env*.local
 
 pr-stats.md
@@ -50,3 +60,6 @@ test-timings.json
 *.tsbuildinfo
 .swc/
 .turbo
+
+# Storybook
+*storybook.log

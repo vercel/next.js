@@ -1,0 +1,52 @@
+[package]
+name = "turbopack-dev-server"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[lib]
+bench = false
+
+[features]
+log_request_stats = []
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-compression = { workspace = true }
+auto-hash-map = { workspace = true }
+futures = { workspace = true }
+hyper = { version = "0.14", features = ["full"] }
+hyper-tungstenite = "0.9.0"
+mime = { workspace = true }
+mime_guess = "2.0.4"
+parking_lot = { workspace = true }
+pin-project-lite = { workspace = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_qs = { workspace = true }
+socket2 = "0.4.9"
+tokio = { workspace = true }
+tokio-stream = "0.1.9"
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-bytes = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+# TODO remove this dependency
+turbopack-cli-utils = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-ecmascript = { workspace = true }
+turbopack-ecmascript-hmr-protocol = { workspace = true }
+urlencoding = "2.1.2"
+
+[dev-dependencies]
+turbo-tasks-backend = { workspace = true }
+

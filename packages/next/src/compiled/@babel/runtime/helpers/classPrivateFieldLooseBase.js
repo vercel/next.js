@@ -1,10 +1,5 @@
-function _classPrivateFieldBase(receiver, privateKey) {
-  if (!Object.prototype.hasOwnProperty.call(receiver, privateKey)) {
-    throw new TypeError("attempted to use private field on non-instance");
-  }
-
-  return receiver;
+function _classPrivateFieldBase(e, t) {
+  if (!{}.hasOwnProperty.call(e, t)) throw new TypeError("attempted to use private field on non-instance");
+  return e;
 }
-
-module.exports = _classPrivateFieldBase;
-module.exports["default"] = module.exports, module.exports.__esModule = true;
+module.exports = _classPrivateFieldBase, module.exports.__esModule = true, module.exports["default"] = module.exports;

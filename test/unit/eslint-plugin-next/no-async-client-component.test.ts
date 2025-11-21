@@ -1,110 +1,50 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-async-client-component'
 import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
-    ecmaVersion: 2018,
-    sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
-    },
-  },
-})
-const ruleTester = new RuleTester()
+import { rules } from '@next/eslint-plugin-next'
+
+const NextESLintRule = rules['no-async-client-component']
 
 const message =
-  'Prevent client components from being async functions. See: https://nextjs.org/docs/messages/no-async-client-component'
+  'Prevent Client Components from being async functions. See: https://nextjs.org/docs/messages/no-async-client-component'
 
-ruleTester.run('no-async-client-component single line', rule, {
+const tests = {
   valid: [
     `
+    // single line
     export default async function MyComponent() {
       return <></>
     }
     `,
-  ],
-  invalid: [
-    {
-      code: `
-      "use client"
-
-      export default async function MyComponent() {
-        return <></>
-      }
-      `,
-      errors: [
-        {
-          message,
-        },
-      ],
-    },
-  ],
-})
-
-ruleTester.run('no-async-client-component single line capitalization', rule, {
-  valid: [
     `
+    // single line capitalization
     "use client"
 
     export default async function myFunction() {
       return ''
     }
     `,
-  ],
-  invalid: [
-    {
-      code: `
-      "use client"
-
-      export default async function MyFunction() {
-        return ''
-      }
-      `,
-      errors: [
-        {
-          message,
-        },
-      ],
-    },
-  ],
-})
-
-ruleTester.run('no-async-client-component multiple line', rule, {
-  valid: [
     `
+    // multiple line
     async function MyComponent() {
       return <></>
     }
 
     export default MyComponent
     `,
-  ],
-  invalid: [
-    {
-      code: `
-      "use client"
-
-      async function MyComponent() {
-        return <></>
-      }
-
-      export default MyComponent
-      `,
-      errors: [
-        {
-          message,
-        },
-      ],
-    },
-  ],
-})
-
-ruleTester.run('no-async-client-component multiple line capitalization', rule, {
-  valid: [
     `
+    // multiple line capitalization
     "use client"
-    
+
     async function myFunction() {
+      return ''
+    }
+
+    export default myFunction
+    `,
+    `
+    // arrow function
+    "use client"
+
+    const myFunction = () => {
       return ''
     }
 
@@ -114,6 +54,42 @@ ruleTester.run('no-async-client-component multiple line capitalization', rule, {
   invalid: [
     {
       code: `
+      // single line
+      "use client"
+
+      export default async function MyComponent() {
+        return <></>
+      }
+      `,
+      errors: [{ message }],
+    },
+    {
+      code: `
+      // single line capitalization
+      "use client"
+
+      export default async function MyFunction() {
+        return ''
+      }
+      `,
+      errors: [{ message }],
+    },
+    {
+      code: `
+      // multiple line
+      "use client"
+
+      async function MyComponent() {
+        return <></>
+      }
+
+      export default MyComponent
+      `,
+      errors: [{ message }],
+    },
+    {
+      code: `
+      // multiple line capitalization
       "use client"
 
       async function MyFunction() {
@@ -122,11 +98,35 @@ ruleTester.run('no-async-client-component multiple line capitalization', rule, {
 
       export default MyFunction
       `,
-      errors: [
-        {
-          message,
-        },
-      ],
+      errors: [{ message }],
+    },
+    {
+      code: `
+      // arrow function
+      "use client"
+
+      const MyFunction = async () => {
+        return '123'
+      }
+
+      export default MyFunction
+      `,
+      errors: [{ message }],
     },
   ],
+}
+
+describe('no-async-client-component', () => {
+  new RuleTester({
+    languageOptions: {
+      ecmaVersion: 2018,
+      sourceType: 'module',
+      parserOptions: {
+        ecmaFeatures: {
+          modules: true,
+          jsx: true,
+        },
+      },
+    },
+  }).run('eslint', NextESLintRule, tests)
 })

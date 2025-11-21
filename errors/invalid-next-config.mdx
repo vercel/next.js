@@ -1,0 +1,47 @@
+---
+title: 'Invalid `next.config.js`'
+---
+
+## Why this error occurred
+
+In your `next.config.js` file, you passed invalid options that either are the incorrect type or an unknown field. This warning is shown to help catch typos, deprecated or updated options.
+
+## Possible ways to fix it
+
+You can use the `NextConfig` type to help ensure your config is correct.
+
+```js filename="next.config.js"
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  /* config options here */
+}
+
+module.exports = nextConfig
+```
+
+Alternatively, you can use `next.config.ts` for better type safety and auto-completion:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  /* config options here */
+}
+
+export default nextConfig
+```
+
+### Deprecated or updated options
+
+Some configuration options have been removed or updated in recent versions of Next.js. For example:
+
+- `eslint` configuration option has been removed from `next.config`. Remove the `eslint` option and use the ESLint CLI instead. See the [ESLint](/docs/app/api-reference/config/eslint) documentation.
+- `experimental.turbo` configuration has moved to a top-level `turbopack` configuration. See the [`turbopack` option](/docs/app/api-reference/config/next-config-js/turbopack) documentation.
+
+See the [`next.config.js` docs](/docs/app/api-reference/config/next-config-js) for a list of all available and legacy options.
+
+## Useful links
+
+- [`next.config.js`](/docs/pages/api-reference/config/next-config-js)

@@ -5,7 +5,7 @@ class AddonsPage extends React.Component {
       router
     } = this.props
     return (
-      <Page>
+      (<Page>
         <Header
           user={user}
           pathname={router.pathname}
@@ -19,7 +19,7 @@ class AddonsPage extends React.Component {
           user={user}
           url={router}
         />
-      </Page>
+      </Page>)
     );
   }
 }

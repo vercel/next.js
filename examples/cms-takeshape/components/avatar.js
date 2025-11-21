@@ -1,5 +1,5 @@
-import Image from 'next/image'
-import { getImageUrl } from 'takeshape-routing'
+import Image from "next/image";
+import { getImageUrl } from "takeshape-routing";
 
 export default function Avatar({ name, picture }) {
   return (
@@ -7,8 +7,8 @@ export default function Avatar({ name, picture }) {
       <div className="w-12 h-12 relative mr-4">
         <Image
           src={getImageUrl(picture.path, {
-            fm: 'jpg',
-            fit: 'crop',
+            fm: "jpg",
+            fit: "crop",
             w: 100,
             h: 100,
             sat: -100,
@@ -20,5 +20,5 @@ export default function Avatar({ name, picture }) {
       </div>
       <div className="text-xl font-bold">{name}</div>
     </div>
-  )
+  );
 }

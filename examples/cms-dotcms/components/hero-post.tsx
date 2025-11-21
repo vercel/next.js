@@ -1,8 +1,8 @@
-import Link from 'next/link'
-import Avatar from '@components/avatar'
-import DateComponent from '@components/date'
-import CoverImage from '@components/cover-image'
-import cn from 'classnames'
+import Link from "next/link";
+import Avatar from "@components/avatar";
+import DateComponent from "@components/date";
+import CoverImage from "@components/cover-image";
+import cn from "classnames";
 
 export default function HeroPost({
   title,
@@ -21,11 +21,11 @@ export default function HeroPost({
           title={title}
           slug={slug}
           objectFit="cover"
-          layout={'intrinsic'}
+          layout={"intrinsic"}
           src={coverImage.idPath}
           alt={`Cover Image for ${title}`}
-          className={cn('shadow-small', {
-            'hover:shadow-medium transition-shadow duration-200': slug,
+          className={cn("shadow-small", {
+            "hover:shadow-medium transition-shadow duration-200": slug,
           })}
         />
       </div>
@@ -55,5 +55,5 @@ export default function HeroPost({
         </div>
       </div>
     </section>
-  )
+  );
 }

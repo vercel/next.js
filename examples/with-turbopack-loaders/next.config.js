@@ -1,9 +1,14 @@
 module.exports = {
-  experimental: {
-    turbo: {
-      loaders: {
-        '.svg': ['@svgr/webpack'],
+  turbopack: {
+    rules: {
+      "*.react.svg": {
+        loaders: ["@svgr/webpack"],
+        as: "*.js",
+      },
+      "*.styl": {
+        loaders: ["stylus-loader"],
+        as: "*.css",
       },
     },
   },
-}
+};

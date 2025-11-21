@@ -1,4 +1,8 @@
 import type { OutgoingHttpHeaders } from 'http'
+import {
+  NEXT_INTERCEPTION_MARKER_PREFIX,
+  NEXT_QUERY_PARAM_PREFIX,
+} from '../../lib/constants'
 
 /**
  * Converts a Node.js IncomingHttpHeaders object to a Headers object. Any
@@ -145,4 +149,18 @@ export function validateURL(url: string | URL): string {
       { cause: error }
     )
   }
+}
+
+/**
+ * Normalizes `nxtP` and `nxtI` query param values to remove the prefix.
+ * This function does not mutate the input key.
+ */
+export function normalizeNextQueryParam(key: string): null | string {
+  const prefixes = [NEXT_QUERY_PARAM_PREFIX, NEXT_INTERCEPTION_MARKER_PREFIX]
+  for (const prefix of prefixes) {
+    if (key !== prefix && key.startsWith(prefix)) {
+      return key.substring(prefix.length)
+    }
+  }
+  return null
 }

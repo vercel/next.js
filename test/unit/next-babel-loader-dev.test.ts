@@ -21,6 +21,7 @@ const babel = async (code: string, queryOpts = {} as any) => {
     cache: false,
     development: true,
     hasReactRefresh: !isServer,
+    transformMode: 'default',
   }
   return new Promise<string>((resolve, reject) => {
     function callback(err, content) {
@@ -40,7 +41,6 @@ const babel = async (code: string, queryOpts = {} as any) => {
       callback,
       emitWarning() {},
       query: options,
-      // @ts-ignore exists
       getOptions: function () {
         return options
       },
@@ -59,7 +59,7 @@ describe('next-babel-loader', () => {
       const code = await babel(`process.env.NODE_ENV`, {
         isServer: false,
       })
-      expect(code).toMatchInlineSnapshot(`"\\"development\\";"`)
+      expect(code).toMatchInlineSnapshot(`""development";"`)
     })
 
     it('should replace NODE_ENV in statement (dev)', async () => {
