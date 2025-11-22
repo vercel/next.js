@@ -13,20 +13,18 @@ function parseUrlForPages(urlprefix: string, directory: string) {
     withFileTypes: true,
   })
   const res = []
+  const { ext, index } = getRegexPatterns()
+
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^index(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(
-          `${urlprefix}${dirent.name.replace(/^index(\.(j|t)sx?)$/, '')}`
-        )
+    if (ext.test(dirent.name)) {
+      if (index.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(index, '')}`)
       }
-      res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
+      res.push(`${urlprefix}${dirent.name.replace(ext, '')}`)
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+        res.push(...parseUrlForPages(`${urlprefix}${dirent.name}/`, dirPath))
       }
     }
   })
@@ -41,19 +39,19 @@ function parseUrlForAppDir(urlprefix: string, directory: string) {
     withFileTypes: true,
   })
   const res = []
+  const { ext, page, layout } = getRegexPatterns()
+
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^page(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/^page(\.(j|t)sx?)$/, '')}`)
-      } else if (!/^layout(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
+    if (ext.test(dirent.name)) {
+      if (page.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(page, '')}`)
+      } else if (!layout.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(ext, '')}`)
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
-      if (dirent.isDirectory(dirPath) && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+      if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
+        res.push(...parseUrlForPages(`${urlprefix}${dirent.name}/`, dirPath))
       }
     }
   })
@@ -197,3 +195,99 @@ function ensureLeadingSlash(route: string) {
 function isGroupSegment(segment: string) {
   return segment[0] === '(' && segment.endsWith(')')
 }
+
+/**
+ * Get page extensions from next.config.js/mjs/ts
+ * Falls back to default extensions if config is not found or invalid
+ */
+const getPageExtensions = (() => {
+  let cached: string[] | null = null
+
+  return (): string[] => {
+    if (cached) return cached
+
+    const fallback = ['tsx', 'ts', 'jsx', 'js']
+    const configFiles = ['next.config.js', 'next.config.mjs', 'next.config.ts']
+
+    for (const configFile of configFiles) {
+      try {
+        const configPath = path.resolve(process.cwd(), configFile)
+
+        // Check if file exists before requiring
+        if (!fs.existsSync(configPath)) {
+          continue
+        }
+
+        // For .ts files, try to use tsx or ts-node if available
+        if (configFile.endsWith('.ts')) {
+          try {
+            // Try tsx first (faster)
+            (require('tsx/cjs') as typeof import('tsx/cjs'))
+          } catch {
+            try {
+              // Fallback to ts-node
+              (require('ts-node/register') as typeof import('ts-node/register'))
+            } catch {
+              // Skip .ts file if no TypeScript loader available
+              continue
+            }
+          }
+        }
+
+        const userConfig = require(configPath)
+        const config = userConfig.default || userConfig
+
+        if (
+          config &&
+          Array.isArray(config.pageExtensions) &&
+          config.pageExtensions.length > 0
+        ) {
+          cached = config.pageExtensions.map((ext: string) =>
+            ext.replace(/^\./, '')
+          )
+          return cached
+        }
+      } catch (error) {
+        // Silently continue to next config file
+        continue
+      }
+    }
+
+    // No valid config found, use defaults
+    cached = fallback
+    return cached
+  }
+})()
+
+/**
+ * Get regex patterns for matching page files based on configured extensions
+ */
+const getRegexPatterns = (() => {
+  let cached: {
+    ext: RegExp
+    index: RegExp
+    page: RegExp
+    layout: RegExp
+  } | null = null
+
+  return () => {
+    if (cached) return cached
+
+    const extensions = getPageExtensions()
+    const escaped = extensions.map((ext) =>
+      ext.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    )
+    const group = escaped.join('|')
+
+    cached = {
+      ext: new RegExp(`\\.(${group})$`),
+      index: new RegExp(`^index\\.(${group})$`),
+      page: new RegExp(`^page\\.(${group})$`),
+      layout: new RegExp(`^layout\\.(${group})$`),
+    }
+
+    return cached
+  }
+})()
+
+export { getPageExtensions }
