@@ -13,12 +13,11 @@
                     ),
                 ),
                 [
-                    Variable(
-                        (
-                            "moduleId",
-                            #6,
-                        ),
-                    ),
+                    Unknown {
+                        original_value: None,
+                        reason: "assignment expression",
+                        has_side_effects: true,
+                    },
                 ],
             ),
         ),
