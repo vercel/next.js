@@ -4,6 +4,7 @@ import { yellow, bold } from '../lib/picocolors'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
+import fs from 'fs'
 
 import { getDefineEnv } from './define-env'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
@@ -61,7 +62,6 @@ import loadJsConfig, {
   type JsConfig,
   type ResolvedBaseUrl,
 } from './load-jsconfig'
-import { loadBindings } from './swc'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
@@ -96,14 +96,19 @@ import type { NextBuildContext } from './build-context'
 import type { RootParamsLoaderOpts } from './webpack/loaders/next-root-params-loader'
 import type { InvalidImportLoaderOpts } from './webpack/loaders/next-invalid-import-error-loader'
 import { defaultOverrides } from '../server/require-hook'
+import JSON5 from 'next/dist/compiled/json5'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
   [key: string]: string | string[]
 }
 
-const EXTERNAL_PACKAGES =
-  require('../lib/server-external-packages.json') as string[]
+const EXTERNAL_PACKAGES = JSON5.parse(
+  fs.readFileSync(
+    path.join(__dirname, '../lib/server-external-packages.jsonc'),
+    'utf8'
+  )
+) as string[]
 
 const DEFAULT_TRANSPILED_PACKAGES =
   require('../lib/default-transpiled-packages.json') as string[]
@@ -287,6 +292,10 @@ export function hasExternalOtelApiPackage(): boolean {
 
 const UNSAFE_CACHE_REGEX = /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/
 
+const NEGATIVE_UNSAFE_CACHE_REGEX = new RegExp(
+  `^(?!.*${UNSAFE_CACHE_REGEX.source}).*$`
+)
+
 export function getCacheDirectories(
   configs: webpack.Configuration[]
 ): Set<string> {
@@ -416,11 +425,6 @@ export default async function getBaseWebpackConfig(
       )}" https://nextjs.org/docs/messages/swc-disabled`
     )
     loggedSwcDisabled = true
-  }
-
-  // eagerly load swc bindings instead of waiting for transform calls
-  if (!babelConfigFile && isClient) {
-    await loadBindings(config.experimental.useWasmBinary)
   }
 
   // since `pages` doesn't always bundle by default we need to
@@ -2257,12 +2261,8 @@ export default async function getBaseWebpackConfig(
   }
 
   if (isRspack) {
-    // @ts-ignore
-    // Disable Rspack's incremental buildChunkGraph due to Next.js compatibility issues
-    // TODO: Remove this workaround after Rspack 1.5.1 release
-    webpack5Config.experiments.incremental = {
-      buildChunkGraph: false,
-    }
+    // The layers experiment is now stable in Rspack
+    delete webpack5Config.experiments!.layers
   }
 
   webpack5Config.module!.parser = {
@@ -2488,11 +2488,22 @@ export default async function getBaseWebpackConfig(
 
   if (dev) {
     if (webpackConfig.module) {
-      webpackConfig.module.unsafeCache = (module: any) =>
-        !UNSAFE_CACHE_REGEX.test(module.resource)
+      if (isRspack) {
+        ;(webpackConfig.module.unsafeCache as any) = NEGATIVE_UNSAFE_CACHE_REGEX
+      } else {
+        webpackConfig.module.unsafeCache = (module: any) =>
+          !UNSAFE_CACHE_REGEX.test(module.resource)
+      }
     } else {
-      webpackConfig.module = {
-        unsafeCache: (module: any) => !UNSAFE_CACHE_REGEX.test(module.resource),
+      if (isRspack) {
+        ;(webpackConfig.module as any) = {
+          unsafeCache: NEGATIVE_UNSAFE_CACHE_REGEX,
+        }
+      } else {
+        webpackConfig.module = {
+          unsafeCache: (module: any) =>
+            !UNSAFE_CACHE_REGEX.test(module.resource),
+        }
       }
     }
   }

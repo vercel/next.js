@@ -200,6 +200,24 @@ function p() {
   p4()
 }
 
+function q() {
+  while (false) {
+    q1()
+    return
+    q2()
+  }
+  q3()
+}
+
+function r() {
+  {
+    r1()
+    return
+    r2()
+  }
+  r3()
+}
+
 z1()
 
 return

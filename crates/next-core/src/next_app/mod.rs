@@ -460,6 +460,18 @@ impl AppPath {
 
         true
     }
+
+    /// Returns true if ANY segment in the entire path is an interception route.
+    /// This is different from `is_intercepting()` which only checks the last
+    /// segment.
+    pub fn contains_interception(&self) -> bool {
+        self.iter().any(|segment| {
+            matches!(
+                segment,
+                PathSegment::Static(s) if s.starts_with("(.)") || s.starts_with("(..)") || s.starts_with("(...)")
+            )
+        })
+    }
 }
 
 impl Deref for AppPath {

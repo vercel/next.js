@@ -8,7 +8,6 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Vc};
-use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
 use turbo_tasks_fetch::{FetchClientConfig, HttpResponseBody};
 use turbo_tasks_fs::{
@@ -22,6 +21,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::Layer,
     issue::{IssueExt, IssueSeverity, StyledString},
+    module_graph::ModuleGraph,
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ResolveResult,
@@ -32,7 +32,9 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_node::{
-    debug::should_debug, evaluate::evaluate, execution_context::ExecutionContext,
+    debug::should_debug,
+    evaluate::{evaluate, get_evaluate_entries},
+    execution_context::ExecutionContext,
 };
 
 use self::{
@@ -50,7 +52,7 @@ use super::{
 };
 use crate::{
     embed_js::next_js_file_path, mode::NextMode, next_app::metadata::split_extension,
-    next_font::issue::NextFontIssue, util::load_next_js_templateon,
+    next_font::issue::NextFontIssue, util::load_next_js_json_file,
 };
 
 pub mod font_fallback;
@@ -464,7 +466,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
 
 #[turbo_tasks::function]
 async fn load_font_data(project_root: FileSystemPath) -> Result<Vc<FontData>> {
-    let data: FontData = load_next_js_templateon(
+    let data: FontData = load_next_js_json_file(
         project_root,
         rcstr!("dist/compiled/@next/font/dist/google/font-data.json"),
     )
@@ -753,25 +755,26 @@ async fn get_mock_stylesheet(
         )
         .module();
 
+    let entries = get_evaluate_entries(mocked_response_asset, asset_context, None);
+    let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false);
+
     let root = mock_fs.root().owned().await?;
     let val = evaluate(
-        mocked_response_asset,
+        entries,
         root,
         *env,
         loader_source,
-        asset_context,
         *chunking_context,
-        None,
+        module_graph,
         vec![],
         Completion::immutable(),
         should_debug("next_font::google"),
     )
     .await?;
 
-    match &val.try_into_single().await? {
-        SingleValue::Single(val) => {
-            let val: FxHashMap<RcStr, Option<RcStr>> =
-                parse_json_with_source_context(val.to_str()?)?;
+    match &*val {
+        Some(val) => {
+            let val: FxHashMap<RcStr, Option<RcStr>> = parse_json_with_source_context(val)?;
             Ok(val
                 .get(&stylesheet_url)
                 .context("url not found")?

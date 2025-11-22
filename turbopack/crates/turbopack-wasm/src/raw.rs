@@ -2,14 +2,13 @@ use anyhow::{Result, bail};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{IntoTraitRef, ResolvedVc, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
-    output::{OutputAsset, OutputAssets},
-    source::Source,
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
+    source::{OptionSource, Source},
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -59,13 +58,10 @@ impl Module for RawWebAssemblyModuleAsset {
             .with_modifier(rcstr!("wasm raw"))
             .with_layer(self.asset_context.into_trait_ref().await?.layer()))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for RawWebAssemblyModuleAsset {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(ResolvedVc::upcast(self.source)))
     }
 }
 
@@ -104,15 +100,18 @@ struct RawModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for RawModuleChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
+        OutputAssetsWithReferenced::from_assets(Vc::cell(vec![ResolvedVc::upcast(self.wasm_asset)]))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for RawModuleChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
         self.module.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Result<Vc<OutputAssets>> {
-        Ok(Vc::cell(vec![ResolvedVc::upcast(self.wasm_asset)]))
     }
 
     #[turbo_tasks::function]

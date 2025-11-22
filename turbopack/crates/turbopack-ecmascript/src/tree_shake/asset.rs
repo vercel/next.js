@@ -3,7 +3,6 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
     ident::AssetIdent,
@@ -311,6 +310,11 @@ impl Module for EcmascriptModulePartAsset {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     fn is_self_async(self: Vc<Self>) -> Vc<bool> {
         self.is_async_module()
     }
@@ -346,13 +350,18 @@ impl Module for EcmascriptModulePartAsset {
 
         Ok(analyze.references())
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.full_module.content()
+    async fn is_marked_as_side_effect_free(
+        &self,
+        side_effect_free_packages: Vc<Glob>,
+    ) -> Result<Vc<bool>> {
+        match self.part {
+            ModulePart::Exports | ModulePart::Export(..) => Ok(Vc::cell(true)),
+            _ => Ok(self
+                .full_module
+                .is_marked_as_side_effect_free(side_effect_free_packages)),
+        }
     }
 }
 
@@ -361,21 +370,6 @@ impl EcmascriptChunkPlaceable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
         Ok(*self.analyze().await?.exports)
-    }
-
-    #[turbo_tasks::function]
-    async fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        side_effect_free_packages: Vc<Glob>,
-    ) -> Result<Vc<bool>> {
-        let this = self.await?;
-
-        match this.part {
-            ModulePart::Exports | ModulePart::Export(..) => Ok(Vc::cell(true)),
-            _ => Ok(this
-                .full_module
-                .is_marked_as_side_effect_free(side_effect_free_packages)),
-        }
     }
 }
 

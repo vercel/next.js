@@ -19,7 +19,7 @@ describe('serialize-circular-error', () => {
     `)
     const output = next.cliOutput
     expect(output).toContain(
-      'Error: {"objA":{"other":{"a":"[Circular]"}},"objB":{"a":{"other":"[Circular]"}}}'
+      'Error: {"objA":{"other":{"a":"[Circular]"}},"objB":"[Circular]"}'
     )
   })
 
@@ -44,7 +44,7 @@ describe('serialize-circular-error', () => {
 
     const output = next.cliOutput
     expect(output).toContain(
-      'Error: {"objC":{"other":{"a":"[Circular]"}},"objD":{"a":{"other":"[Circular]"}}}'
+      'Error: {"objC":{"other":{"a":"[Circular]"}},"objD":"[Circular]"}'
     )
   })
 })

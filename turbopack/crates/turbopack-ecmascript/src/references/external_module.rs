@@ -4,13 +4,13 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{FileContent, FileSystem, VirtualFileSystem, glob::Glob, rope::RopeBuilder};
+use turbo_tasks_fs::{FileSystem, VirtualFileSystem, glob::Glob, rope::RopeBuilder};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::{AssetIdent, Layer},
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     raw_module::RawModule,
     reference::{ModuleReference, ModuleReferences, TracedModuleReference},
     reference_type::ReferenceType,
@@ -225,6 +225,11 @@ impl Module for CachedExternalModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         Ok(match &self.analyze_mode {
             CachedExternalTracingMode::Untraced => ModuleReferences::empty(),
@@ -297,14 +302,13 @@ impl Module for CachedExternalModule {
                 || self.external_type == CachedExternalType::Script,
         ))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for CachedExternalModule {
     #[turbo_tasks::function]
-    fn content(self: Vc<Self>) -> Vc<AssetContent> {
-        // should be `NotFound` as this function gets called to detect source changes
-        AssetContent::file(FileContent::NotFound.cell())
+    fn is_marked_as_side_effect_free(
+        self: Vc<Self>,
+        _side_effect_free_packages: Vc<Glob>,
+    ) -> Vc<bool> {
+        Vc::cell(false)
     }
 }
 
@@ -356,14 +360,6 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
             },
         )
     }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        _side_effect_free_packages: Vc<Glob>,
-    ) -> Vc<bool> {
-        Vc::cell(false)
-    }
 }
 
 #[turbo_tasks::value]
@@ -371,6 +367,9 @@ pub struct CachedExternalModuleChunkItem {
     module: ResolvedVc<CachedExternalModule>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for CachedExternalModuleChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for CachedExternalModuleChunkItem {
@@ -406,6 +405,7 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
     fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Vc<EcmascriptChunkItemContent> {
         let async_module_options = self
             .module
@@ -436,18 +436,15 @@ impl ModuleWithoutSelfAsync {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for ModuleWithoutSelfAsync {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.module.content()
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl Module for ModuleWithoutSelfAsync {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.module.ident()
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        self.module.source()
     }
 
     #[turbo_tasks::function]

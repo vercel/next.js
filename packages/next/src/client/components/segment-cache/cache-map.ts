@@ -1,3 +1,4 @@
+import type { VaryPath } from './vary-path'
 import { lruPut, updateLruSize, deleteFromLru } from './lru'
 
 /**
@@ -10,10 +11,15 @@ import { lruPut, updateLruSize, deleteFromLru } from './lru'
  *   set(map, ['https://localhost', 'foo/bar/baz'], 'yay');
  *   get(map, ['https://localhost', 'foo/bar/baz']) -> 'yay'
  *
+ * NOTE: Array syntax is used in these examples for illustration purposes, but
+ * in reality the paths are lists.
+ * 
  * The parts of the keypath represent the different inputs that contribute
  * to the entry value. To illustrate, if you were to use this data type to store
  * HTTP responses, the keypath would include the URL and everything listed by
  * the Vary header.
+ * 
+ * See vary-path.ts for more details.
  *
  * The order of elements in a keypath must be consistent between lookups to
  * be considered the same, but besides that, the order of the keys is not
@@ -40,10 +46,11 @@ import { lruPut, updateLruSize, deleteFromLru } from './lru'
  * regular JS maps do not have: a value cannot be stored at multiple keypaths
  * simultaneously. These cases should be expressed with Fallback keys instead.
  *
- * Additionally, because values only exist at a single keypath at a time, we can
- * optimize successive lookups by caching the internal map entry on the value
- * itself, using the `ref` field. This is especially useful because it lets us
- * skip the O(n ^ 2) lookup that occurs when Fallback entries are present.
+ * Additionally, because values only exist at a single keypath at a time, we
+ * can optimize successive lookups by caching the internal map entry on the
+ * value itself, using the `ref` field. This is especially useful because it
+ * lets us skip the O(n ^ 2) lookup that occurs when Fallback entries
+ * are present.
  *
 
  * How to decide if stuff belongs in here, or in cache.ts?
@@ -58,54 +65,39 @@ import { lruPut, updateLruSize, deleteFromLru } from './lru'
  * should prefer to put it in cache.ts.
  */
 
-type MapEntryShared<K extends readonly unknown[], V extends MapValue> = {
-  parent: MapEntry<K, V> | null
+type MapEntryShared<V extends MapValue> = {
+  parent: MapEntry<V> | null
   key: any
-  map: Map<any, MapEntry<K, V>> | null
+  map: Map<any, MapEntry<V>> | null
 
   // LRU-related fields
-  prev: MapEntry<any, any> | null
-  next: MapEntry<any, any> | null
+  prev: MapEntry<any> | null
+  next: MapEntry<any> | null
   size: number
 }
 
-type EmptyMapEntry<
-  K extends readonly unknown[],
-  V extends MapValue,
-> = MapEntryShared<K, V> & {
+type EmptyMapEntry<V extends MapValue> = MapEntryShared<V> & {
   value: null
 }
 
-type FullMapEntry<
-  K extends readonly unknown[],
-  V extends MapValue,
-> = MapEntryShared<K, V> & {
+type FullMapEntry<V extends MapValue> = MapEntryShared<V> & {
   value: V
 }
 
-export type MapEntry<K extends readonly unknown[], V extends MapValue> =
-  | EmptyMapEntry<K, V>
-  | FullMapEntry<K, V>
+export type MapEntry<V extends MapValue> = EmptyMapEntry<V> | FullMapEntry<V>
 
 // The CacheMap type is just the root entry of the map.
-export type CacheMap<
-  K extends readonly unknown[],
-  V extends MapValue,
-> = MapEntry<K, V>
+export type CacheMap<V extends MapValue> = MapEntry<V>
 
 // The protocol that values must implement. In practice, the only two types that
 // we ever actually deal with in this module are RouteCacheEntry and
 // SegmentCacheEntry; this is just to keep track of the coupling so we don't
 // leak concerns between the modules unnecessarily.
 export interface MapValue {
-  ref: MapEntry<any, any> | null
+  ref: MapEntry<any> | null
   size: number
   staleAt: number
   version: number
-}
-
-type KeyWithFallback<K extends readonly unknown[]> = {
-  [I in keyof K]: K[I] | FallbackType
 }
 
 export type FallbackType = { __brand: 'Fallback' }
@@ -115,11 +107,8 @@ export const Fallback = {} as FallbackType
 // an implementation detail that shouldn't leak outside of this module.
 const Revalidation = {}
 
-export function createCacheMap<
-  Keypath extends Array<any>,
-  V extends MapValue,
->(): CacheMap<Keypath, V> {
-  let cacheMap: MapEntry<Keypath, V> = {
+export function createCacheMap<V extends MapValue>(): CacheMap<V> {
+  const cacheMap: MapEntry<V> = {
     parent: null,
     key: null,
     value: null,
@@ -133,11 +122,11 @@ export function createCacheMap<
   return cacheMap
 }
 
-function getOrInitialize<K extends readonly unknown[], V extends MapValue>(
-  cacheMap: CacheMap<K, V>,
-  keys: K,
+function getOrInitialize<V extends MapValue>(
+  cacheMap: CacheMap<V>,
+  keys: VaryPath,
   isRevalidation: boolean
-): MapEntry<K, V> {
+): MapEntry<V> {
   // Go through each level of keys until we find the entry that matches, or
   // create a new entry if one doesn't exist.
   //
@@ -145,12 +134,14 @@ function getOrInitialize<K extends readonly unknown[], V extends MapValue>(
   // Unlike getWithFallback, it will not access fallback entries unless it's
   // explicitly part of the keypath.
   let entry = cacheMap
-  let i = 0
+  let remainingKeys: VaryPath | null = keys
+  let key: unknown | null = null
   while (true) {
-    let key
-    if (i < keys.length) {
-      key = keys[i]
-    } else if (isRevalidation && i === keys.length) {
+    const previousKey = key
+    if (remainingKeys !== null) {
+      key = remainingKeys.value
+      remainingKeys = remainingKeys.parent
+    } else if (isRevalidation && previousKey !== Revalidation) {
       // During a revalidation, we append an internal "Revalidation" key to
       // the end of the keypath. The "normal" entry is its parent.
 
@@ -167,7 +158,6 @@ function getOrInitialize<K extends readonly unknown[], V extends MapValue>(
       // There are no more keys. This is the terminal entry.
       break
     }
-    i++
 
     let map = entry.map
     if (map !== null) {
@@ -182,7 +172,7 @@ function getOrInitialize<K extends readonly unknown[], V extends MapValue>(
       entry.map = map
     }
     // No entry exists yet at this level. Create a new one.
-    const newEntry: EmptyMapEntry<K, V> = {
+    const newEntry: EmptyMapEntry<V> = {
       parent: entry,
       key,
       value: null,
@@ -200,14 +190,11 @@ function getOrInitialize<K extends readonly unknown[], V extends MapValue>(
   return entry
 }
 
-export function getFromCacheMap<
-  K extends readonly unknown[],
-  V extends MapValue,
->(
+export function getFromCacheMap<V extends MapValue>(
   now: number,
   currentCacheVersion: number,
-  rootEntry: CacheMap<K, V>,
-  keys: KeyWithFallback<K>,
+  rootEntry: CacheMap<V>,
+  keys: VaryPath,
   isRevalidation: boolean
 ): V | null {
   const entry = getEntryWithFallbackImpl(
@@ -234,10 +221,10 @@ export function isValueExpired<V extends MapValue>(
   return value.staleAt <= now || value.version < currentCacheVersion
 }
 
-function lazilyEvictIfNeeded<K extends readonly unknown[], V extends MapValue>(
+function lazilyEvictIfNeeded<V extends MapValue>(
   now: number,
   currentCacheVersion: number,
-  entry: MapEntry<K, V>
+  entry: MapEntry<V>
 ) {
   // We have a matching entry, but before we can return it, we need to check if
   // it's still fresh. Otherwise it should be treated the same as a cache miss.
@@ -259,17 +246,14 @@ function lazilyEvictIfNeeded<K extends readonly unknown[], V extends MapValue>(
   return entry
 }
 
-function getEntryWithFallbackImpl<
-  K extends readonly unknown[],
-  V extends MapValue,
->(
+function getEntryWithFallbackImpl<V extends MapValue>(
   now: number,
   currentCacheVersion: number,
-  entry: MapEntry<K, V>,
-  keys: K,
+  entry: MapEntry<V>,
+  keys: VaryPath | null,
   isRevalidation: boolean,
-  index: number
-): MapEntry<K, V> | null {
+  previousKey: unknown | null
+): MapEntry<V> | null {
   // This is similar to getExactEntry, but if an exact match is not found for
   // a key, it will return the fallback entry instead. This is recursive at
   // every level, e.g. an entry with keypath [a, Fallback, c, Fallback] is
@@ -277,12 +261,15 @@ function getEntryWithFallbackImpl<
   //
   // It will return the most specific match available.
   let key
-  if (index < keys.length) {
-    key = keys[index]
-  } else if (isRevalidation && index === keys.length) {
+  let remainingKeys: VaryPath | null
+  if (keys !== null) {
+    key = keys.value
+    remainingKeys = keys.parent
+  } else if (isRevalidation && previousKey !== Revalidation) {
     // During a revalidation, we append an internal "Revalidation" key to
     // the end of the keypath.
     key = Revalidation
+    remainingKeys = null
   } else {
     // There are no more keys. This is the terminal entry.
 
@@ -299,13 +286,13 @@ function getEntryWithFallbackImpl<
     const existingEntry = map.get(key)
     if (existingEntry !== undefined) {
       // Found an exact match for this key. Keep searching.
-      const result = getEntryWithFallbackImpl<K, V>(
+      const result = getEntryWithFallbackImpl<V>(
         now,
         currentCacheVersion,
         existingEntry,
-        keys,
+        remainingKeys,
         isRevalidation,
-        index + 1
+        key
       )
       if (result !== null) {
         return result
@@ -319,18 +306,18 @@ function getEntryWithFallbackImpl<
         now,
         currentCacheVersion,
         fallbackEntry,
-        keys,
+        remainingKeys,
         isRevalidation,
-        index + 1
+        key
       )
     }
   }
   return null
 }
 
-export function setInCacheMap<K extends readonly unknown[], V extends MapValue>(
-  cacheMap: CacheMap<K, V>,
-  keys: K,
+export function setInCacheMap<V extends MapValue>(
+  cacheMap: CacheMap<V>,
+  keys: VaryPath,
   value: V,
   isRevalidation: boolean
 ): void {
@@ -345,8 +332,8 @@ export function setInCacheMap<K extends readonly unknown[], V extends MapValue>(
   updateLruSize(entry, value.size)
 }
 
-function setMapEntryValue<K extends readonly unknown[], V extends MapValue>(
-  entry: MapEntry<K, V>,
+function setMapEntryValue<V extends MapValue>(
+  entry: MapEntry<V>,
   value: V
 ): void {
   if (entry.value !== null) {
@@ -356,7 +343,7 @@ function setMapEntryValue<K extends readonly unknown[], V extends MapValue>(
     dropRef(entry.value)
 
     // Fill the entry with the updated value.
-    const emptyEntry: EmptyMapEntry<K, V> = entry as any
+    const emptyEntry: EmptyMapEntry<V> = entry as any
     emptyEntry.value = null
     fillEmptyReference(emptyEntry, value)
   } else {
@@ -364,15 +351,15 @@ function setMapEntryValue<K extends readonly unknown[], V extends MapValue>(
   }
 }
 
-function fillEmptyReference<K extends readonly unknown[], V extends MapValue>(
-  entry: EmptyMapEntry<K, V>,
+function fillEmptyReference<V extends MapValue>(
+  entry: EmptyMapEntry<V>,
   value: V
 ): void {
   // This value may already be in the map at a different keypath.
   // Grab a reference before we overwrite it.
   const oldEntry = value.ref
 
-  const fullEntry: FullMapEntry<K, V> = entry as any
+  const fullEntry: FullMapEntry<V> = entry as any
   fullEntry.value = value
   value.ref = fullEntry
 
@@ -409,11 +396,9 @@ function dropRef<V extends MapValue>(value: V): void {
   value.ref = null
 }
 
-function deleteMapEntry<K extends readonly unknown[], V extends MapValue>(
-  entry: MapEntry<K, V>
-): void {
+function deleteMapEntry<V extends MapValue>(entry: MapEntry<V>): void {
   // Delete the entry from the cache.
-  const emptyEntry: EmptyMapEntry<K, V> = entry as any
+  const emptyEntry: EmptyMapEntry<V> = entry as any
   emptyEntry.value = null
 
   deleteFromLru(entry)

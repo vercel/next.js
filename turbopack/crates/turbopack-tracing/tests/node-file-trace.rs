@@ -35,7 +35,7 @@ use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
     ModuleAssetContext,
     ecmascript::AnalyzeMode,
-    emit_with_completion_operation,
+    emit_assets_into_dir_operation,
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext,
         TypescriptTransformOptions,
@@ -47,8 +47,9 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     rebase::RebasedAsset,
+    reference::all_assets_from_entry,
     reference_type::ReferenceType,
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -149,6 +150,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::pdf2json("integration/pdf2json.mjs")]
 #[case::pdfkit("integration/pdfkit.js")]
 #[case::pg("integration/pg.js")]
+#[case::pino("integration/pino.js")]
 #[case::playwright_core("integration/playwright-core.js")]
 #[case::pnpm_like("integration/pnpm/pnpm-like.js")]
 #[case::polyfill_library("integration/polyfill-library.js")]
@@ -357,7 +359,7 @@ async fn node_file_trace_operation(
         }
         .resolved_cell(),
     ));
-    let module_asset_context = ModuleAssetContext::new(
+    let module_asset_context = ModuleAssetContext::new_without_replace_externals(
         Default::default(),
         // TODO These test cases should move into the `node-file-trace` crate and use the same
         // config.
@@ -406,8 +408,11 @@ async fn node_file_trace_operation(
     let rebased = RebasedAsset::new(module, input_dir.clone(), output_dir.clone())
         .to_resolved()
         .await?;
+    let assets = all_assets_from_entry(Vc::upcast(*rebased))
+        .to_resolved()
+        .await?;
 
-    let emit_op = emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir.clone());
+    let emit_op = emit_assets_into_dir_operation(assets, output_dir.clone());
     emit_op.read_strongly_consistent().await?;
     apply_effects(emit_op).await?;
 
@@ -745,7 +750,7 @@ async fn print_graph(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
     let mut queue = Vec::new();
     queue.push((0, asset));
     while let Some((depth, asset)) = queue.pop() {
-        let references = asset.references().await?;
+        let references = asset.references().all_assets().await?;
         let mut indent = String::new();
         for _ in 0..depth {
             indent.push_str("  ");

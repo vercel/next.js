@@ -76,7 +76,8 @@ export class ExportError extends Error {
 async function exportAppImpl(
   dir: string,
   options: Readonly<ExportAppOptions>,
-  span: Span
+  span: Span,
+  staticWorker?: StaticWorker
 ): Promise<ExportAppResult | null> {
   dir = resolve(dir)
 
@@ -641,15 +642,24 @@ async function exportAppImpl(
   if (totalExportPaths > 0) {
     const progress = createProgress(
       totalExportPaths,
-      options.statusMessage || 'Exporting'
+      options.statusMessage ??
+        `Exporting using ${options.numWorkers} worker${options.numWorkers > 1 ? 's' : ''}`
     )
 
-    worker = createStaticWorker(nextConfig, {
-      debuggerPortOffset: getNextBuildDebuggerPortOffset({
-        kind: 'export-page',
-      }),
-      progress,
-    })
+    if (staticWorker) {
+      // TODO: progress shouldn't rely on "activity" event sent from `exportPage`.
+      staticWorker.setOnActivity(progress.run)
+      staticWorker.setOnActivityAbort(progress.clear)
+      worker = staticWorker
+    } else {
+      worker = createStaticWorker(nextConfig, {
+        debuggerPortOffset: getNextBuildDebuggerPortOffset({
+          kind: 'export-page',
+        }),
+        numberOfWorkers: options.numWorkers,
+        progress,
+      })
+    }
 
     results = await exportPagesInBatches(worker, initialPhaseExportPaths)
 
@@ -911,7 +921,13 @@ async function exportAppImpl(
     await telemetry.flush()
   }
 
-  if (worker) {
+  // Clean up activity listeners for progress.
+  if (staticWorker) {
+    staticWorker.setOnActivity(undefined)
+    staticWorker.setOnActivityAbort(undefined)
+  }
+
+  if (!staticWorker && worker) {
     await worker.end()
   }
 
@@ -955,11 +971,12 @@ async function collectSegmentPathsImpl(
 export default async function exportApp(
   dir: string,
   options: ExportAppOptions,
-  span: Span
+  span: Span,
+  staticWorker?: StaticWorker
 ): Promise<ExportAppResult | null> {
   const nextExportSpan = span.traceChild('next-export')
 
   return nextExportSpan.traceAsyncFn(async () => {
-    return await exportAppImpl(dir, options, nextExportSpan)
+    return await exportAppImpl(dir, options, nextExportSpan, staticWorker)
   })
 }

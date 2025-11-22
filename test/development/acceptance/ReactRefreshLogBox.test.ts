@@ -13,11 +13,10 @@ import { outdent } from 'outdent'
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('ReactRefreshLogBox', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { isTurbopack, next, isRspack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
-  const isRspack = !!process.env.NEXT_RSPACK
 
   test('should strip whitespace correctly with newline', async () => {
     await using sandbox = await createSandbox(next)

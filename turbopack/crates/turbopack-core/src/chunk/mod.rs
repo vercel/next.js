@@ -44,7 +44,7 @@ use crate::{
         ModuleGraph,
         module_batch::{ChunkableModuleOrBatch, ModuleBatchGroup},
     },
-    output::OutputAssets,
+    output::{OutputAssets, OutputAssetsReference},
     reference::ModuleReference,
     resolve::ExportUsage,
 };
@@ -90,7 +90,7 @@ pub struct ModuleIds(Vec<ResolvedVc<ModuleId>>);
 
 /// A [Module] that can be converted into a [Chunk].
 #[turbo_tasks::value_trait]
-pub trait ChunkableModule: Module + Asset {
+pub trait ChunkableModule: Module {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: Vc<Self>,
@@ -115,7 +115,7 @@ impl ChunkableModules {
 // with other module types (as a MergeableModule cannot prevent itself from being merged with other
 // module types)
 #[turbo_tasks::value_trait]
-pub trait MergeableModule: Module + Asset {
+pub trait MergeableModule: Module {
     /// Even though MergeableModule is implemented, this allows a dynamic condition to determine
     /// mergeability
     #[turbo_tasks::function]
@@ -209,7 +209,7 @@ impl Chunks {
 /// It usually contains multiple chunk items.
 // TODO This could be simplified to and merged with [OutputChunk]
 #[turbo_tasks::value_trait]
-pub trait Chunk {
+pub trait Chunk: OutputAssetsReference {
     #[turbo_tasks::function]
     fn ident(self: Vc<Self>) -> Vc<AssetIdent>;
     #[turbo_tasks::function]
@@ -217,12 +217,6 @@ pub trait Chunk {
     // fn path(self: Vc<Self>) -> Vc<FileSystemPath> {
     //     self.ident().path()
     // }
-
-    /// Other [OutputAsset]s referenced from this [Chunk].
-    #[turbo_tasks::function]
-    fn references(self: Vc<Self>) -> Vc<OutputAssets> {
-        OutputAssets::empty()
-    }
 
     #[turbo_tasks::function]
     fn chunk_items(self: Vc<Self>) -> Vc<ChunkItems> {
@@ -436,12 +430,13 @@ pub struct ChunkGroupContent {
 }
 
 #[turbo_tasks::value_trait]
-pub trait ChunkItem {
+pub trait ChunkItem: OutputAssetsReference {
     /// The [AssetIdent] of the [Module] that this [ChunkItem] was created from.
     /// For most chunk types this must uniquely identify the chunk item at
     /// runtime as it's the source of the module id used at runtime.
     #[turbo_tasks::function]
     fn asset_ident(self: Vc<Self>) -> Vc<AssetIdent>;
+
     /// A [AssetIdent] that uniquely identifies the content of this [ChunkItem].
     /// It is usually identical to [ChunkItem::asset_ident] but can be
     /// different when the chunk item content depends on available modules e. g.
@@ -449,11 +444,6 @@ pub trait ChunkItem {
     #[turbo_tasks::function]
     fn content_ident(self: Vc<Self>) -> Vc<AssetIdent> {
         self.asset_ident()
-    }
-    /// A [ChunkItem] can reference OutputAssets, unlike [Module]s referencing other [Module]s.
-    #[turbo_tasks::function]
-    fn references(self: Vc<Self>) -> Vc<OutputAssets> {
-        OutputAssets::empty()
     }
 
     /// The type of chunk this item should be assembled into.

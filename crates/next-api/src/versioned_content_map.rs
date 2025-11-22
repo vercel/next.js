@@ -10,7 +10,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
-    output::{OptionOutputAsset, OutputAsset, OutputAssets},
+    output::{ExpandedOutputAssets, OptionOutputAsset, OutputAsset},
     source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
     version::OptionVersionedContent,
 };
@@ -27,7 +27,7 @@ use turbopack_core::{
     NonLocalValue,
 )]
 struct MapEntry {
-    assets_operation: OperationVc<OutputAssets>,
+    assets_operation: OperationVc<ExpandedOutputAssets>,
     /// Precomputed map for quick access to output asset by filepath
     path_to_asset: FxHashMap<FileSystemPath, ResolvedVc<Box<dyn OutputAsset>>>,
 }
@@ -47,7 +47,7 @@ pub struct PathToOutputOperation(
     /// It may not be 100% correct for the key (`FileSystemPath`) to be in a `ResolvedVc` here, but
     /// it's impractical to make it an `OperationVc`/`OperationValue`, and it's unlikely to
     /// change/break?
-    FxHashMap<FileSystemPath, FxIndexSet<OperationVc<OutputAssets>>>,
+    FxHashMap<FileSystemPath, FxIndexSet<OperationVc<ExpandedOutputAssets>>>,
 );
 
 // HACK: This is technically incorrect because the map's key is a `ResolvedVc`...
@@ -55,11 +55,12 @@ unsafe impl OperationValue for PathToOutputOperation {}
 
 // A precomputed map for quick access to output asset by filepath
 type OutputOperationToComputeEntry =
-    FxHashMap<OperationVc<OutputAssets>, OperationVc<OptionMapEntry>>;
+    FxHashMap<OperationVc<ExpandedOutputAssets>, OperationVc<OptionMapEntry>>;
 
 #[turbo_tasks::value]
 pub struct VersionedContentMap {
-    // TODO: turn into a bi-directional multimap, OutputAssets -> FxIndexSet<FileSystemPath>
+    // TODO: turn into a bi-directional multimap, ExpandedOutputAssets ->
+    // FxIndexSet<FileSystemPath>
     map_path_to_op: State<PathToOutputOperation>,
     map_op_to_compute_entry: State<OutputOperationToComputeEntry>,
 }
@@ -90,7 +91,7 @@ impl VersionedContentMap {
     pub async fn insert_output_assets(
         self: ResolvedVc<Self>,
         // Output assets to emit
-        assets_operation: OperationVc<OutputAssets>,
+        assets_operation: OperationVc<ExpandedOutputAssets>,
         node_root: FileSystemPath,
         client_relative_path: FileSystemPath,
         client_output_path: FileSystemPath,
@@ -114,7 +115,7 @@ impl VersionedContentMap {
     #[turbo_tasks::function]
     async fn compute_entry(
         &self,
-        assets_operation: OperationVc<OutputAssets>,
+        assets_operation: OperationVc<ExpandedOutputAssets>,
         node_root: FileSystemPath,
         client_relative_path: FileSystemPath,
         client_output_path: FileSystemPath,
@@ -259,7 +260,7 @@ type GetEntriesResultT = Vec<(FileSystemPath, ResolvedVc<Box<dyn OutputAsset>>)>
 struct GetEntriesResult(GetEntriesResultT);
 
 #[turbo_tasks::function(operation)]
-async fn get_entries(assets: OperationVc<OutputAssets>) -> Result<Vc<GetEntriesResult>> {
+async fn get_entries(assets: OperationVc<ExpandedOutputAssets>) -> Result<Vc<GetEntriesResult>> {
     let assets_ref = assets.connect().await?;
     let entries = assets_ref
         .iter()
@@ -275,7 +276,7 @@ async fn get_entries(assets: OperationVc<OutputAssets>) -> Result<Vc<GetEntriesR
 #[turbo_tasks::function(operation)]
 fn compute_entry_operation(
     map: ResolvedVc<VersionedContentMap>,
-    assets_operation: OperationVc<OutputAssets>,
+    assets_operation: OperationVc<ExpandedOutputAssets>,
     node_root: FileSystemPath,
     client_relative_path: FileSystemPath,
     client_output_path: FileSystemPath,

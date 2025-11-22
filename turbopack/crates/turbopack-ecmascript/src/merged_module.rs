@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
         MergeableModuleExposure, MergeableModules, MergeableModulesExposed,
@@ -9,6 +8,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::ModuleReferences,
 };
 
@@ -60,20 +60,17 @@ impl MergedEcmascriptModule {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for MergedEcmascriptModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        panic!("content() should not be called");
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl Module for MergedEcmascriptModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         // This purposely reuses the module's ident as it has replaced the original module, thus
         // there can never be a collision.
         self.entry_points.first().unwrap().ident()
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
     }
 
     #[turbo_tasks::function]
@@ -112,6 +109,9 @@ struct MergedEcmascriptModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for MergedEcmascriptModuleChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for MergedEcmascriptModuleChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
@@ -147,6 +147,7 @@ impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
     async fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let module = self.module.await?;
         let modules = &module.modules;

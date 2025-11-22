@@ -17,7 +17,6 @@ use turbo_tasks::{
     debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemEntryType, FileSystemPath,
@@ -40,9 +39,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::CollectibleIssuesExt,
-    module_graph::{
-        ModuleGraph, chunk_group_info::ChunkGroupEntry, export_usage::compute_export_usage_info,
-    },
+    module_graph::{ModuleGraph, export_usage::compute_export_usage_info},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ExternalTraced, ExternalType,
@@ -50,7 +47,10 @@ use turbopack_core::{
     },
 };
 use turbopack_ecmascript_runtime::RuntimeType;
-use turbopack_node::{debug::should_debug, evaluate::evaluate};
+use turbopack_node::{
+    debug::should_debug,
+    evaluate::{evaluate, get_evaluate_entries},
+};
 use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 use turbopack_test_utils::{jest::JestRunResult, snapshot::UPDATE};
@@ -243,6 +243,8 @@ struct TestOptions {
     scope_hoisting: Option<bool>,
     #[serde(default)]
     minify: bool,
+    #[serde(default)]
+    production_chunking: bool,
 }
 
 fn default_tree_shaking_mode() -> Option<TreeShakingMode> {
@@ -256,6 +258,7 @@ impl Default for TestOptions {
             remove_unused_exports: None,
             scope_hoisting: None,
             minify: false,
+            production_chunking: false,
         }
     }
 }
@@ -403,6 +406,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
                 import_externals: true,
+                enable_exports_info_inlining: true,
                 ..Default::default()
             },
             environment: Some(env),
@@ -463,15 +467,11 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         )
         .module();
 
-    // Keep this in sync with what `evaluate` does internally
-    let module_graph = ModuleGraph::from_modules(
-        Vc::cell(vec![ChunkGroupEntry::Entry(vec![
-            jest_entry_asset.to_resolved().await?,
-        ])]),
-        false,
-    );
+    let entries = get_evaluate_entries(jest_entry_asset, asset_context, None);
 
-    let chunking_context = NodeJsChunkingContext::builder(
+    let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false);
+
+    let mut builder = NodeJsChunkingContext::builder(
         project_root.clone(),
         chunk_root_path.clone(),
         chunk_root_path_in_root_path_offset,
@@ -480,20 +480,6 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         static_root_path,
         env,
         RuntimeType::Development,
-    )
-    .chunking_config(
-        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-        ChunkingConfig {
-            min_chunk_size: 10_000,
-            ..Default::default()
-        },
-    )
-    .chunking_config(
-        Vc::<CssChunkType>::default().to_resolved().await?,
-        ChunkingConfig {
-            max_merge_chunk_size: 100_000,
-            ..Default::default()
-        },
     )
     .module_merging(options.scope_hoisting.unwrap_or(true))
     .minify_type(if options.minify {
@@ -511,29 +497,43 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         )
     } else {
         None
-    })
-    .build();
+    });
+    if options.production_chunking {
+        builder = builder
+            .chunking_config(
+                Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    min_chunk_size: 2_000,
+                    max_chunk_count_per_group: 40,
+                    max_merge_chunk_size: 200_000,
+                    ..Default::default()
+                },
+            )
+            .chunking_config(
+                Vc::<CssChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .nested_async_availability(true);
+    }
+    let chunking_context = builder.build();
 
     let res = evaluate(
-        jest_entry_asset,
+        entries,
         path.clone(),
         Vc::upcast(CommandLineProcessEnv::new()),
         Vc::upcast(test_source),
-        asset_context,
         Vc::upcast(chunking_context),
-        None,
+        module_graph,
         vec![],
         Completion::immutable(),
         should_debug("execution_test"),
     )
     .await?;
 
-    let single = res
-        .try_into_single()
-        .await
-        .context("test node result did not emit anything")?;
-
-    let SingleValue::Single(bytes) = single else {
+    let Some(str) = &*res else {
         return Ok(RunTestResult {
             js_result: JsResult {
                 uncaught_exceptions: vec![],
@@ -549,7 +549,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     };
 
     Ok(RunTestResult {
-        js_result: JsResult::resolved_cell(parse_json_with_source_context(bytes.to_str()?)?),
+        js_result: JsResult::resolved_cell(parse_json_with_source_context(str)?),
         path: path.clone(),
     }
     .cell())

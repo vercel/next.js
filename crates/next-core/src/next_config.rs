@@ -17,6 +17,7 @@ use turbopack::module_options::{
     module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
+    chunk::SourceMapsType,
     issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
     resolve::ResolveAliasMap,
 };
@@ -156,6 +157,17 @@ pub struct NextConfig {
     use_file_system_public_routes: bool,
     cache_components: Option<bool>,
     webpack: Option<serde_json::Value>,
+}
+
+#[turbo_tasks::value_impl]
+impl NextConfig {
+    #[turbo_tasks::function]
+    pub fn with_analyze_config(&self) -> Vc<Self> {
+        let mut new = self.clone();
+        new.experimental.turbopack_source_maps = Some(true);
+        new.experimental.turbopack_input_source_maps = Some(false);
+        new.cell()
+    }
 }
 
 #[derive(
@@ -851,9 +863,6 @@ pub struct ExperimentalConfig {
     /// Automatically apply the "modularize_imports" optimization to imports of
     /// the specified packages.
     optimize_package_imports: Option<Vec<RcStr>>,
-    /// Using this feature will enable the `react@experimental` for the `app`
-    /// directory.
-    ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
@@ -861,6 +870,7 @@ pub struct ExperimentalConfig {
     /// Enables source maps generation for the server production bundle.
     server_source_maps: Option<bool>,
     swc_trace_profiling: Option<bool>,
+    transition_indicator: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
 
@@ -874,8 +884,11 @@ pub struct ExperimentalConfig {
     turbopack_module_ids: Option<ModuleIds>,
     turbopack_persistent_caching: Option<bool>,
     turbopack_source_maps: Option<bool>,
+    turbopack_input_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
+    turbopack_client_side_nested_async_chunking: Option<bool>,
+    turbopack_server_side_nested_async_chunking: Option<bool>,
     turbopack_import_type_bytes: Option<bool>,
     turbopack_use_system_tls_certs: Option<bool>,
     /// Disable automatic configuration of the sass loader.
@@ -948,53 +961,6 @@ fn test_cache_life_profiles_invalid() {
         result.is_err(),
         "Deserialization should fail due to invalid 'stale' value type"
     );
-}
-
-#[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
-)]
-#[serde(rename_all = "lowercase")]
-pub enum ExperimentalPartialPrerenderingIncrementalValue {
-    Incremental,
-}
-
-#[derive(
-    Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs, NonLocalValue, OperationValue,
-)]
-#[serde(untagged)]
-pub enum ExperimentalPartialPrerendering {
-    Boolean(bool),
-    Incremental(ExperimentalPartialPrerenderingIncrementalValue),
-}
-
-#[test]
-fn test_parse_experimental_partial_prerendering() {
-    let json = serde_json::json!({
-        "ppr": "incremental"
-    });
-    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
-    assert_eq!(
-        config.ppr,
-        Some(ExperimentalPartialPrerendering::Incremental(
-            ExperimentalPartialPrerenderingIncrementalValue::Incremental
-        ))
-    );
-
-    let json = serde_json::json!({
-        "ppr": true
-    });
-    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
-    assert_eq!(
-        config.ppr,
-        Some(ExperimentalPartialPrerendering::Boolean(true))
-    );
-
-    // Expect if we provide a random string, it will fail.
-    let json = serde_json::json!({
-        "ppr": "random"
-    });
-    let config = serde_json::from_value::<ExperimentalConfig>(json);
-    assert!(config.is_err());
 }
 
 #[derive(
@@ -1708,24 +1674,13 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_ppr(&self) -> Vc<bool> {
-        Vc::cell(
-            self.experimental
-                .ppr
-                .as_ref()
-                .map(|ppr| match ppr {
-                    ExperimentalPartialPrerendering::Incremental(
-                        ExperimentalPartialPrerenderingIncrementalValue::Incremental,
-                    ) => true,
-                    ExperimentalPartialPrerendering::Boolean(b) => *b,
-                })
-                .unwrap_or(false),
-        )
+    pub fn enable_taint(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.taint.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
-    pub fn enable_taint(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.taint.unwrap_or(false))
+    pub fn enable_transition_indicator(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.transition_indicator.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
@@ -1839,6 +1794,29 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub async fn turbo_nested_async_chunking(
+        &self,
+        mode: Vc<NextMode>,
+        client_side: bool,
+    ) -> Result<Vc<bool>> {
+        let option = if client_side {
+            self.experimental
+                .turbopack_client_side_nested_async_chunking
+        } else {
+            self.experimental
+                .turbopack_server_side_nested_async_chunking
+        };
+        Ok(Vc::cell(if let Some(value) = option {
+            value
+        } else {
+            match *mode.await? {
+                NextMode::Development => false,
+                NextMode::Build => client_side,
+            }
+        }))
+    }
+
+    #[turbo_tasks::function]
     pub async fn turbopack_import_type_bytes(&self) -> Vc<bool> {
         Vc::cell(
             self.experimental
@@ -1848,18 +1826,43 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn client_source_maps(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
-        let source_maps = self.experimental.turbopack_source_maps;
-        Ok(Vc::cell(source_maps.unwrap_or(match &*mode.await? {
-            NextMode::Development => true,
-            NextMode::Build => self.production_browser_source_maps,
-        })))
+    pub async fn client_source_maps(&self, mode: Vc<NextMode>) -> Result<Vc<SourceMapsType>> {
+        let input_source_maps = self
+            .experimental
+            .turbopack_input_source_maps
+            .unwrap_or(true);
+        let source_maps = self
+            .experimental
+            .turbopack_source_maps
+            .unwrap_or(match &*mode.await? {
+                NextMode::Development => true,
+                NextMode::Build => self.production_browser_source_maps,
+            });
+        Ok(match (source_maps, input_source_maps) {
+            (true, true) => SourceMapsType::Full,
+            (true, false) => SourceMapsType::Partial,
+            (false, _) => SourceMapsType::None,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
-    pub fn server_source_maps(&self) -> Result<Vc<bool>> {
-        let source_maps = self.experimental.turbopack_source_maps;
-        Ok(Vc::cell(source_maps.unwrap_or(true)))
+    pub fn server_source_maps(&self) -> Result<Vc<SourceMapsType>> {
+        let input_source_maps = self
+            .experimental
+            .turbopack_input_source_maps
+            .unwrap_or(true);
+        let source_maps = self
+            .experimental
+            .turbopack_source_maps
+            .or(self.experimental.server_source_maps)
+            .unwrap_or(true);
+        Ok(match (source_maps, input_source_maps) {
+            (true, true) => SourceMapsType::Full,
+            (true, false) => SourceMapsType::Partial,
+            (false, _) => SourceMapsType::None,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]

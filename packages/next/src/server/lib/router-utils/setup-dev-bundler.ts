@@ -8,6 +8,7 @@ import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
 import { createDefineEnv } from '../../../build/swc'
+import { installBindings } from '../../../build/swc/install-bindings'
 import fs from 'fs'
 import url from 'url'
 import path from 'path'
@@ -1280,7 +1281,7 @@ export async function setupDevBundler(opts: SetupOpts) {
   const isSrcDir = path
     .relative(opts.dir, opts.pagesDir || opts.appDir || '')
     .startsWith('src')
-
+  await installBindings(opts.nextConfig.experimental?.useWasmBinary)
   const result = await startWatcher({
     ...opts,
     isSrcDir,

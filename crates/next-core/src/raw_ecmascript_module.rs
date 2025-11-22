@@ -10,7 +10,7 @@ use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToStr
 use turbo_tasks_fs::{FileContent, glob::Glob, rope::Rope};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     code_builder::CodeBuilder,
     compile_time_info::{
@@ -20,8 +20,9 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     resolve::ModulePart,
-    source::Source,
+    source::{OptionSource, Source},
     source_map::GenerateSourceMap,
 };
 use turbopack_ecmascript::{
@@ -91,13 +92,18 @@ impl Module for RawEcmascriptModule {
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident().with_modifier(rcstr!("raw"))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for RawEcmascriptModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(
+        self: Vc<Self>,
+        _side_effect_free_packages: Vc<Glob>,
+    ) -> Vc<bool> {
+        Vc::cell(false)
     }
 }
 
@@ -125,11 +131,6 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::CommonJs.cell()
     }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(&self, _side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(false)
-    }
 }
 
 #[turbo_tasks::value]
@@ -137,6 +138,9 @@ struct RawEcmascriptChunkItem {
     module: ResolvedVc<RawEcmascriptModule>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for RawEcmascriptChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for RawEcmascriptChunkItem {

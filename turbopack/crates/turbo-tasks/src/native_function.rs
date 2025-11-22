@@ -142,21 +142,11 @@ pub fn downcast_args_ref<T: MagicAny>(args: &dyn MagicAny) -> &T {
         .unwrap()
 }
 
-#[derive(Debug)]
-pub struct FunctionMeta {
-    /// Does not run the function as a task, and instead runs it inside the parent task using
-    /// task-local state. The function call itself will not be cached, but cells will be created on
-    /// the parent task.
-    pub local: bool,
-}
-
 /// A native (rust) turbo-tasks function. It's used internally by
 /// `#[turbo_tasks::function]`.
 pub struct NativeFunction {
     /// A readable name of the function that is used to reporting purposes.
     pub(crate) name: &'static str,
-
-    pub(crate) function_meta: FunctionMeta,
 
     pub(crate) arg_meta: ArgMeta,
 
@@ -173,7 +163,6 @@ impl Debug for NativeFunction {
         f.debug_struct("NativeFunction")
             .field("name", &self.name)
             .field("global_name", &self.global_name)
-            .field("function_meta", &self.function_meta)
             .finish_non_exhaustive()
     }
 }
@@ -182,7 +171,6 @@ impl NativeFunction {
     pub fn new_function<Mode, Inputs>(
         name: &'static str,
         global_name: &'static str,
-        function_meta: FunctionMeta,
         implementation: impl IntoTaskFn<Mode, Inputs>,
     ) -> Self
     where
@@ -191,7 +179,6 @@ impl NativeFunction {
         Self {
             name,
             global_name,
-            function_meta,
             arg_meta: ArgMeta::new::<Inputs>(),
             implementation: Box::new(implementation.into_task_fn()),
         }
@@ -200,7 +187,6 @@ impl NativeFunction {
     pub fn new_method_without_this<Mode, Inputs, I>(
         name: &'static str,
         global_name: &'static str,
-        function_meta: FunctionMeta,
         arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
         implementation: I,
     ) -> Self
@@ -211,7 +197,6 @@ impl NativeFunction {
         Self {
             name,
             global_name,
-            function_meta,
             arg_meta: if let Some((filter_owned, filter_and_resolve)) = arg_filter {
                 ArgMeta::with_filter_trait_call::<Inputs>(filter_owned, filter_and_resolve)
             } else {
@@ -224,7 +209,6 @@ impl NativeFunction {
     pub fn new_method<Mode, This, Inputs, I>(
         name: &'static str,
         global_name: &'static str,
-        function_meta: FunctionMeta,
         arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
         implementation: I,
     ) -> Self
@@ -236,7 +220,6 @@ impl NativeFunction {
         Self {
             name,
             global_name,
-            function_meta,
             arg_meta: if let Some((filter_owned, filter_and_resolve)) = arg_filter {
                 ArgMeta::with_filter_trait_call::<Inputs>(filter_owned, filter_and_resolve)
             } else {
@@ -258,7 +241,6 @@ impl NativeFunction {
         let flags = match persistence {
             TaskPersistence::Persistent => "",
             TaskPersistence::Transient => "transient",
-            TaskPersistence::Local => "local",
         };
         tracing::trace_span!(
             "turbo_tasks::function",
@@ -268,13 +250,8 @@ impl NativeFunction {
         )
     }
 
-    pub fn resolve_span(&'static self, persistence: TaskPersistence) -> Span {
-        let flags = match persistence {
-            TaskPersistence::Persistent => "",
-            TaskPersistence::Transient => "transient",
-            TaskPersistence::Local => "local",
-        };
-        tracing::trace_span!("turbo_tasks::resolve_call", name = self.name, flags = flags)
+    pub fn resolve_span(&'static self) -> Span {
+        tracing::trace_span!("turbo_tasks::resolve_call", name = self.name)
     }
 }
 impl PartialEq for NativeFunction {

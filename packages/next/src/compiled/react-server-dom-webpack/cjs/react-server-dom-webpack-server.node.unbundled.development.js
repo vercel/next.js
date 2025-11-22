@@ -924,8 +924,10 @@
         case "Function.resolve":
         case "Function.all":
         case "Function.allSettled":
+        case "Function.any":
         case "Function.race":
         case "Function.try":
+        case "Function.withResolvers":
           return !0;
         default:
           return !1;
@@ -1083,7 +1085,6 @@
       model,
       bundlerConfig,
       onError,
-      onPostpone,
       onAllReady,
       onFatalError,
       identifierPrefix,
@@ -1128,8 +1129,6 @@
       this.identifierCount = 1;
       this.taintCleanupQueue = [];
       this.onError = void 0 === onError ? defaultErrorHandler : onError;
-      this.onPostpone =
-        void 0 === onPostpone ? defaultPostponeHandler : onPostpone;
       this.onAllReady = onAllReady;
       this.onFatalError = onFatalError;
       this.pendingDebugChunks = 0;
@@ -1176,7 +1175,6 @@
       bundlerConfig,
       onError,
       identifierPrefix,
-      onPostpone,
       temporaryReferences,
       environmentName,
       filterStackFrame,
@@ -1188,7 +1186,6 @@
         model,
         bundlerConfig,
         onError,
-        onPostpone,
         noop,
         noop,
         identifierPrefix,
@@ -1205,7 +1202,6 @@
       onFatalError,
       onError,
       identifierPrefix,
-      onPostpone,
       temporaryReferences,
       environmentName,
       filterStackFrame,
@@ -1217,7 +1213,6 @@
         model,
         bundlerConfig,
         onError,
-        onPostpone,
         onAllReady,
         onFatalError,
         identifierPrefix,
@@ -1413,9 +1408,17 @@
               callOnAllReadyIfReady(request);
           else
             try {
-              (streamTask.model = entry.value),
-                request.pendingChunks++,
-                tryStreamTask(request, streamTask),
+              request.pendingChunks++,
+                (streamTask.model = entry.value),
+                isByteStream
+                  ? emitTypedArrayChunk(
+                      request,
+                      streamTask.id,
+                      "b",
+                      streamTask.model,
+                      !1
+                    )
+                  : tryStreamTask(request, streamTask),
                 enqueueFlush(request),
                 reader.read().then(progress, error);
             } catch (x$0) {
@@ -1452,7 +1455,8 @@
         } catch (x) {
           supportsBYOB = !1;
         }
-      var reader = stream.getReader(),
+      var isByteStream = supportsBYOB,
+        reader = stream.getReader(),
         streamTask = createTask(
           request,
           task.model,
@@ -1467,7 +1471,7 @@
         );
       request.pendingChunks++;
       task =
-        streamTask.id.toString(16) + ":" + (supportsBYOB ? "r" : "R") + "\n";
+        streamTask.id.toString(16) + ":" + (isByteStream ? "r" : "R") + "\n";
       request.completedRegularChunks.push(task);
       request.cacheController.signal.addEventListener("abort", abortStream);
       reader.read().then(progress, error);
@@ -1782,7 +1786,12 @@
       Component = task.keyPath;
       componentDebugInfo = task.implicitSlot;
       null !== key
-        ? (task.keyPath = null === Component ? key : Component + "," + key)
+        ? (task.keyPath =
+            key === REACT_OPTIMISTIC_KEY || Component === REACT_OPTIMISTIC_KEY
+              ? REACT_OPTIMISTIC_KEY
+              : null === Component
+                ? key
+                : Component + "," + key)
         : null === Component && (task.implicitSlot = !0);
       request = renderModelDestructive(request, task, emptyRoot, "", props);
       task.keyPath = Component;
@@ -2011,7 +2020,13 @@
           validated
         );
       ref = task.keyPath;
-      null === key ? (key = ref) : null !== ref && (key = ref + "," + key);
+      null === key
+        ? (key = ref)
+        : null !== ref &&
+          (key =
+            ref === REACT_OPTIMISTIC_KEY || key === REACT_OPTIMISTIC_KEY
+              ? REACT_OPTIMISTIC_KEY
+              : ref + "," + key);
       newFormatContext = null;
       ref = task.debugOwner;
       null !== ref && outlineComponentInfo(request, ref);
@@ -2042,116 +2057,144 @@
     function visitAsyncNode(request, task, node, visited, cutOff) {
       if (visited.has(node)) return visited.get(node);
       visited.set(node, null);
-      request = visitAsyncNodeImpl(request, task, node, visited, cutOff);
+      a: if (0 <= node.end && node.end <= request.timeOrigin) request = null;
+      else {
+        var previousIONode = null;
+        if (
+          null !== node.previous &&
+          ((previousIONode = visitAsyncNode(
+            request,
+            task,
+            node.previous,
+            visited,
+            cutOff
+          )),
+          void 0 === previousIONode)
+        ) {
+          request = void 0;
+          break a;
+        }
+        switch (node.tag) {
+          case 0:
+            request = node;
+            break;
+          case 3:
+            request = previousIONode;
+            break;
+          case 1:
+            var awaited = node.awaited,
+              promise = node.promise.deref();
+            if (null !== awaited)
+              if (
+                ((cutOff = visitAsyncNode(
+                  request,
+                  task,
+                  awaited,
+                  visited,
+                  cutOff
+                )),
+                void 0 === cutOff)
+              ) {
+                request = void 0;
+                break;
+              } else
+                null !== cutOff
+                  ? (previousIONode =
+                      1 === cutOff.tag
+                        ? cutOff
+                        : (null !== node.stack &&
+                              hasUnfilteredFrame(request, node.stack)) ||
+                            (void 0 !== promise &&
+                              "string" === typeof promise.displayName &&
+                              (null === cutOff.stack ||
+                                !hasUnfilteredFrame(request, cutOff.stack)))
+                          ? node
+                          : cutOff)
+                  : request.status === ABORTING &&
+                    node.start < request.abortTime &&
+                    node.end > request.abortTime &&
+                    ((null !== node.stack &&
+                      hasUnfilteredFrame(request, node.stack)) ||
+                      (void 0 !== promise &&
+                        "string" === typeof promise.displayName)) &&
+                    (previousIONode = node);
+            void 0 !== promise &&
+              ((cutOff = promise._debugInfo),
+              null == cutOff ||
+                visited.has(cutOff) ||
+                (visited.set(cutOff, null),
+                forwardDebugInfo(request, task, cutOff)));
+            request = previousIONode;
+            break;
+          case 4:
+            request = previousIONode;
+            break;
+          case 2:
+            awaited = node.awaited;
+            if (null !== awaited)
+              if (
+                ((promise = visitAsyncNode(
+                  request,
+                  task,
+                  awaited,
+                  visited,
+                  cutOff
+                )),
+                void 0 === promise)
+              ) {
+                request = void 0;
+                break;
+              } else if (null !== promise) {
+                var startTime = node.start,
+                  endTime = node.end;
+                startTime < cutOff
+                  ? ((previousIONode = promise),
+                    null !== node.stack &&
+                      isAwaitInUserspace(request, node.stack) &&
+                      void 0 !==
+                        (null === awaited.promise
+                          ? void 0
+                          : awaited.promise.deref()) &&
+                      serializeIONode(request, promise, awaited.promise))
+                  : null !== node.stack &&
+                      isAwaitInUserspace(request, node.stack)
+                    ? (request.status === ABORTING &&
+                        startTime > request.abortTime) ||
+                      (serializeIONode(request, promise, awaited.promise),
+                      visited.set(promise, null),
+                      null != node.owner &&
+                        outlineComponentInfo(request, node.owner),
+                      (cutOff = (0, request.environmentName)()),
+                      advanceTaskTime(request, task, startTime),
+                      request.pendingChunks++,
+                      emitDebugChunk(request, task.id, {
+                        awaited: promise,
+                        env: cutOff,
+                        owner: node.owner,
+                        stack:
+                          null === node.stack
+                            ? null
+                            : filterStackTrace(request, node.stack)
+                      }),
+                      markOperationEndTime(request, task, endTime),
+                      request.status === ABORTING && (previousIONode = void 0))
+                    : (previousIONode = promise);
+              }
+            cutOff = node.promise.deref();
+            void 0 !== cutOff &&
+              ((cutOff = cutOff._debugInfo),
+              null == cutOff ||
+                visited.has(cutOff) ||
+                (visited.set(cutOff, null),
+                forwardDebugInfo(request, task, cutOff)));
+            request = previousIONode;
+            break;
+          default:
+            throw Error("Unknown AsyncSequence tag. This is a bug in React.");
+        }
+      }
       null !== request && visited.set(node, request);
       return request;
-    }
-    function visitAsyncNodeImpl(request, task, node, visited, cutOff) {
-      if (0 <= node.end && node.end <= request.timeOrigin) return null;
-      var previousIONode = null;
-      if (
-        null !== node.previous &&
-        ((previousIONode = visitAsyncNode(
-          request,
-          task,
-          node.previous,
-          visited,
-          cutOff
-        )),
-        void 0 === previousIONode)
-      )
-        return;
-      switch (node.tag) {
-        case 0:
-          return node;
-        case 3:
-          return previousIONode;
-        case 1:
-          var awaited = node.awaited,
-            promise = node.promise.deref();
-          if (null !== awaited) {
-            cutOff = visitAsyncNode(request, task, awaited, visited, cutOff);
-            if (void 0 === cutOff) break;
-            null !== cutOff
-              ? (previousIONode =
-                  1 === cutOff.tag
-                    ? cutOff
-                    : (null !== node.stack &&
-                          hasUnfilteredFrame(request, node.stack)) ||
-                        (void 0 !== promise &&
-                          "string" === typeof promise.displayName &&
-                          (null === cutOff.stack ||
-                            !hasUnfilteredFrame(request, cutOff.stack)))
-                      ? node
-                      : cutOff)
-              : request.status === ABORTING &&
-                node.start < request.abortTime &&
-                node.end > request.abortTime &&
-                ((null !== node.stack &&
-                  hasUnfilteredFrame(request, node.stack)) ||
-                  (void 0 !== promise &&
-                    "string" === typeof promise.displayName)) &&
-                (previousIONode = node);
-          }
-          void 0 !== promise &&
-            ((node = promise._debugInfo),
-            null == node ||
-              visited.has(node) ||
-              (visited.set(node, null), forwardDebugInfo(request, task, node)));
-          return previousIONode;
-        case 4:
-          return previousIONode;
-        case 2:
-          awaited = node.awaited;
-          if (null !== awaited) {
-            promise = visitAsyncNode(request, task, awaited, visited, cutOff);
-            if (void 0 === promise) break;
-            if (null !== promise) {
-              var startTime = node.start,
-                endTime = node.end;
-              startTime < cutOff
-                ? ((previousIONode = promise),
-                  null !== node.stack &&
-                    isAwaitInUserspace(request, node.stack) &&
-                    void 0 !==
-                      (null === awaited.promise
-                        ? void 0
-                        : awaited.promise.deref()) &&
-                    serializeIONode(request, promise, awaited.promise))
-                : null !== node.stack && isAwaitInUserspace(request, node.stack)
-                  ? (request.status === ABORTING &&
-                      startTime > request.abortTime) ||
-                    (serializeIONode(request, promise, awaited.promise),
-                    visited.set(promise, null),
-                    null != node.owner &&
-                      outlineComponentInfo(request, node.owner),
-                    (cutOff = (0, request.environmentName)()),
-                    advanceTaskTime(request, task, startTime),
-                    request.pendingChunks++,
-                    emitDebugChunk(request, task.id, {
-                      awaited: promise,
-                      env: cutOff,
-                      owner: node.owner,
-                      stack:
-                        null === node.stack
-                          ? null
-                          : filterStackTrace(request, node.stack)
-                    }),
-                    markOperationEndTime(request, task, endTime),
-                    request.status === ABORTING && (previousIONode = void 0))
-                  : (previousIONode = promise);
-            }
-          }
-          node = node.promise.deref();
-          void 0 !== node &&
-            ((node = node._debugInfo),
-            null == node ||
-              visited.has(node) ||
-              (visited.set(node, null), forwardDebugInfo(request, task, node)));
-          return previousIONode;
-        default:
-          throw Error("Unknown AsyncSequence tag. This is a bug in React.");
-      }
     }
     function emitAsyncSequence(
       request,
@@ -2659,7 +2702,9 @@
               void 0 === value._debugTask
             ) {
               var key = "";
-              null !== value.key && (key = ' key="' + value.key + '"');
+              null !== value.key &&
+                value.key !== REACT_OPTIMISTIC_KEY &&
+                (key = ' key="' + value.key + '"');
               console.error(
                 "Attempted to render <%s%s> without development properties. This is not supported. It can happen if:\n- The element is created with a production version of React but rendered in development.\n- The element was cloned with a custom function instead of `React.cloneElement`.\nThe props of this element may help locate this element: %o",
                 value.type,
@@ -4213,15 +4258,15 @@
                         )
                       : reason,
                 digest = logRecoverableError(request, error, null),
-                _errorId2 = request.nextChunkId++;
-              request.fatalError = _errorId2;
+                errorId = request.nextChunkId++;
+              request.fatalError = errorId;
               request.pendingChunks++;
-              emitErrorChunk(request, _errorId2, digest, error, !1, null);
+              emitErrorChunk(request, errorId, digest, error, !1, null);
               abortableTasks.forEach(function (task) {
-                return abortTask(task, request, _errorId2);
+                return abortTask(task, request, errorId);
               });
               setImmediate(function () {
-                return finishAbort(request, abortableTasks, _errorId2);
+                return finishAbort(request, abortableTasks, errorId);
               });
             }
           else {
@@ -5176,11 +5221,11 @@
       REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
-      REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel");
-    Symbol.for("react.postpone");
-    var REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
+      REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
+      REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
+      REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
       scheduleMicrotask = queueMicrotask,
       currentView = null,
       writtenBytes = 0,
@@ -5745,7 +5790,6 @@
       stringify = JSON.stringify,
       ABORTING = 12,
       CLOSED = 14,
-      defaultPostponeHandler = noop,
       currentRequest = null,
       canEmitDebugInfo = !1,
       serializedSize = 0,
@@ -5903,12 +5947,12 @@
             "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
           );
         pendingFiles++;
-        var JSCompiler_object_inline_chunks_251 = [];
+        var JSCompiler_object_inline_chunks_273 = [];
         value.on("data", function (chunk) {
-          JSCompiler_object_inline_chunks_251.push(chunk);
+          JSCompiler_object_inline_chunks_273.push(chunk);
         });
         value.on("end", function () {
-          var blob = new Blob(JSCompiler_object_inline_chunks_251, {
+          var blob = new Blob(JSCompiler_object_inline_chunks_273, {
             type: mimeType
           });
           response._formData.append(name, blob, filename);
@@ -5963,7 +6007,6 @@
           reject,
           options ? options.onError : void 0,
           options ? options.identifierPrefix : void 0,
-          options ? options.onPostpone : void 0,
           options ? options.temporaryReferences : void 0,
           options ? options.environmentName : void 0,
           options ? options.filterStackFrame : void 0,
@@ -6000,7 +6043,6 @@
           reject,
           options ? options.onError : void 0,
           options ? options.identifierPrefix : void 0,
-          options ? options.onPostpone : void 0,
           options ? options.temporaryReferences : void 0,
           options ? options.environmentName : void 0,
           options ? options.filterStackFrame : void 0,
@@ -6064,7 +6106,6 @@
           webpackMap,
           options ? options.onError : void 0,
           options ? options.identifierPrefix : void 0,
-          options ? options.onPostpone : void 0,
           options ? options.temporaryReferences : void 0,
           options ? options.environmentName : void 0,
           options ? options.filterStackFrame : void 0,
@@ -6120,7 +6161,6 @@
           webpackMap,
           options ? options.onError : void 0,
           options ? options.identifierPrefix : void 0,
-          options ? options.onPostpone : void 0,
           options ? options.temporaryReferences : void 0,
           options ? options.environmentName : void 0,
           options ? options.filterStackFrame : void 0,

@@ -575,7 +575,8 @@ export async function initialize(opts: {
         )
       }
 
-      if (opts.dev && isChromeDevtoolsWorkspaceUrl(parsedUrl)) {
+      // We want the original pathname without any basePath or proxy rewrites.
+      if (opts.dev && isChromeDevtoolsWorkspaceUrl(req.url)) {
         await handleChromeDevtoolsWorkspaceRequest(res, opts, config)
         return
       }
@@ -729,6 +730,8 @@ export async function initialize(opts: {
     setReactDebugChannel: config.experimental.reactDebugChannel
       ? devBundlerService?.setReactDebugChannel.bind(devBundlerService)
       : undefined,
+    sendErrorsToBrowser:
+      devBundlerService?.sendErrorsToBrowser.bind(devBundlerService),
   }
 
   const logError = async (

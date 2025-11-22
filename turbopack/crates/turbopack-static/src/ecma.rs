@@ -1,13 +1,13 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     source::Source,
 };
 use turbopack_ecmascript::{
@@ -57,13 +57,18 @@ impl Module for StaticUrlJsModule {
         }
         ident
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for StaticUrlJsModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(
+        self: Vc<Self>,
+        _side_effect_free_packages: Vc<Glob>,
+    ) -> Vc<bool> {
+        Vc::cell(true)
     }
 }
 
@@ -106,15 +111,20 @@ struct StaticUrlJsChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for StaticUrlJsChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
+        OutputAssetsWithReferenced::from_assets(Vc::cell(vec![ResolvedVc::upcast(
+            self.static_asset,
+        )]))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for StaticUrlJsChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
         self.module.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<OutputAssets> {
-        Vc::cell(vec![ResolvedVc::upcast(self.static_asset)])
     }
 
     #[turbo_tasks::function]

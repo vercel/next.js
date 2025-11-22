@@ -1044,20 +1044,133 @@
         kind: IfElse {
             then: EffectsBlock {
                 effects: [
-                    Member {
-                        obj: Variable(
+                    Conditional {
+                        condition: Variable(
                             (
                                 "options",
                                 #4,
                             ),
                         ),
-                        prop: Constant(
-                            Str(
-                                Atom(
-                                    "encoding",
-                                ),
-                            ),
-                        ),
+                        kind: And {
+                            rhs_effects: [
+                                Member {
+                                    obj: Variable(
+                                        (
+                                            "options",
+                                            #4,
+                                        ),
+                                    ),
+                                    prop: Constant(
+                                        Str(
+                                            Atom(
+                                                "encoding",
+                                            ),
+                                        ),
+                                    ),
+                                    ast_path: [
+                                        Program(
+                                            Script,
+                                        ),
+                                        Script(
+                                            Body(
+                                                0,
+                                            ),
+                                        ),
+                                        Stmt(
+                                            Expr,
+                                        ),
+                                        ExprStmt(
+                                            Expr,
+                                        ),
+                                        Expr(
+                                            Call,
+                                        ),
+                                        CallExpr(
+                                            Callee,
+                                        ),
+                                        Callee(
+                                            Expr,
+                                        ),
+                                        Expr(
+                                            Paren,
+                                        ),
+                                        ParenExpr(
+                                            Expr,
+                                        ),
+                                        Expr(
+                                            Fn,
+                                        ),
+                                        FnExpr(
+                                            Function,
+                                        ),
+                                        Function(
+                                            Body,
+                                        ),
+                                        BlockStmt(
+                                            Stmts(
+                                                0,
+                                            ),
+                                        ),
+                                        Stmt(
+                                            Decl,
+                                        ),
+                                        Decl(
+                                            Var,
+                                        ),
+                                        VarDecl(
+                                            Decls(
+                                                4,
+                                            ),
+                                        ),
+                                        VarDeclarator(
+                                            Init,
+                                        ),
+                                        Expr(
+                                            Fn,
+                                        ),
+                                        FnExpr(
+                                            Function,
+                                        ),
+                                        Function(
+                                            Body,
+                                        ),
+                                        BlockStmt(
+                                            Stmts(
+                                                0,
+                                            ),
+                                        ),
+                                        Stmt(
+                                            If,
+                                        ),
+                                        IfStmt(
+                                            Cons,
+                                        ),
+                                        Stmt(
+                                            If,
+                                        ),
+                                        IfStmt(
+                                            Test,
+                                        ),
+                                        Expr(
+                                            Bin,
+                                        ),
+                                        BinExpr(
+                                            Right,
+                                        ),
+                                        Expr(
+                                            Bin,
+                                        ),
+                                        BinExpr(
+                                            Left,
+                                        ),
+                                        Expr(
+                                            Member,
+                                        ),
+                                    ],
+                                    span: 306..322,
+                                },
+                            ],
+                        },
                         ast_path: [
                             Program(
                                 Script,
@@ -1146,19 +1259,10 @@
                                 Bin,
                             ),
                             BinExpr(
-                                Right,
-                            ),
-                            Expr(
-                                Bin,
-                            ),
-                            BinExpr(
                                 Left,
                             ),
-                            Expr(
-                                Member,
-                            ),
                         ],
-                        span: 306..322,
+                        span: 295..335,
                     },
                     Conditional {
                         condition: Logical(
@@ -29435,20 +29539,125 @@
         in_try: false,
         new: false,
     },
-    Member {
-        obj: Variable(
+    Conditional {
+        condition: Variable(
             (
                 "options",
                 #11,
             ),
         ),
-        prop: Constant(
-            Str(
-                Atom(
-                    "asBytes",
-                ),
-            ),
-        ),
+        kind: And {
+            rhs_effects: [
+                Member {
+                    obj: Variable(
+                        (
+                            "options",
+                            #11,
+                        ),
+                    ),
+                    prop: Constant(
+                        Str(
+                            Atom(
+                                "asBytes",
+                            ),
+                        ),
+                    ),
+                    ast_path: [
+                        Program(
+                            Script,
+                        ),
+                        Script(
+                            Body(
+                                0,
+                            ),
+                        ),
+                        Stmt(
+                            Expr,
+                        ),
+                        ExprStmt(
+                            Expr,
+                        ),
+                        Expr(
+                            Call,
+                        ),
+                        CallExpr(
+                            Callee,
+                        ),
+                        Callee(
+                            Expr,
+                        ),
+                        Expr(
+                            Paren,
+                        ),
+                        ParenExpr(
+                            Expr,
+                        ),
+                        Expr(
+                            Fn,
+                        ),
+                        FnExpr(
+                            Function,
+                        ),
+                        Function(
+                            Body,
+                        ),
+                        BlockStmt(
+                            Stmts(
+                                7,
+                            ),
+                        ),
+                        Stmt(
+                            Expr,
+                        ),
+                        ExprStmt(
+                            Expr,
+                        ),
+                        Expr(
+                            Assign,
+                        ),
+                        AssignExpr(
+                            Right,
+                        ),
+                        Expr(
+                            Fn,
+                        ),
+                        FnExpr(
+                            Function,
+                        ),
+                        Function(
+                            Body,
+                        ),
+                        BlockStmt(
+                            Stmts(
+                                2,
+                            ),
+                        ),
+                        Stmt(
+                            Return,
+                        ),
+                        ReturnStmt(
+                            Arg,
+                        ),
+                        Expr(
+                            Cond,
+                        ),
+                        CondExpr(
+                            Test,
+                        ),
+                        Expr(
+                            Bin,
+                        ),
+                        BinExpr(
+                            Right,
+                        ),
+                        Expr(
+                            Member,
+                        ),
+                    ],
+                    span: 5908..5923,
+                },
+            ],
+        },
         ast_path: [
             Program(
                 Script,
@@ -29535,13 +29744,10 @@
                 Bin,
             ),
             BinExpr(
-                Right,
-            ),
-            Expr(
-                Member,
+                Left,
             ),
         ],
-        span: 5908..5923,
+        span: 5897..5923,
     },
     Conditional {
         condition: Logical(
@@ -29663,20 +29869,131 @@
             },
             else: EffectsBlock {
                 effects: [
-                    Member {
-                        obj: Variable(
+                    Conditional {
+                        condition: Variable(
                             (
                                 "options",
                                 #11,
                             ),
                         ),
-                        prop: Constant(
-                            Str(
-                                Atom(
-                                    "asString",
-                                ),
-                            ),
-                        ),
+                        kind: And {
+                            rhs_effects: [
+                                Member {
+                                    obj: Variable(
+                                        (
+                                            "options",
+                                            #11,
+                                        ),
+                                    ),
+                                    prop: Constant(
+                                        Str(
+                                            Atom(
+                                                "asString",
+                                            ),
+                                        ),
+                                    ),
+                                    ast_path: [
+                                        Program(
+                                            Script,
+                                        ),
+                                        Script(
+                                            Body(
+                                                0,
+                                            ),
+                                        ),
+                                        Stmt(
+                                            Expr,
+                                        ),
+                                        ExprStmt(
+                                            Expr,
+                                        ),
+                                        Expr(
+                                            Call,
+                                        ),
+                                        CallExpr(
+                                            Callee,
+                                        ),
+                                        Callee(
+                                            Expr,
+                                        ),
+                                        Expr(
+                                            Paren,
+                                        ),
+                                        ParenExpr(
+                                            Expr,
+                                        ),
+                                        Expr(
+                                            Fn,
+                                        ),
+                                        FnExpr(
+                                            Function,
+                                        ),
+                                        Function(
+                                            Body,
+                                        ),
+                                        BlockStmt(
+                                            Stmts(
+                                                7,
+                                            ),
+                                        ),
+                                        Stmt(
+                                            Expr,
+                                        ),
+                                        ExprStmt(
+                                            Expr,
+                                        ),
+                                        Expr(
+                                            Assign,
+                                        ),
+                                        AssignExpr(
+                                            Right,
+                                        ),
+                                        Expr(
+                                            Fn,
+                                        ),
+                                        FnExpr(
+                                            Function,
+                                        ),
+                                        Function(
+                                            Body,
+                                        ),
+                                        BlockStmt(
+                                            Stmts(
+                                                2,
+                                            ),
+                                        ),
+                                        Stmt(
+                                            Return,
+                                        ),
+                                        ReturnStmt(
+                                            Arg,
+                                        ),
+                                        Expr(
+                                            Cond,
+                                        ),
+                                        CondExpr(
+                                            Alt,
+                                        ),
+                                        Expr(
+                                            Cond,
+                                        ),
+                                        CondExpr(
+                                            Test,
+                                        ),
+                                        Expr(
+                                            Bin,
+                                        ),
+                                        BinExpr(
+                                            Right,
+                                        ),
+                                        Expr(
+                                            Member,
+                                        ),
+                                    ],
+                                    span: 5963..5979,
+                                },
+                            ],
+                        },
                         ast_path: [
                             Program(
                                 Script,
@@ -29769,13 +30086,10 @@
                                 Bin,
                             ),
                             BinExpr(
-                                Right,
-                            ),
-                            Expr(
-                                Member,
+                                Left,
                             ),
                         ],
-                        span: 5963..5979,
+                        span: 5952..5979,
                     },
                     Conditional {
                         condition: Logical(

@@ -1,5 +1,6 @@
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
+import * as inspector from 'inspector'
 import { join, extname, relative } from 'path'
 import { pathToFileURL } from 'url'
 
@@ -24,7 +25,7 @@ import type {
   Project,
   Entrypoints,
 } from '../../build/swc/types'
-import { createDefineEnv } from '../../build/swc'
+import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import {
@@ -78,7 +79,6 @@ import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-serv
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { ModernSourceMapPayload } from '../lib/source-maps'
-import { getNodeDebugType, getParsedNodeOptions } from '../lib/utils'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
@@ -107,10 +107,12 @@ import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
 } from '../../next-devtools/server/devtools-config-middleware'
+import { getAttachNodejsDebuggerMiddleware } from '../../next-devtools/server/attach-nodejs-debugger-middleware'
 import {
   connectReactDebugChannel,
-  deleteReactDebugChannel,
-  setReactDebugChannel,
+  connectReactDebugChannelForHtmlRequest,
+  deleteReactDebugChannelForHtmlRequest,
+  setReactDebugChannelForHtmlRequest,
 } from './debug-channel'
 import {
   getVersionInfo,
@@ -124,6 +126,11 @@ import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
+import {
+  sendSerializedErrorsToClient,
+  sendSerializedErrorsToClientForHtmlRequest,
+  setErrorsRscStreamForHtmlRequest,
+} from './serialized-errors'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -192,10 +199,7 @@ export async function createHotReloaderTurbopack(
   const buildId = 'development'
   const { nextConfig, dir: projectPath } = opts
 
-  const { loadBindings } =
-    require('../../build/swc') as typeof import('../../build/swc')
-
-  let bindings = await loadBindings()
+  const bindings = getBindingsSync()
 
   // For the debugging purpose, check if createNext or equivalent next instance setup in test cases
   // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.
@@ -275,6 +279,7 @@ export async function createHotReloaderTurbopack(
       previewProps: opts.fsChecker.prerenderManifest.preview,
       browserslistQuery: supportedBrowsers.join(', '),
       noMangling: false,
+      writeRoutesHashesManifest: false,
       currentNodeJsVersion,
     },
     {
@@ -439,9 +444,9 @@ export async function createHotReloaderTurbopack(
   let hmrEventHappened = false
   let hmrHash = 0
 
-  const clientsWithoutRequestId = new Set<ws>()
-  const clientsByRequestId = new Map<string, ws>()
-  const cacheStatusesByRequestId = new Map<string, ServerCacheStatus>()
+  const clientsWithoutHtmlRequestId = new Set<ws>()
+  const clientsByHtmlRequestId = new Map<string, ws>()
+  const cacheStatusesByHtmlRequestId = new Map<string, ServerCacheStatus>()
   const clientStates = new WeakMap<ws, ClientState>()
 
   function sendToClient(client: ws, message: HmrMessageSentToBrowser) {
@@ -465,8 +470,8 @@ export async function createHotReloaderTurbopack(
     }
 
     for (const client of [
-      ...clientsWithoutRequestId,
-      ...clientsByRequestId.values(),
+      ...clientsWithoutHtmlRequestId,
+      ...clientsByHtmlRequestId.values(),
     ]) {
       const state = clientStates.get(client)
       if (!state) {
@@ -501,8 +506,8 @@ export async function createHotReloaderTurbopack(
 
   const sendHmr: SendHmr = (id: string, message: HmrMessageSentToBrowser) => {
     for (const client of [
-      ...clientsWithoutRequestId,
-      ...clientsByRequestId.values(),
+      ...clientsWithoutHtmlRequestId,
+      ...clientsByHtmlRequestId.values(),
     ]) {
       clientStates.get(client)?.messages.set(id, message)
     }
@@ -519,8 +524,8 @@ export async function createHotReloaderTurbopack(
     payload.issues = []
 
     for (const client of [
-      ...clientsWithoutRequestId,
-      ...clientsByRequestId.values(),
+      ...clientsWithoutHtmlRequestId,
+      ...clientsByHtmlRequestId.values(),
     ]) {
       clientStates.get(client)?.turbopackUpdates.push(payload)
     }
@@ -683,7 +688,10 @@ export async function createHotReloaderTurbopack(
         dev: {
           assetMapper,
           changeSubscriptions,
-          clients: [...clientsWithoutRequestId, ...clientsByRequestId.values()],
+          clients: [
+            ...clientsWithoutHtmlRequestId,
+            ...clientsByHtmlRequestId.values(),
+          ],
           clientStates,
           serverFields,
 
@@ -772,14 +780,18 @@ export async function createHotReloaderTurbopack(
         })
       },
     }),
+    getAttachNodejsDebuggerMiddleware(),
     ...(nextConfig.experimental.mcpServer
       ? [
           getMcpMiddleware({
             projectPath,
             distDir,
+            nextConfig,
+            pagesDir: opts.pagesDir,
+            appDir: opts.appDir,
             sendHmrMessage: (message) => hotReloader.send(message),
             getActiveConnectionCount: () =>
-              clientsWithoutRequestId.size + clientsByRequestId.size,
+              clientsWithoutHtmlRequestId.size + clientsByHtmlRequestId.size,
             getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
           }),
         ]
@@ -810,15 +822,14 @@ export async function createHotReloaderTurbopack(
   }
 
   let devtoolsFrontendUrl: string | undefined
-  const nodeOptions = getParsedNodeOptions()
-  const nodeDebugType = getNodeDebugType(nodeOptions)
-  if (nodeDebugType) {
-    const debugPort = process.debugPort
+  const inspectorURLRaw = inspector.url()
+  if (inspectorURLRaw !== undefined) {
+    const inspectorURL = new URL(inspectorURLRaw)
+
     let debugInfo
     try {
-      // It requires to use 127.0.0.1 instead of localhost for server-side fetching.
       const debugInfoList = await fetch(
-        `http://127.0.0.1:${debugPort}/json/list`
+        `http://${inspectorURL.host}/json/list`
       ).then((res) => res.json())
       debugInfo = debugInfoList[0]
     } catch {}
@@ -877,7 +888,7 @@ export async function createHotReloaderTurbopack(
         const clientIssues: EntryIssuesMap = new Map()
         const subscriptions: Map<string, AsyncIterator<any>> = new Map()
 
-        const requestId = req.url
+        const htmlRequestId = req.url
           ? new URL(req.url, 'http://n').searchParams.get('id')
           : null
 
@@ -886,24 +897,34 @@ export async function createHotReloaderTurbopack(
         // Router clients are also considered legacy clients. TODO: Maybe mark
         // clients as App Router / Pages Router clients explicitly, instead of
         // inferring it from the presence of a request ID.
-        if (requestId) {
-          clientsByRequestId.set(requestId, client)
+        if (htmlRequestId) {
+          clientsByHtmlRequestId.set(htmlRequestId, client)
           const enableCacheComponents = nextConfig.cacheComponents
           if (enableCacheComponents) {
             onUpgrade(client, { isLegacyClient: false })
-            const cacheStatus = cacheStatusesByRequestId.get(requestId)
+            const cacheStatus = cacheStatusesByHtmlRequestId.get(htmlRequestId)
             if (cacheStatus !== undefined) {
               sendToClient(client, {
                 type: HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR,
                 state: cacheStatus,
               })
-              cacheStatusesByRequestId.delete(requestId)
+              cacheStatusesByHtmlRequestId.delete(htmlRequestId)
             }
           } else {
             onUpgrade(client, { isLegacyClient: true })
           }
+
+          connectReactDebugChannelForHtmlRequest(
+            htmlRequestId,
+            sendToClient.bind(null, client)
+          )
+
+          sendSerializedErrorsToClientForHtmlRequest(
+            htmlRequestId,
+            sendToClient.bind(null, client)
+          )
         } else {
-          clientsWithoutRequestId.add(client)
+          clientsWithoutHtmlRequestId.add(client)
           onUpgrade(client, { isLegacyClient: true })
         }
 
@@ -921,11 +942,11 @@ export async function createHotReloaderTurbopack(
           }
           clientStates.delete(client)
 
-          if (requestId) {
-            clientsByRequestId.delete(requestId)
-            deleteReactDebugChannel(requestId)
+          if (htmlRequestId) {
+            clientsByHtmlRequestId.delete(htmlRequestId)
+            deleteReactDebugChannelForHtmlRequest(htmlRequestId)
           } else {
-            clientsWithoutRequestId.delete(client)
+            clientsWithoutHtmlRequestId.delete(client)
           }
         })
 
@@ -1093,10 +1114,6 @@ export async function createHotReloaderTurbopack(
           }
 
           sendToClient(client, syncMessage)
-
-          if (requestId) {
-            connectReactDebugChannel(requestId, sendToClient.bind(null, client))
-          }
         })()
       })
     },
@@ -1105,8 +1122,8 @@ export async function createHotReloaderTurbopack(
       const payload = JSON.stringify(action)
 
       for (const client of [
-        ...clientsWithoutRequestId,
-        ...clientsByRequestId.values(),
+        ...clientsWithoutHtmlRequestId,
+        ...clientsByHtmlRequestId.values(),
       ]) {
         client.send(payload)
       }
@@ -1122,23 +1139,19 @@ export async function createHotReloaderTurbopack(
       // inferring it from the presence of a request ID.
 
       if (!nextConfig.cacheComponents) {
-        for (const client of clientsByRequestId.values()) {
+        for (const client of clientsByHtmlRequestId.values()) {
           client.send(payload)
         }
       }
 
-      for (const client of clientsWithoutRequestId) {
+      for (const client of clientsWithoutHtmlRequestId) {
         client.send(payload)
       }
     },
 
-    setCacheStatus(
-      status: ServerCacheStatus,
-      htmlRequestId: string,
-      requestId: string
-    ): void {
+    setCacheStatus(status: ServerCacheStatus, htmlRequestId: string): void {
       // Legacy clients don't have Cache Components.
-      const client = clientsByRequestId.get(htmlRequestId)
+      const client = clientsByHtmlRequestId.get(htmlRequestId)
       if (client !== undefined) {
         sendToClient(client, {
           type: HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR,
@@ -1147,20 +1160,53 @@ export async function createHotReloaderTurbopack(
       } else {
         // If the client is not connected, store the status so that we can send it
         // when the client connects.
-        cacheStatusesByRequestId.set(requestId, status)
+        cacheStatusesByHtmlRequestId.set(htmlRequestId, status)
       }
     },
 
     setReactDebugChannel(debugChannel, htmlRequestId, requestId) {
-      // Store the debug channel, regardless of whether the client is connected.
-      setReactDebugChannel(requestId, debugChannel)
+      const client = clientsByHtmlRequestId.get(htmlRequestId)
 
-      // If the client is connected, we can connect the debug channel
-      // immediately. Otherwise, we'll do that when the client connects.
-      const client = clientsByRequestId.get(htmlRequestId)
+      if (htmlRequestId === requestId) {
+        // The debug channel is for the HTML request.
+        if (client) {
+          // If the client is connected, we can connect the debug channel for
+          // the HTML request immediately.
+          connectReactDebugChannel(
+            htmlRequestId,
+            debugChannel,
+            sendToClient.bind(null, client)
+          )
+        } else {
+          // Otherwise, we'll do that when the client connects and just store
+          // the debug channel.
+          setReactDebugChannelForHtmlRequest(htmlRequestId, debugChannel)
+        }
+      } else if (client) {
+        // The debug channel is for a subsequent request (e.g. client-side
+        // navigation for server function call). If the client is not connected
+        // anymore, we don't need to connect the debug channel.
+        connectReactDebugChannel(
+          requestId,
+          debugChannel,
+          sendToClient.bind(null, client)
+        )
+      }
+    },
+
+    sendErrorsToBrowser(errorsRscStream, htmlRequestId) {
+      const client = clientsByHtmlRequestId.get(htmlRequestId)
 
       if (client) {
-        connectReactDebugChannel(requestId, sendToClient.bind(null, client))
+        // If the client is connected, we can send the errors immediately.
+        sendSerializedErrorsToClient(
+          errorsRscStream,
+          sendToClient.bind(null, client)
+        )
+      } else {
+        // Otherwise, store the errors stream so that we can send it when the
+        // client connects.
+        setErrorsRscStreamForHtmlRequest(htmlRequestId, errorsRscStream)
       }
     },
 
@@ -1400,14 +1446,14 @@ export async function createHotReloaderTurbopack(
       recordMcpTelemetry(opts.telemetry)
 
       for (const wsClient of [
-        ...clientsWithoutRequestId,
-        ...clientsByRequestId.values(),
+        ...clientsWithoutHtmlRequestId,
+        ...clientsByHtmlRequestId.values(),
       ]) {
         // it's okay to not cleanly close these websocket connections, this is dev
         wsClient.terminate()
       }
-      clientsWithoutRequestId.clear()
-      clientsByRequestId.clear()
+      clientsWithoutHtmlRequestId.clear()
+      clientsByHtmlRequestId.clear()
     },
   }
 
@@ -1467,8 +1513,8 @@ export async function createHotReloaderTurbopack(
           addErrors(errors, currentEntryIssues)
 
           for (const client of [
-            ...clientsWithoutRequestId,
-            ...clientsByRequestId.values(),
+            ...clientsWithoutHtmlRequestId,
+            ...clientsByHtmlRequestId.values(),
           ]) {
             const state = clientStates.get(client)
             if (!state) {

@@ -2,8 +2,6 @@ use std::{env, fs, path::Path, process::Command, str};
 
 use serde_json::Value;
 
-extern crate napi_build;
-
 fn main() -> anyhow::Result<()> {
     println!("cargo:rerun-if-env-changed=CI");
     let is_ci = env::var("CI").is_ok_and(|value| !value.is_empty());

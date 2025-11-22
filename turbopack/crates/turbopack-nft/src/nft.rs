@@ -20,7 +20,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{IssueReporter, IssueSeverity, handle_issues},
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     reference::all_assets_from_entries,
     reference_type::ReferenceType,
     traced_asset::TracedAsset,
@@ -76,7 +76,7 @@ async fn node_file_trace_operation(
     let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
         NodeJsEnvironment::default().resolved_cell(),
     ));
-    let module_asset_context = ModuleAssetContext::new(
+    let module_asset_context = ModuleAssetContext::new_without_replace_externals(
         Default::default(),
         // This config should be kept in sync with
         // turbopack/crates/turbopack-tracing/tests/node-file-trace.rs and
@@ -109,6 +109,7 @@ async fn node_file_trace_operation(
             enable_node_native_modules: true,
             enable_node_modules: Some(input_dir),
             custom_conditions: vec![rcstr!("node")],
+            enable_node_externals: true,
             loose_errors: true,
             collect_affecting_sources: true,
             ..Default::default()
@@ -149,7 +150,7 @@ async fn to_graph(asset: ResolvedVc<Box<dyn OutputAsset>>, max_depth: usize) -> 
 
     let mut result = vec![];
     while let Some((depth, asset)) = queue.pop() {
-        let references = asset.references().await?;
+        let references = asset.references().all_assets().await?;
         let mut indent = String::new();
         for _ in 0..depth {
             indent.push_str("  ");

@@ -1,10 +1,9 @@
 use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{
-    asset::{Asset, AssetContent},
     ident::AssetIdent,
     module::Module,
-    source::Source,
+    source::{OptionSource, Source},
 };
 
 /// A module where source code doesn't need to be parsed but can be usd as is.
@@ -20,13 +19,10 @@ impl Module for RawModule {
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident()
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for RawModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(self.source))
     }
 }
 

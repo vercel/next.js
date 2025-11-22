@@ -727,8 +727,7 @@ export async function handleBuildComplete({
 
         // need to add matching .rsc output
         if (isAppPage) {
-          const rscPathname =
-            (output.pathname === '/' ? '/index' : output.pathname) + '.rsc'
+          const rscPathname = normalizePagePath(output.pathname) + '.rsc'
           outputs.appPages.push({
             ...output,
             pathname: rscPathname,
@@ -864,7 +863,7 @@ export async function handleBuildComplete({
             const dataPathname = path.posix.join(
               '/_next/data',
               buildId,
-              page + '.json'
+              normalizePagePath(page) + '.json'
             )
             outputs.pages.push({
               ...output,
@@ -1002,9 +1001,8 @@ export async function handleBuildComplete({
           if (output.type === AdapterOutputType.APP_PAGE) {
             outputs.appPages.push({
               ...output,
-              pathname:
-                (output.pathname === '/' ? '/index' : output.pathname) + '.rsc',
-              id: (output.id === '/' ? '/index' : output.pathname) + '.rsc',
+              pathname: normalizePagePath(output.pathname) + '.rsc',
+              id: normalizePagePath(output.pathname) + '.rsc',
             })
             outputs.appPages.push(output)
           } else {
@@ -1058,15 +1056,18 @@ export async function handleBuildComplete({
         }
 
         if (meta?.segmentPaths) {
+          const normalizedRoute = normalizePagePath(route)
           const segmentsDir = path.join(
             appDistDir,
-            `${route}${prefetchSegmentDirSuffix}`
+            `${normalizedRoute}${prefetchSegmentDirSuffix}`
           )
 
           for (const segmentPath of meta.segmentPaths) {
             const outputSegmentPath =
-              path.join(route + prefetchSegmentDirSuffix, segmentPath) +
-              prefetchSegmentSuffix
+              path.join(
+                normalizedRoute + prefetchSegmentDirSuffix,
+                segmentPath
+              ) + prefetchSegmentSuffix
 
             const fallbackPathname = path.join(
               segmentsDir,
@@ -1114,10 +1115,11 @@ export async function handleBuildComplete({
         route: string,
         isAppPage: boolean
       ): Promise<AppRouteMeta> => {
+        const basename = route.endsWith('/') ? `${route}index` : route
         const meta: AppRouteMeta = isAppPage
           ? JSON.parse(
               await fs
-                .readFile(path.join(appDistDir, `${route}.meta`), 'utf8')
+                .readFile(path.join(appDistDir, `${basename}.meta`), 'utf8')
                 .catch(() => '{}')
             )
           : {}
@@ -1192,7 +1194,7 @@ export async function handleBuildComplete({
 
         let filePath = path.join(
           isAppPage ? appDistDir : pagesDistDir,
-          `${route === '/' ? 'index' : route}.${isAppPage && !dataRoute ? 'body' : 'html'}`
+          `${normalizePagePath(route)}.${isAppPage && !dataRoute ? 'body' : 'html'}`
         )
 
         // we use the static 404 for notFound: true if available
@@ -1268,7 +1270,7 @@ export async function handleBuildComplete({
         if (dataRoute) {
           let dataFilePath = path.join(
             pagesDistDir,
-            `${route === '/' ? 'index' : route}.json`
+            `${normalizePagePath(route)}.json`
           )
 
           if (isAppPage) {
@@ -1593,16 +1595,18 @@ export async function handleBuildComplete({
           prefixRouteKeys: true,
           includeSuffix: true,
         })
+        const isDataRoute = dataRoutePages.has(page)
+
         const destination = path.posix.join(
           '/',
           config.basePath,
-          ...(dataRoutePages.has(page) ? [`_next/data`, buildId] : ''),
+          ...(isDataRoute ? [`_next/data`, buildId] : ''),
           ...(page === '/'
             ? [shouldLocalize ? '$nextLocale.json' : 'index.json']
             : [
                 shouldLocalize ? '$nextLocale' : '',
                 page +
-                  '.json' +
+                  (isDataRoute ? '.json' : '') +
                   getDestinationQuery(routeRegex.routeKeys || {}),
               ])
         )
