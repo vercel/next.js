@@ -23,17 +23,33 @@ const fsExistsSyncCache = {}
 
 const memoize = <T = any>(fn: (...args: any[]) => T) => {
   const cache = {}
-  return (...args: any[]): T => {
+  const memoized = (...args: any[]): T => {
     const key = JSON.stringify(args)
     if (cache[key] === undefined) {
       cache[key] = fn(...args)
     }
     return cache[key]
   }
+  memoized.clear = () => {
+    Object.keys(cache).forEach((key) => {
+      delete cache[key]
+    })
+  }
+  return memoized
 }
 
 const cachedGetUrlFromPagesDirectories = memoize(getUrlFromPagesDirectories)
 const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
+
+// Export for testing purposes
+export function clearUrlCaches() {
+  cachedGetUrlFromPagesDirectories.clear()
+  cachedGetUrlFromAppDirectory.clear()
+  // Clear fsExistsSyncCache
+  Object.keys(fsExistsSyncCache).forEach((key) => {
+    delete fsExistsSyncCache[key]
+  })
+}
 
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
 

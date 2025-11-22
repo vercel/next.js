@@ -203,7 +203,7 @@ function isGroupSegment(segment: string) {
 const getPageExtensions = (() => {
   let cached: string[] | null = null
 
-  return (): string[] => {
+  const fn = (): string[] => {
     if (cached) return cached
 
     const fallback = ['tsx', 'ts', 'jsx', 'js']
@@ -222,11 +222,11 @@ const getPageExtensions = (() => {
         if (configFile.endsWith('.ts')) {
           try {
             // Try tsx first (faster)
-            require('tsx/cjs')
+            (require('tsx/cjs') as typeof import('tsx/cjs'))
           } catch {
             try {
               // Fallback to ts-node
-              require('ts-node/register')
+              (require('ts-node/register') as typeof import('ts-node/register'))
             } catch {
               // Skip .ts file if no TypeScript loader available
               continue
@@ -257,6 +257,13 @@ const getPageExtensions = (() => {
     cached = fallback
     return cached
   }
+
+  // Exposed reset function for testing purposes
+  fn.reset = () => {
+    cached = null
+  }
+
+  return fn
 })()
 
 /**
@@ -270,7 +277,7 @@ const getRegexPatterns = (() => {
     layout: RegExp
   } | null = null
 
-  return () => {
+  const fn = () => {
     if (cached) return cached
 
     const extensions = getPageExtensions()
@@ -288,6 +295,25 @@ const getRegexPatterns = (() => {
 
     return cached
   }
+
+  // Exposed reset function for testing purposes
+  fn.reset = () => {
+    cached = null
+  }
+
+  return fn
 })()
 
-export { getPageExtensions }
+/**
+ * Reset all caches - useful for testing
+ */
+function resetCaches() {
+  getPageExtensions.reset()
+  getRegexPatterns.reset()
+  // Clear fsReadDirSyncCache
+  Object.keys(fsReadDirSyncCache).forEach((key) => {
+    delete fsReadDirSyncCache[key]
+  })
+}
+
+export { getPageExtensions, getRegexPatterns, resetCaches }

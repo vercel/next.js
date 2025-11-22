@@ -90,10 +90,12 @@ describe('getPageExtensions()', () => {
   it('supports next.config.mjs with ES module export', () => {
     jest.isolateModules(() => {
       const fs = require('fs')
-      jest.spyOn(fs, 'existsSync').mockImplementation((filepath) => {
-        if (filepath.toString().endsWith('next.config.mjs')) return true
-        return false
-      })
+      jest
+        .spyOn(fs, 'existsSync')
+        .mockImplementation((filepath: string | Buffer | URL) => {
+          if (filepath.toString().endsWith('next.config.mjs')) return true
+          return false
+        })
 
       jest.doMock(
         path.resolve(process.cwd(), 'next.config.mjs'),

@@ -11,6 +11,30 @@ const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
 
+let originalCwd: string
+
+beforeEach(() => {
+  originalCwd = process.cwd()
+})
+
+afterEach(() => {
+  // Restore original cwd
+  if (originalCwd) {
+    process.chdir(originalCwd)
+  }
+
+  // Reset caches after each test to prevent interference
+  const urlUtils = require('@next/eslint-plugin-next/dist/utils/url')
+  if (urlUtils.resetCaches) {
+    urlUtils.resetCaches()
+  }
+
+  const noHtmlLinkRule = require('@next/eslint-plugin-next/dist/rules/no-html-link-for-pages')
+  if (noHtmlLinkRule.clearUrlCaches) {
+    noHtmlLinkRule.clearUrlCaches()
+  }
+})
+
 const linters = {
   withoutPages: new Linter({
     cwd: withoutPagesDir,
@@ -501,10 +525,21 @@ describe('no-html-link-for-pages', function () {
       __dirname,
       'with-custom-page-extensions'
     )
+
+    // Change to the custom extensions directory
+    process.chdir(withCustomExtensions)
+
+    // Reset all caches before this test
+    const urlUtils = require('@next/eslint-plugin-next/dist/utils/url')
+    if (urlUtils.resetCaches) {
+      urlUtils.resetCaches()
+    }
+
     const linter = new Linter({
       cwd: withCustomExtensions,
       configType: 'eslintrc',
     })
+
     linter.defineRules({
       'no-html-link-for-pages': NextESLintRule,
     })
