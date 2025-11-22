@@ -5,7 +5,7 @@ describe('getPageExtensions()', () => {
 
   afterEach(() => {
     jest.resetModules()
-    jest.clearAllMocks()
+    jest.restoreAllMocks()
   })
 
   afterAll(() => {
@@ -22,13 +22,16 @@ describe('getPageExtensions()', () => {
   })
 
   it('returns custom extensions from next.config.js', () => {
-    jest.doMock(
-      path.resolve(process.cwd(), 'next.config.js'),
-      () => ({ pageExtensions: ['md', 'mdx'] }),
-      { virtual: true }
-    )
-
     jest.isolateModules(() => {
+      const fs = require('fs')
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true)
+
+      jest.doMock(
+        path.resolve(process.cwd(), 'next.config.js'),
+        () => ({ pageExtensions: ['md', 'mdx'] }),
+        { virtual: true }
+      )
+
       const getPageExtensions =
         require('../../../../packages/eslint-plugin-next/src/utils/url').getPageExtensions
 
@@ -52,13 +55,16 @@ describe('getPageExtensions()', () => {
   })
 
   it('removes leading dots from extensions', () => {
-    jest.doMock(
-      path.resolve(process.cwd(), 'next.config.js'),
-      () => ({ pageExtensions: ['.tsx', '.ts'] }),
-      { virtual: true }
-    )
-
     jest.isolateModules(() => {
+      const fs = require('fs')
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true)
+
+      jest.doMock(
+        path.resolve(process.cwd(), 'next.config.js'),
+        () => ({ pageExtensions: ['.tsx', '.ts'] }),
+        { virtual: true }
+      )
+
       const getPageExtensions =
         require('../../../../packages/eslint-plugin-next/src/utils/url').getPageExtensions
 
@@ -82,13 +88,19 @@ describe('getPageExtensions()', () => {
   })
 
   it('supports next.config.mjs with ES module export', () => {
-    jest.doMock(
-      path.resolve(process.cwd(), 'next.config.mjs'),
-      () => ({ default: { pageExtensions: ['page.tsx', 'page.ts'] } }),
-      { virtual: true }
-    )
-
     jest.isolateModules(() => {
+      const fs = require('fs')
+      jest.spyOn(fs, 'existsSync').mockImplementation((filepath) => {
+        if (filepath.toString().endsWith('next.config.mjs')) return true
+        return false
+      })
+
+      jest.doMock(
+        path.resolve(process.cwd(), 'next.config.mjs'),
+        () => ({ default: { pageExtensions: ['page.tsx', 'page.ts'] } }),
+        { virtual: true }
+      )
+
       const getPageExtensions =
         require('../../../../packages/eslint-plugin-next/src/utils/url').getPageExtensions
 
@@ -97,13 +109,16 @@ describe('getPageExtensions()', () => {
   })
 
   it('handles custom extensions like .page.tsx and .mdx', () => {
-    jest.doMock(
-      path.resolve(process.cwd(), 'next.config.js'),
-      () => ({ pageExtensions: ['page.tsx', 'page.ts', 'mdx'] }),
-      { virtual: true }
-    )
-
     jest.isolateModules(() => {
+      const fs = require('fs')
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true)
+
+      jest.doMock(
+        path.resolve(process.cwd(), 'next.config.js'),
+        () => ({ pageExtensions: ['page.tsx', 'page.ts', 'mdx'] }),
+        { virtual: true }
+      )
+
       const getPageExtensions =
         require('../../../../packages/eslint-plugin-next/src/utils/url').getPageExtensions
 
