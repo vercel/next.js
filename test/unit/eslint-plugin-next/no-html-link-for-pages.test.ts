@@ -495,4 +495,51 @@ describe('no-html-link-for-pages', function () {
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
+
+  it('detects <a href> with custom pageExtensions (.page.tsx)', function () {
+    const withCustomExtensions = path.join(
+      __dirname,
+      'with-custom-page-extensions'
+    )
+    const linter = new Linter({
+      cwd: withCustomExtensions,
+      configType: 'eslintrc',
+    })
+    linter.defineRules({
+      'no-html-link-for-pages': NextESLintRule,
+    })
+
+    const code = `
+      import Link from 'next/link';
+      export default function Page() {
+        return (
+          <div>
+            <a href='/about'>About</a>
+          </div>
+        );
+      }
+    `
+
+    const report = linter.verify(
+      code,
+      {
+        ...linterConfig,
+        rules: {
+          'no-html-link-for-pages': [
+            2,
+            path.join(withCustomExtensions, 'pages'),
+          ],
+        },
+      },
+      {
+        filename: path.join(withCustomExtensions, 'pages', 'index.page.tsx'),
+      }
+    )
+
+    assert.ok(report.length > 0, 'Expected lint error for custom extension')
+    assert.equal(
+      report[0].message,
+      'Do not use an `<a>` element to navigate to `/about/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
 })
