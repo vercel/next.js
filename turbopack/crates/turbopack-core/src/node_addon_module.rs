@@ -14,7 +14,7 @@ use crate::{
     raw_module::RawModule,
     reference::{ModuleReferences, TracedModuleReference},
     resolve::pattern::{Pattern, PatternMatch, read_matches},
-    source::Source,
+    source::{OptionSource, Source},
 };
 
 /// A module corresponding to `.node` files.
@@ -36,6 +36,11 @@ impl Module for NodeAddonModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident().with_modifier(rcstr!("node addon"))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(self.source))
     }
 
     #[turbo_tasks::function]

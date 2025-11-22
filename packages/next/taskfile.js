@@ -2415,14 +2415,14 @@ export async function cli(task, opts) {
 
 export async function lib(task, opts) {
   await task
-    .source('src/lib/**/!(*.test).+(js|ts|tsx|json)')
+    .source('src/lib/**/!(*.test).+(js|ts|tsx|json|jsonc)')
     .swc('server', { dev: opts.dev })
     .target('dist/lib')
 }
 
 export async function lib_esm(task, opts) {
   await task
-    .source('src/lib/**/!(*.test).+(js|ts|tsx|json)')
+    .source('src/lib/**/!(*.test).+(js|ts|tsx|json|jsonc)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/lib')
 }

@@ -14,7 +14,7 @@ use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
-    source::Source,
+    source::{OptionSource, Source},
     source_map::GenerateSourceMap,
 };
 
@@ -135,6 +135,11 @@ impl Module for CssModuleAsset {
             ident = ident.with_modifier(import_context.modifier().owned().await?)
         }
         Ok(ident)
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(self.source))
     }
 
     #[turbo_tasks::function]

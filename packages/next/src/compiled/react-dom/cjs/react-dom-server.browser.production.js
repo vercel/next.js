@@ -75,7 +75,8 @@ function getIteratorFn(maybeIterable) {
     maybeIterable["@@iterator"];
   return "function" === typeof maybeIterable ? maybeIterable : null;
 }
-var isArrayImpl = Array.isArray;
+var REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
+  isArrayImpl = Array.isArray;
 function murmurhash3_32_gc(key, seed) {
   var remainder = key.length & 3;
   var bytes = key.length - remainder;
@@ -5562,7 +5563,11 @@ function retryNode(request, task) {
           var ref = void 0 !== node ? node : null,
             name = getComponentNameFromType(type),
             keyOrIndex =
-              null == key ? (-1 === childIndex ? 0 : childIndex) : key;
+              null == key || key === REACT_OPTIMISTIC_KEY
+                ? -1 === childIndex
+                  ? 0
+                  : childIndex
+                : key;
           key = [task.keyPath, name, keyOrIndex];
           if (null !== task.replay)
             a: {
@@ -7360,12 +7365,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-canary-0972e239-20251118" !== isomorphicReactPackageVersion)
+  if ("19.3.0-canary-8ac5f4eb-20251119" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.3.0-canary-0972e239-20251118"
+        "19.3.0-canary-8ac5f4eb-20251119"
       )
     );
 }
@@ -7616,4 +7621,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.3.0-canary-0972e239-20251118";
+exports.version = "19.3.0-canary-8ac5f4eb-20251119";

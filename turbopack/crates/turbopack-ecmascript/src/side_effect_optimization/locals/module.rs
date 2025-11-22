@@ -51,6 +51,11 @@ impl Module for EcmascriptModuleLocalsModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     fn references(&self) -> Result<Vc<ModuleReferences>> {
         let result = self.module.analyze();
         Ok(result.local_references())

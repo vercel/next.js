@@ -859,9 +859,13 @@ impl ModuleGraphRef {
                 })
             })
         else {
-            bail!("Couldn't find entry module in module graph");
+            bail!("Couldn't find entry module {entry:?} in module graph");
         };
         Ok(idx)
+    }
+
+    pub fn entries(&self) -> impl Iterator<Item = ChunkGroupEntry> + '_ {
+        self.graphs.iter().flat_map(|g| g.entries.iter().cloned())
     }
 
     fn get_node(&self, entry: GraphNodeIndex) -> Result<&SingleModuleGraphNode> {
@@ -1848,6 +1852,11 @@ pub mod tests {
         #[turbo_tasks::function]
         fn ident(&self) -> Vc<AssetIdent> {
             AssetIdent::from_path(self.path.clone())
+        }
+
+        #[turbo_tasks::function]
+        fn source(&self) -> Vc<crate::source::OptionSource> {
+            Vc::cell(None)
         }
 
         #[turbo_tasks::function]

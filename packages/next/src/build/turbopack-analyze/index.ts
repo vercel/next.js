@@ -75,6 +75,7 @@ export async function turbopackAnalyze(
       },
       browserslistQuery: supportedBrowsers.join(', '),
       noMangling,
+      writeRoutesHashesManifest: false,
       currentNodeJsVersion,
     },
     {

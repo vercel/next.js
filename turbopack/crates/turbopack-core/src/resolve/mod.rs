@@ -2721,7 +2721,7 @@ async fn resolve_import_map_result(
                 ))
             }
         }
-        ImportMapResult::External(name, ty, traced) => {
+        ImportMapResult::External { name, ty, traced } => {
             Some(*ResolveResult::primary(ResolveResultItem::External {
                 name: name.clone(),
                 ty: *ty,

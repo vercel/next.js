@@ -738,6 +738,11 @@ impl Module for EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         Ok(self.analyze().references())
     }

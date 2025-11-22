@@ -27,6 +27,11 @@ import {
   HEAD_REQUEST_KEY,
 } from '../../shared/lib/segment-cache/segment-value-encoding'
 import { getDigestForWellKnownError } from './create-error-handler'
+import {
+  Phase,
+  printDebugThrownValueForProspectiveRender,
+} from './prospective-render-utils'
+import { workAsyncStorage } from './work-async-storage.external'
 
 // Contains metadata about the route tree. The client must fetch this before
 // it can fetch any actual segment data.
@@ -85,6 +90,14 @@ function onSegmentPrerenderError(error: unknown) {
   }
   // We don't need to log the errors because we would have already done that
   // when generating the original Flight stream for the whole page.
+  if (process.env.NEXT_DEBUG_BUILD || process.env.__NEXT_VERBOSE_LOGGING) {
+    const workStore = workAsyncStorage.getStore()
+    printDebugThrownValueForProspectiveRender(
+      error,
+      workStore?.route ?? 'unknown route',
+      Phase.SegmentCollection
+    )
+  }
 }
 
 export async function collectSegmentData(

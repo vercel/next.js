@@ -199,7 +199,7 @@ mod tests {
 
     impl AstModifier for StrReplacer<'_> {
         fn visit_mut_str(&self, s: &mut Str) {
-            s.value = s.value.replace(self.from, self.to).into();
+            s.value = s.value.to_string_lossy().replace(self.from, self.to).into();
             s.raw = None;
         }
     }

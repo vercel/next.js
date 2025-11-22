@@ -596,14 +596,16 @@
       return requiredContext(contextStackCursor.current);
     }
     function pushHostContext(fiber) {
-      null !== fiber.memoizedState &&
-        push(hostTransitionProviderCursor, fiber, fiber);
-      var context = requiredContext(contextStackCursor.current);
+      var stateHook = fiber.memoizedState;
+      null !== stateHook &&
+        ((HostTransitionContext._currentValue = stateHook.memoizedState),
+        push(hostTransitionProviderCursor, fiber, fiber));
+      stateHook = requiredContext(contextStackCursor.current);
       var type = fiber.type;
-      var nextContext = getChildHostContextProd(context.context, type);
-      type = updatedAncestorInfoDev(context.ancestorInfo, type);
+      var nextContext = getChildHostContextProd(stateHook.context, type);
+      type = updatedAncestorInfoDev(stateHook.ancestorInfo, type);
       nextContext = { context: nextContext, ancestorInfo: type };
-      context !== nextContext &&
+      stateHook !== nextContext &&
         (push(contextFiberStackCursor, fiber, fiber),
         push(contextStackCursor, nextContext, fiber));
     }
@@ -5101,6 +5103,7 @@
           (workInProgress.flags = 0),
           (workInProgress.subtreeFlags = 0),
           (workInProgress.deletions = null),
+          (workInProgress.key = current.key),
           (workInProgress.actualDuration = -0),
           (workInProgress.actualStartTime = -1.1));
       workInProgress.flags = current.flags & 132120576;
@@ -5164,6 +5167,7 @@
           (workInProgress.memoizedState = current.memoizedState),
           (workInProgress.updateQueue = current.updateQueue),
           (workInProgress.type = current.type),
+          (workInProgress.key = current.key),
           (renderLanes = current.dependencies),
           (workInProgress.dependencies =
             null === renderLanes
@@ -6607,9 +6611,14 @@
       }
       function mapRemainingChildren(currentFirstChild) {
         for (var existingChildren = new Map(); null !== currentFirstChild; )
-          null !== currentFirstChild.key
-            ? existingChildren.set(currentFirstChild.key, currentFirstChild)
-            : existingChildren.set(currentFirstChild.index, currentFirstChild),
+          null === currentFirstChild.key
+            ? existingChildren.set(currentFirstChild.index, currentFirstChild)
+            : currentFirstChild.key === REACT_OPTIMISTIC_KEY
+              ? existingChildren.set(
+                  -currentFirstChild.index - 1,
+                  currentFirstChild
+                )
+              : existingChildren.set(currentFirstChild.key, currentFirstChild),
             (currentFirstChild = currentFirstChild.sibling);
         return existingChildren;
       }
@@ -6705,12 +6714,13 @@
           current.stateNode.implementation !== portal.implementation
         )
           return (
-            (current = createFiberFromPortal(portal, returnFiber.mode, lanes)),
-            (current.return = returnFiber),
-            (current._debugInfo = currentDebugInfo),
-            current
+            (portal = createFiberFromPortal(portal, returnFiber.mode, lanes)),
+            (portal.return = returnFiber),
+            (portal._debugInfo = currentDebugInfo),
+            portal
           );
         current = useFiber(current, portal.children || []);
+        current.key = portal.key;
         current.return = returnFiber;
         current._debugInfo = currentDebugInfo;
         return current;
@@ -6718,19 +6728,20 @@
       function updateFragment(returnFiber, current, fragment, lanes, key) {
         if (null === current || 7 !== current.tag)
           return (
-            (current = createFiberFromFragment(
+            (key = createFiberFromFragment(
               fragment,
               returnFiber.mode,
               lanes,
               key
             )),
-            (current.return = returnFiber),
-            (current._debugOwner = returnFiber),
-            (current._debugTask = returnFiber._debugTask),
-            (current._debugInfo = currentDebugInfo),
-            current
+            (key.return = returnFiber),
+            (key._debugOwner = returnFiber),
+            (key._debugTask = returnFiber._debugTask),
+            (key._debugInfo = currentDebugInfo),
+            key
           );
         current = useFiber(current, fragment);
+        current.key = key;
         current.return = returnFiber;
         current._debugInfo = currentDebugInfo;
         return current;
@@ -6939,7 +6950,9 @@
                 (newIdx =
                   existingChildren.get(
                     null === newChild.key ? newIdx : newChild.key
-                  ) || null),
+                  ) ||
+                  existingChildren.get(-newIdx - 1) ||
+                  null),
                 (existingChildren = pushDebugInfo(newChild._debugInfo)),
                 (returnFiber = updateElement(
                   returnFiber,
@@ -6955,7 +6968,9 @@
                 (existingChildren =
                   existingChildren.get(
                     null === newChild.key ? newIdx : newChild.key
-                  ) || null),
+                  ) ||
+                  existingChildren.get(-newIdx - 1) ||
+                  null),
                 updatePortal(returnFiber, existingChildren, newChild, lanes)
               );
             case REACT_LAZY_TYPE:
@@ -7141,10 +7156,13 @@
                 knownKeys
               )),
               shouldTrackSideEffects &&
-                null !== nextOldFiber.alternate &&
-                oldFiber.delete(
-                  null === nextOldFiber.key ? newIdx : nextOldFiber.key
-                ),
+                ((newFiber = nextOldFiber.alternate),
+                null !== newFiber &&
+                  (newFiber.key === REACT_OPTIMISTIC_KEY
+                    ? oldFiber.delete(-newIdx - 1)
+                    : oldFiber.delete(
+                        null === newFiber.key ? newIdx : newFiber.key
+                      ))),
               (currentFirstChild = placeChild(
                 nextOldFiber,
                 currentFirstChild,
@@ -7284,10 +7302,11 @@
                 knownKeys
               )),
               shouldTrackSideEffects &&
-                null !== nextOldFiber.alternate &&
-                oldFiber.delete(
-                  null === nextOldFiber.key ? newIdx : nextOldFiber.key
-                ),
+                ((step = nextOldFiber.alternate),
+                null !== step &&
+                  (step.key === REACT_OPTIMISTIC_KEY
+                    ? oldFiber.delete(-newIdx - 1)
+                    : oldFiber.delete(null === step.key ? newIdx : step.key))),
               (currentFirstChild = placeChild(
                 nextOldFiber,
                 currentFirstChild,
@@ -7323,9 +7342,12 @@
               var prevDebugInfo = pushDebugInfo(newChild._debugInfo);
               a: {
                 for (var key = newChild.key; null !== currentFirstChild; ) {
-                  if (currentFirstChild.key === key) {
-                    key = newChild.type;
-                    if (key === REACT_FRAGMENT_TYPE) {
+                  if (
+                    currentFirstChild.key === key ||
+                    currentFirstChild.key === REACT_OPTIMISTIC_KEY
+                  ) {
+                    var elementType = newChild.type;
+                    if (elementType === REACT_FRAGMENT_TYPE) {
                       if (7 === currentFirstChild.tag) {
                         deleteRemainingChildren(
                           returnFiber,
@@ -7335,6 +7357,7 @@
                           currentFirstChild,
                           newChild.props.children
                         );
+                        lanes.key = key;
                         coerceRef(lanes, newChild);
                         lanes.return = returnFiber;
                         lanes._debugOwner = newChild._owner;
@@ -7344,21 +7367,22 @@
                         break a;
                       }
                     } else if (
-                      currentFirstChild.elementType === key ||
+                      currentFirstChild.elementType === elementType ||
                       isCompatibleFamilyForHotReloading(
                         currentFirstChild,
                         newChild
                       ) ||
-                      ("object" === typeof key &&
-                        null !== key &&
-                        key.$$typeof === REACT_LAZY_TYPE &&
-                        resolveLazy(key) === currentFirstChild.type)
+                      ("object" === typeof elementType &&
+                        null !== elementType &&
+                        elementType.$$typeof === REACT_LAZY_TYPE &&
+                        resolveLazy(elementType) === currentFirstChild.type)
                     ) {
                       deleteRemainingChildren(
                         returnFiber,
                         currentFirstChild.sibling
                       );
                       lanes = useFiber(currentFirstChild, newChild.props);
+                      lanes.key = key;
                       coerceRef(lanes, newChild);
                       lanes.return = returnFiber;
                       lanes._debugOwner = newChild._owner;
@@ -7400,19 +7424,21 @@
               return returnFiber;
             case REACT_PORTAL_TYPE:
               a: {
-                prevDebugInfo = newChild;
                 for (
-                  newChild = prevDebugInfo.key;
+                  prevDebugInfo = newChild.key;
                   null !== currentFirstChild;
 
                 ) {
-                  if (currentFirstChild.key === newChild)
+                  if (
+                    currentFirstChild.key === prevDebugInfo ||
+                    currentFirstChild.key === REACT_OPTIMISTIC_KEY
+                  )
                     if (
                       4 === currentFirstChild.tag &&
                       currentFirstChild.stateNode.containerInfo ===
-                        prevDebugInfo.containerInfo &&
+                        newChild.containerInfo &&
                       currentFirstChild.stateNode.implementation ===
-                        prevDebugInfo.implementation
+                        newChild.implementation
                     ) {
                       deleteRemainingChildren(
                         returnFiber,
@@ -7420,8 +7446,9 @@
                       );
                       lanes = useFiber(
                         currentFirstChild,
-                        prevDebugInfo.children || []
+                        newChild.children || []
                       );
+                      lanes.key = prevDebugInfo;
                       lanes.return = returnFiber;
                       returnFiber = lanes;
                       break a;
@@ -7433,7 +7460,7 @@
                   currentFirstChild = currentFirstChild.sibling;
                 }
                 lanes = createFiberFromPortal(
-                  prevDebugInfo,
+                  newChild,
                   returnFiber.mode,
                   lanes
                 );
@@ -7474,14 +7501,14 @@
               throw Error(
                 "An object is not an iterable. This error is likely caused by a bug in React. Please file an issue."
               );
-            var newChildren = key.call(newChild);
-            if (newChildren === newChild) {
+            elementType = key.call(newChild);
+            if (elementType === newChild) {
               if (
                 0 !== returnFiber.tag ||
                 "[object GeneratorFunction]" !==
                   Object.prototype.toString.call(returnFiber.type) ||
                 "[object Generator]" !==
-                  Object.prototype.toString.call(newChildren)
+                  Object.prototype.toString.call(elementType)
               )
                 didWarnAboutGenerators ||
                   console.error(
@@ -7498,7 +7525,7 @@
             returnFiber = reconcileChildrenIterator(
               returnFiber,
               currentFirstChild,
-              newChildren,
+              elementType,
               lanes
             );
             currentDebugInfo = prevDebugInfo;
@@ -27529,15 +27556,20 @@
     function createPortal$1(children, containerInfo, implementation) {
       var key =
         3 < arguments.length && void 0 !== arguments[3] ? arguments[3] : null;
-      willCoercionThrow(key) &&
-        (console.error(
-          "The provided key is an unsupported type %s. This value must be coerced to a string before using it here.",
-          typeName(key)
-        ),
-        testStringCoercion(key));
+      null == key
+        ? (key = null)
+        : key === REACT_OPTIMISTIC_KEY
+          ? (key = REACT_OPTIMISTIC_KEY)
+          : (willCoercionThrow(key) &&
+              (console.error(
+                "The provided key is an unsupported type %s. This value must be coerced to a string before using it here.",
+                typeName(key)
+              ),
+              testStringCoercion(key)),
+            (key = "" + key));
       return {
         $$typeof: REACT_PORTAL_TYPE,
-        key: null == key ? null : "" + key,
+        key: key,
         children: children,
         containerInfo: containerInfo,
         implementation: implementation
@@ -28315,6 +28347,7 @@
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
+      REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
       REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
       isArrayImpl = Array.isArray,
       ReactSharedInternals =
@@ -32470,11 +32503,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-0972e239-20251118" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-8ac5f4eb-20251119" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-0972e239-20251118\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-8ac5f4eb-20251119\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -32511,10 +32544,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-0972e239-20251118",
+          version: "19.3.0-experimental-8ac5f4eb-20251119",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-0972e239-20251118"
+          reconcilerVersion: "19.3.0-experimental-8ac5f4eb-20251119"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -32992,7 +33025,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.3.0-experimental-0972e239-20251118";
+    exports.version = "19.3.0-experimental-8ac5f4eb-20251119";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

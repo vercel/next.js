@@ -833,7 +833,7 @@ export default class DevServer extends Server {
             // Ideally, we would want to compare the whole objects, but that is too expensive.
             result.prerenderedRoutes?.length !== prerenderedRoutes?.length
           ) {
-            this.bundlerService.triggerHMR({
+            this.bundlerService.sendHmrMessage({
               type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
               hash: `generateStaticParams-${Date.now()}`,
             })

@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton, TreemapSkeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
+import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
 import { SpecialModule } from '@/lib/types'
 import { getSpecialModuleType, fetchStrict } from '@/lib/utils'
 
@@ -29,7 +30,9 @@ function formatBytes(bytes: number): string {
 
 export default function Home() {
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null)
-  const [environmentFilter, setEnvironmentFilter] = useState<string>('client')
+  const [environmentFilter, setEnvironmentFilter] = useState<
+    'client' | 'server'
+  >('client')
   const [typeFilter, setTypeFilter] = useState<string[]>(['js', 'css', 'json'])
   const [selectedSourceIndex, setSelectedSourceIndex] = useState<number | null>(
     null
@@ -99,6 +102,14 @@ export default function Home() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
+
+  // Compute module depth map from active entries
+  const moduleDepthMap = useMemo(() => {
+    if (!modulesData || !analyzeData) return new Map()
+
+    const activeEntries = computeActiveEntries(modulesData, analyzeData)
+    return computeModuleDepthMap(modulesData, activeEntries)
+  }, [modulesData, analyzeData])
 
   const filterSource = useMemo(() => {
     if (!analyzeData) return undefined
@@ -172,7 +183,7 @@ export default function Home() {
                 className="mr-4"
                 value={environmentFilter}
                 onValueChange={(value) => {
-                  if (value) setEnvironmentFilter(value)
+                  if (value) setEnvironmentFilter(value as 'client' | 'server')
                 }}
                 size="sm"
               >
@@ -332,7 +343,8 @@ export default function Home() {
                           startFileId={selectedSourceIndex}
                           analyzeData={analyzeData}
                           modulesData={modulesData}
-                          filterSource={filterSource}
+                          depthMap={moduleDepthMap}
+                          environmentFilter={environmentFilter}
                         />
                       )}
                       {(() => {
