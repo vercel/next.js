@@ -222,11 +222,11 @@ const getPageExtensions = (() => {
         if (configFile.endsWith('.ts')) {
           try {
             // Try tsx first (faster)
-            (require('tsx/cjs') as typeof import('tsx/cjs'))
+            require('tsx/cjs')
           } catch {
             try {
               // Fallback to ts-node
-              (require('ts-node/register') as typeof import('ts-node/register'))
+              require('ts-node/register')
             } catch {
               // Skip .ts file if no TypeScript loader available
               continue
