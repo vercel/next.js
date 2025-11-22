@@ -241,7 +241,7 @@ export type PendingSegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Pending
   rsc: null
   loading: null
-  isPartial: true
+  isPartial: boolean
   promise: null | PromiseWithResolvers<FulfilledSegmentCacheEntry | null>
 }
 
@@ -847,6 +847,14 @@ export function upgradeToPendingSegment(
   const pendingEntry: PendingSegmentCacheEntry = emptyEntry as any
   pendingEntry.status = EntryStatus.Pending
   pendingEntry.fetchStrategy = fetchStrategy
+
+  if (fetchStrategy === FetchStrategy.Full) {
+    // We can assume the response will contain the full segment data. Set this
+    // to false so we know it's OK to omit this segment from any navigation
+    // requests that may happen while the data is still pending.
+    pendingEntry.isPartial = false
+  }
+
   // Set the version here, since this is right before the request is initiated.
   // The next time the global cache version is incremented, the entry will
   // effectively be evicted. This happens before initiating the request, rather
