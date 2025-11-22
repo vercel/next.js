@@ -854,10 +854,10 @@
       "app dir - prefetching (custom staleTime) should not fetch again when a static page was prefetched when navigating to it twice",
       "app dir - prefetching (custom staleTime) should renew the stale time after refetching expired RSC data"
     ],
-    "failed": [
+    "failed": [],
+    "pending": [
       "app dir - prefetching (custom staleTime) should not re-fetch cached data when navigating back to a route group"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -882,11 +882,10 @@
       "app dir - prefetching should not prefetch for a bot user agent",
       "app dir - prefetching should not re-render error component when triggering a prefetch action",
       "app dir - prefetching should not unintentionally modify the requested prefetch by escaping the uri encoded query params",
-      "app dir - prefetching should only prefetch the loading state and not the component tree when prefetching at the same segment"
-    ],
-    "failed": [
+      "app dir - prefetching should only prefetch the loading state and not the component tree when prefetching at the same segment",
       "app dir - prefetching should show layout eagerly when prefetched with loading one level down"
     ],
+    "failed": [],
     "pending": [
       "app dir - prefetching should not suppress prefetches after navigating back"
     ],
@@ -2923,6 +2922,15 @@
       "fallback-shells with cached IO with generateStaticParams and the page wrapped in Suspense and the params accessed in the cached page shares a cached layout with unused params between a prerendered route shell and the fallback shell",
       "fallback-shells with cached IO without generateStaticParams and the params accessed in the cached page does not produce hydration errors when resuming a fallback shell containing a layout with unused params",
       "fallback-shells with cached IO without generateStaticParams and the params accessed in the cached page includes a cached layout with unused params in the fallback shell"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/fetch-abort-on-refresh/fetch-abort-on-refresh.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "fetch-abort-on-refresh should not show abort error in global error boundary when restoring from bfcache"
     ],
     "flakey": [],
     "runtimeError": false
@@ -5831,6 +5839,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/proxy-nfc-traced/proxy-nfc-traced.test.ts": {
+    "passed": [
+      "proxy-nfc-traced should have renamed trace file as middleware instead of proxy",
+      "proxy-nfc-traced should successfully build and be redirected from proxy"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts": {
     "passed": [
       "proxy-runtime-nodejs should use nodejs runtime for proxy by default"
@@ -6830,42 +6848,43 @@
   },
   "test/e2e/app-dir/segment-cache/prefetch-runtime/prefetch-runtime.test.ts": {
     "passed": [
-      "runtime prefetching cache stale time handling includes private caches with cacheLife(\"seconds\")",
-      "runtime prefetching cache stale time handling includes public caches with cacheLife(\"seconds\")",
       "runtime prefetching cache stale time handling includes short-lived public caches with a long enough staleTime",
       "runtime prefetching cache stale time handling omits private caches with a short enough staleTime",
       "runtime prefetching cache stale time handling omits short-lived public caches with a short enough staleTime",
       "runtime prefetching can completely prefetch a page that is fully static",
-      "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting a private cache",
       "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting a quickly-expiring public cache",
       "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting cookies()",
       "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting dynamic params",
-      "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting headers()",
-      "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting searchParams",
       "runtime prefetching errors should trigger error boundaries for errors that occurred in runtime-prefetched content",
       "runtime prefetching in a page can completely prefetch a page that uses cookies and no uncached IO",
-      "runtime prefetching in a page includes cookies, but not dynamic content",
-      "runtime prefetching in a page includes dynamic params, but not dynamic content",
       "runtime prefetching in a page includes headers, but not dynamic content",
-      "runtime prefetching in a page includes root params, but not dynamic content",
-      "runtime prefetching in a page includes search params, but not dynamic content",
       "runtime prefetching in a private cache can completely prefetch a page that uses cookies and no uncached IO",
       "runtime prefetching in a private cache includes cookies, but not dynamic content",
       "runtime prefetching in a private cache includes dynamic params, but not dynamic content",
       "runtime prefetching in a private cache includes headers, but not dynamic content",
       "runtime prefetching in a private cache includes root params, but not dynamic content",
-      "runtime prefetching in a private cache includes search params, but not dynamic content",
       "runtime prefetching passed to a public cache can completely prefetch a page that uses cookies and no uncached IO",
-      "runtime prefetching passed to a public cache includes cookies, but not dynamic content",
       "runtime prefetching passed to a public cache includes dynamic params, but not dynamic content",
       "runtime prefetching passed to a public cache includes headers, but not dynamic content",
+      "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a page",
+      "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a private cache"
+    ],
+    "failed": [
+      "runtime prefetching cache stale time handling includes private caches with cacheLife(\"seconds\")",
+      "runtime prefetching cache stale time handling includes public caches with cacheLife(\"seconds\")",
+      "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting a private cache",
+      "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting headers()",
+      "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting searchParams",
+      "runtime prefetching in a page includes cookies, but not dynamic content",
+      "runtime prefetching in a page includes dynamic params, but not dynamic content",
+      "runtime prefetching in a page includes root params, but not dynamic content",
+      "runtime prefetching in a page includes search params, but not dynamic content",
+      "runtime prefetching in a private cache includes search params, but not dynamic content",
+      "runtime prefetching passed to a public cache includes cookies, but not dynamic content",
       "runtime prefetching passed to a public cache includes root params, but not dynamic content",
       "runtime prefetching passed to a public cache includes search params, but not dynamic content",
-      "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a page",
-      "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a private cache",
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side private caches should return new results on each request"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6895,15 +6914,14 @@
   },
   "test/e2e/app-dir/segment-cache/revalidation/segment-cache-revalidation.test.ts": {
     "passed": [
+      "segment cache (revalidation) call router.prefetch(..., {onInvalidate}) after cache is revalidated",
+      "segment cache (revalidation) delay re-prefetch after revalidation to allow CDN propagation",
       "segment cache (revalidation) evict client cache when Server Action calls revalidatePath",
+      "segment cache (revalidation) evict client cache when Server Action calls revalidateTag",
       "segment cache (revalidation) re-fetch visible links after a navigation, if needed",
       "segment cache (revalidation) refetch visible Form components after cache is revalidated"
     ],
-    "failed": [
-      "segment cache (revalidation) call router.prefetch(..., {onInvalidate}) after cache is revalidated",
-      "segment cache (revalidation) delay re-prefetch after revalidation to allow CDN propagation",
-      "segment cache (revalidation) evict client cache when Server Action calls revalidateTag"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7514,7 +7532,8 @@
       "use-cache usage in node_modules should cache results when using a directive without a handler",
       "use-cache works with \"use cache\" in method props",
       "use-cache works with \"use cache\" in static class methods",
-      "use-cache works with useActionState if previousState parameter is not used in \"use cache\" function"
+      "use-cache works with useActionState if previousState parameter is not used in \"use cache\" function",
+      "use-cache works with useActionState if previousState parameter is not used in \"use cache\" function (separate export)"
     ],
     "failed": [],
     "pending": [],
@@ -7944,7 +7963,8 @@
   },
   "test/e2e/chrome-devtools-workspace/chrome-devtools-workspace.test.ts": {
     "passed": [
-      "chrome-devtools-workspace default should be able to connect to Chrome DevTools in dev"
+      "chrome-devtools-workspace default should be able to connect to Chrome DevTools in dev",
+      "chrome-devtools-workspace proxy should be able to connect to Chrome DevTools in dev"
     ],
     "failed": [],
     "pending": [],
