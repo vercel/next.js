@@ -2,6 +2,7 @@ use anyhow::{Result, bail};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{IntoTraitRef, ResolvedVc, Vc};
 use turbopack_core::{
+    asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     context::AssetContext,
     ident::AssetIdent,
@@ -62,6 +63,14 @@ impl Module for RawWebAssemblyModuleAsset {
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionSource> {
         Vc::cell(Some(ResolvedVc::upcast(self.source)))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for RawWebAssemblyModuleAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        self.source.content()
     }
 }
 

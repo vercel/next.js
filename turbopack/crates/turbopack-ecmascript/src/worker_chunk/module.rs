@@ -3,6 +3,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
+    asset::{Asset, AssetContent},
     chunk::{
         ChunkGroupType, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
         ChunkingTypeOption,
@@ -63,6 +64,14 @@ impl Module for WorkerLoaderModule {
         _side_effect_free_packages: Vc<Glob>,
     ) -> Vc<bool> {
         Vc::cell(true)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for WorkerLoaderModule {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        panic!("content() should not be called");
     }
 }
 
