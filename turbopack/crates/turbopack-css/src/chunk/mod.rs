@@ -437,7 +437,7 @@ impl GenerateSourceMap for CssChunk {
 
 // TODO: remove
 #[turbo_tasks::value_trait]
-pub trait CssChunkPlaceable: ChunkableModule + Module {}
+pub trait CssChunkPlaceable: ChunkableModule + Module + Asset {}
 
 #[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]
