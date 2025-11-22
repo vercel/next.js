@@ -77,7 +77,29 @@ export function createRouterAct(
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         await page.evaluate(
-          () => new Promise<void>((res) => requestIdleCallback(() => res()))
+          () =>
+            new Promise<void>((res) =>
+              requestIdleCallback(() => res(), {
+                // Add a timeout option to prevents the callback from being
+                // backgrounded indefinitely. Not sure why this happens but
+                // without it, the callback will never fire.
+                //
+                // Note that this does not delay the callback from firing.
+                // It should still fire pretty much "immediately". It's just a
+                // safeguard in case the idle callback queue is not fired within
+                // a reasonable amount of time. It really shouldn't
+                // be necessary.
+                //
+                // TODO: I'm getting increasingly frustrated by how flaky
+                // Playwright's APIs are. At this point I'm convinced we should
+                // rewrite the whole router-act module to an equivalent
+                // implementation that runs directly in the browser, by
+                // injecting a script into the page. Since we only use it for
+                // our own contrived e2e test apps, we can just import the
+                // script into each test app that needs it.
+                timeout: 100,
+              })
+            )
         )
         return
       } catch (err) {
