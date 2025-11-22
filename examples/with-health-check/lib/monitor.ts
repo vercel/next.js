@@ -85,11 +85,11 @@ export const monitor = new ResourceMonitor();
 
 // Register default mock services (in a real app, these would be DB/Redis clients)
 monitor.register("database", async () => {
-  // Simulate DB check
+  // Simulate DB check (latency is calculated automatically)
   return { status: "healthy" };
 });
 
 monitor.register("cache", async () => {
-  // Simulate Redis check
+  // Simulate Redis check (latency is calculated automatically)
   return { status: "healthy" };
 });

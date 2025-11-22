@@ -27,7 +27,7 @@ import { db } from '@/lib/db'
 
 monitor.register('database', async () => {
   await db.query('SELECT 1')
-  return { status: 'healthy', latency: 0 }
+  return { status: 'healthy' }
 })
 ```
 
