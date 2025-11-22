@@ -23,7 +23,7 @@ pub async fn get_referenced_modules(
 /// Returns a completion that changes when any content of any asset in the whole
 /// asset graph changes.
 #[turbo_tasks::function]
-pub async fn any_content_changed_of_module(
+pub async fn any_source_content_changed_of_module(
     root: ResolvedVc<Box<dyn Module>>,
 ) -> Result<Vc<Completion>> {
     let completions = AdjacencyMap::new()
@@ -73,8 +73,6 @@ pub async fn source_changed(asset: Vc<Box<dyn Module>>) -> Result<Vc<Completion>
     if let Some(source) = *asset.source().await? {
         // Reading the file content is enough to add as dependency
         source.content().file_content().await?;
-    } else {
-        bail!("Module {} has no source", asset.ident().to_string().await?)
     }
     Ok(Completion::new())
 }
