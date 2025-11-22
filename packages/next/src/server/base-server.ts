@@ -1169,8 +1169,8 @@ export default abstract class Server<
             const normalizedKey = normalizeNextQueryParam(key)
             if (!normalizedKey) continue
 
-            // Remove the prefixed key from the query params because we want
-            // to consume it for the dynamic route matcher.
+            // Remove the prefixed key from the query params because we want to
+            // consume it for the dynamic route matcher.
             delete parsedUrl.query[key]
             routeParamKeys.add(normalizedKey)
 
@@ -1794,7 +1794,8 @@ export default abstract class Server<
       // use the `waitUntil` from there, whether actually present or not --
       // if not present, `after` will error.
 
-      // NOTE: if we're in an edge runtime sandbox, this context will be used to forward the outer waitUntil.
+      // NOTE: if we're in an edge runtime sandbox, this context will be used to
+      // forward the outer waitUntil.
       return builtinRequestContext.waitUntil
     }
 

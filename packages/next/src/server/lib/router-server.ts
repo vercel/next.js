@@ -563,6 +563,26 @@ export async function initialize(opts: {
       }
 
       if (matchedOutput) {
+        if (
+          matchedOutput.type === 'pageFile' &&
+          matchedOutput.itemPath &&
+          !matchedOutput.itemPath.startsWith('/api/') &&
+          matchedOutput.itemPath !== '/api' &&
+          req.method !== 'GET' &&
+          req.method !== 'HEAD'
+        ) {
+          res.setHeader('Allow', ['GET', 'HEAD'])
+          res.statusCode = 405
+          return await invokeRender(
+            url.parse('/405', true),
+            '/405',
+            handleIndex,
+            {
+              invokeStatus: 405,
+            }
+          )
+        }
+
         invokedOutputs.add(matchedOutput.itemPath)
 
         return await invokeRender(
