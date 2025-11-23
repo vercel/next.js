@@ -4,7 +4,7 @@ import Layout from "../../components/Layout";
 import Router from "next/router";
 import { client, e } from "../../client";
 
-import ReactMarkdown from "react-markdown";
+import Streamdown from "streamdown";
 
 async function update(
   id: string,
@@ -61,7 +61,7 @@ const Post: React.FC<PostProps> = (props) => {
           </p>
           <br />
           <br />
-          <ReactMarkdown>{props.content || ""}</ReactMarkdown>
+          <Streamdown mode="static">{props.content || ""}</Streamdown>
         </div>
       </Layout>
     );
