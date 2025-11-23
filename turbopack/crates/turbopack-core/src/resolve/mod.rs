@@ -234,7 +234,7 @@ impl ModuleResolveResult {
         self.affecting_sources.iter().copied()
     }
 
-    pub fn is_unresolvable_ref(&self) -> bool {
+    pub fn is_unresolvable(&self) -> bool {
         self.primary.is_empty()
     }
 }
@@ -301,11 +301,6 @@ impl ModuleResolveResult {
         } else {
             Ok(*ModuleResolveResult::unresolvable())
         }
-    }
-
-    #[turbo_tasks::function]
-    pub fn is_unresolvable(&self) -> Vc<bool> {
-        Vc::cell(self.is_unresolvable_ref())
     }
 
     #[turbo_tasks::function]
@@ -478,7 +473,7 @@ impl ValueToString for ResolveResult {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         let mut result = String::new();
-        if self.is_unresolvable_ref() {
+        if self.is_unresolvable() {
             result.push_str("unresolvable");
         }
         for (i, (request, item)) in self.primary.iter().enumerate() {
@@ -604,7 +599,7 @@ impl ResolveResult {
         self.affecting_sources.iter().copied()
     }
 
-    pub fn is_unresolvable_ref(&self) -> bool {
+    pub fn is_unresolvable(&self) -> bool {
         self.primary.is_empty()
     }
 
@@ -836,11 +831,6 @@ impl ResolveResult {
                 affecting_sources,
             ))
         }
-    }
-
-    #[turbo_tasks::function]
-    pub fn is_unresolvable(&self) -> Vc<bool> {
-        Vc::cell(self.is_unresolvable_ref())
     }
 
     #[turbo_tasks::function]
@@ -1570,8 +1560,7 @@ pub async fn url_resolve(
         rel_request,
         resolve_options,
     );
-    let result = if *rel_result.is_unresolvable().await? && rel_request.resolve().await? != request
-    {
+    let result = if rel_result.await?.is_unresolvable() && rel_request.resolve().await? != request {
         let result = resolve(
             origin.origin_path().await?.parent(),
             reference_type.clone(),
@@ -1771,7 +1760,7 @@ async fn resolve_internal_inline(
                     // Typescript resolution algorithm does in case an alias match
                     // doesn't resolve to anything: fall back to resolving the request normally.
                     if let Some(result) = resolved_result
-                        && !*result.is_unresolvable().await?
+                        && !result.await?.is_unresolvable()
                     {
                         return Ok(result);
                     }
@@ -2022,7 +2011,7 @@ async fn resolve_internal_inline(
         if !matches!(*request_value, Request::Alternatives { .. }) {
             // Apply fallback import mappings if provided
             if let Some(import_map) = &options_value.fallback_import_map
-                && *result.is_unresolvable().await?
+                && result.await?.is_unresolvable()
             {
                 let result = import_map
                     .await?
@@ -2038,7 +2027,7 @@ async fn resolve_internal_inline(
                 )
                 .await?;
                 if let Some(result) = resolved_result
-                    && !*result.is_unresolvable().await?
+                    && !result.await?.is_unresolvable()
                 {
                     return Ok(result);
                 }
@@ -2098,7 +2087,7 @@ async fn resolve_into_folder(
                                 .await?;
                         // we are not that strict when a main field fails to resolve
                         // we continue to try other alternatives
-                        if !result.is_unresolvable_ref() {
+                        if !result.is_unresolvable() {
                             let mut result: ResolveResultBuilder =
                                 result.with_request_ref(rcstr!(".")).into();
                             if options_value.collect_affecting_sources {
@@ -2538,7 +2527,7 @@ async fn resolve_module_request(
             fragment.clone(),
             options,
         );
-        if !(*result.is_unresolvable().await?) {
+        if !result.await?.is_unresolvable() {
             return Ok(result);
         }
     }
@@ -2757,7 +2746,7 @@ async fn resolve_import_map_result(
                     },
                 )
                 .await?
-                .is_unresolvable_ref();
+                .is_unresolvable();
                 if is_external_resolvable {
                     Some(*ResolveResult::primary(ResolveResultItem::External {
                         name: name.clone(),
@@ -3032,12 +3021,9 @@ pub async fn handle_resolve_error(
     is_optional: bool,
     source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
-    async fn is_unresolvable(result: Vc<ModuleResolveResult>) -> Result<bool> {
-        Ok(*result.resolve().await?.is_unresolvable().await?)
-    }
-    Ok(match is_unresolvable(result).await {
-        Ok(unresolvable) => {
-            if unresolvable {
+    Ok(match result.await {
+        Ok(r) => {
+            if r.is_unresolvable() {
                 emit_unresolvable_issue(
                     is_optional,
                     origin_path,
@@ -3076,12 +3062,9 @@ pub async fn handle_resolve_source_error(
     is_optional: bool,
     source: Option<IssueSource>,
 ) -> Result<Vc<ResolveResult>> {
-    async fn is_unresolvable(result: Vc<ResolveResult>) -> Result<bool> {
-        Ok(*result.resolve().await?.is_unresolvable().await?)
-    }
-    Ok(match is_unresolvable(result).await {
-        Ok(unresolvable) => {
-            if unresolvable {
+    Ok(match result.await {
+        Ok(r) => {
+            if r.is_unresolvable() {
                 emit_unresolvable_issue(
                     is_optional,
                     origin_path,

@@ -280,7 +280,7 @@ impl ReferencedAsset {
     pub async fn from_resolve_result(resolve_result: Vc<ModuleResolveResult>) -> Result<Vc<Self>> {
         // TODO handle multiple keyed results
         let result = resolve_result.await?;
-        if result.is_unresolvable_ref() {
+        if result.is_unresolvable() {
             return Ok(ReferencedAsset::Unresolvable.cell());
         }
         for (_, result) in result.primary.iter() {
