@@ -14,7 +14,7 @@
     "next": "latest",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "streamdown": "^1.6.4"
+    "streamdown": "^1.6.5"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.20",
