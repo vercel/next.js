@@ -14,7 +14,7 @@
     "next": "latest",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "streamdown": "^1.6.3"
+    "streamdown": "^1.6.4"
   },
   "devDependencies": {
     "@types/node": "^16.11.26",
