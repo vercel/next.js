@@ -5,7 +5,7 @@ export default function page() {
   return (
     <body>
       <p>
-        depA: {depA.VERSION}, depB: {depB.VERSION}
+        depA: {depA}, depB: {depB.join(', ')}
       </p>
     </body>
   )

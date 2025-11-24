@@ -12,7 +12,7 @@ describe('externals-transitive', () => {
   it('uses the right version of transitive externals', async () => {
     const $ = await next.render$('/')
     const body = $('body > p').text().trim()
-    expect(body).toEqual(`depA: 3.10.1, depB: 4.17.21`)
+    expect(body).toEqual(`depA: 3.10.1, depB: 4.17.21, 4.17.21`)
 
     if (!isNextDeploy) {
       let nextDir = isNextDev ? '.next/dev' : '.next'
@@ -24,7 +24,11 @@ describe('externals-transitive', () => {
       for (const file of files) {
         const content = await next.readFile(path.join(nextDir, 'server', file))
         isLodashBundled =
-          isLodashBundled || content.includes('__lodash_hash_undefined__')
+          isLodashBundled ||
+          // Code
+          content.includes('__lodash_hash_undefined__') ||
+          // Package.json
+          content.includes('Lodash modular utilities.')
       }
 
       if (isTurbopack) {
