@@ -1,8 +1,8 @@
 ---
-title: Using Google Analytics with Next.js (through `next/script`)
+title: Using Google Analytics with Next.js (through `@next/third-parties/google`)
 ---
 
-> Prefer `next/script` component when using the inline script for Google Analytics.
+> Prefer `@next/third-parties/google` when using the inline script for Google Analytics and Tag Manager.
 
 ## Why This Error Occurred
 
@@ -63,11 +63,42 @@ export default function Page() {
 }
 ```
 
-> **Good to know:**
->
-> - If you are using the Pages Router, please refer to the [`pages/` documentation](/docs/pages/guides/third-party-libraries).
-> - `@next/third-parties` also supports [Google Tag Manager](/docs/app/guides/third-party-libraries#google-tag-manager) and other third parties.
-> - Using `@next/third-parties` is not required. You can also use the `next/script` component directly. Refer to the [`next/script` documentation](/docs/app/guides/scripts) to learn more.
+### Use `@next/third-parties` to add Google Tag Manager
+
+The `GoogleTagManager` component can be used to add [Google Tag Manager](https://developers.google.com/tag-manager/quickstart) to your page.
+
+```tsx filename="app/layout.tsx" switcher
+import { GoogleTagManager } from '@next/third-parties/google'
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <GoogleTagManager gtmId="GTM-XYZ" />
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+To load Google Tag Manager for a single route, include the component in your page file:
+
+```jsx filename="app/page.js"
+import { GoogleTagManager } from '@next/third-parties/google'
+
+export default function Page() {
+  return <GoogleTagManager gtmId="GTM-XYZ" />
+}
+```
+
+## Good to know
+
+- If you are using the Pages Router, please refer to the [`pages/` documentation](/docs/pages/guides/third-party-libraries).
+- `@next/third-parties` also supports [other third parties](/docs/app/guides/third-party-libraries#google-tag-manager).
+- Using `@next/third-parties` is not required. You can also use the `next/script` component directly. Refer to the [`next/script` documentation](/docs/app/guides/scripts) to learn more.
 
 ## Useful Links
 
