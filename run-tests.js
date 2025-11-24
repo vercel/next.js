@@ -501,10 +501,11 @@ ${ENDGROUP}`)
     `jest${process.platform === 'win32' ? '.CMD' : ''}`
   )
   let firstError = true
-  let killed = false
+  const testController = new AbortController()
+  const testSignal = testController.signal
   let hadFailures = false
 
-  const runTest = (/** @type {TestFile} */ test, isFinalRun, isRetry) =>
+  const runTestOnce = (/** @type {TestFile} */ test, isFinalRun, isRetry) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
@@ -618,11 +619,11 @@ ${ENDGROUP}`)
           if (hideOutput) {
             await outputSema.acquire()
             const isExpanded =
-              firstError && !killed && !shouldContinueTestsOnError
+              firstError && !testSignal.aborted && !shouldContinueTestsOnError
             if (isExpanded) {
               firstError = false
               process.stdout.write(`❌ ${test.file} output:\n`)
-            } else if (killed) {
+            } else if (testSignal.aborted) {
               process.stdout.write(`${GROUP}${test.file} output (killed)\n`)
             } else {
               process.stdout.write(`${GROUP}❌ ${test.file} output\n`)
@@ -636,7 +637,7 @@ ${ENDGROUP}`)
               output += chunk.toString()
             }
 
-            if (process.env.CI && !killed) {
+            if (process.env.CI && !testSignal.aborted) {
               errorsPerTests.set(test.file, output)
             }
 
@@ -682,10 +683,105 @@ ${ENDGROUP}`)
       })
     })
 
+  const runTest = async (/** @type {TestFile} */ test) => {
+    let passed = false
+
+    const shouldSkipRetries = skipRetryTestManifest.find((t) =>
+      t.includes(test.file)
+    )
+    const numRetries = shouldSkipRetries ? 0 : originalRetries
+    if (shouldSkipRetries) {
+      console.log(
+        `Skipping retry for ${test.file} due to skipRetryTestManifest`
+      )
+    }
+
+    for (let i = 0; i < numRetries + 1; i++) {
+      try {
+        console.log(`Starting ${test.file} retry ${i}/${numRetries}`)
+        const time = await runTestOnce(
+          test,
+          shouldSkipRetries || i === numRetries,
+          shouldSkipRetries || i > 0
+        )
+        timings.push({
+          file: test.file,
+          time,
+        })
+        passed = true
+        console.log(
+          `${test.file} finished on retry ${i}/${numRetries} in ${time / 1000}s`
+        )
+        break
+      } catch (err) {
+        if (i < numRetries) {
+          try {
+            let testDir = path.dirname(path.join(__dirname, test.file))
+
+            // if test is nested in a test folder traverse up a dir to ensure
+            // we clean up relevant test files
+            if (testDir.endsWith('/test') || testDir.endsWith('\\test')) {
+              testDir = path.join(testDir, '..')
+            }
+            console.log('Cleaning test files at', testDir)
+            await exec(`git clean -fdx "${testDir}"`)
+            await exec(`git checkout "${testDir}"`)
+          } catch (err) {}
+        } else {
+          console.error(`${test.file} failed due to ${err}`)
+        }
+      }
+    }
+
+    if (!passed) {
+      hadFailures = true
+      const error = new Error(
+        // "failed to pass within" is a keyword parsed by next-pr-webhook
+        `${test.file} failed to pass within ${numRetries} retries`
+      )
+      console.error(error.message)
+
+      if (!shouldContinueTestsOnError) {
+        testController.abort(error)
+      } else {
+        console.log(
+          `CONTINUE_ON_ERROR enabled, continuing tests after ${test.file} failed`
+        )
+      }
+    }
+
+    // Emit test output if test failed or if we're continuing tests on error
+    // This is parsed by the commenter webhook to notify about failing tests
+    if ((!passed || shouldContinueTestsOnError) && isTestJob) {
+      try {
+        const testsOutput = await fsp.readFile(
+          `${test.file}${RESULTS_EXT}`,
+          'utf8'
+        )
+        const obj = JSON.parse(testsOutput)
+        obj.processEnv = {
+          NEXT_TEST_MODE: process.env.NEXT_TEST_MODE,
+          HEADLESS: process.env.HEADLESS,
+        }
+        await outputSema.acquire()
+        if (GROUP) console.log(`${GROUP}Result as JSON for tooling`)
+        console.log(
+          `--test output start--`,
+          JSON.stringify(obj),
+          `--test output end--`
+        )
+        if (ENDGROUP) console.log(ENDGROUP)
+        outputSema.release()
+      } catch (err) {
+        console.log(`Failed to load test output`, err)
+      }
+    }
+  }
+
   const directorySemas = new Map()
 
   const originalRetries = numRetries
-  await Promise.all(
+  const results = await Promise.allSettled(
     tests.map(async (test) => {
       const dirName = path.dirname(test.file)
       let dirSema = directorySemas.get(dirName)
@@ -695,108 +791,38 @@ ${ENDGROUP}`)
       if (/^test[/\\]integration/.test(test.file) && dirSema === undefined) {
         directorySemas.set(dirName, (dirSema = new Sema(1)))
       }
+      // TODO: Use explicit resource managment instead of this acquire/release pattern
+      // once CI runs with Node.js 24+.
       if (dirSema) await dirSema.acquire()
-
       await sema.acquire()
-      let passed = false
 
-      const shouldSkipRetries = skipRetryTestManifest.find((t) =>
-        t.includes(test.file)
-      )
-      const numRetries = shouldSkipRetries ? 0 : originalRetries
-      if (shouldSkipRetries) {
-        console.log(
-          `Skipping retry for ${test.file} due to skipRetryTestManifest`
-        )
-      }
-
-      for (let i = 0; i < numRetries + 1; i++) {
-        try {
-          console.log(`Starting ${test.file} retry ${i}/${numRetries}`)
-          const time = await runTest(
-            test,
-            shouldSkipRetries || i === numRetries,
-            shouldSkipRetries || i > 0
-          )
-          timings.push({
-            file: test.file,
-            time,
-          })
-          passed = true
-          console.log(
-            `Finished ${test.file} on retry ${i}/${numRetries} in ${
-              time / 1000
-            }s`
-          )
-          break
-        } catch (err) {
-          if (i < numRetries) {
-            try {
-              let testDir = path.dirname(path.join(__dirname, test.file))
-
-              // if test is nested in a test folder traverse up a dir to ensure
-              // we clean up relevant test files
-              if (testDir.endsWith('/test') || testDir.endsWith('\\test')) {
-                testDir = path.join(testDir, '..')
-              }
-              console.log('Cleaning test files at', testDir)
-              await exec(`git clean -fdx "${testDir}"`)
-              await exec(`git checkout "${testDir}"`)
-            } catch (err) {}
-          } else {
-            console.error(`${test.file} failed due to ${err}`)
-          }
+      try {
+        if (testSignal.aborted) {
+          // We already logged the abort reason. No need to include it in cause.
+          const error = new Error(`Skipped due to abort.`)
+          error.name = test.file
+          throw error
         }
+
+        await runTest(test)
+      } finally {
+        sema.release()
+        if (dirSema) dirSema.release()
       }
-
-      if (!passed) {
-        console.error(
-          `${test.file} failed to pass within ${numRetries} retries`
-        )
-
-        if (!shouldContinueTestsOnError) {
-          killed = true
-          children.forEach((child) => child.kill())
-          cleanUpAndExit(1)
-        } else {
-          hadFailures = true
-          console.log(
-            `CONTINUE_ON_ERROR enabled, continuing tests after ${test.file} failed`
-          )
-        }
-      }
-
-      // Emit test output if test failed or if we're continuing tests on error
-      // This is parsed by the commenter webhook to notify about failing tests
-      if ((!passed || shouldContinueTestsOnError) && isTestJob) {
-        try {
-          const testsOutput = await fsp.readFile(
-            `${test.file}${RESULTS_EXT}`,
-            'utf8'
-          )
-          const obj = JSON.parse(testsOutput)
-          obj.processEnv = {
-            NEXT_TEST_MODE: process.env.NEXT_TEST_MODE,
-            HEADLESS: process.env.HEADLESS,
-          }
-          await outputSema.acquire()
-          if (GROUP) console.log(`${GROUP}Result as JSON for tooling`)
-          console.log(
-            `--test output start--`,
-            JSON.stringify(obj),
-            `--test output end--`
-          )
-          if (ENDGROUP) console.log(ENDGROUP)
-          outputSema.release()
-        } catch (err) {
-          console.log(`Failed to load test output`, err)
-        }
-      }
-
-      sema.release()
-      if (dirSema) dirSema.release()
     })
   )
+
+  for (const result of results) {
+    if (result.status === 'rejected') {
+      hadFailures = true
+      console.error(result.reason)
+    }
+  }
+
+  if (hadFailures && !shouldContinueTestsOnError) {
+    // TODO: Does it make sense to update timings if there were failures if without shouldContinueTestsOnError?
+    return hadFailures
+  }
 
   if (options.timings) {
     const curTimings = {}
@@ -857,20 +883,20 @@ ${ENDGROUP}`)
     }
   }
 
-  // Return whether there were any failures
   return hadFailures
 }
 
-main()
-  .then((hadFailures) => {
+main().then(
+  (hadFailures) => {
     if (hadFailures) {
       console.error('Some tests failed')
-      cleanUpAndExit(1)
+      return cleanUpAndExit(1)
     } else {
-      cleanUpAndExit(0)
+      return cleanUpAndExit(0)
     }
-  })
-  .catch((err) => {
-    console.error(err)
-    cleanUpAndExit(1)
-  })
+  },
+  (reason) => {
+    console.error(reason)
+    return cleanUpAndExit(1)
+  }
+)
