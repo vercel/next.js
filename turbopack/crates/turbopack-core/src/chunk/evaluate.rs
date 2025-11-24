@@ -3,6 +3,7 @@ use turbo_tasks::{ResolvedVc, Upcast, ValueToString, Vc};
 
 use super::ChunkableModule;
 use crate::{
+    asset::Asset,
     context::AssetContext,
     module::Module,
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -14,7 +15,7 @@ use crate::{
 /// The chunking context implementation will resolve the dynamic entry to a
 /// well-known value or trait object.
 #[turbo_tasks::value_trait]
-pub trait EvaluatableAsset: Module + ChunkableModule {}
+pub trait EvaluatableAsset: Asset + Module + ChunkableModule {}
 
 pub trait EvaluatableAssetExt {
     fn to_evaluatable(

@@ -12,7 +12,6 @@ import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import {
   NEXT_CACHE_TAGS_HEADER,
   NEXT_META_SUFFIX,
-  RSC_PREFETCH_SUFFIX,
   RSC_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SEGMENT_SUFFIX,
@@ -140,20 +139,11 @@ export async function exportAppPage(
         throw new Error(`Invariant: failed to get page data for ${path}`)
       }
     } else {
-      // If PPR is enabled, we want to emit a prefetch rsc file for the page
+      // If PPR is enabled, we want to emit a segment prefetch files
       // instead of the standard rsc. This is because the standard rsc will
       // contain the dynamic data. We do this if any routes have PPR enabled so
       // that the cache read/write is the same.
-      if (renderOpts.experimental.isRoutePPREnabled) {
-        // If PPR is enabled, we should emit the flight data as the prefetch
-        // payload.
-        // TODO: This will eventually be replaced by the per-segment prefetch
-        // output below.
-        fileWriter.append(
-          htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
-          flightData
-        )
-      } else {
+      if (!renderOpts.experimental.isRoutePPREnabled) {
         // Writing the RSC payload to a file if we don't have PPR enabled.
         fileWriter.append(
           htmlFilepath.replace(/\.html$/, RSC_SUFFIX),

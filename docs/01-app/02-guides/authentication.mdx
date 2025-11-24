@@ -1355,51 +1355,96 @@ For example, consider a shared layout that fetches the user data and displays th
 
 This guarantees that wherever `getUser()` is called within your application, the auth check is performed, and prevents developers forgetting to check the user is authorized to access the data.
 
-```tsx filename="app/layout.tsx" switcher
-export default async function Layout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const user = await getUser();
+#### Auth checks in page components
+
+For example, in a dashboard page, you can verify the user session and fetch the user data:
+
+```tsx filename="app/dashboard/page.tsx" switcher
+import { verifySession } from '@/app/lib/dal'
+
+export default async function DashboardPage() {
+  const session = await verifySession()
+
+  // Fetch user-specific data from your database or data source
+  const user = await getUserData(session.userId)
 
   return (
-    // ...
+    <div>
+      <h1>Welcome, {user.name}</h1>
+      {/* Dashboard content */}
+    </div>
   )
 }
 ```
 
-```jsx filename="app/layout.js" switcher
-export default async function Layout({ children }) {
-  const user = await getUser();
+```jsx filename="app/dashboard/page.jsx" switcher
+import { verifySession } from '@/app/lib/dal'
+
+export default async function DashboardPage() {
+  const session = await verifySession()
+
+  // Fetch user-specific data from your database or data source
+  const user = await getUserData(session.userId)
 
   return (
-    // ...
+    <div>
+      <h1>Welcome, {user.name}</h1>
+      {/* Dashboard content */}
+    </div>
   )
 }
 ```
 
-```ts filename="app/lib/dal.ts" switcher
-export const getUser = cache(async () => {
-  const session = await verifySession()
-  if (!session) return null
+#### Auth checks in leaf components
 
-  // Get user ID from session and fetch data
-})
+You can also perform auth checks in leaf components that conditionally render UI elements based on user permissions. For example, a component that displays admin-only actions:
+
+```tsx filename="app/ui/admin-actions.tsx" switcher
+import { verifySession } from '@/app/lib/dal'
+
+export default async function AdminActions() {
+  const session = await verifySession()
+  const userRole = session?.user?.role
+
+  if (userRole !== 'admin') {
+    return null
+  }
+
+  return (
+    <div>
+      <button>Delete User</button>
+      <button>Edit Settings</button>
+    </div>
+  )
+}
 ```
 
-```js filename="app/lib/dal.js" switcher
-export const getUser = cache(async () => {
-  const session = await verifySession()
-  if (!session) return null
+```jsx filename="app/ui/admin-actions.jsx" switcher
+import { verifySession } from '@/app/lib/dal'
 
-  // Get user ID from session and fetch data
-})
+export default async function AdminActions() {
+  const session = await verifySession()
+  const userRole = session?.user?.role
+
+  if (userRole !== 'admin') {
+    return null
+  }
+
+  return (
+    <div>
+      <button>Delete User</button>
+      <button>Edit Settings</button>
+    </div>
+  )
+}
 ```
+
+This pattern allows you to show or hide UI elements based on user permissions while ensuring the auth check happens at render time in each component.
 
 > **Good to know:**
 >
 > - A common pattern in SPAs is to `return null` in a layout or a top-level component if a user is not authorized. This pattern is **not recommended** since Next.js applications have multiple entry points, which will not prevent nested route segments and Server Actions from being accessed.
+> - Ensure that any Server Actions called from these components also perform their own authorization checks, as client-side UI restrictions alone are not sufficient for security.
 
 ### Server Actions
 

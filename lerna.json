@@ -2,8 +2,7 @@
   "npmClient": "pnpm",
   "useWorkspaces": true,
   "packages": [
-    "packages/*",
-    "apps/bundle-analyzer"
+    "packages/*"
   ],
   "command": {
     "version": {
@@ -17,5 +16,5 @@
       "registry": "https://registry.npmjs.org/"
     }
   },
-  "version": "16.0.2-canary.28"
+  "version": "16.0.2-canary.33"
 }
