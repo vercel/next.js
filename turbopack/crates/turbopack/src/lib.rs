@@ -905,6 +905,29 @@ impl AssetContext for ModuleAssetContext {
                             target,
                         } => {
                             let replacement = if replace_externals {
+                                // Determine the package folder, `target` is the full path to the
+                                // resolved file.
+                                let target = if let Some(mut target) = target {
+                                    loop {
+                                        let parent = target.parent();
+                                        if parent.is_root() {
+                                            break;
+                                        }
+                                        if parent.file_name() == "node_modules" {
+                                            break;
+                                        }
+                                        if parent.file_name().starts_with("@")
+                                            && parent.parent().file_name() == "node_modules"
+                                        {
+                                            break;
+                                        }
+                                        target = parent;
+                                    }
+                                    Some(target)
+                                } else {
+                                    None
+                                };
+
                                 let analyze_mode = if traced == ExternalTraced::Traced
                                     && let Some(options) = &self
                                         .module_options_context()
@@ -1083,27 +1106,6 @@ pub async fn replace_external(
             // we don't want to wrap url externals.
             return Ok(None);
         }
-    };
-
-    // Determine the package folder, `target` is the full path to the resolved file.
-    let target = if let Some(mut target) = target {
-        loop {
-            let parent = target.parent();
-            if parent.is_root() {
-                break;
-            }
-            if parent.file_name() == "node_modules" {
-                break;
-            }
-            if parent.file_name().starts_with("@") && parent.parent().file_name() == "node_modules"
-            {
-                break;
-            }
-            target = parent;
-        }
-        Some(target)
-    } else {
-        None
     };
 
     let module = CachedExternalModule::new(name.clone(), target, external_type, analyze_mode)
