@@ -2381,12 +2381,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     }
 
                     // Generate wrapper ident: $$RSC_SERVER_CACHE_exportName
-                    let export_name_str = match export_name {
-                        ModuleExportName::Ident(i) => i.sym.to_string(),
-                        ModuleExportName::Str(s) => s.value.to_string_lossy().into_owned(),
-                    };
                     let wrapper_ident = Ident::new(
-                        format!("$$RSC_SERVER_CACHE_{}", export_name_str).into(),
+                        format!("$$RSC_SERVER_CACHE_{}", export_name.atom()).into(),
                         ident.span,
                         self.private_ctxt,
                     );
