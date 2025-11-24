@@ -1,6 +1,6 @@
 use std::{borrow::Cow, fmt::Display, io::Write};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs};
@@ -607,8 +607,16 @@ impl Asset for ExternalsSymlinkAsset {
         let output_root_to_project_root = this.chunking_context.output_root_to_root_path().await?;
         let project_root_to_target = &this.target.path;
 
-        // `..` to account for the `node_modules` folder
-        let target = format!("../{output_root_to_project_root}/{project_root_to_target}",).into();
+        let path = self.path().await?;
+        let path_to_output_root = path
+            .parent()
+            .get_relative_path_to(&*this.chunking_context.output_root().await?)
+            .context("path must be inside output root")?;
+
+        let target = format!(
+            "{path_to_output_root}/{output_root_to_project_root}/{project_root_to_target}",
+        )
+        .into();
 
         Ok(AssetContent::Redirect {
             target,
