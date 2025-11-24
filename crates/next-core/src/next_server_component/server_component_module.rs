@@ -4,8 +4,9 @@ use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
+    asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     module::Module,
@@ -65,6 +66,20 @@ impl Module for NextServerComponentModule {
                 .to_resolved()
                 .await?,
         )]))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for NextServerComponentModule {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        AssetContent::File(
+            FileContent::Content(
+                "// This is a marker module for Next.js server components.".into(),
+            )
+            .resolved_cell(),
+        )
+        .cell()
     }
 }
 

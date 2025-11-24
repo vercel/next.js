@@ -444,10 +444,17 @@ function readRenderSnapshotFromCache(
         loading = promiseForFulfilledEntry.then((entry) =>
           entry !== null ? entry.loading : null
         )
-        // Since we don't know yet whether the segment is partial or fully
-        // static, we must assume it's partial; we can't skip the
-        // dynamic request.
-        isPartial = true
+        // Because the request is still pending, we typically don't know yet
+        // whether the response will be partial. We shouldn't skip this segment
+        // during the dynamic navigation request. Otherwise, we might need to
+        // do yet another request to fill in the remaining data, creating
+        // a waterfall.
+        //
+        // The one exception is if this segment is being fetched with via
+        // prefetch={true} (i.e. the "force stale" or "full" strategy). If so,
+        // we can assume the response will be full. This field is set to `false`
+        // for such segments.
+        isPartial = segmentEntry.isPartial
         break
       }
       case EntryStatus.Empty:
@@ -508,7 +515,7 @@ function readHeadSnapshotFromCache(
         rsc = promiseForFulfilledEntry.then((entry) =>
           entry !== null ? entry.rsc : null
         )
-        isPartial = true
+        isPartial = segmentEntry.isPartial
         break
       }
       case EntryStatus.Empty:

@@ -3,6 +3,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{IntoTraitRef, ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
+    asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
         chunk_group::references_to_output_assets,
@@ -142,6 +143,14 @@ impl Module for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
     fn is_self_async(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(true)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for WebAssemblyModuleAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        self.source.content()
     }
 }
 
