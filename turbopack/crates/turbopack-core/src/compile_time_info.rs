@@ -227,6 +227,14 @@ pub enum InputRelativeConstant {
     FileName,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+pub enum CjsPathConstant {
+    // The project relative directory name of the source file
+    DirName,
+    // The project relative file name of the source file.
+    FileName,
+}
+
 #[turbo_tasks::value]
 #[derive(Debug, Clone)]
 pub enum FreeVarReference {
@@ -239,6 +247,7 @@ pub enum FreeVarReference {
     Member(RcStr, RcStr),
     Value(CompileTimeDefineValue),
     InputRelative(InputRelativeConstant),
+    CjsPath(CjsPathConstant),
     Error(RcStr),
 }
 
