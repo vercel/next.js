@@ -16,7 +16,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{atom, Atom, Wtf8Atom},
     common::{
         comments::{Comment, CommentKind, Comments, SingleThreadedComments},
         errors::HANDLER,
@@ -198,15 +198,9 @@ fn generate_server_references_comment(
     entry_path_query: Option<(&str, &str)>,
 ) -> String {
     // Convert ModuleExportName to string for serialization
-    let export_map: BTreeMap<&Atom, String> = export_names_ordered_by_reference_id
+    let export_map: BTreeMap<_, _> = export_names_ordered_by_reference_id
         .iter()
-        .map(|(ref_id, export_name)| {
-            let name_str = match export_name {
-                ModuleExportName::Ident(i) => i.sym.to_string(),
-                ModuleExportName::Str(s) => s.value.to_string_lossy().into_owned(),
-            };
-            (*ref_id, name_str)
-        })
+        .map(|(ref_id, export_name)| (*ref_id, export_name.atom()))
         .collect();
 
     format!(
@@ -1725,25 +1719,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 match spec {
                                     ExportSpecifier::Named(ExportNamedSpecifier {
                                         orig: ModuleExportName::Ident(orig),
-                                        exported: Some(ModuleExportName::Ident(exported)),
+                                        exported: Some(exported),
                                         ..
                                     }) => {
-                                        // export { foo as bar }
-                                        self.export_name_by_local_id.insert(
-                                            orig.to_id(),
-                                            ModuleExportName::Ident(exported.clone()),
-                                        );
-                                    }
-                                    ExportSpecifier::Named(ExportNamedSpecifier {
-                                        orig: ModuleExportName::Ident(orig),
-                                        exported: Some(ModuleExportName::Str(exported)),
-                                        ..
-                                    }) => {
-                                        // export { foo as "📙" }
-                                        self.export_name_by_local_id.insert(
-                                            orig.to_id(),
-                                            ModuleExportName::Str(exported.clone()),
-                                        );
+                                        // export { foo as bar } or export { foo as "📙" }
+                                        self.export_name_by_local_id
+                                            .insert(orig.to_id(), exported.clone());
                                     }
                                     ExportSpecifier::Named(ExportNamedSpecifier {
                                         orig: ModuleExportName::Ident(orig),
@@ -2004,13 +1985,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                         let var_ident = Ident::new(var_name.clone(), DUMMY_SP, self.private_ctxt);
 
-                        let export_name_str: Atom = match export_name {
-                            ModuleExportName::Ident(i) => i.sym.clone(),
-                            ModuleExportName::Str(s) => {
-                                Atom::from(s.value.to_string_lossy().as_ref())
-                            }
-                        };
-
                         // Determine span for the variable name. In development, we generate these
                         // spans for sourcemapping with better logs/errors. For production, this is
                         // not generated because it would leak server code to the browser.
@@ -2020,6 +1994,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             } else {
                                 DUMMY_SP
                             };
+
+                        let export_name_str: Wtf8Atom = match export_name {
+                            ModuleExportName::Ident(i) => i.sym.clone().into(),
+                            ModuleExportName::Str(s) => s.value.clone(),
+                        };
 
                         let var_decl = ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
                             span: DUMMY_SP,
