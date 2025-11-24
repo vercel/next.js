@@ -1,6 +1,6 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use turbo_tasks::{
-    Completion, Completions, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    Completion, Completions, ResolvedVc, TryJoinIterExt, Vc,
     graph::{AdjacencyMap, GraphTraversal},
 };
 
