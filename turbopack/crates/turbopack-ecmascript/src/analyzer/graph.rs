@@ -2843,10 +2843,12 @@ impl VisitAstPath for Analyzer<'_> {
         node: &'ast ExportNamedSpecifier,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
-        let export_name = match &node.exported {
-            Some(ident) => ident.atom().clone(),
-            None => node.orig.atom().clone(),
-        };
+        let export_name = node
+            .exported
+            .as_ref()
+            .unwrap_or(&node.orig)
+            .atom()
+            .into_owned();
         self.data.exports.insert(
             export_name,
             match &node.orig {
