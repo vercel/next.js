@@ -96,7 +96,10 @@ pub struct CachedExternalModule {
     analyze_mode: CachedExternalTracingMode,
 }
 
-fn virtual_package_name(folder: &FileSystemPath) -> String {
+/// For a given package folder inside of node_modules, generate a unique hashed package name.
+///
+/// E.g. `/path/to/node_modules/@swc/core` becomes `@swc/core-1149fa2b3c4d5e6f`
+fn hashed_package_name(folder: &FileSystemPath) -> String {
     let hash = encode_hex(hash_xxh3_hash64(&folder.path));
 
     let parent = folder.parent();
@@ -110,9 +113,10 @@ fn virtual_package_name(folder: &FileSystemPath) -> String {
 }
 
 impl CachedExternalModule {
+    /// Rewrites `self.request` to include the hashed package name if `self.target` is set.
     pub fn request(&self) -> Cow<'_, str> {
         if let Some(target) = &self.target {
-            let virtual_package = virtual_package_name(target);
+            let hashed_package = hashed_package_name(target);
 
             let request = if self.request.starts_with('@') {
                 // Potentially strip off `@org/...`
@@ -123,10 +127,10 @@ impl CachedExternalModule {
 
             if let Some((_, subpath)) = request.split_once('/') {
                 // `pkg/subpath` case
-                Cow::Owned(format!("{virtual_package}/{subpath}"))
+                Cow::Owned(format!("{hashed_package}/{subpath}"))
             } else {
                 // `pkg` case
-                Cow::Owned(virtual_package)
+                Cow::Owned(hashed_package)
             }
         } else {
             Cow::Borrowed(&*self.request)
@@ -446,7 +450,7 @@ impl OutputAssetsReference for CachedExternalModuleChunkItem {
             ResolvedVc::cell(vec![ResolvedVc::upcast(
                 ExternalsSymlinkAsset::new(
                     *self.chunking_context,
-                    virtual_package_name(target).into(),
+                    hashed_package_name(target).into(),
                     module.target.clone().unwrap(),
                 )
                 .to_resolved()
@@ -560,7 +564,7 @@ impl Module for ModuleWithoutSelfAsync {
 #[turbo_tasks::value(shared)]
 pub struct ExternalsSymlinkAsset {
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    virtual_package: RcStr,
+    hashed_package: RcStr,
     target: FileSystemPath,
 }
 #[turbo_tasks::value_impl]
@@ -568,12 +572,12 @@ impl ExternalsSymlinkAsset {
     #[turbo_tasks::function]
     pub fn new(
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-        virtual_package: RcStr,
+        hashed_package: RcStr,
         target: FileSystemPath,
     ) -> Vc<Self> {
         ExternalsSymlinkAsset {
             chunking_context,
-            virtual_package,
+            hashed_package,
             target,
         }
         .cell()
@@ -591,7 +595,7 @@ impl OutputAsset for ExternalsSymlinkAsset {
             .output_root()
             .await?
             .join("node_modules")?
-            .join(&self.virtual_package)?
+            .join(&self.hashed_package)?
             .cell())
     }
 }
