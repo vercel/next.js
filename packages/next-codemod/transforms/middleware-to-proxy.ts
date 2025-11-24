@@ -74,16 +74,16 @@ export default function transformer(file: FileInfo) {
     hasChanges = hasChanges || hasConfigChanges
   }
 
+  // Need to write proxy file and unlink the original middleware file.
+  if (isMiddlewareFile) {
+    return handleMiddlewareFileRename(file, source)
+  }
+
   if (!hasChanges) {
     return file.source
   }
 
   const source = root.toSource()
-
-  // Need to write proxy file and unlink the original middleware file.
-  if (isMiddlewareFile) {
-    return handleMiddlewareFileRename(file, source)
-  }
 
   return source
 }
