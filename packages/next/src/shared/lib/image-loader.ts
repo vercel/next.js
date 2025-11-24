@@ -95,7 +95,7 @@ function defaultLoader({
   const q = findClosestQuality(quality, config)
 
   return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${q}${
-    src.startsWith('/_next/static/media/') && process.env.NEXT_DEPLOYMENT_ID
+    src.startsWith('/') && process.env.NEXT_DEPLOYMENT_ID
       ? `&dpl=${process.env.NEXT_DEPLOYMENT_ID}`
       : ''
   }`
