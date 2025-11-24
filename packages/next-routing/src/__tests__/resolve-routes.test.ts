@@ -1,5 +1,5 @@
-import { resolveRoutes } from '../src/resolve-routes'
-import type { ResolveRoutesParams } from '../src/types'
+import { resolveRoutes } from '../resolve-routes'
+import type { ResolveRoutesParams } from '../types'
 
 // Helper to create a ReadableStream
 function createReadableStream(): ReadableStream {

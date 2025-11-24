@@ -4,8 +4,8 @@ import {
   getAcceptLanguageLocale,
   getCookieLocale,
   detectLocale,
-} from '../src/i18n'
-import type { I18nConfig } from '../src/i18n'
+} from '../i18n'
+import type { I18nConfig } from '../i18n'
 
 describe('i18n utilities', () => {
   describe('detectDomainLocale', () => {
