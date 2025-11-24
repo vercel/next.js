@@ -6780,6 +6780,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/force-stale/force-stale.test.ts": {
+    "passed": [
+      "force stale during a navigation, don't request segments that have a pending \"full\" prefetch already in progress"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts": {
     "passed": [
       "segment cache memory pressure evicts least recently used prefetch data once cache size exceeds limit"
@@ -6848,43 +6857,42 @@
   },
   "test/e2e/app-dir/segment-cache/prefetch-runtime/prefetch-runtime.test.ts": {
     "passed": [
+      "runtime prefetching cache stale time handling includes private caches with cacheLife(\"seconds\")",
+      "runtime prefetching cache stale time handling includes public caches with cacheLife(\"seconds\")",
       "runtime prefetching cache stale time handling includes short-lived public caches with a long enough staleTime",
       "runtime prefetching cache stale time handling omits private caches with a short enough staleTime",
       "runtime prefetching cache stale time handling omits short-lived public caches with a short enough staleTime",
       "runtime prefetching can completely prefetch a page that is fully static",
+      "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting a private cache",
       "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting a quickly-expiring public cache",
       "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting cookies()",
       "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting dynamic params",
+      "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting headers()",
+      "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting searchParams",
       "runtime prefetching errors should trigger error boundaries for errors that occurred in runtime-prefetched content",
       "runtime prefetching in a page can completely prefetch a page that uses cookies and no uncached IO",
+      "runtime prefetching in a page includes cookies, but not dynamic content",
+      "runtime prefetching in a page includes dynamic params, but not dynamic content",
       "runtime prefetching in a page includes headers, but not dynamic content",
+      "runtime prefetching in a page includes root params, but not dynamic content",
+      "runtime prefetching in a page includes search params, but not dynamic content",
       "runtime prefetching in a private cache can completely prefetch a page that uses cookies and no uncached IO",
       "runtime prefetching in a private cache includes cookies, but not dynamic content",
       "runtime prefetching in a private cache includes dynamic params, but not dynamic content",
       "runtime prefetching in a private cache includes headers, but not dynamic content",
       "runtime prefetching in a private cache includes root params, but not dynamic content",
+      "runtime prefetching in a private cache includes search params, but not dynamic content",
       "runtime prefetching passed to a public cache can completely prefetch a page that uses cookies and no uncached IO",
+      "runtime prefetching passed to a public cache includes cookies, but not dynamic content",
       "runtime prefetching passed to a public cache includes dynamic params, but not dynamic content",
       "runtime prefetching passed to a public cache includes headers, but not dynamic content",
-      "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a page",
-      "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a private cache"
-    ],
-    "failed": [
-      "runtime prefetching cache stale time handling includes private caches with cacheLife(\"seconds\")",
-      "runtime prefetching cache stale time handling includes public caches with cacheLife(\"seconds\")",
-      "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting a private cache",
-      "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting headers()",
-      "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting searchParams",
-      "runtime prefetching in a page includes cookies, but not dynamic content",
-      "runtime prefetching in a page includes dynamic params, but not dynamic content",
-      "runtime prefetching in a page includes root params, but not dynamic content",
-      "runtime prefetching in a page includes search params, but not dynamic content",
-      "runtime prefetching in a private cache includes search params, but not dynamic content",
-      "runtime prefetching passed to a public cache includes cookies, but not dynamic content",
       "runtime prefetching passed to a public cache includes root params, but not dynamic content",
       "runtime prefetching passed to a public cache includes search params, but not dynamic content",
+      "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a page",
+      "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a private cache",
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side private caches should return new results on each request"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -21860,7 +21868,6 @@
       "required server files app router middleware rewrite should work with a dynamic path with Next-Resume",
       "required server files app router should de-dupe client segment tree revalidate requests",
       "required server files app router should handle RSC requests",
-      "required server files app router should handle prefetch RSC requests",
       "required server files app router should handle revalidating the fallback page",
       "required server files app router should not fail caching",
       "required server files app router should not send cache tags in minimal mode for SSR",
