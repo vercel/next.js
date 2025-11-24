@@ -442,8 +442,8 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
                         all_edges.insert((parent_node, node));
                     }
                 }
-                Ok(())
             }
+            Ok(())
         })?;
     }
 
