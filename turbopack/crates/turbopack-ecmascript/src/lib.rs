@@ -1316,7 +1316,8 @@ async fn merge_modules(
             // corresponding export in the module that exports it.
             if let Some(&module) = self.reverse_module_contexts.get(ctxt) {
                 let eval_context_exports = self.export_contexts.get(&module).unwrap();
-                // TODO looking up an Atom in a Map<RcStr, _>
+                // TODO looking up an Atom in a Map<RcStr, _>, would ideally work without creating a
+                // RcStr every time.
                 let sym_rc_str: RcStr = sym.as_str().into();
                 let (local, local_ctxt) = if let Some((local, local_ctxt)) =
                     eval_context_exports.get(&sym_rc_str)
@@ -1329,10 +1330,11 @@ async fn merge_modules(
                     // generating this variable.
                     (None, SyntaxContext::empty())
                 } else {
-                    panic!(
+                    self.error = Err(anyhow::anyhow!(
                         "Expected to find a local export for {sym} with ctxt {ctxt:#?} in \
                          {eval_context_exports:?}",
-                    );
+                    ));
+                    return;
                 };
 
                 let global_ctxt = self.get_context_for(module, local_ctxt);

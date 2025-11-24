@@ -5,6 +5,7 @@ import {
   isPositionInsideNode,
   getTs,
   removeStringQuotes,
+  getTypeChecker,
 } from '../utils'
 import { NEXT_TS_ERRORS, ALLOWED_EXPORTS } from '../constant'
 import type tsModule from 'typescript/lib/tsserverlibrary'
@@ -308,9 +309,49 @@ const config = {
           API_DOCS[entryConfig].link,
       }
 
-      if (value && isPositionInsideNode(position, value)) {
-        // Hovers the value of the config
-        const isString = ts.isStringLiteral(value)
+      // When the value is a flexible type (like a function), also compute its
+      // inferred type so we can surface it alongside the docs. This is useful
+      // even when the value is considered invalid by the config validation,
+      // as long as it's not a direct literal export.
+      let displayParts: tsModule.SymbolDisplayPart[] = []
+      const typeChecker = getTypeChecker()
+      const isString = !!value && ts.isStringLiteral(value)
+      const isFunctionValue =
+        !!value &&
+        !isString &&
+        (ts.isArrowFunction(value) ||
+          ts.isFunctionExpression(value) ||
+          ts.isFunctionDeclaration(value))
+
+      if (typeChecker && value && isFunctionValue) {
+        try {
+          // If we're hovering the config identifier, ask for the type at the
+          // identifier; otherwise, ask at the value node. This makes sure
+          // highlighting `generateMetadata` itself also shows the inferred type.
+          const typeTarget = isPositionInsideNode(position, name) ? name : value
+          const type = typeChecker.getTypeAtLocation(typeTarget)
+          if (type) {
+            const typeString = typeChecker.typeToString(type, typeTarget)
+            if (typeString) {
+              displayParts = [
+                {
+                  text: typeString,
+                  kind: 'typeName',
+                },
+              ]
+            }
+          }
+        } catch {
+          // If type checking fails, continue without type info.
+        }
+      }
+
+      // For non-function values (like literals), hovering the value should show
+      // option-specific docs. For function-valued configs (e.g. `generateMetadata`),
+      // we let TypeScript handle hover anywhere in the initializer except for the
+      // export identifier itself.
+      if (value && !isFunctionValue && isPositionInsideNode(position, value)) {
+        // Hovering the value of the config
         const text = removeStringQuotes(value.getText())
         const key = isString ? `"${text}"` : text
 
@@ -339,7 +380,8 @@ const config = {
             ],
           }
         } else {
-          // Wrong value, display the docs link
+          // Wrong value: still show the docs link, and when available, the
+          // inferred type for non-literal (i.e. non-direct) exports.
           overridden = {
             kind: ts.ScriptElementKind.enumElement,
             kindModifiers: ts.ScriptElementKindModifier.none,
@@ -347,11 +389,23 @@ const config = {
               start: value.getStart(),
               length: value.getWidth(),
             },
-            displayParts: [],
+            displayParts,
             documentation: [docsLink],
           }
         }
       } else {
+        // For function-valued configs, if we're hovering anywhere within the
+        // initializer (including `async`, parameters, or the body) but not on
+        // the export identifier itself, don't override TypeScript's default
+        // hover. We only want to override when hovering the config identifier
+        // (e.g. `generateMetadata`), not arbitrary tokens within the function.
+        if (
+          isFunctionValue &&
+          isPositionInsideNode(position, value) && // hover is somewhere within the function initializer
+          !isPositionInsideNode(position, name) // ...but not on the export identifier itself
+        ) {
+          return
+        }
         // Hovers the name of the config
         overridden = {
           kind: ts.ScriptElementKind.enumElement,
@@ -360,7 +414,7 @@ const config = {
             start: name.getStart(),
             length: name.getWidth(),
           },
-          displayParts: [],
+          displayParts,
           documentation: [
             {
               kind: 'text',

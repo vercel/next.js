@@ -3,8 +3,9 @@ import { rules } from '@next/eslint-plugin-next'
 
 const NextESLintRule = rules['next-script-for-ga']
 
-const ERROR_MSG =
-  'Prefer `next/script` component when using the inline script for Google Analytics. See: https://nextjs.org/docs/messages/next-script-for-ga'
+const url = 'https://nextjs.org/docs/messages/next-script-for-ga'
+const ERROR_MSG_GOOGLE_ANALYTICS = `Prefer \`GoogleAnalytics\` component from \`@next/third-parties/google\` when using the inline script for Google Analytics. See: ${url}`
+const ERROR_MSG_GOOGLE_TAG_MANAGER = `Prefer \`GoogleTagManager\` component from \`@next/third-parties/google\` when using the inline script for Google Tag Manager. See: ${url}`
 
 const tests = {
   valid: [
@@ -108,36 +109,7 @@ const tests = {
       }`,
       errors: [
         {
-          message: ERROR_MSG,
-          type: 'JSXOpeningElement',
-        },
-      ],
-    },
-    {
-      code: `
-        export class Blah extends Head {
-          render() {
-            return (
-              <div>
-                <h1>Hello title</h1> qqq
-                {/* Google Tag Manager - Global base code */}
-                <script
-                dangerouslySetInnerHTML={{
-                  __html: \`
-                    (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-                    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-                    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-                    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-                    })(window,document,'script','dataLayer', '\${GTM_ID}');
-                  \`,
-                }}/>
-              </div>
-            );
-          }
-      }`,
-      errors: [
-        {
-          message: ERROR_MSG,
+          message: ERROR_MSG_GOOGLE_TAG_MANAGER,
           type: 'JSXOpeningElement',
         },
       ],
@@ -166,7 +138,7 @@ const tests = {
       }`,
       errors: [
         {
-          message: ERROR_MSG,
+          message: ERROR_MSG_GOOGLE_ANALYTICS,
           type: 'JSXOpeningElement',
         },
       ],
@@ -192,7 +164,7 @@ const tests = {
       }`,
       errors: [
         {
-          message: ERROR_MSG,
+          message: ERROR_MSG_GOOGLE_ANALYTICS,
           type: 'JSXOpeningElement',
         },
       ],
@@ -222,7 +194,7 @@ const tests = {
       }`,
       errors: [
         {
-          message: ERROR_MSG,
+          message: ERROR_MSG_GOOGLE_ANALYTICS,
           type: 'JSXOpeningElement',
         },
       ],
