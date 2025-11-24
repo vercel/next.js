@@ -265,13 +265,17 @@ impl CachedExternalModule {
     }
 }
 
+/// A separate turbotask to create only a single VirtualFileSystem
+#[turbo_tasks::function]
+fn externals_fs_root() -> Vc<FileSystemPath> {
+    VirtualFileSystem::new_with_name(rcstr!("externals")).root()
+}
+
 #[turbo_tasks::value_impl]
 impl Module for CachedExternalModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let fs = VirtualFileSystem::new_with_name(rcstr!("externals"));
-
-        let mut ident = AssetIdent::from_path(fs.root().await?.join(&self.request)?)
+        let mut ident = AssetIdent::from_path(externals_fs_root().await?.join(&self.request)?)
             .with_layer(Layer::new(rcstr!("external")))
             .with_modifier(self.request.clone())
             .with_modifier(self.external_type.to_string().into());
