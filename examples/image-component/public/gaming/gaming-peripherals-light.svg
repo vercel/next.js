@@ -1,0 +1,82 @@
+<svg width="1000" height="700" viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg">
+  <!-- Light theme gaming peripherals -->
+  <defs>
+    <linearGradient id="lightPeripheralBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fafafa;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e4e4e7;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1000" height="700" fill="url(#lightPeripheralBg)"/>
+  
+  <!-- Mechanical Keyboard -->
+  <rect x="100" y="300" width="400" height="120" fill="#374151" rx="15"/>
+  <rect x="110" y="310" width="380" height="100" fill="#4b5563" rx="10"/>
+  
+  <!-- Key layout -->
+  <rect x="130" y="330" width="25" height="25" fill="#6b7280" rx="3"/>
+  <rect x="160" y="330" width="25" height="25" fill="#6b7280" rx="3"/>
+  <rect x="190" y="330" width="25" height="25" fill="#6b7280" rx="3"/>
+  <rect x="220" y="330" width="25" height="25" fill="#6b7280" rx="3"/>
+  <rect x="250" y="330" width="25" height="25" fill="#6b7280" rx="3"/>
+  
+  <!-- Gaming keys highlighted -->
+  <rect x="130" y="365" width="25" height="25" fill="#3b82f6" rx="3"/>
+  <rect x="160" y="365" width="25" height="25" fill="#10b981" rx="3"/>
+  <rect x="190" y="365" width="25" height="25" fill="#f59e0b" rx="3"/>
+  <rect x="220" y="365" width="25" height="25" fill="#ef4444" rx="3"/>
+  
+  <!-- Gaming Mouse -->
+  <ellipse cx="700" cy="350" rx="60" ry="80" fill="#1f2937"/>
+  <ellipse cx="700" cy="350" rx="45" ry="65" fill="#374151"/>
+  <ellipse cx="700" cy="330" rx="30" ry="25" fill="#4b5563"/>
+  
+  <!-- Mouse buttons -->
+  <ellipse cx="690" cy="320" rx="12" ry="15" fill="#6b7280"/>
+  <ellipse cx="710" cy="320" rx="12" ry="15" fill="#6b7280"/>
+  
+  <!-- Gaming Headset -->
+  <ellipse cx="300" cy="150" rx="80" ry="60" fill="#1f2937"/>
+  <rect x="220" y="140" width="160" height="20" fill="#374151" rx="10"/>
+  
+  <!-- Headset details -->
+  <circle cx="250" cy="150" r="30" fill="#4b5563"/>
+  <circle cx="350" cy="150" r="30" fill="#4b5563"/>
+  <circle cx="250" cy="150" r="20" fill="#6b7280"/>
+  <circle cx="350" cy="150" r="20" fill="#6b7280"/>
+  
+  <!-- Microphone -->
+  <line x1="220" y1="150" x2="180" y2="170" stroke="#374151" stroke-width="5"/>
+  <circle cx="175" cy="175" r="8" fill="#6b7280"/>
+  
+  <!-- Gaming Controller -->
+  <ellipse cx="700" cy="550" rx="80" ry="40" fill="#374151"/>
+  <ellipse cx="700" cy="550" rx="65" ry="30" fill="#4b5563"/>
+  
+  <!-- Controller buttons -->
+  <circle cx="750" cy="540" r="8" fill="#3b82f6"/>
+  <circle cx="770" cy="550" r="8" fill="#10b981"/>
+  <circle cx="750" cy="560" r="8" fill="#f59e0b"/>
+  <circle cx="730" cy="550" r="8" fill="#ef4444"/>
+  
+  <!-- D-pad -->
+  <rect x="645" y="545" width="20" height="6" fill="#6b7280" rx="3"/>
+  <rect x="652" y="538" width="6" height="20" fill="#6b7280" rx="3"/>
+  
+  <!-- Monitor/Display -->
+  <rect x="200" y="450" width="300" height="200" fill="#1f2937" rx="15"/>
+  <rect x="215" y="465" width="270" height="170" fill="#3b82f6" rx="10"/>
+  
+  <!-- Monitor content -->
+  <text x="350" y="530" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#ffffff">4K 144Hz</text>
+  <text x="350" y="560" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#f1f5f9">Gaming Display</text>
+  
+  <!-- Title and branding -->
+  <text x="500" y="60" font-family="Arial, sans-serif" font-size="32" font-weight="bold" text-anchor="middle" fill="#1f2937">PREMIUM GAMING GEAR</text>
+  <text x="500" y="680" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#6b7280">Professional Gaming Peripherals - Light Theme</text>
+  
+  <!-- Connection lines -->
+  <line x1="300" y1="200" x2="350" y2="250" stroke="#9ca3af" stroke-width="2" stroke-dasharray="5,5"/>
+  <line x1="500" y1="350" x2="580" y2="350" stroke="#9ca3af" stroke-width="2" stroke-dasharray="5,5"/>
+</svg>

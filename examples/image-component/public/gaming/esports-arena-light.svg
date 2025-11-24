@@ -1,0 +1,67 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+  <!-- Light theme esports arena -->
+  <defs>
+    <linearGradient id="lightArenaBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f1f5f9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#cbd5e1;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="stageLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ddd6fe;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a78bfa;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="800" fill="url(#lightArenaBg)"/>
+  
+  <!-- Stage platform -->
+  <rect x="200" y="500" width="800" height="200" fill="url(#stageLight)" rx="20"/>
+  
+  <!-- Gaming stations -->
+  <g id="station1">
+    <rect x="250" y="450" width="120" height="80" fill="#4f46e5" rx="10"/>
+    <rect x="260" y="460" width="100" height="60" fill="#6366f1" rx="5"/>
+    <circle cx="310" cy="490" r="15" fill="#10b981"/>
+  </g>
+  
+  <g id="station2">
+    <rect x="420" y="450" width="120" height="80" fill="#4f46e5" rx="10"/>
+    <rect x="430" y="460" width="100" height="60" fill="#6366f1" rx="5"/>
+    <circle cx="480" cy="490" r="15" fill="#10b981"/>
+  </g>
+  
+  <g id="station3">
+    <rect x="590" y="450" width="120" height="80" fill="#4f46e5" rx="10"/>
+    <rect x="600" y="460" width="100" height="60" fill="#6366f1" rx="5"/>
+    <circle cx="650" cy="490" r="15" fill="#10b981"/>
+  </g>
+  
+  <g id="station4">
+    <rect x="760" y="450" width="120" height="80" fill="#4f46e5" rx="10"/>
+    <rect x="770" y="460" width="100" height="60" fill="#6366f1" rx="5"/>
+    <circle cx="820" cy="490" r="15" fill="#10b981"/>
+  </g>
+  
+  <!-- Large display screen -->
+  <rect x="400" y="200" width="400" height="225" fill="#1e293b" rx="15"/>
+  <rect x="420" y="220" width="360" height="185" fill="#3b82f6" rx="10"/>
+  
+  <!-- Screen content -->
+  <text x="600" y="280" font-family="Arial, sans-serif" font-size="32" font-weight="bold" text-anchor="middle" fill="#ffffff">CHAMPIONSHIP</text>
+  <text x="600" y="320" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#f1f5f9">FINALS</text>
+  <rect x="500" y="340" width="200" height="40" fill="#10b981" rx="20"/>
+  <text x="600" y="365" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#ffffff">LIVE</text>
+  
+  <!-- Audience seating -->
+  <rect x="50" y="300" width="100" height="150" fill="#64748b" rx="10"/>
+  <rect x="1050" y="300" width="100" height="150" fill="#64748b" rx="10"/>
+  
+  <!-- Lighting effects -->
+  <circle cx="300" cy="150" r="40" fill="#fbbf24" opacity="0.6"/>
+  <circle cx="600" cy="100" r="50" fill="#fbbf24" opacity="0.7"/>
+  <circle cx="900" cy="150" r="40" fill="#fbbf24" opacity="0.6"/>
+  
+  <!-- Professional branding -->
+  <text x="600" y="60" font-family="Arial, sans-serif" font-size="36" font-weight="bold" text-anchor="middle" fill="#1e293b">ELITE ESPORTS ARENA</text>
+  <text x="600" y="750" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#475569">Professional Gaming Tournament Venue - Light Mode</text>
+</svg>

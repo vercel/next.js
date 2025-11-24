@@ -166,10 +166,9 @@ export function formatIssue(issue: Issue) {
     }
   }
 
-  // TODO: make it possible to enable this for debugging, but not in tests.
-  // if (detail) {
-  //   message += renderStyledStringToErrorAnsi(detail) + '\n\n'
-  // }
+  if (issue.detail) {
+    message += renderStyledStringToErrorAnsi(issue.detail) + '\n\n'
+  }
 
   if (importTraces?.length) {
     // This is the same logic as in turbopack/crates/turbopack-cli-utils/src/issue.rs

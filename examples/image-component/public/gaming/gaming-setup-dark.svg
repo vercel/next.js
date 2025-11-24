@@ -1,0 +1,81 @@
+<svg width="800" height="600" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dark theme gaming setup -->
+  <defs>
+    <linearGradient id="darkBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e293b;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="screenGlowDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:0.9" />
+      <stop offset="100%" style="stop-color:#0891b2;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="800" height="600" fill="url(#darkBg)"/>
+  
+  <!-- Ambient lighting -->
+  <circle cx="150" cy="200" r="100" fill="#7c3aed" opacity="0.2"/>
+  <circle cx="650" cy="300" r="120" fill="#06b6d4" opacity="0.15"/>
+  
+  <!-- Desk -->
+  <rect x="50" y="400" width="700" height="150" fill="#4c1d95" rx="10"/>
+  
+  <!-- Monitor with enhanced glow -->
+  <rect x="200" y="150" width="400" height="280" fill="#111827" rx="15"/>
+  <rect x="220" y="170" width="360" height="240" fill="url(#screenGlowDark)" rx="5" filter="url(#glow)"/>
+  
+  <!-- Gaming elements on screen - more vibrant -->
+  <circle cx="300" cy="250" r="30" fill="#00ff88" opacity="0.9"/>
+  <rect x="450" y="220" width="80" height="60" fill="#ffaa00" opacity="0.8" rx="5"/>
+  <polygon points="320,300 350,330 290,330" fill="#ff2266" opacity="0.9"/>
+  
+  <!-- HUD elements -->
+  <rect x="230" y="180" width="60" height="8" fill="#00ff88" opacity="0.7"/>
+  <rect x="230" y="195" width="80" height="8" fill="#ffaa00" opacity="0.7"/>
+  <rect x="490" y="380" width="80" height="20" fill="#ff2266" opacity="0.6" rx="10"/>
+  
+  <!-- Monitor stand -->
+  <rect x="380" y="430" width="40" height="50" fill="#1f2937"/>
+  <rect x="350" y="470" width="100" height="20" fill="#1f2937" rx="10"/>
+  
+  <!-- Mechanical keyboard with RGB -->
+  <rect x="150" y="480" width="300" height="80" fill="#111827" rx="8"/>
+  <rect x="160" y="490" width="280" height="60" fill="#1f2937" rx="5"/>
+  
+  <!-- RGB key lighting -->
+  <rect x="180" y="510" width="15" height="15" fill="#ff0080" rx="2" filter="url(#glow)"/>
+  <rect x="200" y="510" width="15" height="15" fill="#00ff80" rx="2" filter="url(#glow)"/>
+  <rect x="220" y="510" width="15" height="15" fill="#8000ff" rx="2" filter="url(#glow)"/>
+  <rect x="240" y="510" width="15" height="15" fill="#0080ff" rx="2" filter="url(#glow)"/>
+  
+  <!-- Additional key rows with different colors -->
+  <rect x="180" y="530" width="15" height="15" fill="#ff8000" rx="2" opacity="0.8"/>
+  <rect x="200" y="530" width="15" height="15" fill="#80ff00" rx="2" opacity="0.8"/>
+  <rect x="220" y="530" width="15" height="15" fill="#ff0040" rx="2" opacity="0.8"/>
+  
+  <!-- Gaming mouse with RGB -->
+  <ellipse cx="500" cy="520" rx="40" ry="60" fill="#111827"/>
+  <ellipse cx="500" cy="520" rx="30" ry="50" fill="#1f2937"/>
+  <circle cx="500" cy="500" r="8" fill="#00ff80" opacity="0.8"/>
+  
+  <!-- Enhanced RGB lighting effects -->
+  <circle cx="100" cy="500" r="35" fill="#ff0080" opacity="0.4" filter="url(#glow)"/>
+  <circle cx="680" cy="500" r="35" fill="#00ff80" opacity="0.4" filter="url(#glow)"/>
+  <circle cx="400" cy="80" r="40" fill="#8000ff" opacity="0.3" filter="url(#glow)"/>
+  
+  <!-- LED strips -->
+  <rect x="0" y="550" width="800" height="5" fill="#ff0080" opacity="0.6"/>
+  <rect x="0" y="560" width="800" height="5" fill="#00ff80" opacity="0.6"/>
+  
+  <!-- Title -->
+  <text x="400" y="50" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#f8fafc">ELITE GAMING BATTLESTATION</text>
+  <text x="400" y="580" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#94a3b8">Professional Esports Setup - Dark Theme</text>
+</svg>

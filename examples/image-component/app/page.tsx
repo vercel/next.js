@@ -54,6 +54,9 @@ const Index = () => (
           <Link href="/theme">Light/Dark mode theme detection</Link>
         </li>
         <li>
+          <Link href="/gaming">Premium gaming images with themes</Link>
+        </li>
+        <li>
           <Link href="/background">Text on background image</Link>
         </li>
       </ul>

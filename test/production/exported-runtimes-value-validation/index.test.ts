@@ -74,12 +74,11 @@ describe('Exported runtimes value validation', () => {
           "Next.js can't recognize the exported `config` field in route"
         )
       )
-      // TODO: Turbopack has this information in issue.detail but it's not logged to the user.
-      // expect(result.stderr).toEqual(
-      //   expect.stringContaining(
-      //     'Unsupported template literal with expressions at "config.runtime".'
-      //   )
-      // )
+      expect(result.stderr).toEqual(
+        expect.stringContaining(
+          'Unsupported template literal with expressions at "config.runtime".'
+        )
+      )
     } else {
       expect(result.stderr).toEqual(
         expect.stringContaining(
@@ -100,12 +99,11 @@ describe('Exported runtimes value validation', () => {
           "Next.js can't recognize the exported `config` field in route"
         )
       )
-      // TODO: Turbopack has this information in issue.detail but it's not logged to the user.
-      // expect(result.stderr).toEqual(
-      //   expect.stringContaining(
-      //     'Unsupported node type "BinaryExpression" at "config.runtime"'
-      //   )
-      // )
+      expect(result.stderr).toEqual(
+        expect.stringContaining(
+          'Unsupported node type "BinaryExpression" at "config.runtime"'
+        )
+      )
     } else {
       expect(result.stderr).toEqual(
         expect.stringContaining(
@@ -126,12 +124,11 @@ describe('Exported runtimes value validation', () => {
           "Next.js can't recognize the exported `config` field in route"
         )
       )
-      // TODO: Turbopack has this information in issue.detail but it's not logged to the user.
-      // expect(result.stderr).toEqual(
-      //   expect.stringContaining(
-      //     'Unsupported spread operator in the Object Expression at "config.runtime"'
-      //   )
-      // )
+      expect(result.stderr).toEqual(
+        expect.stringContaining(
+          'Unsupported spread operator in the Object Expression at "config.runtime"'
+        )
+      )
     } else {
       expect(result.stderr).toEqual(
         expect.stringContaining(
@@ -152,12 +149,11 @@ describe('Exported runtimes value validation', () => {
           "Next.js can't recognize the exported `config` field in route"
         )
       )
-      // TODO: Turbopack has this information in issue.detail but it's not logged to the user.
-      // expect(result.stderr).toEqual(
-      //   expect.stringContaining(
-      //     'Unsupported spread operator in the Array Expression at "config.runtime"'
-      //   )
-      // )
+      expect(result.stderr).toEqual(
+        expect.stringContaining(
+          'Unsupported spread operator in the Array Expression at "config.runtime"'
+        )
+      )
     } else {
       expect(result.stderr).toEqual(
         expect.stringContaining(
@@ -182,12 +178,11 @@ describe('Exported runtimes value validation', () => {
           "Next.js can't recognize the exported `config` field in route"
         )
       )
-      // TODO: Turbopack has this information in issue.detail but it's not logged to the user.
-      // expect(result.stderr).toEqual(
-      //   expect.stringContaining(
-      //     'Unknown identifier "runtime" at "config.runtime".'
-      //   )
-      // )
+      expect(result.stderr).toEqual(
+        expect.stringContaining(
+          'Unknown identifier "runtime" at "config.runtime".'
+        )
+      )
     } else {
       expect(result.stderr).toEqual(
         expect.stringContaining(
@@ -208,12 +203,11 @@ describe('Exported runtimes value validation', () => {
           "Next.js can't recognize the exported `config` field in route"
         )
       )
-      // TODO: Turbopack has this information in issue.detail but it's not logged to the user.
-      // expect(result.stderr).toEqual(
-      //   expect.stringContaining(
-      //     'Unsupported node type "CallExpression" at "config.runtime"'
-      //   )
-      // )
+      expect(result.stderr).toEqual(
+        expect.stringContaining(
+          'Unsupported node type "CallExpression" at "config.runtime"'
+        )
+      )
     } else {
       expect(result.stderr).toEqual(
         expect.stringContaining(
@@ -234,12 +228,11 @@ describe('Exported runtimes value validation', () => {
           "Next.js can't recognize the exported `config` field in route"
         )
       )
-      // TODO: Turbopack has this information in issue.detail but it's not logged to the user.
-      // expect(result.stderr).toEqual(
-      //   expect.stringContaining(
-      //     'Unsupported key type "Computed" in the Object Expression at "config.runtime"'
-      //   )
-      // )
+      expect(result.stderr).toEqual(
+        expect.stringContaining(
+          'Unsupported key type "Computed" in the Object Expression at "config.runtime"'
+        )
+      )
     } else {
       expect(result.stderr).toEqual(
         expect.stringContaining(

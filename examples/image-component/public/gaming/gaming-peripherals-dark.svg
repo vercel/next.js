@@ -1,0 +1,132 @@
+<svg width="1000" height="700" viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dark theme gaming peripherals -->
+  <defs>
+    <linearGradient id="darkPeripheralBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0c0a09;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1c1917;stop-opacity:1" />
+    </linearGradient>
+    <filter id="rgbGlow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1000" height="700" fill="url(#darkPeripheralBg)"/>
+  
+  <!-- RGB ambient lighting -->
+  <circle cx="200" cy="200" r="100" fill="#ff0080" opacity="0.15"/>
+  <circle cx="800" cy="500" r="120" fill="#00ff80" opacity="0.12"/>
+  <circle cx="600" cy="100" r="80" fill="#8000ff" opacity="0.18"/>
+  
+  <!-- Mechanical Keyboard with RGB -->
+  <rect x="100" y="300" width="400" height="120" fill="#0a0a0a" rx="15"/>
+  <rect x="110" y="310" width="380" height="100" fill="#1a1a1a" rx="10"/>
+  
+  <!-- RGB underglow -->
+  <rect x="100" y="415" width="400" height="8" fill="#ff0080" opacity="0.6" rx="4" filter="url(#rgbGlow)"/>
+  
+  <!-- Key layout with RGB -->
+  <rect x="130" y="330" width="25" height="25" fill="#2a2a2a" rx="3"/>
+  <rect x="160" y="330" width="25" height="25" fill="#2a2a2a" rx="3"/>
+  <rect x="190" y="330" width="25" height="25" fill="#2a2a2a" rx="3"/>
+  <rect x="220" y="330" width="25" height="25" fill="#2a2a2a" rx="3"/>
+  <rect x="250" y="330" width="25" height="25" fill="#2a2a2a" rx="3"/>
+  
+  <!-- Gaming keys with RGB lighting -->
+  <rect x="130" y="365" width="25" height="25" fill="#ff0080" rx="3" filter="url(#rgbGlow)"/>
+  <rect x="160" y="365" width="25" height="25" fill="#00ff80" rx="3" filter="url(#rgbGlow)"/>
+  <rect x="190" y="365" width="25" height="25" fill="#8000ff" rx="3" filter="url(#rgbGlow)"/>
+  <rect x="220" y="365" width="25" height="25" fill="#0080ff" rx="3" filter="url(#rgbGlow)"/>
+  
+  <!-- Additional RGB key rows -->
+  <rect x="280" y="330" width="25" height="25" fill="#ff8000" rx="3" opacity="0.8"/>
+  <rect x="310" y="330" width="25" height="25" fill="#80ff00" rx="3" opacity="0.8"/>
+  <rect x="340" y="330" width="25" height="25" fill="#ff0040" rx="3" opacity="0.8"/>
+  
+  <!-- Gaming Mouse with RGB -->
+  <ellipse cx="700" cy="350" rx="60" ry="80" fill="#0a0a0a"/>
+  <ellipse cx="700" cy="350" rx="45" ry="65" fill="#1a1a1a"/>
+  <ellipse cx="700" cy="330" rx="30" ry="25" fill="#2a2a2a"/>
+  
+  <!-- RGB mouse lighting -->
+  <ellipse cx="700" cy="350" rx="70" ry="90" fill="none" stroke="#00ff80" stroke-width="2" opacity="0.6" filter="url(#rgbGlow)"/>
+  
+  <!-- Mouse buttons with RGB -->
+  <ellipse cx="690" cy="320" rx="12" ry="15" fill="#3a3a3a"/>
+  <ellipse cx="710" cy="320" rx="12" ry="15" fill="#3a3a3a"/>
+  
+  <!-- DPI indicator lights -->
+  <circle cx="700" cy="380" r="3" fill="#00ff80" filter="url(#rgbGlow)"/>
+  <circle cx="700" cy="390" r="3" fill="#ff0080" filter="url(#rgbGlow)"/>
+  <circle cx="700" cy="400" r="3" fill="#8000ff" filter="url(#rgbGlow)"/>
+  
+  <!-- Gaming Headset with RGB -->
+  <ellipse cx="300" cy="150" rx="80" ry="60" fill="#0a0a0a"/>
+  <rect x="220" y="140" width="160" height="20" fill="#1a1a1a" rx="10"/>
+  
+  <!-- RGB headband lighting -->
+  <rect x="220" y="135" width="160" height="5" fill="#ff0080" opacity="0.7" rx="3" filter="url(#rgbGlow)"/>
+  
+  <!-- Headset details with RGB -->
+  <circle cx="250" cy="150" r="30" fill="#1a1a1a"/>
+  <circle cx="350" cy="150" r="30" fill="#1a1a1a"/>
+  <circle cx="250" cy="150" r="20" fill="#2a2a2a"/>
+  <circle cx="350" cy="150" r="20" fill="#2a2a2a"/>
+  
+  <!-- RGB ear cup lighting -->
+  <circle cx="250" cy="150" r="35" fill="none" stroke="#00ff80" stroke-width="2" opacity="0.5" filter="url(#rgbGlow)"/>
+  <circle cx="350" cy="150" r="35" fill="none" stroke="#ff0080" stroke-width="2" opacity="0.5" filter="url(#rgbGlow)"/>
+  
+  <!-- Microphone with RGB -->
+  <line x1="220" y1="150" x2="180" y2="170" stroke="#1a1a1a" stroke-width="5"/>
+  <circle cx="175" cy="175" r="8" fill="#00ff80" filter="url(#rgbGlow)"/>
+  
+  <!-- Gaming Controller with RGB -->
+  <ellipse cx="700" cy="550" rx="80" ry="40" fill="#0a0a0a"/>
+  <ellipse cx="700" cy="550" rx="65" ry="30" fill="#1a1a1a"/>
+  
+  <!-- RGB controller lighting -->
+  <ellipse cx="700" cy="550" rx="90" ry="50" fill="none" stroke="#8000ff" stroke-width="2" opacity="0.4" filter="url(#rgbGlow)"/>
+  
+  <!-- Controller buttons with RGB -->
+  <circle cx="750" cy="540" r="8" fill="#0080ff" filter="url(#rgbGlow)"/>
+  <circle cx="770" cy="550" r="8" fill="#00ff80" filter="url(#rgbGlow)"/>
+  <circle cx="750" cy="560" r="8" fill="#ff8000" filter="url(#rgbGlow)"/>
+  <circle cx="730" cy="550" r="8" fill="#ff0080" filter="url(#rgbGlow)"/>
+  
+  <!-- D-pad with RGB -->
+  <rect x="645" y="545" width="20" height="6" fill="#3a3a3a" rx="3"/>
+  <rect x="652" y="538" width="6" height="20" fill="#3a3a3a" rx="3"/>
+  <rect x="645" y="545" width="20" height="6" fill="#00ff80" rx="3" opacity="0.6"/>
+  
+  <!-- Monitor/Display with enhanced features -->
+  <rect x="200" y="450" width="300" height="200" fill="#0a0a0a" rx="15"/>
+  <rect x="215" y="465" width="270" height="170" fill="#0891b2" rx="10" filter="url(#rgbGlow)"/>
+  
+  <!-- Monitor RGB lighting -->
+  <rect x="195" y="445" width="310" height="10" fill="#ff0080" opacity="0.5" rx="5" filter="url(#rgbGlow)"/>
+  <rect x="195" y="650" width="310" height="10" fill="#00ff80" opacity="0.5" rx="5" filter="url(#rgbGlow)"/>
+  
+  <!-- Monitor content -->
+  <text x="350" y="520" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#ffffff">4K 240Hz</text>
+  <text x="350" y="550" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#f1f5f9">OLED Gaming</text>
+  <text x="350" y="580" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#94a3b8">HDR • G-SYNC</text>
+  
+  <!-- Title and branding with glow -->
+  <text x="500" y="60" font-family="Arial, sans-serif" font-size="32" font-weight="bold" text-anchor="middle" fill="#ffffff" filter="url(#rgbGlow)">ELITE GAMING ARSENAL</text>
+  <text x="500" y="680" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#94a3b8">RGB Gaming Peripherals - Dark Mode</text>
+  
+  <!-- Connection lines with RGB effects -->
+  <line x1="300" y1="200" x2="350" y2="250" stroke="#00ff80" stroke-width="2" stroke-dasharray="5,5" opacity="0.7"/>
+  <line x1="500" y1="350" x2="580" y2="350" stroke="#ff0080" stroke-width="2" stroke-dasharray="5,5" opacity="0.7"/>
+  
+  <!-- Additional RGB accent elements -->
+  <rect x="0" y="340" width="100" height="3" fill="#ff0080" opacity="0.6"/>
+  <rect x="900" y="340" width="100" height="3" fill="#00ff80" opacity="0.6"/>
+  <rect x="0" y="360" width="100" height="3" fill="#8000ff" opacity="0.6"/>
+  <rect x="900" y="360" width="100" height="3" fill="#0080ff" opacity="0.6"/>
+</svg>
