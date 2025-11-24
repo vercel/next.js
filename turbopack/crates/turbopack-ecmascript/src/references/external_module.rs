@@ -1,10 +1,13 @@
 use std::{borrow::Cow, fmt::Display, io::Write};
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{FileContent, FileSystem, FileSystemPath, LinkType, VirtualFileSystem, glob::Glob, rope::RopeBuilder};
+use turbo_tasks_fs::{
+    FileContent, FileSystem, FileSystemPath, LinkType, VirtualFileSystem, glob::Glob,
+    rope::RopeBuilder,
+};
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -597,27 +600,21 @@ impl Asset for ExternalsSymlinkAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = self.await?;
-        // context.root [project]/
-        // context.output [output]/bench/app-router-server/.next
-        // context.output_root_to_root_path ../../..
+        // path: [output]/bench/app-router-server/.next/node_modules/lodash-ee4fa714b6d81ca3
+        // target: [project]/node_modules/.pnpm/lodash@3.10.1/node_modules/lodash
 
-        // path [output]/bench/app-router-server/.next/node_modules/lodash-ee4fa714b6d81ca3
-        // target [project]/node_modules/.pnpm/lodash@3.10.1/node_modules/lodash
+        let output_root_to_project_root = this.chunking_context.output_root_to_root_path().await?;
+        let project_root_to_target = &this.target.path;
 
-        // TODO figure this out properly, what if output and project FSs have different roots?
-        let path_on_project_fs = this.target.root().await?.join(&self.path().await?.path)?;
-        let Some(target_rel) = path_on_project_fs
-            .parent()
-            .get_relative_path_to(&this.target)
-        else {
-            bail!(
-                "cannot determine relative path to {}",
-                this.target.value_to_string().await?
-            );
-        };
+        // `..` to account for the `node_modules` folder
+        let target = format!(
+            "../{}/{}",
+            output_root_to_project_root, project_root_to_target
+        )
+        .into();
 
         Ok(AssetContent::Redirect {
-            target: target_rel,
+            target,
             link_type: LinkType::DIRECTORY,
         }
         .cell())
