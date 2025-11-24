@@ -8,7 +8,7 @@ use turbo_tasks_fs::{
     FileContent, FileSystem, FileSystemPath, LinkType, VirtualFileSystem, glob::Glob,
     rope::RopeBuilder,
 };
-use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
+use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
@@ -96,39 +96,36 @@ pub struct CachedExternalModule {
     analyze_mode: CachedExternalTracingMode,
 }
 
-impl CachedExternalModule {
-    pub fn virtual_package(&self) -> Option<String> {
-        if let Some(target) = &self.target {
-            use turbo_tasks_hash::DeterministicHash;
-            let mut hasher = Xxh3Hash64Hasher::new();
-            target.path.deterministic_hash(&mut hasher);
-            let hash = encode_hex(hasher.finish());
+fn virtual_package_name(folder: &FileSystemPath) -> String {
+    let hash = encode_hex(hash_xxh3_hash64(&folder.path));
 
-            let parent = target.parent();
-            let parent_filename = parent.file_name();
-            let pkg = target.file_name();
-            if parent_filename.starts_with('@') {
-                Some(format!("{}/{}-{}", parent_filename, pkg, hash))
-            } else {
-                Some(format!("{}-{}", pkg, hash))
-            }
-        } else {
-            None
-        }
+    let parent = folder.parent();
+    let parent = parent.file_name();
+    let pkg = folder.file_name();
+    if parent.starts_with('@') {
+        format!("{parent}/{pkg}-{hash}")
+    } else {
+        format!("{pkg}-{hash}")
     }
+}
 
+impl CachedExternalModule {
     pub fn request(&self) -> Cow<'_, str> {
-        if let Some(virtual_package) = self.virtual_package() {
+        if let Some(target) = &self.target {
+            let virtual_package = virtual_package_name(target);
+
             let request = if self.request.starts_with('@') {
-                // Split off org
+                // Potentially strip off `@org/...`
                 self.request.split_once('/').unwrap().1
             } else {
                 &*self.request
             };
 
             if let Some((_, subpath)) = request.split_once('/') {
-                Cow::Owned(format!("{}/{}", virtual_package, subpath))
+                // `pkg/subpath` case
+                Cow::Owned(format!("{virtual_package}/{subpath}"))
             } else {
+                // `pkg` case
                 Cow::Owned(virtual_package)
             }
         } else {
@@ -445,11 +442,11 @@ impl OutputAssetsReference for CachedExternalModuleChunkItem {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
         let module = self.module.await?;
-        let assets = if let Some(virtual_package) = module.virtual_package() {
+        let assets = if let Some(target) = &module.target {
             ResolvedVc::cell(vec![ResolvedVc::upcast(
                 ExternalsSymlinkAsset::new(
                     *self.chunking_context,
-                    virtual_package.into(),
+                    virtual_package_name(target).into(),
                     module.target.clone().unwrap(),
                 )
                 .to_resolved()
@@ -611,11 +608,7 @@ impl Asset for ExternalsSymlinkAsset {
         let project_root_to_target = &this.target.path;
 
         // `..` to account for the `node_modules` folder
-        let target = format!(
-            "../{}/{}",
-            output_root_to_project_root, project_root_to_target
-        )
-        .into();
+        let target = format!("../{output_root_to_project_root}/{project_root_to_target}",).into();
 
         Ok(AssetContent::Redirect {
             target,
