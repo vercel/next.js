@@ -1,19 +1,21 @@
-import { DynamicParamTypes, DynamicParamTypesShort } from './types'
+import type {
+  DynamicParamTypes,
+  DynamicParamTypesShort,
+} from '../../shared/lib/app-router-types'
 
-/**
- * Shorten the dynamic param in order to make it smaller when transmitted to the browser.
- */
-export function getShortDynamicParamType(
-  type: DynamicParamTypes
-): DynamicParamTypesShort {
-  switch (type) {
-    case 'catchall':
-      return 'c'
-    case 'optional-catchall':
-      return 'oc'
-    case 'dynamic':
-      return 'd'
-    default:
-      throw new Error('Unknown dynamic param type')
-  }
+export const dynamicParamTypes: Record<
+  DynamicParamTypes,
+  DynamicParamTypesShort
+> = {
+  catchall: 'c',
+  'catchall-intercepted-(..)(..)': 'ci(..)(..)',
+  'catchall-intercepted-(.)': 'ci(.)',
+  'catchall-intercepted-(..)': 'ci(..)',
+  'catchall-intercepted-(...)': 'ci(...)',
+  'optional-catchall': 'oc',
+  dynamic: 'd',
+  'dynamic-intercepted-(..)(..)': 'di(..)(..)',
+  'dynamic-intercepted-(.)': 'di(.)',
+  'dynamic-intercepted-(..)': 'di(..)',
+  'dynamic-intercepted-(...)': 'di(...)',
 }

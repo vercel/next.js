@@ -1,10 +1,8 @@
 import React from 'react'
 import { draftMode } from 'next/headers'
 
-export const runtime = 'experimental-edge'
-
-export default function Page() {
-  const { isEnabled } = draftMode()
+export default async function Page() {
+  const { isEnabled } = await draftMode()
 
   return (
     <>

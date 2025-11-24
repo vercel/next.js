@@ -1,3 +1,5 @@
+import { Button } from './button'
+
 export default async function Page() {
   console.log('rendering index')
 
@@ -7,9 +9,10 @@ export default async function Page() {
 
   return (
     <>
-      <p id="page">/variable-revalidate/revalidate-360</p>
+      <p id="page">/</p>
       <p id="page-data">{data}</p>
       <p id="now">{Date.now()}</p>
+      <Button />
     </>
   )
 }

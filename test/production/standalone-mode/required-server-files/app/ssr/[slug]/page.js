@@ -6,6 +6,7 @@ export default async function Page({ params }) {
     {
       next: {
         tags: ['ssr-page'],
+        revalidate: 3,
       },
     }
   ).then((res) => res.text())

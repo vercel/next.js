@@ -1,0 +1,19 @@
+---
+title: 'Missing `width` in the URL Returned by the Loader Prop on `next/image`'
+---
+
+## Why This Error Occurred
+
+The [`loader`](/docs/pages/api-reference/components/image#loader) prop on the `next/image` component allows you to override the built-in URL resolution with a custom implementation in order to support any 3rd party cloud provider that can perform Image Optimization.
+
+This error occurred because the provided `loader()` function did not use `width` in the returned URL string. This means that the image will likely not be resized and therefore degrade performance.
+
+## Possible Ways to Fix It
+
+- Ensure your Image Optimization provider can resize images. Then use the `width` parameter from the [`loader()`](/docs/pages/api-reference/components/image#loader) function to construct the correct URL string.
+- Add the [`unoptimized`](/docs/pages/api-reference/components/image#unoptimized) prop.
+
+## Useful Links
+
+- [Image Optimization Documentation](/docs/pages/api-reference/components/image)
+- [`next/image` Documentation](/docs/pages/api-reference/components/image)

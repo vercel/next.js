@@ -1,11 +1,7 @@
 module.exports = (phase) => {
   return {
-    publicRuntimeConfig: {
-      foo: 'foo',
-    },
-    serverRuntimeConfig: {
-      bar: 'bar',
-    },
+    output: 'export',
+    distDir: 'out',
     trailingSlash: true,
     exportPathMap: function () {
       return {

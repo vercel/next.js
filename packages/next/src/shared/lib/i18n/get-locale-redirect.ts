@@ -4,7 +4,7 @@ import { acceptLanguage } from '../../../server/accept-header'
 import { denormalizePagePath } from '../page-path/denormalize-page-path'
 import { detectDomainLocale } from './detect-domain-locale'
 import { formatUrl } from '../router/utils/format-url'
-import { getCookieParser } from '../../../server/api-utils'
+import { getCookieParser } from '../../../server/api-utils/get-cookie-parser'
 
 interface Options {
   defaultLocale: string

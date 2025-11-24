@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { FlightRouterState } from '../../server/app-render/types'
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
 
 const ANNOUNCER_TYPE = 'next-route-announcer'
 const ANNOUNCER_ID = '__next-route-announcer__'
@@ -13,9 +13,9 @@ function getAnnouncerNode() {
     const container = document.createElement(ANNOUNCER_TYPE)
     container.style.cssText = 'position:absolute'
     const announcer = document.createElement('div')
-    announcer.setAttribute('aria-live', 'assertive')
-    announcer.setAttribute('id', ANNOUNCER_ID)
-    announcer.setAttribute('role', 'alert')
+    announcer.ariaLive = 'assertive'
+    announcer.id = ANNOUNCER_ID
+    announcer.role = 'alert'
     announcer.style.cssText =
       'position:absolute;border:0;height:1px;margin:-1px;padding:0;width:1px;clip:rect(0 0 0 0);overflow:hidden;white-space:nowrap;word-wrap:normal'
 
@@ -42,7 +42,7 @@ export function AppRouterAnnouncer({ tree }: { tree: FlightRouterState }) {
   }, [])
 
   const [routeAnnouncement, setRouteAnnouncement] = useState('')
-  const previousTitle = useRef<string | undefined>()
+  const previousTitle = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     let currentTitle = ''
@@ -57,7 +57,10 @@ export function AppRouterAnnouncer({ tree }: { tree: FlightRouterState }) {
 
     // Only announce the title change, but not for the first load because screen
     // readers do that automatically.
-    if (typeof previousTitle.current !== 'undefined') {
+    if (
+      previousTitle.current !== undefined &&
+      previousTitle.current !== currentTitle
+    ) {
       setRouteAnnouncement(currentTitle)
     }
     previousTitle.current = currentTitle

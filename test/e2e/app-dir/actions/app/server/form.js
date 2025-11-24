@@ -5,8 +5,6 @@ async function action(formData) {
   redirect(
     '/header?name=' +
       formData.get('name') +
-      '&constructor=' +
-      formData.constructor.name +
       '&hidden-info=' +
       formData.get('hidden-info')
   )
@@ -45,7 +43,7 @@ export default function Form() {
     <>
       <hr />
       <form action={action}>
-        <input type="text" name="hidden-info" value="hi" hidden />
+        <input type="text" name="hidden-info" defaultValue="hi" hidden />
         <input type="text" name="name" id="name" required />
         <button type="submit" id="submit">
           Submit

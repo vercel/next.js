@@ -1,6 +1,6 @@
 import type { OutgoingHttpHeaders } from 'http'
 import type { DomainLocale, I18NConfig } from '../config-shared'
-import type { I18NProvider } from '../future/helpers/i18n-provider'
+import type { I18NProvider } from '../lib/i18n-provider'
 
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { formatNextPathnameInfo } from '../../shared/lib/router/utils/format-next-pathname-info'
@@ -20,7 +20,7 @@ interface Options {
 }
 
 const REGEX_LOCALHOST_HOSTNAME =
-  /(?!^https?:\/\/)(127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|::1|localhost)/
+  /(?!^https?:\/\/)(127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|\[::1\]|localhost)/
 
 function parseURL(url: string | URL, base?: string | URL) {
   return new URL(

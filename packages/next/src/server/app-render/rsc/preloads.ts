@@ -6,19 +6,48 @@ Files in the rsc directory are meant to be packaged as part of the RSC graph usi
 
 import ReactDOM from 'react-dom'
 
-const stylePreloadOptions = { as: 'style' }
-export function preloadStyle(href: string) {
-  ;(ReactDOM as any).preload(href, stylePreloadOptions)
-}
-
-export function preloadFont(href: string, type: string) {
-  ;(ReactDOM as any).preload(href, { as: 'font', type })
-}
-
-export function preconnect(href: string, crossOrigin?: string) {
+export function preloadStyle(
+  href: string,
+  crossOrigin: string | undefined,
+  nonce: string | undefined
+) {
+  const opts: any = { as: 'style' }
   if (typeof crossOrigin === 'string') {
-    ;(ReactDOM as any).preconnect(href, { crossOrigin })
-  } else {
-    ;(ReactDOM as any).preconnect(href)
+    opts.crossOrigin = crossOrigin
   }
+  if (typeof nonce === 'string') {
+    opts.nonce = nonce
+  }
+  ReactDOM.preload(href, opts)
+}
+
+export function preloadFont(
+  href: string,
+  type: string,
+  crossOrigin: string | undefined,
+  nonce: string | undefined
+) {
+  const opts: any = { as: 'font', type }
+  if (typeof crossOrigin === 'string') {
+    opts.crossOrigin = crossOrigin
+  }
+  if (typeof nonce === 'string') {
+    opts.nonce = nonce
+  }
+  ReactDOM.preload(href, opts)
+}
+
+export function preconnect(
+  href: string,
+  crossOrigin: string | undefined,
+  nonce: string | undefined
+) {
+  const opts: any = {}
+  if (typeof crossOrigin === 'string') {
+    opts.crossOrigin = crossOrigin
+  }
+  if (typeof nonce === 'string') {
+    opts.nonce = nonce
+  }
+  ;(ReactDOM as any).preconnect(href, opts)
 }

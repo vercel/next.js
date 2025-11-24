@@ -1,0 +1,94 @@
+---
+title: Text content does not match server-rendered HTML
+---
+
+## Why This Error Occurred
+
+While rendering your application, there was a difference between the React tree that was pre-rendered from the server and the React tree that was rendered during the first render in the browser (hydration).
+
+[Hydration](https://react.dev/reference/react-dom/client/hydrateRoot) is when React converts the pre-rendered HTML from the server into a fully interactive application by attaching event handlers.
+
+### Common Causes
+
+Hydration errors can occur from:
+
+1. Incorrect nesting of HTML tags
+   1. `<p>` nested in another `<p>` tag
+   2. `<div>` nested in a `<p>` tag
+   3. `<ul>` or `<ol>` nested in a `<p>` tag
+   4. [Interactive Content](https://html.spec.whatwg.org/#interactive-content-2) cannot be nested (`<a>` nested in a `<a>` tag, `<button>` nested in a `<button>` tag, etc.)
+2. Using checks like `typeof window !== 'undefined'` in your rendering logic
+3. Using browser-only APIs like `window` or `localStorage` in your rendering logic
+4. Using time-dependent APIs such as the `Date()` constructor in your rendering logic
+5. [Browser extensions](https://github.com/facebook/react/issues/24430) modifying the HTML
+6. Incorrectly configured [CSS-in-JS libraries](/docs/app/guides/css-in-js)
+   1. Ensure your code is following [our official examples](https://github.com/vercel/next.js/tree/canary/examples)
+7. Incorrectly configured Edge/CDN that attempts to modify the html response, such as Cloudflare [Auto Minify](https://developers.cloudflare.com/speed/optimization/content/troubleshooting/disable-auto-minify/)
+
+## Possible Ways to Fix It
+
+The following strategies can help address this error:
+
+### Solution 1: Using `useEffect` to run on the client only
+
+Ensure that the component renders the same content server-side as it does during the initial client-side render to prevent a hydration mismatch. You can intentionally render different content on the client with the `useEffect` hook.
+
+```jsx
+import { useState, useEffect } from 'react'
+
+export default function App() {
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  return <h1>{isClient ? 'This is never prerendered' : 'Prerendered'}</h1>
+}
+```
+
+During React hydration, `useEffect` is called. This means browser APIs like `window` are available to use without hydration mismatches.
+
+### Solution 2: Disabling SSR on specific components
+
+Next.js allows you to [disable prerendering](/docs/app/guides/lazy-loading#skipping-ssr) on specific components, which can prevent hydration mismatches.
+
+```jsx
+import dynamic from 'next/dynamic'
+
+const NoSSR = dynamic(() => import('../components/no-ssr'), { ssr: false })
+
+export default function Page() {
+  return (
+    <div>
+      <NoSSR />
+    </div>
+  )
+}
+```
+
+### Solution 3: Using `suppressHydrationWarning`
+
+Sometimes content will inevitably differ between the server and client, such as a timestamp. You can silence the hydration mismatch warning by adding `suppressHydrationWarning={true}` to the element.
+
+```jsx
+<time datetime="2016-10-25" suppressHydrationWarning />
+```
+
+> **Good to know:**
+>
+> - This only works one level deep, and is intended to be an escape hatch. Don’t overuse it.
+> - React will **not** attempt to patch mismatched text content when `suppressHydrationWarning={true}` is set.
+
+## Common iOS issues
+
+iOS attempts to detect phone numbers, email addresses, and other data in text content and convert them into links, leading to hydration mismatches.
+
+This can be disabled with the following `meta` tag:
+
+```jsx
+<meta
+  name="format-detection"
+  content="telephone=no, date=no, email=no, address=no"
+/>
+```

@@ -1,5 +1,5 @@
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('Middleware fetches with any HTTP method', () => {
@@ -19,7 +19,7 @@ describe('Middleware fetches with any HTTP method', () => {
         'middleware.js': `
           import { NextResponse } from 'next/server';
 
-          const HTTP_ECHO_URL = 'https://http-echo-kou029w.vercel.app/';
+          const HTTP_ECHO_URL = 'https://next-data-api-endpoint.vercel.app/api/echo-headers';
 
           export default async (req) => {
             const kind = req.nextUrl.searchParams.get('kind')

@@ -6,7 +6,7 @@ async function getData() {
   }
 }
 
-export default function nestedPage(props) {
+export default function NestedPage(props) {
   const data = use(getData())
 
   return (

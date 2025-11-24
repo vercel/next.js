@@ -8,13 +8,62 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-'use strict';
-
-'use strict';const n=require("acorn-loose"),p=require("url"),r=require("module");
-module.exports=function(){const h=Symbol.for("react.client.reference"),k=Symbol.for("react.server.reference"),t=Promise.prototype,u=Function.prototype.bind;Function.prototype.bind=function(a){const c=u.apply(this,arguments);if(this.$$typeof===k){const b=Array.prototype.slice.call(arguments,1);c.$$typeof=k;c.$$id=this.$$id;c.$$bound=this.$$bound?this.$$bound.concat(b):b}return c};const v={get:function(a,c){switch(c){case "$$typeof":return a.$$typeof;case "$$id":return a.$$id;case "$$async":return a.$$async;
-case "name":return a.name;case "displayName":return;case "defaultProps":return;case "toJSON":return;case Symbol.toPrimitive:return Object.prototype[Symbol.toPrimitive];case "Provider":throw Error("Cannot render a Client Context Provider on the Server. Instead, you can export a Client Component wrapper that itself renders a Client Context Provider.");}throw Error("Cannot access "+(String(a.name)+"."+String(c))+" on the server. You cannot dot into a client module from a server component. You can only pass the imported name through.");
-},set:function(){throw Error("Cannot assign to a client module from a server module.");}},q={get:function(a,c){switch(c){case "$$typeof":return a.$$typeof;case "$$id":return a.$$id;case "$$async":return a.$$async;case "name":return a.name;case "defaultProps":return;case "toJSON":return;case Symbol.toPrimitive:return Object.prototype[Symbol.toPrimitive];case "__esModule":const d=a.$$id;a.default=Object.defineProperties(function(){throw Error("Attempted to call the default export of "+d+" from the server but it's on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.");
-},{$$typeof:{value:h},$$id:{value:a.$$id+"#"},$$async:{value:a.$$async}});return!0;case "then":if(a.then)return a.then;if(a.$$async)return;var b=Object.defineProperties({},{$$typeof:{value:h},$$id:{value:a.$$id},$$async:{value:!0}});const e=new Proxy(b,q);a.status="fulfilled";a.value=e;return a.then=Object.defineProperties(function(f){return Promise.resolve(f(e))},{$$typeof:{value:h},$$id:{value:a.$$id+"#then"},$$async:{value:!1}})}b=a[c];b||(b=Object.defineProperties(function(){throw Error("Attempted to call "+
-String(c)+"() from the server but "+String(c)+" is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.");},{name:{value:c},$$typeof:{value:h},$$id:{value:a.$$id+"#"+c},$$async:{value:a.$$async}}),b=a[c]=new Proxy(b,v));return b},getPrototypeOf(){return t},set:function(){throw Error("Cannot assign to a client module from a server module.");}},l=r.prototype._compile;r.prototype._compile=function(a,
-c){if(-1===a.indexOf("use client")&&-1===a.indexOf("use server"))return l.apply(this,arguments);try{var b=n.parse(a,{ecmaVersion:"2024",sourceType:"source"}).body}catch(m){return console.error("Error parsing %s %s",p,m.message),l.apply(this,arguments)}var d=!1,e=!1;for(var f=0;f<b.length;f++){var g=b[f];if("ExpressionStatement"!==g.type||!g.directive)break;"use client"===g.directive&&(d=!0);"use server"===g.directive&&(e=!0)}if(!d&&!e)return l.apply(this,arguments);if(d&&e)throw Error('Cannot have both "use client" and "use server" directives in the same file.');
-d&&(b=p.pathToFileURL(c).href,b=Object.defineProperties({},{$$typeof:{value:h},$$id:{value:b},$$async:{value:!1}}),this.exports=new Proxy(b,q));if(e)if(l.apply(this,arguments),e=p.pathToFileURL(c).href,b=this.exports,"function"===typeof b)Object.defineProperties(b,{$$typeof:{value:k},$$id:{value:e},$$bound:{value:null}});else for(d=Object.keys(b),f=0;f<d.length;f++){g=d[f];const m=b[d[f]];"function"===typeof m&&Object.defineProperties(m,{$$typeof:{value:k},$$id:{value:e+"#"+g},$$bound:{value:null}})}}};
+"use strict";
+const acorn = require("acorn-loose"),
+  url = require("url"),
+  Module = require("module");
+module.exports = function () {
+  const Server = require("react-server-dom-webpack/server"),
+    registerServerReference = Server.registerServerReference,
+    createClientModuleProxy = Server.createClientModuleProxy,
+    originalCompile = Module.prototype._compile;
+  Module.prototype._compile = function (content, filename) {
+    if (
+      -1 === content.indexOf("use client") &&
+      -1 === content.indexOf("use server")
+    )
+      return originalCompile.apply(this, arguments);
+    try {
+      var body = acorn.parse(content, {
+        ecmaVersion: "2024",
+        sourceType: "source"
+      }).body;
+    } catch (x) {
+      return (
+        console.error("Error parsing %s %s", url, x.message),
+        originalCompile.apply(this, arguments)
+      );
+    }
+    var useClient = !1,
+      useServer = !1;
+    for (var i = 0; i < body.length; i++) {
+      var node = body[i];
+      if ("ExpressionStatement" !== node.type || !node.directive) break;
+      "use client" === node.directive && (useClient = !0);
+      "use server" === node.directive && (useServer = !0);
+    }
+    if (!useClient && !useServer) return originalCompile.apply(this, arguments);
+    if (useClient && useServer)
+      throw Error(
+        'Cannot have both "use client" and "use server" directives in the same file.'
+      );
+    useClient &&
+      ((body = url.pathToFileURL(filename).href),
+      (this.exports = createClientModuleProxy(body)));
+    if (useServer)
+      if (
+        (originalCompile.apply(this, arguments),
+        (useServer = url.pathToFileURL(filename).href),
+        (body = this.exports),
+        "function" === typeof body)
+      )
+        registerServerReference(body, useServer, null);
+      else
+        for (useClient = Object.keys(body), i = 0; i < useClient.length; i++) {
+          node = useClient[i];
+          const value = body[useClient[i]];
+          "function" === typeof value &&
+            registerServerReference(value, useServer, node);
+        }
+  };
+};

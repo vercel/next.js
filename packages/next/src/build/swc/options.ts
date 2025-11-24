@@ -1,30 +1,54 @@
+import path from 'path'
+import { WEBPACK_LAYERS, type WebpackLayerName } from '../../lib/constants'
 import type {
   NextConfig,
   ExperimentalConfig,
   EmotionConfig,
   StyledComponentsConfig,
 } from '../../server/config-shared'
+import type { ResolvedBaseUrl } from '../load-jsconfig'
+import { shouldUseReactServerCondition, isWebpackAppPagesLayer } from '../utils'
+import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 
-const nextDistPath =
-  /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
+const nextDirname = path.dirname(require.resolve('next/package.json'))
+
+const nextDistPath = new RegExp(
+  `${escapeStringRegexp(nextDirname)}[\\/]dist[\\/](shared[\\/]lib|client|pages)`
+)
+
+const nodeModulesPath = /[\\/]node_modules[\\/]/
 
 const regeneratorRuntimePath = require.resolve(
   'next/dist/compiled/regenerator-runtime'
 )
 
+function isTypeScriptFile(filename: string) {
+  return filename.endsWith('.ts') || filename.endsWith('.tsx')
+}
+
+function isCommonJSFile(filename: string) {
+  return filename.endsWith('.cjs')
+}
+
+// Ensure Next.js internals and .cjs files are output as CJS modules,
+// By default all modules are output as ESM or will treated as CJS if next-swc/auto-cjs plugin detects file is CJS.
+function shouldOutputCommonJs(filename: string) {
+  return isCommonJSFile(filename) || nextDistPath.test(filename)
+}
+
 export function getParserOptions({ filename, jsConfig, ...rest }: any) {
   const isTSFile = filename.endsWith('.ts')
-  const isTypeScript = isTSFile || filename.endsWith('.tsx')
+  const hasTsSyntax = isTypeScriptFile(filename)
   const enableDecorators = Boolean(
     jsConfig?.compilerOptions?.experimentalDecorators
   )
   return {
     ...rest,
-    syntax: isTypeScript ? 'typescript' : 'ecmascript',
+    syntax: hasTsSyntax ? 'typescript' : 'ecmascript',
     dynamicImport: true,
     decorators: enableDecorators,
     // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
-    [isTypeScript ? 'tsx' : 'jsx']: !isTSFile,
+    [hasTsSyntax ? 'tsx' : 'jsx']: !isTSFile,
     importAssertions: true,
   }
 }
@@ -35,29 +59,45 @@ function getBaseSWCOptions({
   development,
   hasReactRefresh,
   globalWindow,
+  esm,
   modularizeImports,
   swcPlugins,
   compilerOptions,
   resolvedBaseUrl,
   jsConfig,
+  supportedBrowsers,
   swcCacheDir,
-  isServerLayer,
-  hasServerComponents,
+  serverComponents,
+  serverReferenceHashSalt,
+  bundleLayer,
+  isCacheComponents,
+  cacheHandlers,
+  useCacheEnabled,
+  trackDynamicImports,
 }: {
   filename: string
   jest?: boolean
   development: boolean
   hasReactRefresh: boolean
   globalWindow: boolean
+  esm: boolean
   modularizeImports?: NextConfig['modularizeImports']
-  swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
-  resolvedBaseUrl?: string
+  swcPlugins: ExperimentalConfig['swcPlugins']
+  resolvedBaseUrl?: ResolvedBaseUrl
   jsConfig: any
+  supportedBrowsers: string[] | undefined
   swcCacheDir?: string
-  isServerLayer?: boolean
-  hasServerComponents?: boolean
+  serverComponents?: boolean
+  serverReferenceHashSalt: string
+  bundleLayer?: WebpackLayerName
+  isCacheComponents?: boolean
+  cacheHandlers?: NextConfig['cacheHandlers']
+  useCacheEnabled?: boolean
+  trackDynamicImports?: boolean
 }) {
+  const isReactServerLayer = shouldUseReactServerCondition(bundleLayer)
+  const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
   const enableDecorators = Boolean(
@@ -77,14 +117,15 @@ function getBaseSWCOptions({
     jsc: {
       ...(resolvedBaseUrl && paths
         ? {
-            baseUrl: resolvedBaseUrl,
+            baseUrl: resolvedBaseUrl.baseUrl,
             paths,
           }
         : {}),
       externalHelpers: !process.versions.pnp && !jest,
       parser: parserConfig,
       experimental: {
-        keepImportAssertions: true,
+        keepImportAttributes: true,
+        emitAssertForImportAttributes: true,
         plugins,
         cacheRoot: swcCacheDir,
       },
@@ -103,9 +144,10 @@ function getBaseSWCOptions({
         react: {
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
-            (compilerOptions?.emotion ? '@emotion/react' : 'react'),
+            (compilerOptions?.emotion && !isReactServerLayer
+              ? '@emotion/react'
+              : 'react'),
           runtime: 'automatic',
-          pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
           throwIfNamespace: true,
           development: !!development,
@@ -138,28 +180,71 @@ function getBaseSWCOptions({
     reactRemoveProperties: jest
       ? false
       : compilerOptions?.reactRemoveProperties,
-    modularizeImports,
+    // Map the k-v map to an array of pairs.
+    modularizeImports: modularizeImports
+      ? Object.fromEntries(
+          Object.entries(modularizeImports).map(([mod, config]) => [
+            mod,
+            {
+              ...config,
+              transform:
+                typeof config.transform === 'string'
+                  ? config.transform
+                  : Object.entries(config.transform).map(([key, value]) => [
+                      key,
+                      value,
+                    ]),
+            },
+          ])
+        )
+      : undefined,
     relay: compilerOptions?.relay,
     // Always transform styled-jsx and error when `client-only` condition is triggered
-    styledJsx: true,
+    styledJsx: compilerOptions?.styledJsx ?? {
+      useLightningcss: jsConfig?.experimental?.useLightningcss ?? false,
+    },
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
-    ...(!isServerLayer && {
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    ...(!isReactServerLayer && {
       emotion: getEmotionOptions(compilerOptions?.emotion, development),
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       styledComponents: getStyledComponentsOptions(
         compilerOptions?.styledComponents,
         development
       ),
     }),
-    serverComponents: hasServerComponents
-      ? { isServer: !!isServerLayer }
-      : undefined,
-    serverActions: hasServerComponents
+    serverComponents:
+      serverComponents && !jest
+        ? {
+            isReactServerLayer,
+            cacheComponentsEnabled: isCacheComponents,
+            useCacheEnabled,
+          }
+        : undefined,
+    serverActions:
+      isAppRouterPagesLayer && !jest
+        ? {
+            isReactServerLayer,
+            isDevelopment: development,
+            useCacheEnabled,
+            hashSalt: serverReferenceHashSalt,
+            cacheKinds: ['default', 'remote', 'private'].concat(
+              cacheHandlers ? Object.keys(cacheHandlers) : []
+            ),
+          }
+        : undefined,
+    // For app router we prefer to bundle ESM,
+    // On server side of pages router we prefer CJS.
+    preferEsm: esm,
+    lintCodemodComments: true,
+    trackDynamicImports: trackDynamicImports,
+    debugFunctionName: development,
+
+    ...(supportedBrowsers && supportedBrowsers.length > 0
       ? {
-          isServer: !!isServerLayer,
+          cssEnv: {
+            targets: supportedBrowsers,
+          },
         }
-      : undefined,
+      : {}),
   }
 }
 
@@ -189,16 +274,19 @@ function getEmotionOptions(
     return null
   }
   let autoLabel = !!development
-  switch (typeof emotionConfig === 'object' && emotionConfig.autoLabel) {
-    case 'never':
-      autoLabel = false
-      break
-    case 'always':
-      autoLabel = true
-      break
-    case 'dev-only':
-    default:
-      break
+  if (typeof emotionConfig === 'object' && emotionConfig.autoLabel) {
+    switch (emotionConfig.autoLabel) {
+      case 'never':
+        autoLabel = false
+        break
+      case 'always':
+        autoLabel = true
+        break
+      case 'dev-only':
+        break
+      default:
+        emotionConfig.autoLabel satisfies never
+    }
   }
   return {
     enabled: true,
@@ -222,7 +310,7 @@ export function getJestSWCOptions({
   jsConfig,
   resolvedBaseUrl,
   pagesDir,
-  hasServerComponents,
+  serverReferenceHashSalt,
 }: {
   isServer: boolean
   filename: string
@@ -231,9 +319,10 @@ export function getJestSWCOptions({
   swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
   jsConfig: any
-  resolvedBaseUrl?: string
+  resolvedBaseUrl?: ResolvedBaseUrl
   pagesDir?: string
-  hasServerComponents?: boolean
+  serverComponents?: boolean
+  serverReferenceHashSalt: string
 }) {
   let baseOptions = getBaseSWCOptions({
     filename,
@@ -245,12 +334,17 @@ export function getJestSWCOptions({
     swcPlugins,
     compilerOptions,
     jsConfig,
-    hasServerComponents,
     resolvedBaseUrl,
+    supportedBrowsers: undefined,
+    esm,
+    // Don't apply server layer transformations for Jest
+    // Disable server / client graph assertions for Jest
+    bundleLayer: undefined,
+    serverComponents: false,
+    serverReferenceHashSalt,
   })
 
-  const isNextDist = nextDistPath.test(filename)
-
+  const useCjsModules = shouldOutputCommonJs(filename)
   return {
     ...baseOptions,
     env: {
@@ -260,50 +354,67 @@ export function getJestSWCOptions({
       },
     },
     module: {
-      type: esm && !isNextDist ? 'es6' : 'commonjs',
+      type: esm && !useCjsModules ? 'es6' : 'commonjs',
     },
     disableNextSsg: true,
-    disablePageConfig: true,
     pagesDir,
   }
 }
 
 export function getLoaderSWCOptions({
+  // This is not passed yet as "paths" resolving is handled by webpack currently.
+  // resolvedBaseUrl,
   filename,
   development,
   isServer,
   pagesDir,
   appDir,
   isPageFile,
+  isCacheComponents,
   hasReactRefresh,
   modularizeImports,
+  optimizeServerReact,
+  optimizePackageImports,
   swcPlugins,
   compilerOptions,
   jsConfig,
   supportedBrowsers,
   swcCacheDir,
   relativeFilePathFromRoot,
-  hasServerComponents,
-  isServerLayer,
-}: // This is not passed yet as "paths" resolving is handled by webpack currently.
-// resolvedBaseUrl,
-{
+  serverComponents,
+  serverReferenceHashSalt,
+  bundleLayer,
+  esm,
+  cacheHandlers,
+  useCacheEnabled,
+  trackDynamicImports,
+}: {
   filename: string
   development: boolean
   isServer: boolean
   pagesDir?: string
-  appDir: string
+  appDir?: string
   isPageFile: boolean
   hasReactRefresh: boolean
+  optimizeServerReact?: boolean
   modularizeImports: NextConfig['modularizeImports']
+  isCacheComponents?: boolean
+  optimizePackageImports?: NonNullable<
+    NextConfig['experimental']
+  >['optimizePackageImports']
   swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
   jsConfig: any
-  supportedBrowsers: string[]
+  supportedBrowsers: string[] | undefined
   swcCacheDir: string
   relativeFilePathFromRoot: string
-  hasServerComponents?: boolean
-  isServerLayer: boolean
+  esm?: boolean
+  serverComponents?: boolean
+  serverReferenceHashSalt: string
+  bundleLayer?: WebpackLayerName
+  cacheHandlers: NextConfig['cacheHandlers']
+  useCacheEnabled?: boolean
+  trackDynamicImports?: boolean
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -315,19 +426,19 @@ export function getLoaderSWCOptions({
     compilerOptions,
     jsConfig,
     // resolvedBaseUrl,
+    supportedBrowsers,
     swcCacheDir,
-    hasServerComponents,
-    isServerLayer,
+    bundleLayer,
+    serverComponents,
+    serverReferenceHashSalt,
+    esm: !!esm,
+    isCacheComponents,
+    cacheHandlers,
+    useCacheEnabled,
+    trackDynamicImports,
   })
   baseOptions.fontLoaders = {
-    fontLoaders: [
-      'next/font/local',
-      'next/font/google',
-
-      // TODO: remove this in the next major version
-      '@next/font/local',
-      '@next/font/google',
-    ],
+    fontLoaders: ['next/font/local', 'next/font/google'],
     relativeFilePathFromRoot,
   }
   baseOptions.cjsRequireOptimizer = {
@@ -344,18 +455,41 @@ export function getLoaderSWCOptions({
     },
   }
 
-  const isNextDist = nextDistPath.test(filename)
+  if (optimizeServerReact && isServer && !development) {
+    baseOptions.optimizeServerReact = {
+      optimize_use_state: false,
+    }
+  }
 
+  // Modularize import optimization for barrel files
+  if (optimizePackageImports) {
+    baseOptions.autoModularizeImports = {
+      packages: optimizePackageImports,
+    }
+  }
+
+  const isNodeModules = nodeModulesPath.test(filename)
+  const isAppBrowserLayer = bundleLayer === WEBPACK_LAYERS.appPagesBrowser
+  const moduleResolutionConfig = shouldOutputCommonJs(filename)
+    ? {
+        module: {
+          type: 'commonjs',
+        },
+      }
+    : {}
+
+  let options: any
   if (isServer) {
-    return {
+    options = {
       ...baseOptions,
+      ...moduleResolutionConfig,
       // Disables getStaticProps/getServerSideProps tree shaking on the server compilation for pages
       disableNextSsg: true,
-      disablePageConfig: true,
       isDevelopment: development,
-      isServer,
+      isServerCompiler: isServer,
       pagesDir,
       appDir,
+      preferEsm: !!esm,
       isPageFile,
       env: {
         targets: {
@@ -365,21 +499,12 @@ export function getLoaderSWCOptions({
       },
     }
   } else {
-    // Matches default @babel/preset-env behavior
-    baseOptions.jsc.target = 'es5'
-    return {
+    options = {
       ...baseOptions,
-      // Ensure Next.js internals are output as commonjs modules
-      ...(isNextDist
-        ? {
-            module: {
-              type: 'commonjs',
-            },
-          }
-        : {}),
+      ...moduleResolutionConfig,
       disableNextSsg: !isPageFile,
       isDevelopment: development,
-      isServer,
+      isServerCompiler: isServer,
       pagesDir,
       appDir,
       isPageFile,
@@ -391,5 +516,28 @@ export function getLoaderSWCOptions({
           }
         : {}),
     }
+    if (!options.env) {
+      // Matches default @babel/preset-env behavior
+      options.jsc.target = 'es5'
+    }
   }
+
+  // For node_modules in app browser layer, we don't need to do any server side transformation.
+  // Only keep server actions transform to discover server actions from client components.
+  if (isAppBrowserLayer && isNodeModules) {
+    options.disableNextSsg = true
+    options.isPageFile = false
+    options.optimizeServerReact = undefined
+    options.cjsRequireOptimizer = undefined
+    // Disable optimizer for node_modules in app browser layer, to avoid unnecessary replacement.
+    // e.g. typeof window could result differently in js worker or browser.
+    if (
+      options.jsc.transform.optimizer.globals?.typeofs &&
+      !filename.includes(nextDirname)
+    ) {
+      delete options.jsc.transform.optimizer.globals.typeofs.window
+    }
+  }
+
+  return options
 }

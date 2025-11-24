@@ -1,0 +1,19 @@
+[package]
+name = "next-build"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+next-core = { workspace = true }
+turbopack-core = { workspace = true }
+turbo-rcstr = { workspace = true }
+

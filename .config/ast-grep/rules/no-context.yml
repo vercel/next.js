@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ast-grep/ast-grep/main/schemas/rule.json
+
+id: no-context
+message: Don't name variables `context`.
+note: Use a more specific name, such as chunking_context, asset_context, etc.
+severity: error
+language: Rust
+rule:
+  regex: \bcontext\b
+  any:
+    - all:
+        - inside:
+            any:
+              - kind: closure_parameters
+              - kind: parameter
+              - kind: function_item
+              - kind: let_declaration
+        - kind: identifier
+    - all:
+        - kind: field_identifier
+        - inside:
+            kind: field_declaration

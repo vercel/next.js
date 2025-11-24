@@ -1,63 +1,185 @@
-import type { Duplex } from 'stream'
-import type { IncomingMessage, ServerResponse } from 'http'
-import type { ChildProcess } from 'child_process'
+// Start CPU profile if it wasn't already started.
+import './cpu-profile'
+import { getNetworkHost } from '../../lib/get-network-host'
 
+if (performance.getEntriesByName('next-start').length === 0) {
+  performance.mark('next-start')
+}
+import '../next'
+import '../require-hook'
+
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { SelfSignedCertificate } from '../../lib/mkcert'
+import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
+
+import fs from 'fs'
+import v8 from 'v8'
+import path from 'path'
 import http from 'http'
-import { isIPv6 } from 'net'
+import https from 'https'
+import os from 'os'
+import { exec } from 'child_process'
+import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
-import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
-import { initialEnv } from '@next/env'
-import {
-  genRouterWorkerExecArgv,
-  getDebugPort,
-  getNodeOptionsWithoutInspect,
-} from './utils'
+import setupDebug from 'next/dist/compiled/debug'
+import { RESTART_EXIT_CODE } from './utils'
+import { formatHostname } from './format-hostname'
+import { initialize } from './router-server'
+import { CONFIG_FILES } from '../../shared/lib/constants'
+import { getStartServerInfo, logStartInfo } from './app-info-log'
+import { validateTurboNextConfig } from '../../lib/turbopack-warning'
+import { type Span, trace, flushAllTraces } from '../../trace'
+import { isIPv6 } from './is-ipv6'
+import { AsyncCallbackSet } from './async-callback-set'
+import type { NextServer } from '../next'
+import type { ConfiguredExperimentalFeature } from '../config'
+
+const debug = setupDebug('next:start-server')
+let startServerSpan: Span | undefined
+
+/**
+ * Get the process ID (PID) of the process using the specified port
+ */
+async function getProcessIdUsingPort(port: number): Promise<string | null> {
+  const timeoutMs = 250
+  const processLookupController = new AbortController()
+
+  const pidPromise = new Promise<string | null>((resolve) => {
+    const handleError = (error: Error) => {
+      debug('Failed to get process ID for port', port, error)
+      resolve(null)
+    }
+
+    try {
+      // Use lsof on Unix-like systems (macOS, Linux)
+      if (process.platform !== 'win32') {
+        exec(
+          `lsof -ti:${port} -sTCP:LISTEN`,
+          { signal: processLookupController.signal },
+          (error, stdout) => {
+            if (error) {
+              handleError(error)
+              return
+            }
+            // `-sTCP` will ensure there's only one port, clean up output
+            const pid = stdout.trim()
+            resolve(pid || null)
+          }
+        )
+      } else {
+        // Use netstat on Windows
+        exec(
+          `netstat -ano | findstr /C:":${port} " | findstr LISTENING`,
+          { signal: processLookupController.signal },
+          (error, stdout) => {
+            if (error) {
+              handleError(error)
+              return
+            }
+            // Clean up output and extract PID
+            const cleanOutput = stdout.replace(/\s+/g, ' ').trim()
+            if (cleanOutput) {
+              const lines = cleanOutput.split('\n')
+              const firstLine = lines[0].trim()
+              if (firstLine) {
+                const parts = firstLine.split(' ')
+                const pid = parts[parts.length - 1]
+                resolve(pid || null)
+              } else {
+                resolve(null)
+              }
+            } else {
+              resolve(null)
+            }
+          }
+        )
+      }
+    } catch (cause) {
+      handleError(
+        new Error('Unexpected error during process lookup', { cause })
+      )
+    }
+  })
+
+  const timeoutId = setTimeout(() => {
+    processLookupController.abort(
+      `PID detection timed out after ${timeoutMs}ms for port ${port}.`
+    )
+  }, timeoutMs)
+
+  pidPromise.finally(() => clearTimeout(timeoutId))
+
+  return pidPromise
+}
 
 export interface StartServerOptions {
   dir: string
-  prevDir?: string
   port: number
   isDev: boolean
-  hostname: string
-  useWorkers: boolean
+  hostname?: string
   allowRetry?: boolean
-  isTurbopack?: boolean
-  isExperimentalTurbo?: boolean
+  customServer?: boolean
+  minimalMode?: boolean
   keepAliveTimeout?: number
-  onStdout?: (data: any) => void
-  onStderr?: (data: any) => void
+  // this is dev-server only
+  selfSignedCertificate?: SelfSignedCertificate
 }
 
-type TeardownServer = () => Promise<void>
-
-export async function startServer({
+export async function getRequestHandlers({
   dir,
-  prevDir,
   port,
   isDev,
+  onDevServerCleanup,
+  server,
   hostname,
-  useWorkers,
-  allowRetry,
+  minimalMode,
   keepAliveTimeout,
-  onStdout,
-  onStderr,
-}: StartServerOptions): Promise<TeardownServer> {
-  const sockets = new Set<ServerResponse | Duplex>()
-  let worker: import('next/dist/compiled/jest-worker').Worker | undefined
+  experimentalHttpsServer,
+  quiet,
+}: {
+  dir: string
+  port: number
+  isDev: boolean
+  onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
+  server?: import('http').Server
+  hostname?: string
+  minimalMode?: boolean
+  keepAliveTimeout?: number
+  experimentalHttpsServer?: boolean
+  quiet?: boolean
+}): ReturnType<typeof initialize> {
+  return initialize({
+    dir,
+    port,
+    hostname,
+    onDevServerCleanup,
+    dev: isDev,
+    minimalMode,
+    server,
+    keepAliveTimeout,
+    experimentalHttpsServer,
+    startServerSpan,
+    quiet,
+  })
+}
+
+export async function startServer(
+  serverOptions: StartServerOptions
+): Promise<void> {
+  const {
+    dir,
+    isDev,
+    hostname,
+    minimalMode,
+    allowRetry,
+    keepAliveTimeout,
+    selfSignedCertificate,
+  } = serverOptions
+  let { port } = serverOptions
+
+  process.title = `next-server (v${process.env.__NEXT_VERSION})`
   let handlersReady = () => {}
   let handlersError = () => {}
-
-  let isNodeDebugging: 'brk' | boolean = !!(
-    process.execArgv.some((localArg) => localArg.startsWith('--inspect')) ||
-    process.env.NODE_OPTIONS?.match?.(/--inspect(=\S+)?( |$)/)
-  )
-
-  if (
-    process.execArgv.some((localArg) => localArg.startsWith('--inspect-brk')) ||
-    process.env.NODE_OPTIONS?.match?.(/--inspect-brk(=\S+)?( |$)/)
-  ) {
-    isNodeDebugging = 'brk'
-  }
 
   let handlersPromise: Promise<void> | undefined = new Promise<void>(
     (resolve, reject) => {
@@ -65,53 +187,86 @@ export async function startServer({
       handlersError = reject
     }
   )
-  let requestHandler = async (
-    _req: IncomingMessage,
-    _res: ServerResponse
+  let requestHandler: WorkerRequestHandler = async (
+    req: IncomingMessage,
+    res: ServerResponse
   ): Promise<void> => {
     if (handlersPromise) {
       await handlersPromise
-      return requestHandler(_req, _res)
+      return requestHandler(req, res)
     }
     throw new Error('Invariant request handler was not setup')
   }
-  let upgradeHandler = async (
-    _req: IncomingMessage,
-    _socket: ServerResponse | Duplex,
-    _head: Buffer
+  let upgradeHandler: WorkerUpgradeHandler = async (
+    req,
+    socket,
+    head
   ): Promise<void> => {
     if (handlersPromise) {
       await handlersPromise
-      return upgradeHandler(_req, _socket, _head)
+      return upgradeHandler(req, socket, head)
     }
     throw new Error('Invariant upgrade handler was not setup')
   }
 
+  let nextServer: NextServer | undefined
+
   // setup server listener as fast as possible
-  const server = http.createServer(async (req, res) => {
+  if (selfSignedCertificate && !isDev) {
+    throw new Error(
+      'Using a self signed certificate is only supported with `next dev`.'
+    )
+  }
+
+  async function requestListener(req: IncomingMessage, res: ServerResponse) {
     try {
       if (handlersPromise) {
         await handlersPromise
         handlersPromise = undefined
       }
-      sockets.add(res)
-      res.on('close', () => sockets.delete(res))
       await requestHandler(req, res)
     } catch (err) {
       res.statusCode = 500
       res.end('Internal Server Error')
       Log.error(`Failed to handle request for ${req.url}`)
       console.error(err)
+    } finally {
+      if (isDev) {
+        if (
+          v8.getHeapStatistics().used_heap_size >
+          0.8 * v8.getHeapStatistics().heap_size_limit
+        ) {
+          Log.warn(
+            `Server is approaching the used memory threshold, restarting...`
+          )
+          trace('server-restart-close-to-memory-threshold', undefined, {
+            'memory.heapSizeLimit': String(
+              v8.getHeapStatistics().heap_size_limit
+            ),
+            'memory.heapUsed': String(v8.getHeapStatistics().used_heap_size),
+          }).stop()
+          await flushAllTraces()
+          process.exit(RESTART_EXIT_CODE)
+        }
+      }
     }
-  })
+  }
+
+  const server = selfSignedCertificate
+    ? https.createServer(
+        {
+          key: fs.readFileSync(selfSignedCertificate.key),
+          cert: fs.readFileSync(selfSignedCertificate.cert),
+        },
+        requestListener
+      )
+    : http.createServer(requestListener)
 
   if (keepAliveTimeout) {
     server.keepAliveTimeout = keepAliveTimeout
   }
   server.on('upgrade', async (req, socket, head) => {
     try {
-      sockets.add(socket)
-      socket.on('close', () => sockets.delete(socket))
       await upgradeHandler(req, socket, head)
     } catch (err) {
       socket.destroy()
@@ -121,6 +276,7 @@ export async function startServer({
   })
 
   let portRetryCount = 0
+  const originalPort = port
 
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (
@@ -130,7 +286,6 @@ export async function startServer({
       err.code === 'EADDRINUSE' &&
       portRetryCount < 10
     ) {
-      Log.warn(`Port ${port} is in use, trying ${port + 1} instead.`)
       port += 1
       portRetryCount += 1
       server.listen(port, hostname)
@@ -141,223 +296,260 @@ export async function startServer({
     }
   })
 
-  let targetHost = hostname
+  let cleanupListeners = isDev ? new AsyncCallbackSet() : undefined
 
   await new Promise<void>((resolve) => {
-    server.on('listening', () => {
+    server.on('listening', async () => {
       const addr = server.address()
+      const actualHostname = formatHostname(
+        typeof addr === 'object'
+          ? addr?.address || hostname || 'localhost'
+          : addr
+      )
+      const formattedHostname =
+        !hostname || actualHostname === '0.0.0.0'
+          ? 'localhost'
+          : actualHostname === '[::]'
+            ? '[::1]'
+            : formatHostname(hostname)
+
       port = typeof addr === 'object' ? addr?.port || port : port
 
-      let host = !hostname || hostname === '0.0.0.0' ? 'localhost' : hostname
-
-      let normalizedHostname = hostname || '0.0.0.0'
-
-      if (isIPv6(hostname)) {
-        host = host === '::' ? '[::1]' : `[${host}]`
-        normalizedHostname = `[${hostname}]`
-      }
-      targetHost = host
-
-      const appUrl = `http://${host}:${port}`
-
-      if (isNodeDebugging) {
-        const debugPort = getDebugPort()
-        Log.info(
-          `the --inspect${
-            isNodeDebugging === 'brk' ? '-brk' : ''
-          } option was detected, the Next.js proxy server should be inspected at port ${debugPort}.`
-        )
+      if (portRetryCount) {
+        const pid = await getProcessIdUsingPort(originalPort)
+        if (pid) {
+          Log.warn(
+            `Port ${originalPort} is in use by process ${pid}, using available port ${port} instead.`
+          )
+        } else {
+          Log.warn(
+            `Port ${originalPort} is in use by an unknown process, using available port ${port} instead.`
+          )
+        }
       }
 
-      Log.ready(
-        `started server on ${normalizedHostname}${
-          (port + '').startsWith(':') ? '' : ':'
-        }${port}, url: ${appUrl}`
-      )
+      const networkHostname =
+        hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
+
+      const protocol = selfSignedCertificate ? 'https' : 'http'
+
+      const networkUrl = networkHostname
+        ? `${protocol}://${formatHostname(networkHostname)}:${port}`
+        : null
+
+      const appUrl = `${protocol}://${formattedHostname}:${port}`
+
+      // Store the selected port to:
+      // - expose it to render workers
+      // - re-use it for automatic dev server restarts with a randomly selected port
+      process.env.PORT = port + ''
+
+      process.env.__NEXT_PRIVATE_ORIGIN = appUrl
+
+      // Set experimental HTTPS flag for metadata resolution
+      if (selfSignedCertificate) {
+        process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
+      }
+
+      // Only load env and config in dev to for logging purposes
+      let envInfo: string[] | undefined
+      let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
+      let cacheComponents: boolean | undefined
+      try {
+        if (isDev) {
+          const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
+          envInfo = startServerInfo.envInfo
+          cacheComponents = startServerInfo.cacheComponents
+          experimentalFeatures = startServerInfo.experimentalFeatures
+        }
+        logStartInfo({
+          networkUrl,
+          appUrl,
+          envInfo,
+          experimentalFeatures,
+          cacheComponents,
+          logBundler: isDev,
+        })
+
+        Log.event(`Starting...`)
+
+        let cleanupStarted = false
+        let closeUpgraded: (() => void) | null = null
+        const cleanup = () => {
+          if (cleanupStarted) {
+            // We can get duplicate signals, e.g. when `ctrl+c` is used in an
+            // interactive shell (i.e. bash, zsh), the shell will recursively
+            // send SIGINT to children. The parent `next-dev` process will also
+            // send us SIGINT.
+            return
+          }
+          cleanupStarted = true
+          ;(async () => {
+            debug('start-server process cleanup')
+
+            // first, stop accepting new connections and finish pending requests,
+            // because they might affect `nextServer.close()` (e.g. by scheduling an `after`)
+            await new Promise<void>((res) => {
+              server.close((err) => {
+                if (err) console.error(err)
+                res()
+              })
+              if (isDev) {
+                server.closeAllConnections()
+                closeUpgraded?.()
+              }
+            })
+
+            // now that no new requests can come in, clean up the rest
+            await Promise.all([
+              nextServer?.close().catch(console.error),
+              cleanupListeners?.runAll().catch(console.error),
+            ])
+
+            // Flush telemetry if this is a dev server
+            if (isDev) {
+              try {
+                const { traceGlobals } =
+                  require('../../trace/shared') as typeof import('../../trace/shared')
+                const telemetry = traceGlobals.get('telemetry') as
+                  | InstanceType<
+                      typeof import('../../telemetry/storage').Telemetry
+                    >
+                  | undefined
+                if (telemetry) {
+                  // Use flushDetached to avoid blocking process exit
+                  // Each process writes to a unique file (_events_${pid}.json)
+                  // to avoid race conditions with the parent process
+                  telemetry.flushDetached('dev', dir)
+                }
+              } catch (_) {
+                // Ignore telemetry errors during cleanup
+              }
+            }
+
+            debug('start-server process cleanup finished')
+            process.exit(0)
+          })()
+        }
+
+        // Make sure commands gracefully respect termination signals (e.g. from Docker)
+        // Allow the graceful termination to be manually configurable
+        if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
+          process.on('SIGINT', cleanup)
+          process.on('SIGTERM', cleanup)
+        }
+
+        const initResult = await getRequestHandlers({
+          dir,
+          port,
+          isDev,
+          onDevServerCleanup: cleanupListeners
+            ? cleanupListeners.add.bind(cleanupListeners)
+            : undefined,
+          server,
+          hostname,
+          minimalMode,
+          keepAliveTimeout,
+          experimentalHttpsServer: !!selfSignedCertificate,
+        })
+        requestHandler = initResult.requestHandler
+        upgradeHandler = initResult.upgradeHandler
+        nextServer = initResult.server
+        closeUpgraded = initResult.closeUpgraded
+
+        const startServerProcessDuration =
+          performance.mark('next-start-end') &&
+          performance.measure(
+            'next-start-duration',
+            'next-start',
+            'next-start-end'
+          ).duration
+
+        handlersReady()
+        const formatDurationText =
+          startServerProcessDuration > 2000
+            ? `${Math.round(startServerProcessDuration / 100) / 10}s`
+            : `${Math.round(startServerProcessDuration)}ms`
+
+        Log.event(`Ready in ${formatDurationText}`)
+
+        if (process.env.TURBOPACK) {
+          await validateTurboNextConfig({
+            dir: serverOptions.dir,
+            isDev: serverOptions.isDev,
+          })
+        }
+      } catch (err) {
+        // fatal error if we can't setup
+        handlersError()
+        console.error(err)
+        process.exit(1)
+      }
+
       resolve()
     })
     server.listen(port, hostname)
   })
 
-  try {
-    if (useWorkers) {
-      const httpProxy =
-        require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
-
-      let renderServerPath = require.resolve('./render-server')
-      let jestWorkerPath = require.resolve('next/dist/compiled/jest-worker')
-
-      if (prevDir) {
-        jestWorkerPath = jestWorkerPath.replace(prevDir, dir)
-        renderServerPath = renderServerPath.replace(prevDir, dir)
-      }
-
-      const { Worker } =
-        require(jestWorkerPath) as typeof import('next/dist/compiled/jest-worker')
-
-      const routerWorker = new Worker(renderServerPath, {
-        numWorkers: 1,
-        // TODO: do we want to allow more than 10 OOM restarts?
-        maxRetries: 10,
-        forkOptions: {
-          execArgv: await genRouterWorkerExecArgv(
-            isNodeDebugging === undefined ? false : isNodeDebugging
-          ),
-          env: {
-            FORCE_COLOR: '1',
-            ...((initialEnv || process.env) as typeof process.env),
-            PORT: port + '',
-            NODE_OPTIONS: getNodeOptionsWithoutInspect(),
-            ...(process.env.NEXT_CPU_PROF
-              ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
-              : {}),
-            WATCHPACK_WATCHER_LIMIT: '20',
-          },
-        },
-        exposedMethods: ['initialize'],
-      }) as any as InstanceType<typeof Worker> & {
-        initialize: typeof import('./render-server').initialize
-      }
-      let didInitialize = false
-
-      for (const _worker of ((routerWorker as any)._workerPool?._workers ||
-        []) as {
-        _child: ChildProcess
-      }[]) {
-        // eslint-disable-next-line no-loop-func
-        _worker._child.on('exit', (code, signal) => {
-          // catch failed initializing without retry
-          if ((code || signal) && !didInitialize) {
-            routerWorker?.end()
-            process.exit(1)
-          }
-        })
-      }
-
-      const workerStdout = routerWorker.getStdout()
-      const workerStderr = routerWorker.getStderr()
-
-      workerStdout.on('data', (data) => {
-        if (typeof onStdout === 'function') {
-          onStdout(data)
-        } else {
-          process.stdout.write(data)
-        }
+  if (isDev) {
+    function watchConfigFiles(
+      dirToWatch: string,
+      onChange: (filename: string) => void
+    ) {
+      const wp = new Watchpack()
+      wp.watch({
+        files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)),
       })
-      workerStderr.on('data', (data) => {
-        if (typeof onStderr === 'function') {
-          onStderr(data)
-        } else {
-          process.stderr.write(data)
-        }
-      })
-
-      const { port: routerPort } = await routerWorker.initialize({
-        dir,
-        port,
-        hostname,
-        dev: !!isDev,
-        workerType: 'router',
-        isNodeDebugging: !!isNodeDebugging,
-        keepAliveTimeout,
-      })
-      didInitialize = true
-
-      const getProxyServer = (pathname: string) => {
-        const targetUrl = `http://${
-          targetHost === 'localhost' ? '127.0.0.1' : targetHost
-        }:${routerPort}${pathname}`
-        const proxyServer = httpProxy.createProxy({
-          target: targetUrl,
-          changeOrigin: false,
-          ignorePath: true,
-          xfwd: true,
-          ws: true,
-          followRedirects: false,
-        })
-
-        proxyServer.on('error', (_err) => {
-          // TODO?: enable verbose error logs with --debug flag?
-        })
-        return proxyServer
-      }
-
-      // proxy to router worker
-      requestHandler = async (req, res) => {
-        const urlParts = (req.url || '').split('?')
-        const urlNoQuery = urlParts[0]
-
-        // this normalizes repeated slashes in the path e.g. hello//world ->
-        // hello/world or backslashes to forward slashes, this does not
-        // handle trailing slash as that is handled the same as a next.config.js
-        // redirect
-        if (urlNoQuery?.match(/(\\|\/\/)/)) {
-          const cleanUrl = normalizeRepeatedSlashes(req.url!)
-          res.statusCode = 308
-          res.setHeader('Location', cleanUrl)
-          res.end(cleanUrl)
-          return
-        }
-        const proxyServer = getProxyServer(req.url || '/')
-
-        // http-proxy does not properly detect a client disconnect in newer
-        // versions of Node.js. This is caused because it only listens for the
-        // `aborted` event on the our request object, but it also fully reads
-        // and closes the request object. Node **will not** fire `aborted` when
-        // the request is already closed. Listening for `close` on our response
-        // object will detect the disconnect, and we can abort the proxy's
-        // connection.
-        proxyServer.on('proxyReq', (proxyReq) => {
-          res.on('close', () => proxyReq.destroy())
-        })
-        proxyServer.on('proxyRes', (proxyRes) => {
-          res.on('close', () => proxyRes.destroy())
-        })
-
-        proxyServer.web(req, res)
-      }
-      upgradeHandler = async (req, socket, head) => {
-        const proxyServer = getProxyServer(req.url || '/')
-        proxyServer.ws(req, socket, head)
-      }
-      handlersReady()
-    } else {
-      // when not using a worker start next in main process
-      const next = require('../next') as typeof import('../next').default
-      const addr = server.address()
-      const app = next({
-        dir,
-        hostname,
-        dev: isDev,
-        isNodeDebugging,
-        httpServer: server,
-        customServer: false,
-        port: addr && typeof addr === 'object' ? addr.port : port,
-      })
-      // handle in process
-      requestHandler = app.getRequestHandler()
-      upgradeHandler = app.getUpgradeHandler()
-      await app.prepare()
-      handlersReady()
+      wp.on('change', onChange)
     }
-  } catch (err) {
-    // fatal error if we can't setup
-    handlersError()
-    console.error(err)
-    process.exit(1)
-  }
+    watchConfigFiles(dir, async (filename) => {
+      if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
+        Log.info(
+          `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
+        )
+        return
+      }
 
-  // return teardown function for destroying the server
-  async function teardown() {
-    server.close()
-    sockets.forEach((socket) => {
-      sockets.delete(socket)
-      socket.destroy()
+      Log.warn(
+        `Found a change in ${path.basename(
+          filename
+        )}. Restarting the server to apply the changes...`
+      )
+      process.exit(RESTART_EXIT_CODE)
     })
-
-    if (worker) {
-      await worker.end()
-    }
   }
-  return teardown
+}
+
+if (process.env.NEXT_PRIVATE_WORKER && process.send) {
+  process.addListener('message', async (msg: any) => {
+    if (
+      msg &&
+      typeof msg === 'object' &&
+      msg.nextWorkerOptions &&
+      process.send
+    ) {
+      startServerSpan = trace('start-dev-server', undefined, {
+        cpus: String(os.cpus().length),
+        platform: os.platform(),
+        'memory.freeMem': String(os.freemem()),
+        'memory.totalMem': String(os.totalmem()),
+        'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
+      })
+      await startServerSpan.traceAsyncFn(() =>
+        startServer(msg.nextWorkerOptions)
+      )
+      const memoryUsage = process.memoryUsage()
+      startServerSpan.setAttribute('memory.rss', String(memoryUsage.rss))
+      startServerSpan.setAttribute(
+        'memory.heapTotal',
+        String(memoryUsage.heapTotal)
+      )
+      startServerSpan.setAttribute(
+        'memory.heapUsed',
+        String(memoryUsage.heapUsed)
+      )
+      process.send({ nextServerReady: true, port: process.env.PORT })
+    }
+  })
+  process.send({ nextWorkerReady: true })
 }

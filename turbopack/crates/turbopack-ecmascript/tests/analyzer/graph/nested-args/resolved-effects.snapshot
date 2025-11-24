@@ -1,0 +1,45 @@
+0 -> 1 call = (...) => inner("b")("a")
+
+0 -> 2 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 3 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 4 call = (...) => y(1)
+
+0 -> 5 call = (...) => (a + b)(2)
+
+0 -> 6 conditional = (???*0* === 0)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+6 -> 7 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+6 -> 8 call = (...) => (a | (r((a + 1)) + 1))((???*0* + 1))
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+6 -> 9 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 10 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 11 call = (...) => (a | (r((a + 1)) + 1))(2)
+
+0 -> 12 call = (...) => (a + b)("b")
+
+0 -> 13 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 14 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects

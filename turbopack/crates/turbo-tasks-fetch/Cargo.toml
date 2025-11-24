@@ -1,0 +1,46 @@
+[package]
+name = "turbo-tasks-fetch"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+# Enable specific tls features per-target.
+#
+# Be careful when selecting tls backend, including change default tls backend.
+# If you changed, must verify with ALL build targets with next-swc to ensure
+# it works. next-swc have various platforms, some doesn't support native (using openssl-sys)
+# and some aren't buildable with rustls.
+[target.'cfg(all(target_os = "windows", target_arch = "aarch64"))'.dependencies]
+reqwest = { workspace = true, features = ["native-tls"] }
+
+# If you modify this cfg, make sure you update `FetchClient::try_build_uncached_reqwest_client`,
+# `has_rustls_cause`, and `errors_on_tls_connection`
+[target.'cfg(not(any(all(target_os = "windows", target_arch = "aarch64"), target_arch="wasm32")))'.dependencies]
+reqwest = { workspace = true, features = ["rustls-tls-webpki-roots", "rustls-tls-native-roots"] }
+# we just need the `rustls::Error` type (no default features)
+rustls = { version = "0.23.0", default-features = false }
+
+[dependencies]
+anyhow = { workspace = true }
+quick_cache = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbopack-core = { workspace = true }
+
+[dev-dependencies]
+mockito = { version = "1.7.0", default-features = false }
+tokio = { workspace = true, features = ["full"] }
+turbo-tasks-testing = { workspace = true }
+turbo-tasks-backend = { workspace = true }
+

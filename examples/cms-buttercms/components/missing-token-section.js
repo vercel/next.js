@@ -1,4 +1,4 @@
-import Image from 'next/image'
+import Image from "next/image";
 
 export default function MissingTokenSection() {
   return (
@@ -9,7 +9,7 @@ export default function MissingTokenSection() {
             <div className="hero-content">
               <h1>Configure your ButterCMS API Token</h1>
               <p>
-                Please add your API token to <code>.env</code> file as{' '}
+                Please add your API token to <code>.env</code> file as{" "}
                 <code>NEXT_PUBLIC_BUTTER_CMS_API_KEY</code>.
               </p>
               <a
@@ -34,5 +34,5 @@ export default function MissingTokenSection() {
         </div>
       </div>
     </section>
-  )
+  );
 }

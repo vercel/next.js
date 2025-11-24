@@ -3,9 +3,9 @@ import { NextResponse } from 'next/server'
 
 /**
  * @param {import('next/server').NextRequest} request
- * @returns {NextResponse | undefined}
+ * @returns {Promise<NextResponse | undefined>}
  */
-export function middleware(request) {
+export async function middleware(request) {
   if (request.nextUrl.pathname === '/searchparams-normalization-bug') {
     const headers = new Headers(request.headers)
     headers.set('test', request.nextUrl.searchParams.get('val') || '')
@@ -25,13 +25,24 @@ export function middleware(request) {
     return NextResponse.rewrite(new URL('/dashboard', request.url))
   }
 
+  if (request.nextUrl.pathname === '/bootstrap/with-nonce') {
+    // In a real app, crypto.randomUUID() would be used to generate a safe nonce.
+    // React and Webpack use eval() in development mode, so we need to allow it.
+    const csp = `script-src 'nonce-my-random-nonce' 'strict-dynamic'${process.env.NODE_ENV !== 'production' ? " 'unsafe-eval'" : ''};`
+    return NextResponse.next({
+      headers: {
+        'Content-Security-Policy': csp,
+      },
+    })
+  }
+
   if (request.nextUrl.pathname.startsWith('/internal/test')) {
     const method = request.nextUrl.pathname.endsWith('rewrite')
       ? 'rewrite'
       : 'redirect'
 
-    const internal = ['RSC', 'Next-Router-State-Tree']
-    if (internal.some((name) => request.headers.has(name.toLowerCase()))) {
+    const internal = ['rsc', 'next-router-state-tree']
+    if (internal.some((name) => request.headers.has(name))) {
       return NextResponse[method](new URL('/internal/failure', request.url))
     }
 
@@ -56,5 +67,25 @@ export function middleware(request) {
         request.url
       )
     )
+  }
+
+  if (request.nextUrl.pathname === '/script-nonce') {
+    const nonce = crypto.randomUUID()
+
+    return NextResponse.next({
+      headers: {
+        'content-security-policy': `script-src 'nonce-${nonce}' 'strict-dynamic';`,
+      },
+    })
+  }
+
+  if (request.nextUrl.pathname === '/script-nonce/with-next-font') {
+    const nonce = crypto.randomUUID()
+
+    return NextResponse.next({
+      headers: {
+        'content-security-policy': `script-src 'nonce-${nonce}' 'strict-dynamic';`,
+      },
+    })
   }
 }

@@ -1,0 +1,18 @@
+.component-content {
+  @include respond-to(mobile-large) {
+    .row {
+      padding: 0;
+      margin: 0;
+    }
+  }
+}
+@include respond-to(mobile-large) {
+  .row {
+    margin: 0;
+    padding: 0;
+    > * {
+      padding: 0;
+      margin: 0;
+    }
+  }
+}

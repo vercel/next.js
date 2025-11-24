@@ -17,8 +17,8 @@
     "reselect": "^3.0.1"
   },
   "devDependencies": {
-    "@babel/core": "7.14.5",
-    "@babel/plugin-proposal-decorators": "^7.1.0"
+    "@babel/core": "7.22.5",
+    "@babel/plugin-proposal-decorators": "7.22.5"
   },
   "babel": {
     "presets": [

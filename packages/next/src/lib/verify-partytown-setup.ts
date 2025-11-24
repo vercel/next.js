@@ -1,14 +1,11 @@
 import { promises } from 'fs'
-import chalk from 'next/dist/compiled/chalk'
+import { bold, cyan, red } from './picocolors'
 
 import path from 'path'
-import {
-  hasNecessaryDependencies,
-  NecessaryDependencies,
-} from './has-necessary-dependencies'
+import { hasNecessaryDependencies } from './has-necessary-dependencies'
+import type { NecessaryDependencies } from './has-necessary-dependencies'
 import { fileExists, FileType } from './file-exists'
 import { FatalError } from './fatal-error'
-import { recursiveDelete } from './recursive-delete'
 import * as Log from '../build/output/log'
 import { getPkgManager } from './helpers/get-pkg-manager'
 
@@ -16,22 +13,26 @@ async function missingDependencyError(dir: string) {
   const packageManager = getPkgManager(dir)
 
   throw new FatalError(
-    chalk.bold.red(
-      "It looks like you're trying to use Partytown with next/script but do not have the required package(s) installed."
+    bold(
+      red(
+        "It looks like you're trying to use Partytown with next/script but do not have the required package(s) installed."
+      )
     ) +
       '\n\n' +
-      chalk.bold(`Please install Partytown by running:`) +
+      bold(`Please install Partytown by running:`) +
       '\n\n' +
-      `\t${chalk.bold.cyan(
-        (packageManager === 'yarn'
-          ? 'yarn add --dev'
-          : packageManager === 'pnpm'
-          ? 'pnpm install --save-dev'
-          : 'npm install --save-dev') + ' @builder.io/partytown'
+      `\t${bold(
+        cyan(
+          (packageManager === 'yarn'
+            ? 'yarn add --dev'
+            : packageManager === 'pnpm'
+              ? 'pnpm install --save-dev'
+              : 'npm install --save-dev') + ' @builder.io/partytown'
+        )
       )}` +
       '\n\n' +
-      chalk.bold(
-        `If you are not trying to use Partytown, please disable the experimental ${chalk.cyan(
+      bold(
+        `If you are not trying to use Partytown, please disable the experimental ${cyan(
           '"nextScriptWorkers"'
         )} flag in next.config.js.`
       ) +
@@ -50,8 +51,7 @@ async function copyPartytownStaticFiles(
   )
 
   if (hasPartytownLibDir) {
-    await recursiveDelete(partytownLibDir)
-    await promises.rmdir(partytownLibDir)
+    await promises.rm(partytownLibDir, { recursive: true, force: true })
   }
 
   const { copyLibFiles } = await Promise.resolve(
@@ -66,16 +66,13 @@ export async function verifyPartytownSetup(
   targetDir: string
 ): Promise<void> {
   try {
-    const partytownDeps: NecessaryDependencies = await hasNecessaryDependencies(
-      dir,
-      [
-        {
-          file: '@builder.io/partytown',
-          pkg: '@builder.io/partytown',
-          exportsRestrict: false,
-        },
-      ]
-    )
+    const partytownDeps: NecessaryDependencies = hasNecessaryDependencies(dir, [
+      {
+        file: '@builder.io/partytown',
+        pkg: '@builder.io/partytown',
+        exportsRestrict: false,
+      },
+    ])
 
     if (partytownDeps.missing?.length > 0) {
       await missingDependencyError(dir)
@@ -84,8 +81,8 @@ export async function verifyPartytownSetup(
         await copyPartytownStaticFiles(partytownDeps, targetDir)
       } catch (err) {
         Log.warn(
-          `Partytown library files could not be copied to the static directory. Please ensure that ${chalk.bold.cyan(
-            '@builder.io/partytown'
+          `Partytown library files could not be copied to the static directory. Please ensure that ${bold(
+            cyan('@builder.io/partytown')
           )} is installed as a dependency.`
         )
       }
@@ -94,7 +91,8 @@ export async function verifyPartytownSetup(
     // Don't show a stack trace when there is an error due to missing dependencies
     if (err instanceof FatalError) {
       console.error(err.message)
-      process.exit(1)
+      // Throw to allow finally blocks to run (e.g., telemetry flush)
+      throw err
     }
     throw err
   }

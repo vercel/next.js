@@ -1,0 +1,18 @@
+@import "@sass/abstracts/vars";
+
+.image {
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+  a {
+    display: inline-block;
+    max-width: 100%;
+  }
+  .image-caption {
+    display: block;
+    font-style: italic;
+    font-size: $font-small;
+    color: $image-caption-color;
+  }
+}

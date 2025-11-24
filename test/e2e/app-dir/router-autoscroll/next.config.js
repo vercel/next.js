@@ -1,3 +1,1 @@
-module.exports = {
-  strictMode: true,
-}
+module.exports = {}

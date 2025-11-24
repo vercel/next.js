@@ -1,9 +1,3 @@
-// Type definitions for cookie 0.5
-// Project: https://github.com/jshttp/cookie
-// Definitions by: Pine Mizune <https://github.com/pine>
-//                 Piotr Błażejewicz <https://github.com/peterblazejewicz>
-// Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
-
 /**
  * Basic HTTP cookie parser and serializer for HTTP servers.
  */
@@ -63,6 +57,17 @@ interface CookieSerializeOptions {
      */
     maxAge?: number | undefined;
     /**
+     * Specifies the `boolean` value for the [`Partitioned` `Set-Cookie`](rfc-cutler-httpbis-partitioned-cookies)
+     * attribute. When truthy, the `Partitioned` attribute is set, otherwise it is not. By default, the
+     * `Partitioned` attribute is not set.
+     *
+     * **note** This is an attribute that has not yet been fully standardized, and may change in the future.
+     * This also means many clients may ignore this attribute until they understand it.
+     *
+     * More information about can be found in [the proposal](https://github.com/privacycg/CHIPS)
+     */
+    partitioned?: boolean | undefined;
+    /**
      * Specifies the value for the {@link https://tools.ietf.org/html/rfc6265#section-5.2.4|`Path` `Set-Cookie` attribute}.
      * By default, the path is considered the "default path".
      */
@@ -80,7 +85,7 @@ interface CookieSerializeOptions {
      * **note** This is an attribute that has not yet been fully standardized, and may change in the future.
      * This also means many clients may ignore this attribute until they understand it.
      */
-    priority?: 'low' | 'medium' | 'high' | undefined;
+    priority?: "low" | "medium" | "high" | undefined;
     /**
      * Specifies the boolean or string to be the value for the {@link https://tools.ietf.org/html/draft-ietf-httpbis-rfc6265bis-03#section-4.1.2.7|`SameSite` `Set-Cookie` attribute}.
      *
@@ -98,7 +103,7 @@ interface CookieSerializeOptions {
      *
      * *note* This is an attribute that has not yet been fully standardized, and may change in the future. This also means many clients may ignore this attribute until they understand it.
      */
-    sameSite?: true | false | 'lax' | 'strict' | 'none' | undefined;
+    sameSite?: true | false | "lax" | "strict" | "none" | undefined;
     /**
      * Specifies the boolean value for the {@link https://tools.ietf.org/html/rfc6265#section-5.2.5|`Secure` `Set-Cookie` attribute}. When truthy, the
      * `Secure` attribute is set, otherwise it is not. By default, the `Secure` attribute is not set.
@@ -114,7 +119,7 @@ interface CookieSerializeOptions {
  * {@link https://wicg.github.io/cookie-store/#dictdef-cookielistitem CookieListItem}
  * as specified by W3C.
  */
-interface CookieListItem extends Pick<CookieSerializeOptions, 'domain' | 'path' | 'secure' | 'sameSite'> {
+interface CookieListItem extends Pick<CookieSerializeOptions, 'domain' | 'path' | 'secure' | 'sameSite' | 'partitioned'> {
     /** A string with the name of a cookie. */
     name: string;
     /** A string containing the value of the cookie. */
@@ -138,7 +143,7 @@ type RequestCookie = Pick<CookieListItem, 'name' | 'value'>;
  */
 declare class RequestCookies {
     constructor(requestHeaders: Headers);
-    [Symbol.iterator](): IterableIterator<[string, RequestCookie]>;
+    [Symbol.iterator](): MapIterator<[string, RequestCookie]>;
     /**
      * The amount of cookies received from the client
      */
@@ -175,6 +180,7 @@ declare class ResponseCookies {
      * {@link https://wicg.github.io/cookie-store/#CookieStore-getAll CookieStore#getAll} without the Promise.
      */
     getAll(...args: [key: string] | [options: ResponseCookie] | []): ResponseCookie[];
+    has(name: string): boolean;
     /**
      * {@link https://wicg.github.io/cookie-store/#CookieStore-set CookieStore#set} without the Promise.
      */
@@ -182,8 +188,14 @@ declare class ResponseCookies {
     /**
      * {@link https://wicg.github.io/cookie-store/#CookieStore-delete CookieStore#delete} without the Promise.
      */
-    delete(...args: [key: string] | [options: ResponseCookie]): this;
+    delete(...args: [key: string] | [options: Omit<ResponseCookie, 'value' | 'expires'>]): this;
     toString(): string;
 }
 
-export { CookieListItem, RequestCookie, RequestCookies, ResponseCookie, ResponseCookies };
+declare function stringifyCookie(c: ResponseCookie | RequestCookie): string;
+/** Parse a `Cookie` header value */
+declare function parseCookie(cookie: string): Map<string, string>;
+/** Parse a `Set-Cookie` header value */
+declare function parseSetCookie(setCookie: string): undefined | ResponseCookie;
+
+export { type CookieListItem, type RequestCookie, RequestCookies, type ResponseCookie, ResponseCookies, parseCookie, parseSetCookie, stringifyCookie };

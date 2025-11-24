@@ -1,4 +1,4 @@
-import React from 'react'
+import React from "react";
 
 const Header = () => {
   return (
@@ -14,7 +14,7 @@ const Header = () => {
         </ul>
       </nav>
     </div>
-  )
-}
+  );
+};
 
-export default Header
+export default Header;

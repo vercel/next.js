@@ -1,0 +1,119 @@
+---
+title: '`next/image` Un-configured Host'
+---
+
+## Why This Error Occurred
+
+One of your pages that leverages the `next/image` component, passed a `src` value that uses a hostname in the URL that isn't defined in the `images.remotePatterns` in `next.config.js`.
+
+Each part of the `src` value is strictly matched against your `images.remotePatterns` definitions. Matching is exact and case-sensitive, meaning a mismatch in any single part will fail the check.
+
+For a URL like `https://example.org/images/example?v=1234`, the following parts must match the pattern you configured:
+
+- **Protocol**: `http` vs `https` must match exactly.
+- **Hostname**: `example.org` is different from `www.example.org` and from subdomains like `assets.example.org`.
+- **Port**: If present (e.g. `:3000`), it must be included.
+- **Pathname**: The path must be covered by your glob, e.g. `/**` or `/images/**`.
+- **Search**: If specified in a pattern, it must match the full search string exactly (including the leading `?`). Globs are not supported for search.
+
+If any of these differ from the actual `src`, the image will be rejected.
+
+Common pitfalls that cause this error:
+
+- Using `https` in `src` but only allowing `http` (or vice‑versa).
+- Loading from a subdomain like `assets.example.com` while only configuring `example.com`.
+- Missing a port during local/dev usage, e.g. `http://localhost:3000`.
+- A too‑narrow pathname pattern (e.g. `/images/` instead of `/images/**`).
+- When using the `URL` constructor, if no `search` is specified, then the `search` property is set to an empty string `''`, which means search params are **NOT** allowed.
+
+See the [Remote Patterns](/docs/pages/api-reference/components/image#remotepatterns) reference for details.
+
+## Possible Ways to Fix It
+
+Add the protocol, hostname, port, and pathname to the `images.remotePatterns` config in `next.config.js`:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    remotePatterns: [new URL('https://assets.example.com/account123/**')],
+  },
+}
+```
+
+### With specific search params
+
+To allow a single search param, `v=1234`:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    remotePatterns: [
+      new URL('https://assets.example.com/account123/**?v=1234'),
+    ],
+  },
+}
+```
+
+### Any search params
+
+To allow any search parameter, use the remote pattern object, omitting the `search` key.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'assets.example.com',
+        port: '',
+        pathname: '/account123/**',
+      },
+    ],
+  },
+}
+```
+
+### Fixing older versions of Next.js
+
+<details>
+  <summary>Using Next.js prior to 15.3.0?</summary>
+  
+Older versions of Next.js can configure `images.remotePatterns` using the object:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'assets.example.com',
+        port: '',
+        pathname: '/account123/**',
+        search: '',
+      },
+    ],
+  },
+}
+```
+
+</details>
+
+<details>
+  <summary>Using Next.js prior to 12.3.0?</summary>
+  
+Older versions of Next.js can configure `images.domains` instead:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    domains: ['assets.example.com'],
+  },
+}
+```
+
+</details>
+
+## Useful Links
+
+- [Image Optimization Documentation](/docs/pages/api-reference/components/image)
+- [Remote Patterns Documentation](/docs/pages/api-reference/components/image#remotepatterns)

@@ -6,9 +6,11 @@ import path from 'path'
 import { stringify } from 'querystring'
 import { STATIC_METADATA_IMAGES } from '../../../../lib/metadata/is-metadata-route'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
-import { MetadataResolver } from '../next-app-loader'
+import type { MetadataResolver } from '../next-app-loader'
+import type { PageExtensions } from '../../../page-extensions-type'
 
 const METADATA_TYPE = 'metadata'
+const NUMERIC_SUFFIX_ARRAY = Array(10).fill(0)
 
 // Produce all compositions with filename (icon, apple-icon, etc.) with extensions (png, jpg, etc.)
 async function enumMetadataFiles(
@@ -26,15 +28,14 @@ async function enumMetadataFiles(
 ): Promise<string[]> {
   const collectedFiles: string[] = []
 
+  // Collect <filename>.<ext>, <filename>[].<ext>
   const possibleFileNames = [filename].concat(
     numericSuffix
-      ? Array(10)
-          .fill(0)
-          .map((_, index) => filename + index)
+      ? NUMERIC_SUFFIX_ARRAY.map((_, index) => filename + index)
       : []
   )
   for (const name of possibleFileNames) {
-    const resolved = await metadataResolver(path.join(dir, name), extensions)
+    const resolved = await metadataResolver(dir, name, extensions)
     if (resolved) {
       collectedFiles.push(resolved)
     }
@@ -55,7 +56,7 @@ export async function createStaticMetadataFromRoute(
     segment: string
     metadataResolver: MetadataResolver
     isRootLayoutOrRootPage: boolean
-    pageExtensions: string[]
+    pageExtensions: PageExtensions
     basePath: string
   }
 ) {
@@ -85,19 +86,22 @@ export async function createStaticMetadataFromRoute(
         const extension = staticManifestExtension.includes(ext.slice(1))
           ? ext.slice(1)
           : 'webmanifest'
-        staticImagesMetadata.manifest = JSON.stringify(`/${name}.${extension}`)
+        staticImagesMetadata.manifest = JSON.stringify(
+          `${basePath}/${name}.${extension}`
+        )
       }
       return
     }
 
+    const isFavicon = type === 'favicon'
     const resolvedMetadataFiles = await enumMetadataFiles(
       resolvedDir,
       STATIC_METADATA_IMAGES[type].filename,
       [
         ...STATIC_METADATA_IMAGES[type].extensions,
-        ...(type === 'favicon' ? [] : pageExtensions),
+        ...(isFavicon ? [] : pageExtensions),
       ],
-      { metadataResolver, numericSuffix: true }
+      { metadataResolver, numericSuffix: !isFavicon }
     )
     resolvedMetadataFiles
       .sort((a, b) => a.localeCompare(b))
@@ -109,6 +113,7 @@ export async function createStaticMetadataFromRoute(
             basePath,
             pageExtensions,
           }
+          // WEBPACK_RESOURCE_QUERIES.metadata query here only for filtering out applying to image loader
         )}!${filepath}?${WEBPACK_RESOURCE_QUERIES.metadata}`
 
         const imageModule = `(async (props) => (await import(/* webpackMode: "eager" */ ${JSON.stringify(
@@ -123,14 +128,15 @@ export async function createStaticMetadataFromRoute(
       })
   }
 
-  await Promise.all([
-    collectIconModuleIfExists('icon'),
-    collectIconModuleIfExists('apple'),
-    collectIconModuleIfExists('openGraph'),
-    collectIconModuleIfExists('twitter'),
-    isRootLayoutOrRootPage && collectIconModuleIfExists('favicon'),
-    isRootLayoutOrRootPage && collectIconModuleIfExists('manifest'),
-  ])
+  // Intentionally make these serial to reuse directory access cache.
+  await collectIconModuleIfExists('icon')
+  await collectIconModuleIfExists('apple')
+  await collectIconModuleIfExists('openGraph')
+  await collectIconModuleIfExists('twitter')
+  if (isRootLayoutOrRootPage) {
+    await collectIconModuleIfExists('favicon')
+    await collectIconModuleIfExists('manifest')
+  }
 
   return hasStaticMetadataFiles ? staticImagesMetadata : null
 }

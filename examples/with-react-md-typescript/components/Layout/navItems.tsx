@@ -1,10 +1,10 @@
-import React, { ReactNode } from 'react'
+import React, { ReactNode } from "react";
 import {
   LayoutNavigationTree,
   LayoutNavigationItem,
   HomeSVGIcon,
   TvSVGIcon,
-} from 'react-md'
+} from "react-md";
 
 /**
  * Note: The `parentId` **must** be defaulted to `null` for the navigation tree
@@ -16,7 +16,7 @@ function createRoute(
   pathname: string,
   children: string,
   leftAddon: ReactNode | undefined,
-  parentId: string | null = null
+  parentId: string | null = null,
 ): LayoutNavigationItem {
   return {
     itemId: pathname,
@@ -24,12 +24,12 @@ function createRoute(
     href: pathname,
     children,
     leftAddon,
-  }
+  };
 }
 
 const navItems: LayoutNavigationTree = {
-  '/': createRoute('/', 'Home', <HomeSVGIcon />),
-  '/route-1': createRoute('/route-1', 'Route 1', <TvSVGIcon />),
-}
+  "/": createRoute("/", "Home", <HomeSVGIcon />),
+  "/route-1": createRoute("/route-1", "Route 1", <TvSVGIcon />),
+};
 
-export default navItems
+export default navItems;

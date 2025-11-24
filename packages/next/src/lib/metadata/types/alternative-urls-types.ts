@@ -412,30 +412,44 @@ type LangCode =
   | 'zh-MO'
   | 'zh-SG'
   | 'zh-TW'
+  | 'zh-Hans'
+  | 'zh-Hant'
   | 'zu-ZA'
+  // We can't have all valid combinations of language-region-script listed here
+  // as the list is too long and breaks the TypeScript compiler. So instead we
+  // only add the most common ones with a general string pattern for the rest.
+  // This way autocompletion still works and it is still possible to add custom
+  // lang codes.
+  | `${Lowercase<string>}-${string}`
 
 type UnmatchedLang = 'x-default'
 
 type HrefLang = LangCode | UnmatchedLang
 
-type Languages<T> = {
-  [s in HrefLang]?: T
+export type Languages<T> = {
+  [s in HrefLang]?: T | undefined
 }
 
 export type AlternateLinkDescriptor = {
-  title?: string
+  title?: string | undefined
   url: string | URL
 }
 
 export type AlternateURLs = {
-  canonical?: null | string | URL | AlternateLinkDescriptor
-  languages?: Languages<null | string | URL | AlternateLinkDescriptor[]>
-  media?: {
-    [media: string]: null | string | URL | AlternateLinkDescriptor[]
-  }
-  types?: {
-    [types: string]: null | string | URL | AlternateLinkDescriptor[]
-  }
+  canonical?: null | string | URL | AlternateLinkDescriptor | undefined
+  languages?:
+    | Languages<null | string | URL | AlternateLinkDescriptor[]>
+    | undefined
+  media?:
+    | {
+        [media: string]: null | string | URL | AlternateLinkDescriptor[]
+      }
+    | undefined
+  types?:
+    | {
+        [types: string]: null | string | URL | AlternateLinkDescriptor[]
+      }
+    | undefined
 }
 
 export type ResolvedAlternateURLs = {

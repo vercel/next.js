@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-script/input/exported.cjs"],"sourcesContent":["module.exports = { foo: 1, bar: 2 }\n"],"names":[],"mappings":"AAAA,OAAO,OAAO,GAAG;IAAE,KAAK;IAAG,KAAK;AAAE"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-script/input/mod.js"],"sourcesContent":["export * from './exported.cjs'\n\nconsole.log('Hoist test')\n"],"names":[],"mappings":";AAAA;;;AAEA,QAAQ,GAAG,CAAC"}},
+    {"offset": {"line": 20, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-script/input/index.js"],"sourcesContent":["import * as foo from './mod.js'\n\nconsole.log(foo)\n"],"names":[],"mappings":";AAAA;;AAEA,QAAQ,GAAG,CAAC"}}]
+}

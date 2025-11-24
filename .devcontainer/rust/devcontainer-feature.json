@@ -1,0 +1,13 @@
+{
+  "id": "rust",
+  "name": "next.js-rust",
+  "version": "0.0.0",
+  "dependsOn": {
+    "ghcr.io/devcontainers/features/rust:1": {
+      // this should match the `rust-toolchain.toml`
+      "version": "nightly-2025-09-21",
+      "profile": "minimal",
+      "components": "rustfmt,clippy,rust-analyzer"
+    }
+  }
+}
