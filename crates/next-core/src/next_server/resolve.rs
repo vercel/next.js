@@ -41,7 +41,6 @@ pub enum ExternalPredicate {
 /// possible to resolve them at runtime.
 #[turbo_tasks::value]
 pub(crate) struct ExternalCjsModulesResolvePlugin {
-    project_path: FileSystemPath,
     root: FileSystemPath,
     predicate: ResolvedVc<ExternalPredicate>,
     import_externals: bool,
@@ -51,13 +50,11 @@ pub(crate) struct ExternalCjsModulesResolvePlugin {
 impl ExternalCjsModulesResolvePlugin {
     #[turbo_tasks::function]
     pub fn new(
-        project_path: FileSystemPath,
         root: FileSystemPath,
         predicate: ResolvedVc<ExternalPredicate>,
         import_externals: bool,
     ) -> Vc<Self> {
         ExternalCjsModulesResolvePlugin {
-            project_path,
             root,
             predicate,
             import_externals,
