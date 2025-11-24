@@ -1812,22 +1812,28 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     ExportSpecifier::Named(ExportNamedSpecifier {
                                         orig: ModuleExportName::Ident(orig),
                                         exported: Some(exported),
+                                        is_type_only,
                                         ..
                                     }) => {
                                         // export { foo as bar } or export { foo as "📙" }
-                                        self.export_name_by_local_id
-                                            .insert(orig.to_id(), exported.clone());
+                                        if !*is_type_only {
+                                            self.export_name_by_local_id
+                                                .insert(orig.to_id(), exported.clone());
+                                        }
                                     }
                                     ExportSpecifier::Named(ExportNamedSpecifier {
                                         orig: ModuleExportName::Ident(orig),
                                         exported: None,
+                                        is_type_only,
                                         ..
                                     }) => {
                                         // export { foo }
-                                        self.export_name_by_local_id.insert(
-                                            orig.to_id(),
-                                            ModuleExportName::Ident(orig.clone()),
-                                        );
+                                        if !*is_type_only {
+                                            self.export_name_by_local_id.insert(
+                                                orig.to_id(),
+                                                ModuleExportName::Ident(orig.clone()),
+                                            );
+                                        }
                                     }
                                     _ => {}
                                 }
@@ -1974,6 +1980,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                     self.export_name_by_local_id
                                                         .insert(orig.to_id(), export_name);
 
+                                                    self.local_ids_that_need_cache_runtime_wrapper_if_exported
+                                                        .insert(orig.to_id());
+
                                                     return Some(ImportSpecifier::Named(
                                                         ImportNamedSpecifier {
                                                             span: DUMMY_SP,
@@ -2049,19 +2058,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         named.specifiers.remove(*idx);
                                     }
 
-                                    // If all non-type specifiers were removed, remove the export
-                                    // statement.
-                                    if named.specifiers.is_empty()
-                                        || named.specifiers.iter().all(|spec| {
-                                            matches!(
-                                                spec,
-                                                ExportSpecifier::Named(ExportNamedSpecifier {
-                                                    is_type_only: true,
-                                                    ..
-                                                })
-                                            )
-                                        })
-                                    {
+                                    if named.specifiers.is_empty() {
                                         should_remove_statement = true;
                                     }
                                 }
@@ -2159,18 +2156,28 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         // registered during the main pass.
         if should_track_exports && !has_errors {
             for (id, export_name) in &self.export_name_by_local_id {
-                if !self.reference_ids_by_export_name.contains_key(export_name) {
-                    self.server_reference_exports.push(ServerReferenceExport {
-                        ident: Ident::from(id.clone()),
-                        export_name: export_name.clone(),
-                        reference_id: self.generate_server_reference_id(
-                            export_name,
-                            in_cache_file,
-                            None,
-                        ),
-                        needs_cache_runtime_wrapper: in_cache_file,
-                    });
+                if self.reference_ids_by_export_name.contains_key(export_name) {
+                    continue;
                 }
+
+                if in_cache_file
+                    && !self
+                        .local_ids_that_need_cache_runtime_wrapper_if_exported
+                        .contains(id)
+                {
+                    continue;
+                }
+
+                self.server_reference_exports.push(ServerReferenceExport {
+                    ident: Ident::from(id.clone()),
+                    export_name: export_name.clone(),
+                    reference_id: self.generate_server_reference_id(
+                        export_name,
+                        in_cache_file,
+                        None,
+                    ),
+                    needs_cache_runtime_wrapper: in_cache_file,
+                });
             }
         }
 
