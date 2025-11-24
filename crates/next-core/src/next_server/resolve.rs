@@ -320,21 +320,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             }
         };
 
-        let mut target = result_from_original_location.ident().path().owned().await?;
-        loop {
-            let parent = target.parent();
-            if parent.is_root() {
-                break;
-            }
-            if parent.file_name() == "node_modules" {
-                break;
-            }
-            if parent.file_name().starts_with("@") && parent.parent().file_name() == "node_modules"
-            {
-                break;
-            }
-            target = parent;
-        }
+        let target = result_from_original_location.ident().path().owned().await?;
 
         Ok(ResolveResultOption::some(*ResolveResult::primary(
             ResolveResultItem::External {
