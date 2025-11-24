@@ -3,8 +3,9 @@ import { rules } from '@next/eslint-plugin-next'
 
 const NextESLintRule = rules['next-script-for-ga']
 
-const ERROR_MSG =
-  'Prefer `next/script` component when using the inline script for Google Analytics. See: https://nextjs.org/docs/messages/next-script-for-ga'
+const url = 'https://nextjs.org/docs/messages/next-script-for-ga'
+const ERROR_MSG_GOOGLE_ANALYTICS = `Prefer \`GoogleAnalytics\` component from \`@next/third-parties/google\` when using the inline script for Google Analytics. See: ${url}`
+const ERROR_MSG_GOOGLE_TAG_MANAGER = `Prefer \`GoogleTagManager\` component from \`@next/third-parties/google\` when using the inline script for Google Tag Manager. See: ${url}`
 
 const tests = {
   valid: [
@@ -108,7 +109,7 @@ const tests = {
       }`,
       errors: [
         {
-          message: ERROR_MSG,
+          message: ERROR_MSG_GOOGLE_TAG_MANAGER,
           type: 'JSXOpeningElement',
         },
       ],
@@ -137,7 +138,7 @@ const tests = {
       }`,
       errors: [
         {
-          message: ERROR_MSG,
+          message: ERROR_MSG_GOOGLE_ANALYTICS,
           type: 'JSXOpeningElement',
         },
       ],
@@ -163,7 +164,7 @@ const tests = {
       }`,
       errors: [
         {
-          message: ERROR_MSG,
+          message: ERROR_MSG_GOOGLE_ANALYTICS,
           type: 'JSXOpeningElement',
         },
       ],
@@ -193,7 +194,7 @@ const tests = {
       }`,
       errors: [
         {
-          message: ERROR_MSG,
+          message: ERROR_MSG_GOOGLE_ANALYTICS,
           type: 'JSXOpeningElement',
         },
       ],
