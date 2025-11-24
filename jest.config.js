@@ -16,6 +16,7 @@ const customJestConfig = {
     '<rootDir>/../packages/next-codemod/',
     '<rootDir>/../packages/eslint-plugin-internal/',
     '<rootDir>/../packages/font/src/',
+    '<rootDir>/../packages/nex-trouting/',
   ],
   modulePathIgnorePatterns: ['/\\.next/'],
   modulePaths: ['<rootDir>/lib'],
