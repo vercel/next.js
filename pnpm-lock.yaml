@@ -755,12 +755,6 @@ importers:
 
   bench/app-router-server:
     dependencies:
-      dep-a:
-        specifier: file:./dep-a
-        version: file:bench/app-router-server/dep-a
-      dep-b:
-        specifier: file:./dep-b
-        version: file:bench/app-router-server/dep-b
       next:
         specifier: workspace:*
         version: link:../../packages/next
@@ -9182,12 +9176,6 @@ packages:
 
   delegates@1.0.0:
     resolution: {integrity: sha512-bd2L678uiWATM6m5Z1VzNCErI3jiGzt6HGY8OVICs40JQq/HALfbyNJmp0UDakEY4pMMaN0Ly5om/B1VI/+xfQ==}
-
-  dep-a@file:bench/app-router-server/dep-a:
-    resolution: {directory: bench/app-router-server/dep-a, type: directory}
-
-  dep-b@file:bench/app-router-server/dep-b:
-    resolution: {directory: bench/app-router-server/dep-b, type: directory}
 
   depd@1.1.2:
     resolution: {integrity: sha512-7emPTl6Dpo6JRXOXjLRxck+FlLRX5847cLKEn00PLAgc3g2hTZZgr+e4c2v6QpSmLeFP3n5yUo7ft6avBK/5jQ==}
@@ -27010,14 +26998,6 @@ snapshots:
   delayed-stream@1.0.0: {}
 
   delegates@1.0.0: {}
-
-  dep-a@file:bench/app-router-server/dep-a:
-    dependencies:
-      lodash: 3.10.1
-
-  dep-b@file:bench/app-router-server/dep-b:
-    dependencies:
-      lodash: 4.17.21
 
   depd@1.1.2: {}
 
