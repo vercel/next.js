@@ -8,9 +8,9 @@ if (!Array.isArray(globalThis.TURBOPACK)) {
 }
 
 const CHUNK_BASE_PATH = "";
-const CHUNK_SUFFIX_PATH = "";
 const RELATIVE_ROOT_PATH = "../../../../../../..";
 const RUNTIME_PUBLIC_PATH = "";
+const CHUNK_SUFFIX = "";
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
@@ -1148,8 +1148,9 @@ browserContextPrototype.P = resolveAbsolutePath;
     // It is important to reverse the array so when bootstrapping we can infer what chunk is being
     // evaluated by poping urls off of this array.  See `getPathFromScript`
     var bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
+self.TURBOPACK_CHUNK_SUFFIX = ${JSON.stringify(CHUNK_SUFFIX)};
 self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
-importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`;
+importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c + self.TURBOPACK_CHUNK_SUFFIX).reverse());`;
     var blob = new Blob([
         bootstrap
     ], {
@@ -1168,7 +1169,7 @@ browserContextPrototype.b = getWorkerBlobURL;
  */ function getChunkRelativeUrl(chunkPath) {
     return `${CHUNK_BASE_PATH}${chunkPath.split('/').map(function(p) {
         return encodeURIComponent(p);
-    }).join('/')}${CHUNK_SUFFIX_PATH}`;
+    }).join('/')}${CHUNK_SUFFIX}`;
 }
 function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
