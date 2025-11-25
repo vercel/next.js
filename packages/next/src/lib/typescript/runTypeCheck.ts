@@ -2,9 +2,11 @@ import path from 'path'
 import { getFormattedDiagnostic } from './diagnosticFormatter'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
 import { getRequiredConfiguration } from './writeConfigurationDefaults'
+import { getDevTypesPath } from './type-paths'
 
 import { CompileError } from '../compile-error'
 import { warn } from '../../build/output/log'
+import { defaultConfig } from '../../server/config-shared'
 
 export interface TypeCheckResult {
   hasWarnings: boolean
@@ -33,9 +35,21 @@ export async function runTypeCheck(
   // we filter out .next/dev/types files to prevent stale dev types from causing
   // errors when routes have been deleted since the last dev session.
   let fileNames = effectiveConfiguration.fileNames
-  if (isolatedDevBuild !== false) {
-    const devTypesPattern = /[/\\]\.next[/\\]dev[/\\]types[/\\]/
-    fileNames = fileNames.filter((fileName) => !devTypesPattern.test(fileName))
+  const resolvedIsolatedDevBuild =
+    isolatedDevBuild === undefined
+      ? defaultConfig.experimental.isolatedDevBuild
+      : isolatedDevBuild
+
+  // Get the dev types path to filter (null if not applicable)
+  const devTypesDir = getDevTypesPath(
+    baseDir,
+    distDir,
+    resolvedIsolatedDevBuild
+  )
+  if (devTypesDir) {
+    fileNames = fileNames.filter(
+      (fileName) => !fileName.startsWith(devTypesDir)
+    )
   }
 
   if (fileNames.length < 1) {
