@@ -20,6 +20,7 @@ module.exports = function (task) {
       if (
         file.base.endsWith('.d.ts') ||
         file.base.endsWith('.json') ||
+        file.base.endsWith('.jsonc') ||
         file.base.endsWith('.woff2')
       )
         return

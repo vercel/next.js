@@ -14,7 +14,7 @@ use turbopack::{
     resolve_options_context::ResolveOptionsContext,
 };
 use turbopack_browser::{
-    BrowserChunkingContext, ContentHashing, CurrentChunkMethod,
+    BrowserChunkingContext, ChunkSuffix, ContentHashing, CurrentChunkMethod,
     react_refresh::assert_can_resolve_react_refresh,
 };
 use turbopack_core::{
@@ -320,11 +320,7 @@ pub async fn get_client_module_options_context(
     let enable_postcss_transform = Some(postcss_transform_options.resolved_cell());
     let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.resolved_cell());
 
-    let source_maps = if *next_config.client_source_maps(mode).await? {
-        SourceMapsType::Full
-    } else {
-        SourceMapsType::None
-    };
+    let source_maps = *next_config.client_source_maps(mode).await?;
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
@@ -418,12 +414,11 @@ pub struct ClientChunkingContextOptions {
     pub client_root: FileSystemPath,
     pub client_root_to_root_path: RcStr,
     pub asset_prefix: Vc<RcStr>,
-    pub chunk_suffix_path: Vc<Option<RcStr>>,
     pub environment: Vc<Environment>,
     pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
     pub export_usage: Vc<OptionExportUsageInfo>,
     pub minify: Vc<bool>,
-    pub source_maps: Vc<bool>,
+    pub source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
@@ -441,7 +436,6 @@ pub async fn get_client_chunking_context(
         client_root,
         client_root_to_root_path,
         asset_prefix,
-        chunk_suffix_path,
         environment,
         module_id_strategy,
         export_usage,
@@ -456,7 +450,6 @@ pub async fn get_client_chunking_context(
 
     let next_mode = mode.await?;
     let asset_prefix = asset_prefix.owned().await?;
-    let chunk_suffix_path = chunk_suffix_path.to_resolved().await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
         client_root.clone(),
@@ -468,7 +461,7 @@ pub async fn get_client_chunking_context(
         next_mode.runtime_type(),
     )
     .chunk_base_path(Some(asset_prefix.clone()))
-    .chunk_suffix_path(chunk_suffix_path)
+    .chunk_suffix(ChunkSuffix::FromScriptSrc.resolved_cell())
     .minify_type(if *minify.await? {
         MinifyType::Minify {
             mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
@@ -476,11 +469,7 @@ pub async fn get_client_chunking_context(
     } else {
         MinifyType::NoMinify
     })
-    .source_maps(if *source_maps.await? {
-        SourceMapsType::Full
-    } else {
-        SourceMapsType::None
-    })
+    .source_maps(*source_maps.await?)
     .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .export_usage(*export_usage.await?)

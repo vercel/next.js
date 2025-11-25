@@ -427,6 +427,8 @@ export interface ExperimentalConfig {
 
   /**
    * Enable filesystem cache for the turbopack dev server.
+   *
+   * Defaults to `true` in canary releases.
    */
   turbopackFileSystemCacheForDev?: boolean
 
@@ -439,6 +441,11 @@ export interface ExperimentalConfig {
    * Enable source maps. Defaults to true.
    */
   turbopackSourceMaps?: boolean
+
+  /**
+   * Enable extraction of source maps from input files. Defaults to true.
+   */
+  turbopackInputSourceMaps?: boolean
 
   /**
    * Enable tree shaking for the turbopack dev server and build.
@@ -1468,7 +1475,6 @@ export const defaultConfig = Object.freeze({
     appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
-    serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
@@ -1544,6 +1550,8 @@ export const defaultConfig = Object.freeze({
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
     mcpServer: true,
+    turbopackFileSystemCacheForDev: !isStableBuild(),
+    turbopackFileSystemCacheForBuild: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

@@ -45,6 +45,10 @@ export type RouterServerContext = Record<
       requestId: string
     ) => void
     setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
+    sendErrorsToBrowser?: (
+      errorsRscStream: ReadableStream<Uint8Array>,
+      htmlRequestId: string
+    ) => void
   }
 >
 

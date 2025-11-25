@@ -1,4 +1,5 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { createAtomicTimerGroup } from './app-render-scheduling'
 
 /**
  * This is a utility function to make scheduling sequential tasks that run back to back easier.
@@ -14,19 +15,22 @@ export function prerenderAndAbortInSequentialTasks<R>(
     )
   } else {
     return new Promise((resolve, reject) => {
+      const scheduleTimeout = createAtomicTimerGroup()
+
       let pendingResult: Promise<R>
-      setTimeout(() => {
+      scheduleTimeout(() => {
         try {
           pendingResult = prerender()
           pendingResult.catch(() => {})
         } catch (err) {
           reject(err)
         }
-      }, 0)
-      setTimeout(() => {
+      })
+
+      scheduleTimeout(() => {
         abort()
         resolve(pendingResult)
-      }, 0)
+      })
     })
   }
 }
@@ -46,22 +50,26 @@ export function prerenderAndAbortInSequentialTasksWithStages<R>(
     )
   } else {
     return new Promise((resolve, reject) => {
+      const scheduleTimeout = createAtomicTimerGroup()
+
       let pendingResult: Promise<R>
-      setTimeout(() => {
+      scheduleTimeout(() => {
         try {
           pendingResult = prerender()
           pendingResult.catch(() => {})
         } catch (err) {
           reject(err)
         }
-      }, 0)
-      setTimeout(() => {
+      })
+
+      scheduleTimeout(() => {
         advanceStage()
-      }, 0)
-      setTimeout(() => {
+      })
+
+      scheduleTimeout(() => {
         abort()
         resolve(pendingResult)
-      }, 0)
+      })
     })
   }
 }

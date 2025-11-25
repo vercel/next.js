@@ -226,6 +226,11 @@ impl Module for CachedExternalModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         Ok(match &self.analyze_mode {
             CachedExternalTracingMode::Untraced => ModuleReferences::empty(),
@@ -453,6 +458,11 @@ impl Module for ModuleWithoutSelfAsync {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.module.ident()
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
     }
 
     #[turbo_tasks::function]

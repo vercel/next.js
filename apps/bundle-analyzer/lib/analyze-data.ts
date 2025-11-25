@@ -1,8 +1,12 @@
 // Type definitions matching the Rust structures from analyze.rs
 
+// Type aliases for better readability
+export type ModuleIndex = number
+export type SourceIndex = number
+
 export interface AnalyzeModule {
+  ident: string
   path: string
-  depth: number
 }
 
 export interface AnalyzeSource {
@@ -53,7 +57,7 @@ interface ModulesDataHeader {
 export class ModulesData {
   private modulesHeader: ModulesDataHeader
   private modulesBinaryData: DataView
-  private pathToModuleIndex: Map<string, number>
+  private pathToModuleIndex: Map<string, ModuleIndex[]>
 
   constructor(modulesArrayBuffer: ArrayBuffer) {
     // Parse modules.data
@@ -76,11 +80,16 @@ export class ModulesData {
     this.pathToModuleIndex = new Map()
     for (let i = 0; i < this.modulesHeader.modules.length; i++) {
       const module = this.modulesHeader.modules[i]
-      this.pathToModuleIndex.set(module.path, i)
+      const existing = this.pathToModuleIndex.get(module.path)
+      if (existing) {
+        existing.push(i)
+      } else {
+        this.pathToModuleIndex.set(module.path, [i])
+      }
     }
   }
 
-  module(index: number): AnalyzeModule | undefined {
+  module(index: ModuleIndex): AnalyzeModule | undefined {
     return this.modulesHeader.modules[index]
   }
 
@@ -88,15 +97,15 @@ export class ModulesData {
     return this.modulesHeader.modules.length
   }
 
-  getModuleIndexFromPath(path: string): number | undefined {
-    return this.pathToModuleIndex.get(path)
+  getModuleIndiciesFromPath(path: string): ModuleIndex[] {
+    return this.pathToModuleIndex.get(path) ?? []
   }
 
   // Read edges data for a specific index only
   private readEdgesDataAtIndex(
     reference: EdgesDataReference,
-    index: number
-  ): number[] {
+    index: ModuleIndex
+  ): ModuleIndex[] {
     const { offset, length } = reference
 
     if (length === 0) {
@@ -143,28 +152,28 @@ export class ModulesData {
     return edges
   }
 
-  moduleDependents(index: number): number[] {
+  moduleDependents(index: ModuleIndex): ModuleIndex[] {
     return this.readEdgesDataAtIndex(
       this.modulesHeader.module_dependents,
       index
     )
   }
 
-  asyncModuleDependents(index: number): number[] {
+  asyncModuleDependents(index: ModuleIndex): ModuleIndex[] {
     return this.readEdgesDataAtIndex(
       this.modulesHeader.async_module_dependents,
       index
     )
   }
 
-  moduleDependencies(index: number): number[] {
+  moduleDependencies(index: ModuleIndex): ModuleIndex[] {
     return this.readEdgesDataAtIndex(
       this.modulesHeader.module_dependencies,
       index
     )
   }
 
-  asyncModuleDependencies(index: number): number[] {
+  asyncModuleDependencies(index: ModuleIndex): ModuleIndex[] {
     return this.readEdgesDataAtIndex(
       this.modulesHeader.async_module_dependencies,
       index
@@ -182,6 +191,7 @@ export class ModulesData {
 export class AnalyzeData {
   private analyzeHeader: AnalyzeDataHeader
   private analyzeBinaryData: DataView
+  private pathToSourceIndex: Map<string, SourceIndex>
 
   constructor(analyzeArrayBuffer: ArrayBuffer) {
     // Parse analyze.data
@@ -199,16 +209,27 @@ export class AnalyzeData {
       analyzeArrayBuffer,
       analyzeBinaryOffset
     )
+
+    // Build pathToSourceIndex map
+    this.pathToSourceIndex = new Map()
+    for (let i = 0; i < this.analyzeHeader.sources.length; i++) {
+      const fullPath = this.getFullSourcePath(i)
+      this.pathToSourceIndex.set(fullPath, i)
+    }
   }
 
   // Accessor methods for header data
 
-  source(index: number): AnalyzeSource | undefined {
+  source(index: SourceIndex): AnalyzeSource | undefined {
     return this.analyzeHeader.sources[index]
   }
 
   sourceCount(): number {
     return this.analyzeHeader.sources.length
+  }
+
+  getSourceIndexFromPath(path: string): SourceIndex | undefined {
+    return this.pathToSourceIndex.get(path)
   }
 
   chunkPart(index: number): AnalyzeChunkPart | undefined {
@@ -227,7 +248,7 @@ export class AnalyzeData {
     return this.analyzeHeader.output_files.length
   }
 
-  sourceRoots(): number[] {
+  sourceRoots(): SourceIndex[] {
     return this.analyzeHeader.source_roots
   }
 
@@ -236,8 +257,8 @@ export class AnalyzeData {
   // Read edges data for a specific index only
   private readEdgesDataAtIndex(
     reference: EdgesDataReference,
-    index: number
-  ): number[] {
+    index: SourceIndex
+  ): SourceIndex[] {
     const { offset, length } = reference
 
     if (length === 0) {
@@ -291,19 +312,19 @@ export class AnalyzeData {
     )
   }
 
-  sourceChunkParts(index: number): number[] {
+  sourceChunkParts(index: SourceIndex): number[] {
     return this.readEdgesDataAtIndex(
       this.analyzeHeader.source_chunk_parts,
       index
     )
   }
 
-  sourceChildren(index: number): number[] {
+  sourceChildren(index: SourceIndex): SourceIndex[] {
     return this.readEdgesDataAtIndex(this.analyzeHeader.source_children, index)
   }
 
   // Utility method to get the full path of a source by walking up the parent chain
-  getFullSourcePath(index: number): string {
+  getFullSourcePath(index: SourceIndex): string {
     const source = this.source(index)
     if (!source) return ''
 
@@ -315,7 +336,7 @@ export class AnalyzeData {
     return parentPath + source.path
   }
 
-  getSourceOutputSize(index: number): number {
+  getSourceOutputSize(index: SourceIndex): number {
     const chunkParts = this.sourceChunkParts(index)
     let totalSize = 0
     for (const chunkPartIndex of chunkParts) {
@@ -327,7 +348,7 @@ export class AnalyzeData {
     return totalSize
   }
 
-  sourceChunks(index: number): string[] {
+  sourceChunks(index: SourceIndex): string[] {
     const chunkParts = this.sourceChunkParts(index)
     const uniqueChunks = new Set<string>()
 
@@ -344,7 +365,7 @@ export class AnalyzeData {
     return Array.from(uniqueChunks).sort()
   }
 
-  getSourceFlags(index: number): {
+  getSourceFlags(index: SourceIndex): {
     client: boolean
     server: boolean
     traced: boolean
@@ -388,14 +409,14 @@ export class AnalyzeData {
     return { client, server, traced, js, css, json, asset }
   }
 
-  isPolyfillModule(index: number): boolean {
+  isPolyfillModule(index: SourceIndex): boolean {
     const fullSourcePath = this.getFullSourcePath(index)
     return fullSourcePath.endsWith(
       'node_modules/next/dist/build/polyfills/polyfill-module.js'
     )
   }
 
-  isPolyfillNoModule(index: number): boolean {
+  isPolyfillNoModule(index: SourceIndex): boolean {
     const fullSourcePath = this.getFullSourcePath(index)
     return fullSourcePath.endsWith(
       'node_modules/next/dist/build/polyfills/polyfill-nomodule.js'

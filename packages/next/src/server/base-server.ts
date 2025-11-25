@@ -121,7 +121,6 @@ import {
   isAppPageRouteModule,
   isAppRouteRouteModule,
 } from './route-modules/checks'
-import { PrefetchRSCPathnameNormalizer } from './normalizers/request/prefetch-rsc'
 import { NextDataPathnameNormalizer } from './normalizers/request/next-data'
 import { getIsPossibleServerAction } from './lib/server-action-request-meta'
 import { isInterceptionRouteAppPath } from '../shared/lib/router/utils/interception-routes'
@@ -415,7 +414,6 @@ export default abstract class Server<
 
   protected readonly normalizers: {
     readonly rsc: RSCPathnameNormalizer | undefined
-    readonly prefetchRSC: PrefetchRSCPathnameNormalizer | undefined
     readonly segmentPrefetchRSC: SegmentPrefixRSCPathnameNormalizer | undefined
     readonly data: NextDataPathnameNormalizer | undefined
   }
@@ -495,10 +493,6 @@ export default abstract class Server<
       rsc:
         this.enabledDirectories.app && this.minimalMode
           ? new RSCPathnameNormalizer()
-          : undefined,
-      prefetchRSC:
-        this.isAppPPREnabled && this.minimalMode
-          ? new PrefetchRSCPathnameNormalizer()
           : undefined,
       segmentPrefetchRSC: this.minimalMode
         ? new SegmentPrefixRSCPathnameNormalizer()
@@ -600,17 +594,6 @@ export default abstract class Server<
       addRequestMeta(req, 'isRSCRequest', true)
       addRequestMeta(req, 'isPrefetchRSCRequest', true)
       addRequestMeta(req, 'segmentPrefetchRSCRequest', segmentPath)
-    } else if (this.normalizers.prefetchRSC?.match(parsedUrl.pathname)) {
-      parsedUrl.pathname = this.normalizers.prefetchRSC.normalize(
-        parsedUrl.pathname,
-        true
-      )
-
-      // Mark the request as a router prefetch request.
-      req.headers[RSC_HEADER] = '1'
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
-      addRequestMeta(req, 'isRSCRequest', true)
-      addRequestMeta(req, 'isPrefetchRSCRequest', true)
     } else if (this.normalizers.rsc?.match(parsedUrl.pathname)) {
       parsedUrl.pathname = this.normalizers.rsc.normalize(
         parsedUrl.pathname,
@@ -1584,12 +1567,6 @@ export default abstract class Server<
       normalizers.push(this.normalizers.segmentPrefetchRSC)
     }
 
-    // We have to put the prefetch normalizer before the RSC normalizer
-    // because the RSC normalizer will match the prefetch RSC routes too.
-    if (this.normalizers.prefetchRSC) {
-      normalizers.push(this.normalizers.prefetchRSC)
-    }
-
     if (this.normalizers.rsc) {
       normalizers.push(this.normalizers.rsc)
     }
@@ -2324,7 +2301,6 @@ export default abstract class Server<
 
     for (const normalizer of [
       this.normalizers.segmentPrefetchRSC,
-      this.normalizers.prefetchRSC,
       this.normalizers.rsc,
     ]) {
       if (normalizer?.match(initPathname)) {

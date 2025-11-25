@@ -43,7 +43,7 @@ use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
     changed::content_changed,
     chunk::{
-        ChunkingContext, EvaluatableAssets, SourceMapsType,
+        ChunkingContext, EvaluatableAssets,
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
     },
     compile_time_info::CompileTimeInfo,
@@ -189,6 +189,9 @@ pub struct ProjectOptions {
     /// debugging/profiling purposes.
     pub no_mangling: bool,
 
+    /// Whether to write the route hashes manifest.
+    pub write_routes_hashes_manifest: bool,
+
     /// The version of Node.js that is available/currently running.
     pub current_node_js_version: RcStr,
 }
@@ -229,6 +232,17 @@ pub struct PartialProjectOptions {
 
     /// Options for draft mode.
     pub preview_props: Option<DraftModeOptions>,
+
+    /// The browserslist query to use for targeting browsers.
+    pub browserslist_query: Option<RcStr>,
+
+    /// When the code is minified, this opts out of the default mangling of
+    /// local names for variables, functions etc., which can be useful for
+    /// debugging/profiling purposes.
+    pub no_mangling: Option<bool>,
+
+    /// Whether to write the route hashes manifest.
+    pub write_routes_hashes_manifest: Option<bool>,
 }
 
 #[derive(
@@ -347,6 +361,9 @@ impl ProjectContainer {
             encryption_key,
             build_id,
             preview_props,
+            browserslist_query,
+            no_mangling,
+            write_routes_hashes_manifest,
         } = options;
 
         let resolved_self = self.to_resolved().await?;
@@ -387,6 +404,15 @@ impl ProjectContainer {
         }
         if let Some(preview_props) = preview_props {
             new_options.preview_props = preview_props;
+        }
+        if let Some(browserslist_query) = browserslist_query {
+            new_options.browserslist_query = browserslist_query;
+        }
+        if let Some(no_mangling) = no_mangling {
+            new_options.no_mangling = no_mangling;
+        }
+        if let Some(write_routes_hashes_manifest) = write_routes_hashes_manifest {
+            new_options.write_routes_hashes_manifest = write_routes_hashes_manifest;
         }
 
         // TODO: Handle mode switch, should prevent mode being switched.
@@ -452,6 +478,7 @@ impl ProjectContainer {
         let preview_props;
         let browserslist_query;
         let no_mangling;
+        let write_routes_hashes_manifest;
         let current_node_js_version;
         {
             let options = self.options_state.get();
@@ -475,6 +502,7 @@ impl ProjectContainer {
             preview_props = options.preview_props.clone();
             browserslist_query = options.browserslist_query.clone();
             no_mangling = options.no_mangling;
+            write_routes_hashes_manifest = options.write_routes_hashes_manifest;
             current_node_js_version = options.current_node_js_version.clone();
         }
 
@@ -500,6 +528,7 @@ impl ProjectContainer {
             encryption_key,
             preview_props,
             no_mangling,
+            write_routes_hashes_manifest,
             current_node_js_version,
         }
         .cell())
@@ -586,6 +615,9 @@ pub struct Project {
     /// local names for variables, functions etc., which can be useful for
     /// debugging/profiling purposes.
     no_mangling: bool,
+
+    /// Whether to write the route hashes manifest.
+    write_routes_hashes_manifest: bool,
 
     current_node_js_version: RcStr,
 }
@@ -808,6 +840,11 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) fn should_write_routes_hashes_manifest(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.write_routes_hashes_manifest))
+    }
+
+    #[turbo_tasks::function]
     pub(super) async fn per_page_module_graph(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(*self.mode.await? == NextMode::Development))
     }
@@ -845,11 +882,7 @@ impl Project {
                 node_build_environment().to_resolved().await?,
                 next_mode.runtime_type(),
             )
-            .source_maps(if *self.next_config().server_source_maps().await? {
-                SourceMapsType::Full
-            } else {
-                SourceMapsType::None
-            })
+            .source_maps(*self.next_config().server_source_maps().await?)
             .build(),
         );
 
@@ -1111,7 +1144,6 @@ impl Project {
             client_root: self.client_relative_path().owned().await?,
             client_root_to_root_path: rcstr!("/ROOT"),
             asset_prefix: self.next_config().computed_asset_prefix(),
-            chunk_suffix_path: self.next_config().chunk_suffix_path(),
             environment: self.client_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
@@ -1140,8 +1172,8 @@ impl Project {
             environment: self.server_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
-            turbo_minify: self.next_config().turbo_minify(self.next_mode()),
-            turbo_source_maps: self.next_config().server_source_maps(),
+            minify: self.next_config().turbo_minify(self.next_mode()),
+            source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             nested_async_chunking: self

@@ -12,7 +12,6 @@ pub mod member;
 pub mod node;
 pub mod pattern_mapping;
 pub mod raw;
-pub mod replace_parent_with_child;
 pub mod require_context;
 pub mod type_issue;
 pub mod typescript;
@@ -41,7 +40,7 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    atoms::{Atom, atom},
+    atoms::{Atom, Wtf8Atom, atom},
     common::{
         GLOBALS, Globals, Span, Spanned,
         comments::{CommentKind, Comments},
@@ -55,8 +54,7 @@ use swc_core::{
         visit::{
             AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithAstPath,
             fields::{
-                AssignExprField, AssignTargetField, BinExprField, BindingIdentField,
-                SimpleAssignTargetField,
+                AssignExprField, AssignTargetField, BindingIdentField, SimpleAssignTargetField,
             },
         },
     },
@@ -157,7 +155,6 @@ use crate::{
         ident::IdentReplacement,
         member::MemberReplacement,
         node::{FilePathModuleReference, PackageJsonReference},
-        replace_parent_with_child::ReplaceParentWithChild,
         require_context::{RequireContextAssetReference, RequireContextMap},
         type_issue::SpecifiedModuleTypeIssue,
     },
@@ -755,7 +752,7 @@ async fn analyze_ecmascript_module_internal(
             let mut should_add_evaluation = false;
             let reference = EsmAssetReference::new(
                 origin,
-                RcStr::from(&*r.module_path),
+                RcStr::from(&*r.module_path.to_string_lossy()),
                 r.issue_source
                     .unwrap_or_else(|| IssueSource::from_source_only(source)),
                 r.annotations.clone(),
@@ -774,7 +771,7 @@ async fn analyze_ecmascript_module_internal(
                                 "Internal imports only exist in reexports only mode when \
                                  importing {:?} from {}",
                                 r.imported_symbol,
-                                r.module_path
+                                r.module_path.to_string_lossy()
                             );
                         }
                         if matches!(&r.imported_symbol, ImportedSymbol::PartEvaluation(_)) {
@@ -1076,7 +1073,7 @@ async fn analyze_ecmascript_module_internal(
                 Effect::Conditional {
                     condition,
                     kind,
-                    ast_path: mut condition_ast_path,
+                    ast_path: condition_ast_path,
                     span: _,
                 } => {
                     // Don't replace condition with it's truth-y value, if it has side effects
@@ -1087,7 +1084,7 @@ async fn analyze_ecmascript_module_internal(
                         .link_value(*condition, ImportAttributes::empty_ref())
                         .await?;
 
-                    macro_rules! inactive_block {
+                    macro_rules! inactive {
                         ($block:ident) => {
                             if analyze_mode.is_code_gen() {
                                 analysis.add_code_gen(Unreachable::new($block.range.clone()));
@@ -1104,61 +1101,38 @@ async fn analyze_ecmascript_module_internal(
                             }
                         };
                     }
-                    macro_rules! active_block {
+                    macro_rules! active {
                         ($block:ident) => {
                             queue_stack
                                 .get_mut()
                                 .extend($block.effects.into_iter().map(Action::Effect).rev())
                         };
                     }
-                    macro_rules! active_effects {
-                        ($effects:ident) => {
-                            queue_stack
-                                .get_mut()
-                                .extend($effects.into_iter().map(Action::Effect).rev())
-                        };
-                    }
-                    macro_rules! replace_with_condition {
-                        ($path:ident) => {
-                            if analyze_mode.is_code_gen() {
-                                analysis.add_code_gen(ReplaceParentWithChild::new(AstPath($path)));
-                            }
-                        };
-                    }
-                    macro_rules! replace_with_right {
-                        ($path:ident) => {
-                            if analyze_mode.is_code_gen() && !condition_has_side_effects {
-                                $path.pop();
-                                $path.push(AstParentKind::BinExpr(BinExprField::Right));
-                                analysis.add_code_gen(ReplaceParentWithChild::new(AstPath($path)));
-                            }
-                        };
-                    }
                     match *kind {
                         ConditionalKind::If { then } => match condition.is_truthy() {
                             Some(true) => {
                                 condition!(ConstantConditionValue::Truthy);
-                                active_block!(then);
+                                active!(then);
                             }
                             Some(false) => {
                                 condition!(ConstantConditionValue::Falsy);
-                                inactive_block!(then);
+                                inactive!(then);
                             }
                             None => {
-                                active_block!(then);
+                                active!(then);
                             }
                         },
                         ConditionalKind::Else { r#else } => match condition.is_truthy() {
                             Some(true) => {
                                 condition!(ConstantConditionValue::Truthy);
-                                inactive_block!(r#else);
+                                inactive!(r#else);
                             }
                             Some(false) => {
                                 condition!(ConstantConditionValue::Falsy);
-                                active_block!(r#else);
+                                active!(r#else);
                             }
                             None => {
-                                active_block!(r#else);
+                                active!(r#else);
                             }
                         },
                         ConditionalKind::IfElse { then, r#else }
@@ -1166,17 +1140,17 @@ async fn analyze_ecmascript_module_internal(
                             match condition.is_truthy() {
                                 Some(true) => {
                                     condition!(ConstantConditionValue::Truthy);
-                                    active_block!(then);
-                                    inactive_block!(r#else);
+                                    active!(then);
+                                    inactive!(r#else);
                                 }
                                 Some(false) => {
                                     condition!(ConstantConditionValue::Falsy);
-                                    active_block!(r#else);
-                                    inactive_block!(then);
+                                    active!(r#else);
+                                    inactive!(then);
                                 }
                                 None => {
-                                    active_block!(then);
-                                    active_block!(r#else);
+                                    active!(then);
+                                    active!(r#else);
                                 }
                             }
                         }
@@ -1185,72 +1159,73 @@ async fn analyze_ecmascript_module_internal(
                                 Some(true) => {
                                     condition!(ConstantConditionValue::Truthy);
                                     for then in then {
-                                        active_block!(then);
+                                        active!(then);
                                     }
                                     for r#else in r#else {
-                                        inactive_block!(r#else);
+                                        inactive!(r#else);
                                     }
                                 }
                                 Some(false) => {
                                     condition!(ConstantConditionValue::Falsy);
                                     for then in then {
-                                        inactive_block!(then);
+                                        inactive!(then);
                                     }
                                     for r#else in r#else {
-                                        active_block!(r#else);
+                                        active!(r#else);
                                     }
                                 }
                                 None => {
                                     for then in then {
-                                        active_block!(then);
+                                        active!(then);
                                     }
                                     for r#else in r#else {
-                                        active_block!(r#else);
+                                        active!(r#else);
                                     }
                                 }
                             }
                         }
-                        ConditionalKind::And { rhs_effects } => match condition.is_truthy() {
+                        ConditionalKind::And { expr } => match condition.is_truthy() {
                             Some(true) => {
-                                replace_with_right!(condition_ast_path);
-                                active_effects!(rhs_effects);
+                                condition!(ConstantConditionValue::Truthy);
+                                active!(expr);
                             }
                             Some(false) => {
                                 // The condition value needs to stay since it's used
-                                replace_with_condition!(condition_ast_path);
+                                inactive!(expr);
                             }
                             None => {
-                                active_effects!(rhs_effects);
+                                active!(expr);
                             }
                         },
-                        ConditionalKind::Or { rhs_effects } => match condition.is_truthy() {
+                        ConditionalKind::Or { expr } => match condition.is_truthy() {
                             Some(true) => {
-                                replace_with_condition!(condition_ast_path);
+                                // The condition value needs to stay since it's used
+                                inactive!(expr);
                             }
                             Some(false) => {
-                                replace_with_right!(condition_ast_path);
-                                active_effects!(rhs_effects);
+                                condition!(ConstantConditionValue::Falsy);
+                                active!(expr);
                             }
                             None => {
-                                active_effects!(rhs_effects);
+                                active!(expr);
                             }
                         },
-                        ConditionalKind::NullishCoalescing { rhs_effects } => {
+                        ConditionalKind::NullishCoalescing { expr } => {
                             match condition.is_nullish() {
                                 Some(true) => {
-                                    replace_with_right!(condition_ast_path);
-                                    active_effects!(rhs_effects);
+                                    condition!(ConstantConditionValue::Nullish);
+                                    active!(expr);
                                 }
                                 Some(false) => {
-                                    replace_with_condition!(condition_ast_path);
+                                    inactive!(expr);
                                 }
                                 None => {
-                                    active_effects!(rhs_effects);
+                                    active!(expr);
                                 }
                             }
                         }
                         ConditionalKind::Labeled { body } => {
-                            active_block!(body);
+                            active!(body);
                         }
                     }
                 }
@@ -3454,7 +3429,9 @@ impl StaticAnalyser {
 
     fn evaluate_expr(&self, expr: &Expr) -> StaticExpr {
         match expr {
-            Expr::Lit(Lit::Str(str)) => StaticExpr::String(str.value.to_string()),
+            Expr::Lit(Lit::Str(str)) => {
+                StaticExpr::String(str.value.to_string_lossy().into_owned())
+            }
             Expr::Ident(ident) => {
                 let str = ident.sym.to_string();
                 match self.imports.get(&str) {
@@ -3761,7 +3738,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         let path = as_parent_path(ast_path).into();
-        let src = import.src.value.to_string();
+        let src = import.src.value.to_string_lossy().into_owned();
         import.visit_children_with_ast_path(self, ast_path);
         if import.type_only {
             return;
@@ -3776,7 +3753,9 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                                 src.clone(),
                                 vec![match &named.imported {
                                     Some(ModuleExportName::Ident(ident)) => ident.sym.to_string(),
-                                    Some(ModuleExportName::Str(str)) => str.value.to_string(),
+                                    Some(ModuleExportName::Str(str)) => {
+                                        str.value.to_string_lossy().into_owned()
+                                    }
                                     None => named.local.sym.to_string(),
                                 }],
                             ),
@@ -3816,7 +3795,8 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             && let [ExprOrSpread { spread: None, expr }] = &call.args[..]
             && let Some(Lit::Str(str)) = expr.as_lit()
         {
-            self.webpack_runtime = Some((str.value.as_str().into(), call.span));
+            self.webpack_runtime =
+                Some((str.value.to_string_lossy().into_owned().into(), call.span));
             return;
         }
         decl.visit_children_with_ast_path(self, ast_path);
@@ -3915,11 +3895,13 @@ impl From<Vec<AstParentKind>> for AstPath {
 }
 
 pub static TURBOPACK_HELPER: Lazy<Atom> = Lazy::new(|| atom!("__turbopack-helper__"));
+pub static TURBOPACK_HELPER_WTF8: Lazy<Wtf8Atom> =
+    Lazy::new(|| atom!("__turbopack-helper__").into());
 
 pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
     let annotations = ImportAnnotations::parse(import.with.as_deref());
 
-    annotations.get(&TURBOPACK_HELPER).is_some()
+    annotations.get(&TURBOPACK_HELPER_WTF8).is_some()
 }
 
 pub fn is_swc_helper_import(import: &ImportDecl) -> bool {

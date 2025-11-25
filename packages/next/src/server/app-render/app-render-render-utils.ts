@@ -1,4 +1,5 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { createAtomicTimerGroup } from './app-render-scheduling'
 
 /**
  * This is a utility function to make scheduling sequential tasks that run back to back easier.
@@ -14,18 +15,21 @@ export function scheduleInSequentialTasks<R>(
     )
   } else {
     return new Promise((resolve, reject) => {
+      const scheduleTimeout = createAtomicTimerGroup()
+
       let pendingResult: R | Promise<R>
-      setTimeout(() => {
+      scheduleTimeout(() => {
         try {
           pendingResult = render()
         } catch (err) {
           reject(err)
         }
-      }, 0)
-      setTimeout(() => {
+      })
+
+      scheduleTimeout(() => {
         followup()
         resolve(pendingResult)
-      }, 0)
+      })
     })
   }
 }
@@ -38,7 +42,7 @@ export function scheduleInSequentialTasks<R>(
 export function pipelineInSequentialTasks<A, B, C>(
   one: () => A,
   two: (a: A) => B,
-  three: (b: B) => C | Promise<C>
+  three: (b: B) => C
 ): Promise<C> {
   if (process.env.NEXT_RUNTIME === 'edge') {
     throw new InvariantError(
@@ -46,38 +50,49 @@ export function pipelineInSequentialTasks<A, B, C>(
     )
   } else {
     return new Promise((resolve, reject) => {
-      let oneResult: A | undefined = undefined
-      setTimeout(() => {
+      const scheduleTimeout = createAtomicTimerGroup()
+
+      let oneResult: A
+      scheduleTimeout(() => {
         try {
           oneResult = one()
         } catch (err) {
           clearTimeout(twoId)
           clearTimeout(threeId)
+          clearTimeout(fourId)
           reject(err)
         }
-      }, 0)
+      })
 
-      let twoResult: B | undefined = undefined
-      const twoId = setTimeout(() => {
+      let twoResult: B
+      const twoId = scheduleTimeout(() => {
         // if `one` threw, then this timeout would've been cleared,
         // so if we got here, we're guaranteed to have a value.
         try {
           twoResult = two(oneResult!)
         } catch (err) {
           clearTimeout(threeId)
+          clearTimeout(fourId)
           reject(err)
         }
-      }, 0)
+      })
 
-      const threeId = setTimeout(() => {
+      let threeResult: C
+      const threeId = scheduleTimeout(() => {
         // if `two` threw, then this timeout would've been cleared,
         // so if we got here, we're guaranteed to have a value.
         try {
-          resolve(three(twoResult!))
+          threeResult = three(twoResult!)
         } catch (err) {
+          clearTimeout(fourId)
           reject(err)
         }
-      }, 0)
+      })
+
+      // We wait a task before resolving/rejecting
+      const fourId = scheduleTimeout(() => {
+        resolve(threeResult)
+      })
     })
   }
 }
