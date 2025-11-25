@@ -1,6 +1,6 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
-import { waitForNoErrorToast } from 'next-test-utils'
-import { getPrerenderOutput } from './utils'
+import { retry, waitForNoErrorToast } from 'next-test-utils'
+import { getDeterministicOutput, getPrerenderOutput } from './utils'
 
 describe('Cache Components Errors', () => {
   const { next, isTurbopack, isNextStart, skipped, isRspack } = nextTestSetup({
@@ -2648,7 +2648,6 @@ describe('Cache Components Errors', () => {
 
       describe('reading fallback params', () => {
         if (isNextDev) {
-          // FIXME: This should show a redbox error, but currently does not.
           it('should show a redbox error', async () => {
             const browser = await next.browser('/use-cache-params/foo')
 
@@ -2772,6 +2771,73 @@ describe('Cache Components Errors', () => {
                  Export encountered an error on /use-cache-params/[slug]/page: /use-cache-params/[slug], exiting the build."
                 `)
               }
+            }
+          })
+        }
+      })
+
+      describe('throwing an error at runtime', () => {
+        if (isNextDev) {
+          it('should show a redbox error', async () => {
+            const browser = await next.browser('/use-cache-runtime-error')
+
+            await expect(browser).toDisplayRedbox(`
+             {
+               "description": "Kaputt!",
+               "environmentLabel": "Cache",
+               "label": "Runtime Error",
+               "source": "app/use-cache-runtime-error/page.tsx (15:9) @ throwAnError
+             > 15 |   throw new Error('Kaputt!')
+                  |         ^",
+               "stack": [
+                 "throwAnError app/use-cache-runtime-error/page.tsx (15:9)",
+                 "ThrowingComponent app/use-cache-runtime-error/page.tsx (21:3)",
+               ],
+             }
+            `)
+          })
+        } else {
+          it('should show an error at runtime', async () => {
+            try {
+              await prerender('/use-cache-runtime-error')
+            } catch (error) {
+              throw new Error('expected build not to fail', { cause: error })
+            }
+
+            await next.start({ skipBuild: true })
+            cliOutputLength = next.cliOutput.length
+            await next.fetch('/use-cache-runtime-error')
+
+            await retry(async () => {
+              expect(next.cliOutput.slice(cliOutputLength)).toContain('Error')
+            })
+
+            const output = getDeterministicOutput(
+              next.cliOutput.slice(cliOutputLength),
+              { isMinified: !isDebugPrerender }
+            )
+
+            // TODO: The obfuscated error should be hidden, and the original
+            // error should have a digest.
+            if (isDebugPrerender) {
+              expect(output).toMatchInlineSnapshot(`
+               "Error: Kaputt!
+                   at throwAnError (<next-dist-dir>)
+                   at ThrowingComponent (<next-dist-dir>)
+                   at Object.then (<next-dist-dir>)
+               ⨯ [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+                 digest: '<error-digest>'
+               }"
+              `)
+            } else {
+              expect(output).toMatchInlineSnapshot(`
+               "Error: Kaputt!
+                   at a (<next-dist-dir>)
+                   at b (<next-dist-dir>)
+               ⨯ [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+                 digest: '<error-digest>'
+               }"
+              `)
             }
           })
         }
