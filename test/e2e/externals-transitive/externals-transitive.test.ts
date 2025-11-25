@@ -1,7 +1,7 @@
 import glob from 'glob'
 import path from 'path'
 import fs from 'fs/promises'
-import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
 describe('externals-transitive', () => {
   const { next, isTurbopack, isNextDeploy, isNextStart } = nextTestSetup({
@@ -15,14 +15,14 @@ describe('externals-transitive', () => {
     expect(body).toEqual(`depA: 3.10.1, depB: 4.17.21, 4.17.21`)
 
     if (!isNextDeploy) {
-      let nextDir = isNextDev ? '.next/dev' : '.next'
-
       const files = glob.sync('**/*.js', {
-        cwd: path.join(next.testDir, nextDir, 'server'),
+        cwd: path.join(next.testDir, next.distDir, 'server'),
       })
       let isLodashBundled = false
       for (const file of files) {
-        const content = await next.readFile(path.join(nextDir, 'server', file))
+        const content = await next.readFile(
+          path.join(next.distDir, 'server', file)
+        )
         isLodashBundled =
           isLodashBundled ||
           // Code
@@ -37,7 +37,9 @@ describe('externals-transitive', () => {
         expect(isLodashBundled).toBe(false)
 
         let symlinks = (
-          await fs.readdir(path.join(next.testDir, nextDir, 'node_modules'))
+          await fs.readdir(
+            path.join(next.testDir, next.distDir, 'node_modules')
+          )
         ).filter((file) => file.startsWith('lodash-'))
 
         expect(symlinks.length).toBeGreaterThanOrEqual(2)
