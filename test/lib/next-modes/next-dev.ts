@@ -101,6 +101,15 @@ export class NextDevInstance extends NextInstance {
       this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
       this.handleStdio(this.childProcess)
 
+      this.childProcess.on('error', (error) => {
+        this.childProcess = undefined
+        resolve({
+          exitCode: 1,
+          cliOutput:
+            this.cliOutput.slice(curOutput) + '\nSpawn error: ' + error.message,
+        })
+      })
+
       this.childProcess.on('exit', (code, signal) => {
         this.childProcess = undefined
         resolve({
