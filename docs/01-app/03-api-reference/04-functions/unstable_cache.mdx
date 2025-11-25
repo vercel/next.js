@@ -45,64 +45,49 @@ const data = unstable_cache(fetchData, keyParts, options)()
 
 ## Example
 
-```tsx filename="app/page.tsx" switcher
+```tsx filename="app/utils.ts" switcher
 import { unstable_cache } from 'next/cache'
 
-export default async function Page() {
-  const getCachedPosts = unstable_cache(
-    async () => {
-      return [
-        { id: 1, title: 'Hello World' },
-        { id: 2, title: 'Next.js Caching' },
-      ]
-    },
-    ['posts'],
-    {
-      tags: ['posts'],
-      revalidate: 60,
-    }
-  )
-
-  const posts = await getCachedPosts()
-
-  return (
-    <ul>
-      {posts.map((post) => (
-        <li key={post.id}>{post.title}</li>
-      ))}
-    </ul>
-  )
+interface User {
+  id: string
+  name: string
 }
+
+async function getUser(id: string): Promise<User> {
+  const res = await fetch(`https://api.example.com/users/${id}`)
+  return res.json()
+}
+
+export const getUserCached = unstable_cache(
+  async (id: string) => {
+    return getUser(id)
+  },
+  ['get-user'],
+  {
+    tags: ['users'],
+    revalidate: 60,
+  }
+)
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/utils.js" switcher
 import { unstable_cache } from 'next/cache'
 
-export default async function Page() {
-  const getCachedPosts = unstable_cache(
-    async () => {
-      return [
-        { id: 1, title: 'Hello World' },
-        { id: 2, title: 'Next.js Caching' },
-      ]
-    },
-    ['posts'],
-    {
-      tags: ['posts'],
-      revalidate: 60,
-    }
-  )
-
-  const posts = await getCachedPosts()
-
-  return (
-    <ul>
-      {posts.map((post) => (
-        <li key={post.id}>{post.title}</li>
-      ))}
-    </ul>
-  )
+async function getUser(id) {
+  const res = await fetch(`https://api.example.com/users/${id}`)
+  return res.json()
 }
+
+export const getUserCached = unstable_cache(
+  async (id) => {
+    return getUser(id)
+  },
+  ['get-user'],
+  {
+    tags: ['users'],
+    revalidate: 60,
+  }
+)
 ```
 
 ## Version History
