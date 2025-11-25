@@ -20,14 +20,25 @@ export async function runTypeCheck(
   distDir: string,
   tsConfigPath: string,
   cacheDir?: string,
-  isAppDirEnabled?: boolean
+  isAppDirEnabled?: boolean,
+  isolatedDevBuild?: boolean
 ): Promise<TypeCheckResult> {
   const effectiveConfiguration = await getTypeScriptConfiguration(
     typescript,
     tsConfigPath
   )
 
-  if (effectiveConfiguration.fileNames.length < 1) {
+  // When isolatedDevBuild is enabled, tsconfig includes both .next/types and
+  // .next/dev/types to avoid config churn between dev/build modes. During build,
+  // we filter out .next/dev/types files to prevent stale dev types from causing
+  // errors when routes have been deleted since the last dev session.
+  let fileNames = effectiveConfiguration.fileNames
+  if (isolatedDevBuild !== false) {
+    const devTypesPattern = /[/\\]\.next[/\\]dev[/\\]types[/\\]/
+    fileNames = fileNames.filter((fileName) => !devTypesPattern.test(fileName))
+  }
+
+  if (fileNames.length < 1) {
     return {
       hasWarnings: false,
       inputFilesCount: 0,
@@ -57,7 +68,7 @@ export async function runTypeCheck(
     }
     incremental = true
     program = typescript.createIncrementalProgram({
-      rootNames: effectiveConfiguration.fileNames,
+      rootNames: fileNames,
       options: {
         ...options,
         composite: false,
@@ -66,10 +77,7 @@ export async function runTypeCheck(
       },
     })
   } else {
-    program = typescript.createProgram(
-      effectiveConfiguration.fileNames,
-      options
-    )
+    program = typescript.createProgram(fileNames, options)
   }
 
   const result = program.emit()
@@ -147,7 +155,7 @@ export async function runTypeCheck(
   return {
     hasWarnings: true,
     warnings,
-    inputFilesCount: effectiveConfiguration.fileNames.length,
+    inputFilesCount: fileNames.length,
     totalFilesCount: program.getSourceFiles().length,
     incremental,
   }
