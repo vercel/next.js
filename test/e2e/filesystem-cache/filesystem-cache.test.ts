@@ -1,14 +1,27 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
 
-process.env.NEXT_PUBLIC_ENV_VAR = 'hello world'
-// Make it easier to run in development, test directories are cleared between runs already so this is safe.
-process.env.TURBO_ENGINE_IGNORE_DIRTY = '1'
-// decrease the idle timeout to make the test more reliable
-process.env.TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS = '1000'
-
 for (const cacheEnabled of [false, true]) {
+  beforeAll(() => {
+    process.env.NEXT_PUBLIC_ENV_VAR = 'hello world'
+    // Make it easier to run in development, test directories are cleared between runs already so this is safe.
+    process.env.TURBO_ENGINE_IGNORE_DIRTY = '1'
+    // decrease the idle timeout to make the test more reliable
+    process.env.TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS = '1000'
+  })
+  afterAll(() => {
+    delete process.env.NEXT_PUBLIC_ENV_VAR
+    delete process.env.TURBO_ENGINE_IGNORE_DIRTY
+    delete process.env.TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS
+  })
+
   describe(`filesystem-caching with cache ${cacheEnabled ? 'enabled' : 'disabled'}`, () => {
+    // This is very flakey with Webpack at the moment.
+    if (!process.env.IS_TURBOPACK_TEST && cacheEnabled) {
+      it('skipped because Webpack is flakey', () => {})
+      return
+    }
+
     const { skipped, next, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
