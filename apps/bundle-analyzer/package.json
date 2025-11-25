@@ -1,6 +1,6 @@
 {
   "name": "@next/bundle-analyzer-ui",
-  "version": "16.0.2-canary.16",
+  "version": "0.0.1",
   "private": true,
   "scripts": {
     "build": "cross-env NEXT_TEST_NATIVE_DIR=no next build --no-mangling",
