@@ -19,11 +19,11 @@ The `favicon` image can only be located in the top level of `app/`.
 
 Next.js will evaluate the file and automatically add the appropriate tags to your app's `<head>` element.
 
-| File convention             | Supported file types                    | Valid locations |
-| --------------------------- | --------------------------------------- | --------------- |
-| [`favicon`](#favicon)       | `.ico`                                  | `app/`          |
-| [`icon`](#icon)             | `.ico`, `.jpg`, `.jpeg`, `.png`, `.svg` | `app/**/*`      |
-| [`apple-icon`](#apple-icon) | `.jpg`, `.jpeg`, `.png`                 | `app/**/*`      |
+| File convention             | Supported file types                                      | Valid locations |
+| --------------------------- | --------------------------------------------------------- | --------------- |
+| [`favicon`](#favicon)       | `.ico`                                                    | `app/`          |
+| [`icon`](#icon)             | `.ico`, `.jpg`, `.jpeg`, `.png`, `.svg`, `.webp`, `.avif` | `app/**/*`      |
+| [`apple-icon`](#apple-icon) | `.jpg`, `.jpeg`, `.png`, `.webp`                          | `app/**/*`      |
 
 ### `favicon`
 
@@ -35,7 +35,7 @@ Add a `favicon.ico` image file to the root `/app` route segment.
 
 ### `icon`
 
-Add an `icon.(ico|jpg|jpeg|png|svg)` image file.
+Add an `icon.(ico|jpg|jpeg|png|svg|webp|avif)` image file.
 
 ```html filename="<head> output"
 <link
@@ -48,7 +48,9 @@ Add an `icon.(ico|jpg|jpeg|png|svg)` image file.
 
 ### `apple-icon`
 
-Add an `apple-icon.(jpg|jpeg|png)` image file.
+Add an `apple-icon.(jpg|jpeg|png|webp)` image file.
+
+> **Good to know**: AVIF is not supported for `apple-icon` because older Safari versions on iOS and macOS do not support the AVIF format.
 
 ```html filename="<head> output"
 <link
@@ -262,7 +264,8 @@ export default function Icon() {}
 
 ## Version History
 
-| Version   | Changes                                              |
-| --------- | ---------------------------------------------------- |
-| `v16.0.0` | `params` is now a promise that resolves to an object |
-| `v13.3.0` | `favicon` `icon` and `apple-icon` introduced         |
+| Version   | Changes                                                                |
+| --------- | ---------------------------------------------------------------------- |
+| `v16.1.0` | Added `.webp` and `.avif` support for `icon`, `.webp` for `apple-icon` |
+| `v16.0.0` | `params` is now a promise that resolves to an object                   |
+| `v13.3.0` | `favicon` `icon` and `apple-icon` introduced                           |

@@ -96,6 +96,58 @@ describe('isMetadataRouteFile', () => {
       expect(isMetadataRouteFile('/sitemap.xml', [], true)).toBe(true)
     })
 
+    it('should match WebP and AVIF metadata image files', () => {
+      // icon - supports both webp and avif
+      expect(isMetadataRouteFile('/foo/icon.webp', [], true)).toBe(true)
+      expect(isMetadataRouteFile('/foo/icon.avif', [], true)).toBe(true)
+
+      // apple-icon - supports webp but NOT avif (Safari compatibility)
+      expect(isMetadataRouteFile('/bar/apple-icon.webp', [], true)).toBe(true)
+      expect(isMetadataRouteFile('/bar/apple-icon.avif', [], true)).toBe(false)
+
+      // opengraph-image - supports both webp and avif
+      expect(isMetadataRouteFile('/baz/opengraph-image.webp', [], true)).toBe(
+        true
+      )
+      expect(isMetadataRouteFile('/baz/opengraph-image.avif', [], true)).toBe(
+        true
+      )
+
+      // twitter-image - supports both webp and avif
+      expect(isMetadataRouteFile('/qux/twitter-image.webp', [], true)).toBe(
+        true
+      )
+      expect(isMetadataRouteFile('/qux/twitter-image.avif', [], true)).toBe(
+        true
+      )
+    })
+
+    it('should match WebP and AVIF with numeric variants', () => {
+      // icon variants
+      expect(isMetadataRouteFile('/foo/icon1.webp', [], true)).toBe(true)
+      expect(isMetadataRouteFile('/foo/icon2.avif', [], true)).toBe(true)
+
+      // opengraph-image variants
+      expect(isMetadataRouteFile('/bar/opengraph-image1.webp', [], true)).toBe(
+        true
+      )
+      expect(isMetadataRouteFile('/bar/opengraph-image2.avif', [], true)).toBe(
+        true
+      )
+
+      // twitter-image variants
+      expect(isMetadataRouteFile('/baz/twitter-image1.webp', [], true)).toBe(
+        true
+      )
+      expect(isMetadataRouteFile('/baz/twitter-image2.avif', [], true)).toBe(
+        true
+      )
+
+      // apple-icon variants - webp only
+      expect(isMetadataRouteFile('/qux/apple-icon1.webp', [], true)).toBe(true)
+      expect(isMetadataRouteFile('/qux/apple-icon1.avif', [], true)).toBe(false)
+    })
+
     it('should match dynamic metadata routes', () => {
       // with dynamic extensions, passing the 2nd arg: such as ['tsx', 'ts']
       expect(isMetadataRouteFile('/foo/icon.js', ['tsx', 'ts'], true)).toBe(

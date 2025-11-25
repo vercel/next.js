@@ -6,11 +6,14 @@ import { isAppRouteRoute } from '../is-app-route-route'
 export const STATIC_METADATA_IMAGES = {
   icon: {
     filename: 'icon',
-    extensions: ['ico', 'jpg', 'jpeg', 'png', 'svg'],
+    extensions: ['ico', 'jpg', 'jpeg', 'png', 'svg', 'webp', 'avif'],
   },
   apple: {
     filename: 'apple-icon',
-    extensions: ['jpg', 'jpeg', 'png'],
+    // Note: AVIF is intentionally excluded for apple-icon because Safari on
+    // older iOS/macOS versions doesn't support AVIF, and apple-icon is
+    // specifically used for Apple devices.
+    extensions: ['jpg', 'jpeg', 'png', 'webp'],
   },
   favicon: {
     filename: 'favicon',
@@ -18,11 +21,11 @@ export const STATIC_METADATA_IMAGES = {
   },
   openGraph: {
     filename: 'opengraph-image',
-    extensions: ['jpg', 'jpeg', 'png', 'gif'],
+    extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'],
   },
   twitter: {
     filename: 'twitter-image',
-    extensions: ['jpg', 'jpeg', 'png', 'gif'],
+    extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'],
   },
 } as const
 
