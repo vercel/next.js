@@ -5,7 +5,7 @@ use either::Either;
 use indoc::formatdoc;
 use itertools::Itertools;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{EitherTaskInput, ResolvedVc, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -36,9 +36,13 @@ pub async fn insert_next_root_params_mapping(
 ) -> Result<()> {
     import_map.insert_exact_alias(
         "next/root-params",
-        get_next_root_params_mapping(is_root_params_enabled, ty, collected_root_params)
-            .to_resolved()
-            .await?,
+        get_next_root_params_mapping(
+            is_root_params_enabled,
+            EitherTaskInput(ty),
+            collected_root_params,
+        )
+        .to_resolved()
+        .await?,
     );
     Ok(())
 }
@@ -46,7 +50,7 @@ pub async fn insert_next_root_params_mapping(
 #[turbo_tasks::function]
 async fn get_next_root_params_mapping(
     is_root_params_enabled: Vc<bool>,
-    ty: Either<ServerContextType, ClientContextType>,
+    ty: EitherTaskInput<ServerContextType, ClientContextType>,
     collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<Vc<ImportMapping>> {
     // This mapping goes into the global resolve options, so we want to avoid invalidating it if
@@ -77,12 +81,12 @@ impl NextRootParamsMapper {
     #[turbo_tasks::function]
     pub fn new(
         is_root_params_enabled: ResolvedVc<bool>,
-        context_type: Either<ServerContextType, ClientContextType>,
+        context_type: EitherTaskInput<ServerContextType, ClientContextType>,
         collected_root_params: Option<ResolvedVc<CollectedRootParams>>,
     ) -> Vc<Self> {
         NextRootParamsMapper {
             is_root_params_enabled,
-            context_type,
+            context_type: context_type.0,
             collected_root_params,
         }
         .cell()

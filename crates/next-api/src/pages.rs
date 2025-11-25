@@ -612,7 +612,18 @@ enum PageEndpointType {
 }
 
 #[derive(
-    Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs,
+    Copy,
+    Clone,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    TaskInput,
+    TraceRawVcs,
+    Encode,
+    Decode,
 )]
 enum SsrChunkType {
     Page,
@@ -621,7 +632,18 @@ enum SsrChunkType {
 }
 
 #[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TaskInput, TraceRawVcs,
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TaskInput,
+    TraceRawVcs,
+    Encode,
+    Decode,
 )]
 enum EmitManifests {
     /// Don't emit any manifests

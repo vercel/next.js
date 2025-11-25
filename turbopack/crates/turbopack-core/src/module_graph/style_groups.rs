@@ -1,6 +1,7 @@
 use std::cmp::Reverse;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use indexmap::map::Entry;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -23,7 +24,18 @@ use crate::{
 };
 
 #[derive(
-    TaskInput, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, NonLocalValue, TraceRawVcs,
+    TaskInput,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+    TraceRawVcs,
+    Encode,
+    Decode,
 )]
 pub struct StyleGroupsConfig {
     pub max_chunk_size: usize,

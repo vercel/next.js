@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use arbitrary::Arbitrary;
+use bincode::{Decode, Encode};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{self, NonLocalValue, State, TaskInput, TurboTasks, Vc, trace::TraceRawVcs};
@@ -19,6 +20,8 @@ use turbo_tasks_malloc::TurboMalloc;
     Deserialize,
     TraceRawVcs,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub struct TaskReferenceSpec {
     task: u16,
@@ -39,6 +42,8 @@ pub struct TaskReferenceSpec {
     Deserialize,
     TraceRawVcs,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub struct TaskSpec {
     references: Vec<TaskReferenceSpec>,

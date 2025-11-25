@@ -56,7 +56,6 @@ turbo-tasks-hash = { workspace = true }
 turbo-tasks-macros = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 unsize = { workspace = true }
-unty = { workspace = true }
 pot = "3.0.0"
 
 [dev-dependencies]
