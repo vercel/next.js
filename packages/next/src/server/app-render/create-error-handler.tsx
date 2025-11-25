@@ -93,8 +93,11 @@ export function createReactServerErrorHandler(
         // so we don't need to produce a new one.
       }
     } else {
-      // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
-      err.digest = stringHash(err.message + (err.stack || '')).toString()
+      err.digest = createDigestWithErrorCode(
+        err,
+        // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
+        stringHash(err.message + (err.stack || '')).toString()
+      )
     }
 
     // @TODO by putting this here and not at the top it is possible that
@@ -133,7 +136,7 @@ export function createReactServerErrorHandler(
       }
     }
 
-    return createDigestWithErrorCode(thrownValue, err.digest)
+    return err.digest
   }
 }
 
@@ -179,9 +182,12 @@ export function createHTMLErrorHandler(
         // from other means so we don't need to produce a new one
       }
     } else {
-      err.digest = stringHash(
-        err.message + (errorInfo?.componentStack || err.stack || '')
-      ).toString()
+      err.digest = createDigestWithErrorCode(
+        err,
+        stringHash(
+          err.message + (errorInfo?.componentStack || err.stack || '')
+        ).toString()
+      )
     }
 
     // Format server errors in development to add more helpful error messages
@@ -218,7 +224,7 @@ export function createHTMLErrorHandler(
       }
     }
 
-    return createDigestWithErrorCode(thrownValue, err.digest)
+    return err.digest
   }
 }
 
