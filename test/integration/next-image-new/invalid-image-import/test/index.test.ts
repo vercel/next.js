@@ -2,7 +2,7 @@
 
 import { join } from 'path'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   findPort,
   getRedboxDescription,
   getRedboxSource,
@@ -22,7 +22,7 @@ function runTests({ isDev }) {
   it('should show error', async () => {
     if (isDev) {
       const browser = await webdriver(appPort, '/')
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       const description = await getRedboxDescription(browser)
       if (process.env.IS_TURBOPACK_TEST) {
         expect(description).toMatchInlineSnapshot(`"Processing image failed"`)

@@ -82,29 +82,6 @@ describe('loadConfig', () => {
       delete process.env.__NEXT_VERSION
     })
 
-    it('should not print a stack trace when throwing an error', async () => {
-      const loadConfigPromise = loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-        customConfig: {
-          experimental: {
-            cacheComponents: true,
-          },
-        },
-      })
-
-      await expect(loadConfigPromise).rejects.toThrow(
-        /The experimental feature "experimental.cacheComponents" can only be enabled when using the latest canary version of Next.js./
-      )
-
-      try {
-        await loadConfigPromise
-      } catch (error: any) {
-        expect(error).toBeInstanceOf(Error)
-
-        // Check that there's no stack trace
-        expect(error.stack).toBeUndefined()
-      }
-    })
-
     it('errors when using PPR if not in canary', async () => {
       await expect(
         loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
@@ -115,21 +92,7 @@ describe('loadConfig', () => {
           },
         })
       ).rejects.toThrow(
-        /`experimental\.ppr` has been merged into `experimental\.cacheComponents`/
-      )
-    })
-
-    it('errors when using cacheComponents if not in canary', async () => {
-      await expect(
-        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-          customConfig: {
-            experimental: {
-              cacheComponents: true,
-            },
-          },
-        })
-      ).rejects.toThrow(
-        /The experimental feature "experimental.cacheComponents" can only be enabled when using the latest canary version of Next.js./
+        /`experimental\.ppr` has been merged into `cacheComponents`/
       )
     })
 
@@ -157,21 +120,6 @@ describe('loadConfig', () => {
       delete process.env.__NEXT_VERSION
     })
 
-    it('errors when rdcForNavigations is enabled but cacheComponents is disabled', async () => {
-      await expect(
-        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-          customConfig: {
-            experimental: {
-              rdcForNavigations: true,
-              ppr: false,
-            },
-          },
-        })
-      ).rejects.toThrow(
-        '`experimental.rdcForNavigations` is enabled, but `experimental.cacheComponents` is not.'
-      )
-    })
-
     it('errors when ppr is set to incremental', async () => {
       await expect(
         loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
@@ -182,81 +130,81 @@ describe('loadConfig', () => {
           },
         })
       ).rejects.toThrow(
-        /`experimental\.ppr` has been merged into `experimental\.cacheComponents`/
+        /`experimental\.ppr` has been merged into `cacheComponents`/
       )
     })
+  })
 
-    it('defaults rdcForNavigations to true when cacheComponents is enabled', async () => {
+  describe('middleware to proxy config key rename backward/forward compatibility', () => {
+    it('should copy `skipMiddlewareUrlNormalize value` to `skipProxyUrlNormalize`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          skipMiddlewareUrlNormalize: true,
+        },
+      })
+
+      expect(result.skipProxyUrlNormalize).toBe(true)
+    })
+
+    it('should copy `experimental.middlewarePrefetch` to `experimental.proxyPrefetch`', async () => {
       const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
         customConfig: {
           experimental: {
-            cacheComponents: true,
+            middlewarePrefetch: 'strict',
           },
         },
       })
 
-      expect(result.experimental.rdcForNavigations).toBe(true)
+      expect(result.experimental.proxyPrefetch).toBe('strict')
     })
 
-    it('migrates experimental.dynamicIO to experimental.cacheComponents', async () => {
-      process.env.__NEXT_VERSION = 'canary'
-
+    it('should copy `experimental.externalMiddlewareRewritesResolve` to `experimental.externalProxyRewritesResolve`', async () => {
       const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
         customConfig: {
           experimental: {
-            dynamicIO: true,
+            externalMiddlewareRewritesResolve: true,
           },
         },
-        silent: true,
       })
 
-      expect(result.experimental.cacheComponents).toBe(true)
-      expect(result.experimental.dynamicIO).toBeUndefined()
-
-      delete process.env.__NEXT_VERSION
+      expect(result.experimental.externalProxyRewritesResolve).toBe(true)
     })
 
-    it('preserves cacheComponents when both dynamicIO and cacheComponents are set', async () => {
-      process.env.__NEXT_VERSION = 'canary'
+    it('should copy `skipProxyUrlNormalize` to `skipMiddlewareUrlNormalize`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          skipProxyUrlNormalize: true,
+        },
+      })
 
+      expect(result.skipMiddlewareUrlNormalize).toBe(true)
+      expect(result.skipProxyUrlNormalize).toBe(true)
+    })
+
+    it('should copy `experimental.proxyPrefetch` to `experimental.middlewarePrefetch`', async () => {
       const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
         customConfig: {
           experimental: {
-            dynamicIO: true,
-            cacheComponents: false,
+            proxyPrefetch: 'strict',
           },
         },
-        silent: true,
       })
 
-      expect(result.experimental.cacheComponents).toBe(false)
-      expect(result.experimental.dynamicIO).toBeUndefined()
-
-      delete process.env.__NEXT_VERSION
+      expect(result.experimental.middlewarePrefetch).toBe('strict')
+      expect(result.experimental.proxyPrefetch).toBe('strict')
     })
 
-    it('warns when using deprecated experimental.dynamicIO', async () => {
-      process.env.__NEXT_VERSION = 'canary'
-
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
-
-      await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+    it('should copy `experimental.externalProxyRewritesResolve` to `experimental.externalMiddlewareRewritesResolve`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
         customConfig: {
           experimental: {
-            dynamicIO: true,
+            externalProxyRewritesResolve: true,
           },
         },
-        silent: false,
       })
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          '`experimental.dynamicIO` has been renamed to `experimental.cacheComponents`'
-        )
-      )
-
-      consoleSpy.mockRestore()
-      delete process.env.__NEXT_VERSION
+      expect(result.experimental.externalMiddlewareRewritesResolve).toBe(true)
+      expect(result.experimental.externalProxyRewritesResolve).toBe(true)
     })
   })
 })

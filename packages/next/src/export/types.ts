@@ -12,6 +12,7 @@ import type {
 import type { FetchMetrics } from '../server/base-http'
 import type { RouteMetadata } from './routes/types'
 import type { RenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
+import type { StaticWorker } from '../build'
 
 export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
   path: string
@@ -27,7 +28,7 @@ export interface ExportPagesInput {
   pagesDataDir: string
   renderOpts: WorkerRenderOptsPartial
   nextConfig: NextConfigComplete
-  cacheMaxMemorySize: NextConfigComplete['cacheMaxMemorySize'] | undefined
+  cacheMaxMemorySize: NextConfigComplete['cacheMaxMemorySize']
   fetchCache: boolean | undefined
   cacheHandler: string | undefined
   fetchCacheKeyPrefix: string | undefined
@@ -89,6 +90,7 @@ export type WorkerRenderOpts = WorkerRenderOptsPartial &
   LoadComponentsReturnType
 
 export interface ExportAppOptions {
+  staticWorker?: StaticWorker
   outdir: string
   enabledDirectories: NextEnabledDirectories
   silent?: boolean

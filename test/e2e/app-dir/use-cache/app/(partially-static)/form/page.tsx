@@ -1,4 +1,4 @@
-import { updateTag, unstable_cacheTag as cacheTag } from 'next/cache'
+import { updateTag, cacheTag } from 'next/cache'
 
 async function refresh() {
   'use server'

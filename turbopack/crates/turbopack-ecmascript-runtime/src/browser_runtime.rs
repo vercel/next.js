@@ -9,16 +9,18 @@ use turbopack_core::{
     context::AssetContext,
     environment::{ChunkLoading, Environment},
 };
-use turbopack_ecmascript::{magic_identifier, utils::StringifyJs};
+use turbopack_ecmascript::utils::StringifyJs;
 
-use crate::{RuntimeType, asset_context::get_runtime_asset_context, embed_js::embed_static_code};
+use crate::{
+    ChunkSuffix, RuntimeType, asset_context::get_runtime_asset_context, embed_js::embed_static_code,
+};
 
 /// Returns the code for the ECMAScript runtime.
 #[turbo_tasks::function]
 pub async fn get_browser_runtime_code(
     environment: ResolvedVc<Environment>,
     chunk_base_path: Vc<Option<RcStr>>,
-    chunk_suffix_path: Vc<Option<RcStr>>,
+    chunk_suffix: Vc<ChunkSuffix>,
     runtime_type: RuntimeType,
     output_root_to_root_path: RcStr,
     generate_source_map: bool,
@@ -35,12 +37,6 @@ pub async fn get_browser_runtime_code(
     match runtime_type {
         RuntimeType::Production => runtime_base_code.push("browser/runtime/base/build-base.ts"),
         RuntimeType::Development => {
-            debug_assert!(
-                // The dev runtime makes this assumption. If that's no longer true, we need to
-                // update the runtime code.
-                magic_identifier::mangle("module evaluation").as_str()
-                    == "__TURBOPACK__module__evaluation__"
-            );
             runtime_base_code.push("browser/runtime/base/dev-base.ts");
         }
         #[cfg(feature = "test")]
@@ -86,10 +82,7 @@ pub async fn get_browser_runtime_code(
     let relative_root_path = output_root_to_root_path;
     let chunk_base_path = chunk_base_path.await?;
     let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
-    let chunk_suffix_path = chunk_suffix_path.await?;
-    let chunk_suffix_path = chunk_suffix_path
-        .as_ref()
-        .map_or_else(|| "", |f| f.as_str());
+    let chunk_suffix = chunk_suffix.await?;
 
     writedoc!(
         code,
@@ -100,15 +93,41 @@ pub async fn get_browser_runtime_code(
             }}
 
             const CHUNK_BASE_PATH = {};
-            const CHUNK_SUFFIX_PATH = {};
             const RELATIVE_ROOT_PATH = {};
             const RUNTIME_PUBLIC_PATH = {};
         "#,
         StringifyJs(chunk_base_path),
-        StringifyJs(chunk_suffix_path),
         StringifyJs(relative_root_path.as_str()),
         StringifyJs(chunk_base_path),
     )?;
+
+    match &*chunk_suffix {
+        ChunkSuffix::None => {
+            writedoc!(
+                code,
+                r#"
+                    const CHUNK_SUFFIX = "";
+                "#
+            )?;
+        }
+        ChunkSuffix::Constant(suffix) => {
+            writedoc!(
+                code,
+                r#"
+                    const CHUNK_SUFFIX = {};
+                "#,
+                StringifyJs(suffix.as_str())
+            )?;
+        }
+        ChunkSuffix::FromScriptSrc => {
+            writedoc!(
+                code,
+                r#"
+                    const CHUNK_SUFFIX = (self.TURBOPACK_CHUNK_SUFFIX ?? document?.currentScript?.getAttribute?.('src')?.replace(/^(.*(?=\?)|^.*$)/, "")) || "";
+                "#
+            )?;
+        }
+    }
 
     code.push_code(&*shared_runtime_utils_code.await?);
     for runtime_code in runtime_base_code {

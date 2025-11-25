@@ -84,11 +84,7 @@ impl EcmascriptBrowserChunkContent {
                 let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
                     path
                 } else {
-                    bail!(
-                        "chunk path {} is not in output root {}",
-                        chunk_path.to_string(),
-                        output_root.to_string()
-                    );
+                    bail!("chunk path {chunk_path} is not in output root {output_root}");
                 };
                 Either::Left(StringifyJs(chunk_server_path))
             }

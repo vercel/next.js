@@ -1,7 +1,7 @@
 import type { MatcherContext } from 'expect'
 import { toMatchInlineSnapshot } from 'jest-snapshot'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   getRedboxCallStack,
   getRedboxComponentStack,
   getRedboxDescription,
@@ -260,7 +260,7 @@ expect.extend({
     this.dontThrow = () => {}
 
     try {
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
     } catch (cause) {
       // argument length is relevant.
       // Jest will update absent snapshots but fail if you specify a snapshot even if undefined.
@@ -318,15 +318,15 @@ expect.extend({
         return toMatchInlineSnapshot.call(
           this,
           String(cause.message)
-            // Should switch to `toDisplayRedbox` not `assertHasRedbox`
-            .replace('assertHasRedbox', 'toDisplayRedbox')
+            // Should switch to `toDisplayRedbox` not `waitForRedbox`
+            .replace('waitForRedbox', 'toDisplayRedbox')
         )
       } else {
         return toMatchInlineSnapshot.call(
           this,
           String(cause.message)
-            // Should switch to `toDisplayRedbox` not `assertHasRedbox`
-            .replace('assertHasRedbox', 'toDisplayRedbox'),
+            // Should switch to `toDisplayRedbox` not `waitForRedbox`
+            .replace('waitForRedbox', 'toDisplayRedbox'),
           expectedRedboxSnapshot
         )
       }

@@ -26,5 +26,9 @@ describe('lockfile', () => {
     )
     expect(stripAnsi(stdout + stderr)).toContain('Unable to acquire lock')
     expect(exitCode).toBe(1)
+
+    // make sure the other instance of `next dev` didn't mess anything up
+    browser.refresh()
+    expect(await browser.elementByCss('p').text()).toBe('Page')
   })
 })

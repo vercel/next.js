@@ -144,7 +144,7 @@ When using Sub-path Routing, the user would be redirected to `/fr`.
 
 ### Prefixing the Default Locale
 
-With Next.js 12 and [Middleware](/docs/pages/api-reference/file-conventions/middleware), we can add a prefix to the default locale with a [workaround](https://github.com/vercel/next.js/discussions/18419).
+With Next.js 12 and [Proxy](/docs/pages/api-reference/file-conventions/proxy), we can add a prefix to the default locale with a [workaround](https://github.com/vercel/next.js/discussions/18419).
 
 For example, here's a `next.config.js` file with support for a few languages. Note the `"default"` locale has been added intentionally.
 
@@ -159,14 +159,14 @@ module.exports = {
 }
 ```
 
-Next, we can use [Middleware](/docs/pages/api-reference/file-conventions/middleware) to add custom routing rules:
+Next, we can use [Proxy](/docs/pages/api-reference/file-conventions/proxy) to add custom routing rules:
 
-```ts filename="middleware.ts"
+```ts filename="proxy.ts"
 import { NextRequest, NextResponse } from 'next/server'
 
 const PUBLIC_FILE = /\.(.*)$/
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   if (
     req.nextUrl.pathname.startsWith('/_next') ||
     req.nextUrl.pathname.includes('/api/') ||
@@ -185,7 +185,7 @@ export async function middleware(req: NextRequest) {
 }
 ```
 
-This [Middleware](/docs/pages/api-reference/file-conventions/middleware) skips adding the default prefix to [API Routes](/docs/pages/building-your-application/routing/api-routes) and [public](/docs/pages/api-reference/file-conventions/public-folder) files like fonts or images. If a request is made to the default locale, we redirect to our prefix `/en`.
+This [Proxy](/docs/pages/api-reference/file-conventions/proxy) skips adding the default prefix to [API Routes](/docs/pages/building-your-application/routing/api-routes) and [public](/docs/pages/api-reference/file-conventions/public-folder) files like fonts or images. If a request is made to the default locale, we redirect to our prefix `/en`.
 
 ### Disabling Automatic Locale Detection
 
@@ -352,4 +352,4 @@ export async function getStaticProps({ locale }) {
 - `locales`: 100 total locales
 - `domains`: 100 total locale domain items
 
-> **Good to know**: These limits have been added initially to prevent potential [performance issues at build time](#dynamic-routes-and-getstaticprops-pages). You can workaround these limits with custom routing using [Middleware](/docs/pages/api-reference/file-conventions/middleware) in Next.js 12.
+> **Good to know**: These limits have been added initially to prevent potential [performance issues at build time](#dynamic-routes-and-getstaticprops-pages). You can workaround these limits with custom routing using [Proxy](/docs/pages/api-reference/file-conventions/proxy) in Next.js 12.

@@ -60,8 +60,13 @@ pub fn normalize_entries(entries: &Option<Vec<String>>) -> Vec<RcStr> {
 }
 
 #[turbo_tasks::function]
-pub async fn project_fs(project_dir: RcStr, watch: bool) -> Result<Vc<Box<dyn FileSystem>>> {
-    let disk_fs = DiskFileSystem::new(rcstr!("project"), project_dir);
+pub async fn project_fs(
+    project_dir: RcStr,
+    watch: bool,
+    denied_root_path: RcStr,
+) -> Result<Vc<Box<dyn FileSystem>>> {
+    let disk_fs =
+        DiskFileSystem::new_with_denied_path(rcstr!("project"), project_dir, denied_root_path);
     if watch {
         disk_fs.await?.start_watching(None).await?;
     }

@@ -1,6 +1,8 @@
 import { Suspense } from 'react'
-import { unstable_cacheLife as cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 import { cookies } from 'next/headers'
+
+export const unstable_prefetch = { mode: 'runtime', samples: [{}] }
 
 export default function Page() {
   return (

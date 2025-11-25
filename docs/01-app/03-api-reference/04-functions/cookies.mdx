@@ -67,7 +67,7 @@ To learn more about these options, see the [MDN docs](https://developer.mozilla.
 
 - `cookies` is an **asynchronous** function that returns a promise. You must use `async/await` or React's [`use`](https://react.dev/reference/react/use) function to access cookies.
   - In version 14 and earlier, `cookies` was a synchronous function. To help with backwards compatibility, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
-- `cookies` is a [Dynamic API](/docs/app/getting-started/partial-prerendering#dynamic-rendering) whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into [dynamic rendering](/docs/app/getting-started/partial-prerendering#dynamic-rendering).
+- `cookies` is a [Dynamic API](/docs/app/guides/caching#dynamic-rendering) whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into [dynamic rendering](/docs/app/guides/caching#dynamic-rendering).
 - The `.delete` method can only be called:
   - In a [Server Action](/docs/app/getting-started/updating-data) or [Route Handler](/docs/app/api-reference/file-conventions/route).
   - If it belongs to the same domain from which `.set` is called. For wildcard domains, the specific subdomain must be an exact match. Additionally, the code must be executed on the same protocol (HTTP or HTTPS) as the cookie you want to delete.
@@ -229,8 +229,9 @@ Using the `delete()` method:
 
 import { cookies } from 'next/headers'
 
-export async function delete(data) {
-  (await cookies()).delete('name')
+export async function deleteCookie(data) {
+  const cookieStore = await cookies()
+  cookieStore.delete('name')
 }
 ```
 
@@ -239,8 +240,9 @@ export async function delete(data) {
 
 import { cookies } from 'next/headers'
 
-export async function delete(data) {
-  (await cookies()).delete('name')
+export async function deleteCookie(data) {
+  const cookieStore = await cookies()
+  cookieStore.delete('name')
 }
 ```
 
@@ -251,8 +253,9 @@ Setting a new cookie with the same name and an empty value:
 
 import { cookies } from 'next/headers'
 
-export async function delete(data) {
-  (await cookies()).set('name', '')
+export async function deleteCookie(data) {
+  const cookieStore = await cookies()
+  cookieStore.set('name', '')
 }
 ```
 
@@ -261,8 +264,9 @@ export async function delete(data) {
 
 import { cookies } from 'next/headers'
 
-export async function delete(data) {
-  (await cookies()).set('name', '')
+export async function deleteCookie(data) {
+  const cookieStore = await cookies()
+  cookieStore.set('name', '')
 }
 ```
 
@@ -273,8 +277,9 @@ Setting the `maxAge` to 0 will immediately expire a cookie. `maxAge` accepts a v
 
 import { cookies } from 'next/headers'
 
-export async function delete(data) {
-  (await cookies()).set('name', 'value', { maxAge: 0 })
+export async function deleteCookie(data) {
+  const cookieStore = await cookies()
+  cookieStore.set('name', 'value', { maxAge: 0 })
 }
 ```
 
@@ -283,9 +288,9 @@ export async function delete(data) {
 
 import { cookies } from 'next/headers'
 
-export async function delete(data) {
-  (await cookies()).set('name', 'value', { maxAge: 0 })
-``
+export async function deleteCookie(data) {
+  const cookieStore = await cookies()
+  cookieStore.set('name', 'value', { maxAge: 0 })
 }
 ```
 

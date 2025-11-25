@@ -268,6 +268,8 @@ impl ReferencedAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<String> {
         let id = asset.chunk_item_id(chunking_context).await?;
+        // There are a number of places in `next` that match on this prefix.
+        // See `packages/next/src/shared/lib/magic-identifier.ts`
         Ok(magic_identifier::mangle(&format!("imported module {id}")))
     }
 }
@@ -389,9 +391,9 @@ impl EsmAssetReference {
 impl ModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let ty = if matches!(self.annotations.module_type(), Some("json")) {
+        let ty = if self.annotations.module_type().is_some_and(|v| v == "json") {
             EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Json)
-        } else if matches!(self.annotations.module_type(), Some("bytes")) {
+        } else if self.annotations.module_type().is_some_and(|v| v == "bytes") {
             EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Bytes)
         } else if let Some(part) = &self.export_name {
             EcmaScriptModulesReferenceSubType::ImportPart(part.clone())
@@ -487,13 +489,18 @@ impl ChunkableModuleReference for EsmAssetReference {
     fn chunking_type(&self) -> Result<Vc<ChunkingTypeOption>> {
         Ok(Vc::cell(
             if let Some(chunking_type) = self.annotations.chunking_type() {
-                match chunking_type {
-                    "parallel" => Some(ChunkingType::Parallel {
+                if chunking_type == "parallel" {
+                    Some(ChunkingType::Parallel {
                         inherit_async: true,
                         hoisted: true,
-                    }),
-                    "none" => None,
-                    _ => return Err(anyhow!("unknown chunking_type: {}", chunking_type)),
+                    })
+                } else if chunking_type == "none" {
+                    None
+                } else {
+                    return Err(anyhow!(
+                        "unknown chunking_type: {}",
+                        chunking_type.to_string_lossy()
+                    ));
                 }
             } else {
                 Some(ChunkingType::Parallel {
@@ -523,7 +530,7 @@ impl EsmAssetReference {
         let this = &*self.await?;
 
         // only chunked references can be imported
-        if this.annotations.chunking_type() != Some("none") {
+        if this.annotations.chunking_type().is_none_or(|v| v != "none") {
             let import_externals = this.import_externals;
             let referenced_asset = self.get_referenced_asset().await?;
 
@@ -779,7 +786,7 @@ impl Issue for InvalidExport {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Bindings.into()
+        IssueStage::Bindings.cell()
     }
 
     #[turbo_tasks::function]
@@ -874,7 +881,7 @@ impl Issue for CircularReExport {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Bindings.into()
+        IssueStage::Bindings.cell()
     }
 
     #[turbo_tasks::function]

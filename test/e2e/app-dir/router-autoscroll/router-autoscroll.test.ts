@@ -197,20 +197,6 @@ describe('router autoscrolling on navigation', () => {
         .click()
         .waitForElementByCss('#content-that-is-visible')
       await check(() => browser.eval('window.scrollY'), 0)
-
-      if (isNextDev) {
-        // Check that we've logged a warning
-        await check(async () => {
-          const logs = await browser.log()
-          return logs.some((log) =>
-            log.message.includes(
-              'Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element:'
-            )
-          )
-            ? 'success'
-            : undefined
-        }, 'success')
-      }
     })
 
     it('Should scroll to the top of the layout when the first child is position sticky', async () => {
@@ -221,20 +207,6 @@ describe('router autoscrolling on navigation', () => {
         .click()
         .waitForElementByCss('#content-that-is-visible')
       await check(() => browser.eval('window.scrollY'), 0)
-
-      if (isNextDev) {
-        // Check that we've logged a warning
-        await check(async () => {
-          const logs = await browser.log()
-          return logs.some((log) =>
-            log.message.includes(
-              'Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element:'
-            )
-          )
-            ? 'success'
-            : undefined
-        }, 'success')
-      }
     })
 
     it('Should apply scroll when loading.js is used', async () => {

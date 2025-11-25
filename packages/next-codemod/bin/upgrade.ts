@@ -188,7 +188,10 @@ export async function runUpgrade(
         `react@${targetNextPackageJson.peerDependencies['react']}`
       )
 
-  if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
+  if (
+    compareVersions(targetNextVersion, '15.0.0-canary') >= 0 &&
+    compareVersions(targetNextVersion, '16.0.0-canary') < 0
+  ) {
     await suggestTurbopack(appPackageJson, targetNextVersion)
   }
 

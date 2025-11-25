@@ -27,7 +27,7 @@ describe('dynamic-data', () => {
       // in dev we expect the entire page to be rendered at runtime
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
-    } else if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
+    } else if (process.env.__NEXT_CACHE_COMPONENTS) {
       // in PPR we expect the shell to be rendered at build and the page to be rendered at runtime
       expect($('#layout').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at runtime')
@@ -57,7 +57,7 @@ describe('dynamic-data', () => {
       // in dev we expect the entire page to be rendered at runtime
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
-    } else if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
+    } else if (process.env.__NEXT_CACHE_COMPONENTS) {
       // @TODO this should actually be build but there is a bug in how we do segment level dynamic in PPR at the moment
       // see note in create-component-tree
       expect($('#layout').text()).toBe('at runtime')
@@ -88,7 +88,7 @@ describe('dynamic-data', () => {
       // in dev we expect the entire page to be rendered at runtime
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
-    } else if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
+    } else if (process.env.__NEXT_CACHE_COMPONENTS) {
       // in PPR we expect the shell to be rendered at build and the page to be rendered at runtime
       expect($('#layout').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at buildtime')
@@ -124,7 +124,7 @@ describe('dynamic-data', () => {
       expect($('#page').text()).toBe('at runtime')
       // we don't assert the state of the fallback because it can depend on the timing
       // of when streaming starts and how fast the client references resolve
-    } else if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
+    } else if (process.env.__NEXT_CACHE_COMPONENTS) {
       // in PPR we expect the shell to be rendered at build and the page to be rendered at runtime
       expect($('#layout').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at runtime')

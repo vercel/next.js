@@ -6,7 +6,12 @@ import type { CloneableBody } from '../body-streams'
 import type { OutgoingHttpHeaders } from 'http'
 import type { FetchMetrics } from '../base-http'
 
+/**
+ * @deprecated Use `ProxyConfig` instead. Middleware has been renamed to Proxy.
+ */
 export type { MiddlewareConfigInput as MiddlewareConfig } from '../../build/segment-config/middleware/middleware-config'
+
+export type { MiddlewareConfigInput as ProxyConfig } from '../../build/segment-config/middleware/middleware-config'
 
 export interface RequestData {
   headers: OutgoingHttpHeaders
@@ -54,9 +59,20 @@ export type NextMiddlewareResult =
  * by rewriting, redirecting, modifying the request or response headers,
  * or responding directly.
  *
+ * @deprecated Use `NextProxy` instead. Middleware has been renamed to Proxy.
  * Read more: [Next.js Docs: Middleware](https://nextjs.org/docs/app/building-your-application/routing/middleware)
  */
 export type NextMiddleware = (
   request: NextRequest,
   event: NextFetchEvent
 ) => NextMiddlewareResult | Promise<NextMiddlewareResult>
+
+/**
+ * Proxy allows you to run code before a request is completed.
+ * Then, based on the incoming request, you can modify the response
+ * by rewriting, redirecting, modifying the request or response headers,
+ * or responding directly.
+ *
+ * Read more: [Next.js Docs: Proxy](https://nextjs.org/docs/app/building-your-application/routing/middleware)
+ */
+export type NextProxy = NextMiddleware

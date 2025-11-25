@@ -1,8 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-const isCacheComponentsEnabled =
-  process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 // TODO(NAR-423): Migrate to Cache Components.
 describe.skip('source-mapping', () => {

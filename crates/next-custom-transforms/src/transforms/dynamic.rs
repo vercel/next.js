@@ -5,7 +5,7 @@ use std::{
 
 use pathdiff::diff_paths;
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{atom, Atom, Wtf8Atom},
     common::{errors::HANDLER, FileName, Span, DUMMY_SP},
     ecma::{
         ast::{
@@ -15,7 +15,7 @@ use swc_core::{
             PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp,
         },
         utils::{private_ident, quote_ident, ExprFactory},
-        visit::{fold_pass, Fold, FoldWith, VisitMut, VisitMutWith},
+        visit::{visit_mut_pass, VisitMut, VisitMutWith},
     },
     quote,
 };
@@ -34,7 +34,7 @@ pub fn next_dynamic(
     filename: Arc<FileName>,
     pages_or_app_dir: Option<PathBuf>,
 ) -> impl Pass {
-    fold_pass(NextDynamicPatcher {
+    visit_mut_pass(NextDynamicPatcher {
         is_development,
         is_server_compiler,
         is_react_server_layer,
@@ -91,7 +91,7 @@ struct NextDynamicPatcher {
     filename: Arc<FileName>,
     dynamic_bindings: Vec<Id>,
     is_next_dynamic_first_arg: bool,
-    dynamically_imported_specifier: Option<(Atom, Span)>,
+    dynamically_imported_specifier: Option<(Wtf8Atom, Span)>,
     state: NextDynamicPatcherState,
 }
 
@@ -111,36 +111,30 @@ enum NextDynamicPatcherState {
 #[derive(Debug, Clone, Eq, PartialEq)]
 enum TurbopackImport {
     // TODO do we need more variants? server vs client vs dev vs prod?
-    Import { id_ident: Ident, specifier: Atom },
+    Import {
+        id_ident: Ident,
+        specifier: Wtf8Atom,
+    },
 }
 
-impl Fold for NextDynamicPatcher {
-    fn fold_module_items(&mut self, mut items: Vec<ModuleItem>) -> Vec<ModuleItem> {
-        items = items.fold_children_with(self);
+impl VisitMut for NextDynamicPatcher {
+    fn visit_mut_module_items(&mut self, items: &mut Vec<ModuleItem>) {
+        items.visit_mut_children_with(self);
 
-        self.maybe_add_dynamically_imported_specifier(&mut items);
-
-        items
+        self.maybe_add_dynamically_imported_specifier(items);
     }
 
-    fn fold_import_decl(&mut self, decl: ImportDecl) -> ImportDecl {
-        let ImportDecl {
-            ref src,
-            ref specifiers,
-            ..
-        } = decl;
-        if &src.value == "next/dynamic" {
-            for specifier in specifiers {
+    fn visit_mut_import_decl(&mut self, decl: &mut ImportDecl) {
+        if &decl.src.value == "next/dynamic" {
+            for specifier in &decl.specifiers {
                 if let ImportSpecifier::Default(default_specifier) = specifier {
                     self.dynamic_bindings.push(default_specifier.local.to_id());
                 }
             }
         }
-
-        decl
     }
 
-    fn fold_call_expr(&mut self, expr: CallExpr) -> CallExpr {
+    fn visit_mut_call_expr(&mut self, expr: &mut CallExpr) {
         if self.is_next_dynamic_first_arg {
             if let Callee::Import(..) = &expr.callee {
                 match &*expr.args[0].expr {
@@ -149,14 +143,17 @@ impl Fold for NextDynamicPatcher {
                     }
                     Expr::Tpl(Tpl { exprs, quasis, .. }) if exprs.is_empty() => {
                         self.dynamically_imported_specifier =
-                            Some((quasis[0].raw.clone(), quasis[0].span));
+                            Some((quasis[0].raw.clone().into(), quasis[0].span));
                     }
                     _ => {}
                 }
             }
-            return expr.fold_children_with(self);
+            expr.visit_mut_children_with(self);
+            return;
         }
-        let mut expr = expr.fold_children_with(self);
+
+        expr.visit_mut_children_with(self);
+
         if let Callee::Expr(i) = &expr.callee {
             if let Expr::Ident(identifier) = &**i {
                 if self.dynamic_bindings.contains(&identifier.to_id()) {
@@ -169,7 +166,7 @@ impl Fold for NextDynamicPatcher {
                                 )
                                 .emit()
                         });
-                        return expr;
+                        return;
                     } else if expr.args.len() > 2 {
                         HANDLER.with(|handler| {
                             handler
@@ -179,7 +176,7 @@ impl Fold for NextDynamicPatcher {
                                 )
                                 .emit()
                         });
-                        return expr;
+                        return;
                     }
                     if expr.args.len() == 2 {
                         match &*expr.args[1].expr {
@@ -193,19 +190,19 @@ impl Fold for NextDynamicPatcher {
                               )
                               .emit();
                       });
-                                return expr;
+                                return;
                             }
                         }
                     }
 
                     self.is_next_dynamic_first_arg = true;
-                    expr.args[0].expr = expr.args[0].expr.clone().fold_with(self);
+                    expr.args[0].expr.visit_mut_with(self);
                     self.is_next_dynamic_first_arg = false;
 
                     let Some((dynamically_imported_specifier, dynamically_imported_specifier_span)) =
                         self.dynamically_imported_specifier.take()
                     else {
-                        return expr;
+                        return;
                     };
 
                     let project_dir = match self.pages_or_app_dir.as_deref() {
@@ -416,7 +413,6 @@ impl Fold for NextDynamicPatcher {
                 }
             }
         }
-        expr
     }
 }
 
@@ -541,7 +537,7 @@ impl NextDynamicPatcher {
 fn exec_expr_when_resolve_weak_available(expr: &Expr) -> Expr {
     let undefined_str_literal = Expr::Lit(Lit::Str(Str {
         span: DUMMY_SP,
-        value: atom!("undefined"),
+        value: atom!("undefined").into(),
         raw: None,
     }));
 

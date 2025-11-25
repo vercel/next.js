@@ -6,7 +6,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkingContext},
     introspect::{Introspectable, IntrospectableChildren},
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
     version::VersionedContent,
 };
@@ -75,6 +75,35 @@ impl EcmascriptBuildNodeChunk {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for EcmascriptBuildNodeChunk {
+    #[turbo_tasks::function]
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let this = self.await?;
+        let chunk_references = this.chunk.references().await?;
+        let include_source_map = *this
+            .chunking_context
+            .reference_chunk_source_maps(Vc::upcast(self))
+            .await?;
+        let ref_assets = chunk_references.assets.await?;
+        let mut assets =
+            Vec::with_capacity(ref_assets.len() + if include_source_map { 1 } else { 0 });
+
+        assets.extend(ref_assets.iter().copied());
+
+        if include_source_map {
+            assets.push(ResolvedVc::upcast(self.source_map().to_resolved().await?));
+        }
+
+        Ok(OutputAssetsWithReferenced {
+            assets: ResolvedVc::cell(assets),
+            referenced_assets: chunk_references.referenced_assets,
+            references: chunk_references.references,
+        }
+        .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl OutputAsset for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
@@ -83,28 +112,6 @@ impl OutputAsset for EcmascriptBuildNodeChunk {
         Ok(this
             .chunking_context
             .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-        let chunk_references = this.chunk.references().await?;
-        let include_source_map = *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?;
-        let mut references =
-            Vec::with_capacity(chunk_references.len() + if include_source_map { 1 } else { 0 });
-
-        for reference in &*chunk_references {
-            references.push(*reference);
-        }
-
-        if include_source_map {
-            references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?));
-        }
-
-        Ok(Vc::cell(references))
     }
 }
 

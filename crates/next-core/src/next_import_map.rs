@@ -128,32 +128,33 @@ pub async fn get_next_client_import_map(
         ClientContextType::Pages { .. } => {}
         ClientContextType::App { app_dir } => {
             // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
-            let react_flavor =
-                if *next_config.enable_ppr().await? || *next_config.enable_taint().await? {
-                    "-experimental"
-                } else {
-                    ""
-                };
+            let taint = *next_config.enable_taint().await?;
+            let transition_indicator = *next_config.enable_transition_indicator().await?;
+            let react_channel = if taint || transition_indicator {
+                "-experimental"
+            } else {
+                ""
+            };
 
             import_map.insert_exact_alias(
                 rcstr!("react"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    format!("next/dist/compiled/react{react_flavor}").into(),
+                    format!("next/dist/compiled/react{react_channel}").into(),
                 ),
             );
             import_map.insert_wildcard_alias(
                 rcstr!("react/"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    format!("next/dist/compiled/react{react_flavor}/*").into(),
+                    format!("next/dist/compiled/react{react_channel}/*").into(),
                 ),
             );
             import_map.insert_exact_alias(
                 rcstr!("react-dom"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    format!("next/dist/compiled/react-dom{react_flavor}").into(),
+                    format!("next/dist/compiled/react-dom{react_channel}").into(),
                 ),
             );
             import_map.insert_exact_alias(
@@ -182,7 +183,7 @@ pub async fn get_next_client_import_map(
                 rcstr!("react-dom/client"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    format!("next/dist/compiled/react-dom{react_flavor}/{react_client_package}")
+                    format!("next/dist/compiled/react-dom{react_channel}/{react_client_package}")
                         .into(),
                 ),
             );
@@ -190,7 +191,7 @@ pub async fn get_next_client_import_map(
                 rcstr!("react-dom/"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    format!("next/dist/compiled/react-dom{react_flavor}/*").into(),
+                    format!("next/dist/compiled/react-dom{react_channel}/*").into(),
                 ),
             );
             import_map.insert_wildcard_alias(
@@ -201,7 +202,8 @@ pub async fn get_next_client_import_map(
                 rcstr!("react-server-dom-turbopack/"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/*").into(),
+                    format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/*")
+                        .into(),
                 ),
             );
             insert_exact_alias_or_js(
@@ -830,9 +832,13 @@ async fn apply_vendored_react_aliases_server(
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
-    let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
-    let react_channel = if ppr || taint { "-experimental" } else { "" };
+    let transition_indicator = *next_config.enable_transition_indicator().await?;
+    let react_channel = if taint || transition_indicator {
+        "-experimental"
+    } else {
+        ""
+    };
     let react_condition = if ty.should_use_react_server_condition() {
         "server"
     } else {
@@ -1255,7 +1261,7 @@ impl Issue for MissingNextFolderIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Resolve.into()
+        IssueStage::Resolve.cell()
     }
 
     #[turbo_tasks::function]

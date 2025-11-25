@@ -4,11 +4,12 @@ import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
 import type { ServerRuntime } from '../types'
 import type { BuildManifest } from '../server/get-page-files'
-import type {
-  CustomRoutes,
-  Header,
-  Redirect,
-  Rewrite,
+import {
+  normalizeRouteRegex,
+  type CustomRoutes,
+  type Header,
+  type Redirect,
+  type Rewrite,
 } from '../lib/load-custom-routes'
 import type {
   EdgeFunctionDefinition,
@@ -75,8 +76,20 @@ import { formatExpire, formatRevalidate } from './output/format'
 import type { AppRouteRouteModule } from '../server/route-modules/app-route/module'
 import { formatIssue, isRelevantWarning } from '../shared/lib/turbopack/utils'
 import type { TurbopackResult } from './swc/types'
+import type { FunctionsConfigManifest, ManifestRoute } from './index'
+import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { parseAppRoute } from '../shared/lib/router/routes/app'
 
 export type ROUTER_TYPE = 'pages' | 'app'
+
+export type DynamicManifestRoute = ManifestRoute & {
+  /**
+   * The source page that this route is based on. This is used to determine the
+   * source page for the route and is only relevant for app pages where PPR is
+   * enabled and the page differs from the source page.
+   */
+  sourcePage: string | undefined
+}
 
 // Use `print()` for expected console output
 const print = console.log
@@ -200,21 +213,41 @@ export function printBuildErrors(
   // Issues that are warnings but should not affect the running of the build
   const topLevelWarnings = []
 
+  // Track seen formatted error messages to avoid duplicates
+  const seenFatalIssues = new Set<string>()
+  const seenErrors = new Set<string>()
+  const seenWarnings = new Set<string>()
+
   for (const issue of entrypoints.issues) {
     // We only want to completely shut down the server
     if (issue.severity === 'fatal' || issue.severity === 'bug') {
-      topLevelFatalIssues.push(formatIssue(issue))
+      const formatted = formatIssue(issue)
+      if (!seenFatalIssues.has(formatted)) {
+        seenFatalIssues.add(formatted)
+        topLevelFatalIssues.push(formatted)
+      }
     } else if (isRelevantWarning(issue)) {
-      topLevelWarnings.push(formatIssue(issue))
+      const formatted = formatIssue(issue)
+      if (!seenWarnings.has(formatted)) {
+        seenWarnings.add(formatted)
+        topLevelWarnings.push(formatted)
+      }
     } else if (issue.severity === 'error') {
+      const formatted = formatIssue(issue)
       if (isDev) {
         // We want to treat errors as recoverable in development
         // so that we can show the errors in the site and allow users
         // to respond to the errors when necessary. In production builds
         // though we want to error out and stop the build process.
-        topLevelErrors.push(formatIssue(issue))
+        if (!seenErrors.has(formatted)) {
+          seenErrors.add(formatted)
+          topLevelErrors.push(formatted)
+        }
       } else {
-        topLevelFatalIssues.push(formatIssue(issue))
+        if (!seenFatalIssues.has(formatted)) {
+          seenFatalIssues.add(formatted)
+          topLevelFatalIssues.push(formatted)
+        }
       }
     }
   }
@@ -254,6 +287,7 @@ export async function printTreeView(
     pagesDir,
     pageExtensions,
     middlewareManifest,
+    functionsConfigManifest,
     useStaticPages404,
     hasGSPAndRevalidateZero,
   }: {
@@ -261,6 +295,7 @@ export async function printTreeView(
     pageExtensions: PageExtensions
     buildManifest: BuildManifest
     middlewareManifest: MiddlewareManifest
+    functionsConfigManifest: FunctionsConfigManifest
     useStaticPages404: boolean
     hasGSPAndRevalidateZero: Set<string>
   }
@@ -410,7 +445,7 @@ export async function printTreeView(
 
       if (pageInfo?.ssgPageRoutes?.length) {
         const totalRoutes = pageInfo.ssgPageRoutes.length
-        const contSymbol = i === arr.length - 1 ? ' ' : '├'
+        const contSymbol = i === arr.length - 1 ? ' ' : '│'
 
         // HERE
 
@@ -462,7 +497,7 @@ export async function printTreeView(
               pageInfos.get(route)?.initialCacheControl
 
             messages.push([
-              `${contSymbol}   ${innerSymbol} ${route}${
+              `${contSymbol} ${innerSymbol} ${route}${
                 duration > MIN_DURATION
                   ? ` (${getPrettyDuration(duration)})`
                   : ''
@@ -513,8 +548,12 @@ export async function printTreeView(
     list: lists.pages,
   })
 
-  const middlewareInfo = middlewareManifest.middleware?.['/']
-  if (middlewareInfo?.files.length > 0) {
+  if (
+    middlewareManifest.middleware?.['/']?.files.length > 0 ||
+    // 'nodejs' runtime middleware or proxy is set to
+    // functions-config-manifest instead of middleware-manifest.
+    functionsConfigManifest.functions?.['/_middleware']
+  ) {
     messages.push([])
     messages.push(['ƒ Proxy (Middleware)'])
   }
@@ -664,7 +703,7 @@ export async function isPageStatic({
   authInterrupts,
   originalAppPath,
   isrFlushToDisk,
-  maxMemoryCacheSize,
+  cacheMaxMemorySize,
   nextConfigOutput,
   cacheHandler,
   cacheHandlers,
@@ -688,7 +727,7 @@ export async function isPageStatic({
   pageRuntime?: ServerRuntime
   originalAppPath?: string
   isrFlushToDisk?: boolean
-  maxMemoryCacheSize?: number
+  cacheMaxMemorySize: number
   cacheHandler?: string
   cacheHandlers?: Record<string, string | undefined>
   cacheLifeProfiles?: {
@@ -720,7 +759,7 @@ export async function isPageStatic({
     distDir,
     dir,
     flushToDisk: isrFlushToDisk,
-    cacheMaxMemorySize: maxMemoryCacheSize,
+    cacheMaxMemorySize,
   })
 
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
@@ -823,7 +862,7 @@ export async function isPageStatic({
         // in incremental mode.
         isRoutePPREnabled =
           routeModule.definition.kind === RouteKind.APP_PAGE &&
-          checkIsRoutePPREnabled(pprConfig, appConfig)
+          checkIsRoutePPREnabled(pprConfig)
 
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
@@ -832,21 +871,24 @@ export async function isPageStatic({
           appConfig.revalidate = 0
         }
 
+        const route = parseAppRoute(page, true)
+
         // If the page is dynamic and we're not in edge runtime, then we need to
         // build the static paths. The edge runtime doesn't support static
         // paths.
-        if (isDynamicRoute(page) && !pathIsEdgeRuntime) {
+        if (route.dynamicSegments.length > 0 && !pathIsEdgeRuntime) {
           ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
             await buildAppStaticPaths({
               dir,
               page,
+              route,
               cacheComponents,
               authInterrupts,
               segments,
               distDir,
               requestHeaders: {},
               isrFlushToDisk,
-              maxMemoryCacheSize,
+              cacheMaxMemorySize,
               cacheHandler,
               cacheLifeProfiles,
               ComponentMod,
@@ -948,7 +990,6 @@ type ReducedAppConfig = Pick<
   | 'dynamic'
   | 'fetchCache'
   | 'preferredRegion'
-  | 'experimental_ppr'
   | 'runtime'
   | 'maxDuration'
 >
@@ -971,7 +1012,6 @@ export function reduceAppConfig(
       fetchCache,
       preferredRegion,
       revalidate,
-      experimental_ppr,
       runtime,
       maxDuration,
     } = segment.config || {}
@@ -1002,12 +1042,6 @@ export function reduceAppConfig(
       (typeof config.revalidate !== 'number' || revalidate < config.revalidate)
     ) {
       config.revalidate = revalidate
-    }
-
-    // If partial prerendering has been set, only override it if the current
-    // value is provided as it's resolved from root layout to leaf page.
-    if (typeof experimental_ppr !== 'undefined') {
-      config.experimental_ppr = experimental_ppr
     }
 
     if (typeof runtime !== 'undefined') {
@@ -1409,6 +1443,10 @@ export function isMiddlewareFile(file: string) {
   )
 }
 
+export function isProxyFile(file: string) {
+  return file === `/${PROXY_FILENAME}` || file === `/src/${PROXY_FILENAME}`
+}
+
 export function isInstrumentationHookFile(file: string) {
   return (
     file === `/${INSTRUMENTATION_HOOK_FILENAME}` ||
@@ -1576,3 +1614,39 @@ export function collectMeta({
 export const RSPACK_DEFAULT_LAYERS_REGEX = new RegExp(
   `^(|${[WEBPACK_LAYERS.pagesDirBrowser, WEBPACK_LAYERS.pagesDirEdge, WEBPACK_LAYERS.pagesDirNode].join('|')})$`
 )
+
+/**
+ * Converts a page to a manifest route.
+ *
+ * @param page The page to convert to a route.
+ * @returns A route object.
+ */
+export function pageToRoute(page: string): ManifestRoute
+/**
+ * Converts a page to a dynamic manifest route.
+ *
+ * @param page The page to convert to a route.
+ * @param sourcePage The source page that this route is based on. This is used
+ * to determine the source page for the route and is only relevant for app
+ * pages when PPR is enabled on them.
+ * @returns A route object.
+ */
+export function pageToRoute(
+  page: string,
+  sourcePage: string | undefined
+): DynamicManifestRoute
+export function pageToRoute(
+  page: string,
+  sourcePage?: string
+): DynamicManifestRoute | ManifestRoute {
+  const routeRegex = getNamedRouteRegex(page, {
+    prefixRouteKeys: true,
+  })
+  return {
+    sourcePage,
+    page,
+    regex: normalizeRouteRegex(routeRegex.re.source),
+    routeKeys: routeRegex.routeKeys,
+    namedRegex: routeRegex.namedRegex,
+  }
+}

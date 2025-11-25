@@ -55,10 +55,11 @@ ignored = [
 ]
 
 [dependencies]
-anyhow = "1.0.66"
+anyhow = { workspace = true }
 console-subscriber = { workspace = true, optional = true }
 dhat = { workspace = true, optional = true }
 either = { workspace = true }
+flate2 = { workspace = true }
 futures-util = { workspace = true }
 owo-colors = { workspace = true }
 napi = { workspace = true }

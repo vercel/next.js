@@ -679,9 +679,53 @@ fn serialize_task_type(
         let deserialize: Result<CachedTaskType, _> = serde_path_to_error::deserialize(
             &mut pot_de_symbol_list().deserializer_for_slice(&*task_type_bytes)?,
         );
-        if let Err(err) = deserialize {
-            println!("Task type would not be deserializable {task_id:?}: {err:?}\n{task_type:#?}");
-            panic!("Task type would not be deserializable {task_id:?}: {err:?}");
+        match deserialize {
+            Err(err) => {
+                println!(
+                    "Task type would not be deserializable {task_id:?}: {err:?}\n{task_type:#?}"
+                );
+                panic!("Task type would not be deserializable {task_id:?}: {err:?}");
+            }
+            Ok(task_type2) => {
+                if &task_type2 != task_type {
+                    println!(
+                        "Task type would not round-trip {task_id:?}:\noriginal: \
+                         {task_type:#?}\nround-tripped: {task_type2:#?}"
+                    );
+                    panic!(
+                        "Task type would not round-trip {task_id:?}:\noriginal: \
+                         {task_type:#?}\nround-tripped: {task_type2:#?}"
+                    );
+                }
+                let mut bytes2 = Vec::new();
+                let result2 = POT_CONFIG.serialize_into(&task_type2, &mut bytes2);
+                match result2 {
+                    Err(err) => {
+                        println!(
+                            "Task type would not be serializable the second time {task_id:?}: \
+                             {err:?}\n{task_type2:#?}"
+                        );
+                        panic!(
+                            "Task type would not be serializable the second time {task_id:?}: \
+                             {err:?}\n{task_type2:#?}"
+                        );
+                    }
+                    Ok(()) => {
+                        if bytes2 != *task_type_bytes {
+                            println!(
+                                "Task type would not serialize to the same bytes the second time \
+                                 {task_id:?}:\noriginal: {:x?}\nsecond: {:x?}\n{task_type2:#?}",
+                                task_type_bytes, bytes2
+                            );
+                            panic!(
+                                "Task type would not serialize to the same bytes the second time \
+                                 {task_id:?}:\noriginal: {:x?}\nsecond: {:x?}\n{task_type2:#?}",
+                                task_type_bytes, bytes2
+                            );
+                        }
+                    }
+                }
+            }
         }
     }
     Ok(())
@@ -757,7 +801,10 @@ fn serialize(task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 1
                 if let Err(err) = serde_path_to_error::serialize(&item, &mut serializer) {
                     if item.is_optional() {
                         #[cfg(feature = "verify_serialization")]
-                        println!("Skipping non-serializable optional item for {task}: {item:?}");
+                        println!(
+                            "Skipping non-serializable optional item for {task}: {item:?} due to \
+                             {err}"
+                        );
                     } else {
                         error = Err(err).context({
                             anyhow!("Unable to serialize data item for {task}: {item:?}")

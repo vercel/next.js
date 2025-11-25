@@ -19,10 +19,13 @@ no_fast_stale = []
 verify_serialization = []
 verify_aggregation_graph = []
 verify_immutable = []
+verify_determinism = []
 trace_aggregation_update = []
 trace_find_and_schedule = []
 trace_task_completion = []
 trace_task_dirty = []
+trace_task_output_dependencies = []
+trace_task_details = []
 lmdb = ["dep:lmdb-rkv"]
 
 [dependencies]
@@ -30,7 +33,7 @@ anyhow = { workspace = true }
 arc-swap = { version = "1.7.1" }
 auto-hash-map = { workspace = true }
 bitfield = { workspace = true }
-byteorder = "1.5.0"
+byteorder = { workspace = true }
 dashmap = { workspace = true, features = ["raw-api"]}
 either = { workspace = true }
 hashbrown = { workspace = true, features = ["raw"] }

@@ -41,6 +41,7 @@ import type { UnwrapPromise } from '../../lib/coalesced-function'
 import origDebug from 'next/dist/compiled/debug'
 import { Telemetry } from '../../telemetry/storage'
 import { durationToString, hrtimeToSeconds } from '../duration-to-string'
+import { installBindings } from '../swc/install-bindings'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -383,11 +384,15 @@ export async function workerMain(workerData: {
   resumePluginState(NextBuildContext.pluginState)
 
   /// load the config because it's not serializable
-  NextBuildContext.config = await loadConfig(
+  const config = (NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
     NextBuildContext.dir!,
-    { debugPrerender: NextBuildContext.debugPrerender }
-  )
+    {
+      debugPrerender: NextBuildContext.debugPrerender,
+      reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+    }
+  ))
+  await installBindings(config.experimental?.useWasmBinary)
   NextBuildContext.nextBuildSpan = trace(
     `worker-main-${workerData.compilerName}`
   )
@@ -409,5 +414,7 @@ export async function workerMain(workerData: {
     result.buildTraceContext!.chunksTrace!.entryNameFilesMap = entryNameFilesMap
   }
   NextBuildContext.nextBuildSpan.stop()
+  await telemetry.flush()
+
   return { ...result, debugTraceEvents: getTraceEvents() }
 }

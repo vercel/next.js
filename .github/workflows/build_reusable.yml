@@ -92,8 +92,7 @@ env:
 
   TURBO_TEAM: 'vercel'
   TURBO_CACHE: 'remote:rw'
-  TURBO_API: ${{ secrets.HOSTED_TURBO_API }}
-  TURBO_TOKEN: ${{ secrets.HOSTED_TURBO_TOKEN }}
+
   NEXT_TELEMETRY_DISABLED: 1
   # allow not skipping install-native postinstall script if we don't have a binary available already
   NEXT_SKIP_NATIVE_POSTINSTALL: ${{ inputs.skipNativeInstall == 'yes' && '1' || '' }}

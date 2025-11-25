@@ -69,7 +69,7 @@
     "clientRouterFilter": true,
     "clientRouterFilterRedirects": false,
     "fetchCacheKeyPrefix": "",
-    "middlewarePrefetch": "flexible",
+    "proxyPrefetch": "flexible",
     "optimisticClientCache": true,
     "manualClientBasePath": false,
     "cpus": 2,

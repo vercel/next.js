@@ -18,6 +18,11 @@ export interface RouteRegex {
   re: RegExp
 }
 
+export type RegexReference = {
+  names: Record<string, string>
+  intercepted: Record<string, string>
+}
+
 type GetNamedRouteRegexOptions = {
   /**
    * Whether to prefix the route keys with the NEXT_INTERCEPTION_MARKER_PREFIX
@@ -58,7 +63,7 @@ type GetNamedRouteRegexOptions = {
    * keys instead of generating them in context. This is currently only used for
    * interception routes.
    */
-  reference?: Record<string, string>
+  reference?: RegexReference
 }
 
 type GetRouteRegexOptions = {
@@ -266,7 +271,7 @@ function getNamedParametrizedRoute(
   includeSuffix: boolean,
   includePrefix: boolean,
   backreferenceDuplicateKeys: boolean,
-  reference: Record<string, string> = {}
+  reference: RegexReference = { names: {}, intercepted: {} }
 ) {
   const getSafeRouteKey = buildGetSafeRouteKey()
   const routeKeys: { [named: string]: string } = {}
@@ -284,25 +289,37 @@ function getNamedParametrizedRoute(
 
     const paramMatches = segment.match(PARAMETER_PATTERN) // Check for parameters
 
-    if (hasInterceptionMarker && paramMatches && paramMatches[2]) {
+    const interceptionMarker = hasInterceptionMarker
+      ? paramMatches?.[1]
+      : undefined
+
+    let keyPrefix: string | undefined
+    if (interceptionMarker && paramMatches?.[2]) {
+      keyPrefix = prefixRouteKeys ? NEXT_INTERCEPTION_MARKER_PREFIX : undefined
+      reference.intercepted[paramMatches[2]] = interceptionMarker
+    } else if (paramMatches?.[2] && reference.intercepted[paramMatches[2]]) {
+      keyPrefix = prefixRouteKeys ? NEXT_INTERCEPTION_MARKER_PREFIX : undefined
+    } else {
+      keyPrefix = prefixRouteKeys ? NEXT_QUERY_PARAM_PREFIX : undefined
+    }
+
+    if (interceptionMarker && paramMatches && paramMatches[2]) {
       // If there's an interception marker, add it to the segments.
       const { key, pattern, cleanedKey, repeat, optional } =
         getSafeKeyFromSegment({
           getSafeRouteKey,
-          interceptionMarker: paramMatches[1],
+          interceptionMarker,
           segment: paramMatches[2],
           routeKeys,
-          keyPrefix: prefixRouteKeys
-            ? NEXT_INTERCEPTION_MARKER_PREFIX
-            : undefined,
+          keyPrefix,
           backreferenceDuplicateKeys,
         })
 
       segments.push(pattern)
       inverseParts.push(
-        `/${paramMatches[1]}:${reference[key] ?? cleanedKey}${repeat ? (optional ? '*' : '+') : ''}`
+        `/${paramMatches[1]}:${reference.names[key] ?? cleanedKey}${repeat ? (optional ? '*' : '+') : ''}`
       )
-      reference[key] ??= cleanedKey
+      reference.names[key] ??= cleanedKey
     } else if (paramMatches && paramMatches[2]) {
       // If there's a prefix, add it to the segments if it's enabled.
       if (includePrefix && paramMatches[1]) {
@@ -315,7 +332,7 @@ function getNamedParametrizedRoute(
           getSafeRouteKey,
           segment: paramMatches[2],
           routeKeys,
-          keyPrefix: prefixRouteKeys ? NEXT_QUERY_PARAM_PREFIX : undefined,
+          keyPrefix,
           backreferenceDuplicateKeys,
         })
 
@@ -327,9 +344,9 @@ function getNamedParametrizedRoute(
 
       segments.push(s)
       inverseParts.push(
-        `/:${reference[key] ?? cleanedKey}${repeat ? (optional ? '*' : '+') : ''}`
+        `/:${reference.names[key] ?? cleanedKey}${repeat ? (optional ? '*' : '+') : ''}`
       )
-      reference[key] ??= cleanedKey
+      reference.names[key] ??= cleanedKey
     } else {
       segments.push(`/${escapeStringRegexp(segment)}`)
       inverseParts.push(`/${segment}`)

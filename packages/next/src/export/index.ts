@@ -76,7 +76,8 @@ export class ExportError extends Error {
 async function exportAppImpl(
   dir: string,
   options: Readonly<ExportAppOptions>,
-  span: Span
+  span: Span,
+  staticWorker?: StaticWorker
 ): Promise<ExportAppResult | null> {
   dir = resolve(dir)
 
@@ -363,6 +364,7 @@ async function exportAppImpl(
     distDir,
     dev: false,
     basePath: nextConfig.basePath,
+    cacheComponents: nextConfig.cacheComponents ?? false,
     trailingSlash: nextConfig.trailingSlash,
     locales: i18n?.locales,
     locale: i18n?.defaultLocale,
@@ -378,7 +380,7 @@ async function exportAppImpl(
     largePageDataBytes: nextConfig.experimental.largePageDataBytes,
     serverActions: nextConfig.experimental.serverActions,
     serverComponents: enabledDirectories.app,
-    cacheLifeProfiles: nextConfig.experimental.cacheLife,
+    cacheLifeProfiles: nextConfig.cacheLife,
     nextFontManifest: require(
       join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
     ),
@@ -394,12 +396,6 @@ async function exportAppImpl(
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
       staleTimes: nextConfig.experimental.staleTimes,
-      cacheComponents: nextConfig.experimental.cacheComponents ?? false,
-      clientSegmentCache:
-        nextConfig.experimental.clientSegmentCache === 'client-only'
-          ? 'client-only'
-          : Boolean(nextConfig.experimental.clientSegmentCache),
-      clientParamParsing: nextConfig.experimental.clientParamParsing ?? false,
       clientParamParsingOrigins:
         nextConfig.experimental.clientParamParsingOrigins,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
@@ -414,7 +410,7 @@ async function exportAppImpl(
       (process.env.TURBOPACK
         ? nextConfig.experimental.turbopackMinify === false
         : nextConfig.experimental.serverMinification === false) &&
-      nextConfig.experimental.enablePrerenderSourceMaps === true,
+      nextConfig.enablePrerenderSourceMaps === true,
   }
 
   // We need this for server rendering the Link component.
@@ -626,7 +622,7 @@ async function exportAppImpl(
   let initialPhaseExportPaths: ExportPathEntry[] = []
   const finalPhaseExportPaths: ExportPathEntry[] = []
 
-  if (renderOpts.experimental.cacheComponents) {
+  if (renderOpts.cacheComponents) {
     for (const exportPath of allExportPaths) {
       if (exportPath._allowEmptyStaticShell) {
         finalPhaseExportPaths.push(exportPath)
@@ -646,15 +642,24 @@ async function exportAppImpl(
   if (totalExportPaths > 0) {
     const progress = createProgress(
       totalExportPaths,
-      options.statusMessage || 'Exporting'
+      options.statusMessage ??
+        `Exporting using ${options.numWorkers} worker${options.numWorkers > 1 ? 's' : ''}`
     )
 
-    worker = createStaticWorker(nextConfig, {
-      debuggerPortOffset: getNextBuildDebuggerPortOffset({
-        kind: 'export-page',
-      }),
-      progress,
-    })
+    if (staticWorker) {
+      // TODO: progress shouldn't rely on "activity" event sent from `exportPage`.
+      staticWorker.setOnActivity(progress.run)
+      staticWorker.setOnActivityAbort(progress.clear)
+      worker = staticWorker
+    } else {
+      worker = createStaticWorker(nextConfig, {
+        debuggerPortOffset: getNextBuildDebuggerPortOffset({
+          kind: 'export-page',
+        }),
+        numberOfWorkers: options.numWorkers,
+        progress,
+      })
+    }
 
     results = await exportPagesInBatches(worker, initialPhaseExportPaths)
 
@@ -916,7 +921,13 @@ async function exportAppImpl(
     await telemetry.flush()
   }
 
-  if (worker) {
+  // Clean up activity listeners for progress.
+  if (staticWorker) {
+    staticWorker.setOnActivity(undefined)
+    staticWorker.setOnActivityAbort(undefined)
+  }
+
+  if (!staticWorker && worker) {
     await worker.end()
   }
 
@@ -960,11 +971,12 @@ async function collectSegmentPathsImpl(
 export default async function exportApp(
   dir: string,
   options: ExportAppOptions,
-  span: Span
+  span: Span,
+  staticWorker?: StaticWorker
 ): Promise<ExportAppResult | null> {
   const nextExportSpan = span.traceChild('next-export')
 
   return nextExportSpan.traceAsyncFn(async () => {
-    return await exportAppImpl(dir, options, nextExportSpan)
+    return await exportAppImpl(dir, options, nextExportSpan, staticWorker)
   })
 }

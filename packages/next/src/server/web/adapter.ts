@@ -289,9 +289,9 @@ export async function adapter(
               renderOpts: {
                 cacheLifeProfiles:
                   params.request.nextConfig?.experimental?.cacheLife,
+                cacheComponents: false,
                 experimental: {
                   isRoutePPREnabled: false,
-                  cacheComponents: false,
                   authInterrupts:
                     !!params.request.nextConfig?.experimental?.authInterrupts,
                 },

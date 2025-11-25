@@ -2,7 +2,7 @@ import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import { useState } from 'react'
 
 // When the flag is disabled, only track the currently active tree
-const MAX_BF_CACHE_ENTRIES = process.env.__NEXT_ROUTER_BF_CACHE ? 3 : 1
+const MAX_BF_CACHE_ENTRIES = process.env.__NEXT_CACHE_COMPONENTS ? 3 : 1
 
 export type RouterBFCacheEntry = {
   tree: FlightRouterState

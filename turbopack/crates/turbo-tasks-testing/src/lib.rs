@@ -17,8 +17,8 @@ use rustc_hash::FxHashMap;
 use tokio::sync::mpsc::Receiver;
 use turbo_tasks::{
     CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions,
-    ReadConsistency, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
-    backend::{CellContent, TaskCollectiblesMap, TypedCellContent},
+    ReadOutputOptions, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
+    backend::{CellContent, TaskCollectiblesMap, TypedCellContent, VerificationMode},
     event::{Event, EventListener},
     message_queue::CompilationEvent,
     test_helpers::with_turbo_tasks_for_testing,
@@ -176,7 +176,7 @@ impl TurboTasksApi for VcStorage {
     fn try_read_task_output(
         &self,
         id: TaskId,
-        _consistency: ReadConsistency,
+        _options: ReadOutputOptions,
     ) -> Result<Result<RawVc, EventListener>> {
         let tasks = self.tasks.lock().unwrap();
         let i = *id - 1;
@@ -188,14 +188,6 @@ impl TurboTasksApi for VcStorage {
                 Err(err) => Err(anyhow!(err.clone())),
             },
         }
-    }
-
-    fn try_read_task_output_untracked(
-        &self,
-        task: TaskId,
-        consistency: ReadConsistency,
-    ) -> Result<Result<RawVc, EventListener>> {
-        self.try_read_task_output(task, consistency)
     }
 
     fn try_read_task_cell(
@@ -212,23 +204,7 @@ impl TurboTasksApi for VcStorage {
         }
         .into_typed(index.type_id)))
     }
-
-    fn try_read_task_cell_untracked(
-        &self,
-        task: TaskId,
-        index: CellId,
-        _options: ReadCellOptions,
-    ) -> Result<Result<TypedCellContent, EventListener>> {
-        let map = self.cells.lock().unwrap();
-        Ok(Ok(if let Some(cell) = map.get(&(task, index)) {
-            cell.to_owned()
-        } else {
-            Default::default()
-        }
-        .into_typed(index.type_id)))
-    }
-
-    fn try_read_own_task_cell_untracked(
+    fn try_read_own_task_cell(
         &self,
         current_task: TaskId,
         index: CellId,
@@ -285,7 +261,13 @@ impl TurboTasksApi for VcStorage {
         .into_typed(index.type_id))
     }
 
-    fn update_own_task_cell(&self, task: TaskId, index: CellId, content: CellContent) {
+    fn update_own_task_cell(
+        &self,
+        task: TaskId,
+        index: CellId,
+        content: CellContent,
+        _verification_mode: VerificationMode,
+    ) {
         let mut map = self.cells.lock().unwrap();
         let cell = map.entry((task, index)).or_default();
         *cell = content;

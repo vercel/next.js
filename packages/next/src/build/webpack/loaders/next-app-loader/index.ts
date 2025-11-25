@@ -24,7 +24,7 @@ import { promises as fs } from 'fs'
 import { isAppRouteRoute } from '../../../../lib/is-app-route-route'
 import type { NextConfig } from '../../../../server/config-shared'
 import { AppPathnameNormalizer } from '../../../../server/normalizers/built/app/app-pathname-normalizer'
-import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
+import type { ProxyConfig } from '../../../analysis/get-page-static-info'
 import { isAppBuiltinPage } from '../../../utils'
 import { loadEntrypoint } from '../../../load-entrypoint'
 import {
@@ -35,9 +35,14 @@ import {
 import { getFilesInDir } from '../../../../lib/get-files-in-dir'
 import type { PageExtensions } from '../../../page-extensions-type'
 import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../../client/components/builtin/default'
+import { PARALLEL_ROUTE_DEFAULT_NULL_PATH } from '../../../../client/components/builtin/default-null'
 import type { Compilation } from 'webpack'
 import { createAppRouteCode } from './create-app-route-code'
 import { MissingDefaultParallelRouteError } from '../../../../shared/lib/errors/missing-default-parallel-route-error'
+import { isInterceptionRouteAppPath } from '../../../../shared/lib/router/utils/interception-routes'
+
+import { normalizePathSep } from '../../../../shared/lib/page-path/normalize-path-sep'
+import { installBindings } from '../../../swc/install-bindings'
 
 export type AppLoaderOptions = {
   name: string
@@ -87,7 +92,7 @@ const PARALLEL_VIRTUAL_SEGMENT = 'slot$'
 const defaultGlobalErrorPath =
   'next/dist/client/components/builtin/global-error.js'
 const defaultNotFoundPath = 'next/dist/client/components/builtin/not-found.js'
-const defaultEmptyStubPath = 'next/dist/client/components/builtin/empty-stub'
+const defaultEmptyStubPath = 'next/dist/client/components/builtin/empty-stub.js'
 const defaultLayoutPath = 'next/dist/client/components/builtin/layout.js'
 const defaultGlobalNotFoundPath =
   'next/dist/client/components/builtin/global-not-found.js'
@@ -135,6 +140,7 @@ async function createTreeCodeFromPath(
     resolveDir,
     resolver,
     resolveParallelSegments,
+    hasChildRoutesForSegment,
     metadataResolver,
     pageExtensions,
     basePath,
@@ -148,6 +154,7 @@ async function createTreeCodeFromPath(
     resolveParallelSegments: (
       pathname: string
     ) => [key: string, segment: string | string[]][]
+    hasChildRoutesForSegment: (segmentPath: string) => boolean
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
     pageExtensions: PageExtensions
     basePath: string
@@ -174,9 +181,7 @@ async function createTreeCodeFromPath(
   async function resolveAdjacentParallelSegments(
     segmentPath: string
   ): Promise<string[]> {
-    const absoluteSegmentPath = await resolveDir(
-      `${appDirPrefix}${segmentPath}`
-    )
+    const absoluteSegmentPath = resolveDir(`${appDirPrefix}${segmentPath}`)
 
     if (!absoluteSegmentPath) {
       return []
@@ -230,7 +235,11 @@ async function createTreeCodeFromPath(
     const routerDirPath = `${appDirPrefix}${segmentPath}`
     const resolvedRouteDir = resolveDir(routerDirPath)
 
-    if (resolvedRouteDir) {
+    if (
+      resolvedRouteDir &&
+      // Do not collect metadata for app-error route as it's for generating pure static 500.html
+      !normalizePathSep(pagePath).endsWith(appErrorPath)
+    ) {
       metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
         basePath,
         segment: segmentPath,
@@ -551,7 +560,18 @@ async function createTreeCodeFromPath(
         let defaultPath = await resolver(`${fullSegmentPath}/default`)
         if (!defaultPath) {
           if (adjacentParallelSegment === 'children') {
-            defaultPath = PARALLEL_ROUTE_DEFAULT_PATH
+            // When we host applications on Vercel, the status code affects the
+            // underlying behavior of the route, which when we are missing the
+            // children slot of an interception route, will yield a full 404
+            // response for the RSC request instead. For this reason, we expect
+            // that if a default file is missing when we're rendering an
+            // interception route, we instead always render null for the default
+            // slot to avoid the full 404 response.
+            if (isInterceptionRouteAppPath(page)) {
+              defaultPath = PARALLEL_ROUTE_DEFAULT_NULL_PATH
+            } else {
+              defaultPath = PARALLEL_ROUTE_DEFAULT_PATH
+            }
           } else {
             // Check if we're inside a catch-all route (i.e., the parallel route is a child
             // of a catch-all segment). Only skip validation if the slot is UNDER a catch-all.
@@ -560,9 +580,23 @@ async function createTreeCodeFromPath(
             //   /@slot/[...catchAll] - isInsideCatchAll = false (require default) ✓
             // The catch-all provides fallback behavior, so default.js is not required.
             const isInsideCatchAll = segments.some(isCatchAllSegment)
-            if (!isInsideCatchAll) {
+
+            // Check if this is a leaf segment (no child routes).
+            // Leaf segments don't need default.js because there are no child routes
+            // that could cause the parallel slot to unmatch. For example:
+            //   /repo-overview/@slot/page with no child routes - isLeafSegment = true (skip validation) ✓
+            //   /repo-overview/@slot/page with /repo-overview/child/page - isLeafSegment = false (require default) ✓
+            // This also handles route groups correctly by filtering them out.
+            const isLeafSegment = !hasChildRoutesForSegment(segmentPath)
+
+            if (!isInsideCatchAll && !isLeafSegment) {
+              // Replace internal webpack alias with user-facing directory name
+              const userFacingPath = fullSegmentPath.replace(
+                APP_DIR_ALIAS,
+                'app'
+              )
               throw new MissingDefaultParallelRouteError(
-                fullSegmentPath,
+                userFacingPath,
                 adjacentParallelSegment
               )
             }
@@ -617,6 +651,11 @@ const filesInDirMapMap: WeakMap<
   Map<string, Promise<Set<string>>>
 > = new WeakMap()
 const nextAppLoader: AppLoader = async function nextAppLoader() {
+  // install native bindings early so they are always available.
+  // When run by webpack, next will have already done this, so this will be fast,
+  // but if run by turbopack in a subprocess it is required.  In that case we cannot pass the
+  // `useWasmBinary` flag, but that is ok since turbopack doesn't currently support wasm.
+  await installBindings()
   const loaderOptions = this.getOptions()
   const {
     name,
@@ -644,7 +683,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   const buildInfo = getModuleBuildInfo((this as any)._module)
   const collectedDeclarations: [string, string][] = []
   const page = name.replace(/^app/, '')
-  const middlewareConfig: MiddlewareConfig = JSON.parse(
+  const middlewareConfig: ProxyConfig = JSON.parse(
     Buffer.from(middlewareConfigBase64, 'base64').toString()
   )
   buildInfo.route = {
@@ -724,6 +763,44 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
 
     return Object.entries(matched)
+  }
+
+  const hasChildRoutesForSegment = (segmentPath: string): boolean => {
+    const pathPrefix = segmentPath ? `${segmentPath}/` : ''
+
+    for (const appPath of normalizedAppPaths) {
+      if (appPath.startsWith(pathPrefix)) {
+        const rest = appPath.slice(pathPrefix.length).split('/')
+
+        // Filter out route groups to get the actual route segments
+        // Route groups (e.g., "(group)") don't contribute to the URL path
+        const routeSegments = rest.filter((segment) => !isGroupSegment(segment))
+
+        // If it's just 'page' at this level, skip (not a child route)
+        if (routeSegments.length === 1 && routeSegments[0] === 'page') {
+          continue
+        }
+
+        // If the first segment (after filtering route groups) is a parallel route, skip
+        if (routeSegments[0]?.startsWith('@')) {
+          continue
+        }
+
+        // If we have more than just 'page', then there are child routes
+        // Examples:
+        //   ['child', 'page'] -> true (has child route)
+        //   ['page'] -> false (already filtered above)
+        //   ['grandchild', 'deeper', 'page'] -> true (has nested child routes)
+        if (
+          routeSegments.length > 1 ||
+          (routeSegments.length === 1 && routeSegments[0] !== 'page')
+        ) {
+          return true
+        }
+      }
+    }
+
+    return false
   }
 
   const resolveDir: DirResolver = (pathToResolve) => {
@@ -832,6 +909,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     resolver,
     metadataResolver,
     resolveParallelSegments,
+    hasChildRoutesForSegment,
     loaderContext: this,
     pageExtensions,
     basePath,
@@ -889,6 +967,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         resolver,
         metadataResolver,
         resolveParallelSegments,
+        hasChildRoutesForSegment,
         loaderContext: this,
         pageExtensions,
         basePath,

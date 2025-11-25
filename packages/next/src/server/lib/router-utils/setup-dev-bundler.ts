@@ -1,13 +1,14 @@
 import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
-import type { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
+import type { ProxyMatcher } from '../../../build/analysis/get-page-static-info'
 import type { RoutesManifest } from '../../../build'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
 import { createDefineEnv } from '../../../build/swc'
+import { installBindings } from '../../../build/swc/install-bindings'
 import fs from 'fs'
 import url from 'url'
 import path from 'path'
@@ -85,8 +86,11 @@ import {
   writeRouteTypesManifest,
   writeValidatorFile,
 } from './route-types-utils'
+import { writeCacheLifeTypes } from './cache-life-type-utils'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
+import { Lockfile } from '../../../build/lockfile'
+import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -113,7 +117,7 @@ export interface DevRoutesManifest {
   redirects: RoutesManifest['redirects']
   headers: RoutesManifest['headers']
   i18n: RoutesManifest['i18n']
-  skipMiddlewareUrlNormalize: RoutesManifest['skipMiddlewareUrlNormalize']
+  skipProxyUrlNormalize: RoutesManifest['skipProxyUrlNormalize']
 }
 
 export type ServerFields = {
@@ -124,7 +128,7 @@ export type ServerFields = {
     | {
         page: string
         match: MiddlewareRouteMatch
-        matchers?: MiddlewareMatcher[]
+        matchers?: ProxyMatcher[]
       }
     | undefined
   hasAppNotFound?: boolean
@@ -175,6 +179,15 @@ async function startWatcher(
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
+  let lockfile
+  if (opts.nextConfig.experimental.lockDistDir) {
+    fs.mkdirSync(distDir, { recursive: true })
+    lockfile = await Lockfile.acquireWithRetriesOrExit(
+      path.join(distDir, 'lock'),
+      'next dev'
+    )
+  }
+
   const validFileMatcher = createValidFileMatcher(
     nextConfig.pageExtensions,
     appDir
@@ -196,7 +209,8 @@ async function startWatcher(
           opts,
           serverFields,
           distDir,
-          resetFetch
+          resetFetch,
+          lockfile
         )
       })()
     : await (async () => {
@@ -218,6 +232,8 @@ async function startWatcher(
           rewrites: opts.fsChecker.rewrites,
           previewProps: opts.fsChecker.prerenderManifest.preview,
           resetFetch,
+          lockfile,
+          onDevServerCleanup: opts.onDevServerCleanup,
         })
       })()
 
@@ -254,7 +270,7 @@ async function startWatcher(
     redirects: opts.fsChecker.redirects,
     headers: opts.fsChecker.headers,
     i18n: nextConfig.i18n || undefined,
-    skipMiddlewareUrlNormalize: nextConfig.skipMiddlewareUrlNormalize,
+    skipProxyUrlNormalize: nextConfig.skipProxyUrlNormalize,
   }
   await fs.promises.writeFile(
     routesManifestPath,
@@ -356,10 +372,11 @@ async function startWatcher(
     const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
+    let initialWatchTime = performance.now() + performance.timeOrigin
     wp.on('aggregated', async () => {
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
-      let middlewareMatchers: MiddlewareMatcher[] | undefined
+      let middlewareMatchers: ProxyMatcher[] | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
       const appPaths: Record<string, string[]> = {}
@@ -391,28 +408,8 @@ async function startWatcher(
         sortByPageExts(nextConfig.pageExtensions)
       )
 
-      let hasMiddlewareFile = false
-      let hasProxyFile = false
-      for (const fileName of sortedKnownFiles) {
-        const { name } = path.parse(fileName)
-        if (name === MIDDLEWARE_FILENAME) {
-          hasMiddlewareFile = true
-        }
-        if (name === PROXY_FILENAME) {
-          hasProxyFile = true
-        }
-      }
-
-      if (hasMiddlewareFile) {
-        if (hasProxyFile) {
-          throw new Error(
-            `Both "${MIDDLEWARE_FILENAME}" and "${PROXY_FILENAME}" files are detected. Please use "${PROXY_FILENAME}" instead.`
-          )
-        }
-        Log.warn(
-          `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.`
-        )
-      }
+      let proxyFilePath: string | undefined
+      let middlewareFilePath: string | undefined
 
       for (const fileName of sortedKnownFiles) {
         if (
@@ -421,17 +418,50 @@ async function startWatcher(
         ) {
           continue
         }
+
+        const { name: fileBaseName, dir: fileDir } = path.parse(fileName)
+
+        const isAtConventionLevel =
+          fileDir === dir || fileDir === path.join(dir, 'src')
+
+        if (isAtConventionLevel && fileBaseName === MIDDLEWARE_FILENAME) {
+          middlewareFilePath = fileName
+        }
+        if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
+          proxyFilePath = fileName
+        }
+
+        if (middlewareFilePath) {
+          if (proxyFilePath) {
+            const cwd = process.cwd()
+
+            throw new Error(
+              `Both ${MIDDLEWARE_FILENAME} file "./${path.relative(cwd, middlewareFilePath)}" and ${PROXY_FILENAME} file "./${path.relative(cwd, proxyFilePath)}" are detected. Please use "./${path.relative(cwd, proxyFilePath)}" only. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
+            )
+          }
+          Log.warnOnce(
+            `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
+          )
+        }
+
         const meta = knownFiles.get(fileName)
 
         const watchTime = fileWatchTimes.get(fileName)
+        const nextWatchTime = meta?.timestamp
         // If the file is showing up for the first time or the meta.timestamp is changed since last time
-        const watchTimeChange =
-          watchTime === undefined ||
-          (watchTime && watchTime !== meta?.timestamp)
-        fileWatchTimes.set(fileName, meta?.timestamp)
+        // Files that were created before we started watching are not considered changed.
+        // If any file was created by Next.js while booting, we assume those changes
+        // are handled in the bootstrap phase.
+        // Files that existed before we booted should be handled during bootstrapping.
+        const fileChanged =
+          (watchTime === undefined &&
+            (nextWatchTime === undefined ||
+              nextWatchTime >= initialWatchTime)) ||
+          (watchTime && watchTime !== nextWatchTime)
+        fileWatchTimes.set(fileName, nextWatchTime)
 
         if (envFiles.includes(fileName)) {
-          if (watchTimeChange) {
+          if (fileChanged) {
             envChange = true
           }
           continue
@@ -441,7 +471,7 @@ async function startWatcher(
           if (fileName.endsWith('tsconfig.json')) {
             enabledTypeScript = true
           }
-          if (watchTimeChange) {
+          if (fileChanged) {
             tsconfigChange = true
           }
           continue
@@ -1145,6 +1175,10 @@ async function startWatcher(
             opts.nextConfig
           )
           await writeValidatorFile(routeTypesManifest, validatorFilePath)
+
+          // Generate cache-life types if cacheLife config exists
+          const cacheLifeFilePath = path.join(distTypesDir, 'cache-life.d.ts')
+          writeCacheLifeTypes(opts.nextConfig.cacheLife, cacheLifeFilePath)
         }
 
         if (!resolved) {
@@ -1205,6 +1239,9 @@ async function startWatcher(
     err: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ) {
+    if (err instanceof Error) {
+      err.message = deobfuscateText(err.message)
+    }
     if (err instanceof ModuleBuildError) {
       // Errors that may come from issues from the user's code
       Log.error(err.message)
@@ -1244,7 +1281,7 @@ export async function setupDevBundler(opts: SetupOpts) {
   const isSrcDir = path
     .relative(opts.dir, opts.pagesDir || opts.appDir || '')
     .startsWith('src')
-
+  await installBindings(opts.nextConfig.experimental?.useWasmBinary)
   const result = await startWatcher({
     ...opts,
     isSrcDir,

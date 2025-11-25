@@ -1,8 +1,8 @@
 /* eslint-env jest */
 
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   fetchViaHTTP,
   findPort,
   getImagesManifest,
@@ -35,7 +35,7 @@ function runTests(mode: 'dev' | 'server') {
   it('should load matching images', async () => {
     const browser = await webdriver(appPort, '/')
     if (mode === 'dev') {
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     }
     const ids = ['nested-assets', 'static-img']
     const urls = await Promise.all(ids.map((id) => getSrc(browser, id)))
@@ -55,7 +55,7 @@ function runTests(mode: 'dev' | 'server') {
     const page = '/' + id
     const browser = await webdriver(appPort, page)
     if (mode === 'dev') {
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       expect(await getRedboxHeader(browser)).toMatch(
         /Invalid src prop (.+) on `next\/image` does not match `images.localPatterns` configured/g
       )

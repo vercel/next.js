@@ -4,6 +4,7 @@ use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext},
     ident::AssetIdent,
     module::Module,
+    output::OutputAssetsReference,
 };
 
 use super::module::EcmascriptModuleFacadeModule;
@@ -33,6 +34,7 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
     fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let chunking_context = self.chunking_context;
 
@@ -52,6 +54,9 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
         ))
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for EcmascriptModuleFacadeChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for EcmascriptModuleFacadeChunkItem {

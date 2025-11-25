@@ -29,6 +29,7 @@ import {
 } from '../response-cache'
 import { cloneResponse } from './clone-response'
 import type { IncrementalCache } from './incremental-cache'
+import { RenderStage } from '../app-render/staged-rendering'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -219,25 +220,26 @@ async function createCachedDynamicResponse(
     .finally(handleUnlock)
 
   const pendingRevalidateKey = `cache-set-${cacheKey}`
-  workStore.pendingRevalidates ??= {}
+  const pendingRevalidates = (workStore.pendingRevalidates ??= {})
 
-  if (pendingRevalidateKey in workStore.pendingRevalidates) {
-    // there is already a pending revalidate entry that we need to await to
-    // avoid race conditions
-    await workStore.pendingRevalidates[pendingRevalidateKey]
+  let pendingRevalidatePromise = Promise.resolve()
+  if (pendingRevalidateKey in pendingRevalidates) {
+    // There is already a pending revalidate entry that we need to await to
+    // avoid race conditions.
+    pendingRevalidatePromise = pendingRevalidates[pendingRevalidateKey]
   }
 
-  workStore.pendingRevalidates[pendingRevalidateKey] = cacheSetPromise.finally(
-    () => {
+  pendingRevalidates[pendingRevalidateKey] = pendingRevalidatePromise
+    .then(() => cacheSetPromise)
+    .finally(() => {
       // If the pending revalidate is not present in the store, then we have
       // nothing to delete.
-      if (!workStore.pendingRevalidates?.[pendingRevalidateKey]) {
+      if (!pendingRevalidates?.[pendingRevalidateKey]) {
         return
       }
 
-      delete workStore.pendingRevalidates[pendingRevalidateKey]
-    }
-  )
+      delete pendingRevalidates[pendingRevalidateKey]
+    })
 
   return cloned2
 }
@@ -283,7 +285,6 @@ export function createPatchedFetcher(
     const workStore = workAsyncStorage.getStore()
     const workUnitStore = workUnitAsyncStorage.getStore()
 
-    // During static generation we track cache reads so we can reason about when they fill
     let cacheSignal = workUnitStore ? getCacheSignal(workUnitStore) : null
     if (cacheSignal) {
       cacheSignal.beginRead()
@@ -553,9 +554,22 @@ export function createPatchedFetcher(
                 workStore.route,
                 'fetch()'
               )
+            case 'request':
+              if (
+                process.env.NODE_ENV === 'development' &&
+                workUnitStore.stagedRendering
+              ) {
+                if (cacheSignal) {
+                  cacheSignal.endRead()
+                  cacheSignal = null
+                }
+                await workUnitStore.stagedRendering.waitForStage(
+                  RenderStage.Dynamic
+                )
+              }
+              break
             case 'prerender-ppr':
             case 'prerender-legacy':
-            case 'request':
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
@@ -666,9 +680,22 @@ export function createPatchedFetcher(
                     workStore.route,
                     'fetch()'
                   )
+                case 'request':
+                  if (
+                    process.env.NODE_ENV === 'development' &&
+                    workUnitStore.stagedRendering
+                  ) {
+                    if (cacheSignal) {
+                      cacheSignal.endRead()
+                      cacheSignal = null
+                    }
+                    await workUnitStore.stagedRendering.waitForStage(
+                      RenderStage.Dynamic
+                    )
+                  }
+                  break
                 case 'prerender-ppr':
                 case 'prerender-legacy':
-                case 'request':
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
@@ -840,9 +867,26 @@ export function createPatchedFetcher(
                       normalizedRevalidate,
                       handleUnlock
                     )
+                  case 'request':
+                    if (
+                      process.env.NODE_ENV === 'development' &&
+                      workUnitStore.stagedRendering &&
+                      workUnitStore.cacheSignal
+                    ) {
+                      // We're filling caches for a staged render,
+                      // so we need to wait for the response to finish instead of streaming.
+                      return createCachedPrerenderResponse(
+                        res,
+                        cacheKey,
+                        incrementalCacheConfig,
+                        incrementalCache,
+                        normalizedRevalidate,
+                        handleUnlock
+                      )
+                    }
+                  // fallthrough
                   case 'prerender-ppr':
                   case 'prerender-legacy':
-                  case 'request':
                   case 'cache':
                   case 'private-cache':
                   case 'unstable-cache':
@@ -912,9 +956,18 @@ export function createPatchedFetcher(
                   // here.
                   await getTimeoutBoundary()
                   break
+                case 'request':
+                  if (
+                    process.env.NODE_ENV === 'development' &&
+                    workUnitStore.stagedRendering
+                  ) {
+                    await workUnitStore.stagedRendering.waitForStage(
+                      RenderStage.Dynamic
+                    )
+                  }
+                  break
                 case 'prerender-ppr':
                 case 'prerender-legacy':
-                case 'request':
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
@@ -928,6 +981,7 @@ export function createPatchedFetcher(
               await handleUnlock()
             } else {
               // in dev, incremental cache response will be null in case the browser adds `cache-control: no-cache` in the request headers
+              // TODO: it seems like we also hit this after revalidates in dev?
               cacheReasonOverride = 'cache-control: no-cache (hard refresh)'
             }
 
@@ -994,7 +1048,17 @@ export function createPatchedFetcher(
           }
         }
 
-        if (workStore.isStaticGeneration && init && typeof init === 'object') {
+        if (
+          (workStore.isStaticGeneration ||
+            (process.env.NODE_ENV === 'development' &&
+              process.env.__NEXT_CACHE_COMPONENTS &&
+              workUnitStore &&
+              // eslint-disable-next-line no-restricted-syntax
+              workUnitStore.type === 'request' &&
+              workUnitStore.stagedRendering)) &&
+          init &&
+          typeof init === 'object'
+        ) {
           const { cache } = init
 
           // Delete `cache` property as Cloudflare Workers will throw an error
@@ -1016,9 +1080,22 @@ export function createPatchedFetcher(
                     workStore.route,
                     'fetch()'
                   )
+                case 'request':
+                  if (
+                    process.env.NODE_ENV === 'development' &&
+                    workUnitStore.stagedRendering
+                  ) {
+                    if (cacheSignal) {
+                      cacheSignal.endRead()
+                      cacheSignal = null
+                    }
+                    await workUnitStore.stagedRendering.waitForStage(
+                      RenderStage.Dynamic
+                    )
+                  }
+                  break
                 case 'prerender-ppr':
                 case 'prerender-legacy':
-                case 'request':
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
@@ -1054,6 +1131,15 @@ export function createPatchedFetcher(
                       'fetch()'
                     )
                   case 'request':
+                    if (
+                      process.env.NODE_ENV === 'development' &&
+                      workUnitStore.stagedRendering
+                    ) {
+                      await workUnitStore.stagedRendering.waitForStage(
+                        RenderStage.Dynamic
+                      )
+                    }
+                    break
                   case 'cache':
                   case 'private-cache':
                   case 'unstable-cache':

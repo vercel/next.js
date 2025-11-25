@@ -12,16 +12,15 @@ describe('proxy-with-middleware', () => {
   }
 
   it('should error when both middleware and proxy files are detected', async () => {
+    const message =
+      'Both middleware file "./middleware.ts" and proxy file "./proxy.ts" are detected. Please use "./proxy.ts" only.'
+
     if (isNextDev) {
       await next.start().catch(() => {})
-      expect(next.cliOutput).toContain(
-        'Both "middleware" and "proxy" files are detected. Please use "proxy" instead.'
-      )
+      expect(next.cliOutput).toContain(message)
     } else {
       const { cliOutput } = await next.build()
-      expect(cliOutput).toContain(
-        'Both "middleware" and "proxy" files are detected. Please use "proxy" instead.'
-      )
+      expect(cliOutput).toContain(message)
     }
   })
 })

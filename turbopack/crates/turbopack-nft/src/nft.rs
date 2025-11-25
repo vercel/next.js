@@ -20,7 +20,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{IssueReporter, IssueSeverity, handle_issues},
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     reference::all_assets_from_entries,
     reference_type::ReferenceType,
     traced_asset::TracedAsset,
@@ -76,11 +76,13 @@ async fn node_file_trace_operation(
     let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
         NodeJsEnvironment::default().resolved_cell(),
     ));
-    let module_asset_context = ModuleAssetContext::new(
+    let module_asset_context = ModuleAssetContext::new_without_replace_externals(
         Default::default(),
         // This config should be kept in sync with
-        // turbopack/crates/turbopack/tests/node-file-trace.rs and
-        // turbopack/crates/turbopack/src/lib.rs
+        // turbopack/crates/turbopack-tracing/tests/node-file-trace.rs and
+        // turbopack/crates/turbopack-tracing/tests/unit.rs and
+        // turbopack/crates/turbopack/src/lib.rs and
+        // turbopack/crates/turbopack-nft/src/nft.rs
         CompileTimeInfo::new(environment),
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
@@ -97,13 +99,17 @@ async fn node_file_trace_operation(
             // node-file-trace.
             environment: None,
             analyze_mode: AnalyzeMode::Tracing,
+            // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
+            // execute at runtime.
+            tree_shaking_mode: None,
             ..Default::default()
         }
         .cell(),
         ResolveOptionsContext {
             enable_node_native_modules: true,
-            enable_node_modules: Some(input_dir.clone()),
+            enable_node_modules: Some(input_dir),
             custom_conditions: vec![rcstr!("node")],
+            enable_node_externals: true,
             loose_errors: true,
             collect_affecting_sources: true,
             ..Default::default()
@@ -144,7 +150,7 @@ async fn to_graph(asset: ResolvedVc<Box<dyn OutputAsset>>, max_depth: usize) -> 
 
     let mut result = vec![];
     while let Some((depth, asset)) = queue.pop() {
-        let references = asset.references().await?;
+        let references = asset.references().all_assets().await?;
         let mut indent = String::new();
         for _ in 0..depth {
             indent.push_str("  ");

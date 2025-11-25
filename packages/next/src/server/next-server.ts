@@ -459,12 +459,12 @@ export default class NextNodeServer extends BaseServer<
   }
 
   private async loadCustomCacheHandlers() {
-    const { cacheHandlers } = this.nextConfig.experimental
+    const { cacheMaxMemorySize, cacheHandlers } = this.nextConfig
     if (!cacheHandlers) return
 
     // If we've already initialized the cache handlers interface, don't do it
     // again.
-    if (!initializeCacheHandlers()) return
+    if (!initializeCacheHandlers(cacheMaxMemorySize)) return
 
     for (const [kind, handler] of Object.entries(cacheHandlers)) {
       if (!handler) continue
@@ -711,7 +711,6 @@ export default class NextNodeServer extends BaseServer<
           null,
           renderOpts,
           this.getServerComponentsHmrCache(),
-          false,
           {
             buildId: this.buildId,
           }
@@ -1653,7 +1652,7 @@ export default class NextNodeServer extends BaseServer<
 
     let url: string
 
-    if (this.nextConfig.skipMiddlewareUrlNormalize) {
+    if (this.nextConfig.skipProxyUrlNormalize) {
       url = getRequestMeta(params.request, 'initURL')!
     } else {
       // For middleware to "fetch" we must always provide an absolute URL
@@ -1737,7 +1736,10 @@ export default class NextNodeServer extends BaseServer<
 
       try {
         result = await adapterFn({
-          handler: middlewareModule.middleware || middlewareModule,
+          handler:
+            middlewareModule.proxy ||
+            middlewareModule.middleware ||
+            middlewareModule,
           request: {
             ...requestData,
             body: hasRequestBody
@@ -1748,7 +1750,7 @@ export default class NextNodeServer extends BaseServer<
         })
       } finally {
         if (hasRequestBody) {
-          requestData.body.finalize()
+          await requestData.body.finalize()
         }
       }
     } else {
@@ -1958,7 +1960,7 @@ export default class NextNodeServer extends BaseServer<
 
     if (!isUpgradeReq) {
       const bodySizeLimit = this.nextConfig.experimental
-        ?.middlewareClientMaxBodySize as number | undefined
+        ?.proxyClientMaxBodySize as number | undefined
       addRequestMeta(
         req,
         'clonableBody',

@@ -1,6 +1,6 @@
 import type {
-  MiddlewareConfig,
-  MiddlewareMatcher,
+  ProxyConfig,
+  ProxyMatcher,
 } from '../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from './get-module-build-info'
 import {
@@ -20,14 +20,14 @@ export type MiddlewareLoaderOptions = {
 
 // matchers can have special characters that break the loader params
 // parsing so we base64 encode/decode the string
-export function encodeMatchers(matchers: MiddlewareMatcher[]) {
+export function encodeMatchers(matchers: ProxyMatcher[]) {
   return Buffer.from(JSON.stringify(matchers)).toString('base64')
 }
 
 export function decodeMatchers(encodedMatchers: string) {
   return JSON.parse(
     Buffer.from(encodedMatchers, 'base64').toString()
-  ) as MiddlewareMatcher[]
+  ) as ProxyMatcher[]
 }
 
 export default async function middlewareLoader(this: any) {
@@ -45,7 +45,7 @@ export default async function middlewareLoader(this: any) {
     absolutePagePath
   )
 
-  const middlewareConfig: MiddlewareConfig = JSON.parse(
+  const middlewareConfig: ProxyConfig = JSON.parse(
     Buffer.from(middlewareConfigBase64, 'base64').toString()
   )
   const buildInfo = getModuleBuildInfo(this._module)

@@ -3,6 +3,7 @@ use std::{ops::Deref, sync::Arc};
 use anyhow::Result;
 use futures_util::TryFutureExt;
 use napi::{JsFunction, bindgen_prelude::External};
+use napi_derive::napi;
 use next_api::{
     operation::OptionEndpoint,
     paths::ServerPath,
@@ -15,7 +16,7 @@ use tracing::Instrument;
 use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
 use turbopack_core::{diagnostics::PlainDiagnostic, issue::PlainIssue};
 
-use super::utils::{
+use crate::next_api::utils::{
     DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
     strongly_consistent_catch_collectables, subscribe,
 };

@@ -1,4 +1,5 @@
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
+import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
 
 export function registerGetProjectMetadataTool(
   server: McpServer,
@@ -13,6 +14,9 @@ export function registerGetProjectMetadataTool(
       inputSchema: {},
     },
     async (_request) => {
+      // Track telemetry
+      mcpTelemetryTracker.recordToolCall('mcp/get_project_metadata')
+
       try {
         if (!projectPath) {
           return {

@@ -20,12 +20,10 @@ pub async fn get_runtime_asset_context(
             enable_typescript_transform: Some(
                 TypescriptTransformOptions::default().resolved_cell(),
             ),
+            inline_helpers: true,
             ..Default::default()
         },
-        // TODO: This fails when enabled, we cannot insert helpers for the runtime code as this
-        // happens after bundling.
-        // environment: Some(environment),
-        environment: None,
+        environment: Some(environment),
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         ..Default::default()
     }

@@ -83,7 +83,7 @@ describe('client-max-body-size', () => {
       skipDeployment: true,
       nextConfig: {
         experimental: {
-          middlewareClientMaxBodySize: '5mb',
+          proxyClientMaxBodySize: '5mb',
         },
       },
     })
@@ -142,7 +142,7 @@ describe('client-max-body-size', () => {
       skipDeployment: true,
       nextConfig: {
         experimental: {
-          middlewareClientMaxBodySize: 2 * 1024 * 1024, // 2MB in bytes
+          proxyClientMaxBodySize: 2 * 1024 * 1024, // 2MB in bytes
         },
       },
     })
@@ -201,7 +201,7 @@ describe('client-max-body-size', () => {
       skipDeployment: true,
       nextConfig: {
         experimental: {
-          middlewareClientMaxBodySize: '50mb',
+          proxyClientMaxBodySize: '50mb',
         },
       },
     })

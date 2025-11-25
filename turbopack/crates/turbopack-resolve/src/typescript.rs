@@ -426,7 +426,7 @@ pub async fn type_resolve(
         fragment: _,
     } = &*request.await?
     {
-        let mut m = if let Some(mut stripped) = m.strip_prefix("@") {
+        let mut m = if let Some(mut stripped) = m.strip_prefix("@")? {
             stripped.replace_constants(&|c| Some(Pattern::Constant(c.replace("/", "__").into())));
             stripped
         } else {
@@ -529,7 +529,7 @@ async fn apply_typescript_types_options(
     for conditions in get_condition_maps(&mut resolve_options) {
         conditions.insert(rcstr!("types"), ConditionValue::Set);
     }
-    Ok(resolve_options.into())
+    Ok(resolve_options.cell())
 }
 
 #[turbo_tasks::value_impl]

@@ -112,9 +112,14 @@ describe('Production Usage', () => {
 
   it('should contain generated page count in output', async () => {
     const pageCount = 34
-    expect(next.cliOutput).toContain(`Generating static pages (0/${pageCount})`)
-    expect(next.cliOutput).toContain(
-      `Generating static pages (${pageCount}/${pageCount})`
+    expect(next.cliOutput).toMatch(
+      new RegExp(`Generating static pages.*\\(0\\/${pageCount}\\)`, 'g')
+    )
+    expect(next.cliOutput).toMatch(
+      new RegExp(
+        `Generating static pages.*\\(${pageCount}\\/${pageCount}\\)`,
+        'g'
+      )
     )
     // we should only have 4 segments and the initial message logged out
     expect(next.cliOutput.match(/Generating static pages/g).length).toBe(5)

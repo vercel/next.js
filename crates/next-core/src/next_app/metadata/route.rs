@@ -557,7 +557,7 @@ impl Issue for StaticMetadataFileSizeIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::ProcessModule.into()
+        IssueStage::ProcessModule.cell()
     }
 
     #[turbo_tasks::function]

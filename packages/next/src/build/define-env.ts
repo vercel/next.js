@@ -3,7 +3,7 @@ import type {
   I18NDomains,
   NextConfigComplete,
 } from '../server/config-shared'
-import type { MiddlewareMatcher } from './analysis/get-page-static-info'
+import type { ProxyMatcher } from './analysis/get-page-static-info'
 import type { Rewrite } from '../lib/load-custom-routes'
 import path from 'node:path'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
@@ -32,7 +32,7 @@ export interface DefineEnvOptions {
   isClient: boolean
   isEdgeServer: boolean
   isNodeServer: boolean
-  middlewareMatchers: MiddlewareMatcher[] | undefined
+  middlewareMatchers: ProxyMatcher[] | undefined
   omitNonDeterministic?: boolean
   rewrites: {
     beforeFiles: Rewrite[]
@@ -46,7 +46,7 @@ interface DefineEnv {
     | string
     | string[]
     | boolean
-    | MiddlewareMatcher[]
+    | ProxyMatcher[]
     | BloomFilter
     | Partial<NextConfigComplete['images']>
     | I18NDomains
@@ -116,7 +116,7 @@ export function getDefineEnv({
   const nextConfigEnv = getNextConfigEnv(config)
 
   const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
-  const isCacheComponentsEnabled = !!config.experimental.cacheComponents
+  const isCacheComponentsEnabled = !!config.cacheComponents
   const isUseCacheEnabled = !!config.experimental.useCache
 
   const defineEnv: DefineEnv = {
@@ -147,6 +147,8 @@ export function getDefineEnv({
       : process.env.NEXT_RSPACK
         ? 'Rspack'
         : 'Webpack',
+    // minimal mode is enforced when an adapter is configured
+    'process.env.MINIMAL_MODE': Boolean(config.experimental.adapterPath),
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV':
       dev || config.experimental.allowDevelopmentBuild
@@ -196,25 +198,16 @@ export function getDefineEnv({
       clientRouterFilters?.staticFilter ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_D_FILTER':
       clientRouterFilters?.dynamicFilter ?? false,
-    'process.env.__NEXT_CLIENT_SEGMENT_CACHE': Boolean(
-      config.experimental.clientSegmentCache
-    ),
-    'process.env.__NEXT_CLIENT_PARAM_PARSING': Boolean(
-      config.experimental.clientParamParsing
-    ),
     'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
       config.experimental.validateRSCRequestHeaders
     ),
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
     ),
-    'process.env.__NEXT_ROUTER_BF_CACHE': Boolean(
-      config.experimental.routerBFCache
-    ),
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE':
       config.experimental.optimisticClientCache ?? true,
     'process.env.__NEXT_MIDDLEWARE_PREFETCH':
-      config.experimental.middlewarePrefetch ?? 'flexible',
+      config.experimental.proxyPrefetch ?? 'flexible',
     'process.env.__NEXT_CROSS_ORIGIN': config.crossOrigin,
     'process.browser': isClient,
     'process.env.__NEXT_TEST_MODE': process.env.__NEXT_TEST_MODE ?? false,
@@ -263,9 +256,9 @@ export function getDefineEnv({
     'process.env.__NEXT_I18N_DOMAINS': config.i18n?.domains ?? false,
     'process.env.__NEXT_I18N_CONFIG': config.i18n || '',
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE':
-      config.skipMiddlewareUrlNormalize,
+      config.skipProxyUrlNormalize,
     'process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE':
-      config.experimental.externalMiddlewareRewritesResolve ?? false,
+      config.experimental.externalProxyRewritesResolve ?? false,
     'process.env.__NEXT_MANUAL_TRAILING_SLASH':
       config.skipTrailingSlashRedirect,
     'process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION':
@@ -335,6 +328,8 @@ export function getDefineEnv({
       (config.experimental.turbopackFileSystemCacheForDev ?? false),
     'process.env.__NEXT_REACT_DEBUG_CHANNEL':
       config.experimental.reactDebugChannel ?? false,
+    'process.env.__NEXT_TRANSITION_INDICATOR':
+      config.experimental.transitionIndicator ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}

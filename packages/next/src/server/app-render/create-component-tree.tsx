@@ -1,9 +1,9 @@
+import type { ComponentType } from 'react'
 import type {
   CacheNodeSeedData,
   LoadingModuleData,
 } from '../../shared/lib/app-router-types'
 import type { PreloadCallbacks } from './types'
-import React from 'react'
 import {
   isClientReference,
   isUseCacheFunction,
@@ -51,7 +51,7 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  MetadataOutlet: React.ComponentType
+  MetadataOutlet: ComponentType
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -98,14 +98,16 @@ async function createComponentTreeInternal(
     missingSlots?: Set<string>
     preloadCallbacks: PreloadCallbacks
     authInterrupts: boolean
-    MetadataOutlet: React.ComponentType | null
+    MetadataOutlet: ComponentType | null
   },
   isRoot: boolean
 ): Promise<CacheNodeSeedData> {
   const {
-    renderOpts: { nextConfigOutput, experimental },
+    renderOpts: { nextConfigOutput, experimental, cacheComponents },
     workStore,
     componentMod: {
+      createElement,
+      Fragment,
       SegmentViewNode,
       HTTPAccessFallbackBoundary,
       LayoutRouter,
@@ -161,7 +163,7 @@ async function createComponentTreeInternal(
         injectedCSS: injectedCSSWithCurrentLayout,
         injectedJS: injectedJSWithCurrentLayout,
       })
-    : [React.Fragment]
+    : [Fragment]
 
   const [ErrorComponent, errorStyles, errorScripts] = error
     ? await createComponentStylesAndScripts({
@@ -354,7 +356,7 @@ async function createComponentTreeInternal(
   const isPossiblyPartialResponse =
     isStaticGeneration && experimental.isRoutePPREnabled === true
 
-  const LayoutOrPage: React.ComponentType<any> | undefined = layoutOrPageMod
+  const LayoutOrPage: ComponentType<any> | undefined = layoutOrPageMod
     ? interopDefault(layoutOrPageMod)
     : undefined
 
@@ -413,7 +415,6 @@ async function createComponentTreeInternal(
   }
 
   // Resolve the segment param
-  const actualSegment = segmentParam ? segmentParam.treeSegment : segment
   const isSegmentViewEnabled = !!ctx.renderOpts.dev
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
@@ -543,10 +544,10 @@ async function createComponentTreeInternal(
           childCacheNodeSeedData = seedData
         }
 
-        const templateNode = (
-          <Template>
-            <RenderFromTemplateContext />
-          </Template>
+        const templateNode = createElement(
+          Template,
+          null,
+          createElement(RenderFromTemplateContext, null)
         )
 
         const templateFilePath = getConventionPathByType(tree, dir, 'template')
@@ -557,78 +558,77 @@ async function createComponentTreeInternal(
           : undefined
 
         const wrappedErrorStyles =
-          isSegmentViewEnabled && errorFilePath ? (
-            <SegmentViewNode type="error" pagePath={errorFilePath}>
-              {errorStyles}
-            </SegmentViewNode>
-          ) : (
-            errorStyles
-          )
+          isSegmentViewEnabled && errorFilePath
+            ? createElement(
+                SegmentViewNode,
+                {
+                  type: 'error',
+                  pagePath: errorFilePath,
+                },
+                errorStyles
+              )
+            : errorStyles
 
         // Add a suffix to avoid conflict with the segment view node representing rendered file.
         // existence: not-found.tsx@boundary
         // rendered: not-found.tsx
         const fileNameSuffix = BOUNDARY_SUFFIX
-        const segmentViewBoundaries = isSegmentViewEnabled ? (
-          <>
-            {notFoundFilePath && (
-              <SegmentViewNode
-                type={`${BOUNDARY_PREFIX}not-found`}
-                pagePath={notFoundFilePath + fileNameSuffix}
-              />
-            )}
-            {loadingFilePath && (
-              <SegmentViewNode
-                type={`${BOUNDARY_PREFIX}loading`}
-                pagePath={loadingFilePath + fileNameSuffix}
-              />
-            )}
-            {errorFilePath && (
-              <SegmentViewNode
-                type={`${BOUNDARY_PREFIX}error`}
-                pagePath={errorFilePath + fileNameSuffix}
-              />
-            )}
-            {/* Only show global-error when it's the builtin one */}
-            {globalErrorFilePath && (
-              <SegmentViewNode
-                type={`${BOUNDARY_PREFIX}global-error`}
-                pagePath={
-                  isNextjsBuiltinFilePath(globalErrorFilePath)
+        const segmentViewBoundaries = isSegmentViewEnabled
+          ? createElement(
+              Fragment,
+              null,
+              notFoundFilePath &&
+                createElement(SegmentViewNode, {
+                  type: `${BOUNDARY_PREFIX}not-found`,
+                  pagePath: notFoundFilePath + fileNameSuffix,
+                }),
+              loadingFilePath &&
+                createElement(SegmentViewNode, {
+                  type: `${BOUNDARY_PREFIX}loading`,
+                  pagePath: loadingFilePath + fileNameSuffix,
+                }),
+              errorFilePath &&
+                createElement(SegmentViewNode, {
+                  type: `${BOUNDARY_PREFIX}error`,
+                  pagePath: errorFilePath + fileNameSuffix,
+                }),
+              globalErrorFilePath &&
+                createElement(SegmentViewNode, {
+                  type: `${BOUNDARY_PREFIX}global-error`,
+                  pagePath: isNextjsBuiltinFilePath(globalErrorFilePath)
                     ? `${BUILTIN_PREFIX}global-error.js${fileNameSuffix}`
-                    : globalErrorFilePath
-                }
-              />
-            )}
-            {/* do not surface forbidden and unauthorized boundaries yet as they're unstable */}
-          </>
-        ) : null
+                    : globalErrorFilePath,
+                })
+            )
+          : null
 
         return [
           parallelRouteKey,
-          <LayoutRouter
-            parallelRouterKey={parallelRouteKey}
-            // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
-            error={ErrorComponent}
-            errorStyles={wrappedErrorStyles}
-            errorScripts={errorScripts}
-            template={
-              // Only render SegmentViewNode when there's an actual template
-              isSegmentViewEnabled && templateFilePath ? (
-                <SegmentViewNode type="template" pagePath={templateFilePath}>
-                  {templateNode}
-                </SegmentViewNode>
-              ) : (
-                templateNode
-              )
-            }
-            templateStyles={templateStyles}
-            templateScripts={templateScripts}
-            notFound={notFoundComponent}
-            forbidden={forbiddenComponent}
-            unauthorized={unauthorizedComponent}
-            {...(isSegmentViewEnabled && { segmentViewBoundaries })}
-          />,
+          createElement(LayoutRouter, {
+            parallelRouterKey: parallelRouteKey,
+            error: ErrorComponent,
+            errorStyles: wrappedErrorStyles,
+            errorScripts: errorScripts,
+            template:
+              isSegmentViewEnabled && templateFilePath
+                ? createElement(
+                    SegmentViewNode,
+                    {
+                      type: 'template',
+                      pagePath: templateFilePath,
+                    },
+                    templateNode
+                  )
+                : templateNode,
+            templateStyles: templateStyles,
+            templateScripts: templateScripts,
+            notFound: notFoundComponent,
+            forbidden: forbiddenComponent,
+            unauthorized: unauthorizedComponent,
+            ...(isSegmentViewEnabled && {
+              segmentViewBoundaries,
+            }),
+          }),
           childCacheNodeSeedData,
         ]
       }
@@ -646,18 +646,22 @@ async function createComponentTreeInternal(
     parallelRouteCacheNodeSeedData[parallelRouteKey] = flightData
   }
 
-  let loadingElement = Loading ? <Loading key="l" /> : null
+  let loadingElement = Loading
+    ? createElement(Loading, {
+        key: 'l',
+      })
+    : null
   const loadingFilePath = getConventionPathByType(tree, dir, 'loading')
   if (isSegmentViewEnabled && loadingElement) {
     if (loadingFilePath) {
-      loadingElement = (
-        <SegmentViewNode
-          key={cacheNodeKey + '-loading'}
-          type="loading"
-          pagePath={loadingFilePath}
-        >
-          {loadingElement}
-        </SegmentViewNode>
+      loadingElement = createElement(
+        SegmentViewNode,
+        {
+          key: cacheNodeKey + '-loading',
+          type: 'loading',
+          pagePath: loadingFilePath,
+        },
+        loadingElement
       )
     }
   }
@@ -669,11 +673,14 @@ async function createComponentTreeInternal(
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
   if (!MaybeComponent) {
     return [
-      actualSegment,
-      <React.Fragment key={cacheNodeKey}>
-        {layerAssets}
-        {parallelRouteProps.children}
-      </React.Fragment>,
+      createElement(
+        Fragment,
+        {
+          key: cacheNodeKey,
+        },
+        layerAssets,
+        parallelRouteProps.children
+      ),
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
@@ -699,14 +706,17 @@ async function createComponentTreeInternal(
     experimental.isRoutePPREnabled
   ) {
     return [
-      actualSegment,
-      <React.Fragment key={cacheNodeKey}>
-        <Postpone
-          reason='dynamic = "force-dynamic" was used'
-          route={workStore.route}
-        />
-        {layerAssets}
-      </React.Fragment>,
+      createElement(
+        Fragment,
+        {
+          key: cacheNodeKey,
+        },
+        createElement(Postpone, {
+          reason: 'dynamic = "force-dynamic" was used',
+          route: workStore.route,
+        }),
+        layerAssets
+      ),
       parallelRouteCacheNodeSeedData,
       loadingData,
       true,
@@ -732,27 +742,34 @@ async function createComponentTreeInternal(
     // Assign searchParams to props if this is a page
     let pageElement: React.ReactNode
     if (isClientComponent) {
-      if (isStaticGeneration) {
+      if (cacheComponents) {
+        // Params are omitted when Cache Components is enabled
+        pageElement = createElement(ClientPageRoot, {
+          Component: PageComponent,
+          serverProvidedParams: null,
+        })
+      } else if (isStaticGeneration) {
         const promiseOfParams =
           createPrerenderParamsForClientSegment(currentParams)
         const promiseOfSearchParams =
           createPrerenderSearchParamsForClientPage(workStore)
-        pageElement = (
-          <ClientPageRoot
-            Component={PageComponent}
-            searchParams={query}
-            params={currentParams}
-            promises={[promiseOfSearchParams, promiseOfParams]}
-          />
-        )
+        pageElement = createElement(ClientPageRoot, {
+          Component: PageComponent,
+          serverProvidedParams: {
+            searchParams: query,
+            params: currentParams,
+            promises: [promiseOfSearchParams, promiseOfParams],
+          },
+        })
       } else {
-        pageElement = (
-          <ClientPageRoot
-            Component={PageComponent}
-            searchParams={query}
-            params={currentParams}
-          />
-        )
+        pageElement = createElement(ClientPageRoot, {
+          Component: PageComponent,
+          serverProvidedParams: {
+            searchParams: query,
+            params: currentParams,
+            promises: null,
+          },
+        })
       }
     } else {
       // If we are passing params to a server component Page we need to track
@@ -768,20 +785,19 @@ async function createComponentTreeInternal(
       let searchParams = createServerSearchParamsForServerPage(query, workStore)
 
       if (isUseCacheFunction(PageComponent)) {
-        const UseCachePageComponent: React.ComponentType<UseCachePageProps> =
+        const UseCachePageComponent: ComponentType<UseCachePageProps> =
           PageComponent
 
-        pageElement = (
-          <UseCachePageComponent
-            params={params}
-            searchParams={searchParams}
-            $$isPage
-          />
-        )
+        pageElement = createElement(UseCachePageComponent, {
+          params: params,
+          searchParams: searchParams,
+          $$isPage: true,
+        })
       } else {
-        pageElement = (
-          <PageComponent params={params} searchParams={searchParams} />
-        )
+        pageElement = createElement(PageComponent, {
+          params: params,
+          searchParams: searchParams,
+        })
       }
     }
 
@@ -791,25 +807,28 @@ async function createComponentTreeInternal(
       getConventionPathByType(tree, dir, 'defaultPage')
     const segmentType = isDefaultSegment ? 'default' : 'page'
     const wrappedPageElement =
-      isSegmentViewEnabled && pageFilePath ? (
-        <SegmentViewNode
-          key={cacheNodeKey + '-' + segmentType}
-          type={segmentType}
-          pagePath={pageFilePath}
-        >
-          {pageElement}
-        </SegmentViewNode>
-      ) : (
-        pageElement
-      )
+      isSegmentViewEnabled && pageFilePath
+        ? createElement(
+            SegmentViewNode,
+            {
+              key: cacheNodeKey + '-' + segmentType,
+              type: segmentType,
+              pagePath: pageFilePath,
+            },
+            pageElement
+          )
+        : pageElement
 
     return [
-      actualSegment,
-      <React.Fragment key={cacheNodeKey}>
-        {wrappedPageElement}
-        {layerAssets}
-        {MetadataOutlet ? <MetadataOutlet /> : null}
-      </React.Fragment>,
+      createElement(
+        Fragment,
+        {
+          key: cacheNodeKey,
+        },
+        wrappedPageElement,
+        layerAssets,
+        MetadataOutlet ? createElement(MetadataOutlet, null) : null
+      ),
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
@@ -826,27 +845,34 @@ async function createComponentTreeInternal(
 
     if (isClientComponent) {
       let clientSegment: React.ReactNode
-
-      if (isStaticGeneration) {
+      if (cacheComponents) {
+        // Params are omitted when Cache Components is enabled
+        clientSegment = createElement(ClientSegmentRoot, {
+          Component: SegmentComponent,
+          slots: parallelRouteProps,
+          serverProvidedParams: null,
+        })
+      } else if (isStaticGeneration) {
         const promiseOfParams =
           createPrerenderParamsForClientSegment(currentParams)
 
-        clientSegment = (
-          <ClientSegmentRoot
-            Component={SegmentComponent}
-            slots={parallelRouteProps}
-            params={currentParams}
-            promise={promiseOfParams}
-          />
-        )
+        clientSegment = createElement(ClientSegmentRoot, {
+          Component: SegmentComponent,
+          slots: parallelRouteProps,
+          serverProvidedParams: {
+            params: currentParams,
+            promises: [promiseOfParams],
+          },
+        })
       } else {
-        clientSegment = (
-          <ClientSegmentRoot
-            Component={SegmentComponent}
-            slots={parallelRouteProps}
-            params={currentParams}
-          />
-        )
+        clientSegment = createElement(ClientSegmentRoot, {
+          Component: SegmentComponent,
+          slots: parallelRouteProps,
+          serverProvidedParams: {
+            params: currentParams,
+            promises: null,
+          },
+        })
       }
 
       if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
@@ -859,6 +885,7 @@ async function createComponentTreeInternal(
         // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
         // rely on the `NotFound` behavior.
         notfoundClientSegment = createErrorBoundaryClientSegmentRoot({
+          ctx,
           ErrorBoundaryComponent: NotFound,
           errorElement: notFoundElement,
           ClientSegmentRoot,
@@ -867,6 +894,7 @@ async function createComponentTreeInternal(
           currentParams,
         })
         forbiddenClientSegment = createErrorBoundaryClientSegmentRoot({
+          ctx,
           ErrorBoundaryComponent: Forbidden,
           errorElement: forbiddenElement,
           ClientSegmentRoot,
@@ -875,6 +903,7 @@ async function createComponentTreeInternal(
           currentParams,
         })
         unauthorizedClientSegment = createErrorBoundaryClientSegmentRoot({
+          ctx,
           ErrorBoundaryComponent: Unauthorized,
           errorElement: unauthorizedElement,
           ClientSegmentRoot,
@@ -887,31 +916,35 @@ async function createComponentTreeInternal(
           forbiddenClientSegment ||
           unauthorizedClientSegment
         ) {
-          segmentNode = (
-            <HTTPAccessFallbackBoundary
-              key={cacheNodeKey}
-              notFound={notfoundClientSegment}
-              forbidden={forbiddenClientSegment}
-              unauthorized={unauthorizedClientSegment}
-            >
-              {layerAssets}
-              {clientSegment}
-            </HTTPAccessFallbackBoundary>
+          segmentNode = createElement(
+            HTTPAccessFallbackBoundary,
+            {
+              key: cacheNodeKey,
+              notFound: notfoundClientSegment,
+              forbidden: forbiddenClientSegment,
+              unauthorized: unauthorizedClientSegment,
+            },
+            layerAssets,
+            clientSegment
           )
         } else {
-          segmentNode = (
-            <React.Fragment key={cacheNodeKey}>
-              {layerAssets}
-              {clientSegment}
-            </React.Fragment>
+          segmentNode = createElement(
+            Fragment,
+            {
+              key: cacheNodeKey,
+            },
+            layerAssets,
+            clientSegment
           )
         }
       } else {
-        segmentNode = (
-          <React.Fragment key={cacheNodeKey}>
-            {layerAssets}
-            {clientSegment}
-          </React.Fragment>
+        segmentNode = createElement(
+          Fragment,
+          {
+            key: cacheNodeKey,
+          },
+          layerAssets,
+          clientSegment
         )
       }
     } else {
@@ -923,19 +956,30 @@ async function createComponentTreeInternal(
       let serverSegment: React.ReactNode
 
       if (isUseCacheFunction(SegmentComponent)) {
-        const UseCacheLayoutComponent: React.ComponentType<UseCacheLayoutProps> =
+        const UseCacheLayoutComponent: ComponentType<UseCacheLayoutProps> =
           SegmentComponent
 
-        serverSegment = (
-          <UseCacheLayoutComponent
-            {...parallelRouteProps}
-            params={params}
-            $$isLayout
-          />
+        serverSegment = createElement(
+          UseCacheLayoutComponent,
+          {
+            ...parallelRouteProps,
+            params: params,
+            $$isLayout: true,
+          },
+          // Force static children here so that they're validated.
+          // See https://github.com/facebook/react/pull/34846
+          parallelRouteProps.children
         )
       } else {
-        serverSegment = (
-          <SegmentComponent {...parallelRouteProps} params={params} />
+        serverSegment = createElement(
+          SegmentComponent,
+          {
+            ...parallelRouteProps,
+            params: params,
+          },
+          // Force static children here so that they're validated.
+          // See https://github.com/facebook/react/pull/34846
+          parallelRouteProps.children
         )
       }
 
@@ -945,48 +989,57 @@ async function createComponentTreeInternal(
         // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
         // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
         // rely on the `NotFound` behavior.
-        segmentNode = (
-          <HTTPAccessFallbackBoundary
-            key={cacheNodeKey}
-            notFound={
-              notFoundElement ? (
-                <>
-                  {layerAssets}
-                  <SegmentComponent params={params}>
-                    {notFoundStyles}
-                    {notFoundElement}
-                  </SegmentComponent>
-                </>
-              ) : undefined
-            }
-          >
-            {layerAssets}
-            {serverSegment}
-          </HTTPAccessFallbackBoundary>
+        segmentNode = createElement(
+          HTTPAccessFallbackBoundary,
+          {
+            key: cacheNodeKey,
+            notFound: notFoundElement
+              ? createElement(
+                  Fragment,
+                  null,
+                  layerAssets,
+                  createElement(
+                    SegmentComponent,
+                    {
+                      params: params,
+                    },
+                    notFoundStyles,
+                    notFoundElement
+                  )
+                )
+              : undefined,
+          },
+          layerAssets,
+          serverSegment
         )
       } else {
-        segmentNode = (
-          <React.Fragment key={cacheNodeKey}>
-            {layerAssets}
-            {serverSegment}
-          </React.Fragment>
+        segmentNode = createElement(
+          Fragment,
+          {
+            key: cacheNodeKey,
+          },
+          layerAssets,
+          serverSegment
         )
       }
     }
 
     const layoutFilePath = getConventionPathByType(tree, dir, 'layout')
     const wrappedSegmentNode =
-      isSegmentViewEnabled && layoutFilePath ? (
-        <SegmentViewNode key="layout" type="layout" pagePath={layoutFilePath}>
-          {segmentNode}
-        </SegmentViewNode>
-      ) : (
-        segmentNode
-      )
+      isSegmentViewEnabled && layoutFilePath
+        ? createElement(
+            SegmentViewNode,
+            {
+              key: 'layout',
+              type: 'layout',
+              pagePath: layoutFilePath,
+            },
+            segmentNode
+          )
+        : segmentNode
 
     // For layouts we just render the component
     return [
-      actualSegment,
       wrappedSegmentNode,
       parallelRouteCacheNodeSeedData,
       loadingData,
@@ -997,6 +1050,7 @@ async function createComponentTreeInternal(
 }
 
 function createErrorBoundaryClientSegmentRoot({
+  ctx,
   ErrorBoundaryComponent,
   errorElement,
   ClientSegmentRoot,
@@ -1004,26 +1058,30 @@ function createErrorBoundaryClientSegmentRoot({
   SegmentComponent,
   currentParams,
 }: {
-  ErrorBoundaryComponent: React.ComponentType<any> | undefined
+  ctx: AppRenderContext
+  ErrorBoundaryComponent: ComponentType<any> | undefined
   errorElement: React.ReactNode
-  ClientSegmentRoot: React.ComponentType<any>
+  ClientSegmentRoot: ComponentType<any>
   layerAssets: React.ReactNode
-  SegmentComponent: React.ComponentType<any>
+  SegmentComponent: ComponentType<any>
   currentParams: Params
 }) {
+  const {
+    componentMod: { createElement, Fragment },
+  } = ctx
   if (ErrorBoundaryComponent) {
     const notFoundParallelRouteProps = {
       children: errorElement,
     }
-    return (
-      <>
-        {layerAssets}
-        <ClientSegmentRoot
-          Component={SegmentComponent}
-          slots={notFoundParallelRouteProps}
-          params={currentParams}
-        />
-      </>
+    return createElement(
+      Fragment,
+      null,
+      layerAssets,
+      createElement(ClientSegmentRoot, {
+        Component: SegmentComponent,
+        slots: notFoundParallelRouteProps,
+        params: currentParams,
+      })
     )
   }
   return null
@@ -1095,37 +1153,39 @@ async function createBoundaryConventionElement({
     | 'loading'
     | 'forbidden'
     | 'unauthorized'
-  Component: React.ComponentType<any> | undefined
+  Component: ComponentType<any> | undefined
   styles: React.ReactNode | undefined
   tree: LoaderTree
 }) {
+  const {
+    componentMod: { createElement, Fragment },
+  } = ctx
   const isSegmentViewEnabled = !!ctx.renderOpts.dev
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
       ? process.env.__NEXT_EDGE_PROJECT_DIR
       : ctx.renderOpts.dir) || ''
   const { SegmentViewNode } = ctx.componentMod
-  const element = Component ? (
-    <>
-      <Component />
-      {styles}
-    </>
-  ) : undefined
+  const element = Component
+    ? createElement(Fragment, null, createElement(Component, null), styles)
+    : undefined
 
   const pagePath = getConventionPathByType(tree, dir, conventionName)
 
   const wrappedElement =
-    isSegmentViewEnabled && element ? (
-      <SegmentViewNode
-        key={cacheNodeKey + '-' + conventionName}
-        type={conventionName}
-        pagePath={pagePath!}
-      >
-        {element}
-      </SegmentViewNode>
-    ) : (
-      element
-    )
+    isSegmentViewEnabled && element
+      ? createElement(
+          SegmentViewNode,
+          {
+            key: cacheNodeKey + '-' + conventionName,
+            type: conventionName,
+            // TODO: Discovered when moving to `createElement`.
+            // `SegmentViewNode` doesn't support undefined `pagePath`
+            pagePath: pagePath!,
+          },
+          element
+        )
+      : element
 
   return [wrappedElement, pagePath] as const
 }

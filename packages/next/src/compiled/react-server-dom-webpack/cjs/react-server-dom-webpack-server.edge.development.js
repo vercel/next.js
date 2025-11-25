@@ -48,12 +48,12 @@
     }
     function writeChunkAndReturn(destination, chunk) {
       if (0 !== chunk.byteLength)
-        if (2048 < chunk.byteLength)
+        if (4096 < chunk.byteLength)
           0 < writtenBytes &&
             (destination.enqueue(
               new Uint8Array(currentView.buffer, 0, writtenBytes)
             ),
-            (currentView = new Uint8Array(2048)),
+            (currentView = new Uint8Array(4096)),
             (writtenBytes = 0)),
             destination.enqueue(chunk);
         else {
@@ -67,7 +67,7 @@
                 ),
                 destination.enqueue(currentView),
                 (chunk = chunk.subarray(allowableBytes))),
-            (currentView = new Uint8Array(2048)),
+            (currentView = new Uint8Array(4096)),
             (writtenBytes = 0));
           currentView.set(chunk, writtenBytes);
           writtenBytes += chunk.byteLength;
@@ -985,7 +985,6 @@
       model,
       bundlerConfig,
       onError,
-      onPostpone,
       onAllReady,
       onFatalError,
       identifierPrefix,
@@ -1030,8 +1029,6 @@
       this.identifierCount = 1;
       this.taintCleanupQueue = [];
       this.onError = void 0 === onError ? defaultErrorHandler : onError;
-      this.onPostpone =
-        void 0 === onPostpone ? defaultPostponeHandler : onPostpone;
       this.onAllReady = onAllReady;
       this.onFatalError = onFatalError;
       this.pendingDebugChunks = 0;
@@ -1078,7 +1075,6 @@
       bundlerConfig,
       onError,
       identifierPrefix,
-      onPostpone,
       temporaryReferences,
       environmentName,
       filterStackFrame,
@@ -1090,7 +1086,6 @@
         model,
         bundlerConfig,
         onError,
-        onPostpone,
         noop,
         noop,
         identifierPrefix,
@@ -1107,7 +1102,6 @@
       onFatalError,
       onError,
       identifierPrefix,
-      onPostpone,
       temporaryReferences,
       environmentName,
       filterStackFrame,
@@ -1119,7 +1113,6 @@
         model,
         bundlerConfig,
         onError,
-        onPostpone,
         onAllReady,
         onFatalError,
         identifierPrefix,
@@ -1318,9 +1311,17 @@
               callOnAllReadyIfReady(request);
           else
             try {
-              (streamTask.model = entry.value),
-                request.pendingChunks++,
-                tryStreamTask(request, streamTask),
+              request.pendingChunks++,
+                (streamTask.model = entry.value),
+                isByteStream
+                  ? emitTypedArrayChunk(
+                      request,
+                      streamTask.id,
+                      "b",
+                      streamTask.model,
+                      !1
+                    )
+                  : tryStreamTask(request, streamTask),
                 enqueueFlush(request),
                 reader.read().then(progress, error);
             } catch (x$0) {
@@ -1357,7 +1358,8 @@
         } catch (x) {
           supportsBYOB = !1;
         }
-      var reader = stream.getReader(),
+      var isByteStream = supportsBYOB,
+        reader = stream.getReader(),
         streamTask = createTask(
           request,
           task.model,
@@ -1372,7 +1374,7 @@
         );
       request.pendingChunks++;
       task =
-        streamTask.id.toString(16) + ":" + (supportsBYOB ? "r" : "R") + "\n";
+        streamTask.id.toString(16) + ":" + (isByteStream ? "r" : "R") + "\n";
       request.completedRegularChunks.push(stringToChunk(task));
       request.cacheController.signal.addEventListener("abort", abortStream);
       reader.read().then(progress, error);
@@ -1704,7 +1706,12 @@
       Component = task.keyPath;
       componentDebugInfo = task.implicitSlot;
       null !== key
-        ? (task.keyPath = null === Component ? key : Component + "," + key)
+        ? (task.keyPath =
+            key === REACT_OPTIMISTIC_KEY || Component === REACT_OPTIMISTIC_KEY
+              ? REACT_OPTIMISTIC_KEY
+              : null === Component
+                ? key
+                : Component + "," + key)
         : null === Component && (task.implicitSlot = !0);
       request = renderModelDestructive(request, task, emptyRoot, "", props);
       task.keyPath = Component;
@@ -1944,7 +1951,13 @@
           validated
         );
       ref = task.keyPath;
-      null === key ? (key = ref) : null !== ref && (key = ref + "," + key);
+      null === key
+        ? (key = ref)
+        : null !== ref &&
+          (key =
+            ref === REACT_OPTIMISTIC_KEY || key === REACT_OPTIMISTIC_KEY
+              ? REACT_OPTIMISTIC_KEY
+              : ref + "," + key);
       newFormatContext = null;
       ref = task.debugOwner;
       null !== ref && outlineComponentInfo(request, ref);
@@ -2441,7 +2454,9 @@
               void 0 === value._debugTask
             ) {
               var key = "";
-              null !== value.key && (key = ' key="' + value.key + '"');
+              null !== value.key &&
+                value.key !== REACT_OPTIMISTIC_KEY &&
+                (key = ' key="' + value.key + '"');
               console.error(
                 "Attempted to render <%s%s> without development properties. This is not supported. It can happen if:\n- The element is created with a production version of React but rendered in development.\n- The element was cloned with a custom function instead of `React.cloneElement`.\nThe props of this element may help locate this element: %o",
                 value.type,
@@ -2891,14 +2906,13 @@
     }
     function emitTypedArrayChunk(request, id, tag, typedArray, debug) {
       debug ? request.pendingDebugChunks++ : request.pendingChunks++;
-      var buffer = new Uint8Array(
+      typedArray = new Uint8Array(
         typedArray.buffer,
         typedArray.byteOffset,
         typedArray.byteLength
       );
-      typedArray = 2048 < typedArray.byteLength ? buffer.slice() : buffer;
-      buffer = typedArray.byteLength;
-      id = id.toString(16) + ":" + tag + buffer.toString(16) + ",";
+      var binaryLength = typedArray.byteLength;
+      id = id.toString(16) + ":" + tag + binaryLength.toString(16) + ",";
       id = stringToChunk(id);
       debug
         ? request.completedDebugChunks.push(id, typedArray)
@@ -3371,10 +3385,11 @@
                       parseStackTrace(ioInfo$jscomp$0.debugStack, 1)
                     )
                   : ioInfo$jscomp$0.stack;
+              var env = ioInfo$jscomp$0.env;
+              null == env && (env = (0, request.environmentName)());
               var request$jscomp$0 = request,
                 id$jscomp$1 = id$jscomp$0,
                 value = ioInfo$jscomp$0.value,
-                env = ioInfo$jscomp$0.env,
                 objectLimit = 10;
               debugStack && (objectLimit += debugStack.length);
               var debugIOInfo = {
@@ -3386,12 +3401,12 @@
               null != debugStack && (debugIOInfo.stack = debugStack);
               null != owner && (debugIOInfo.owner = owner);
               void 0 !== value && (debugIOInfo.value = value);
-              value = serializeDebugModel(
+              env = serializeDebugModel(
                 request$jscomp$0,
                 objectLimit,
                 debugIOInfo
               );
-              id$jscomp$1 = id$jscomp$1.toString(16) + ":J" + value + "\n";
+              id$jscomp$1 = id$jscomp$1.toString(16) + ":J" + env + "\n";
               id$jscomp$1 = stringToChunk(id$jscomp$1);
               request$jscomp$0.completedDebugChunks.push(id$jscomp$1);
               request.writtenDebugObjects.set(
@@ -3409,7 +3424,10 @@
                   )
                 : info.stack;
             ioInfo = { awaited: ioInfo };
-            null != info.env && (ioInfo.env = info.env);
+            ioInfo.env =
+              null != info.env
+                ? info.env
+                : (0, request$jscomp$1.environmentName)();
             null != info.owner && (ioInfo.owner = info.owner);
             null != request && (ioInfo.stack = request);
             request$jscomp$1.pendingChunks++;
@@ -3632,7 +3650,7 @@
     function flushCompletedChunks(request) {
       if (null !== request.debugDestination) {
         var debugDestination = request.debugDestination;
-        currentView = new Uint8Array(2048);
+        currentView = new Uint8Array(4096);
         writtenBytes = 0;
         try {
           for (
@@ -3649,7 +3667,7 @@
       }
       debugDestination = request.destination;
       if (null !== debugDestination) {
-        currentView = new Uint8Array(2048);
+        currentView = new Uint8Array(4096);
         writtenBytes = 0;
         try {
           var importsChunks = request.completedImportChunks;
@@ -3850,15 +3868,15 @@
                         )
                       : reason,
                 digest = logRecoverableError(request, error, null),
-                _errorId2 = request.nextChunkId++;
-              request.fatalError = _errorId2;
+                errorId = request.nextChunkId++;
+              request.fatalError = errorId;
               request.pendingChunks++;
-              emitErrorChunk(request, _errorId2, digest, error, !1, null);
+              emitErrorChunk(request, errorId, digest, error, !1, null);
               abortableTasks.forEach(function (task) {
-                return abortTask(task, request, _errorId2);
+                return abortTask(task, request, errorId);
               });
               setTimeout(function () {
-                return finishAbort(request, abortableTasks, _errorId2);
+                return finishAbort(request, abortableTasks, errorId);
               }, 0);
             }
           else {
@@ -4730,11 +4748,11 @@
       REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
-      REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel");
-    Symbol.for("react.postpone");
-    var REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
+      REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
+      REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
+      REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
       LocalPromise = Promise,
       scheduleMicrotask =
         "function" === typeof queueMicrotask
@@ -5132,7 +5150,6 @@
       stringify = JSON.stringify,
       ABORTING = 12,
       CLOSED = 14,
-      defaultPostponeHandler = noop,
       currentRequest = null,
       canEmitDebugInfo = !1,
       serializedSize = 0,
@@ -5296,7 +5313,6 @@
           reject,
           options ? options.onError : void 0,
           options ? options.identifierPrefix : void 0,
-          options ? options.onPostpone : void 0,
           options ? options.temporaryReferences : void 0,
           options ? options.environmentName : void 0,
           options ? options.filterStackFrame : void 0,
@@ -5353,7 +5369,6 @@
           webpackMap,
           options ? options.onError : void 0,
           options ? options.identifierPrefix : void 0,
-          options ? options.onPostpone : void 0,
           options ? options.temporaryReferences : void 0,
           options ? options.environmentName : void 0,
           options ? options.filterStackFrame : void 0,

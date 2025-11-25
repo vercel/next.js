@@ -164,7 +164,7 @@ async fn my_collecting_function() -> Result<Vc<Thing>> {
     let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!(""));
     let result_vc = result_op.connect();
     result_vc.await?;
-    result_op.take_collectibles::<Box<dyn ValueToString>>();
+    result_op.drop_collectibles::<Box<dyn ValueToString>>();
     Ok(result_vc)
 }
 

@@ -17,7 +17,6 @@ import {
   NEXT_CACHE_TAGS_HEADER,
   NEXT_DATA_SUFFIX,
   NEXT_META_SUFFIX,
-  RSC_PREFETCH_SUFFIX,
   RSC_SEGMENT_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SUFFIX,
@@ -231,10 +230,10 @@ export default class FileSystemCache implements CacheHandler {
             }
 
             let rscData: Buffer | undefined
-            if (!ctx.isFallback) {
+            if (!ctx.isFallback && !ctx.isRoutePPREnabled) {
               rscData = await this.fs.readFile(
                 this.getFilePath(
-                  `${key}${ctx.isRoutePPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX}`,
+                  `${key}${RSC_SUFFIX}`,
                   IncrementalCacheKind.APP_PAGE
                 )
               )
@@ -291,16 +290,6 @@ export default class FileSystemCache implements CacheHandler {
       } catch {
         return null
       }
-    }
-
-    // If enabled, this will return the possibly stale data without validating
-    // that the tags have expired or not yet been revalidated.
-    if ('allowStale' in ctx && ctx.allowStale) {
-      if (FileSystemCache.debug) {
-        console.log('FileSystemCache: allow stale', ctx.allowStale)
-      }
-
-      return data ?? null
     }
 
     if (
@@ -406,16 +395,10 @@ export default class FileSystemCache implements CacheHandler {
       writer.append(htmlPath, data.html)
 
       // Fallbacks don't generate a data file.
-      if (!ctx.fetchCache && !ctx.isFallback) {
+      if (!ctx.fetchCache && !ctx.isFallback && !ctx.isRoutePPREnabled) {
         writer.append(
           this.getFilePath(
-            `${key}${
-              isAppPath
-                ? ctx.isRoutePPREnabled
-                  ? RSC_PREFETCH_SUFFIX
-                  : RSC_SUFFIX
-                : NEXT_DATA_SUFFIX
-            }`,
+            `${key}${isAppPath ? RSC_SUFFIX : NEXT_DATA_SUFFIX}`,
             isAppPath
               ? IncrementalCacheKind.APP_PAGE
               : IncrementalCacheKind.PAGES

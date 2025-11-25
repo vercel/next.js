@@ -26,6 +26,83 @@ Replacing `<transform>` and `<path>` with appropriate values.
 
 ### 16.0
 
+#### Remove `experimental_ppr` Route Segment Config from App Router pages and layouts
+
+##### `remove-experimental-ppr`
+
+```bash filename="Terminal"
+npx @next/codemod@latest remove-experimental-ppr .
+```
+
+This codemod removes the `experimental_ppr` Route Segment Config from App Router pages and layouts.
+
+```diff filename="app/page.tsx"
+- export const experimental_ppr = true;
+```
+
+#### Remove `unstable_` prefix from stabilized API
+
+##### `remove-unstable-prefix`
+
+```bash filename="Terminal"
+npx @next/codemod@latest remove-unstable-prefix .
+```
+
+This codemod removes the `unstable_` prefix from stabilized API.
+
+For example:
+
+```ts
+import { unstable_cacheTag as cacheTag } from 'next/cache'
+
+cacheTag()
+```
+
+Transforms into:
+
+```ts
+import { cacheTag } from 'next/cache'
+
+cacheTag()
+```
+
+#### Migrate from deprecated `middleware` convention to `proxy`
+
+##### `middleware-to-proxy`
+
+```bash filename="Terminal"
+npx @next/codemod@latest middleware-to-proxy .
+```
+
+This codemod migrates projects from using the deprecated `middleware` convention to using the `proxy` convention. It:
+
+- Renames `middleware.<extension>` to `proxy.<extension>` (e.g. `middleware.ts` to `proxy.ts`)
+- Renames named export `middleware` to `proxy`
+- Renames Next.js config property `experimental.middlewarePrefetch` to `experimental.proxyPrefetch`
+- Renames Next.js config property `experimental.middlewareClientMaxBodySize` to `experimental.proxyClientMaxBodySize`
+- Renames Next.js config property `experimental.externalMiddlewareRewritesResolve` to `experimental.externalProxyRewritesResolve`
+- Renames Next.js config property `skipMiddlewareUrlNormalize` to `skipProxyUrlNormalize`
+
+For example:
+
+```ts filename="middleware.ts"
+import { NextResponse } from 'next/server'
+
+export function middleware() {
+  return NextResponse.next()
+}
+```
+
+Transforms into:
+
+```ts filename="proxy.ts"
+import { NextResponse } from 'next/server'
+
+export function proxy() {
+  return NextResponse.next()
+}
+```
+
 #### Migrate from `next lint` to ESLint CLI
 
 ##### `next-lint-to-eslint-cli`

@@ -31,7 +31,10 @@ import {
 import { HeadersAdapter } from '../../web/spec-extension/adapters/headers'
 import { RequestCookiesAdapter } from '../../web/spec-extension/adapters/request-cookies'
 import { parsedUrlQueryToParams } from './helpers/parsed-url-query-to-params'
-import { printDebugThrownValueForProspectiveRender } from '../../app-render/prospective-render-utils'
+import {
+  Phase,
+  printDebugThrownValueForProspectiveRender,
+} from '../../app-render/prospective-render-utils'
 
 import * as serverHooks from '../../../client/components/hooks-server-context'
 import { DynamicServerError } from '../../../client/components/hooks-server-context'
@@ -310,8 +313,7 @@ export class AppRouteRouteModule extends RouteModule<
     context: AppRouteRouteHandlerContext
   ) {
     const isStaticGeneration = workStore.isStaticGeneration
-    const cacheComponentsEnabled =
-      !!context.renderOpts.experimental?.cacheComponents
+    const cacheComponentsEnabled = !!context.renderOpts.cacheComponents
 
     // Patch the global fetch.
     patchFetch({
@@ -414,7 +416,6 @@ export class AppRouteRouteModule extends RouteModule<
               prerenderResumeDataCache,
               renderResumeDataCache: null,
               hmrRefreshHash: undefined,
-              captureOwnerStack: undefined,
             })
 
           let prospectiveResult
@@ -434,7 +435,11 @@ export class AppRouteRouteModule extends RouteModule<
               process.env.NEXT_DEBUG_BUILD ||
               process.env.__NEXT_VERBOSE_LOGGING
             ) {
-              printDebugThrownValueForProspectiveRender(err, workStore.route)
+              printDebugThrownValueForProspectiveRender(
+                err,
+                workStore.route,
+                Phase.ProspectiveRender
+              )
             }
           }
           if (
@@ -454,7 +459,8 @@ export class AppRouteRouteModule extends RouteModule<
                 } else if (process.env.NEXT_DEBUG_BUILD) {
                   printDebugThrownValueForProspectiveRender(
                     err,
-                    workStore.route
+                    workStore.route,
+                    Phase.ProspectiveRender
                   )
                 }
               }
@@ -506,7 +512,6 @@ export class AppRouteRouteModule extends RouteModule<
             prerenderResumeDataCache,
             renderResumeDataCache: null,
             hmrRefreshHash: undefined,
-            captureOwnerStack: undefined,
           })
 
           let responseHandled = false

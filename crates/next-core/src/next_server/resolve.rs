@@ -25,7 +25,7 @@ use turbopack_core::{
 
 /// The predicated based on which the [ExternalCjsModulesResolvePlugin] decides
 /// whether to mark a module as external.
-#[turbo_tasks::value(into = "shared")]
+#[turbo_tasks::value(shared)]
 pub enum ExternalPredicate {
     /// Mark all modules as external if they're not listed in the list.
     /// Applies only to imports outside of node_modules.
@@ -483,7 +483,7 @@ impl Issue for ExternalizeIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Config.into()
+        IssueStage::Config.cell()
     }
 
     #[turbo_tasks::function]

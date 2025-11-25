@@ -1,5 +1,5 @@
 use anyhow::Result;
-use next_core::{all_assets_from_entries, next_manifests::AssetBinding};
+use next_core::next_manifests::AssetBinding;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
@@ -7,6 +7,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
     output::{OutputAsset, OutputAssets},
+    reference::all_assets_from_entries,
 };
 use turbopack_wasm::wasm_edge_var_name;
 

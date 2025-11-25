@@ -30,9 +30,7 @@ DEALINGS IN THE SOFTWARE.
 //#![deny(clippy::all)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-
-#[macro_use]
-extern crate napi_derive;
+#![feature(iter_intersperse)]
 
 use std::sync::Arc;
 

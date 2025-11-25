@@ -1,7 +1,8 @@
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
+use turbo_tasks_fs::glob::Glob;
 
-use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences};
+use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences, source::OptionSource};
 
 #[derive(Clone, Copy, Debug, TaskInput, Hash)]
 #[turbo_tasks::value(shared)]
@@ -26,6 +27,10 @@ pub trait Module: Asset {
         self.ident().to_string()
     }
 
+    /// The source of the [Module].
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource>;
+
     /// Other [Module]s or [OutputAsset]s referenced from this [Module].
     // TODO refactor to avoid returning [OutputAsset]s here
     #[turbo_tasks::function]
@@ -36,6 +41,15 @@ pub trait Module: Asset {
     /// Signifies the module itself is async, e.g. it uses top-level await, is a wasm module, etc.
     #[turbo_tasks::function]
     fn is_self_async(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
+    /// Returns true if the module is marked as side effect free in package.json or by other means.
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(
+        self: Vc<Self>,
+        _side_effect_free_packages: Vc<Glob>,
+    ) -> Vc<bool> {
         Vc::cell(false)
     }
 }

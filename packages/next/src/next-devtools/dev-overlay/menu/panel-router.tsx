@@ -92,6 +92,11 @@ const MenuPanel = () => {
               value: <ChevronRight />,
               onClick: () => setPanel('turbo-info'),
             },
+        !!process.env.__NEXT_CACHE_COMPONENTS && {
+          title: 'Cache Components is enabled.',
+          label: 'Cache Components',
+          value: 'Enabled',
+        },
         isAppRouter && {
           label: 'Route Info',
           value: <ChevronRight />,

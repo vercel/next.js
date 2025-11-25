@@ -26,6 +26,7 @@ import {
   DEFAULT_BROWSER_REQUEST_TIMEOUT_MS,
 } from './utils/browser-communication'
 import { NextInstanceErrorState } from './next-instance-error-state'
+import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
 
 export function registerGetErrorsTool(
   server: McpServer,
@@ -40,6 +41,9 @@ export function registerGetErrorsTool(
       inputSchema: {},
     },
     async (_request) => {
+      // Track telemetry
+      mcpTelemetryTracker.recordToolCall('mcp/get_errors')
+
       try {
         const connectionCount = getActiveConnectionCount()
         if (connectionCount === 0) {

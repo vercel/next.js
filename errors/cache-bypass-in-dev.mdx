@@ -1,0 +1,30 @@
+---
+title: Caches Bypassed in Development Mode
+---
+
+## Disabling Caches in Development Mode
+
+While running Next.js in development mode with `next dev` an initial page load or client navigation was handled with a `cache-control: no-store` header. The most common reason for this is that you have your web browser's DevTools open with "Disable Cache" enabled. Another common reason is you performed a hard refresh (Cmd + Shift + R / Ctrl + Shift + R).
+
+Disabling caches while in development mode affects the debugging experience of Cache Components. Read on to understand more about how Next.js handles caches in development mode and what changes when they are intentionally disabled.
+
+## Understanding Cache handling in Development Mode
+
+In development mode, Next.js ensures that Cache Components render in the right environment to allow for React DevTools to highlight which components are part of the available for prerendering statically before any user request, which are available when prefetching segments at runtime before a navigation occurs, and finally which are dynamic and will only be fetched on user navigation.
+
+This behavior has a small cost when a cold cache is encountered. Rather than streaming immediately Next.js will wait to fill this cache before streaming the response. As you navigate around you App in development mode these caches will fill and most navigations to cached content should feel instant once warm.
+
+However if you instruct Next.js to skip all server caches using something like the "Disable Cache" option in your browser's DevTools, this behavior would be detrimental since every cache will be considered cold on every request leading to blocking navigations. Instead Next.js prints a warning that this particular request is not suitable for debugging Cache Components and then renders fresh results as fast as possible.
+
+## Should you use "Disable Cache"?
+
+Chrome, in particular, defaults all network request to "Disable Cache" when DevTools is open. For Next.js this is not recommended because it is overly aggressive in what is not cached and can provide a false impression of page performance that doesn't represent realistic usage of a web app.
+
+However there are times when disabling a server caches can be useful. For instance if you know some upstream data system has updated but these updates are not connected to your local dev environment through features like `revalidateTag`.
+
+If you must turn on "Disable Cache" to force a refresh we recommend that you disable the option once you've achieved your goal.
+
+## Useful Links
+
+- [`revalidateTag` function](/docs/app/api-reference/functions/revalidateTag)
+- [`"use cache"` directive](/docs/app/api-reference/directives/use-cache)

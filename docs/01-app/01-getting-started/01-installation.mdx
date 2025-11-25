@@ -39,16 +39,27 @@ cd my-app
 bun dev
 ```
 
-- `--yes` skips prompts using saved preferences or defaults. The default setup enables TypeScript, Tailwind, App Router, and Turbopack, with import alias `@/*`.
+- `--yes` skips prompts using saved preferences or defaults. The default setup enables TypeScript, Tailwind, ESLint, App Router, and Turbopack, with import alias `@/*`.
 
 </AppOnly>
 
 ## System requirements
 
-Before you begin, make sure your system meets the following requirements:
+Before you begin, make sure your development environment meets the following requirements:
 
-- [Node.js 18.18](https://nodejs.org/) or later.
-- macOS, Windows (including WSL), or Linux.
+- Minimum Node.js version: [20.9](https://nodejs.org/)
+- Operating systems: macOS, Windows (including WSL), and Linux.
+
+## Supported browsers
+
+Next.js supports modern browsers with zero configuration.
+
+- Chrome 111+
+- Edge 111+
+- Firefox 111+
+- Safari 16.4+
+
+Learn more about [browser support](/docs/architecture/supported-browsers), including how to configure polyfills and target specific browsers.
 
 ## Create with the CLI
 
@@ -62,12 +73,21 @@ On installation, you'll see the following prompts:
 
 ```txt filename="Terminal"
 What is your project named? my-app
+Would you like to use the recommended Next.js defaults?
+    Yes, use recommended defaults - TypeScript, ESLint, Tailwind CSS, App Router, Turbopack
+    No, reuse previous settings
+    No, customize settings - Choose your own preferences
+```
+
+If you choose to `customize settings`, you'll see the following prompts:
+
+```txt filename="Terminal"
 Would you like to use TypeScript? No / Yes
 Which linter would you like to use? ESLint / Biome / None
+Would you like to use React Compiler? No / Yes
 Would you like to use Tailwind CSS? No / Yes
 Would you like your code inside a `src/` directory? No / Yes
 Would you like to use App Router? (recommended) No / Yes
-Would you like to use Turbopack? (recommended) No / Yes
 Would you like to customize the import alias (`@/*` by default)? No / Yes
 What import alias would you like configured? @/*
 ```
@@ -346,9 +366,9 @@ npx @next/codemod@canary next-lint-to-eslint-cli .
 
 If you use ESLint, create an explicit config (recommended `eslint.config.mjs`). ESLint supports both [the legacy `.eslintrc.*` and the newer `eslint.config.mjs` formats](https://eslint.org/docs/latest/use/configure/configuration-files#configuring-eslint). See the [ESLint API reference](/docs/app/api-reference/config/eslint#with-core-web-vitals) for a recommended setup.
 
-> **Good to know**: Prior to Next.js 16, `next build` ran linting automatically. Now, this automatic build-time linting has been removed. Control when linting runs by invoking your linter via npm scripts.
+> **Good to know**: Starting with Next.js 16, `next build` no longer runs the linter automatically. Instead, you can run your linter through NPM scripts.
 
-See the [ESLint Plugin](/docs/app/api-reference/config/next-config-js/eslint) page for more information.
+See the [ESLint Plugin](/docs/app/api-reference/config/eslint) page for more information.
 
 ## Set up Absolute Imports and Module Path Aliases
 

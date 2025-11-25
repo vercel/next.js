@@ -200,7 +200,7 @@ module.exports = {
 
 [Learn more about fetch logging](/docs/app/api-reference/config/next-config-js/logging).
 
-## Turbopack tracing
+### Turbopack tracing
 
 Turbopack tracing is a tool that helps you understand the performance of your application during local development.
 It provides detailed information about the time taken for each module to compile and how they are related.
@@ -214,22 +214,24 @@ It provides detailed information about the time taken for each module to compile
 
 1. Navigate around your application or make edits to files to reproduce the problem.
 1. Stop the Next.js development server.
-1. A file called `trace-turbopack` will be available in the `.next` folder.
+1. A file called `trace-turbopack` will be available in the `.next/dev` folder.
 1. You can interpret the file using `npx next internal trace [path-to-file]`:
 
    ```bash
-   npx next internal trace .next/trace-turbopack
+   npx next internal trace .next/dev/trace-turbopack
    ```
 
    On versions where `trace` is not available, the command was named `turbo-trace-server`:
 
    ```bash
-   npx next internal turbo-trace-server .next/trace-turbopack
+   npx next internal turbo-trace-server .next/dev/trace-turbopack
    ```
 
 1. Once the trace server is running you can view the trace at https://trace.nextjs.org/.
 1. By default the trace viewer will aggregate timings, in order to see each individual time you can switch from "Aggregated in order" to "Spans in order" at the top right of the viewer.
 
-## Still having problems?
+> **Good to know**: The trace file is place under the development server directory, which defaults to `.next/dev`. This is controllable using the [`isolatedDevBuild`](/docs/app/api-reference/config/next-config-js/isolatedDevBuild) flag in your Next config file.
+
+### Still having problems?
 
 Share the trace file generated in the [Turbopack Tracing](#turbopack-tracing) section and share it on [GitHub Discussions](https://github.com/vercel/next.js/discussions) or [Discord](https://nextjs.org/discord).

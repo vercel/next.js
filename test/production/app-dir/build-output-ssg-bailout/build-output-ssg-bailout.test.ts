@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('build-output-ssg-bailout', () => {
-  if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true') {
+  if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
     it.skip('PPR is enabled, will throw instead of bailing out', () => {})
     return
   }
@@ -44,13 +44,13 @@ describe('build-output-ssg-bailout', () => {
      ┌ ○ /_not-found
      ├ ƒ /ssg-bailout-partial/[id]
      ├ ● /ssg-bailout-partial/[id]
-     ├   ├ /ssg-bailout-partial/2
-     ├   └ /ssg-bailout-partial/3
+     │ ├ /ssg-bailout-partial/2
+     │ └ /ssg-bailout-partial/3
      ├ ƒ /ssg-bailout/[id]
      └ ● /ssg/[id]
-         ├ /ssg/1
-         ├ /ssg/2
-         └ /ssg/3
+       ├ /ssg/1
+       ├ /ssg/2
+       └ /ssg/3
 
 
      ○  (Static)   prerendered as static content

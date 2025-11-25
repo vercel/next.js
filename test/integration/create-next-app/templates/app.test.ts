@@ -237,7 +237,7 @@ describe('create-next-app --app (App Router)', () => {
     })
   })
   ;(process.env.NEXT_RSPACK ? it.skip : it)(
-    'should enable turbopack dev with --turbopack flag',
+    'should enable webpack dev with --webpack flag',
     async () => {
       await useTempDir(async (cwd) => {
         const projectName = 'app-turbo'
@@ -247,7 +247,7 @@ describe('create-next-app --app (App Router)', () => {
             '--ts',
             '--app',
             '--eslint',
-            '--turbopack',
+            '--webpack',
             '--no-src-dir',
             '--no-tailwind',
             '--no-import-alias',
@@ -264,7 +264,7 @@ describe('create-next-app --app (App Router)', () => {
         const projectRoot = join(cwd, projectName)
         const pkgJson = require(join(projectRoot, 'package.json'))
         // eslint-disable-next-line jest/no-standalone-expect
-        expect(pkgJson.scripts.dev).toBe('next dev --turbopack')
+        expect(pkgJson.scripts.dev).toBe('next dev --webpack')
       })
     }
   )
