@@ -4,32 +4,40 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { nextServer, startApp, waitFor } from 'next-test-utils'
-import { fetchViaHTTP, nextBuild, renderViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
+import { nextTestSetup } from 'e2e-utils'
 
-const appDir = join(__dirname, '..')
-let server
-let nextApp
-let appPort
-let buildId
-let requiredFilesManifest
 describe('Required Server Files', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {
-      beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
-        await nextBuild(appDir, undefined, {
-          env: {
-            NOW_BUILDER: '1',
-          },
-        })
+      const { next } = nextTestSetup({
+        files: join(__dirname, '..'),
+        env: {
+          NOW_BUILDER: '1',
+        },
+        skipStart: true,
+      })
 
-        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-        requiredFilesManifest = await fs.readJSON(
-          join(appDir, '.next/required-server-files.json')
+      let server: Awaited<ReturnType<typeof startApp>>
+      let appPort: number
+
+      let buildId: string
+      let requiredFilesManifest: any
+
+      // This suite unfortunately requires a very bespoke setup to set NEXT_PRIVATE_TEST_HEADERS and
+      // minimalMode
+      beforeAll(async () => {
+        await next.build()
+        await next.deleteFile('pages')
+
+        buildId = (await next.readFile(join('.next/BUILD_ID'))).trim()
+
+        requiredFilesManifest = await next.readJSON(
+          join('.next/required-server-files.json')
         )
 
-        let files = await fs.readdir(join(appDir, '.next'))
+        let files = await fs.readdir(join(next.testDir, '.next'))
 
         for (const file of files) {
           if (
@@ -40,27 +48,24 @@ describe('Required Server Files', () => {
             continue
           }
           console.log('removing', join('.next', file))
-          await fs.remove(join(appDir, '.next', file))
+          await next.deleteFile(join('.next', file))
         }
-        await fs.rename(join(appDir, 'pages'), join(appDir, 'pages-bak'))
 
         process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
-        nextApp = nextServer({
+        let nextApp = nextServer({
           conf: {},
-          dir: appDir,
+          dir: next.testDir,
           quiet: false,
           minimalMode: true,
         })
-
+        // @ts-expect-error
         server = await startApp(nextApp)
+        // @ts-expect-error
         appPort = server.address().port
-
-        console.log(`Listening at ::${appPort}`)
       })
       afterAll(async () => {
         delete process.env.NEXT_PRIVATE_TEST_HEADERS
         if (server) server.close()
-        await fs.rename(join(appDir, 'pages-bak'), join(appDir, 'pages'))
       })
 
       it('should output required-server-files manifest correctly', async () => {
@@ -77,10 +82,10 @@ describe('Required Server Files', () => {
 
         for (const file of requiredFilesManifest.files) {
           console.log('checking', file)
-          expect(fs.existsSync(join(appDir, file))).toBe(true)
+          expect(fs.existsSync(join(next.testDir, file))).toBe(true)
         }
 
-        expect(fs.existsSync(join(appDir, '.next/server'))).toBe(true)
+        expect(fs.existsSync(join(next.testDir, '.next/server'))).toBe(true)
       })
 
       it('should render SSR page correctly', async () => {
