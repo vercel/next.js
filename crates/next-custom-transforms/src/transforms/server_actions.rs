@@ -2142,11 +2142,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
         }
 
-        let has_errors = HANDLER.with(|handler| handler.has_errors());
-
         // Post-pass: For server boundary files, register any exports that weren't already
         // registered during the main pass.
-        if should_track_exports && !has_errors {
+        if should_track_exports {
             for (id, export_name) in &self.export_name_by_local_id {
                 if self.reference_ids_by_export_name.contains_key(export_name) {
                     continue;
