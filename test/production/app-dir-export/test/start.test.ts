@@ -1,0 +1,64 @@
+/* eslint-env jest */
+
+import { join } from 'path'
+import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
+
+describe('app dir - with output export (next start)', () => {
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      const { next } = nextTestSetup({
+        files: join(__dirname, '..'),
+        skipStart: true,
+      })
+
+      it('should error during next start with output export', async () => {
+        const { exitCode } = await next.build()
+        expect(exitCode).toBe(0)
+
+        let cliOutput = next.getCliOutputFromHere()
+        try {
+          await next.start()
+        } catch (e) {}
+
+        try {
+          await retry(() => {
+            expect(cliOutput()).toContain(
+              `"next start" does not work with "output: export" configuration. Use "npx serve@latest out" instead.`
+            )
+          })
+        } finally {
+          await next.stop()
+        }
+      })
+
+      it('should warn during next start with output standalone', async () => {
+        await next.patchFile(
+          'next.config.js',
+          (content) =>
+            content.replace(`output: 'export'`, `output: 'standalone'`),
+          async () => {
+            const { exitCode } = await next.build()
+            expect(exitCode).toBe(0)
+
+            let cliOutput = next.getCliOutputFromHere()
+            try {
+              await next.start()
+            } catch (e) {}
+
+            try {
+              await retry(() => {
+                expect(cliOutput()).toContain(
+                  `"next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.`
+                )
+              })
+            } finally {
+              await next.stop()
+            }
+          }
+        )
+      })
+    }
+  )
+})
