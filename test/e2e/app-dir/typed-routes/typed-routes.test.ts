@@ -6,7 +6,7 @@ type AppRoutes = "/" | "/_shop/[[...category]]" | "/dashboard" | "/dashboard/set
 type AppRouteHandlerRoutes = "/api-test" | "/api/docs/[...slug]" | "/api/shop/[[...category]]" | "/api/users/[id]"
 type PageRoutes = "/about" | "/users/[id]"
 type LayoutRoutes = "/" | "/dashboard"
-type RedirectRoutes = "/blog/[category]/[[...slug]]" | "/project/[slug]"
+type RedirectRoutes = "/blog/[category]/[[...slug]]"
 type RewriteRoutes = "/api-legacy/[version]/[[...endpoint]]" | "/docs-old/[...path]"
 type Routes = AppRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRoutes | AppRouteHandlerRoutes
 `
