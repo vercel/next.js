@@ -83,7 +83,10 @@ use crate::{
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
     pages::PagesProject,
-    route::{Endpoint, EndpointGroup, EndpointGroupKey, EndpointGroups, Endpoints, Route},
+    route::{
+        Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
+        Route,
+    },
     versioned_content_map::VersionedContentMap,
 };
 
@@ -936,9 +939,18 @@ impl Project {
                         endpoint_groups.push((
                             EndpointGroupKey::Route(key.clone()),
                             EndpointGroup {
-                                primary: vec![*html_endpoint],
+                                primary: vec![EndpointGroupEntry {
+                                    endpoint: *html_endpoint,
+                                    sub_name: None,
+                                }],
                                 // This only exists in development mode for HMR
-                                additional: data_endpoint.iter().copied().collect(),
+                                additional: data_endpoint
+                                    .iter()
+                                    .map(|endpoint| EndpointGroupEntry {
+                                        endpoint: *endpoint,
+                                        sub_name: None,
+                                    })
+                                    .collect(),
                             },
                         ));
                         add_pages_entries = true;
@@ -957,7 +969,13 @@ impl Project {
                     endpoint_groups.push((
                         EndpointGroupKey::Route(key.clone()),
                         EndpointGroup {
-                            primary: page_routes.iter().map(|r| r.html_endpoint).collect(),
+                            primary: page_routes
+                                .iter()
+                                .map(|r| EndpointGroupEntry {
+                                    endpoint: r.html_endpoint,
+                                    sub_name: Some(r.original_name.clone()),
+                                })
+                                .collect(),
                             additional: Vec::new(),
                         },
                     ));
@@ -999,11 +1017,11 @@ impl Project {
     pub async fn get_all_endpoints(self: Vc<Self>, app_dir_only: bool) -> Result<Vc<Endpoints>> {
         let mut endpoints = Vec::new();
         for (_key, group) in self.get_all_endpoint_groups(app_dir_only).await?.iter() {
-            for &endpoint in group.primary.iter() {
-                endpoints.push(endpoint);
+            for entry in group.primary.iter() {
+                endpoints.push(entry.endpoint);
             }
-            for &endpoint in group.additional.iter() {
-                endpoints.push(endpoint);
+            for entry in group.additional.iter() {
+                endpoints.push(entry.endpoint);
             }
         }
 
