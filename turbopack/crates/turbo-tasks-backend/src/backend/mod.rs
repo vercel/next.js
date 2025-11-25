@@ -12,7 +12,7 @@ use std::{
     ops::Range,
     pin::Pin,
     sync::{
-        Arc,
+        Arc, LazyLock,
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
     },
 };
@@ -71,6 +71,16 @@ use crate::{
 };
 
 const SNAPSHOT_REQUESTED_BIT: usize = 1 << (usize::BITS - 1);
+
+/// Configurable idle timeout for snapshot persistence.
+/// Defaults to 2 seconds if not set or if the value is invalid.
+static IDLE_TIMEOUT: LazyLock<Duration> = LazyLock::new(|| {
+    std::env::var("TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .map(Duration::from_millis)
+        .unwrap_or(Duration::from_secs(2))
+});
 
 struct SnapshotRequest {
     snapshot_requested: bool,
@@ -2470,8 +2480,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     loop {
                         const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(300);
                         const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(120);
-                        const IDLE_TIMEOUT: Duration = Duration::from_secs(2);
-
+                        let idle_timeout = *IDLE_TIMEOUT;
                         let (time, mut reason) =
                             if matches!(job, TurboTasksBackendJob::InitialSnapshot) {
                                 (FIRST_SNAPSHOT_WAIT, "initial snapshot timeout")
@@ -2488,7 +2497,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             let mut idle_start_listener = self.idle_start_event.listen();
                             let mut idle_end_listener = self.idle_end_event.listen();
                             let mut idle_time = if turbo_tasks.is_idle() {
-                                Instant::now() + IDLE_TIMEOUT
+                                Instant::now() + idle_timeout
                             } else {
                                 far_future()
                             };
@@ -2498,11 +2507,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                         return;
                                     },
                                     _ = &mut idle_start_listener => {
-                                        idle_time = Instant::now() + IDLE_TIMEOUT;
+                                        idle_time = Instant::now() + idle_timeout;
                                         idle_start_listener = self.idle_start_event.listen()
                                     },
                                     _ = &mut idle_end_listener => {
-                                        idle_time = until + IDLE_TIMEOUT;
+                                        idle_time = until + idle_timeout;
                                         idle_end_listener = self.idle_end_event.listen()
                                     },
                                     _ = tokio::time::sleep_until(until) => {
