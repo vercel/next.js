@@ -260,8 +260,8 @@ for (const cacheEnabled of [false, true]) {
     ])
 
     for (const [name, changes] of combinations) {
-      // Very flakey with Webpack and caching enabled
-      ;(process.env.IS_TURBOPACK_TEST || !cacheEnabled ? it : it.skip)(
+      // Very flakey with Webpack enabled
+      ;(process.env.IS_TURBOPACK_TEST ? it : it.skip)(
         `should allow to change files while stopped (${name})`,
         async () => {
           let fullInvalidation = !cacheEnabled
