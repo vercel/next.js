@@ -74,6 +74,7 @@ where
         )
     }
 
+    // make a turbotask?
     async fn resolve_options(
         self: Vc<Self>,
         reference_type: ReferenceType,

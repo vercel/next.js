@@ -1628,7 +1628,7 @@ pub async fn url_resolve(
     handle_resolve_error(
         result,
         reference_type,
-        origin.origin_path().owned().await?,
+        origin,
         request,
         resolve_options,
         is_optional,
@@ -3062,10 +3062,7 @@ pub async fn handle_resolve_error(
     is_optional: bool,
     source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
-    async fn is_unresolvable(result: Vc<ModuleResolveResult>) -> Result<bool> {
-        Ok(*result.resolve().await?.is_unresolvable().await?)
-    }
-    Ok(match is_unresolvable(result).await {
+    Ok(match result.await?.is_unresolvable_ref() {
         Ok(unresolvable) => {
             if unresolvable {
                 emit_unresolvable_issue(

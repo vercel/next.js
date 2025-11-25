@@ -332,6 +332,7 @@ pub async fn primary_chunkable_referenced_modules(
                     .resolve_reference()
                     .resolve()
                     .await?
+                    // turn into primary_modules_ref()
                     .primary_modules()
                     .await?;
                 let binding_usage = reference.binding_usage().owned().await?;

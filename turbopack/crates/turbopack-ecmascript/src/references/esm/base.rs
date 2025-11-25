@@ -407,10 +407,12 @@ impl ModuleReference for EsmAssetReference {
         };
 
         if let Some(ModulePart::Evaluation) = &self.export_name {
+            // remove cast
             let module: ResolvedVc<crate::EcmascriptModuleAsset> =
                 ResolvedVc::try_downcast_type(self.origin)
                     .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
+            // move mode into EsmAssetReference
             let tree_shaking_mode = module.options().await?.tree_shaking_mode;
 
             if let Some(TreeShakingMode::ModuleFragments) = tree_shaking_mode {
@@ -433,6 +435,7 @@ impl ModuleReference for EsmAssetReference {
         }
         let request = Request::parse(self.request.clone().into());
 
+        // only if fragment mode
         if let Request::Module { module, .. } = &*request.await?
             && module.is_match(TURBOPACK_PART_IMPORT_SOURCE)
         {
@@ -452,7 +455,7 @@ impl ModuleReference for EsmAssetReference {
         }
 
         let result = esm_resolve(
-            self.get_origin().resolve().await?,
+            self.get_origin(),
             request,
             ty,
             false,

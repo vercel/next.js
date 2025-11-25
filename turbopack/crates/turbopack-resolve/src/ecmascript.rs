@@ -94,7 +94,7 @@ pub async fn esm_resolve(
     issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::EcmaScriptModules(ty);
-    let options = apply_esm_specific_options(origin.resolve_options(ty.clone()).await?, ty.clone())
+    let options = apply_esm_specific_options(origin.resolve_options(ty.clone()).await?, &ty)
         .resolve()
         .await?;
     specific_resolve(origin, request, options, ty, is_optional, issue_source).await
