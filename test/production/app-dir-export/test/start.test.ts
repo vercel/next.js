@@ -21,15 +21,11 @@ describe('app dir - with output export (next start)', () => {
           await next.start({ skipBuild: true })
         } catch (e) {}
 
-        try {
-          await retry(() => {
-            expect(next.cliOutput).toContain(
-              `"next start" does not work with "output: export" configuration. Use "npx serve@latest out" instead.`
-            )
-          })
-        } finally {
-          await next.stop()
-        }
+        await retry(() => {
+          expect(next.cliOutput).toContain(
+            `"next start" does not work with "output: export" configuration. Use "npx serve@latest out" instead.`
+          )
+        })
       })
 
       it('should warn during next start with output standalone', async () => {
@@ -45,15 +41,11 @@ describe('app dir - with output export (next start)', () => {
               await next.start({ skipBuild: true })
             } catch (e) {}
 
-            try {
-              await retry(() => {
-                expect(next.cliOutput).toContain(
-                  `"next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.`
-                )
-              })
-            } finally {
-              await next.stop()
-            }
+            await retry(() => {
+              expect(next.cliOutput).toContain(
+                `"next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.`
+              )
+            })
           }
         )
       })
