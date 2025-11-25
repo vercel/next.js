@@ -1812,28 +1812,24 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     ExportSpecifier::Named(ExportNamedSpecifier {
                                         orig: ModuleExportName::Ident(orig),
                                         exported: Some(exported),
-                                        is_type_only,
+                                        is_type_only: false,
                                         ..
                                     }) => {
                                         // export { foo as bar } or export { foo as "📙" }
-                                        if !*is_type_only {
-                                            self.export_name_by_local_id
-                                                .insert(orig.to_id(), exported.clone());
-                                        }
+                                        self.export_name_by_local_id
+                                            .insert(orig.to_id(), exported.clone());
                                     }
                                     ExportSpecifier::Named(ExportNamedSpecifier {
                                         orig: ModuleExportName::Ident(orig),
                                         exported: None,
-                                        is_type_only,
+                                        is_type_only: false,
                                         ..
                                     }) => {
                                         // export { foo }
-                                        if !*is_type_only {
-                                            self.export_name_by_local_id.insert(
-                                                orig.to_id(),
-                                                ModuleExportName::Ident(orig.clone()),
-                                            );
-                                        }
+                                        self.export_name_by_local_id.insert(
+                                            orig.to_id(),
+                                            ModuleExportName::Ident(orig.clone()),
+                                        );
                                     }
                                     _ => {}
                                 }
@@ -1962,11 +1958,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             if let ExportSpecifier::Named(ExportNamedSpecifier {
                                                 orig: ModuleExportName::Ident(orig),
                                                 exported,
-                                                is_type_only,
+                                                is_type_only: false,
                                                 ..
                                             }) = spec
                                             {
-                                                if !*is_type_only {
                                                     // Now that we're converting this to an import,
                                                     // track it as a local export so the post-pass
                                                     // can register it.
@@ -1991,7 +1986,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                             is_type_only: false,
                                                         },
                                                     ));
-                                                }
                                             }
                                             None
                                         })
@@ -2032,14 +2026,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     for (idx, spec) in named.specifiers.iter().enumerate() {
                                         if let ExportSpecifier::Named(ExportNamedSpecifier {
                                             orig: ModuleExportName::Ident(ident),
-                                            is_type_only,
+                                            is_type_only: false,
                                             ..
                                         }) = spec
                                         {
-                                            if !*is_type_only {
-                                                // Check if this identifier needs a cache runtime
-                                                // wrapper.
-                                                if self
+                                            // Check if this identifier needs a cache runtime
+                                            // wrapper.
+                                            if self
                                                     .local_ids_that_need_cache_runtime_wrapper_if_exported
                                                     .contains(&ident.to_id())
                                                 {
@@ -2047,9 +2040,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                     // post-pass).
                                                     indices_to_remove.push(idx);
                                                 }
-                                                // Otherwise, keep the specifier (it's a function
-                                                // declaration that will be handled by the visitor).
-                                            }
+                                            // Otherwise, keep the specifier (it's a function
+                                            // declaration that will be handled by the visitor).
                                         }
                                     }
 
