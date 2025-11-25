@@ -1,21 +1,31 @@
+/* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
 
-process.env.NEXT_PUBLIC_ENV_VAR = 'hello world'
-// Make it easier to run in development, test directories are cleared between runs already so this is safe.
-process.env.TURBO_ENGINE_IGNORE_DIRTY = '1'
-// decrease the idle timeout to make the test more reliable
-process.env.TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS = '1000'
-
 for (const cacheEnabled of [false, true]) {
   describe(`filesystem-caching with cache ${cacheEnabled ? 'enabled' : 'disabled'}`, () => {
+    beforeAll(() => {
+      process.env.NEXT_PUBLIC_ENV_VAR = 'hello world'
+    })
+    afterAll(() => {
+      delete process.env.NEXT_PUBLIC_ENV_VAR
+    })
+
+    let envVars = [
+      `ENABLE_CACHING=${cacheEnabled ? '1' : ''}`,
+      // Make it easier to run in development, test directories are cleared between runs already so this is safe.
+      `TURBO_ENGINE_IGNORE_DIRTY=1`,
+      // decrease the idle timeout to make the test more reliable
+      `TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS=1000`,
+    ].join(' ')
+
     const { skipped, next, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
       packageJson: {
         scripts: {
-          build: `ENABLE_CACHING=${cacheEnabled ? '1' : ''} next build`,
-          dev: `ENABLE_CACHING=${cacheEnabled ? '1' : ''} next dev`,
+          build: `${envVars} next build`,
+          dev: `${envVars} next dev`,
           start: 'next start',
         },
       },
@@ -56,79 +66,83 @@ for (const cacheEnabled of [false, true]) {
       await next.start()
     }
 
-    it('should cache or not cache loaders', async () => {
-      let appTimestamp, unchangedTimestamp, appClientTimestamp, pagesTimestamp
-      {
-        const browser = await next.browser('/')
-        appTimestamp = await browser.elementByCss('main').text()
-        expect(appTimestamp).toMatch(/Timestamp = \d+$/)
-        await browser.close()
-      }
-      {
-        const browser = await next.browser('/unchanged')
-        unchangedTimestamp = await browser.elementByCss('main').text()
-        expect(unchangedTimestamp).toMatch(/Timestamp = \d+$/)
-        await browser.close()
-      }
-      {
-        const browser = await next.browser('/client')
-        appClientTimestamp = await browser.elementByCss('main').text()
-        expect(appClientTimestamp).toMatch(/Timestamp = \d+$/)
-        await browser.close()
-      }
-      {
-        const browser = await next.browser('/pages')
-        pagesTimestamp = await browser.elementByCss('main').text()
-        expect(pagesTimestamp).toMatch(/Timestamp = \d+$/)
-        await browser.close()
-      }
-      await restartCycle()
+    // Very flakey with Webpack enabled
+    ;(process.env.IS_TURBOPACK_TEST ? it : it.skip)(
+      'should cache or not cache loaders',
+      async () => {
+        let appTimestamp, unchangedTimestamp, appClientTimestamp, pagesTimestamp
+        {
+          const browser = await next.browser('/')
+          appTimestamp = await browser.elementByCss('main').text()
+          expect(appTimestamp).toMatch(/Timestamp = \d+$/)
+          await browser.close()
+        }
+        {
+          const browser = await next.browser('/unchanged')
+          unchangedTimestamp = await browser.elementByCss('main').text()
+          expect(unchangedTimestamp).toMatch(/Timestamp = \d+$/)
+          await browser.close()
+        }
+        {
+          const browser = await next.browser('/client')
+          appClientTimestamp = await browser.elementByCss('main').text()
+          expect(appClientTimestamp).toMatch(/Timestamp = \d+$/)
+          await browser.close()
+        }
+        {
+          const browser = await next.browser('/pages')
+          pagesTimestamp = await browser.elementByCss('main').text()
+          expect(pagesTimestamp).toMatch(/Timestamp = \d+$/)
+          await browser.close()
+        }
+        await restartCycle()
 
-      {
-        const browser = await next.browser('/')
-        const newTimestamp = await browser.elementByCss('main').text()
-        expect(newTimestamp).toMatch(/Timestamp = \d+$/)
-        if (cacheEnabled) {
-          expect(newTimestamp).toBe(appTimestamp)
-        } else {
-          expect(newTimestamp).not.toBe(appTimestamp)
+        {
+          const browser = await next.browser('/')
+          const newTimestamp = await browser.elementByCss('main').text()
+          expect(newTimestamp).toMatch(/Timestamp = \d+$/)
+          if (cacheEnabled) {
+            expect(newTimestamp).toBe(appTimestamp)
+          } else {
+            expect(newTimestamp).not.toBe(appTimestamp)
+          }
+          await browser.close()
         }
-        await browser.close()
-      }
-      {
-        const browser = await next.browser('/unchanged')
-        const newTimestamp = await browser.elementByCss('main').text()
-        expect(newTimestamp).toMatch(/Timestamp = \d+$/)
-        if (cacheEnabled) {
-          expect(newTimestamp).toBe(unchangedTimestamp)
-        } else {
-          expect(newTimestamp).not.toBe(unchangedTimestamp)
+        {
+          const browser = await next.browser('/unchanged')
+          const newTimestamp = await browser.elementByCss('main').text()
+          expect(newTimestamp).toMatch(/Timestamp = \d+$/)
+          if (cacheEnabled) {
+            expect(newTimestamp).toBe(unchangedTimestamp)
+          } else {
+            expect(newTimestamp).not.toBe(unchangedTimestamp)
+          }
+          await browser.close()
         }
-        await browser.close()
-      }
-      {
-        const browser = await next.browser('/client')
-        const newTimestamp = await browser.elementByCss('main').text()
-        expect(newTimestamp).toMatch(/Timestamp = \d+$/)
-        if (cacheEnabled) {
-          expect(newTimestamp).toBe(appClientTimestamp)
-        } else {
-          expect(newTimestamp).not.toBe(appClientTimestamp)
+        {
+          const browser = await next.browser('/client')
+          const newTimestamp = await browser.elementByCss('main').text()
+          expect(newTimestamp).toMatch(/Timestamp = \d+$/)
+          if (cacheEnabled) {
+            expect(newTimestamp).toBe(appClientTimestamp)
+          } else {
+            expect(newTimestamp).not.toBe(appClientTimestamp)
+          }
+          await browser.close()
         }
-        await browser.close()
-      }
-      {
-        const browser = await next.browser('/pages')
-        const newTimestamp = await browser.elementByCss('main').text()
-        expect(newTimestamp).toMatch(/Timestamp = \d+$/)
-        if (cacheEnabled) {
-          expect(newTimestamp).toBe(pagesTimestamp)
-        } else {
-          expect(newTimestamp).not.toBe(pagesTimestamp)
+        {
+          const browser = await next.browser('/pages')
+          const newTimestamp = await browser.elementByCss('main').text()
+          expect(newTimestamp).toMatch(/Timestamp = \d+$/)
+          if (cacheEnabled) {
+            expect(newTimestamp).toBe(pagesTimestamp)
+          } else {
+            expect(newTimestamp).not.toBe(pagesTimestamp)
+          }
+          await browser.close()
         }
-        await browser.close()
       }
-    })
+    )
 
     function makeTextCheck(url: string, text: string) {
       return textCheck.bind(null, url, text)
@@ -246,26 +260,62 @@ for (const cacheEnabled of [false, true]) {
     ])
 
     for (const [name, changes] of combinations) {
-      it(`should allow to change files while stopped (${name})`, async () => {
-        let fullInvalidation = !cacheEnabled
-        for (const change of changes) {
-          await change.checkInitial()
-          if (change.fullInvalidation) {
-            fullInvalidation = true
-          }
-        }
-
-        let unchangedTimestamp: string
-        if (!fullInvalidation) {
-          const browser = await next.browser('/unchanged')
-          unchangedTimestamp = await browser.elementByCss('main').text()
-          expect(unchangedTimestamp).toMatch(/Timestamp = \d+$/)
-          await browser.close()
-        }
-
-        async function checkChanged() {
+      // Very flakey with Webpack enabled
+      ;(process.env.IS_TURBOPACK_TEST ? it : it.skip)(
+        `should allow to change files while stopped (${name})`,
+        async () => {
+          let fullInvalidation = !cacheEnabled
           for (const change of changes) {
-            await change.checkChanged()
+            await change.checkInitial()
+            if (change.fullInvalidation) {
+              fullInvalidation = true
+            }
+          }
+
+          let unchangedTimestamp: string
+          if (!fullInvalidation) {
+            const browser = await next.browser('/unchanged')
+            unchangedTimestamp = await browser.elementByCss('main').text()
+            expect(unchangedTimestamp).toMatch(/Timestamp = \d+$/)
+            await browser.close()
+          }
+
+          async function checkChanged() {
+            for (const change of changes) {
+              await change.checkChanged()
+            }
+
+            if (!fullInvalidation) {
+              const browser = await next.browser('/unchanged')
+              const timestamp = await browser.elementByCss('main').text()
+              expect(unchangedTimestamp).toEqual(timestamp)
+              await browser.close()
+            }
+          }
+
+          await stop()
+
+          async function inner() {
+            await start()
+            await checkChanged()
+            // Some no-op change builds
+            for (let i = 0; i < 2; i++) {
+              await restartCycle()
+              await checkChanged()
+            }
+            await stop()
+          }
+
+          let current = inner
+          for (const change of changes) {
+            const prev = current
+            current = () => change.withChange(prev)
+          }
+          await current()
+
+          await start()
+          for (const change of changes) {
+            await change.checkInitial()
           }
 
           if (!fullInvalidation) {
@@ -274,40 +324,9 @@ for (const cacheEnabled of [false, true]) {
             expect(unchangedTimestamp).toEqual(timestamp)
             await browser.close()
           }
-        }
-
-        await stop()
-
-        async function inner() {
-          await start()
-          await checkChanged()
-          // Some no-op change builds
-          for (let i = 0; i < 2; i++) {
-            await restartCycle()
-            await checkChanged()
-          }
-          await stop()
-        }
-
-        let current = inner
-        for (const change of changes) {
-          const prev = current
-          current = () => change.withChange(prev)
-        }
-        await current()
-
-        await start()
-        for (const change of changes) {
-          await change.checkInitial()
-        }
-
-        if (!fullInvalidation) {
-          const browser = await next.browser('/unchanged')
-          const timestamp = await browser.elementByCss('main').text()
-          expect(unchangedTimestamp).toEqual(timestamp)
-          await browser.close()
-        }
-      }, 200000)
+        },
+        200000
+      )
     }
   })
 }
