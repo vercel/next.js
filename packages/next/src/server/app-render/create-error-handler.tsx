@@ -22,7 +22,7 @@ type SSRErrorHandler = (
   errorInfo?: ErrorInfo
 ) => string | undefined
 
-export type DigestedError = Error & { digest: string }
+export type DigestedError = Error & { digest: string; environmentName?: string }
 
 /**
  * Returns a digest for well-known Next.js errors, otherwise `undefined`. If a
@@ -48,63 +48,7 @@ export function getDigestForWellKnownError(error: unknown): string | undefined {
   return undefined
 }
 
-export function createFlightReactServerErrorHandler(
-  shouldFormatError: boolean,
-  onReactServerRenderError: (err: DigestedError) => void
-): RSCErrorHandler {
-  return (thrownValue: unknown) => {
-    if (typeof thrownValue === 'string') {
-      // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
-      return stringHash(thrownValue).toString()
-    }
-
-    // If the response was closed, we don't need to log the error.
-    if (isAbortError(thrownValue)) return
-
-    const digest = getDigestForWellKnownError(thrownValue)
-
-    if (digest) {
-      return digest
-    }
-
-    if (isReactLargeShellError(thrownValue)) {
-      // TODO: Aggregate
-      console.error(thrownValue)
-      return undefined
-    }
-
-    const err = getProperError(thrownValue) as DigestedError
-
-    // If the error already has a digest, respect the original digest,
-    // so it won't get re-generated into another new error.
-    if (!err.digest) {
-      // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
-      err.digest = stringHash(err.message + err.stack || '').toString()
-    }
-
-    // Format server errors in development to add more helpful error messages
-    if (shouldFormatError) {
-      formatServerError(err)
-    }
-
-    // Record exception in an active span, if available.
-    const span = getTracer().getActiveScopeSpan()
-    if (span) {
-      span.recordException(err)
-      span.setAttribute('error.type', err.name)
-      span.setStatus({
-        code: SpanStatusCode.ERROR,
-        message: err.message,
-      })
-    }
-
-    onReactServerRenderError(err)
-
-    return createDigestWithErrorCode(thrownValue, err.digest)
-  }
-}
-
-export function createHTMLReactServerErrorHandler(
+export function createReactServerErrorHandler(
   shouldFormatError: boolean,
   isNextExport: boolean,
   reactServerErrors: Map<string, DigestedError>,
@@ -132,11 +76,23 @@ export function createHTMLReactServerErrorHandler(
       return undefined
     }
 
-    const err = getProperError(thrownValue) as DigestedError
+    let err = getProperError(thrownValue) as DigestedError
 
     // If the error already has a digest, respect the original digest,
     // so it won't get re-generated into another new error.
-    if (!err.digest) {
+    if (err.digest) {
+      if (
+        process.env.NODE_ENV === 'production' &&
+        reactServerErrors.has(err.digest)
+      ) {
+        // This error is likely an obfuscated error from another react-server
+        // environment (e.g. 'use cache'). We recover the original error here.
+        err = reactServerErrors.get(err.digest)!
+      } else {
+        // The error is not from react-server but has a digest from other means
+        // so we don't need to produce a new one.
+      }
+    } else {
       // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
       err.digest = stringHash(err.message + (err.stack || '')).toString()
     }

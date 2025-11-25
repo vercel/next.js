@@ -78,8 +78,7 @@ import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
 import {
-  createFlightReactServerErrorHandler,
-  createHTMLReactServerErrorHandler,
+  createReactServerErrorHandler,
   createHTMLErrorHandler,
   type DigestedError,
   isUserLandError,
@@ -615,6 +614,7 @@ async function generateDynamicFlightRenderResult(
     dev = false,
     onInstrumentationRequestError,
     setReactDebugChannel,
+    nextExport = false,
   } = renderOpts
 
   function onFlightDataRenderError(err: DigestedError) {
@@ -624,8 +624,13 @@ async function generateDynamicFlightRenderResult(
       createErrorContext(ctx, 'react-server-components-payload')
     )
   }
-  const onError = createFlightReactServerErrorHandler(
+
+  const silenceLogger = false
+  const onError = createReactServerErrorHandler(
     dev,
+    nextExport,
+    workStore.reactServerErrorsByDigest,
+    silenceLogger,
     onFlightDataRenderError
   )
 
@@ -770,6 +775,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     setReactDebugChannel,
     setCacheStatus,
     clientReferenceManifest,
+    nextExport = false,
   } = renderOpts
   assertClientReferenceManifest(clientReferenceManifest)
 
@@ -780,8 +786,13 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       createErrorContext(ctx, 'react-server-components-payload')
     )
   }
-  const onError = createFlightReactServerErrorHandler(
+
+  const silenceLogger = false
+  const onError = createReactServerErrorHandler(
     dev,
+    nextExport,
+    workStore.reactServerErrorsByDigest,
+    silenceLogger,
     onFlightDataRenderError
   )
 
@@ -913,19 +924,24 @@ async function generateRuntimePrefetchResult(
   ctx: AppRenderContext,
   requestStore: RequestStore
 ): Promise<RenderResult> {
-  const { workStore } = ctx
-  const renderOpts = ctx.renderOpts
+  const { workStore, renderOpts } = ctx
+  const { nextExport = false, onInstrumentationRequestError } = renderOpts
 
   function onFlightDataRenderError(err: DigestedError) {
-    return renderOpts.onInstrumentationRequestError?.(
+    return onInstrumentationRequestError?.(
       err,
       req,
       // TODO(runtime-ppr): should we use a different value?
       createErrorContext(ctx, 'react-server-components-payload')
     )
   }
-  const onError = createFlightReactServerErrorHandler(
+
+  const silenceLogger = false
+  const onError = createReactServerErrorHandler(
     false,
+    nextExport,
+    workStore.reactServerErrorsByDigest,
+    silenceLogger,
     onFlightDataRenderError
   )
 
@@ -2616,7 +2632,7 @@ async function renderToStream(
       ? `self.__next_r=${JSON.stringify(requestId)}`
       : undefined
 
-  const reactServerErrorsByDigest: Map<string, DigestedError> = new Map()
+  const { reactServerErrorsByDigest } = workStore
   const silenceLogger = false
   function onHTMLRenderRSCError(err: DigestedError) {
     return onInstrumentationRequestError?.(
@@ -2625,7 +2641,7 @@ async function renderToStream(
       createErrorContext(ctx, 'react-server-components')
     )
   }
-  const serverComponentsErrorHandler = createHTMLReactServerErrorHandler(
+  const serverComponentsErrorHandler = createReactServerErrorHandler(
     dev,
     nextExport,
     reactServerErrorsByDigest,
@@ -4160,7 +4176,7 @@ async function prerenderToStream(
     page
   )
 
-  const reactServerErrorsByDigest: Map<string, DigestedError> = new Map()
+  const { reactServerErrorsByDigest } = workStore
   // We don't report errors during prerendering through our instrumentation hooks
   const silenceLogger = !!experimental.isRoutePPREnabled
   function onHTMLRenderRSCError(err: DigestedError) {
@@ -4170,7 +4186,7 @@ async function prerenderToStream(
       createErrorContext(ctx, 'react-server-components')
     )
   }
-  const serverComponentsErrorHandler = createHTMLReactServerErrorHandler(
+  const serverComponentsErrorHandler = createReactServerErrorHandler(
     dev,
     nextExport,
     reactServerErrorsByDigest,
