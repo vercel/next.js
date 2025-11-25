@@ -3,6 +3,7 @@
   padding: 16px;
   padding-top: 8px;
   overflow: hidden;
+  font-size: 14px;
 }
 
 /* User preferences wrapper styles */
@@ -16,4 +17,9 @@
 .panel-route {
   opacity: var(--panel-opacity);
   transition: var(--panel-transition);
+}
+
+.turbopack-upgrade-link {
+  text-decoration: underline;
+  font-weight: 500;
 }

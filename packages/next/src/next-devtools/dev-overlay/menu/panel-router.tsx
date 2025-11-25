@@ -6,7 +6,6 @@ import {
   RouteInfoBody,
 } from '../components/errors/dev-tools-indicator/dev-tools-info/route-info'
 import { PageSegmentTree } from '../components/overview/segment-explorer'
-import { TurbopackInfoBody } from '../components/errors/dev-tools-indicator/dev-tools-info/turbopack-info'
 import { DevToolsHeader } from '../components/errors/dev-tools-indicator/dev-tools-info/dev-tools-header'
 import { useDelayedRender } from '../hooks/use-delayed-render'
 import {
@@ -61,42 +60,53 @@ const MenuPanel = () => {
             }
           },
         },
-        state.staticIndicator === 'disabled'
-          ? undefined
-          : state.staticIndicator === 'pending'
-            ? {
-                title: 'Loading...',
-                label: 'Route',
-                value: <LoadingIcon />,
-              }
-            : {
-                title: `Current route is ${state.staticIndicator}.`,
-                label: 'Route',
-                value:
-                  state.staticIndicator === 'static' ? 'Static' : 'Dynamic',
-                onClick: () => setPanel('route-type'),
-                attributes: {
-                  'data-nextjs-route-type': state.staticIndicator,
+        !!process.env.__NEXT_CACHE_COMPONENTS
+          ? {
+              title: 'Rendering is using Cache Components',
+              label: 'Render',
+              value: 'Cache Components',
+            }
+          : state.staticIndicator === 'disabled'
+            ? undefined
+            : state.staticIndicator === 'pending'
+              ? {
+                  title: 'Loading...',
+                  label: 'Render',
+                  value: <LoadingIcon />,
+                }
+              : {
+                  title: `Current route is ${state.staticIndicator}.`,
+                  label: 'Render',
+                  value:
+                    state.staticIndicator === 'static' ? 'Static' : 'Dynamic',
+                  onClick: () => setPanel('route-type'),
+                  attributes: {
+                    'data-nextjs-route-type': state.staticIndicator,
+                  },
                 },
-              },
+
         !!process.env.TURBOPACK
           ? {
-              title: 'Turbopack is enabled.',
-              label: 'Turbopack',
-              value: 'Enabled',
+              title: 'Bundler',
+              label: 'Bundler',
+              value: 'Turbopack',
             }
           : {
-              title:
-                'Learn about Turbopack and how to enable it in your application.',
-              label: 'Try Turbopack',
-              value: <ChevronRight />,
-              onClick: () => setPanel('turbo-info'),
+              // Encourage users to upgrade to Turbopack
+              title: 'Upgrade to Turbopack',
+              label: 'Bundler',
+              value: (
+                <a
+                  href="https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="turbopack-upgrade-link"
+                >
+                  Webpack
+                </a>
+              ),
             },
-        !!process.env.__NEXT_CACHE_COMPONENTS && {
-          title: 'Cache Components is enabled.',
-          label: 'Cache Components',
-          value: 'Enabled',
-        },
+
         isAppRouter && {
           label: 'Route Info',
           value: <ChevronRight />,
@@ -236,24 +246,6 @@ export const PanelRouter = () => {
           </DynamicPanel>
         </PanelRoute>
       )}
-
-      <PanelRoute name="turbo-info">
-        <DynamicPanel
-          sharePanelSizeGlobally={false}
-          sizeConfig={{
-            kind: 'fixed',
-            height: 470 / state.scale,
-            width: 400 / state.scale,
-          }}
-          closeOnClickOutside
-          header={<DevToolsHeader title="Try Turbopack" />}
-        >
-          <div className="panel-content">
-            <TurbopackInfoBody />
-            <InfoFooter href="https://nextjs.org/docs/app/api-reference/turbopack" />
-          </div>
-        </DynamicPanel>
-      </PanelRoute>
     </>
   )
 }
