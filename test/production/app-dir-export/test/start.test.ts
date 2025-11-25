@@ -17,14 +17,13 @@ describe('app dir - with output export (next start)', () => {
         const { exitCode } = await next.build()
         expect(exitCode).toBe(0)
 
-        let cliOutput = next.getCliOutputFromHere()
         try {
-          await next.start()
+          await next.start({ skipBuild: true })
         } catch (e) {}
 
         try {
           await retry(() => {
-            expect(cliOutput()).toContain(
+            expect(next.cliOutput).toContain(
               `"next start" does not work with "output: export" configuration. Use "npx serve@latest out" instead.`
             )
           })
@@ -42,14 +41,13 @@ describe('app dir - with output export (next start)', () => {
             const { exitCode } = await next.build()
             expect(exitCode).toBe(0)
 
-            let cliOutput = next.getCliOutputFromHere()
             try {
-              await next.start()
+              await next.start({ skipBuild: true })
             } catch (e) {}
 
             try {
               await retry(() => {
-                expect(cliOutput()).toContain(
+                expect(next.cliOutput).toContain(
                   `"next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.`
                 )
               })

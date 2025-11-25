@@ -112,11 +112,11 @@ export class NextStartInstance extends NextInstance {
         this.childProcess.on('close', (code, signal) => {
           if (this.isStopping) return
           if (code || signal) {
-            require('console').error(
-              `next start exited unexpectedly with code/signal ${
-                code || signal
-              }`
-            )
+            let message = `next start exited unexpectedly with code/signal ${
+              code || signal
+            }`
+            require('console').error(message)
+            reject(new Error(message))
           }
         })
 
