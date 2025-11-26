@@ -898,8 +898,36 @@ impl AssetContext for ModuleAssetContext {
                                 ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
                             }
                         }
-                        ResolveResultItem::External { name, ty, traced } => {
+                        ResolveResultItem::External {
+                            name,
+                            ty,
+                            traced,
+                            target,
+                        } => {
                             let replacement = if replace_externals {
+                                // Determine the package folder, `target` is the full path to the
+                                // resolved file.
+                                let target = if let Some(mut target) = target {
+                                    loop {
+                                        let parent = target.parent();
+                                        if parent.is_root() {
+                                            break;
+                                        }
+                                        if parent.file_name() == "node_modules" {
+                                            break;
+                                        }
+                                        if parent.file_name().starts_with("@")
+                                            && parent.parent().file_name() == "node_modules"
+                                        {
+                                            break;
+                                        }
+                                        target = parent;
+                                    }
+                                    Some(target)
+                                } else {
+                                    None
+                                };
+
                                 let analyze_mode = if traced == ExternalTraced::Traced
                                     && let Some(options) = &self
                                         .module_options_context()
@@ -907,15 +935,22 @@ impl AssetContext for ModuleAssetContext {
                                         .enable_externals_tracing
                                 {
                                     // result.affecting_sources can be ignored for tracing, as this
-                                    // request will later be resolved relative to tracing_root
-                                    // anyway.
+                                    // request will later be resolved relative to tracing_root (or
+                                    // the .next/node_modules/lodash-1238123 symlink) anyway.
 
                                     let options = options.await?;
                                     let origin = PlainResolveOrigin::new(
                                         Vc::upcast(externals_tracing_module_context(
                                             *options.compile_time_info,
                                         )),
-                                        options.tracing_root.join("_")?,
+                                        // If target is specified, a symlink will be created to
+                                        // make the folder
+                                        // itself available, but we still need to trace
+                                        // resolving the individual file(s) inside the package.
+                                        target
+                                            .as_ref()
+                                            .unwrap_or(&options.tracing_root)
+                                            .join("_")?,
                                     );
                                     CachedExternalTracingMode::Traced {
                                         origin: ResolvedVc::upcast(origin.to_resolved().await?),
@@ -924,7 +959,8 @@ impl AssetContext for ModuleAssetContext {
                                     CachedExternalTracingMode::Untraced
                                 };
 
-                                replace_external(&name, ty, import_externals, analyze_mode).await?
+                                replace_external(&name, ty, target, import_externals, analyze_mode)
+                                    .await?
                             } else {
                                 None
                             };
@@ -1051,6 +1087,7 @@ pub async fn emit_assets_into_dir_operation(
 pub async fn replace_external(
     name: &RcStr,
     ty: ExternalType,
+    target: Option<FileSystemPath>,
     import_externals: bool,
     analyze_mode: CachedExternalTracingMode,
 ) -> Result<Option<ModuleResolveResultItem>> {
@@ -1071,7 +1108,7 @@ pub async fn replace_external(
         }
     };
 
-    let module = CachedExternalModule::new(name.clone(), external_type, analyze_mode)
+    let module = CachedExternalModule::new(name.clone(), target, external_type, analyze_mode)
         .to_resolved()
         .await?;
 

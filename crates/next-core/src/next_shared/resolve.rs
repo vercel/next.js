@@ -254,6 +254,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
                 name: specifier.clone(),
                 ty: ExternalType::CommonJs,
                 traced: ExternalTraced::Traced,
+                target: None,
             },
         ))))
     }
