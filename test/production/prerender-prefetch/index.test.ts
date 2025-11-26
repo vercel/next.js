@@ -300,6 +300,13 @@ describe('Prerender prefetch', () => {
           pages: new FileRef(join(__dirname, 'app/pages')),
         },
         dependencies: {},
+        env: {
+          // Simulate that a CDN has consumed the SWR cache-control header,
+          // otherwise the browser will cache responses and which messes with
+          // the expectations in this test.
+          // See https://github.com/vercel/next.js/pull/70674 for context.
+          NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL: '1',
+        },
       })
     })
     afterAll(() => next.destroy())
@@ -319,6 +326,13 @@ describe('Prerender prefetch', () => {
           },
         },
         dependencies: {},
+        env: {
+          // Simulate that a CDN has consumed the SWR cache-control header,
+          // otherwise the browser will cache responses and which messes with
+          // the expectations in this test.
+          // See https://github.com/vercel/next.js/pull/70674 for context.
+          NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL: '1',
+        },
       })
     })
     afterAll(() => next.destroy())

@@ -1,20 +1,21 @@
 use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
 use either::Either;
-use fxhash::FxHashSet;
 use modularize_imports;
 use preset_env_base::query::targets_to_versions;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use swc_core::{
+    atoms::Atom,
     common::{
         comments::{Comments, NoopComments},
         pass::Optional,
         FileName, Mark, SourceFile, SourceMap, SyntaxContext,
     },
     ecma::{
-        ast::{noop_pass, EsVersion, Pass},
+        ast::{fn_pass, noop_pass, EsVersion, Pass},
         parser::parse_file_as_module,
-        visit::{fold_pass, visit_mut_pass},
+        visit::visit_mut_pass,
     },
 };
 
@@ -26,6 +27,7 @@ use crate::{
         fonts::next_font_loaders,
         lint_codemod_comments::lint_codemod_comments,
         react_server_components,
+        server_actions::ServerActionsMode,
     },
 };
 
@@ -37,9 +39,6 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub disable_next_ssg: bool,
-
-    #[serde(default)]
-    pub disable_page_config: bool,
 
     #[serde(default)]
     pub pages_dir: Option<PathBuf>,
@@ -116,6 +115,12 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub lint_codemod_comments: bool,
+
+    #[serde(default)]
+    pub css_env: Option<swc_core::ecma::preset_env::Config>,
+
+    #[serde(default)]
+    pub track_dynamic_imports: bool,
 }
 
 pub fn custom_before_pass<'a, C>(
@@ -123,12 +128,15 @@ pub fn custom_before_pass<'a, C>(
     file: Arc<SourceFile>,
     opts: &'a TransformOptions,
     comments: C,
-    eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
+    eliminated_packages: Rc<RefCell<FxHashSet<Atom>>>,
     unresolved_mark: Mark,
+    use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>>,
 ) -> impl Pass + 'a
 where
     C: Clone + Comments + 'a,
 {
+    let file_path_str = file.name.to_string();
+
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop_pass();
 
@@ -147,34 +155,77 @@ where
         }
     };
 
-    let modularize_imports_config = match &opts.modularize_imports {
-        Some(config) => config.clone(),
-        None => modularize_imports::Config {
-            packages: std::collections::HashMap::new(),
-        },
+    let styled_jsx = {
+        let cm = cm.clone();
+        let file = file.clone();
+
+        fn_pass(move |program| {
+            if let Some(config) = opts.styled_jsx.to_option() {
+                let target_browsers = opts
+                    .css_env
+                    .as_ref()
+                    .map(|env| {
+                        targets_to_versions(env.targets.clone(), None)
+                            .expect("failed to parse env.targets")
+                    })
+                    .unwrap_or_default();
+
+                program.mutate(styled_jsx::visitor::styled_jsx(
+                    cm.clone(),
+                    &file.name,
+                    &styled_jsx::visitor::Config {
+                        use_lightningcss: config.use_lightningcss,
+                        browsers: *target_browsers,
+                    },
+                    &styled_jsx::visitor::NativeConfig { process_css: None },
+                ))
+            }
+        })
     };
 
-    let target_browsers = opts
-        .swc
-        .config
-        .env
-        .as_ref()
-        .map(|env| targets_to_versions(env.targets.clone()).expect("failed to parse env.targets"))
-        .unwrap_or_default();
+    let styled_components = {
+        let file = file.clone();
 
-    let styled_jsx = if let Some(config) = opts.styled_jsx.to_option() {
-        Either::Left(styled_jsx::visitor::styled_jsx(
-            cm.clone(),
-            (*file.name).clone(),
-            styled_jsx::visitor::Config {
-                use_lightningcss: config.use_lightningcss,
-                browsers: target_browsers,
-            },
-            styled_jsx::visitor::NativeConfig { process_css: None },
-        ))
-    } else {
-        Either::Right(noop_pass())
+        fn_pass(move |program| {
+            if let Some(config) = &opts.styled_components {
+                program.mutate(styled_components::styled_components(
+                    Some(&file_path_str),
+                    file.src_hash,
+                    config,
+                    NoopComments,
+                ))
+            }
+        })
     };
+
+    let emotion = {
+        let cm = cm.clone();
+        let file = file.clone();
+        let comments = comments.clone();
+
+        fn_pass(move |program| {
+            if let Some(config) = opts.emotion.as_ref() {
+                if !config.enabled.unwrap_or(false) {
+                    return;
+                }
+                if let FileName::Real(path) = &*file.name {
+                    program.mutate(swc_emotion::emotion(
+                        config,
+                        path,
+                        file.src_hash as u32,
+                        cm.clone(),
+                        comments.clone(),
+                    ));
+                }
+            }
+        })
+    };
+
+    let modularize_imports = fn_pass(move |program| {
+        if let Some(config) = opts.modularize_imports.as_ref() {
+            program.mutate(modularize_imports::modularize_imports(config));
+        }
+    });
 
     (
         (
@@ -193,20 +244,11 @@ where
                 _ => Either::Right(noop_pass()),
             },
             styled_jsx,
-            match &opts.styled_components {
-                Some(config) => Either::Left(styled_components::styled_components(
-                    file.name.clone(),
-                    file.src_hash,
-                    config.clone(),
-                    NoopComments,
-                )),
-                None => Either::Right(noop_pass()),
-            },
+            styled_components,
             Optional::new(
                 crate::transforms::next_ssg::next_ssg(eliminated_packages),
                 !opts.disable_next_ssg,
             ),
-            crate::transforms::amp_attributes::amp_attributes(),
             next_dynamic(
                 opts.is_development,
                 opts.is_server_compiler,
@@ -225,10 +267,6 @@ where
                 NextDynamicMode::Webpack,
                 file.name.clone(),
                 opts.pages_dir.clone().or_else(|| opts.app_dir.clone()),
-            ),
-            Optional::new(
-                crate::transforms::page_config::page_config(opts.is_development, opts.is_page_file),
-                !opts.disable_page_config,
             ),
             relay_plugin,
             match &opts.remove_console {
@@ -272,28 +310,8 @@ where
                 ),
                 _ => Either::Right(noop_pass()),
             },
-            opts.emotion
-                .as_ref()
-                .and_then(|config| {
-                    if !config.enabled.unwrap_or(false) {
-                        return None;
-                    }
-                    if let FileName::Real(path) = &*file.name {
-                        path.to_str().map(|_| {
-                            Either::Left(fold_pass(swc_emotion::EmotionTransformer::new(
-                                config.clone(),
-                                path,
-                                file.src_hash as u32,
-                                cm,
-                                comments.clone(),
-                            )))
-                        })
-                    } else {
-                        None
-                    }
-                })
-                .unwrap_or_else(|| Either::Right(noop_pass())),
-            modularize_imports::modularize_imports(modularize_imports_config),
+            emotion,
+            modularize_imports,
             match &opts.font_loaders {
                 Some(config) => Either::Left(next_font_loaders(config.clone())),
                 None => Either::Right(noop_pass()),
@@ -301,10 +319,22 @@ where
             match &opts.server_actions {
                 Some(config) => Either::Left(crate::transforms::server_actions::server_actions(
                     &file.name,
+                    None,
                     config.clone(),
                     comments.clone(),
+                    cm.clone(),
+                    use_cache_telemetry_tracker,
+                    ServerActionsMode::Webpack,
                 )),
                 None => Either::Right(noop_pass()),
+            },
+            match &opts.track_dynamic_imports {
+                true => Either::Left(
+                    crate::transforms::track_dynamic_imports::track_dynamic_imports(
+                        unresolved_mark,
+                    ),
+                ),
+                false => Either::Right(noop_pass()),
             },
             match &opts.cjs_require_optimizer {
                 Some(config) => Either::Left(visit_mut_pass(
@@ -394,32 +424,60 @@ where
         #[serde(untagged)]
         enum Deser<T> {
             Bool(bool),
-            Obj(T),
             EmptyObject(EmptyStruct),
+            #[serde(untagged)]
+            Obj(T),
         }
 
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
         struct EmptyStruct {}
 
-        use serde::__private::de;
+        let res = Deser::deserialize(deserializer)?;
+        Ok(match res {
+            Deser::Bool(v) => BoolOr::Bool(v),
+            Deser::EmptyObject(_) => BoolOr::Bool(true),
+            Deser::Obj(v) => BoolOr::Data(v),
+        })
+    }
+}
 
-        let content = de::Content::deserialize(deserializer)?;
+#[cfg(test)]
+mod tests {
+    use serde::Deserialize;
+    use serde_json::json;
 
-        let deserializer = de::ContentRefDeserializer::<D::Error>::new(&content);
+    use super::BoolOr;
 
-        let res = Deser::deserialize(deserializer);
+    #[test]
+    fn test_bool_or() {
+        let v: BoolOr<usize> = serde_json::from_value(json!(false)).unwrap();
+        assert_eq!(v, BoolOr::Bool(false));
 
-        match res {
-            Ok(v) => Ok(match v {
-                Deser::Bool(v) => BoolOr::Bool(v),
-                Deser::Obj(v) => BoolOr::Data(v),
-                Deser::EmptyObject(_) => BoolOr::Bool(true),
-            }),
-            Err(..) => {
-                let d = de::ContentDeserializer::<D::Error>::new(content);
-                Ok(BoolOr::Data(T::deserialize(d)?))
-            }
+        let v: BoolOr<usize> = serde_json::from_value(json!(true)).unwrap();
+        assert_eq!(v, BoolOr::Bool(true));
+
+        let v: BoolOr<usize> = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(v, BoolOr::Bool(true));
+
+        let v: Result<BoolOr<usize>, _> = serde_json::from_value(json!({"a": 1}));
+        assert!(v.is_err());
+
+        let v: BoolOr<usize> = serde_json::from_value(json!(1)).unwrap();
+        assert_eq!(v, BoolOr::Data(1));
+
+        let v: BoolOr<usize> = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(v, BoolOr::Bool(true));
+
+        #[derive(Debug, Eq, PartialEq, Deserialize)]
+        struct SomeStruct {
+            field: Option<usize>,
         }
+
+        let v: BoolOr<SomeStruct> = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(v, BoolOr::Bool(true));
+
+        let v: BoolOr<SomeStruct> = serde_json::from_value(json!({"field": 32})).unwrap();
+        assert_eq!(v, BoolOr::Data(SomeStruct { field: Some(32) }));
     }
 }

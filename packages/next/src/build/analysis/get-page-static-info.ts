@@ -2,6 +2,7 @@ import type { NextConfig } from '../../server/config-shared'
 import type { RouteHas } from '../../lib/load-custom-routes'
 
 import { promises as fs } from 'fs'
+import { relative } from 'path'
 import { LRUCache } from '../../server/lib/lru-cache'
 import {
   extractExportedConstValue,
@@ -9,7 +10,11 @@ import {
 } from './extract-const-value'
 import { parseModule } from './parse-module'
 import * as Log from '../output/log'
-import { SERVER_RUNTIME } from '../../lib/constants'
+import {
+  SERVER_RUNTIME,
+  MIDDLEWARE_FILENAME,
+  PROXY_FILENAME,
+} from '../../lib/constants'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { isEdgeRuntime } from '../../lib/is-edge-runtime'
@@ -35,11 +40,12 @@ import {
 } from '../segment-config/middleware/middleware-config'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
+import { isProxyFile } from '../utils'
 
 const PARSE_PATTERN =
-  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps/
+  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
 
-export type MiddlewareMatcher = {
+export type ProxyMatcher = {
   source: string
   regexp?: string
   /** @default true */
@@ -48,15 +54,15 @@ export type MiddlewareMatcher = {
   missing?: RouteHas[]
 }
 
-export type MiddlewareConfig = {
+export type ProxyConfig = {
   /**
-   * The matcher for the middleware. Read more: [Next.js Docs: Middleware `matcher`](https://nextjs.org/docs/app/api-reference/file-conventions/middleware#matcher),
-   * [Next.js Docs: Middleware matching paths](https://nextjs.org/docs/app/building-your-application/routing/middleware#matching-paths)
+   * The matcher for the proxy. Read more: [Next.js Docs: Proxy `matcher`](https://nextjs.org/docs/app/api-reference/file-conventions/proxy#matcher),
+   * [Next.js Docs: Proxy matching paths](https://nextjs.org/docs/app/building-your-application/routing/proxy#matching-paths)
    */
-  matchers?: MiddlewareMatcher[]
+  matchers?: ProxyMatcher[]
 
   /**
-   * The regions that the middleware should run in.
+   * The regions that the proxy should run in.
    */
   regions?: string | string[]
 
@@ -75,11 +81,12 @@ export interface AppPageStaticInfo {
   generateStaticParams?: boolean
   generateSitemaps?: boolean
   generateImageMetadata?: boolean
-  middleware?: MiddlewareConfig
+  middleware?: ProxyConfig
   config: Omit<AppSegmentConfig, 'runtime' | 'maxDuration'> | undefined
   runtime: AppSegmentConfig['runtime'] | undefined
   preferredRegion: AppSegmentConfig['preferredRegion'] | undefined
   maxDuration: number | undefined
+  hadUnsupportedValue: boolean
 }
 
 export interface PagesPageStaticInfo {
@@ -90,7 +97,7 @@ export interface PagesPageStaticInfo {
   generateStaticParams?: boolean
   generateSitemaps?: boolean
   generateImageMetadata?: boolean
-  middleware?: MiddlewareConfig
+  middleware?: ProxyConfig
   config:
     | (Omit<PagesSegmentConfig, 'runtime' | 'config' | 'maxDuration'> & {
         config?: Omit<PagesSegmentConfigConfig, 'runtime' | 'maxDuration'>
@@ -99,6 +106,7 @@ export interface PagesPageStaticInfo {
   runtime: PagesSegmentConfig['runtime'] | undefined
   preferredRegion: PagesSegmentConfigConfig['regions'] | undefined
   maxDuration: number | undefined
+  hadUnsupportedValue: boolean
 }
 
 export type PageStaticInfo = AppPageStaticInfo | PagesPageStaticInfo
@@ -121,16 +129,12 @@ export function getRSCModuleInformation(
   const parsedActionsMeta = actionsJson
     ? (JSON.parse(actionsJson[1]) as Record<string, string>)
     : undefined
-  const actions = parsedActionsMeta
-    ? (Object.values(parsedActionsMeta) as string[])
-    : undefined
   const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
   const isClientRef = !!clientInfoMatch
 
   if (!isReactServerLayer) {
     return {
       type: RSC_MODULE_TYPES.client,
-      actions,
       actionIds: parsedActionsMeta,
       isClientRef,
     }
@@ -146,7 +150,6 @@ export function getRSCModuleInformation(
 
   return {
     type,
-    actions,
     actionIds: parsedActionsMeta,
     clientRefs,
     clientEntryType,
@@ -300,6 +303,128 @@ function checkExports(
   return {}
 }
 
+function validateMiddlewareProxyExports({
+  ast,
+  page,
+  pageFilePath,
+  isDev,
+}: {
+  ast: any
+  page: string
+  pageFilePath: string
+  isDev: boolean
+}): void {
+  // Check if this is middleware/proxy
+  const isMiddleware =
+    page === `/${MIDDLEWARE_FILENAME}` || page === `/src/${MIDDLEWARE_FILENAME}`
+  const isProxy =
+    page === `/${PROXY_FILENAME}` || page === `/src/${PROXY_FILENAME}`
+
+  if (!isMiddleware && !isProxy) {
+    return
+  }
+
+  if (!ast || !Array.isArray(ast.body)) {
+    return
+  }
+
+  const fileName = isProxy ? PROXY_FILENAME : MIDDLEWARE_FILENAME
+
+  // Parse AST to get export info (since checkExports doesn't return middleware/proxy info)
+  let hasDefaultExport = false
+  let hasMiddlewareExport = false
+  let hasProxyExport = false
+
+  for (const node of ast.body) {
+    if (
+      node.type === 'ExportDefaultDeclaration' ||
+      node.type === 'ExportDefaultExpression'
+    ) {
+      hasDefaultExport = true
+    }
+
+    if (
+      node.type === 'ExportDeclaration' &&
+      node.declaration?.type === 'FunctionDeclaration'
+    ) {
+      const id = node.declaration.identifier?.value
+      if (id === 'middleware') {
+        hasMiddlewareExport = true
+      }
+      if (id === 'proxy') {
+        hasProxyExport = true
+      }
+    }
+
+    if (
+      node.type === 'ExportDeclaration' &&
+      node.declaration?.type === 'VariableDeclaration'
+    ) {
+      const id = node.declaration?.declarations[0]?.id.value
+      if (id === 'middleware') {
+        hasMiddlewareExport = true
+      }
+      if (id === 'proxy') {
+        hasProxyExport = true
+      }
+    }
+
+    if (node.type === 'ExportNamedDeclaration') {
+      for (const specifier of node.specifiers) {
+        if (
+          specifier.type === 'ExportSpecifier' &&
+          specifier.orig?.type === 'Identifier'
+        ) {
+          // Use the exported name if it exists (for aliased exports like `export { foo as proxy }`),
+          // otherwise fall back to the original name (for simple re-exports like `export { proxy }`)
+          const exportedIdentifier = specifier.exported || specifier.orig
+          const value = exportedIdentifier.value
+          if (value === 'middleware') {
+            hasMiddlewareExport = true
+          }
+          if (value === 'proxy') {
+            hasProxyExport = true
+          }
+        }
+      }
+    }
+  }
+
+  const hasValidExport =
+    hasDefaultExport ||
+    (isMiddleware && hasMiddlewareExport) ||
+    (isProxy && hasProxyExport)
+
+  const relativePath = relative(process.cwd(), pageFilePath)
+  const resolvedPath = relativePath.startsWith('.')
+    ? relativePath
+    : `./${relativePath}`
+
+  if (!hasValidExport) {
+    const message =
+      `The file "${resolvedPath}" must export a function, either as a default export or as a named "${fileName}" export.\n` +
+      `This function is what Next.js runs for every request handled by this ${fileName === 'proxy' ? 'proxy (previously called middleware)' : 'middleware'}.\n\n` +
+      `Why this happens:\n` +
+      (isProxy
+        ? "- You are migrating from `middleware` to `proxy`, but haven't updated the exported function.\n"
+        : '') +
+      `- The file exists but doesn't export a function.\n` +
+      `- The export is not a function (e.g., an object or constant).\n` +
+      `- There's a syntax error preventing the export from being recognized.\n\n` +
+      `To fix it:\n` +
+      `- Ensure this file has either a default or "${fileName}" function export.\n\n` +
+      `Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
+
+    if (isDev) {
+      // errorOnce as proxy/middleware runs per request including multiple
+      // internal _next/ routes and spams logs.
+      Log.errorOnce(message)
+    } else {
+      throw new Error(message)
+    }
+  }
+}
+
 async function tryToReadFile(filePath: string, shouldThrow: boolean) {
   try {
     return await fs.readFile(filePath, {
@@ -319,7 +444,7 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
 export function getMiddlewareMatchers(
   matcherOrMatchers: MiddlewareConfigMatcherInput,
   nextConfig: Pick<NextConfig, 'basePath' | 'i18n'>
-): MiddlewareMatcher[] {
+): ProxyMatcher[] {
   const matchers = Array.isArray(matcherOrMatchers)
     ? matcherOrMatchers
     : [matcherOrMatchers]
@@ -376,7 +501,7 @@ function parseMiddlewareConfig(
   page: string,
   rawConfig: unknown,
   nextConfig: NextConfig
-): MiddlewareConfig {
+): ProxyConfig {
   // If there's no config to parse, then return nothing.
   if (typeof rawConfig !== 'object' || !rawConfig) return {}
 
@@ -390,7 +515,7 @@ function parseMiddlewareConfig(
     process.exit(1)
   }
 
-  const config: MiddlewareConfig = {}
+  const config: ProxyConfig = {}
 
   if (input.data.matcher) {
     config.matchers = getMiddlewareMatchers(input.data.matcher, nextConfig)
@@ -420,7 +545,7 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
     return
   }
 
-  if (apiRouteWarnings.has(apiRoute)) {
+  if (apiRoute && apiRouteWarnings.has(apiRoute)) {
     return
   }
 
@@ -429,10 +554,13 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
       ? `${apiRoute} provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
       : `You are using an experimental edge runtime, the API might change.`
   )
-  apiRouteWarnings.set(apiRoute, 1)
+
+  if (apiRoute) {
+    apiRouteWarnings.set(apiRoute, 1)
+  }
 }
 
-export let hadUnsupportedValue = false
+let hadUnsupportedValue = false
 const warnedUnsupportedValueMap = new LRUCache<boolean>(250, () => 1)
 
 function warnAboutUnsupportedValue(
@@ -474,7 +602,7 @@ function warnAboutUnsupportedValue(
 type GetPageStaticInfoParams = {
   pageFilePath: string
   nextConfig: Partial<NextConfig>
-  isDev?: boolean
+  isDev: boolean
   page: string
   pageType: PAGE_TYPES
 }
@@ -493,10 +621,17 @@ export async function getAppPageStaticInfo({
       runtime: undefined,
       preferredRegion: undefined,
       maxDuration: undefined,
+      hadUnsupportedValue: false,
     }
   }
 
   const ast = await parseModule(pageFilePath, content)
+  validateMiddlewareProxyExports({
+    ast,
+    page,
+    pageFilePath,
+    isDev,
+  })
 
   const {
     generateStaticParams,
@@ -547,6 +682,12 @@ export async function getAppPageStaticInfo({
     )
   }
 
+  if ('unstable_prefetch' in config && !nextConfig.cacheComponents) {
+    throw new Error(
+      `Page "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`cacheComponents\`.`
+    )
+  }
+
   return {
     type: PAGE_TYPES.APP,
     rsc,
@@ -558,6 +699,7 @@ export async function getAppPageStaticInfo({
     runtime: config.runtime,
     preferredRegion: config.preferredRegion,
     maxDuration: config.maxDuration,
+    hadUnsupportedValue,
   }
 }
 
@@ -575,10 +717,17 @@ export async function getPagesPageStaticInfo({
       runtime: undefined,
       preferredRegion: undefined,
       maxDuration: undefined,
+      hadUnsupportedValue: false,
     }
   }
 
   const ast = await parseModule(pageFilePath, content)
+  validateMiddlewareProxyExports({
+    ast,
+    page,
+    pageFilePath,
+    isDev,
+  })
 
   const { getServerSideProps, getStaticProps, exports } = checkExports(
     ast,
@@ -615,18 +764,35 @@ export async function getPagesPageStaticInfo({
   const config = parsePagesSegmentConfig(exportedConfig, route)
   const isAnAPIRoute = isAPIRoute(route)
 
-  const resolvedRuntime =
-    isEdgeRuntime(config.runtime ?? config.config?.runtime) ||
-    getServerSideProps ||
-    getStaticProps
-      ? config.runtime ?? config.config?.runtime
-      : undefined
+  let resolvedRuntime = config.runtime ?? config.config?.runtime
+
+  if (isProxyFile(page) && resolvedRuntime) {
+    const relativePath = relative(process.cwd(), pageFilePath)
+    const resolvedPath = relativePath.startsWith('.')
+      ? relativePath
+      : `./${relativePath}`
+    const message = `Route segment config is not allowed in Proxy file at "${resolvedPath}". Proxy always runs on Node.js runtime. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
+
+    if (isDev) {
+      // errorOnce as proxy/middleware runs per request including multiple
+      // internal _next/ routes and spams logs.
+      Log.errorOnce(message)
+      resolvedRuntime = SERVER_RUNTIME.nodejs
+    } else {
+      throw new Error(message)
+    }
+  }
 
   if (resolvedRuntime === SERVER_RUNTIME.experimentalEdge) {
     warnAboutExperimentalEdge(isAnAPIRoute ? page! : null)
   }
 
-  if (resolvedRuntime === SERVER_RUNTIME.edge && page && !isAnAPIRoute) {
+  if (
+    !isProxyFile(page) &&
+    resolvedRuntime === SERVER_RUNTIME.edge &&
+    page &&
+    !isAnAPIRoute
+  ) {
     const message = `Page ${page} provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
     if (isDev) {
       Log.error(message)
@@ -645,6 +811,7 @@ export async function getPagesPageStaticInfo({
     runtime: resolvedRuntime,
     preferredRegion: config.config?.regions,
     maxDuration: config.maxDuration ?? config.config?.maxDuration,
+    hadUnsupportedValue,
   }
 }
 

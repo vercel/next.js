@@ -26,7 +26,8 @@ interface HTTPAccessFallbackBoundaryProps {
   notFound?: React.ReactNode
   forbidden?: React.ReactNode
   unauthorized?: React.ReactNode
-  children: React.ReactNode
+  // TODO: Make this required once `React.createElement` understands that positional args go into children
+  children?: React.ReactNode
   missingSlots?: Set<string>
 }
 
@@ -57,6 +58,7 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
     if (
       process.env.NODE_ENV === 'development' &&
       this.props.missingSlots &&
+      this.props.missingSlots.size > 0 &&
       // A missing children slot is the typical not-found case, so no need to warn
       !this.props.missingSlots.has('children')
     ) {
@@ -64,14 +66,12 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
         'No default component was found for a parallel route rendered on this page. Falling back to nearest NotFound boundary.\n' +
         'Learn more: https://nextjs.org/docs/app/building-your-application/routing/parallel-routes#defaultjs\n\n'
 
-      if (this.props.missingSlots.size > 0) {
-        const formattedSlots = Array.from(this.props.missingSlots)
-          .sort((a, b) => a.localeCompare(b))
-          .map((slot) => `@${slot}`)
-          .join(', ')
+      const formattedSlots = Array.from(this.props.missingSlots)
+        .sort((a, b) => a.localeCompare(b))
+        .map((slot) => `@${slot}`)
+        .join(', ')
 
-        warningMessage += 'Missing slots: ' + formattedSlots
-      }
+      warningMessage += 'Missing slots: ' + formattedSlots
 
       warnOnce(warningMessage)
     }
@@ -137,7 +137,7 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
           <meta name="robots" content="noindex" />
           {process.env.NODE_ENV === 'development' && (
             <meta
-              name="next-error"
+              name="boundary-next-error"
               content={getAccessFallbackErrorTypeByStatus(triggeredStatus)}
             />
           )}

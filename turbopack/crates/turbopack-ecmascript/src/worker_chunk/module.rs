@@ -1,20 +1,21 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkableModule, ChunkingContext},
+    chunk::{
+        ChunkGroupType, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
+        ChunkingTypeOption,
+    },
     ident::AssetIdent,
     module::Module,
-    reference::{ModuleReferences, SingleModuleReference},
+    module_graph::ModuleGraph,
+    reference::{ModuleReference, ModuleReferences},
+    resolve::ModuleResolveResult,
 };
 
 use super::chunk_item::WorkerLoaderChunkItem;
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("worker loader".into())
-}
 
 /// The WorkerLoaderModule is a module that creates a separate root chunk group for the given module
 /// and exports a URL to pass to the worker constructor.
@@ -32,13 +33,8 @@ impl WorkerLoaderModule {
 
     #[turbo_tasks::function]
     pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
-        module.ident().with_modifier(modifier())
+        module.ident().with_modifier(rcstr!("worker loader"))
     }
-}
-
-#[turbo_tasks::function]
-fn inner_module_reference_description() -> Vc<RcStr> {
-    Vc::cell("worker module".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -49,11 +45,25 @@ impl Module for WorkerLoaderModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![Vc::upcast(SingleModuleReference::new(
-            *ResolvedVc::upcast(self.await?.inner),
-            inner_module_reference_description(),
-        ))]))
+        Ok(Vc::cell(vec![ResolvedVc::upcast(
+            WorkerModuleReference::new(*ResolvedVc::upcast(self.await?.inner))
+                .to_resolved()
+                .await?,
+        )]))
+    }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(
+        self: Vc<Self>,
+        _side_effect_free_packages: Vc<Glob>,
+    ) -> Vc<bool> {
+        Vc::cell(true)
     }
 }
 
@@ -61,7 +71,7 @@ impl Module for WorkerLoaderModule {
 impl Asset for WorkerLoaderModule {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        todo!()
+        panic!("content() should not be called");
     }
 }
 
@@ -70,14 +80,56 @@ impl ChunkableModule for WorkerLoaderModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             WorkerLoaderChunkItem {
-                chunking_context,
                 module: self,
+                module_graph,
+                chunking_context,
             }
             .cell(),
         )
+    }
+}
+
+#[turbo_tasks::value]
+struct WorkerModuleReference {
+    module: ResolvedVc<Box<dyn Module>>,
+}
+
+#[turbo_tasks::value_impl]
+impl WorkerModuleReference {
+    #[turbo_tasks::function]
+    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        Self::cell(WorkerModuleReference { module })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModuleReference for WorkerModuleReference {
+    #[turbo_tasks::function]
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Isolated {
+            _ty: ChunkGroupType::Evaluated,
+            merge_tag: None,
+        }))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleReference for WorkerModuleReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        *ModuleResolveResult::module(self.module)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for WorkerModuleReference {
+    #[turbo_tasks::function]
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell(rcstr!("worker module"))
     }
 }

@@ -1,6 +1,5 @@
-
-import { Table } from "./table"
+import { Table } from './table'
 
 export function Table() {
-    console.log(Table)
+  console.log(Table)
 }

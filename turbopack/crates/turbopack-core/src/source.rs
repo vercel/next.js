@@ -8,6 +8,7 @@ use crate::{asset::Asset, ident::AssetIdent};
 pub trait Source: Asset {
     /// The identifier of the [Source]. It's expected to be unique and capture
     /// all properties of the [Source].
+    #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent>;
 }
 
@@ -16,5 +17,3 @@ pub struct OptionSource(Option<ResolvedVc<Box<dyn Source>>>);
 
 #[turbo_tasks::value(transparent)]
 pub struct Sources(Vec<ResolvedVc<Box<dyn Source>>>);
-
-// TODO All Vc::try_resolve_downcast::<Box<dyn Source>> calls should be removed

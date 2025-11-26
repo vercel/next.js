@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 // This next-types-plugin feature only works in webpack
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'app-dir - sync-params-type-check',
   () => {
     const { next } = nextTestSetup({

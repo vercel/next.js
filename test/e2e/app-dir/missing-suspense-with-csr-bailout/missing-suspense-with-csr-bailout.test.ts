@@ -21,15 +21,23 @@ describe('missing-suspense-with-csr-bailout', () => {
     await next.clean()
   })
 
+  const isCacheComponentsEnabled =
+    process.env.__NEXT_CACHE_COMPONENTS === 'true'
+
   describe('useSearchParams', () => {
-    const message = `useSearchParams() should be wrapped in a suspense boundary at page "/".`
+    const message = isCacheComponentsEnabled
+      ? 'https://nextjs.org/docs/messages/blocking-route'
+      : `useSearchParams() should be wrapped in a suspense boundary at page "/".`
 
     it('should fail build if useSearchParams is not wrapped in a suspense boundary', async () => {
       const { exitCode } = await next.build()
       expect(exitCode).toBe(1)
       expect(next.cliOutput).toContain(message)
       // Can show the trace where the searchParams hook is used
-      expect(next.cliOutput).toMatch(/at.*server[\\/]app[\\/]page.js/)
+      // TODO: This path is different for Turbopack. Builds need to have sourcemaps support.
+      if (!process.env.IS_TURBOPACK_TEST) {
+        expect(next.cliOutput).toMatch(/at.*server[\\/]app[\\/]page.js/)
+      }
     })
 
     it('should pass build if useSearchParams is wrapped in a suspense boundary', async () => {

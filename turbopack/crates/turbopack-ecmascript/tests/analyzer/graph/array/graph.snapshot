@@ -13,7 +13,7 @@
         "b",
         Constant(
             Str(
-                Word(
+                Atom(
                     "foo",
                 ),
             ),
@@ -35,7 +35,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "foo",
                             ),
                         ),
@@ -72,7 +72,7 @@
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "foo",
                         ),
                     ),

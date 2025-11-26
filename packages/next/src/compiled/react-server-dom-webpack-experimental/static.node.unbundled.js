@@ -7,6 +7,4 @@ if (process.env.NODE_ENV === 'production') {
   s = require('./cjs/react-server-dom-webpack-server.node.unbundled.development.js');
 }
 
-if (s.prerenderToNodeStream) {
-  exports.prerenderToNodeStream = s.prerenderToNodeStream;
-}
+exports.prerenderToNodeStream = s.prerenderToNodeStream;

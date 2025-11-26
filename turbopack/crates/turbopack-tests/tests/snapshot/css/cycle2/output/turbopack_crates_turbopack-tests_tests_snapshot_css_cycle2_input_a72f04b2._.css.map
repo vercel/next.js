@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/e.css"],"sourcesContent":["@import 'a.css';\n\n.e {\n  content: '1 3';\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/d.css"],"sourcesContent":["@import 'e.css';\n\n.d {\n  content: '2 4';\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/c.css"],"sourcesContent":["@import 'd.css';\n\n.c {\n  content: '3 5';\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/b.css"],"sourcesContent":["@import 'c.css';\n\n.b {\n  content: '4 1';\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 21, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/a.css"],"sourcesContent":["@import 'b.css';\n\n.a {\n  content: '5 2';\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 26, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/x.css"],"sourcesContent":["@import 'a.css';\n\n.x {\n  content: '6 7';\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 31, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/y.css"],"sourcesContent":["@import 'c.css';\n\n.y {\n  content: '7 6';\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 36, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/1.css"],"sourcesContent":["@import 'a.css';\n@import 'x.css';\n@import 'y.css';\n"],"names":[],"mappings":""}}]
+}

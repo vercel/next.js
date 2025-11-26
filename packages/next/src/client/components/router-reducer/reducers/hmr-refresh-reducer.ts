@@ -1,4 +1,7 @@
-import { fetchServerResponse } from '../fetch-server-response'
+import {
+  fetchServerResponse,
+  type FetchServerResponseResult,
+} from '../fetch-server-response'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
@@ -11,7 +14,7 @@ import type {
 import { handleExternalUrl } from './navigate-reducer'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
-import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-types'
 import { createEmptyCacheNode } from '../../app-router'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
@@ -34,6 +37,7 @@ function hmrRefreshReducerImpl(
 
   // TODO-APP: verify that `href` is not an external url.
   // Fetch data from the root of the tree.
+  const navigatedAt = Date.now()
   cache.lazyData = fetchServerResponse(new URL(href, origin), {
     flightRouterState: [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
     nextUrl: includeNextUrl ? state.nextUrl : null,
@@ -41,16 +45,18 @@ function hmrRefreshReducerImpl(
   })
 
   return cache.lazyData.then(
-    ({ flightData, canonicalUrl: canonicalUrlOverride }) => {
+    (result: FetchServerResponseResult) => {
       // Handle case when navigating to page in `pages` from `app`
-      if (typeof flightData === 'string') {
+      if (typeof result === 'string') {
         return handleExternalUrl(
           state,
           mutable,
-          flightData,
+          result,
           state.pushRef.pendingPush
         )
       }
+
+      const { flightData, canonicalUrl, renderedSearch } = result
 
       // Remove cache.lazyData as it has been resolved at this point.
       cache.lazyData = null
@@ -87,14 +93,8 @@ function hmrRefreshReducerImpl(
           )
         }
 
-        const canonicalUrlOverrideHref = canonicalUrlOverride
-          ? createHrefFromUrl(canonicalUrlOverride)
-          : undefined
-
-        if (canonicalUrlOverride) {
-          mutable.canonicalUrl = canonicalUrlOverrideHref
-        }
         const applied = applyFlightData(
+          navigatedAt,
           currentCache,
           cache,
           normalizedFlightData
@@ -106,7 +106,8 @@ function hmrRefreshReducerImpl(
         }
 
         mutable.patchedTree = newTree
-        mutable.canonicalUrl = href
+        mutable.renderedSearch = renderedSearch
+        mutable.canonicalUrl = createHrefFromUrl(canonicalUrl)
 
         currentTree = newTree
       }

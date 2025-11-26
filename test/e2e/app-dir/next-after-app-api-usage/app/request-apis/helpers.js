@@ -1,5 +1,5 @@
 import { cookies, headers } from 'next/headers'
-import { unstable_after as after, connection } from 'next/server'
+import { after, connection } from 'next/server'
 
 export function testRequestAPIs(/** @type {string} */ route) {
   after(async () => {

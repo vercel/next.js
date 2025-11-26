@@ -1,10 +1,10 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput, Field, FieldsNamed, FieldsUnnamed};
-use turbo_tasks_macros_shared::{generate_destructuring, match_expansion};
+use syn::{DeriveInput, Field, FieldsNamed, FieldsUnnamed, parse_macro_input};
 
 use super::FieldAttributes;
+use crate::expand::{generate_destructuring, match_expansion};
 
 fn filter_field(field: &Field) -> bool {
     !FieldAttributes::from(field.attrs.as_slice()).debug_ignore

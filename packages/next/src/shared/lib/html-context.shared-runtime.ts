@@ -8,7 +8,7 @@ import { createContext, useContext, type JSX } from 'react'
 
 export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA
-  strictNextHead: boolean
+  nonce?: string
   dangerousAsPath: string
   docComponentsRendered: {
     Html?: boolean
@@ -17,9 +17,6 @@ export type HtmlProps = {
     NextScript?: boolean
   }
   buildManifest: BuildManifest
-  ampPath: string
-  inAmpMode: boolean
-  hybridAmp: boolean
   isDevelopment: boolean
   dynamicImports: string[]
   /**
@@ -28,7 +25,6 @@ export type HtmlProps = {
    */
   dynamicCssManifest: Set<string>
   assetPrefix?: string
-  canonicalBase: string
   headTags: any[]
   unstable_runtimeJS?: false
   unstable_JsPreload?: false

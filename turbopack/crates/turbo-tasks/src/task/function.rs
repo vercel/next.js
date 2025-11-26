@@ -26,7 +26,7 @@ use std::{future::Future, marker::PhantomData, pin::Pin};
 use anyhow::Result;
 
 use super::{TaskInput, TaskOutput};
-use crate::{magic_any::MagicAny, RawVc, Vc, VcRead, VcValueType};
+use crate::{RawVc, Vc, VcRead, VcValueType, magic_any::MagicAny};
 
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
 
@@ -166,18 +166,27 @@ macro_rules! task_inputs_impl {
     }
 }
 
-fn get_args<T: MagicAny>(arg: &dyn MagicAny) -> Result<&T> {
-    let value = arg.downcast_ref::<T>();
+/// Downcast, and clone all the arguments in the singular `arg` tuple.
+///
+/// This helper function for `task_fn_impl!()` reduces the amount of code inside the macro, and
+/// gives the compiler more chances to dedupe monomorphized code across small functions with less
+/// typevars.
+fn get_args<T: MagicAny + Clone>(arg: &dyn MagicAny) -> Result<T> {
+    let value = (arg as &dyn std::any::Any).downcast_ref::<T>().cloned();
     #[cfg(debug_assertions)]
     return anyhow::Context::with_context(value, || {
-        format!(
-            "Invalid argument type, expected {} got {}",
+        crate::native_function::debug_downcast_args_error_msg(
             std::any::type_name::<T>(),
-            (*arg).magic_type_name()
+            arg.magic_type_name(),
         )
     });
     #[cfg(not(debug_assertions))]
     return anyhow::Context::context(value, "Invalid argument type");
+}
+
+// Helper function for `task_fn_impl!()`
+async fn output_try_into_non_local_raw_vc(output: impl TaskOutput) -> Result<RawVc> {
+    output.try_into_raw_vc()?.to_non_local().await
 }
 
 macro_rules! task_fn_impl {
@@ -191,14 +200,10 @@ macro_rules! task_fn_impl {
             #[allow(non_snake_case)]
             fn functor(&self, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
-
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
-                $(
-                    let $arg = $arg.clone();
-                )*
-
                 Ok(Box::pin(async move {
-                    Output::try_into_raw_vc((task_fn)($($arg,)*))
+                    let output = (task_fn)($($arg,)*);
+                    output_try_into_non_local_raw_vc(output).await
                 }))
             }
         }
@@ -207,20 +212,16 @@ macro_rules! task_fn_impl {
         where
             $($arg: TaskInput + 'static,)*
             F: Fn($($arg,)*) -> FutureOutput + Send + Sync + Clone + 'static,
-            FutureOutput: Future<Output = Output> + Send,
+            FutureOutput: Future<Output = Output> + Send + 'static,
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
             fn functor(&self, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
-
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
-                $(
-                    let $arg = $arg.clone();
-                )*
-
                 Ok(Box::pin(async move {
-                    Output::try_into_raw_vc((task_fn)($($arg,)*).await)
+                    let output = (task_fn)($($arg,)*).await;
+                    output_try_into_non_local_raw_vc(output).await
                 }))
             }
         }
@@ -236,16 +237,12 @@ macro_rules! task_fn_impl {
             fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
                 let recv = Vc::<Recv>::from(this);
-
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
-                $(
-                    let $arg = $arg.clone();
-                )*
-
                 Ok(Box::pin(async move {
                     let recv = recv.await?;
                     let recv = <Recv::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
-                    Output::try_into_raw_vc((task_fn)(recv, $($arg,)*))
+                    let output = (task_fn)(recv, $($arg,)*);
+                    output_try_into_non_local_raw_vc(output).await
                 }))
             }
         }
@@ -261,14 +258,10 @@ macro_rules! task_fn_impl {
             fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
                 let recv = Vc::<Recv>::from(this);
-
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
-                $(
-                    let $arg = $arg.clone();
-                )*
-
                 Ok(Box::pin(async move {
-                    Output::try_into_raw_vc((task_fn)(recv, $($arg,)*))
+                    let output = (task_fn)(recv, $($arg,)*);
+                    output_try_into_non_local_raw_vc(output).await
                 }))
             }
         }
@@ -282,7 +275,7 @@ macro_rules! task_fn_impl {
         where
             F: Fn(A0, $($arg,)*) -> Fut,
             Fut: Future + Send,
-            Fut::Output: TaskOutput
+            Fut::Output: TaskOutput + 'static
         {
             type OutputFuture = Fut;
             type Output = Fut::Output;
@@ -298,16 +291,12 @@ macro_rules! task_fn_impl {
             fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
                 let recv = Vc::<Recv>::from(this);
-
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
-                $(
-                    let $arg = $arg.clone();
-                )*
-
                 Ok(Box::pin(async move {
                     let recv = recv.await?;
                     let recv = <Recv::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
-                    <F as $async_fn_trait<&Recv, $($arg,)*>>::Output::try_into_raw_vc((task_fn)(recv, $($arg,)*).await)
+                    let output = (task_fn)(recv, $($arg,)*).await;
+                    output_try_into_non_local_raw_vc(output).await
                 }))
             }
         }
@@ -322,14 +311,10 @@ macro_rules! task_fn_impl {
             fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
                 let recv = Vc::<Recv>::from(this);
-
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
-                $(
-                    let $arg = $arg.clone();
-                )*
-
                 Ok(Box::pin(async move {
-                    <F as $async_fn_trait<Vc<Recv>, $($arg,)*>>::Output::try_into_raw_vc((task_fn)(recv, $($arg,)*).await)
+                    let output = (task_fn)(recv, $($arg,)*).await;
+                    output_try_into_non_local_raw_vc(output).await
                 }))
             }
         }

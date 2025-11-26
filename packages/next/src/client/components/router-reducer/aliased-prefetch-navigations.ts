@@ -1,10 +1,12 @@
 import type {
   CacheNodeSeedData,
   FlightRouterState,
-} from '../../../server/app-render/types'
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+  FlightSegmentPath,
+} from '../../../shared/lib/app-router-types'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 import {
   addSearchParamsIfPageSegment,
+  DEFAULT_SEGMENT_KEY,
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
@@ -14,6 +16,7 @@ import { createHrefFromUrl } from './create-href-from-url'
 import { createRouterCacheKey } from './create-router-cache-key'
 import { fillCacheWithNewSubTreeDataButOnlyLoading } from './fill-cache-with-new-subtree-data'
 import { handleMutable } from './handle-mutable'
+import { generateSegmentsFromPatch } from './reducers/navigate-reducer'
 import type { Mutable, ReadonlyReducerState } from './router-reducer-types'
 
 /**
@@ -24,15 +27,22 @@ import type { Mutable, ReadonlyReducerState } from './router-reducer-types'
  * more granular segment map and so the router will be able to simply re-use the loading segment for the new navigation.
  */
 export function handleAliasedPrefetchEntry(
+  navigatedAt: number,
   state: ReadonlyReducerState,
-  flightData: NormalizedFlightData[],
+  flightData: string | NormalizedFlightData[],
   url: URL,
+  renderedSearch: string,
   mutable: Mutable
 ) {
   let currentTree = state.tree
   let currentCache = state.cache
   const href = createHrefFromUrl(url)
   let applied
+  let scrollableSegments: FlightSegmentPath[] = []
+
+  if (typeof flightData === 'string') {
+    return false
+  }
 
   for (const normalizedFlightData of flightData) {
     // If the segment doesn't have a loading component, we don't need to do anything.
@@ -74,13 +84,14 @@ export function handleAliasedPrefetchEntry(
     // loading state and not the actual parallel route seed data.
     if (isRootRender && seedData) {
       // Fill in the cache with the new loading / rsc data
-      const rsc = seedData[1]
-      const loading = seedData[3]
+      const rsc = seedData[0]
+      const loading = seedData[2]
       newCache.loading = loading
       newCache.rsc = rsc
 
       // Construct a new tree and apply the aliased loading state for each parallel route
       fillNewTreeWithOnlyLoadingSegments(
+        navigatedAt,
         newCache,
         currentCache,
         treePatch,
@@ -95,6 +106,7 @@ export function handleAliasedPrefetchEntry(
 
       // copy the loading state only into the leaf node (the part that changed)
       fillCacheWithNewSubTreeDataButOnlyLoading(
+        navigatedAt,
         newCache,
         currentCache,
         normalizedFlightData
@@ -108,6 +120,20 @@ export function handleAliasedPrefetchEntry(
       currentCache = newCache
       applied = true
     }
+
+    for (const subSegment of generateSegmentsFromPatch(treePatch)) {
+      const scrollableSegmentPath = [
+        ...normalizedFlightData.pathToSegment,
+        ...subSegment,
+      ]
+      // Filter out the __DEFAULT__ paths as they shouldn't be scrolled to in this case.
+      if (
+        scrollableSegmentPath[scrollableSegmentPath.length - 1] !==
+        DEFAULT_SEGMENT_KEY
+      ) {
+        scrollableSegments.push(scrollableSegmentPath)
+      }
+    }
   }
 
   if (!applied) {
@@ -115,9 +141,11 @@ export function handleAliasedPrefetchEntry(
   }
 
   mutable.patchedTree = currentTree
+  mutable.renderedSearch = renderedSearch
   mutable.cache = currentCache
   mutable.canonicalUrl = href
   mutable.hashFragment = url.hash
+  mutable.scrollableSegments = scrollableSegments
 
   return handleMutable(state, mutable)
 }
@@ -125,8 +153,8 @@ export function handleAliasedPrefetchEntry(
 function hasLoadingComponentInSeedData(seedData: CacheNodeSeedData | null) {
   if (!seedData) return false
 
-  const parallelRoutes = seedData[2]
-  const loading = seedData[3]
+  const parallelRoutes = seedData[1]
+  const loading = seedData[2]
 
   if (loading) {
     return true
@@ -142,6 +170,7 @@ function hasLoadingComponentInSeedData(seedData: CacheNodeSeedData | null) {
 }
 
 function fillNewTreeWithOnlyLoadingSegments(
+  navigatedAt: number,
   newCache: CacheNode,
   existingCache: CacheNode,
   routerState: FlightRouterState,
@@ -158,15 +187,15 @@ function fillNewTreeWithOnlyLoadingSegments(
     const cacheKey = createRouterCacheKey(segmentForParallelRoute)
 
     const parallelSeedData =
-      cacheNodeSeedData !== null && cacheNodeSeedData[2][key] !== undefined
-        ? cacheNodeSeedData[2][key]
+      cacheNodeSeedData !== null && cacheNodeSeedData[1][key] !== undefined
+        ? cacheNodeSeedData[1][key]
         : null
 
     let newCacheNode: CacheNode
     if (parallelSeedData !== null) {
       // New data was sent from the server.
-      const rsc = parallelSeedData[1]
-      const loading = parallelSeedData[3]
+      const rsc = parallelSeedData[0]
+      const loading = parallelSeedData[2]
       newCacheNode = {
         lazyData: null,
         // copy the layout but null the page segment as that's not meant to be used
@@ -176,6 +205,7 @@ function fillNewTreeWithOnlyLoadingSegments(
         prefetchHead: null,
         parallelRoutes: new Map(),
         loading,
+        navigatedAt,
       }
     } else {
       // No data available for this node. This will trigger a lazy fetch
@@ -188,6 +218,7 @@ function fillNewTreeWithOnlyLoadingSegments(
         prefetchHead: null,
         parallelRoutes: new Map(),
         loading: null,
+        navigatedAt: -1,
       }
     }
 
@@ -199,6 +230,7 @@ function fillNewTreeWithOnlyLoadingSegments(
     }
 
     fillNewTreeWithOnlyLoadingSegments(
+      navigatedAt,
       newCacheNode,
       existingCache,
       parallelRouteState,

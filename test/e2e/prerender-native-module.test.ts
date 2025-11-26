@@ -22,6 +22,11 @@ describe('prerender native module', () => {
         sqlite: '4.0.22',
         sqlite3: '5.0.2',
       },
+      packageJson: {
+        pnpm: {
+          onlyBuiltDependencies: ['sqlite3'],
+        },
+      },
     })
   })
   afterAll(() => next.destroy())

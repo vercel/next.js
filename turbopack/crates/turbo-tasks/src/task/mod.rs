@@ -1,5 +1,6 @@
 mod from_task_input;
 pub(crate) mod function;
+pub mod local_task;
 pub(crate) mod shared_reference;
 pub(crate) mod task_input;
 pub(crate) mod task_output;

@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { RustServerComponent } from "../components/RustComponent";
 
-export default function Page({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string };
+export default async function Page(props: {
+  searchParams: Promise<{ [key: string]: string }>;
 }) {
+  const searchParams = await props.searchParams;
   const number = parseInt(searchParams.number || "30");
   return (
     <div>

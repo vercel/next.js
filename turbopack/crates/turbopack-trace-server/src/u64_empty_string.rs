@@ -1,4 +1,4 @@
-use serde::{de, Deserialize, Deserializer, Serializer};
+use serde::{Deserialize, Deserializer, Serializer, de};
 
 pub fn serialize<S>(value: &u64, serializer: S) -> Result<S::Ok, S::Error>
 where

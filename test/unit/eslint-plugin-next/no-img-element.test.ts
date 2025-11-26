@@ -1,5 +1,4 @@
-import { RuleTester as ESLintTesterV8 } from 'eslint-v8'
-import { RuleTester as ESLintTesterV9 } from 'eslint'
+import { RuleTester } from 'eslint'
 import { rules } from '@next/eslint-plugin-next'
 
 const NextESLintRule = rules['no-img-element']
@@ -55,6 +54,46 @@ const tests = {
           );
         }
       }`,
+    {
+      code: `\
+import { ImageResponse } from "next/og";
+
+export default function icon() {
+  return new ImageResponse(
+    (
+      <img
+        alt="avatar"
+        style={{ borderRadius: "100%" }}
+        width="100%"
+        height="100%"
+        src="https://example.com/image.png"
+      />
+    )
+  );
+}
+`,
+      filename: `src/app/icon.js`,
+    },
+    {
+      code: `\
+import { ImageResponse } from "next/og";
+
+export default function Image() {
+  return new ImageResponse(
+    (
+      <img
+        alt="avatar"
+        style={{ borderRadius: "100%" }}
+        width="100%"
+        height="100%"
+        src="https://example.com/image.png"
+      />
+    )
+  );
+}
+`,
+      filename: `app/opengraph-image.tsx`,
+    },
   ],
   invalid: [
     {
@@ -91,22 +130,32 @@ const tests = {
       }`,
       errors: [{ message, type: 'JSXOpeningElement' }],
     },
+    {
+      code: `\
+import { ImageResponse } from "next/og";
+
+export default function Image() {
+return new ImageResponse(
+  (
+    <img
+      alt="avatar"
+      style={{ borderRadius: "100%" }}
+      width="100%"
+      height="100%"
+      src="https://example.com/image.png"
+    />
+  )
+);
+}
+`,
+      filename: `some/non-metadata-route-image.tsx`,
+      errors: [{ message, type: 'JSXOpeningElement' }],
+    },
   ],
 }
 
 describe('no-img-element', () => {
-  new ESLintTesterV8({
-    parserOptions: {
-      ecmaVersion: 2018,
-      sourceType: 'module',
-      ecmaFeatures: {
-        modules: true,
-        jsx: true,
-      },
-    },
-  }).run('eslint-v8', NextESLintRule, tests)
-
-  new ESLintTesterV9({
+  new RuleTester({
     languageOptions: {
       ecmaVersion: 2018,
       sourceType: 'module',
@@ -117,5 +166,5 @@ describe('no-img-element', () => {
         },
       },
     },
-  }).run('eslint-v9', NextESLintRule, tests)
+  }).run('eslint', NextESLintRule, tests)
 })

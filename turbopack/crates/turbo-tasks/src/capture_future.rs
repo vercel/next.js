@@ -1,76 +1,87 @@
 use std::{
+    borrow::Cow,
+    fmt::Display,
     future::Future,
+    panic,
     pin::Pin,
-    sync::{Arc, Mutex},
     task::{Context, Poll},
-    time::{Duration, Instant},
 };
 
+use anyhow::Result;
 use pin_project_lite::pin_project;
-use tokio::{task::futures::TaskLocalFuture, task_local};
-use turbo_tasks_malloc::{AllocationInfo, TurboMalloc};
+use serde::{Deserialize, Serialize};
 
-task_local! {
-    static EXTRA: Arc<Mutex<(Duration, usize, usize)>>;
-}
+use crate::{backend::TurboTasksExecutionErrorMessage, panic_hooks::LAST_ERROR_LOCATION};
 
 pin_project! {
     pub struct CaptureFuture<T, F: Future<Output = T>> {
-        cell: Arc<Mutex<(Duration, usize, usize)>>,
         #[pin]
-        future: TaskLocalFuture<Arc<Mutex<(Duration, usize, usize)>>, F>,
-        duration: Duration,
-        allocations: usize,
-        deallocations: usize,
+        future: F,
     }
 }
 
 impl<T, F: Future<Output = T>> CaptureFuture<T, F> {
     pub fn new(future: F) -> Self {
-        let cell = Arc::new(Mutex::new((Duration::ZERO, 0, 0)));
-        Self {
-            future: EXTRA.scope(cell.clone(), future),
-            cell,
-            duration: Duration::ZERO,
-            allocations: 0,
-            deallocations: 0,
-        }
+        Self { future }
     }
 }
 
-pub fn add_duration(duration: Duration) {
-    let _ = EXTRA.try_with(|cell| cell.lock().unwrap().0 += duration);
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TurboTasksPanic {
+    pub message: TurboTasksExecutionErrorMessage,
+    pub location: Option<String>,
 }
 
-pub fn add_allocation_info(alloc_info: AllocationInfo) {
-    let _ = EXTRA.try_with(|cell| {
-        let mut guard = cell.lock().unwrap();
-        guard.1 += alloc_info.allocations;
-        guard.2 += alloc_info.deallocations;
-    });
+impl TurboTasksPanic {
+    pub fn into_panic(self) -> Box<dyn std::any::Any + Send> {
+        Box::new(format!(
+            "{} at {}",
+            self.message,
+            self.location
+                .unwrap_or_else(|| "unknown location".to_string())
+        ))
+    }
+}
+
+impl Display for TurboTasksPanic {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
 }
 
 impl<T, F: Future<Output = T>> Future for CaptureFuture<T, F> {
-    type Output = (T, Duration, usize);
+    type Output = Result<T, TurboTasksPanic>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.project();
-        let start = Instant::now();
-        let start_allocations = TurboMalloc::allocation_counters();
-        let result = this.future.poll(cx);
-        let elapsed = start.elapsed();
-        let allocations = start_allocations.until_now();
-        *this.duration += elapsed;
-        *this.allocations += allocations.allocations;
-        *this.deallocations += allocations.deallocations;
+
+        let result =
+            panic::catch_unwind(panic::AssertUnwindSafe(|| this.future.poll(cx))).map_err(|err| {
+                let message = match err.downcast_ref::<&'static str>() {
+                    Some(s) => TurboTasksExecutionErrorMessage::PIISafe(Cow::Borrowed(s)),
+                    None => match err.downcast_ref::<String>() {
+                        Some(s) => TurboTasksExecutionErrorMessage::NonPIISafe(s.clone()),
+                        None => {
+                            let error_message = err
+                                .downcast_ref::<Box<dyn Display>>()
+                                .map(|e| e.to_string())
+                                .unwrap_or_else(|| String::from("<unknown panic>"));
+
+                            TurboTasksExecutionErrorMessage::NonPIISafe(error_message)
+                        }
+                    },
+                };
+
+                LAST_ERROR_LOCATION.with_borrow(|loc| TurboTasksPanic {
+                    message,
+                    location: loc.clone(),
+                })
+            });
+
         match result {
-            Poll::Ready(r) => {
-                let (duration, allocations, deallocations) = *this.cell.lock().unwrap();
-                let memory_usage = (*this.allocations + allocations)
-                    .saturating_sub(*this.deallocations + deallocations);
-                Poll::Ready((r, *this.duration + duration, memory_usage))
-            }
-            Poll::Pending => Poll::Pending,
+            Err(err) => Poll::Ready(Err(err)),
+            Ok(Poll::Ready(r)) => Poll::Ready(Ok(r)),
+            Ok(Poll::Pending) => Poll::Pending,
         }
     }
 }

@@ -5,13 +5,13 @@ use lightningcss::{
     traits::ToCss,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CssReferenceSubType, ImportContext},
-    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
 
 use crate::{
@@ -20,7 +20,8 @@ use crate::{
     references::css_resolve,
 };
 
-#[turbo_tasks::value(into = "new", eq = "manual", serialization = "none")]
+#[turbo_tasks::value(eq = "manual", serialization = "none", shared)]
+#[derive(PartialEq)]
 pub enum ImportAttributes {
     LightningCss {
         #[turbo_tasks(trace_ignore)]
@@ -32,11 +33,7 @@ pub enum ImportAttributes {
     },
 }
 
-impl PartialEq for ImportAttributes {
-    fn eq(&self, _: &Self) -> bool {
-        false
-    }
-}
+impl Eq for ImportAttributes {}
 
 impl ImportAttributes {
     pub fn new_from_lightningcss(prelude: &ImportRule<'static>) -> Self {
@@ -86,8 +83,8 @@ pub struct ImportAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
     pub attributes: ResolvedVc<ImportAttributes>,
-    pub import_context: ResolvedVc<ImportContext>,
-    pub issue_source: ResolvedVc<IssueSource>,
+    pub import_context: Option<ResolvedVc<ImportContext>>,
+    pub issue_source: IssueSource,
 }
 
 #[turbo_tasks::value_impl]
@@ -97,8 +94,8 @@ impl ImportAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         attributes: ResolvedVc<ImportAttributes>,
-        import_context: ResolvedVc<ImportContext>,
-        issue_source: ResolvedVc<IssueSource>,
+        import_context: Option<ResolvedVc<ImportContext>>,
+        issue_source: IssueSource,
     ) -> Vc<Self> {
         Self::cell(ImportAssetReference {
             origin,
@@ -114,19 +111,32 @@ impl ImportAssetReference {
 impl ModuleReference for ImportAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let import_context = {
-            let own_attrs = (*self.attributes.await?).as_reference_import_attributes();
-            self.import_context
-                .add_attributes(own_attrs.layer, own_attrs.media, own_attrs.supports)
+        let own_attrs = self.attributes.await?.as_reference_import_attributes();
+        let import_context = match (&self.import_context, own_attrs.is_empty()) {
+            (Some(import_context), true) => Some(*import_context),
+            (None, false) => Some(
+                ImportContext::new(
+                    own_attrs.layer.iter().cloned().collect(),
+                    own_attrs.media.iter().cloned().collect(),
+                    own_attrs.supports.iter().cloned().collect(),
+                )
                 .to_resolved()
-                .await?
+                .await?,
+            ),
+            (Some(import_context), false) => Some(
+                import_context
+                    .add_attributes(own_attrs.layer, own_attrs.media, own_attrs.supports)
+                    .to_resolved()
+                    .await?,
+            ),
+            (None, true) => None,
         };
 
         Ok(css_resolve(
             *self.origin,
             *self.request,
-            Value::new(CssReferenceSubType::AtImport(Some(import_context))),
-            Some(*self.issue_source),
+            CssReferenceSubType::AtImport(import_context),
+            Some(self.issue_source),
         ))
     }
 }
@@ -157,11 +167,11 @@ impl CodeGenerateable for ImportAssetReference {
         } = &*this.request.await?
         {
             imports.push(CssImport::External(ResolvedVc::cell(
-                format!("{}{}", protocol, remainder).into(),
+                format!("{protocol}{remainder}").into(),
             )))
         }
 
-        Ok(CodeGeneration { imports }.into())
+        Ok(CodeGeneration { imports }.cell())
     }
 }
 

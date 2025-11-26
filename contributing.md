@@ -16,13 +16,6 @@
 
 - [Adding Documentation](./contributing/docs/adding-documentation.md)
 
-## Examples
-
-To contribute to [our examples](./examples), please see
-
-- [Adding Examples](./contributing/examples/adding-examples.md)
-- [Run Example Apps](./contributing/examples/run-example-apps.md)
-
 ## Core
 
 - [Developing](./contributing/core/developing.md)

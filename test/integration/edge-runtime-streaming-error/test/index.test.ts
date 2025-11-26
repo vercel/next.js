@@ -50,15 +50,13 @@ function createContext() {
   return ctx
 }
 
-// TODO(veil): Missing `cause` in Turbopack
-;(process.env.TURBOPACK ? describe.skip : describe)('development mode', () => {
+describe('development mode', () => {
   const context = createContext()
 
   beforeAll(async () => {
     context.appPort = await findPort()
     context.app = await launchApp(appDir, context.appPort, {
       ...context.handler,
-      env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
     })
   })
 
@@ -66,6 +64,8 @@ function createContext() {
 
   it('logs the error correctly', test(context))
 })
+
+// This test setups fails for unrelated reasons when TURBOPACK_DEV is set
 ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
   'production mode',
   () => {
@@ -83,7 +83,6 @@ function createContext() {
       })
     })
     afterAll(() => killApp(context.app))
-    // eslint-disable-next-line jest/no-identical-title
     it('logs the error correctly', test(context))
   }
 )

@@ -2,8 +2,6 @@ import { context, getOctokit } from '@actions/github'
 import { info, getInput } from '@actions/core'
 const { default: stripAnsi } = require('strip-ansi')
 const fs = require('fs')
-const path = require('path')
-const semver = require('semver')
 
 /// <reference path="./manifest" />
 
@@ -18,67 +16,9 @@ const BOT_COMMENT_MARKER = `<!-- __marker__ next.js integration stats __marker__
 // Header for the test report.
 const commentTitlePre = `## Failing next.js integration test suites`
 
-async function findNextJsVersionFromBuildLogs(
-  octokit: Octokit,
-  token: string,
-  job: Job
-): Promise<string> {
-  console.log(
-    'findNextJsVersionFromBuildLogs: Checking logs for the job ',
-    job.name
-  )
-
-  // downloadJobLogsForWorkflowRun returns a redirect to the actual logs
-  const jobLogRedirectResponse =
-    await octokit.rest.actions.downloadJobLogsForWorkflowRun({
-      accept: 'application/vnd.github+json',
-      ...context.repo,
-      job_id: job.id,
-    })
-
-  console.log(
-    'findNextJsVersionFromBuildLogs: Trying to get logs from redirect url ',
-    jobLogRedirectResponse.url
-  )
-
-  // fetch the actual logs
-  const jobLogsResponse = await fetch(jobLogRedirectResponse.url, {
-    headers: {
-      Accept: 'application/vnd.github.v3+json',
-      // [NOTE] we used to attach auth token, but seems this can cause 403
-      // redirect url is public anyway
-      //Authorization: `token ${token}`,
-    },
-  })
-
-  if (!jobLogsResponse.ok) {
-    throw new Error(
-      `Failed to get logsUrl, got status ${jobLogsResponse.status}`
-    )
-  }
-
-  // this should be the check_run's raw logs including each line
-  // prefixed with a timestamp in format 2020-03-02T18:42:30.8504261Z
-  const logText: string = await jobLogsResponse.text()
-  const dateTimeStripped = logText
-    .split('\n')
-    .map((line) => line.substr('2020-03-02T19:39:16.8832288Z '.length))
-
-  const nextjsVersion = dateTimeStripped
-    .find((x) => x.includes('RUNNING NEXTJS VERSION:') && !x.includes('$('))
-    ?.split('RUNNING NEXTJS VERSION:')
-    .pop()
-    ?.trim()!
-
-  console.log('Found Next.js version: ', nextjsVersion)
-
-  return nextjsVersion
-}
-
 // Download logs for a job in a workflow run by reading redirect url from workflow log response.
 async function fetchJobLogsFromWorkflow(
   octokit: Octokit,
-  token: string,
   job: Job
 ): Promise<{ logs: string; job: Job }> {
   console.log(
@@ -86,6 +26,7 @@ async function fetchJobLogsFromWorkflow(
   )
 
   // downloadJobLogsForWorkflowRun returns a redirect to the actual logs
+  // The returned URL is valid (without any additional auth) for 1 minute
   const jobLogRedirectResponse =
     await octokit.rest.actions.downloadJobLogsForWorkflowRun({
       accept: 'application/vnd.github.v3+json',
@@ -101,7 +42,6 @@ async function fetchJobLogsFromWorkflow(
   const jobLogsResponse = await fetch(jobLogRedirectResponse.url, {
     headers: {
       Accept: 'application/vnd.github.v3+json',
-      //Authorization: `token ${token}`,
     },
   })
 
@@ -120,7 +60,7 @@ async function fetchJobLogsFromWorkflow(
   const logText: string = await jobLogsResponse.text()
   const dateTimeStripped = logText
     .split('\n')
-    .map((line) => line.substr('2020-03-02T19:39:16.8832288Z '.length))
+    .map((line) => line.substring('2020-03-02T19:39:16.8832288Z '.length))
 
   const logs = dateTimeStripped.join('\n')
 
@@ -130,7 +70,6 @@ async function fetchJobLogsFromWorkflow(
 // Collect necessary inputs to run actions,
 async function getInputs(): Promise<{
   token: string
-  shouldDiffWithMain: boolean
   octokit: Octokit
   prNumber: number | undefined
   sha: string
@@ -138,37 +77,28 @@ async function getInputs(): Promise<{
   shouldExpandResultMessages: boolean
 }> {
   const token = getInput('token')
+  const octokit = getOctokit(token)
+
   const shouldExpandResultMessages =
     getInput('expand_result_messages') === 'true'
-  const diffBase = getInput('diff_base')
-  const shouldDiffWithMain = diffBase === 'main'
-  // For the daily cron workflow, we don't compare to previous but post daily summary
-  const noBaseComparison = diffBase === 'none'
-  if (diffBase !== 'main' && diffBase !== 'release' && diffBase !== 'none') {
-    console.error('Invalid diff_base, must be "main" or "release" or "none"')
-    process.exit(1)
-  }
 
   if (!shouldExpandResultMessages) {
     console.log('Test report comment will not include result messages.')
   }
 
-  const octokit = getOctokit(token)
-
   const prNumber = context?.payload?.pull_request?.number
   const sha = context?.sha
 
-  let comments:
-    | Awaited<ReturnType<typeof octokit.rest.issues.listComments>>['data']
-    | null = null
+  // For the daily cron workflow, we don't compare to previous but post daily summary
+  const noBaseComparison = prNumber == null
 
-  if (prNumber) {
+  if (prNumber != null) {
     console.log('Trying to collect integration stats for PR', {
       prNumber,
       sha: sha,
     })
 
-    comments = await octokit.paginate(octokit.rest.issues.listComments, {
+    const comments = await octokit.paginate(octokit.rest.issues.listComments, {
       ...context.repo,
       issue_number: prNumber,
       per_page: 200,
@@ -198,23 +128,21 @@ async function getInputs(): Promise<{
     info('No PR number found in context, will not try to post comment.')
   }
 
-  console.log('getInputs: these inputs will be used to collect test results', {
-    token: !!token,
-    shouldDiffWithMain,
-    prNumber,
-    sha,
-    diff_base: getInput('diff_base'),
-  })
-
-  return {
+  const inputs = {
     token,
-    shouldDiffWithMain,
     octokit,
     prNumber,
     sha,
     noBaseComparison,
     shouldExpandResultMessages,
   }
+
+  console.log('getInputs: these inputs will be used to collect test results', {
+    ...inputs,
+    token: !!token, // redact this
+  })
+
+  return inputs
 }
 
 // Iterate all the jobs in the current workflow run, collect & parse logs for failed jobs for the postprocessing.
@@ -233,45 +161,9 @@ async function getJobResults(
     }
   )
 
-  // Filter out next.js build setup jobs
-  const nextjsBuildSetupJob = jobs?.find((job) =>
-    /Build Next.js for the turbopack integration test$/.test(job.name)
-  )
-
-  // Next.js build setup jobs includes the version of next.js that is being tested, try to read it.
-  const nextjsVersion = await findNextJsVersionFromBuildLogs(
-    octokit,
-    token,
-    nextjsBuildSetupJob
-  )
-
-  // Find out next-swc build workflow
-  const nextSwcBuildJob = jobs?.find((job) =>
-    job.name.includes('Build Next.js for the turbopack integration test')
-  )
-  const nextSwcBuildLogs = (
-    await fetchJobLogsFromWorkflow(octokit, token, nextSwcBuildJob)
-  ).logs.split('\n')
-  const buildTimeMatch = (
-    nextSwcBuildLogs.find((line) => line.includes('Time (abs ≡):')) ?? ''
-  ).match(/  ([+-]?(?=\.\d|\d)(?:\d+)?(?:\.?\d*))(?:[Ee]([+-]?\d+))? s/)
-  const buildTime = buildTimeMatch?.length >= 2 ? buildTimeMatch[1] : undefined
-  const nextSwcBuildSize = (
-    nextSwcBuildLogs.find(
-      (line) =>
-        line.includes('NEXT_SWC_FILESIZE:') &&
-        /NEXT_SWC_FILESIZE: (\d+)/.test(line)
-    ) ?? ''
-  ).match(/NEXT_SWC_FILESIZE: (\d+)/)[1]
-
-  console.log(`Found next-swc build information from build logs`, {
-    buildTime,
-    nextSwcBuildSize,
-  })
-
   // Filter out next.js integration test jobs
   const integrationTestJobs = jobs?.filter((job) =>
-    /Next\.js integration test \([^)]*\) \([^)]*\)$/.test(job.name)
+    /Next\.js integration test \([^)]*\) \([^)]*\)/.test(job.name)
   )
 
   console.log(
@@ -281,19 +173,10 @@ async function getJobResults(
 
   // Iterate over all of next.js integration test jobs, read logs and collect failed test results if exists.
   const fullJobLogsFromWorkflow = await Promise.all(
-    integrationTestJobs.map((job) =>
-      fetchJobLogsFromWorkflow(octokit, token, job)
-    )
+    integrationTestJobs.map((job) => fetchJobLogsFromWorkflow(octokit, job))
   )
 
   console.log('Logs downloaded for all jobs')
-
-  const testResultManifest: TestResultManifest = {
-    nextjsVersion,
-    buildTime,
-    buildSize: nextSwcBuildSize,
-    ref: sha,
-  } as any
 
   const [jobResults, flakyMonitorJobResults] = fullJobLogsFromWorkflow.reduce(
     (acc, { logs, job }) => {
@@ -306,7 +189,7 @@ async function getJobResults(
       // First item isn't test data, it's just the log header
       splittedLogs.shift()
       for (const logLine of splittedLogs) {
-        let testData
+        let testData: string | undefined
         try {
           testData = logLine.split('--test output end--')[0].trim()!
 
@@ -333,8 +216,11 @@ async function getJobResults(
 
   console.log(`Flakyness test subset results`, { flakyMonitorJobResults })
 
-  testResultManifest.flakyMonitorJobResults = flakyMonitorJobResults
-  testResultManifest.result = jobResults
+  const testResultManifest: TestResultManifest = {
+    ref: sha,
+    flakyMonitorJobResults: flakyMonitorJobResults,
+    result: jobResults,
+  }
 
   // Collect all test results into single manifest to store into file. This'll allow to upload / compare test results
   // across different runs.
@@ -348,158 +234,16 @@ async function getJobResults(
 
 // Get the latest base test results to diff against with current test results.
 async function getTestResultDiffBase(
-  octokit: Octokit,
-  shouldDiffWithMain: boolean
+  _octokit: Octokit
 ): Promise<TestResultManifest | null> {
-  console.log('Trying to find latest test results to compare')
-
-  // First, get the tree of `test-results` from `nextjs-integration-test-data` branch
-  const branchTree = (
-    await octokit.rest.git.getTree({
-      ...context.repo,
-      tree_sha: 'refs/heads/nextjs-integration-test-data',
-    })
-  ).data.tree.find((tree) => tree.path === 'test-results')
-
-  if (!branchTree || !branchTree.sha) {
-    console.error("Couldn't find existing test results")
-    return null
-  }
-
-  // Get the trees under `/test-results`
-  const testResultsTree = (
-    await octokit.rest.git.getTree({
-      ...context.repo,
-      tree_sha: branchTree.sha,
-    })
-  ).data.tree
-
-  // If base is main, get the tree under `test-results/main`
-  // Otherwise iterate over all the trees under `test-results` then find latest next.js release
-  let testResultJsonTree:
-    | Awaited<
-        ReturnType<Awaited<Octokit['rest']['git']['getTree']>>
-      >['data']['tree']
-    | undefined
-
-  if (shouldDiffWithMain) {
-    console.log('Trying to find latest test results from main branch')
-    const baseTree = testResultsTree.find((tree) => tree.path === 'main')
-
-    if (!baseTree || !baseTree.sha) {
-      console.log('There is no base to compare test results against')
-      return null
-    }
-    console.log('Found base tree', baseTree)
-
-    // Now tree should point the list of .json for the actual test results
-    testResultJsonTree = (
-      await octokit.rest.git.getTree({
-        ...context.repo,
-        tree_sha: baseTree.sha,
-      })
-    ).data.tree
-  } else {
-    console.log('Trying to find latest test results from next.js release')
-    const getVersion = (v: { path?: string }) => {
-      if (v.path) {
-        console.log('Trying to get version from base path', v.path)
-        const base = path.basename(v.path, '.json')
-        const ret = base.split('-').slice(1, 3).join('-')
-        console.log('Found version', ret)
-        return ret
-      }
-
-      return null
-    }
-
-    const baseTree = testResultsTree
-      .filter((tree) => tree.path !== 'main')
-      .reduce((acc, value) => {
-        if (!acc) {
-          return value
-        }
-
-        const currentVersion = semver.valid(getVersion(value))
-        const accVersion = semver.valid(getVersion(acc))
-
-        if (!currentVersion || !accVersion) {
-          return acc
-        }
-
-        return semver.gt(currentVersion, accVersion) ? value : acc
-      }, null)
-
-    if (!baseTree || !baseTree.sha) {
-      console.log('There is no base to compare test results against')
-      return null
-    }
-    console.log('Found base tree', baseTree)
-
-    // If the results is for the release, no need to traverse down the tree
-    testResultJsonTree = [baseTree]
-  }
-
-  if (!testResultJsonTree) {
-    console.log('There is no test results stored in the base yet')
-    return null
-  }
-
-  // Find the latest test result tree, iterate results file names to find out the latest one.
-  // Filename follow ${yyyyMMddHHmm}-${sha}.json format.
-  const actualTestResultTree = testResultJsonTree.reduce(
-    (acc, value) => {
-      const dateStr = value.path?.split('-')[0].match(/(....)(..)(..)(..)(..)/)
-
-      if (!dateStr || dateStr.length < 5) {
-        return acc
-      }
-
-      const date = new Date(
-        dateStr![1] as any,
-        (dateStr![2] as any) - 1,
-        dateStr![3] as any,
-        dateStr![4] as any,
-        dateStr![5] as any
-      )
-      if (!acc) {
-        return {
-          date,
-          value,
-        }
-      }
-
-      return acc.date >= date ? acc : { date, value }
-    },
-    null as any as { date: Date; value: (typeof testResultJsonTree)[0] }
-  )
-
-  if (!actualTestResultTree || !actualTestResultTree?.value?.sha) {
-    console.log('There is no test results json stored in the base yet')
-    return null
-  }
-
-  console.log(
-    'Found test results to compare against: ',
-    actualTestResultTree.value
-  )
-
-  // actualTestResultTree should point to the file that contains the test results
-  // we can try to read now.
-  const { data } = await octokit.rest.git.getBlob({
-    ...context.repo,
-    file_sha: actualTestResultTree.value.sha,
-  })
-
-  const { encoding, content } = data
-
-  if (encoding === 'base64') {
-    return JSON.parse(Buffer.from(content, 'base64').toString())
-  } else if (encoding === 'utf-8') {
-    return JSON.parse(content)
-  } else {
-    throw new Error('Unknown encoding: ' + encoding)
-  }
+  // TODO: This code was previously written for the `vercel/turborepo`
+  // repository which used to have a `nextjs-integration-test-data` branch with
+  // all the previous test run data.
+  //
+  // The last update to that branch is from Dec 2023. If we want to support
+  // comparisions with the canary branch, we need to read this data from
+  // somewhere else.
+  return null
 }
 
 function withoutRetries(results: Array<JobResult>): Array<JobResult> {
@@ -519,7 +263,6 @@ function withoutRetries(results: Array<JobResult>): Array<JobResult> {
 
 function getTestSummary(
   sha: string,
-  shouldDiffWithMain: boolean,
   baseResults: TestResultManifest | null,
   jobResults: TestResultManifest
 ) {
@@ -558,8 +301,6 @@ function getTestSummary(
       currentTestFailedNames: [] as Array<string>,
     }
   )
-
-  const shortCurrentNextJsVersion = jobResults.nextjsVersion.split(' ')[1]
 
   console.log(
     'Current test summary',
@@ -656,15 +397,9 @@ function getTestSummary(
     testCaseDiff = `:arrow_up_small: ${-caseCountDiff}`
   }
 
-  const shortBaseNextJsVersion = baseResults.nextjsVersion.split(' ')[1]
-
   // Append summary test report to the comment body
   let ret = `### Test summary
-|   | ${
-    shouldDiffWithMain
-      ? `main (${baseResults.ref} / ${shortBaseNextJsVersion})`
-      : `release (${baseResults.ref} / ${shortBaseNextJsVersion})`
-  } | Current (${sha} / ${shortCurrentNextJsVersion}) | Diff (Failed) |
+|   | ${`canary (${baseResults.ref}`} | Current (${sha}) | Diff (Failed) |
 |---|---|---|---|
 | Test suites | :red_circle: ${baseTestFailedSuiteCount} / :green_circle: ${baseTestPassedSuiteCount} (Total: ${baseTestTotalSuiteCount}) | :red_circle: ${currentTestFailedSuiteCount} / :green_circle: ${currentTestPassedSuiteCount} (Total: ${currentTestTotalSuiteCount}) | ${testSuiteDiff} |
 | Test cases | :red_circle: ${baseTestFailedCaseCount} / :green_circle: ${baseTestPassedCaseCount} (Total: ${baseTestTotalCaseCount}) | :red_circle: ${currentTestFailedCaseCount} / :green_circle: ${currentTestPassedCaseCount} (Total: ${currentTestTotalCaseCount}) | ${testCaseDiff} |
@@ -740,7 +475,6 @@ async function run() {
   const {
     token,
     octokit,
-    shouldDiffWithMain,
     prNumber,
     sha,
     noBaseComparison,
@@ -753,7 +487,7 @@ async function run() {
   // Get the base to compare against
   const baseResults = noBaseComparison
     ? null
-    : await getTestResultDiffBase(octokit, shouldDiffWithMain)
+    : await getTestResultDiffBase(octokit)
 
   const postCommentAsync = createCommentPostAsync(octokit, prNumber)
 
@@ -763,7 +497,7 @@ async function run() {
   const perJobFailedLists = {}
 
   // Consturct a comment body to post test report with summary & full details.
-  const comments = jobResults.result.reduce((acc, value, idx) => {
+  const comments = jobResults.result.reduce((acc, value, _idx) => {
     const { data: testData } = value
 
     const commentValues = []
@@ -860,12 +594,7 @@ async function run() {
     {
       header: [`Commit: ${sha}`],
       contents: [
-        getTestSummary(
-          sha,
-          shouldDiffWithMain,
-          noBaseComparison ? null : baseResults,
-          jobResults
-        ),
+        getTestSummary(sha, noBaseComparison ? null : baseResults, jobResults),
       ],
     },
     ...comments,

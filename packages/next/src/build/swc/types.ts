@@ -1,15 +1,29 @@
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { __ApiPreviewProps } from '../../server/api-utils'
-import type { ExternalObject, RefCell } from './generated-native'
+import type {
+  ExternalObject,
+  RefCell,
+  NapiTurboEngineOptions,
+  NapiSourceDiagnostic,
+  NapiProjectOptions,
+  NapiPartialProjectOptions,
+} from './generated-native'
+
+export type { NapiTurboEngineOptions as TurboEngineOptions }
+
+export type Lockfile = { __napiType: 'Lockfile' }
 
 export interface Binding {
   isWasm: boolean
   turbo: {
     createProject(
       options: ProjectOptions,
-      turboEngineOptions?: TurboEngineOptions
+      turboEngineOptions?: NapiTurboEngineOptions
     ): Promise<Project>
-    startTurbopackTraceServer(traceFilePath: string): void
+    startTurbopackTraceServer(
+      traceFilePath: string,
+      port: number | undefined
+    ): void
 
     nextBuild?: any
   }
@@ -27,14 +41,37 @@ export interface Binding {
 
   initCustomTraceSubscriber?(traceOutFilePath?: string): ExternalObject<RefCell>
   teardownTraceSubscriber?(guardExternal: ExternalObject<RefCell>): void
-  initHeapProfiler?(): ExternalObject<RefCell>
-  teardownHeapProfiler?(guardExternal: ExternalObject<RefCell>): void
   css: {
     lightning: {
       transform(transformOptions: any): Promise<any>
       transformStyleAttr(transformAttrOptions: any): Promise<any>
     }
   }
+
+  reactCompiler: {
+    isReactCompilerRequired(filename: string): Promise<boolean>
+  }
+
+  rspack: {
+    getModuleNamedExports(resourcePath: string): Promise<string[]>
+    warnForEdgeRuntime(
+      source: string,
+      isProduction: boolean
+    ): Promise<NapiSourceDiagnostic[]>
+  }
+  expandNextJsTemplate(
+    content: Buffer,
+    templatePath: string,
+    nextPackageDirPath: string,
+    replacements: Record<`VAR_${string}`, string>,
+    injections: Record<string, string>,
+    imports: Record<string, string | null>
+  ): string
+
+  lockfileTryAcquire(path: string): Promise<Lockfile | null>
+  lockfileTryAcquireSync(path: string): Lockfile | null
+  lockfileUnlock(lockfile: Lockfile): Promise<void>
+  lockfileUnlockSync(lockfile: Lockfile): void
 }
 
 export type StyledString =
@@ -87,7 +124,13 @@ export interface Issue {
     }
   }
   documentationLink: string
-  subIssues: Issue[]
+  importTraces?: PlainTraceItem[][]
+}
+export interface PlainTraceItem {
+  fsName: string
+  path: string
+  rootPath: string
+  layer?: string
 }
 
 export interface Diagnostics {
@@ -101,20 +144,9 @@ export type TurbopackResult<T = {}> = T & {
   diagnostics: Diagnostics[]
 }
 
-export interface TurboEngineOptions {
-  /**
-   * Use the new backend with persistent caching enabled.
-   */
-  persistentCaching?: boolean
-
-  /**
-   * An upper bound of memory that turbopack will attempt to stay under.
-   */
-  memoryLimit?: number
-}
-
 export interface Middleware {
   endpoint: Endpoint
+  isProxy: boolean
 }
 
 export interface Instrumentation {
@@ -122,7 +154,7 @@ export interface Instrumentation {
   edge: Endpoint
 }
 
-export interface Entrypoints {
+export interface RawEntrypoints {
   routes: Map<string, Route>
   middleware?: Middleware
   instrumentation?: Instrumentation
@@ -169,6 +201,7 @@ export interface TurbopackStackFrame {
   isServer: boolean
   isInternal?: boolean
   file: string
+  originalFile?: string
   /** 1-indexed, unlike source map tokens */
   line?: number
   /** 1-indexed, unlike source map tokens */
@@ -185,6 +218,13 @@ export type UpdateMessage =
       value: UpdateInfo
     }
 
+export type CompilationEvent = {
+  typeName: string
+  message: string
+  severity: string
+  eventData: any
+}
+
 export interface UpdateInfo {
   duration: number
   tasks: number
@@ -193,7 +233,15 @@ export interface UpdateInfo {
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
 
-  entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
+  writeAnalyzeData(appDirOnly: boolean): Promise<TurbopackResult<void>>
+
+  writeAllEntrypointsToDisk(
+    appDirOnly: boolean
+  ): Promise<TurbopackResult<Partial<RawEntrypoints>>>
+
+  entrypointsSubscribe(): AsyncIterableIterator<
+    TurbopackResult<RawEntrypoints | {}>
+  >
 
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
 
@@ -204,14 +252,22 @@ export interface Project {
   getSourceForAsset(filePath: string): Promise<string | null>
 
   getSourceMap(filePath: string): Promise<string | null>
+  getSourceMapSync(filePath: string): string | null
 
   traceSource(
-    stackFrame: TurbopackStackFrame
+    stackFrame: TurbopackStackFrame,
+    currentDirectoryFileUrl: string
   ): Promise<TurbopackStackFrame | null>
 
   updateInfoSubscribe(
     aggregationMs: number
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
+
+  compilationEventsSubscribe(
+    eventTypes?: string[]
+  ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
+
+  invalidateFileSystemCache(): Promise<void>
 
   shutdown(): Promise<void>
 
@@ -313,84 +369,81 @@ export type WrittenEndpoint =
       config: EndpointConfig
     }
 
-export interface ProjectOptions {
-  /**
-   * A root path from which all files must be nested under. Trying to access
-   * a file outside this root will fail. Think of this as a chroot.
-   */
-  rootPath: string
-
-  /**
-   * A path inside the root_path which contains the app/pages directories.
-   */
-  projectPath: string
-
-  /**
-   * The path to the .next directory.
-   */
-  distDir: string
-
+export interface ProjectOptions
+  extends Omit<NapiProjectOptions, 'nextConfig' | 'env'> {
   /**
    * The next.config.js contents.
    */
   nextConfig: NextConfigComplete
 
   /**
-   * Jsconfig, or tsconfig contents.
-   *
-   * Next.js implicitly requires to read it to support few options
-   * https://nextjs.org/docs/architecture/nextjs-compiler#legacy-decorators
-   * https://nextjs.org/docs/architecture/nextjs-compiler#importsource
+   * A map of environment variables to use when compiling code.
    */
-  jsConfig: {
-    compilerOptions: object
-  }
+  env: Record<string, string>
+}
+
+export interface PartialProjectOptions
+  extends Omit<NapiPartialProjectOptions, 'nextConfig' | 'env'> {
+  rootPath: NapiProjectOptions['rootPath']
+  projectPath: NapiProjectOptions['projectPath']
+  /**
+   * The next.config.js contents.
+   */
+  nextConfig?: NextConfigComplete
 
   /**
    * A map of environment variables to use when compiling code.
    */
-  env: Record<string, string>
-
-  defineEnv: DefineEnv
-
-  /**
-   * Whether to watch the filesystem for file changes.
-   */
-  watch: {
-    enable: boolean
-    pollIntervalMs?: number
-  }
-
-  /**
-   * The mode in which Next.js is running.
-   */
-  dev: boolean
-
-  /**
-   * The server actions encryption key.
-   */
-  encryptionKey: string
-
-  /**
-   * The build id.
-   */
-  buildId: string
-
-  /**
-   * Options for draft mode.
-   */
-  previewProps: __ApiPreviewProps
-
-  /**
-   * The browserslist query to use for targeting browsers.
-   */
-  browserslistQuery: string
+  env?: Record<string, string>
 }
 
 export interface DefineEnv {
-  client: RustifiedEnv
-  edge: RustifiedEnv
-  nodejs: RustifiedEnv
+  client: RustifiedOptionalEnv
+  edge: RustifiedOptionalEnv
+  nodejs: RustifiedOptionalEnv
 }
 
 export type RustifiedEnv = { name: string; value: string }[]
+export type RustifiedOptionalEnv = { name: string; value: string | undefined }[]
+
+export interface GlobalEntrypoints {
+  app: Endpoint | undefined
+  document: Endpoint | undefined
+  error: Endpoint | undefined
+  middleware: Middleware | undefined
+  instrumentation: Instrumentation | undefined
+}
+
+export type PageRoute =
+  | {
+      type: 'page'
+      htmlEndpoint: Endpoint
+      dataEndpoint: Endpoint
+    }
+  | {
+      type: 'page-api'
+      endpoint: Endpoint
+    }
+
+export type AppRoute =
+  | {
+      type: 'app-page'
+      htmlEndpoint: Endpoint
+      rscEndpoint: Endpoint
+    }
+  | {
+      type: 'app-route'
+      endpoint: Endpoint
+    }
+
+// pathname -> route
+export type PageEntrypoints = Map<string, PageRoute>
+
+// originalName / page -> route
+export type AppEntrypoints = Map<string, AppRoute>
+
+export type Entrypoints = {
+  global: GlobalEntrypoints
+  page: PageEntrypoints
+  app: AppEntrypoints
+}

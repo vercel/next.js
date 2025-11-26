@@ -69,6 +69,26 @@ export async function middleware(request) {
     return res
   }
 
+  if (request.nextUrl.pathname === '/preloads') {
+    const res = NextResponse.next({
+      headers: {
+        link: '<https://example.com/page>; rel="alternate"; hreflang="en"',
+      },
+    })
+    return res
+  }
+
+  if (request.nextUrl.pathname === '/test-location-header') {
+    return NextResponse.json(
+      { foo: 'bar' },
+      {
+        headers: {
+          location: 'https://next-data-api-endpoint.vercel.app/api/random',
+        },
+      }
+    )
+  }
+
   return NextResponse.next({
     request: {
       headers: headersFromRequest,

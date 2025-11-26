@@ -55,6 +55,11 @@ describe('build-spinners', () => {
       dependencies: {
         'node-pty': '0.10.1',
       },
+      packageJson: {
+        pnpm: {
+          onlyBuiltDependencies: ['node-pty'],
+        },
+      },
     })
   })
 

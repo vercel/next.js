@@ -1,9 +1,10 @@
-use std::{collections::HashMap, ops::Deref};
+use std::{ops::Deref, sync::LazyLock};
 
 use anyhow::Result;
 use once_cell::sync::Lazy;
+use regex::Regex;
+use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::next_app::{AppPage, PageSegment, PageType};
@@ -11,9 +12,9 @@ use crate::next_app::{AppPage, PageSegment, PageType};
 pub mod image;
 pub mod route;
 
-pub static STATIC_LOCAL_METADATA: Lazy<HashMap<&'static str, &'static [&'static str]>> =
+pub static STATIC_LOCAL_METADATA: Lazy<FxHashMap<&'static str, &'static [&'static str]>> =
     Lazy::new(|| {
-        HashMap::from([
+        FxHashMap::from_iter([
             (
                 "icon",
                 &["ico", "jpg", "jpeg", "png", "svg"] as &'static [&'static str],
@@ -25,9 +26,9 @@ pub static STATIC_LOCAL_METADATA: Lazy<HashMap<&'static str, &'static [&'static 
         ])
     });
 
-pub static STATIC_GLOBAL_METADATA: Lazy<HashMap<&'static str, &'static [&'static str]>> =
+pub static STATIC_GLOBAL_METADATA: Lazy<FxHashMap<&'static str, &'static [&'static str]>> =
     Lazy::new(|| {
-        HashMap::from([
+        FxHashMap::from_iter([
             ("favicon", &["ico"] as &'static [&'static str]),
             ("manifest", &["webmanifest", "json"]),
             ("robots", &["txt"]),
@@ -41,18 +42,22 @@ pub struct MetadataFileMatch<'a> {
 }
 
 fn match_numbered_metadata(stem: &str) -> Option<(&str, &str)> {
-    let (_whole, stem, number) = lazy_regex::regex_captures!(
-        "^(icon|apple-icon|opengraph-image|twitter-image)(\\d+)$",
-        stem
-    )?;
-
+    static NUMBERED_METADATA_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new("^(icon|apple-icon|opengraph-image|twitter-image)(\\d+)$").unwrap()
+    });
+    let captures = NUMBERED_METADATA_RE.captures(stem)?;
+    // these captures must be defined if `captures` is `Some(...)`.
+    let (stem, number) = (
+        captures.get(1).unwrap().as_str(),
+        captures.get(2).unwrap().as_str(),
+    );
     Some((stem, number))
 }
 
 fn match_metadata_file<'a>(
     filename: &'a str,
     page_extensions: &[RcStr],
-    metadata: &HashMap<&str, &[&str]>,
+    metadata: &FxHashMap<&str, &[&str]>,
 ) -> Option<MetadataFileMatch<'a>> {
     let (stem, ext) = filename.split_once('.')?;
 
@@ -82,12 +87,11 @@ fn match_metadata_file<'a>(
     })
 }
 
-pub(crate) async fn get_content_type(path: Vc<FileSystemPath>) -> Result<String> {
-    let stem = &*path.file_stem().await?;
-    let ext = &*path.extension().await?;
+pub(crate) async fn get_content_type(path: FileSystemPath) -> Result<String> {
+    let stem = path.file_stem();
+    let mut ext = path.extension();
 
-    let name = stem.as_deref().unwrap_or_default();
-    let mut ext = ext.as_str();
+    let name = stem.unwrap_or_default();
     if ext == "jpg" {
         ext = "jpeg"
     }
@@ -246,7 +250,7 @@ pub fn is_metadata_route(mut route: &str) -> bool {
 
     let mut page = route.to_string();
     if !page.starts_with('/') {
-        page = format!("/{}", page);
+        page = format!("/{page}");
     }
 
     !page.ends_with("/page") && is_metadata_route_file(&page, &[], false)
@@ -275,18 +279,43 @@ fn format_radix(mut x: u32, radix: u32) -> String {
     }
 
     result.reverse();
-    result[..6].iter().collect()
+
+    // We only need the first 6 characters of the hash but sometimes the hash is too short.
+    // In JavaScript, we use `toString(36).slice(0, 6)` to get the first 6 characters of the hash,
+    // but it will automatically take the minimum of the length of the hash and 6. Rust will panic.
+    let len = result.len().min(6);
+    result[..len].iter().collect()
 }
 
 /// If there's special convention like (...) or @ in the page path,
 /// Give it a unique hash suffix to avoid conflicts
 ///
 /// e.g.
-/// /app/open-graph.tsx -> /open-graph/route
-/// /app/(post)/open-graph.tsx -> /open-graph/route-[0-9a-z]{6}
+/// /opengraph-image -> /opengraph-image
+/// /(post)/opengraph-image.tsx -> /opengraph-image-[0-9a-z]{6}
+///
+/// Sitemap is an exception, it should not have a suffix.
+/// As the generated urls are for indexer and usually one sitemap contains all the urls of the sub
+/// routes. The sitemap should be unique in each level and not have a suffix.
+///
+/// /sitemap -> /sitemap
+/// /(post)/sitemap -> /sitemap
 fn get_metadata_route_suffix(page: &str) -> Option<String> {
-    if (page.contains('(') && page.contains(')')) || page.contains('@') {
-        Some(format_radix(djb2_hash(page), 36))
+    // skip sitemap
+    if page.ends_with("/sitemap") || page.ends_with("/sitemap.xml") {
+        return None;
+    }
+
+    // Get the parent pathname of the page
+    let parent_pathname = split_directory(page).0.unwrap_or_default();
+    let segments = parent_pathname.split('/').collect::<Vec<&str>>();
+
+    // if any segment is group or parallel route segment, we should add a suffix.
+    if segments.iter().any(|segment| {
+        segment.starts_with('(') && segment.ends_with(')')
+            || segment.starts_with('@') && *segment != "@children"
+    }) {
+        Some(format_radix(djb2_hash(parent_pathname), 36))
     } else {
         None
     }
@@ -308,9 +337,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
     } else if route == "/manifest" {
         route += ".webmanifest"
     } else {
-        // Remove the file extension, e.g. /route-path/robots.txt -> /route-path
-        let pathname_prefix = split_directory(&route).0.unwrap_or_default();
-        suffix = get_metadata_route_suffix(pathname_prefix);
+        suffix = get_metadata_route_suffix(&route);
     }
 
     // Support both /<metadata-route.ext> and custom routes
@@ -341,7 +368,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
 
 #[cfg(test)]
 mod test {
-    use super::normalize_metadata_route;
+    use super::{djb2_hash, format_radix, normalize_metadata_route};
     use crate::next_app::AppPage;
 
     #[test]
@@ -365,5 +392,11 @@ mod test {
 
             assert_eq!(&normalized.to_string(), expected);
         }
+    }
+
+    #[test]
+    fn test_format_radix_doesnt_panic_with_result_less_than_6_characters() {
+        let hash = format_radix(djb2_hash("/lookup/[domain]/(dns)"), 36);
+        assert!(hash.len() < 6);
     }
 }

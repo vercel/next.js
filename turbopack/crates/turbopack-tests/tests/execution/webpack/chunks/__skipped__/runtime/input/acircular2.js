@@ -1,3 +1,3 @@
-require.ensure(["./acircular"], function (require) {
-  require("./acircular");
-});
+require.ensure(['./acircular'], function (require) {
+  require('./acircular')
+})

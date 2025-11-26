@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports-nested/input/foo.js"],"sourcesContent":["export default 'foo'\n"],"names":[],"mappings":";;;;uCAAe"}},
+    {"offset": {"line": 13, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports-nested/input/nested/index.js"],"sourcesContent":["import foo from '#foo'\nexport default foo\n"],"names":[],"mappings":";;;;AAAA;;uCACe,8NAAG"}},
+    {"offset": {"line": 24, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports-nested/input/index.js"],"sourcesContent":["import foo from './nested'\n\nconsole.log(foo)\n"],"names":[],"mappings":";AAAA;;AAEA,QAAQ,GAAG,CAAC,0OAAG"}}]
+}

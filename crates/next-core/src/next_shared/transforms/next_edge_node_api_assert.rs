@@ -24,8 +24,9 @@ pub fn next_edge_node_api_assert(
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![]),
-            append: ResolvedVc::cell(vec![transformer]),
+            preprocess: ResolvedVc::cell(vec![]),
+            main: ResolvedVc::cell(vec![]),
+            postprocess: ResolvedVc::cell(vec![transformer]),
         }],
     )
 }
@@ -46,6 +47,7 @@ impl CustomTransformer for NextEdgeNodeApiAssert {
                 is_unresolved_ref_safe: false,
                 unresolved_ctxt: SyntaxContext::empty().apply_mark(ctx.unresolved_mark),
                 in_strict: false,
+                remaining_depth: 4,
             },
             self.should_error_for_node_apis,
             self.is_production,

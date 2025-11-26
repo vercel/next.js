@@ -1,45 +1,47 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    fmt::Display,
-};
+use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 use once_cell::sync::Lazy;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    common::{comments::Comments, source_map::SmallPos, BytePos, Span, Spanned},
+    atoms::Wtf8Atom,
+    common::{BytePos, Span, Spanned, SyntaxContext, comments::Comments, source_map::SmallPos},
     ecma::{
         ast::*,
-        atoms::{js_word, JsWord},
+        atoms::{Atom, atom},
+        utils::{IsDirective, find_pat_ids},
         visit::{Visit, VisitWith},
     },
 };
-use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
 use turbopack_core::{issue::IssueSource, source::Source};
 
-use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};
+use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
-    tree_shake::{find_turbopack_part_id_in_asserts, PartId},
     SpecifiedModuleType,
+    analyzer::{ConstantValue, ObjectPart},
+    magic_identifier,
+    tree_shake::{PartId, find_turbopack_part_id_in_asserts},
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value]
 #[derive(Default, Debug, Clone, Hash)]
 pub struct ImportAnnotations {
     // TODO store this in more structured way
     #[turbo_tasks(trace_ignore)]
-    map: BTreeMap<JsWord, JsWord>,
+    map: BTreeMap<Wtf8Atom, Wtf8Atom>,
 }
 
 /// Enables a specified transition for the annotated import
-static ANNOTATION_TRANSITION: Lazy<JsWord> =
+static ANNOTATION_TRANSITION: Lazy<Wtf8Atom> =
     Lazy::new(|| crate::annotations::ANNOTATION_TRANSITION.into());
 
 /// Changes the chunking type for the annotated import
-static ANNOTATION_CHUNKING_TYPE: Lazy<JsWord> =
+static ANNOTATION_CHUNKING_TYPE: Lazy<Wtf8Atom> =
     Lazy::new(|| crate::annotations::ANNOTATION_CHUNKING_TYPE.into());
 
 /// Changes the type of the resolved module (only "json" is supported currently)
-static ATTRIBUTE_MODULE_TYPE: Lazy<JsWord> = Lazy::new(|| "type".into());
+static ATTRIBUTE_MODULE_TYPE: Lazy<Wtf8Atom> = Lazy::new(|| atom!("type").into());
 
 impl ImportAnnotations {
     pub fn parse(with: Option<&ObjectLit>) -> ImportAnnotations {
@@ -62,35 +64,64 @@ impl ImportAnnotations {
             Some((&kv.key, str))
         }) {
             let key = match key {
-                PropName::Ident(ident) => ident.sym.as_str(),
-                PropName::Str(str) => str.value.as_str(),
+                PropName::Ident(ident) => ident.sym.clone().into(),
+                PropName::Str(str) => str.value.clone(),
                 // the rest are invalid, ignore for now till SWC ast is correct
                 _ => continue,
             };
 
-            map.insert(key.into(), value.value.as_str().into());
+            map.insert(key, value.value.clone());
         }
 
         ImportAnnotations { map }
     }
 
+    pub fn parse_dynamic(with: &JsValue) -> Option<ImportAnnotations> {
+        let mut map = BTreeMap::new();
+
+        let JsValue::Object { parts, .. } = with else {
+            return None;
+        };
+
+        for part in parts.iter() {
+            let ObjectPart::KeyValue(key, value) = part else {
+                continue;
+            };
+            let (
+                JsValue::Constant(ConstantValue::Str(key)),
+                JsValue::Constant(ConstantValue::Str(value)),
+            ) = (key, value)
+            else {
+                continue;
+            };
+
+            map.insert(
+                key.as_atom().into_owned().into(),
+                value.as_atom().into_owned().into(),
+            );
+        }
+
+        Some(ImportAnnotations { map })
+    }
+
     /// Returns the content on the transition annotation
-    pub fn transition(&self) -> Option<&str> {
+    pub fn transition(&self) -> Option<Cow<'_, str>> {
         self.get(&ANNOTATION_TRANSITION)
+            .map(|v| v.to_string_lossy())
     }
 
     /// Returns the content on the chunking-type annotation
-    pub fn chunking_type(&self) -> Option<&str> {
+    pub fn chunking_type(&self) -> Option<&Wtf8Atom> {
         self.get(&ANNOTATION_CHUNKING_TYPE)
     }
 
     /// Returns the content on the type attribute
-    pub fn module_type(&self) -> Option<&str> {
+    pub fn module_type(&self) -> Option<&Wtf8Atom> {
         self.get(&ATTRIBUTE_MODULE_TYPE)
     }
 
-    pub fn get(&self, key: &JsWord) -> Option<&str> {
-        self.map.get(key).map(|w| w.as_str())
+    pub fn get(&self, key: &Wtf8Atom) -> Option<&Wtf8Atom> {
+        self.map.get(key)
     }
 }
 
@@ -98,12 +129,12 @@ impl Display for ImportAnnotations {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut it = self.map.iter();
         if let Some((k, v)) = it.next() {
-            write!(f, "{{ {k}: {v}")?
+            write!(f, "{{ {}: {}", k.to_string_lossy(), v.to_string_lossy())?
         } else {
             return f.write_str("{}");
         };
         for (k, v) in it {
-            write!(f, ", {k}: {v}")?
+            write!(f, ", {}: {}", k.to_string_lossy(), v.to_string_lossy())?
         }
         f.write_str(" }")
     }
@@ -112,8 +143,8 @@ impl Display for ImportAnnotations {
 #[derive(Debug)]
 pub(crate) enum Reexport {
     Star,
-    Namespace { exported: JsWord },
-    Named { imported: JsWord, exported: JsWord },
+    Namespace { exported: Atom },
+    Named { imported: Atom, exported: Atom },
 }
 
 /// The storage for all kinds of imports.
@@ -123,7 +154,7 @@ pub(crate) enum Reexport {
 #[derive(Default, Debug)]
 pub(crate) struct ImportMap {
     /// Map from identifier to (index in references, exported symbol)
-    imports: FxIndexMap<Id, (usize, JsWord)>,
+    imports: FxIndexMap<Id, (usize, Atom)>,
 
     /// Map from identifier to index in references
     namespace_imports: FxIndexMap<Id, usize>,
@@ -143,13 +174,22 @@ pub(crate) struct ImportMap {
     /// True if the module is an ESM module due to top-level await.
     has_top_level_await: bool,
 
+    /// True if the module has "use strict"
+    pub(crate) strict: bool,
+
     /// Locations of [webpack-style "magic comments"][magic] that override import behaviors.
     ///
     /// Most commonly, these are `/* webpackIgnore: true */` comments. See [ImportAttributes] for
     /// full details.
     ///
     /// [magic]: https://webpack.js.org/api/module-methods/#magic-comments
-    attributes: HashMap<BytePos, ImportAttributes>,
+    attributes: FxHashMap<BytePos, ImportAttributes>,
+
+    /// The module specifiers of star imports that are accessed dynamically and should be imported
+    /// as a whole.
+    full_star_imports: FxHashSet<Wtf8Atom>,
+
+    pub(crate) exports: FxHashMap<RcStr, Id>,
 }
 
 /// Represents a collection of [webpack-style "magic comments"][magic] that override import
@@ -198,7 +238,7 @@ impl Default for &ImportAttributes {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum ImportedSymbol {
     ModuleEvaluation,
-    Symbol(JsWord),
+    Symbol(Atom),
     Exports,
     Part(u32),
     PartEvaluation(u32),
@@ -206,10 +246,10 @@ pub(crate) enum ImportedSymbol {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct ImportMapReference {
-    pub module_path: JsWord,
+    pub module_path: Wtf8Atom,
     pub imported_symbol: ImportedSymbol,
     pub annotations: ImportAnnotations,
-    pub issue_source: Option<Vc<IssueSource>>,
+    pub issue_source: Option<IssueSource>,
 }
 
 impl ImportMap {
@@ -263,35 +303,128 @@ impl ImportMap {
         None
     }
 
-    pub fn references(&self) -> impl Iterator<Item = &ImportMapReference> {
+    pub fn references(&self) -> impl ExactSizeIterator<Item = &ImportMapReference> {
         self.references.iter()
     }
 
-    pub fn reexports(&self) -> impl Iterator<Item = (usize, &Reexport)> {
+    pub fn reexports(&self) -> impl ExactSizeIterator<Item = (usize, &Reexport)> {
         self.reexports.iter().map(|(i, r)| (*i, r))
     }
 
     /// Analyze ES import
     pub(super) fn analyze(
         m: &Program,
-        source: Option<Vc<Box<dyn Source>>>,
+        source: Option<ResolvedVc<Box<dyn Source>>>,
         comments: Option<&dyn Comments>,
     ) -> Self {
         let mut data = ImportMap::default();
 
-        m.visit_with(&mut Analyzer {
+        // We have to analyze imports first to determine if a star import is dynamic.
+        // We can't do this in the visitor because import may (and likely) comes before usages, and
+        // a method invoked after visitor will not work because we need to preserve the import
+        // order.
+
+        if let Program::Module(m) = m {
+            let mut candidates = FxIndexMap::default();
+
+            // Imports are hoisted to the top of the module.
+            // So we have to collect all imports first.
+            m.body.iter().for_each(|stmt| {
+                if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = stmt {
+                    for s in &import.specifiers {
+                        if let ImportSpecifier::Namespace(s) = s {
+                            candidates.insert(s.local.to_id(), import.src.value.clone());
+                        }
+                    }
+                }
+            });
+
+            let mut analyzer = StarImportAnalyzer {
+                candidates,
+                full_star_imports: &mut data.full_star_imports,
+            };
+            m.visit_with(&mut analyzer);
+        }
+
+        let mut analyzer = Analyzer {
             data: &mut data,
             source,
             comments,
-        });
+        };
+        m.visit_with(&mut analyzer);
 
         data
+    }
+
+    pub(crate) fn should_import_all(&self, esm_reference_index: usize) -> bool {
+        let r = &self.references[esm_reference_index];
+
+        self.full_star_imports.contains(&r.module_path)
+    }
+}
+
+struct StarImportAnalyzer<'a> {
+    /// The local identifiers of the star imports
+    candidates: FxIndexMap<Id, Wtf8Atom>,
+    full_star_imports: &'a mut FxHashSet<Wtf8Atom>,
+}
+
+impl Visit for StarImportAnalyzer<'_> {
+    fn visit_expr(&mut self, node: &Expr) {
+        if let Expr::Ident(i) = node
+            && let Some(module_path) = self.candidates.get(&i.to_id())
+        {
+            self.full_star_imports.insert(module_path.clone());
+            return;
+        }
+
+        node.visit_children_with(self);
+    }
+
+    fn visit_import_decl(&mut self, _: &ImportDecl) {}
+
+    fn visit_member_expr(&mut self, node: &MemberExpr) {
+        match &node.prop {
+            MemberProp::Ident(..) | MemberProp::PrivateName(..) => {
+                if node.obj.is_ident() {
+                    return;
+                }
+                // We can skip `visit_expr(obj)` because it's not a dynamic access
+                node.obj.visit_children_with(self);
+            }
+            MemberProp::Computed(..) => {
+                node.obj.visit_with(self);
+                node.prop.visit_with(self);
+            }
+        }
+    }
+
+    fn visit_pat(&mut self, pat: &Pat) {
+        if let Pat::Ident(i) = pat
+            && let Some(module_path) = self.candidates.get(&i.to_id())
+        {
+            self.full_star_imports.insert(module_path.clone());
+            return;
+        }
+
+        pat.visit_children_with(self);
+    }
+
+    fn visit_simple_assign_target(&mut self, node: &SimpleAssignTarget) {
+        if let SimpleAssignTarget::Ident(i) = node
+            && let Some(module_path) = self.candidates.get(&i.to_id())
+        {
+            self.full_star_imports.insert(module_path.clone());
+            return;
+        }
+
+        node.visit_children_with(self);
     }
 }
 
 struct Analyzer<'a> {
     data: &'a mut ImportMap,
-    source: Option<Vc<Box<dyn Source>>>,
+    source: Option<ResolvedVc<Box<dyn Source>>>,
     comments: Option<&'a dyn Comments>,
 }
 
@@ -299,13 +432,13 @@ impl Analyzer<'_> {
     fn ensure_reference(
         &mut self,
         span: Span,
-        module_path: JsWord,
+        module_path: Wtf8Atom,
         imported_symbol: ImportedSymbol,
         annotations: ImportAnnotations,
     ) -> Option<usize> {
         let issue_source = self
             .source
-            .map(|s| IssueSource::from_swc_offsets(s, span.lo.to_usize(), span.hi.to_usize()));
+            .map(|s| IssueSource::from_swc_offsets(s, span.lo.to_u32(), span.hi.to_u32()));
 
         let r = ImportMapReference {
             module_path,
@@ -320,13 +453,6 @@ impl Analyzer<'_> {
             self.data.references.insert(r);
             Some(i)
         }
-    }
-}
-
-fn to_word(name: &ModuleExportName) -> JsWord {
-    match name {
-        ModuleExportName::Ident(ident) => ident.sym.clone(),
-        ModuleExportName::Str(str) => str.value.clone(),
     }
 }
 
@@ -366,10 +492,10 @@ impl Visit for Analyzer<'_> {
                 ImportSpecifier::Named(ImportNamedSpecifier {
                     local, imported, ..
                 }) => match imported {
-                    Some(imported) => (local.to_id(), orig_name(imported)),
+                    Some(imported) => (local.to_id(), imported.atom().into_owned()),
                     _ => (local.to_id(), local.sym.clone()),
                 },
-                ImportSpecifier::Default(s) => (s.local.to_id(), "default".into()),
+                ImportSpecifier::Default(s) => (s.local.to_id(), atom!("default")),
                 ImportSpecifier::Namespace(s) => {
                     self.data.namespace_imports.insert(s.local.to_id(), i);
                     continue;
@@ -378,15 +504,15 @@ impl Visit for Analyzer<'_> {
 
             self.data.imports.insert(local, (i, orig_sym));
         }
-        if import.specifiers.is_empty() {
-            if let Some(internal_symbol) = internal_symbol {
-                self.ensure_reference(
-                    import.span,
-                    import.src.value.clone(),
-                    internal_symbol,
-                    annotations,
-                );
-            }
+        if import.specifiers.is_empty()
+            && let Some(internal_symbol) = internal_symbol
+        {
+            self.ensure_reference(
+                import.span,
+                import.src.value.clone(),
+                internal_symbol,
+                annotations,
+            );
         }
     }
 
@@ -418,6 +544,7 @@ impl Visit for Analyzer<'_> {
         self.data.has_exports = true;
 
         let Some(ref src) = export.src else {
+            export.visit_children_with(self);
             return;
         };
 
@@ -451,7 +578,7 @@ impl Visit for Analyzer<'_> {
                     self.data.reexports.push((
                         i,
                         Reexport::Namespace {
-                            exported: to_word(&n.name),
+                            exported: n.name.atom().into_owned(),
                         },
                     ));
                 }
@@ -459,7 +586,7 @@ impl Visit for Analyzer<'_> {
                     self.data.reexports.push((
                         i,
                         Reexport::Named {
-                            imported: js_word!("default"),
+                            imported: atom!("default"),
                             exported: d.exported.sym.clone(),
                         },
                     ));
@@ -468,8 +595,8 @@ impl Visit for Analyzer<'_> {
                     self.data.reexports.push((
                         i,
                         Reexport::Named {
-                            imported: to_word(&n.orig),
-                            exported: to_word(n.exported.as_ref().unwrap_or(&n.orig)),
+                            imported: n.orig.atom().into_owned(),
+                            exported: n.exported.as_ref().unwrap_or(&n.orig).atom().into_owned(),
                         },
                     ));
                 }
@@ -484,7 +611,28 @@ impl Visit for Analyzer<'_> {
             // only visit children if we potentially need to mark import / requires
             n.visit_children_with(self);
         }
+
+        match &n.decl {
+            Decl::Class(n) => {
+                self.data
+                    .exports
+                    .insert(n.ident.sym.as_str().into(), n.ident.to_id());
+            }
+            Decl::Fn(n) => {
+                self.data
+                    .exports
+                    .insert(n.ident.sym.as_str().into(), n.ident.to_id());
+            }
+            Decl::Var(..) | Decl::Using(..) => {
+                let ids: Vec<Id> = find_pat_ids(&n.decl);
+                for id in ids {
+                    self.data.exports.insert(id.0.as_str().into(), id);
+                }
+            }
+            _ => {}
+        }
     }
+
     fn visit_export_default_decl(&mut self, n: &ExportDefaultDecl) {
         self.data.has_exports = true;
 
@@ -492,7 +640,33 @@ impl Visit for Analyzer<'_> {
             // only visit children if we potentially need to mark import / requires
             n.visit_children_with(self);
         }
+
+        self.data.exports.insert(
+            rcstr!("default"),
+            // Mirror what `EsmModuleItem::code_generation` does, these are live bindings if the
+            // class/function has an identifier.
+            match &n.decl {
+                DefaultDecl::Class(ClassExpr { ident, .. })
+                | DefaultDecl::Fn(FnExpr { ident, .. }) => ident.as_ref().map_or_else(
+                    || {
+                        (
+                            magic_identifier::mangle("default export").into(),
+                            SyntaxContext::empty(),
+                        )
+                    },
+                    |ident| ident.to_id(),
+                ),
+                DefaultDecl::TsInterfaceDecl(_) => {
+                    // not matching, might happen due to eventual consistency
+                    (
+                        magic_identifier::mangle("default export").into(),
+                        SyntaxContext::empty(),
+                    )
+                }
+            },
+        );
     }
+
     fn visit_export_default_expr(&mut self, n: &ExportDefaultExpr) {
         self.data.has_exports = true;
 
@@ -500,10 +674,49 @@ impl Visit for Analyzer<'_> {
             // only visit children if we potentially need to mark import / requires
             n.visit_children_with(self);
         }
+
+        self.data.exports.insert(
+            rcstr!("default"),
+            (
+                // `EsmModuleItem::code_generation` inserts this variable.
+                magic_identifier::mangle("default export").into(),
+                SyntaxContext::empty(),
+            ),
+        );
+    }
+
+    fn visit_export_named_specifier(&mut self, n: &ExportNamedSpecifier) {
+        let ModuleExportName::Ident(local) = &n.orig else {
+            // This is only possible for re-exports, but they are already handled earlier in
+            // visit_named_export.
+            unreachable!("string reexports should have been already handled in visit_named_export");
+        };
+        let exported = n.exported.as_ref().unwrap_or(&n.orig);
+        self.data
+            .exports
+            .insert(exported.atom().as_str().into(), local.to_id());
+    }
+
+    fn visit_export_default_specifier(&mut self, n: &ExportDefaultSpecifier) {
+        self.data
+            .exports
+            .insert(rcstr!("default"), n.exported.to_id());
     }
 
     fn visit_program(&mut self, m: &Program) {
         self.data.has_top_level_await = has_top_level_await(m).is_some();
+        self.data.strict = match m {
+            Program::Module(module) => module
+                .body
+                .iter()
+                .take_while(|s| s.directive_continue())
+                .any(IsDirective::is_use_strict),
+            Program::Script(script) => script
+                .body
+                .iter()
+                .take_while(|s| s.directive_continue())
+                .any(IsDirective::is_use_strict),
+        };
 
         m.visit_children_with(self);
     }
@@ -530,14 +743,11 @@ impl Visit for Analyzer<'_> {
         // we could actually unwrap thanks to the optimisation above but it can't hurt to be safe...
         if let Some(comments) = self.comments {
             let callee_span = match &n.callee {
-                Callee::Import(Import { span, .. }) => Some(span),
-                Callee::Expr(box Expr::Ident(Ident { span, sym, .. })) if sym == "require" => {
-                    Some(span)
-                }
+                Callee::Import(Import { span, .. }) => Some(*span),
+                Callee::Expr(e) => Some(e.span()),
                 _ => None,
             };
 
-            // we are interested here in the last comment with a valid directive
             let ignore_directive = parse_ignore_directive(comments, n.args.first());
 
             if let Some((callee_span, ignore_directive)) = callee_span.zip(ignore_directive) {
@@ -597,13 +807,6 @@ fn parse_ignore_directive(comments: &dyn Comments, value: Option<&ExprOrSpread>)
         .next()
 }
 
-pub(crate) fn orig_name(n: &ModuleExportName) -> JsWord {
-    match n {
-        ModuleExportName::Ident(v) => v.sym.clone(),
-        ModuleExportName::Str(v) => v.value.clone(),
-    }
-}
-
 fn parse_with(with: Option<&ObjectLit>) -> Option<ImportedSymbol> {
     find_turbopack_part_id_in_asserts(with?).map(|v| match v {
         PartId::Internal(index, true) => ImportedSymbol::PartEvaluation(index),
@@ -619,10 +822,10 @@ fn get_import_symbol_from_import(specifier: &ImportSpecifier) -> ImportedSymbol 
         ImportSpecifier::Named(ImportNamedSpecifier {
             local, imported, ..
         }) => ImportedSymbol::Symbol(match imported {
-            Some(imported) => orig_name(imported),
+            Some(imported) => imported.atom().into_owned(),
             _ => local.sym.clone(),
         }),
-        ImportSpecifier::Default(..) => ImportedSymbol::Symbol(js_word!("default")),
+        ImportSpecifier::Default(..) => ImportedSymbol::Symbol(atom!("default")),
         ImportSpecifier::Namespace(..) => ImportedSymbol::Exports,
     }
 }
@@ -630,9 +833,9 @@ fn get_import_symbol_from_import(specifier: &ImportSpecifier) -> ImportedSymbol 
 fn get_import_symbol_from_export(specifier: &ExportSpecifier) -> ImportedSymbol {
     match specifier {
         ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
-            ImportedSymbol::Symbol(orig_name(orig))
+            ImportedSymbol::Symbol(orig.atom().into_owned())
         }
-        ExportSpecifier::Default(..) => ImportedSymbol::Symbol(js_word!("default")),
+        ExportSpecifier::Default(..) => ImportedSymbol::Symbol(atom!("default")),
         ExportSpecifier::Namespace(..) => ImportedSymbol::Exports,
     }
 }

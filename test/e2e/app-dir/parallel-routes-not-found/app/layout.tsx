@@ -6,11 +6,15 @@ export default function Layout({
   slot: React.ReactNode
 }) {
   return (
-    <html>
+    <html lang="en" className="layout">
       <body>
         {children}
         {slot}
       </body>
     </html>
   )
+}
+
+export const metadata = {
+  title: 'layout title',
 }

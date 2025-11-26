@@ -1,10 +1,10 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
 import * as Log from './basic/utils/log'
-import { assertHasRedbox, getRedboxSource } from '../../../lib/next-test-utils'
+import { waitForRedbox, getRedboxSource } from '../../../lib/next-test-utils'
 import { join } from 'path'
 
-describe('unstable_after() - invalid usages', () => {
+describe('after() - invalid usages', () => {
   const { next } = nextTestSetup({
     files: join(__dirname, 'basic'),
   })
@@ -25,9 +25,9 @@ describe('unstable_after() - invalid usages', () => {
   it('errors at compile time when used in a client module', async () => {
     const session = await next.browser('/invalid-in-client')
 
-    await assertHasRedbox(session)
+    await waitForRedbox(session)
     expect(await getRedboxSource(session)).toMatch(
-      /You're importing a component that needs "?unstable_after"?\. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component\./
+      /You're importing a component that needs "?after"?\. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component\./
     )
     expect(getAfterLogs()).toHaveLength(0)
   })

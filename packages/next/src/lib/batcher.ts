@@ -11,10 +11,12 @@ type BatcherOptions<K, C extends string | number | null> = {
   schedulerFn?: SchedulerFn<void>
 }
 
-type WorkFn<V, C> = (
-  key: C,
+type WorkFnContext<V, K> = {
   resolve: (value: V | PromiseLike<V>) => void
-) => Promise<V>
+  key: K
+}
+
+type WorkFn<V, K> = (context: WorkFnContext<V, K>) => Promise<V>
 
 /**
  * A wrapper for a function that will only allow one call to the function to
@@ -61,10 +63,10 @@ export class Batcher<K, V, C extends string | number | null> {
    * @param fn the function to wrap
    * @returns a promise that resolves to the result of the function
    */
-  public async batch(key: K, fn: WorkFn<V, C>): Promise<V> {
+  public async batch(key: K, fn: WorkFn<V, K>): Promise<V> {
     const cacheKey = (this.cacheKeyFn ? await this.cacheKeyFn(key) : key) as C
     if (cacheKey === null) {
-      return fn(cacheKey, Promise.resolve)
+      return fn({ resolve: (value) => Promise.resolve(value), key })
     }
 
     const pending = this.pending.get(cacheKey)
@@ -75,7 +77,7 @@ export class Batcher<K, V, C extends string | number | null> {
 
     this.schedulerFn(async () => {
       try {
-        const result = await fn(cacheKey, resolve)
+        const result = await fn({ resolve, key })
 
         // Resolving a promise multiple times is a no-op, so we can safely
         // resolve all pending promises with the same result.

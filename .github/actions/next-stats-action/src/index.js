@@ -111,7 +111,8 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
                   // changes from merging latest changes
                   ` && pnpm install --no-frozen-lockfile`
                 : ' && yarn install --network-timeout 1000000'
-            }`
+            }`,
+            { env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1' } }
           )
 
           await exec.spawnPromise(

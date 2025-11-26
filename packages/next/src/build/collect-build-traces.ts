@@ -5,7 +5,6 @@ import {
   TRACE_IGNORES,
   type BuildTraceContext,
   getFilesMapFromReasons,
-  getHash,
 } from './webpack/plugins/next-trace-entrypoints-plugin'
 
 import path from 'path'
@@ -24,7 +23,21 @@ import type { RoutesUsingEdgeRuntime } from './utils'
 
 const debug = debugOriginal('next:build:build-traces')
 
-const hashCache: Record<string, string> = {}
+export const makeIgnoreFn = (root: string, ignores: string[]) => {
+  // pre compile the ignore globs
+  const isMatch = picomatch(ignores, {
+    contains: true,
+    dot: true,
+  })
+
+  return (pathname: string) => {
+    if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
+      return true
+    }
+
+    return isMatch(pathname)
+  }
+}
 
 function shouldIgnore(
   file: string,
@@ -82,16 +95,12 @@ export async function collectBuildTraces({
   edgeRuntimeRoutes,
   staticPages,
   nextBuildSpan = new Span({ name: 'build' }),
-  hasSsrAmpPages,
   buildTraceContext,
   outputFileTracingRoot,
-  isFlyingShuttle,
 }: {
   dir: string
   distDir: string
   staticPages: string[]
-  hasSsrAmpPages: boolean
-  isFlyingShuttle?: boolean
   outputFileTracingRoot: string
   // pageInfos is serialized when this function runs in a worker.
   edgeRuntimeRoutes: RoutesUsingEdgeRuntime
@@ -131,8 +140,7 @@ export async function collectBuildTraces({
         })
       )
 
-      const { cacheHandler } = config
-      const { cacheHandlers } = config.experimental
+      const { cacheHandler, cacheHandlers } = config
 
       // ensure we trace any dependencies needed for custom
       // incremental cache handler
@@ -142,6 +150,25 @@ export async function collectBuildTraces({
             path.isAbsolute(cacheHandler)
               ? cacheHandler
               : path.join(dir, cacheHandler)
+          )
+        )
+      }
+
+      // Under standalone mode, we need to ensure that the cache entry debug
+      // handler is traced so it can be copied. This is only used for testing,
+      // and is not used in production.
+      if (
+        process.env.__NEXT_TEST_MODE &&
+        process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+      ) {
+        sharedEntriesSet.push(
+          require.resolve(
+            path.isAbsolute(process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS)
+              ? process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+              : path.join(
+                  dir,
+                  process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+                )
           )
         )
       }
@@ -187,26 +214,10 @@ export async function collectBuildTraces({
         }
       }
 
-      const makeIgnoreFn = (ignores: string[]) => {
-        // pre compile the ignore globs
-        const isMatch = picomatch(ignores, {
-          contains: true,
-          dot: true,
-        })
-
-        return (pathname: string) => {
-          if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
-            return true
-          }
-
-          return isMatch(pathname)
-        }
-      }
-
       const sharedIgnores = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
         ...(isStandalone ? [] : ['**/next/dist/compiled/jest-worker/**/*']),
-        '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+        '**/next/dist/compiled/webpack/*',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
         'next/dist/compiled/semver/semver/**/*.js',
@@ -219,15 +230,11 @@ export async function collectBuildTraces({
             ]
           : []),
 
-        ...(!hasSsrAmpPages
-          ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
-          : []),
-
         ...(isStandalone ? [] : TRACE_IGNORES),
         ...additionalIgnores,
       ]
 
-      const sharedIgnoresFn = makeIgnoreFn(sharedIgnores)
+      const sharedIgnoresFn = makeIgnoreFn(root, sharedIgnores)
 
       const serverIgnores = [
         ...sharedIgnores,
@@ -239,7 +246,7 @@ export async function collectBuildTraces({
           ? ['**/node_modules/sharp/**/*', '**/@img/sharp-libvips*/**/*']
           : []),
       ].filter(nonNullable)
-      const serverIgnoreFn = makeIgnoreFn(serverIgnores)
+      const serverIgnoreFn = makeIgnoreFn(root, serverIgnores)
 
       const minimalServerIgnores = [
         ...serverIgnores,
@@ -247,7 +254,7 @@ export async function collectBuildTraces({
         '**/next/dist/server/web/sandbox/**/*',
         '**/next/dist/server/post-process.js',
       ]
-      const minimalServerIgnoreFn = makeIgnoreFn(minimalServerIgnores)
+      const minimalServerIgnoreFn = makeIgnoreFn(root, minimalServerIgnores)
 
       const routesIgnores = [
         ...sharedIgnores,
@@ -255,11 +262,10 @@ export async function collectBuildTraces({
         // as otherwise all chunks are traced here and included for all pages
         // whether they are needed or not
         '**/.next/server/chunks/**',
-        '**/next/dist/server/optimize-amp.js',
         '**/next/dist/server/post-process.js',
       ].filter(nonNullable)
 
-      const routeIgnoreFn = makeIgnoreFn(routesIgnores)
+      const routeIgnoreFn = makeIgnoreFn(root, routesIgnores)
 
       const serverTracedFiles = new Set<string>()
       const minimalServerTracedFiles = new Set<string>()
@@ -421,7 +427,7 @@ export async function collectBuildTraces({
             // pages as they don't have server bundles, note there is
             // the caveat with flying shuttle mode as it needs this for
             // detecting changed entries
-            if (staticPages.includes(route) && !isFlyingShuttle) {
+            if (staticPages.includes(route)) {
               return
             }
             const entryOutputPath = path.join(
@@ -439,8 +445,6 @@ export async function collectBuildTraces({
             }
             const traceOutputDir = path.dirname(traceOutputPath)
             const curTracedFiles = new Set<string>()
-            const curFileHashes: Record<string, string> =
-              existingTrace.fileHashes
 
             for (const file of [...entryNameFiles, entryOutputPath]) {
               const curFiles = [
@@ -462,19 +466,6 @@ export async function collectBuildTraces({
                     .relative(traceOutputDir, filePath)
                     .replace(/\\/g, '/')
                   curTracedFiles.add(outputFile)
-
-                  if (isFlyingShuttle) {
-                    try {
-                      let hash = hashCache[filePath]
-
-                      if (!hash) {
-                        hash = getHash(await fs.readFile(filePath))
-                      }
-                      curFileHashes[outputFile] = hash
-                    } catch (err: any) {
-                      // handle symlink errors or similar
-                    }
-                  }
                 }
               }
             }
@@ -488,11 +479,6 @@ export async function collectBuildTraces({
               JSON.stringify({
                 ...existingTrace,
                 files: [...curTracedFiles].sort(),
-                ...(isFlyingShuttle
-                  ? {
-                      fileHashes: curFileHashes,
-                    }
-                  : {}),
               })
             )
           })
@@ -524,12 +510,19 @@ export async function collectBuildTraces({
         addToTracedFiles(root, relativeModulePath, minimalServerTracedFiles)
       }
 
+      const serverTracedFilesSorted = Array.from(serverTracedFiles)
+      serverTracedFilesSorted.sort()
+      const minimalServerTracedFilesSorted = Array.from(
+        minimalServerTracedFiles
+      )
+      minimalServerTracedFilesSorted.sort()
+
       await Promise.all([
         fs.writeFile(
           nextServerTraceOutput,
           JSON.stringify({
             version: 1,
-            files: Array.from(serverTracedFiles),
+            files: serverTracedFilesSorted,
           } as {
             version: number
             files: string[]
@@ -539,7 +532,7 @@ export async function collectBuildTraces({
           nextMinimalTraceOutput,
           JSON.stringify({
             version: 1,
-            files: Array.from(minimalServerTracedFiles),
+            files: minimalServerTracedFilesSorted,
           } as {
             version: number
             files: string[]

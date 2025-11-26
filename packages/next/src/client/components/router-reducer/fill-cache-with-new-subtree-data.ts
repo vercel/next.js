@@ -1,9 +1,7 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import type { Segment } from '../../../server/app-render/types'
+import type { CacheNode, Segment } from '../../../shared/lib/app-router-types'
 import { invalidateCacheByRouterState } from './invalidate-cache-by-router-state'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { createRouterCacheKey } from './create-router-cache-key'
-import type { PrefetchCacheEntry } from './router-reducer-types'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
 
@@ -11,10 +9,10 @@ import type { NormalizedFlightData } from '../../flight-data-helpers'
  * Common logic for filling cache with new sub tree data.
  */
 function fillCacheHelper(
+  navigatedAt: number,
   newCache: CacheNode,
   existingCache: CacheNode,
   flightData: NormalizedFlightData,
-  prefetchEntry: PrefetchCacheEntry | undefined,
   fillLazyItems: boolean
 ): void {
   const {
@@ -60,16 +58,14 @@ function fillCacheHelper(
           !childCacheNode.lazyData ||
           childCacheNode === existingChildCacheNode)
       ) {
-        const incomingSegment = cacheNodeSeedData[0]
-        const rsc = cacheNodeSeedData[1]
-        const loading = cacheNodeSeedData[3]
+        const rsc = cacheNodeSeedData[0]
+        const loading = cacheNodeSeedData[2]
 
         childCacheNode = {
           lazyData: null,
           // When `fillLazyItems` is false, we only want to fill the RSC data for the layout,
           // not the page segment.
-          rsc:
-            fillLazyItems || incomingSegment !== PAGE_SEGMENT_KEY ? rsc : null,
+          rsc: fillLazyItems || segment !== PAGE_SEGMENT_KEY ? rsc : null,
           prefetchRsc: null,
           head: null,
           prefetchHead: null,
@@ -78,6 +74,7 @@ function fillCacheHelper(
             fillLazyItems && existingChildCacheNode
               ? new Map(existingChildCacheNode.parallelRoutes)
               : new Map(),
+          navigatedAt,
         }
 
         if (existingChildCacheNode && fillLazyItems) {
@@ -89,12 +86,12 @@ function fillCacheHelper(
         }
         if (fillLazyItems) {
           fillLazyItemsTillLeafWithHead(
+            navigatedAt,
             childCacheNode,
             existingChildCacheNode,
             treePatch,
             cacheNodeSeedData,
-            head,
-            prefetchEntry
+            head
           )
         }
 
@@ -132,19 +129,19 @@ function fillCacheHelper(
  * Fill cache with rsc based on flightDataPath
  */
 export function fillCacheWithNewSubTreeData(
+  navigatedAt: number,
   newCache: CacheNode,
   existingCache: CacheNode,
-  flightData: NormalizedFlightData,
-  prefetchEntry?: PrefetchCacheEntry
+  flightData: NormalizedFlightData
 ): void {
-  fillCacheHelper(newCache, existingCache, flightData, prefetchEntry, true)
+  fillCacheHelper(navigatedAt, newCache, existingCache, flightData, true)
 }
 
 export function fillCacheWithNewSubTreeDataButOnlyLoading(
+  navigatedAt: number,
   newCache: CacheNode,
   existingCache: CacheNode,
-  flightData: NormalizedFlightData,
-  prefetchEntry?: PrefetchCacheEntry
+  flightData: NormalizedFlightData
 ): void {
-  fillCacheHelper(newCache, existingCache, flightData, prefetchEntry, false)
+  fillCacheHelper(navigatedAt, newCache, existingCache, flightData, false)
 }

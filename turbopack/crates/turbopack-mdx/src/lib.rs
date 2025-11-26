@@ -3,28 +3,23 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
-use mdxjs::{compile, MdxParseOptions, Options};
-use turbo_rcstr::RcStr;
+use mdxjs::{MdxParseOptions, Options, compile};
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
-use turbo_tasks_fs::{rope::Rope, File, FileContent, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
     issue::{
-        Issue, IssueDescriptionExt, IssueExt, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
+        Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
+        StyledString,
     },
     source::Source,
     source_pos::SourcePos,
     source_transform::SourceTransform,
 };
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("mdx".into())
-}
-
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, operation)]
 #[derive(Hash, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum MdxParseConstructs {
@@ -35,7 +30,7 @@ pub enum MdxParseConstructs {
 /// Subset of mdxjs::Options to allow to inherit turbopack's jsx-related configs
 /// into mdxjs. This is thin, near straightforward subset of mdxjs::Options to
 /// enable turbo tasks.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, operation)]
 #[derive(Hash, Debug, Clone)]
 #[serde(rename_all = "camelCase", default)]
 pub struct MdxTransformOptions {
@@ -115,7 +110,7 @@ struct MdxTransformedAsset {
 impl Source for MdxTransformedAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.source.ident().rename_as("*.tsx".into())
+        self.source.ident().rename_as(rcstr!("*.tsx"))
     }
 }
 
@@ -123,13 +118,7 @@ impl Source for MdxTransformedAsset {
 impl Asset for MdxTransformedAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        let this = self.await?;
-        Ok(*self
-            .process()
-            .issue_file_path(this.source.ident().path(), "MDX processing")
-            .await?
-            .await?
-            .content)
+        Ok(*self.process().await?.content)
     }
 }
 
@@ -190,47 +179,42 @@ impl MdxTransformedAsset {
             }
             .cell()),
             Err(err) => {
-                let loc = match err.place {
+                let source = match err.place {
                     Some(p) => {
                         let (start, end) = match *p {
                             // markdown's positions are 1-indexed, SourcePos is 0-indexed.
                             // Both end positions point to the first character after the range
                             markdown::message::Place::Position(p) => (
                                 SourcePos {
-                                    line: p.start.line - 1,
-                                    column: p.start.column - 1,
+                                    line: (p.start.line - 1) as u32,
+                                    column: (p.start.column - 1) as u32,
                                 },
                                 SourcePos {
-                                    line: p.end.line - 1,
-                                    column: p.end.column - 1,
+                                    line: (p.end.line - 1) as u32,
+                                    column: (p.end.column - 1) as u32,
                                 },
                             ),
                             markdown::message::Place::Point(p) => {
                                 let p = SourcePos {
-                                    line: p.line - 1,
-                                    column: p.column - 1,
+                                    line: (p.line - 1) as u32,
+                                    column: (p.column - 1) as u32,
                                 };
                                 (p, p)
                             }
                         };
 
-                        Some(
-                            IssueSource::from_line_col(*self.source, start, end)
-                                .to_resolved()
-                                .await?,
-                        )
+                        IssueSource::from_line_col(self.source, start, end)
                     }
-                    None => None,
+                    None => IssueSource::from_source_only(self.source),
                 };
 
                 MdxIssue {
-                    path: self.source.ident().path().to_resolved().await?,
-                    loc,
-                    reason: err.reason,
-                    mdx_rule_id: *err.rule_id,
-                    mdx_source: *err.source,
+                    source,
+                    reason: RcStr::from(err.reason),
+                    mdx_rule_id: RcStr::from(*err.rule_id),
+                    mdx_source: RcStr::from(*err.source),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
 
                 Ok(MdxTransformResult {
@@ -251,26 +235,25 @@ struct MdxTransformResult {
 #[turbo_tasks::value]
 struct MdxIssue {
     /// Place of message.
-    path: ResolvedVc<FileSystemPath>,
-    loc: Option<ResolvedVc<IssueSource>>,
+    source: IssueSource,
     /// Reason for message (should use markdown).
-    reason: String,
+    reason: RcStr,
     /// Category of message.
-    mdx_rule_id: String,
+    mdx_rule_id: RcStr,
     /// Namespace of message.
-    mdx_source: String,
+    mdx_source: RcStr,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for MdxIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.path
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.loc.map(|s| s.resolve_source_map(*self.path)))
+        Vc::cell(Some(self.source))
     }
 
     #[turbo_tasks::function]
@@ -280,19 +263,13 @@ impl Issue for MdxIssue {
 
     #[turbo_tasks::function]
     fn title(self: Vc<Self>) -> Vc<StyledString> {
-        StyledString::Text("MDX Parse Error".into()).cell()
+        StyledString::Text(rcstr!("MDX Parse Error")).cell()
     }
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(StyledString::Text(self.reason.clone().into()).cell()))
+        Vc::cell(Some(
+            StyledString::Text(self.reason.clone()).resolved_cell(),
+        ))
     }
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

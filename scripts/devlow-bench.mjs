@@ -8,6 +8,8 @@ import { command } from '@vercel/devlow-bench/shell'
 import { waitForFile } from '@vercel/devlow-bench/file'
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url))
+const START_SERVER_REGEXP = /Ready in \d+/
+const URL_REGEXP = /Local:\s+(?<url>.+)\n/
 
 const GIT_SHA =
   process.env.GITHUB_SHA ??
@@ -39,6 +41,9 @@ const nextBuildWorkflow =
         HOSTNAME: process.env.HOSTNAME,
         PWD: process.env.PWD,
         NEXT_TRACE_UPLOAD_DISABLED: 'true',
+        NEXT_PRIVATE_SKIP_CANARY_CHECK: 'true',
+        // Enable next.js test mode to get HMR events and silence canary only
+        __NEXT_TEST_MODE: '1',
       }
 
       const serverEnv = {
@@ -48,7 +53,7 @@ const nextBuildWorkflow =
 
       const benchmarkDir = resolve(REPO_ROOT, 'bench', benchDir)
 
-      // cleanup .next directory to remove persistent cache
+      // cleanup .next directory to remove filesystem cache
       await retry(() =>
         rm(join(benchmarkDir, '.next'), { recursive: true, force: true })
       )
@@ -98,10 +103,12 @@ const nextBuildWorkflow =
       cleanupTasks.push(killShell)
 
       // wait for server to be ready
-      const START_SERVER_REGEXP = /Local:\s+(?<url>.+)\n/
       const {
         groups: { url },
-      } = await shell.waitForOutput(START_SERVER_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP)
+
+      // wait for server to be ready
+      await shell.waitForOutput(START_SERVER_REGEXP)
       await measureTime('server startup', { props: { turbopack, page } })
       await shell.reportMemUsage('mem usage after startup', {
         props: { turbopack, page },
@@ -185,7 +192,7 @@ const nextBuildWorkflow =
       // wait for server to be ready
       const {
         groups: { url: url2 },
-      } = await shell.waitForOutput(START_SERVER_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP)
       await shell.reportMemUsage('mem usage after startup with cache')
 
       // open page
@@ -204,7 +211,6 @@ const nextBuildWorkflow =
       throw e
     } finally {
       // This must run in order
-      // eslint-disable-next-line no-await-in-loop
       for (const task of cleanupTasks.reverse()) await task()
       await measureTime('shutdown')
     }
@@ -219,7 +225,7 @@ const nextDevWorkflow =
     try {
       const benchmarkDir = resolve(REPO_ROOT, 'bench', benchDir)
 
-      // cleanup .next directory to remove persistent cache
+      // cleanup .next directory to remove filesystem cache
       await retry(() =>
         rm(join(benchmarkDir, '.next'), { recursive: true, force: true })
       )
@@ -252,7 +258,7 @@ const nextDevWorkflow =
         NEXT_PUBLIC_OTEL_SENTRY: 'true',
         NEXT_PUBLIC_OTEL_DEV_DISABLED: 'true',
         NEXT_TRACE_UPLOAD_DISABLED: 'true',
-        // Enable next.js test mode to get HMR events
+        // Enable next.js test mode to get HMR events and silence canary only
         __NEXT_TEST_MODE: '1',
       }
 
@@ -276,10 +282,12 @@ const nextDevWorkflow =
       cleanupTasks.push(killShell)
 
       // wait for server to be ready
-      const START_SERVER_REGEXP = /Local:\s+(?<url>.+)\n/
       const {
         groups: { url },
-      } = await shell.waitForOutput(START_SERVER_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP)
+
+      // wait for server to be ready
+      await shell.waitForOutput(START_SERVER_REGEXP)
       await measureTime('server startup', { props: { turbopack, page } })
       await shell.reportMemUsage('mem usage after startup', {
         props: { turbopack, page },
@@ -344,7 +352,6 @@ const nextDevWorkflow =
           await writeFile(path, content, 'utf8')
         })
         let currentContent = content
-        /* eslint-disable no-await-in-loop */
         for (let hmrAttempt = 0; hmrAttempt < 10; hmrAttempt++) {
           if (hmrAttempt > 0) {
             await new Promise((resolve) => {
@@ -458,7 +465,6 @@ const nextDevWorkflow =
 
           if (!success) break
         }
-        /* eslint-enable no-await-in-loop */
       }
 
       if (turbopack) {
@@ -466,13 +472,14 @@ const nextDevWorkflow =
         await killShell()
         await closeSession()
       } else {
-        // wait for persistent cache to be written
+        // wait for filesystem cache to be written
         const waitPromise = new Promise((resolve) => {
           setTimeout(resolve, 5000)
         })
         const cacheLocation = join(
           benchmarkDir,
           '.next',
+          'dev',
           'cache',
           'webpack',
           'client-development'
@@ -505,7 +512,7 @@ const nextDevWorkflow =
       // wait for server to be ready
       const {
         groups: { url: url2 },
-      } = await shell.waitForOutput(START_SERVER_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP)
       await shell.reportMemUsage('mem usage after startup with cache')
 
       // open page
@@ -522,7 +529,6 @@ const nextDevWorkflow =
       await shell.reportMemUsage('mem usage after open page with cache')
     } finally {
       // This must run in order
-      // eslint-disable-next-line no-await-in-loop
       for (const task of cleanupTasks.reverse()) await task()
       await measureTime('shutdown')
     }
@@ -577,12 +583,10 @@ async function retry(fn) {
   let lastError
   for (let i = 100; i < 2000; i += 100) {
     try {
-      // eslint-disable-next-line no-await-in-loop
       await fn()
       return
     } catch (e) {
       lastError = e
-      // eslint-disable-next-line no-await-in-loop
       await new Promise((resolve) => {
         setTimeout(resolve, i)
       })

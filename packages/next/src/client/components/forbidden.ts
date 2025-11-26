@@ -26,7 +26,6 @@ export function forbidden(): never {
     )
   }
 
-  // eslint-disable-next-line no-throw-literal
   const error = new Error(DIGEST) as HTTPAccessFallbackError
   ;(error as HTTPAccessFallbackError).digest = DIGEST
   throw error

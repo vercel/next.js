@@ -2,8 +2,8 @@
 name = "turbopack-trace-server"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
-edition = "2021"
+license = "MIT"
+edition = "2024"
 autobenches = false
 
 [[bin]]
@@ -12,9 +12,10 @@ path = "src/main.rs"
 bench = false
 
 [dependencies]
-anyhow = { workspace = true, features = ["backtrace"] }
+anyhow = { workspace = true }
 either = { workspace = true }
-flate2 = { version = "1.0.28" }
+flate2 = { workspace = true }
+hashbrown = { workspace = true, features = ["raw"] }
 indexmap = { workspace = true, features = ["serde"] }
 itertools = { workspace = true }
 postcard = { workspace = true }

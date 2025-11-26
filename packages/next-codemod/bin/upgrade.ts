@@ -4,6 +4,7 @@ import fs from 'fs'
 import {
   satisfies as satisfiesVersionRange,
   compare as compareVersions,
+  major,
 } from 'semver'
 import { execSync } from 'child_process'
 import path from 'path'
@@ -53,25 +54,29 @@ async function loadHighestNPMVersionMatching(query: string) {
   // npm-view returns an array if there are multiple versions matching the query.
   if (Array.isArray(versionOrVersions)) {
     // The last entry will be the latest version published.
+    // But we want the highest version.
+    versionOrVersions.sort(compareVersions)
     return versionOrVersions[versionOrVersions.length - 1]
   }
   return versionOrVersions
 }
 
-function endMessage() {
+function endMessage(targetNextVersion: string) {
   console.log()
-  console.log(
-    pc.white(
-      pc.bold(
-        `Please review the local changes and read the Next.js 15 migration guide to complete the migration.`
+  if (major(targetNextVersion) === 15) {
+    console.log(
+      pc.white(
+        pc.bold(
+          `Please review the local changes and read the Next.js 15 migration guide to complete the migration.`
+        )
       )
     )
-  )
-  console.log(
-    pc.underline(
-      'https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15'
+    console.log(
+      pc.underline(
+        'https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15'
+      )
     )
-  )
+  }
 }
 
 const cwd = process.cwd()
@@ -104,7 +109,7 @@ export async function runUpgrade(
     'peerDependencies' in targetNextPackageJson
   if (!validRevision) {
     throw new BadInput(
-      `Invalid revision provided: "${revision}". Please provide a valid Next.js version or dist-tag (e.g. "latest", "canary", "rc", or "15.0.0").\nCheck available versions at https://www.npmjs.com/package/next?activeTab=versions.`
+      `Invalid revision provided: "${revision}". Please provide a valid Next.js version or dist-tag (e.g. "latest", "canary", "beta", "rc", or "15.0.0").\nCheck available versions at https://www.npmjs.com/package/next?activeTab=versions.`
     )
   }
 
@@ -116,14 +121,14 @@ export async function runUpgrade(
     console.log(
       `${pc.green('✓')} Current Next.js version is already on the target version "v${targetNextVersion}".`
     )
-    endMessage()
+    endMessage(targetNextVersion)
     return
   }
   if (compareVersions(installedNextVersion, targetNextVersion) > 0) {
     console.log(
       `${pc.green('✓')} Current Next.js version is higher than the target version "v${targetNextVersion}".`
     )
-    endMessage()
+    endMessage(targetNextVersion)
     return
   }
 
@@ -183,7 +188,10 @@ export async function runUpgrade(
         `react@${targetNextPackageJson.peerDependencies['react']}`
       )
 
-  if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
+  if (
+    compareVersions(targetNextVersion, '15.0.0-canary') >= 0 &&
+    compareVersions(targetNextVersion, '16.0.0-canary') < 0
+  ) {
     await suggestTurbopack(appPackageJson, targetNextVersion)
   }
 
@@ -359,7 +367,7 @@ export async function runUpgrade(
 
   warnDependenciesOutOfRange(appPackageJson, versionMapping)
 
-  endMessage()
+  endMessage(targetNextVersion)
 }
 
 function getInstalledNextVersion(): string {
@@ -424,7 +432,7 @@ async function suggestTurbopack(
   packageJson: any,
   targetNextVersion: string
 ): Promise<void> {
-  const devScript: string = packageJson.scripts['dev']
+  const devScript: string | undefined = packageJson.scripts?.['dev']
   // Turbopack flag was changed from `--turbo` to `--turbopack` in v15.0.1-canary.3
   // PR: https://github.com/vercel/next.js/pull/71657
   // Release: https://github.com/vercel/next.js/releases/tag/v15.0.1-canary.3

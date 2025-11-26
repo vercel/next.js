@@ -1,48 +1,47 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import type { FlightDataPath } from '../../../server/app-render/types'
+import type {
+  CacheNode,
+  FlightDataPath,
+} from '../../../shared/lib/app-router-types'
 
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
-import { createSeededPrefetchCacheEntry } from './prefetch-cache-utils'
-import { PrefetchKind, type PrefetchCacheEntry } from './router-reducer-types'
-import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-parallel-segments'
+
+import type { AppRouterState } from './router-reducer-types'
 import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 
 export interface InitialRouterStateParameters {
+  navigatedAt: number
   initialCanonicalUrlParts: string[]
+  initialRenderedSearch: string
   initialParallelRoutes: CacheNode['parallelRoutes']
   initialFlightData: FlightDataPath[]
   location: Location | null
-  couldBeIntercepted: boolean
-  postponed: boolean
-  prerendered: boolean
 }
 
 export function createInitialRouterState({
+  navigatedAt,
   initialFlightData,
   initialCanonicalUrlParts,
+  initialRenderedSearch,
   initialParallelRoutes,
   location,
-  couldBeIntercepted,
-  postponed,
-  prerendered,
-}: InitialRouterStateParameters) {
+}: InitialRouterStateParameters): AppRouterState {
   // When initialized on the server, the canonical URL is provided as an array of parts.
   // This is to ensure that when the RSC payload streamed to the client, crawlers don't interpret it
   // as a URL that should be crawled.
   const initialCanonicalUrl = initialCanonicalUrlParts.join('/')
+
   const normalizedFlightData = getFlightDataPartsFromPath(initialFlightData[0])
   const {
     tree: initialTree,
     seedData: initialSeedData,
     head: initialHead,
   } = normalizedFlightData
-  const isServer = !location
   // For the SSR render, seed data should always be available (we only send back a `null` response
   // in the case of a `loading` segment, pre-PPR.)
-  const rsc = initialSeedData?.[1]
-  const loading = initialSeedData?.[3] ?? null
+  const rsc = initialSeedData?.[0]
+  const loading = initialSeedData?.[2] ?? null
 
   const cache: CacheNode = {
     lazyData: null,
@@ -51,8 +50,9 @@ export function createInitialRouterState({
     head: null,
     prefetchHead: null,
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
-    parallelRoutes: isServer ? new Map() : initialParallelRoutes,
+    parallelRoutes: initialParallelRoutes,
     loading,
+    navigatedAt,
   }
 
   const canonicalUrl =
@@ -63,13 +63,10 @@ export function createInitialRouterState({
         createHrefFromUrl(location)
       : initialCanonicalUrl
 
-  addRefreshMarkerToActiveParallelSegments(initialTree, canonicalUrl)
-
-  const prefetchCache = new Map<string, PrefetchCacheEntry>()
-
   // When the cache hasn't been seeded yet we fill the cache with the head.
   if (initialParallelRoutes === null || initialParallelRoutes.size === 0) {
     fillLazyItemsTillLeafWithHead(
+      navigatedAt,
       cache,
       undefined,
       initialTree,
@@ -81,7 +78,6 @@ export function createInitialRouterState({
   const initialState = {
     tree: initialTree,
     cache,
-    prefetchCache,
     pushRef: {
       pendingPush: false,
       mpaNavigation: false,
@@ -96,45 +92,13 @@ export function createInitialRouterState({
       segmentPaths: [],
     },
     canonicalUrl,
+    renderedSearch: initialRenderedSearch,
     nextUrl:
       // the || operator is intentional, the pathname can be an empty string
       (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??
       null,
-  }
-
-  if (process.env.NODE_ENV !== 'development' && location) {
-    // Seed the prefetch cache with this page's data.
-    // This is to prevent needlessly re-prefetching a page that is already reusable,
-    // and will avoid triggering a loading state/data fetch stall when navigating back to the page.
-    // We don't currently do this in development because links aren't prefetched in development
-    // so having a mismatch between prefetch/no prefetch provides inconsistent behavior based on which page
-    // was loaded first.
-    const url = new URL(
-      `${location.pathname}${location.search}`,
-      location.origin
-    )
-
-    createSeededPrefetchCacheEntry({
-      url,
-      data: {
-        flightData: [normalizedFlightData],
-        canonicalUrl: undefined,
-        couldBeIntercepted: !!couldBeIntercepted,
-        prerendered,
-        postponed,
-        // TODO: The initial RSC payload includes both static and dynamic data
-        // in the same response, even if PPR is enabled. So if there's any
-        // dynamic data at all, we can't set a stale time. In the future we may
-        // add a way to split a single Flight stream into static and dynamic
-        // parts. But in the meantime we should at least make this work for
-        // fully static pages.
-        staleTime: -1,
-      },
-      tree: initialState.tree,
-      prefetchCache: initialState.prefetchCache,
-      nextUrl: initialState.nextUrl,
-      kind: prerendered ? PrefetchKind.FULL : PrefetchKind.AUTO,
-    })
+    previousNextUrl: null,
+    debugInfo: null,
   }
 
   return initialState

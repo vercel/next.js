@@ -1,0 +1,38 @@
+[package]
+name = "turbo-tasks-backend-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+afl = "0.15.18"
+anyhow = { workspace = true }
+arbitrary = { version = "1.4.1", features = ["derive"] }
+libfuzzer-sys = "0.4.9"
+once_cell = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+turbo-tasks = { workspace = true }
+turbo-tasks-backend = { workspace = true }
+turbo-tasks-malloc = { workspace = true }
+
+[[bin]]
+name = "fuzz_graph"
+path = "fuzz_targets/graph.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "afl_graph"
+path = "afl_targets/graph.rs"
+test = false
+doc = false
+bench = false
+
+
+[lints]
+workspace = true

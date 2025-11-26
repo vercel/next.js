@@ -1,12 +1,7 @@
-use std::{
-    collections::{HashMap, HashSet},
-    env, fs,
-    path::PathBuf,
-    process,
-    str::FromStr,
-};
+use std::{env, fs, path::PathBuf, process, str::FromStr};
 
 use owo_colors::OwoColorize;
+use rustc_hash::{FxHashMap, FxHashSet};
 use semver::{Prerelease, Version};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -149,10 +144,7 @@ pub fn run_publish(name: &str) {
                 .join(&bin_file_name);
             let dist_path = target_dir.join(&bin_file_name);
             fs::copy(&artifact_path, &dist_path).unwrap_or_else(|e| {
-                panic!(
-                    "Copy file from [{:?}] to [{:?}] failed: {e}",
-                    artifact_path, dist_path
-                )
+                panic!("Copy file from [{artifact_path:?}] to [{dist_path:?}] failed: {e}")
             });
             Command::program("npm")
                 .args(["publish", "--access", "public", "--tag", tag])
@@ -162,15 +154,12 @@ pub fn run_publish(name: &str) {
         }
         let target_pkg_dir = temp_dir.join(pkg.name);
         fs::create_dir_all(&target_pkg_dir).unwrap_or_else(|e| {
-            panic!(
-                "Unable to create target npm directory [{:?}]: {e}",
-                target_pkg_dir
-            )
+            panic!("Unable to create target npm directory [{target_pkg_dir:?}]: {e}")
         });
         let optional_dependencies_with_version = optional_dependencies
             .into_iter()
             .map(|name| (name, version.clone()))
-            .collect::<HashMap<String, String>>();
+            .collect::<FxHashMap<String, String>>();
         let pkg_json_content =
             fs::read(package_dir.join("../../package.json")).expect("Unable to read package.json");
         let mut pkg_json: Value = serde_json::from_slice(&pkg_json_content).unwrap();
@@ -221,7 +210,7 @@ struct PackageJson {
     path: String,
 }
 
-pub fn run_bump(names: HashSet<String>, dry_run: bool) {
+pub fn run_bump(names: FxHashSet<String>, dry_run: bool) {
     let workspaces_list_text = Command::program("pnpm")
         .args(["ls", "-r", "--depth", "-1", "--json"])
         .error_message("List workspaces failed")
@@ -300,7 +289,7 @@ pub fn run_bump(names: HashSet<String>, dry_run: bool) {
                 if semver_version.pre.is_empty() {
                     semver_version.patch += 1;
                     semver_version.pre =
-                        Prerelease::new(format!("{}.0", version_type).as_str()).unwrap();
+                        Prerelease::new(format!("{version_type}.0").as_str()).unwrap();
                 } else {
                     let mut prerelease_version = semver_version.pre.split('.');
                     let prerelease_type = prerelease_version
@@ -314,17 +303,16 @@ pub fn run_bump(names: HashSet<String>, dry_run: bool) {
                         .expect("prerelease version number should be u32");
                     if semver_version.pre.contains(version_type) {
                         version_number += 1;
-                        semver_version.pre = Prerelease::new(
-                            format!("{}.{}", version_type, version_number).as_str(),
-                        )
-                        .unwrap();
+                        semver_version.pre =
+                            Prerelease::new(format!("{version_type}.{version_number}").as_str())
+                                .unwrap();
                     } else {
                         // eg. current version is 1.0.0-beta.12, bump to 1.0.0-canary.0
                         if Prerelease::from_str(version_type).unwrap()
                             > Prerelease::from_str(prerelease_type).unwrap()
                         {
                             semver_version.pre =
-                                Prerelease::new(format!("{}.0", version_type).as_str()).unwrap();
+                                Prerelease::new(format!("{version_type}.0").as_str()).unwrap();
                         } else {
                             panic!(
                                 "Previous version is {prerelease_type}, so you can't bump to \

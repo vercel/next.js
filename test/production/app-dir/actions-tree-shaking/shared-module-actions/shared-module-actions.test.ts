@@ -5,7 +5,7 @@ import {
 } from '../_testing/utils'
 
 // TODO: revisit when we have a better side-effect free transform approach for server action
-;(process.env.TURBOPACK ? describe : describe.skip)(
+;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'actions-tree-shaking - shared-module-actions',
   () => {
     const { next } = nextTestSetup({
@@ -21,10 +21,10 @@ import {
 
       expect(actionsRoutesState).toMatchObject({
         'app/server/one/page': {
-          rsc: 1,
+          rsc: 3,
         },
         'app/server/two/page': {
-          rsc: 1,
+          rsc: 3,
         },
         'app/client/one/page': {
           'action-browser': 1,

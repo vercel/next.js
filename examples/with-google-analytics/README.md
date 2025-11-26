@@ -6,8 +6,6 @@ If you are using the Pages Router, please refer to the [pages/ documentation.](h
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-google-analytics&project-name=with-google-analytics&repository-name=with-google-analytics)
 
 ## How to use

@@ -89,6 +89,58 @@ describe('react version', () => {
     })
   })
 
+  it('Pages Router API route with nodejs runtime', async () => {
+    const response = await next.fetch('/api/node-route')
+    const middlewareHeaders = {
+      react: response.headers.get('x-react-condition'),
+      serverFavoringBrowser: response.headers.get(
+        'x-server-favoring-browser-condition'
+      ),
+      serverFavoringEdge: response.headers.get(
+        'x-server-favoring-edge-condition'
+      ),
+    }
+    const apiConditions = await response.json()
+    expect({ apiConditions, middlewareHeaders }).toEqual({
+      apiConditions: {
+        react: 'default',
+        serverFavoringBrowser: 'node',
+        serverFavoringEdge: 'node',
+      },
+      middlewareHeaders: {
+        react: 'react-server',
+        serverFavoringBrowser: 'browser',
+        serverFavoringEdge: 'edge-light',
+      },
+    })
+  })
+
+  it('Pages Router API route with edge runtime', async () => {
+    const response = await next.fetch('/api/edge-route')
+    const middlewareHeaders = {
+      react: response.headers.get('x-react-condition'),
+      serverFavoringBrowser: response.headers.get(
+        'x-server-favoring-browser-condition'
+      ),
+      serverFavoringEdge: response.headers.get(
+        'x-server-favoring-edge-condition'
+      ),
+    }
+    const apiConditions = await response.json()
+    expect({ apiConditions, middlewareHeaders }).toEqual({
+      apiConditions: {
+        react: 'default',
+        serverFavoringBrowser: 'browser',
+        serverFavoringEdge: 'edge-light',
+      },
+      middlewareHeaders: {
+        react: 'react-server',
+        serverFavoringBrowser: 'browser',
+        serverFavoringEdge: 'edge-light',
+      },
+    })
+  })
+
   it('App Router page headers with edge runtime', async () => {
     const response = await next.fetch('/app/edge-page')
 

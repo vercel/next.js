@@ -1,7 +1,5 @@
 use std::{
-    borrow::Cow,
     cmp::max,
-    collections::HashMap,
     fmt::{Debug, Display},
     future::Future,
     mem::take,
@@ -11,15 +9,17 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use futures::join;
+use once_cell::sync::Lazy;
 use owo_colors::{OwoColorize, Style};
 use parking_lot::Mutex;
-use serde::{de::DeserializeOwned, Serialize};
+use rustc_hash::FxHashMap;
+use serde::{Serialize, de::DeserializeOwned};
 use tokio::{
     io::{
-        stderr, stdout, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt,
-        BufReader, Stderr, Stdout,
+        AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, Stderr,
+        Stdout, stderr, stdout,
     },
     net::{TcpListener, TcpStream},
     process::{Child, ChildStderr, ChildStdout, Command},
@@ -28,11 +28,11 @@ use tokio::{
     time::{sleep, timeout},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{duration_span, FxIndexSet, ResolvedVc, Vc};
-use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
+use turbo_tasks::{FxIndexSet, ResolvedVc, Vc, duration_span};
+use turbo_tasks_fs::{FileSystemPath, json::parse_json_with_source_context};
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
-use crate::{source_map::apply_source_mapping, AssetsForSourceMapping};
+use crate::{AssetsForSourceMapping, heap_queue::HeapQueue, source_map::apply_source_mapping};
 
 #[derive(Clone, Copy)]
 pub enum FormattingMode {
@@ -45,8 +45,8 @@ pub enum FormattingMode {
 impl FormattingMode {
     pub fn magic_identifier<'a>(&self, content: impl Display + 'a) -> impl Display + 'a {
         match self {
-            FormattingMode::Plain => format!("{{{}}}", content),
-            FormattingMode::AnsiColors => format!("{{{}}}", content).italic().to_string(),
+            FormattingMode::Plain => format!("{{{content}}}"),
+            FormattingMode::AnsiColors => format!("{{{content}}}").italic().to_string(),
         }
     }
 
@@ -70,44 +70,36 @@ impl FormattingMode {
 struct NodeJsPoolProcess {
     child: Option<Child>,
     connection: TcpStream,
-    assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    assets_root: ResolvedVc<FileSystemPath>,
-    project_dir: ResolvedVc<FileSystemPath>,
     stdout_handler: OutputStreamHandler<ChildStdout, Stdout>,
     stderr_handler: OutputStreamHandler<ChildStderr, Stderr>,
     debug: bool,
+    cpu_time_invested: Duration,
 }
 
-impl NodeJsPoolProcess {
-    pub async fn apply_source_mapping<'a>(
-        &self,
-        text: &'a str,
-        formatting_mode: FormattingMode,
-    ) -> Result<Cow<'a, str>> {
-        let text = unmangle_identifiers(text, |content| formatting_mode.magic_identifier(content));
-        match text {
-            Cow::Borrowed(text) => {
-                apply_source_mapping(
-                    text,
-                    *self.assets_for_source_mapping,
-                    *self.assets_root,
-                    *self.project_dir,
-                    formatting_mode,
-                )
-                .await
-            }
-            Cow::Owned(ref text) => {
-                let cow = apply_source_mapping(
-                    text,
-                    *self.assets_for_source_mapping,
-                    *self.assets_root,
-                    *self.project_dir,
-                    formatting_mode,
-                )
-                .await?;
-                Ok(Cow::Owned(cow.into_owned()))
-            }
-        }
+impl Ord for NodeJsPoolProcess {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.cpu_time_invested
+            .cmp(&other.cpu_time_invested)
+            .then_with(|| {
+                self.child
+                    .as_ref()
+                    .map(|c| c.id())
+                    .cmp(&other.child.as_ref().map(|c| c.id()))
+            })
+    }
+}
+
+impl PartialOrd for NodeJsPoolProcess {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for NodeJsPoolProcess {}
+
+impl PartialEq for NodeJsPoolProcess {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == std::cmp::Ordering::Equal
     }
 }
 
@@ -129,8 +121,8 @@ struct OutputStreamHandler<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> {
     stream: BufReader<R>,
     shared: SharedOutputSet,
     assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    root: ResolvedVc<FileSystemPath>,
-    project_dir: ResolvedVc<FileSystemPath>,
+    root: FileSystemPath,
+    project_dir: FileSystemPath,
     final_stream: W,
 }
 
@@ -167,13 +159,13 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
         async fn write_source_mapped_final<W: AsyncWrite + Unpin>(
             bytes: &[u8],
             assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-            root: Vc<FileSystemPath>,
-            project_dir: Vc<FileSystemPath>,
+            root: FileSystemPath,
+            project_dir: FileSystemPath,
             final_stream: &mut W,
         ) -> Result<()> {
             if let Ok(text) = std::str::from_utf8(bytes) {
                 let text = unmangle_identifiers(text, |content| {
-                    format!("{{{}}}", content).italic().to_string()
+                    format!("{{{content}}}").italic().to_string()
                 });
                 match apply_source_mapping(
                     text.as_ref(),
@@ -203,7 +195,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
         }
 
         let mut buffer = Vec::new();
-        let mut own_output = HashMap::new();
+        let mut own_output = FxHashMap::default();
         let mut nesting: u32 = 0;
         let mut in_stack = None;
         let mut stack_trace_buffer = Vec::new();
@@ -268,8 +260,8 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
                             write_source_mapped_final(
                                 &entry.data,
                                 **assets_for_source_mapping,
-                                **root,
-                                **project_dir,
+                                root.clone(),
+                                project_dir.clone(),
                                 final_stream,
                             )
                             .await?;
@@ -295,8 +287,8 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
             write_source_mapped_final(
                 &buffer,
                 **assets_for_source_mapping,
-                **root,
-                **project_dir,
+                root.clone(),
+                project_dir.clone(),
                 final_stream,
             )
             .await?;
@@ -309,16 +301,16 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
 impl NodeJsPoolProcess {
     async fn new(
         cwd: &Path,
-        env: &HashMap<RcStr, RcStr>,
+        env: &FxHashMap<RcStr, RcStr>,
         entrypoint: &Path,
         assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-        assets_root: ResolvedVc<FileSystemPath>,
-        project_dir: ResolvedVc<FileSystemPath>,
+        assets_root: FileSystemPath,
+        project_dir: FileSystemPath,
         shared_stdout: SharedOutputSet,
         shared_stderr: SharedOutputSet,
         debug: bool,
     ) -> Result<Self> {
-        let guard = Box::new(duration_span!("Node.js process startup"));
+        let guard = duration_span!("Node.js process startup");
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .context("binding to a port")?;
@@ -402,6 +394,7 @@ impl NodeJsPoolProcess {
                 bail!("timed out waiting for the Node.js process to connect ({timeout:?} timeout)\nProcess output:\n{stdout}\nProcess error output:\n{stderr}");
             },
         };
+        connection.set_nodelay(true)?;
 
         let child_stdout = BufReader::new(child.stdout.take().unwrap());
         let child_stderr = BufReader::new(child.stderr.take().unwrap());
@@ -410,28 +403,26 @@ impl NodeJsPoolProcess {
             stream: child_stdout,
             shared: shared_stdout,
             assets_for_source_mapping,
-            root: assets_root,
-            project_dir,
+            root: assets_root.clone(),
+            project_dir: project_dir.clone(),
             final_stream: stdout(),
         };
         let stderr_handler = OutputStreamHandler {
             stream: child_stderr,
             shared: shared_stderr,
             assets_for_source_mapping,
-            root: assets_root,
-            project_dir,
+            root: assets_root.clone(),
+            project_dir: project_dir.clone(),
             final_stream: stderr(),
         };
 
         let mut process = Self {
             child: Some(child),
             connection,
-            assets_for_source_mapping,
-            assets_root,
-            project_dir,
             stdout_handler,
             stderr_handler,
             debug,
+            cpu_time_invested: Duration::ZERO,
         };
 
         drop(guard);
@@ -510,6 +501,10 @@ impl NodeJsPoolProcess {
             .write_all(&packet_data)
             .await
             .context("writing packet data")?;
+        self.connection
+            .flush()
+            .await
+            .context("flushing packet data")?;
         Ok(())
     }
 }
@@ -675,6 +670,12 @@ enum AcquiredPermits {
     },
 }
 
+type IdleProcessQueues = Mutex<Vec<Arc<HeapQueue<NodeJsPoolProcess>>>>;
+
+/// All non-empty `IdleProcessQueues`s of the whole application.
+/// This is used to scale down processes globally.
+static ACTIVE_POOLS: Lazy<IdleProcessQueues> = Lazy::new(Default::default);
+
 /// A pool of Node.js workers operating on [entrypoint] with specific [cwd] and
 /// [env].
 ///
@@ -684,16 +685,16 @@ enum AcquiredPermits {
 ///
 /// The worker will *not* use the env of the parent process by default. All env
 /// vars need to be provided to make the execution as pure as possible.
-#[turbo_tasks::value(into = "new", cell = "new", serialization = "none", eq = "manual")]
+#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual", shared)]
 pub struct NodeJsPool {
     cwd: PathBuf,
     entrypoint: PathBuf,
-    env: HashMap<RcStr, RcStr>,
+    env: FxHashMap<RcStr, RcStr>,
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    pub assets_root: ResolvedVc<FileSystemPath>,
-    pub project_dir: ResolvedVc<FileSystemPath>,
+    pub assets_root: FileSystemPath,
+    pub project_dir: FileSystemPath,
     #[turbo_tasks(trace_ignore, debug_ignore)]
-    processes: Arc<Mutex<Vec<NodeJsPoolProcess>>>,
+    idle_processes: Arc<HeapQueue<NodeJsPoolProcess>>,
     /// Semaphore to limit the number of concurrent operations in general
     #[turbo_tasks(trace_ignore, debug_ignore)]
     concurrency_semaphore: Arc<Semaphore>,
@@ -701,9 +702,6 @@ pub struct NodeJsPool {
     /// (excludes one-off processes)
     #[turbo_tasks(trace_ignore, debug_ignore)]
     bootup_semaphore: Arc<Semaphore>,
-    /// Semaphore to wait for an idle process to become available
-    #[turbo_tasks(trace_ignore, debug_ignore)]
-    idle_process_semaphore: Arc<Semaphore>,
     #[turbo_tasks(trace_ignore, debug_ignore)]
     shared_stdout: SharedOutputSet,
     #[turbo_tasks(trace_ignore, debug_ignore)]
@@ -719,10 +717,10 @@ impl NodeJsPool {
     pub(super) fn new(
         cwd: PathBuf,
         entrypoint: PathBuf,
-        env: HashMap<RcStr, RcStr>,
+        env: FxHashMap<RcStr, RcStr>,
         assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-        assets_root: ResolvedVc<FileSystemPath>,
-        project_dir: ResolvedVc<FileSystemPath>,
+        assets_root: FileSystemPath,
+        project_dir: FileSystemPath,
         concurrency: usize,
         debug: bool,
     ) -> Self {
@@ -733,10 +731,9 @@ impl NodeJsPool {
             assets_for_source_mapping,
             assets_root,
             project_dir,
-            processes: Arc::new(Mutex::new(Vec::new())),
             concurrency_semaphore: Arc::new(Semaphore::new(if debug { 1 } else { concurrency })),
             bootup_semaphore: Arc::new(Semaphore::new(1)),
-            idle_process_semaphore: Arc::new(Semaphore::new(0)),
+            idle_processes: Arc::new(HeapQueue::new()),
             shared_stdout: Arc::new(Mutex::new(FxIndexSet::default())),
             shared_stderr: Arc::new(Mutex::new(FxIndexSet::default())),
             debug,
@@ -759,13 +756,8 @@ impl NodeJsPool {
         };
 
         select! {
-            idle_process_permit = self.idle_process_semaphore.clone().acquire_owned() => {
-                let idle_process_permit = idle_process_permit.context("acquiring idle process permit")?;
-                let process = {
-                    let mut processes = self.processes.lock();
-                    processes.pop().unwrap()
-                };
-                idle_process_permit.forget();
+            idle_process_result = self.idle_processes.pop(&ACTIVE_POOLS) => {
+                let process = idle_process_result.context("acquiring idle process permit")?;
                 Ok((process, AcquiredPermits::Idle { concurrency_permit }))
             },
             bootup_permit = bootup => {
@@ -794,8 +786,8 @@ impl NodeJsPool {
             &self.env,
             self.entrypoint.as_path(),
             self.assets_for_source_mapping,
-            self.assets_root,
-            self.project_dir,
+            self.assets_root.clone(),
+            self.project_dir.clone(),
             self.shared_stdout.clone(),
             self.shared_stderr.clone(),
             self.debug,
@@ -812,12 +804,25 @@ impl NodeJsPool {
         Ok(NodeJsOperation {
             process: Some(process),
             permits,
-            processes: self.processes.clone(),
-            idle_process_semaphore: self.idle_process_semaphore.clone(),
+            idle_processes: self.idle_processes.clone(),
             start: Instant::now(),
             stats: self.stats.clone(),
             allow_process_reuse: true,
         })
+    }
+
+    pub fn scale_down() {
+        let pools = ACTIVE_POOLS.lock().clone();
+        for pool in pools {
+            pool.reduce_to_one();
+        }
+    }
+
+    pub fn scale_zero() {
+        let pools = ACTIVE_POOLS.lock().clone();
+        for pool in pools {
+            pool.reduce_to_zero(&ACTIVE_POOLS);
+        }
     }
 }
 
@@ -826,8 +831,7 @@ pub struct NodeJsOperation {
     // This is used for drop
     #[allow(dead_code)]
     permits: AcquiredPermits,
-    processes: Arc<Mutex<Vec<NodeJsPoolProcess>>>,
-    idle_process_semaphore: Arc<Semaphore>,
+    idle_processes: Arc<HeapQueue<NodeJsPoolProcess>>,
     start: Instant,
     stats: Arc<Mutex<NodeJsPoolStats>>,
     allow_process_reuse: bool,
@@ -914,23 +918,11 @@ impl NodeJsOperation {
             self.allow_process_reuse = false;
         }
     }
-
-    pub async fn apply_source_mapping<'a>(
-        &self,
-        text: &'a str,
-        formatting_mode: FormattingMode,
-    ) -> Result<Cow<'a, str>> {
-        if let Some(process) = self.process.as_ref() {
-            process.apply_source_mapping(text, formatting_mode).await
-        } else {
-            Ok(Cow::Borrowed(text))
-        }
-    }
 }
 
 impl Drop for NodeJsOperation {
     fn drop(&mut self) {
-        if let Some(process) = self.process.take() {
+        if let Some(mut process) = self.process.take() {
             let elapsed = self.start.elapsed();
             {
                 let stats = &mut self.stats.lock();
@@ -940,8 +932,8 @@ impl Drop for NodeJsOperation {
                 }
             }
             if self.allow_process_reuse {
-                self.processes.lock().push(process);
-                self.idle_process_semaphore.add_permits(1);
+                process.cpu_time_invested += elapsed;
+                self.idle_processes.push(process, &ACTIVE_POOLS);
             }
         }
     }

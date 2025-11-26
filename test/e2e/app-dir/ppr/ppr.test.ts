@@ -1,7 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, findAllTelemetryEvents } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 
-describe('ppr', () => {
+// TODO(NAR-423): Migrate to Cache Components.
+describe.skip('ppr', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
     env: {
@@ -12,7 +14,7 @@ describe('ppr', () => {
   it('should indicate the feature is experimental', async () => {
     await retry(() => {
       expect(next.cliOutput).toContain('Experiments (use with caution)')
-      expect(next.cliOutput).toContain('ppr')
+      expect(stripAnsi(next.cliOutput)).toContain('✓ ppr')
     })
   })
   if (isNextStart) {

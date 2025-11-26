@@ -4,6 +4,9 @@ use std::{cmp::min, hash::Hasher};
 pub trait KeyBase {
     /// Returns the length of the key in bytes.
     fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
     /// Hashes the key. It should not include the structure of the key, only the data. E.g. `([1,
     /// 2], [3, 4])` should hash the same as `[1, 2, 3, 4]`.
     fn hash<H: Hasher>(&self, state: &mut H);
@@ -12,6 +15,10 @@ pub trait KeyBase {
 impl KeyBase for &'_ [u8] {
     fn len(&self) -> usize {
         <[u8]>::len(self)
+    }
+
+    fn is_empty(&self) -> bool {
+        <[u8]>::is_empty(self)
     }
 
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -23,7 +30,11 @@ impl KeyBase for &'_ [u8] {
 
 impl<const N: usize> KeyBase for [u8; N] {
     fn len(&self) -> usize {
-        self[..].len()
+        N
+    }
+
+    fn is_empty(&self) -> bool {
+        N > 0
     }
 
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -38,6 +49,10 @@ impl KeyBase for Vec<u8> {
         self.len()
     }
 
+    fn is_empty(&self) -> bool {
+        self.is_empty()
+    }
+
     fn hash<H: Hasher>(&self, state: &mut H) {
         for item in self {
             state.write_u8(*item);
@@ -48,6 +63,10 @@ impl KeyBase for Vec<u8> {
 impl KeyBase for u8 {
     fn len(&self) -> usize {
         1
+    }
+
+    fn is_empty(&self) -> bool {
+        false
     }
 
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -61,6 +80,11 @@ impl<A: KeyBase, B: KeyBase> KeyBase for (A, B) {
         a.len() + b.len()
     }
 
+    fn is_empty(&self) -> bool {
+        let (a, b) = self;
+        a.is_empty() && b.is_empty()
+    }
+
     fn hash<H: Hasher>(&self, state: &mut H) {
         let (a, b) = self;
         KeyBase::hash(a, state);
@@ -71,6 +95,10 @@ impl<A: KeyBase, B: KeyBase> KeyBase for (A, B) {
 impl<T: KeyBase> KeyBase for &'_ T {
     fn len(&self) -> usize {
         (*self).len()
+    }
+
+    fn is_empty(&self) -> bool {
+        (*self).is_empty()
     }
 
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -183,7 +211,7 @@ pub fn hash_key(key: &impl KeyBase) -> u64 {
 mod tests {
     use std::cmp::Ordering;
 
-    use crate::{key::hash_key, QueryKey};
+    use crate::{QueryKey, key::hash_key};
 
     #[test]
     fn tuple() {

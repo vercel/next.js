@@ -7,7 +7,10 @@ import { isAbortError } from '../pipe-readable'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import { isNextRouterError } from '../../client/components/is-next-router-error'
+import { isPrerenderInterruptedError } from './dynamic-rendering'
 import { getProperError } from '../../lib/is-error'
+import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
+import { isReactLargeShellError } from './react-large-shell-error'
 
 declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
@@ -20,6 +23,30 @@ type SSRErrorHandler = (
 ) => string | undefined
 
 export type DigestedError = Error & { digest: string }
+
+/**
+ * Returns a digest for well-known Next.js errors, otherwise `undefined`. If a
+ * digest is returned this also means that the error does not need to be
+ * reported.
+ */
+export function getDigestForWellKnownError(error: unknown): string | undefined {
+  // If we're bailing out to CSR, we don't need to log the error.
+  if (isBailoutToCSRError(error)) return error.digest
+
+  // If this is a navigation error, we don't need to log the error.
+  if (isNextRouterError(error)) return error.digest
+
+  // If this error occurs, we know that we should be stopping the static
+  // render. This is only thrown in static generation when PPR is not enabled,
+  // which causes the whole page to be marked as dynamic. We don't need to
+  // tell the user about this error, as it's not actionable.
+  if (isDynamicServerError(error)) return error.digest
+
+  // If this is a prerender interrupted error, we don't need to log the error.
+  if (isPrerenderInterruptedError(error)) return error.digest
+
+  return undefined
+}
 
 export function createFlightReactServerErrorHandler(
   shouldFormatError: boolean,
@@ -34,17 +61,17 @@ export function createFlightReactServerErrorHandler(
     // If the response was closed, we don't need to log the error.
     if (isAbortError(thrownValue)) return
 
-    // If we're bailing out to CSR, we don't need to log the error.
-    if (isBailoutToCSRError(thrownValue)) return thrownValue.digest
+    const digest = getDigestForWellKnownError(thrownValue)
 
-    // If this is a navigation error, we don't need to log the error.
-    if (isNextRouterError(thrownValue)) return thrownValue.digest
+    if (digest) {
+      return digest
+    }
 
-    // If this error occurs, we know that we should be stopping the static
-    // render. This is only thrown in static generation when PPR is not enabled,
-    // which causes the whole page to be marked as dynamic. We don't need to
-    // tell the user about this error, as it's not actionable.
-    if (isDynamicServerError(thrownValue)) return thrownValue.digest
+    if (isReactLargeShellError(thrownValue)) {
+      // TODO: Aggregate
+      console.error(thrownValue)
+      return undefined
+    }
 
     const err = getProperError(thrownValue) as DigestedError
 
@@ -64,6 +91,7 @@ export function createFlightReactServerErrorHandler(
     const span = getTracer().getActiveScopeSpan()
     if (span) {
       span.recordException(err)
+      span.setAttribute('error.type', err.name)
       span.setStatus({
         code: SpanStatusCode.ERROR,
         message: err.message,
@@ -72,7 +100,7 @@ export function createFlightReactServerErrorHandler(
 
     onReactServerRenderError(err)
 
-    return err.digest
+    return createDigestWithErrorCode(thrownValue, err.digest)
   }
 }
 
@@ -92,17 +120,17 @@ export function createHTMLReactServerErrorHandler(
     // If the response was closed, we don't need to log the error.
     if (isAbortError(thrownValue)) return
 
-    // If we're bailing out to CSR, we don't need to log the error.
-    if (isBailoutToCSRError(thrownValue)) return thrownValue.digest
+    const digest = getDigestForWellKnownError(thrownValue)
 
-    // If this is a navigation error, we don't need to log the error.
-    if (isNextRouterError(thrownValue)) return thrownValue.digest
+    if (digest) {
+      return digest
+    }
 
-    // If this error occurs, we know that we should be stopping the static
-    // render. This is only thrown in static generation when PPR is not enabled,
-    // which causes the whole page to be marked as dynamic. We don't need to
-    // tell the user about this error, as it's not actionable.
-    if (isDynamicServerError(thrownValue)) return thrownValue.digest
+    if (isReactLargeShellError(thrownValue)) {
+      // TODO: Aggregate
+      console.error(thrownValue)
+      return undefined
+    }
 
     const err = getProperError(thrownValue) as DigestedError
 
@@ -137,6 +165,7 @@ export function createHTMLReactServerErrorHandler(
       const span = getTracer().getActiveScopeSpan()
       if (span) {
         span.recordException(err)
+        span.setAttribute('error.type', err.name)
         span.setStatus({
           code: SpanStatusCode.ERROR,
           message: err.message,
@@ -148,7 +177,7 @@ export function createHTMLReactServerErrorHandler(
       }
     }
 
-    return err.digest
+    return createDigestWithErrorCode(thrownValue, err.digest)
   }
 }
 
@@ -161,6 +190,12 @@ export function createHTMLErrorHandler(
   onHTMLRenderSSRError: (err: DigestedError, errorInfo?: ErrorInfo) => void
 ): SSRErrorHandler {
   return (thrownValue: unknown, errorInfo?: ErrorInfo) => {
+    if (isReactLargeShellError(thrownValue)) {
+      // TODO: Aggregate
+      console.error(thrownValue)
+      return undefined
+    }
+
     let isSSRError = true
 
     allCapturedErrors.push(thrownValue)
@@ -168,17 +203,11 @@ export function createHTMLErrorHandler(
     // If the response was closed, we don't need to log the error.
     if (isAbortError(thrownValue)) return
 
-    // If we're bailing out to CSR, we don't need to log the error.
-    if (isBailoutToCSRError(thrownValue)) return thrownValue.digest
+    const digest = getDigestForWellKnownError(thrownValue)
 
-    // If this is a navigation error, we don't need to log the error.
-    if (isNextRouterError(thrownValue)) return thrownValue.digest
-
-    // If this error occurs, we know that we should be stopping the static
-    // render. This is only thrown in static generation when PPR is not enabled,
-    // which causes the whole page to be marked as dynamic. We don't need to
-    // tell the user about this error, as it's not actionable.
-    if (isDynamicServerError(thrownValue)) return thrownValue.digest
+    if (digest) {
+      return digest
+    }
 
     const err = getProperError(thrownValue) as DigestedError
     // If the error already has a digest, respect the original digest,
@@ -217,6 +246,7 @@ export function createHTMLErrorHandler(
       const span = getTracer().getActiveScopeSpan()
       if (span) {
         span.recordException(err)
+        span.setAttribute('error.type', err.name)
         span.setStatus({
           code: SpanStatusCode.ERROR,
           message: err.message,
@@ -232,7 +262,7 @@ export function createHTMLErrorHandler(
       }
     }
 
-    return err.digest
+    return createDigestWithErrorCode(thrownValue, err.digest)
   }
 }
 

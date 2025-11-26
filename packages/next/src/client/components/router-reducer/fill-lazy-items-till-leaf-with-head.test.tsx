@@ -1,7 +1,9 @@
 import React from 'react'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import type { FlightData } from '../../../server/app-render/types'
+import type {
+  CacheNode,
+  FlightData,
+} from '../../../shared/lib/app-router-types'
 
 const getFlightData = (): FlightData => {
   return [
@@ -33,9 +35,12 @@ const getFlightData = (): FlightData => {
   ]
 }
 
+const navigatedAt = Date.now()
+
 describe('fillLazyItemsTillLeafWithHead', () => {
   it('should fill lazy items till leaf with head', () => {
     const cache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
@@ -45,6 +50,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
       loading: null,
     }
     const existingCache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: <>Root layout</>,
       prefetchRsc: null,
@@ -58,6 +64,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
             [
               'linking',
               {
+                navigatedAt,
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
@@ -71,6 +78,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                       [
                         '',
                         {
+                          navigatedAt,
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
@@ -98,8 +106,11 @@ describe('fillLazyItemsTillLeafWithHead', () => {
 
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
-    const [treePatch, cacheNodeSeedData, head] = flightDataPath.slice(-3)
+    const [treePatch, cacheNodeSeedData, head /*, isHeadPartial */] =
+      flightDataPath.slice(-4)
+
     fillLazyItemsTillLeafWithHead(
+      navigatedAt,
       cache,
       existingCache,
       treePatch,
@@ -108,6 +119,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
     )
 
     const expectedCache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
@@ -121,6 +133,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
             [
               'linking',
               {
+                navigatedAt,
                 lazyData: null,
                 rsc: null,
                 prefetchRsc: null,
@@ -134,6 +147,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                       [
                         'about',
                         {
+                          navigatedAt,
                           lazyData: null,
                           loading: null,
                           parallelRoutes: new Map([
@@ -143,17 +157,14 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                                 [
                                   '',
                                   {
+                                    navigatedAt,
                                     lazyData: null,
                                     rsc: null,
                                     prefetchRsc: null,
                                     prefetchHead: null,
                                     loading: null,
                                     parallelRoutes: new Map(),
-                                    head: (
-                                      <>
-                                        <title>About page!</title>
-                                      </>
-                                    ),
+                                    head: null,
                                   },
                                 ],
                               ]),
@@ -168,6 +179,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                       [
                         '',
                         {
+                          navigatedAt,
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,

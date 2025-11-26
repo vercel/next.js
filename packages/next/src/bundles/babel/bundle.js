@@ -4,10 +4,6 @@ function types() {
   return require('@babel/types')
 }
 
-function codeFrame() {
-  return require('@babel/code-frame')
-}
-
 function core() {
   return require('@babel/core')
 }
@@ -80,6 +76,10 @@ function pluginSyntaxJsx() {
   return require('next/dist/compiled/babel-packages').pluginSyntaxJsx()
 }
 
+function pluginSyntaxTypescript() {
+  return require('next/dist/compiled/babel-packages').pluginSyntaxTypescript()
+}
+
 function pluginTransformDefine() {
   return require('next/dist/compiled/babel-packages').pluginTransformDefine()
 }
@@ -110,7 +110,6 @@ function presetTypescript() {
 
 module.exports = {
   types,
-  codeFrame,
   core,
   coreLibConfig,
   coreLibNormalizeFile,
@@ -129,6 +128,7 @@ module.exports = {
   pluginSyntaxDynamicImport,
   pluginSyntaxImportAttributes,
   pluginSyntaxJsx,
+  pluginSyntaxTypescript,
   pluginTransformDefine,
   pluginTransformModulesCommonjs,
   pluginTransformReactRemovePropTypes,

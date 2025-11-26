@@ -4,6 +4,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import contentDisposition from 'next/dist/compiled/content-disposition'
 import imageSizeOf from 'next/dist/compiled/image-size'
+import { detector } from 'next/dist/compiled/image-detector/detector.js'
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
 import nodeUrl, { type UrlWithParsedQuery } from 'url'
@@ -19,14 +20,20 @@ import {
   CachedRouteKind,
   type CachedImageValue,
   type IncrementalCacheEntry,
-  type IncrementalCacheItem,
   type IncrementalCacheValue,
+  type IncrementalResponseCacheEntry,
 } from './response-cache'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
+import { isPrivateIp } from './is-private-ip'
 import { parseUrl } from '../lib/url'
+import type { CacheControl } from './lib/cache-control'
+import { InvariantError } from '../shared/lib/invariant-error'
+import { lookup } from 'dns/promises'
+import { isIP } from 'net'
+import { ALL } from 'dns'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -34,14 +41,19 @@ const AVIF = 'image/avif'
 const WEBP = 'image/webp'
 const PNG = 'image/png'
 const JPEG = 'image/jpeg'
+const JXL = 'image/jxl'
+const JP2 = 'image/jp2'
+const HEIC = 'image/heic'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
 const ICO = 'image/x-icon'
+const ICNS = 'image/x-icns'
 const TIFF = 'image/tiff'
 const BMP = 'image/bmp'
+const PDF = 'application/pdf'
 const CACHE_VERSION = 4
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
-const VECTOR_TYPES = [SVG]
+const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
@@ -52,7 +64,7 @@ export function getSharp(concurrency: number | null | undefined) {
     return _sharp
   }
   try {
-    _sharp = require('sharp')
+    _sharp = require('sharp') as typeof import('sharp')
     if (_sharp && _sharp.concurrency() > 1) {
       // Reducing concurrency should reduce the memory usage too.
       // We more aggressively reduce in dev but also reduce in prod.
@@ -134,6 +146,7 @@ async function writeToCacheDir(
   upstreamEtag: string
 ) {
   const filename = join(
+    /* turbopackIgnore: true */
     dir,
     `${maxAge}.${expireAt}.${etag}.${upstreamEtag}.${extension}`
   )
@@ -149,7 +162,14 @@ async function writeToCacheDir(
  * it matches the "magic number" of known file signatures.
  * https://en.wikipedia.org/wiki/List_of_file_signatures
  */
-export function detectContentType(buffer: Buffer) {
+export async function detectContentType(
+  buffer: Buffer,
+  skipMetadata: boolean | null | undefined,
+  concurrency?: number | null | undefined
+): Promise<string | null> {
+  if (buffer.byteLength === 0) {
+    return null
+  }
   if ([0xff, 0xd8, 0xff].every((b, i) => buffer[i] === b)) {
     return JPEG
   }
@@ -186,13 +206,110 @@ export function detectContentType(buffer: Buffer) {
   if ([0x00, 0x00, 0x01, 0x00].every((b, i) => buffer[i] === b)) {
     return ICO
   }
+  if ([0x69, 0x63, 0x6e, 0x73].every((b, i) => buffer[i] === b)) {
+    return ICNS
+  }
   if ([0x49, 0x49, 0x2a, 0x00].every((b, i) => buffer[i] === b)) {
     return TIFF
   }
   if ([0x42, 0x4d].every((b, i) => buffer[i] === b)) {
     return BMP
   }
-  return null
+  if ([0xff, 0x0a].every((b, i) => buffer[i] === b)) {
+    return JXL
+  }
+  if (
+    [
+      0x00, 0x00, 0x00, 0x0c, 0x4a, 0x58, 0x4c, 0x20, 0x0d, 0x0a, 0x87, 0x0a,
+    ].every((b, i) => buffer[i] === b)
+  ) {
+    return JXL
+  }
+  if (
+    [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63].every(
+      (b, i) => !b || buffer[i] === b
+    )
+  ) {
+    return HEIC
+  }
+  if ([0x25, 0x50, 0x44, 0x46, 0x2d].every((b, i) => buffer[i] === b)) {
+    return PDF
+  }
+  if (
+    [
+      0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20, 0x0d, 0x0a, 0x87, 0x0a,
+    ].every((b, i) => buffer[i] === b)
+  ) {
+    return JP2
+  }
+
+  let format:
+    | import('sharp').Metadata['format']
+    | ReturnType<typeof detector>
+    | undefined
+  format = detector(buffer)
+
+  if (!format && !skipMetadata) {
+    const sharp = getSharp(concurrency)
+    const meta = await sharp(buffer)
+      .metadata()
+      .catch((_) => null)
+    format = meta?.format
+  }
+
+  switch (format) {
+    case 'avif':
+      return AVIF
+    case 'webp':
+      return WEBP
+    case 'png':
+      return PNG
+    case 'jpeg':
+    case 'jpg':
+      return JPEG
+    case 'gif':
+      return GIF
+    case 'svg':
+      return SVG
+    case 'jxl':
+    case 'jxl-stream':
+      return JXL
+    case 'jp2':
+      return JP2
+    case 'tiff':
+    case 'tif':
+      return TIFF
+    case 'pdf':
+      return PDF
+    case 'bmp':
+      return BMP
+    case 'ico':
+      return ICO
+    case 'icns':
+      return ICNS
+    case 'dcraw':
+    case 'dz':
+    case 'exr':
+    case 'fits':
+    case 'heif':
+    case 'input':
+    case 'magick':
+    case 'openslide':
+    case 'ppm':
+    case 'rad':
+    case 'raw':
+    case 'v':
+    case 'cur':
+    case 'dds':
+    case 'j2c':
+    case 'ktx':
+    case 'pnm':
+    case 'psd':
+    case 'tga':
+    case undefined:
+    default:
+      return null
+  }
 }
 
 export class ImageOptimizerCache {
@@ -210,11 +327,12 @@ export class ImageOptimizerCache {
       deviceSizes = [],
       imageSizes = [],
       domains = [],
-      minimumCacheTTL = 60,
+      minimumCacheTTL = 14400,
       formats = ['image/webp'],
     } = imageData
     const remotePatterns = nextConfig.images?.remotePatterns || []
     const localPatterns = nextConfig.images?.localPatterns
+    const qualities = nextConfig.images?.qualities
     const { url, w, q } = query
     let href: string
 
@@ -330,6 +448,18 @@ export class ImageOptimizerCache {
       }
     }
 
+    if (qualities) {
+      if (isDev) {
+        qualities.push(BLUR_QUALITY)
+      }
+
+      if (!qualities.includes(quality)) {
+        return {
+          errorMessage: `"q" parameter (quality) of ${q} is not allowed`,
+        }
+      }
+    }
+
     const mimeType = getSupportedMimeType(formats || [], req.headers['accept'])
 
     const isStatic = url.startsWith(
@@ -369,20 +499,25 @@ export class ImageOptimizerCache {
     distDir: string
     nextConfig: NextConfigComplete
   }) {
-    this.cacheDir = join(distDir, 'cache', 'images')
+    this.cacheDir = join(/* turbopackIgnore: true */ distDir, 'cache', 'images')
     this.nextConfig = nextConfig
   }
 
-  async get(cacheKey: string): Promise<IncrementalCacheEntry | null> {
+  async get(cacheKey: string): Promise<IncrementalResponseCacheEntry | null> {
     try {
-      const cacheDir = join(this.cacheDir, cacheKey)
+      const cacheDir = join(/* turbopackIgnore: true */ this.cacheDir, cacheKey)
       const files = await promises.readdir(cacheDir)
       const now = Date.now()
 
       for (const file of files) {
         const [maxAgeSt, expireAtSt, etag, upstreamEtag, extension] =
           file.split('.', 5)
-        const buffer = await promises.readFile(join(cacheDir, file))
+        const buffer = await promises.readFile(
+          /* turbopackIgnore: true */ join(
+            /* turbopackIgnore: true */ cacheDir,
+            file
+          )
+        )
         const expireAt = Number(expireAtSt)
         const maxAge = Number(maxAgeSt)
 
@@ -397,9 +532,8 @@ export class ImageOptimizerCache {
           revalidateAfter:
             Math.max(maxAge, this.nextConfig.images.minimumCacheTTL) * 1000 +
             Date.now(),
-          curRevalidate: maxAge,
+          cacheControl: { revalidate: maxAge, expire: undefined },
           isStale: now > expireAt,
-          isFallback: false,
         }
       }
     } catch (_) {
@@ -411,25 +545,32 @@ export class ImageOptimizerCache {
     cacheKey: string,
     value: IncrementalCacheValue | null,
     {
-      revalidate,
+      cacheControl,
     }: {
-      revalidate?: number | false
+      cacheControl?: CacheControl
     }
   ) {
+    if (!this.nextConfig.experimental.isrFlushToDisk) {
+      return
+    }
+
     if (value?.kind !== CachedRouteKind.IMAGE) {
       throw new Error('invariant attempted to set non-image to image-cache')
     }
 
+    const revalidate = cacheControl?.revalidate
+
     if (typeof revalidate !== 'number') {
-      throw new Error('invariant revalidate must be a number for image-cache')
+      throw new InvariantError('revalidate must be a number for image-cache')
     }
+
     const expireAt =
       Math.max(revalidate, this.nextConfig.images.minimumCacheTTL) * 1000 +
       Date.now()
 
     try {
       await writeToCacheDir(
-        join(this.cacheDir, cacheKey),
+        join(/* turbopackIgnore: true */ this.cacheDir, cacheKey),
         value.extension,
         revalidate,
         expireAt,
@@ -491,7 +632,7 @@ export function getMaxAge(str: string | null | undefined): number {
 }
 export function getPreviouslyCachedImageOrNull(
   upstreamImage: ImageUpstream,
-  previousCacheEntry: IncrementalCacheItem | undefined
+  previousCacheEntry: IncrementalCacheEntry | null | undefined
 ): CachedImageValue | null {
   if (
     previousCacheEntry?.value?.kind === 'IMAGE' &&
@@ -563,9 +704,40 @@ export async function optimizeImage({
   return optimizedBuffer
 }
 
-export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
+function isRedirect(statusCode: number) {
+  return [301, 302, 303, 307, 308].includes(statusCode)
+}
+
+export async function fetchExternalImage(
+  href: string,
+  dangerouslyAllowLocalIP: boolean,
+  count = 3
+): Promise<ImageUpstream> {
+  if (!dangerouslyAllowLocalIP) {
+    const { hostname } = new URL(href)
+    let ips = [hostname]
+    if (!isIP(hostname)) {
+      const records = await lookup(hostname, {
+        family: 0,
+        all: true,
+        hints: ALL,
+      }).catch((_) => [{ address: hostname }])
+      ips = records.map((record) => record.address)
+    }
+    const privateIps = ips.filter((ip) => isPrivateIp(ip))
+    if (privateIps.length > 0) {
+      Log.error(
+        'upstream image',
+        href,
+        'resolved to private ip',
+        JSON.stringify(privateIps)
+      )
+      throw new ImageError(400, '"url" parameter is not allowed')
+    }
+  }
   const res = await fetch(href, {
     signal: AbortSignal.timeout(7_000),
+    redirect: 'manual',
   }).catch((err) => err as Error)
 
   if (res instanceof Error) {
@@ -578,6 +750,23 @@ export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
       )
     }
     throw err
+  }
+
+  const locationHeader = res.headers.get('Location')
+  if (
+    isRedirect(res.status) &&
+    locationHeader &&
+    URL.canParse(locationHeader, href)
+  ) {
+    if (count === 0) {
+      Log.error('upstream image response had too many redirects', href)
+      throw new ImageError(
+        508,
+        '"url" parameter is valid but upstream response is invalid'
+      )
+    }
+    const redirect = new URL(locationHeader, href).href
+    return fetchExternalImage(redirect, dangerouslyAllowLocalIP, count - 1)
   }
 
   if (!res.ok) {
@@ -609,7 +798,6 @@ export async function fetchInternalImage(
     const mocked = createRequestResponseMocks({
       url: href,
       method: _req.method || 'GET',
-      headers: _req.headers,
       socket: _req.socket,
     })
 
@@ -651,6 +839,7 @@ export async function imageOptimizer(
       | 'imgOptConcurrency'
       | 'imgOptMaxInputPixels'
       | 'imgOptSequentialRead'
+      | 'imgOptSkipMetadata'
       | 'imgOptTimeoutInSeconds'
     >
     images: Pick<
@@ -661,7 +850,7 @@ export async function imageOptimizer(
   opts: {
     isDev?: boolean
     silent?: boolean
-    previousCacheEntry?: IncrementalCacheItem
+    previousCacheEntry?: IncrementalResponseCacheEntry | null
   }
 ): Promise<{
   buffer: Buffer
@@ -673,63 +862,67 @@ export async function imageOptimizer(
 }> {
   const { href, quality, width, mimeType } = paramsResult
   const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
-  const maxAge = getMaxAge(imageUpstream.cacheControl)
+  const maxAge = Math.max(
+    nextConfig.images.minimumCacheTTL,
+    getMaxAge(imageUpstream.cacheControl)
+  )
 
-  const upstreamType =
-    detectContentType(upstreamBuffer) ||
-    imageUpstream.contentType?.toLowerCase().trim()
+  const upstreamType = await detectContentType(
+    upstreamBuffer,
+    nextConfig.experimental.imgOptSkipMetadata,
+    nextConfig.experimental.imgOptConcurrency
+  )
 
-  if (upstreamType) {
-    if (
-      upstreamType.startsWith('image/svg') &&
-      !nextConfig.images.dangerouslyAllowSVG
-    ) {
-      if (!opts.silent) {
-        Log.error(
-          `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
-        )
-      }
-      throw new ImageError(
-        400,
-        '"url" parameter is valid but image type is not allowed'
+  if (
+    !upstreamType ||
+    !upstreamType.startsWith('image/') ||
+    upstreamType.includes(',')
+  ) {
+    if (!opts.silent) {
+      Log.error(
+        "The requested resource isn't a valid image for",
+        href,
+        'received',
+        upstreamType
       )
     }
-    if (ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)) {
-      if (!opts.silent) {
-        Log.warnOnce(
-          `The requested resource "${href}" is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.`
-        )
-      }
-      return {
-        buffer: upstreamBuffer,
-        contentType: upstreamType,
-        maxAge,
-        etag: upstreamEtag,
-        upstreamEtag,
-      }
+    throw new ImageError(400, "The requested resource isn't a valid image.")
+  }
+  if (
+    upstreamType.startsWith('image/svg') &&
+    !nextConfig.images.dangerouslyAllowSVG
+  ) {
+    if (!opts.silent) {
+      Log.error(
+        `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled. Consider adding the "unoptimized" property to the <Image>.`
+      )
     }
-    if (VECTOR_TYPES.includes(upstreamType)) {
-      // We don't warn here because we already know that "dangerouslyAllowSVG"
-      // was enabled above, therefore the user explicitly opted in.
-      // If we add more VECTOR_TYPES besides SVG, perhaps we could warn for those.
-      return {
-        buffer: upstreamBuffer,
-        contentType: upstreamType,
-        maxAge,
-        etag: upstreamEtag,
-        upstreamEtag,
-      }
+    throw new ImageError(
+      400,
+      '"url" parameter is valid but image type is not allowed'
+    )
+  }
+  if (ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)) {
+    if (!opts.silent) {
+      Log.warnOnce(
+        `The requested resource "${href}" is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.`
+      )
     }
-    if (!upstreamType.startsWith('image/') || upstreamType.includes(',')) {
-      if (!opts.silent) {
-        Log.error(
-          "The requested resource isn't a valid image for",
-          href,
-          'received',
-          upstreamType
-        )
-      }
-      throw new ImageError(400, "The requested resource isn't a valid image.")
+    return {
+      buffer: upstreamBuffer,
+      contentType: upstreamType,
+      maxAge,
+      etag: upstreamEtag,
+      upstreamEtag,
+    }
+  }
+  if (BYPASS_TYPES.includes(upstreamType)) {
+    return {
+      buffer: upstreamBuffer,
+      contentType: upstreamType,
+      maxAge,
+      etag: upstreamEtag,
+      upstreamEtag,
     }
   }
 
@@ -738,7 +931,6 @@ export async function imageOptimizer(
   if (mimeType) {
     contentType = mimeType
   } else if (
-    upstreamType?.startsWith('image/') &&
     getExtension(upstreamType) &&
     upstreamType !== WEBP &&
     upstreamType !== AVIF
@@ -755,7 +947,7 @@ export async function imageOptimizer(
     return {
       buffer: previouslyCachedImage.buffer,
       contentType,
-      maxAge: opts?.previousCacheEntry?.curRevalidate || maxAge,
+      maxAge: opts?.previousCacheEntry?.cacheControl?.revalidate || maxAge,
       etag: previouslyCachedImage.etag,
       upstreamEtag: previouslyCachedImage.upstreamEtag,
     }
@@ -790,7 +982,7 @@ export async function imageOptimizer(
     return {
       buffer: optimizedBuffer,
       contentType,
-      maxAge: Math.max(maxAge, nextConfig.images.minimumCacheTTL),
+      maxAge,
       etag: getImageEtag(optimizedBuffer),
       upstreamEtag,
     }

@@ -1,0 +1,77 @@
+on:
+  workflow_dispatch:
+    inputs:
+      branchName:
+        description: name of branch to create (next-15-4)
+        required: true
+        type: string
+
+      tagName:
+        description: Tag to start the branch from (v15.4.1)
+        type: string
+        required: true
+
+    secrets:
+      RELEASE_BOT_GITHUB_TOKEN:
+        required: true
+
+name: Create Release Branch
+
+env:
+  NAPI_CLI_VERSION: 2.18.4
+  TURBO_VERSION: 2.5.5
+  NODE_LTS_VERSION: 20
+
+jobs:
+  start:
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      # we build a dev binary for use in CI so skip downloading
+      # canary next-swc binaries in the monorepo
+      NEXT_SKIP_NATIVE_POSTINSTALL: 1
+
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          check-latest: true
+
+      - name: Clone Next.js repository
+        run: git clone https://github.com/vercel/next.js.git --depth=25 --single-branch --branch ${GITHUB_REF_NAME:-canary} .
+
+      - name: Check token
+        run: gh auth status
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+          pnpm --version
+
+      - id: get-store-path
+        run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@v4
+        timeout-minutes: 5
+        id: cache-pnpm-store
+        with:
+          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
+          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-
+            pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - run: pnpm install
+
+      - run: node ./scripts/create-release-branch.js --branch-name ${{ github.event.inputs.branchName }} --tag-name ${{ github.event.inputs.tagName }}
+        env:
+          RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}

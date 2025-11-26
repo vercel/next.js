@@ -1,8 +1,9 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput, FieldsNamed, FieldsUnnamed};
-use turbo_tasks_macros_shared::{generate_exhaustive_destructuring, match_expansion};
+use syn::{Data, DeriveInput, FieldsNamed, FieldsUnnamed, parse_macro_input};
+
+use crate::expand::{generate_exhaustive_destructuring, match_expansion};
 
 /// This macro generates the implementation of the `DeterministicHash` trait for
 /// a given type.

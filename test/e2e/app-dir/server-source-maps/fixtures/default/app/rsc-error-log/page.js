@@ -1,13 +1,11 @@
-import { connection } from 'next/server'
+import { someClass } from './styles.module.css'
 
 function logError() {
-  const error = new Error('Boom')
+  const error = new Error('rsc-error-log')
   console.error(error)
 }
 
-export default async function Page() {
-  await connection()
-
+export default function Page() {
   logError()
-  return null
+  return <p className={someClass}>Hello, Dave!</p>
 }

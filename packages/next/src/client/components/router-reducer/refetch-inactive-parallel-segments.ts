@@ -1,11 +1,14 @@
-import type { FlightRouterState } from '../../../server/app-render/types'
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type {
+  FlightRouterState,
+  CacheNode,
+} from '../../../shared/lib/app-router-types'
 import type { AppRouterState } from './router-reducer-types'
 import { applyFlightData } from './apply-flight-data'
 import { fetchServerResponse } from './fetch-server-response'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 
 interface RefreshInactiveParallelSegments {
+  navigatedAt: number
   state: AppRouterState
   updatedTree: FlightRouterState
   updatedCache: CacheNode
@@ -36,6 +39,7 @@ export async function refreshInactiveParallelSegments(
 }
 
 async function refreshInactiveParallelSegmentsImpl({
+  navigatedAt,
   state,
   updatedTree,
   updatedCache,
@@ -70,16 +74,22 @@ async function refreshInactiveParallelSegmentsImpl({
         flightRouterState: [rootTree[0], rootTree[1], rootTree[2], 'refetch'],
         nextUrl: includeNextUrl ? state.nextUrl : null,
       }
-    ).then(({ flightData }) => {
-      if (typeof flightData !== 'string') {
+    ).then((result) => {
+      if (typeof result !== 'string') {
+        const { flightData } = result
         for (const flightDataPath of flightData) {
           // we only pass the new cache as this function is called after clearing the router cache
           // and filling in the new page data from the server. Meaning the existing cache is actually the cache that's
           // just been created & has been written to, but hasn't been "committed" yet.
-          applyFlightData(updatedCache, updatedCache, flightDataPath)
+          applyFlightData(
+            navigatedAt,
+            updatedCache,
+            updatedCache,
+            flightDataPath
+          )
         }
       } else {
-        // When flightData is a string, it suggests that the server response should have triggered an MPA navigation
+        // When result is a string, it suggests that the server response should have triggered an MPA navigation
         // I'm not 100% sure of this decision, but it seems unlikely that we'd want to introduce a redirect side effect
         // when refreshing on-screen data, so handling this has been ommitted.
       }
@@ -90,6 +100,7 @@ async function refreshInactiveParallelSegmentsImpl({
 
   for (const key in parallelRoutes) {
     const parallelFetchPromise = refreshInactiveParallelSegmentsImpl({
+      navigatedAt,
       state,
       updatedTree: parallelRoutes[key],
       updatedCache,

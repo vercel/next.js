@@ -8,7 +8,7 @@ use swc_core::{
             Function, Id, Ident, ImportSpecifier, MemberExpr, MemberProp, NamedExport, Param, Pat,
             Prop, PropName, VarDeclarator, *,
         },
-        visit::{noop_visit_type, Visit, VisitWith},
+        visit::{Visit, VisitWith, noop_visit_type},
     },
 };
 use turbo_tasks::FxIndexSet;
@@ -359,10 +359,10 @@ impl Visit for TopLevelBindingCollector {
     fn visit_pat(&mut self, node: &Pat) {
         node.visit_children_with(self);
 
-        if self.is_pat_decl {
-            if let Pat::Ident(i) = node {
-                self.add(&i.id)
-            }
+        if self.is_pat_decl
+            && let Pat::Ident(i) = node
+        {
+            self.add(&i.id)
         }
     }
 
@@ -423,10 +423,10 @@ pub fn should_skip_tree_shaking(m: &Program) -> bool {
 
                 // TODO(PACK-3150): Tree shaking has a bug related to ModuleExportName::Str
                 for s in specifiers.iter() {
-                    if let ImportSpecifier::Named(is) = s {
-                        if matches!(is.imported, Some(ModuleExportName::Str(..))) {
-                            return true;
-                        }
+                    if let ImportSpecifier::Named(is) = s
+                        && matches!(is.imported, Some(ModuleExportName::Str(..)))
+                    {
+                        return true;
                     }
                 }
             }
@@ -438,12 +438,11 @@ pub fn should_skip_tree_shaking(m: &Program) -> bool {
                 ..
             })) => {
                 for s in specifiers {
-                    if let ExportSpecifier::Named(es) = s {
-                        if matches!(es.orig, ModuleExportName::Str(..))
-                            || matches!(es.exported, Some(ModuleExportName::Str(..)))
-                        {
-                            return true;
-                        }
+                    if let ExportSpecifier::Named(es) = s
+                        && (matches!(es.orig, ModuleExportName::Str(..))
+                            || matches!(es.exported, Some(ModuleExportName::Str(..))))
+                    {
+                        return true;
                     }
                 }
             }
@@ -480,11 +479,10 @@ impl Visit for ShouldSkip {
             callee: Callee::Expr(expr),
             ..
         }) = &*n.arg
+            && expr.is_ident_ref_to("__turbopack_wasm_module__")
         {
-            if expr.is_ident_ref_to("__turbopack_wasm_module__") {
-                self.skip = true;
-                return;
-            }
+            self.skip = true;
+            return;
         }
 
         n.visit_children_with(self);

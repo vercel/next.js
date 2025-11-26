@@ -21,7 +21,7 @@ describe.each(['app', 'pages'] as const)(
 
     const allFlagValues = {
       app: [isApp ? '--app' : '--no-app'],
-      turbo: [process.env.TURBOPACK ? '--turbopack' : '--no-turbopack'],
+      turbo: [process.env.IS_TURBOPACK_TEST ? '--turbopack' : '--no-turbopack'],
 
       ts: ['--js', '--ts'],
       importAlias: [
@@ -30,27 +30,33 @@ describe.each(['app', 'pages'] as const)(
         '--no-import-alias',
       ],
       // doesn't affect if the app builds or not
-      // eslint: ['--eslint', '--no-eslint'],
+      // eslint: ['--eslint', '--no-linter'],
       eslint: ['--eslint'],
 
-      srcDir: ['--src-dir', '--no-src-dir'],
+      // Trading test perf for robustness:
+      // srcDir and reactCompiler don't interact so we're testing them together
+      // instead of all permutations.
+      srcDirAndCompiler: [
+        '--src-dir --react-compiler',
+        '--no-src-dir --no-react-compiler',
+      ],
       tailwind: ['--tailwind', '--no-tailwind'],
 
       // shouldn't affect if the app builds or not
       // packageManager: ['--use-npm', '--use-pnpm', '--use-yarn', '--use-bun'],
     }
 
-    const getPermutations = <T>(items: T[][]): T[][] => {
+    const getCombinations = (items: string[][]): string[][] => {
       if (!items.length) return [[]]
       const [first, ...rest] = items
-      const children = getPermutations(rest)
+      const children = getCombinations(rest)
       return first.flatMap((value) =>
-        children.map((child) => [value, ...child])
+        children.map((child) => [...value.split(' '), ...child])
       )
     }
 
-    const flagPermutations = getPermutations(Object.values(allFlagValues))
-    const testCases = flagPermutations.map((flags) => ({
+    const flagCombinations = getCombinations(Object.values(allFlagValues))
+    const testCases = flagCombinations.map((flags) => ({
       name: flags.join(' '),
       flags,
     }))
@@ -60,7 +66,11 @@ describe.each(['app', 'pages'] as const)(
       await useTempDir(async (cwd) => {
         const projectName = `cna-matrix-${pagesOrApp}-${id++}`
         const { exitCode } = await run(
-          [projectName, ...flags],
+          [
+            projectName,
+            ...flags,
+            ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+          ],
           nextTgzFilename,
           {
             cwd,

@@ -1,3 +1,3 @@
-## Deprecated
+# Strapi Example
 
-The Strapi CMS example is deprecated. Please check out [Strapi’s official demo application](https://github.com/strapi/nextjs-corporate-starter).
+The official example [LaunchPad](https://github.com/strapi/LaunchPad) for using [Strapi](https://strapi.io/) is available.

@@ -1,4 +1,5 @@
 use std::{
+    any::type_name,
     fmt::Debug,
     mem::take,
     ops::{Deref, DerefMut},
@@ -7,10 +8,11 @@ use std::{
 use auto_hash_map::AutoSet;
 use parking_lot::{Mutex, MutexGuard};
 use serde::{Deserialize, Serialize};
+use tracing::trace_span;
 
 use crate::{
-    get_invalidator, mark_session_dependent, mark_stateful, trace::TraceRawVcs, Invalidator,
-    SerializationInvalidator,
+    Invalidator, OperationValue, SerializationInvalidator, get_invalidator, mark_session_dependent,
+    mark_stateful, trace::TraceRawVcs,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -33,6 +35,7 @@ impl<T> StateInner<T> {
 
     pub fn set_unconditionally(&mut self, value: T) {
         self.value = value;
+        let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
         for invalidator in take(&mut self.invalidators) {
             invalidator.invalidate();
         }
@@ -42,6 +45,7 @@ impl<T> StateInner<T> {
         if !update(&mut self.value) {
             return false;
         }
+        let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
         for invalidator in take(&mut self.invalidators) {
             invalidator.invalidate();
         }
@@ -54,6 +58,7 @@ impl<T: PartialEq> StateInner<T> {
         if self.value == value {
             return false;
         }
+        let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
         self.value = value;
         for invalidator in take(&mut self.invalidators) {
             invalidator.invalidate();
@@ -86,6 +91,7 @@ impl<T> DerefMut for StateRef<'_, T> {
 impl<T> Drop for StateRef<'_, T> {
     fn drop(&mut self) {
         if self.mutated {
+            let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
             for invalidator in take(&mut self.inner.invalidators) {
                 invalidator.invalidate();
             }
@@ -96,6 +102,29 @@ impl<T> Drop for StateRef<'_, T> {
     }
 }
 
+/// **This API violates core assumption of turbo-tasks, is believed to be unsound, and there's no
+/// plan fix it.** You should prefer to use [collectibles][crate::CollectiblesSource] instead of
+/// state where at all possible. This API may be removed in the future.
+///
+/// An [internally-mutable] type, similar to [`RefCell`][std::cell::RefCell] or [`Mutex`] that can
+/// be stored inside a [`VcValueType`].
+///
+/// **[`State`] should only be used with [`OperationVc`] and types that implement
+/// [`OperationValue`]**.
+///
+/// Setting values inside a [`State`] bypasses the normal argument and return value tracking
+/// that's tracks child function calls and re-runs tasks until their values settled. That system is
+/// needed for [strong consistency]. [`OperationVc`] ensures that function calls are reconnected
+/// with the parent/child call graph.
+///
+/// When reading a `State` with [`State::get`], the state itself (though not any values inside of
+/// it) is marked as a dependency of the current task.
+///
+/// [internally-mutable]: https://doc.rust-lang.org/book/ch15-05-interior-mutability.html
+/// [`VcValueType`]: crate::VcValueType
+/// [strong consistency]: crate::OperationVc::read_strongly_consistent
+/// [`OperationVc`]: crate::OperationVc
+/// [`OperationValue`]: crate::OperationValue
 #[derive(Serialize, Deserialize)]
 pub struct State<T> {
     serialization_invalidator: SerializationInvalidator,
@@ -116,7 +145,7 @@ impl<T: TraceRawVcs> TraceRawVcs for State<T> {
     }
 }
 
-impl<T: Default> Default for State<T> {
+impl<T: Default + OperationValue> Default for State<T> {
     fn default() -> Self {
         // Need to be explicit to ensure marking as stateful.
         Self::new(Default::default())
@@ -131,7 +160,10 @@ impl<T> PartialEq for State<T> {
 impl<T> Eq for State<T> {}
 
 impl<T> State<T> {
-    pub fn new(value: T) -> Self {
+    pub fn new(value: T) -> Self
+    where
+        T: OperationValue,
+    {
         Self {
             serialization_invalidator: mark_stateful(),
             inner: Mutex::new(StateInner::new(value)),
@@ -144,7 +176,9 @@ impl<T> State<T> {
     pub fn get(&self) -> StateRef<'_, T> {
         let invalidator = get_invalidator();
         let mut inner = self.inner.lock();
-        inner.add_invalidator(invalidator);
+        if let Some(invalidator) = invalidator {
+            inner.add_invalidator(invalidator);
+        }
         StateRef {
             serialization_invalidator: Some(&self.serialization_invalidator),
             inner,
@@ -269,7 +303,9 @@ impl<T> TransientState<T> {
         mark_session_dependent();
         let invalidator = get_invalidator();
         let mut inner = self.inner.lock();
-        inner.add_invalidator(invalidator);
+        if let Some(invalidator) = invalidator {
+            inner.add_invalidator(invalidator);
+        }
         StateRef {
             serialization_invalidator: None,
             inner,

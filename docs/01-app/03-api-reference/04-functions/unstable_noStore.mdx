@@ -4,7 +4,7 @@ description: API Reference for the unstable_noStore function.
 version: legacy
 ---
 
-In version 15, we recommend using [`connection`](/docs/app/api-reference/functions/connection) instead of `unstable_noStore`.
+**In version 15, we recommend using [`connection`](/docs/app/api-reference/functions/connection) instead of `unstable_noStore`.**
 
 `unstable_noStore` can be used to declaratively opt out of static rendering and indicate a particular component should not be cached.
 
@@ -41,6 +41,7 @@ export default async function ServerComponent() {
 
 ## Version History
 
-| Version   | Changes                        |
-| --------- | ------------------------------ |
-| `v14.0.0` | `unstable_noStore` introduced. |
+| Version   | Changes                                         |
+| --------- | ----------------------------------------------- |
+| `v15.0.0` | `unstable_noStore` deprecated for `connection`. |
+| `v14.0.0` | `unstable_noStore` introduced.                  |

@@ -1,3 +1,5 @@
+// Start CPU profile if it wasn't already started.
+import './cpu-profile'
 import { getNetworkHost } from '../../lib/get-network-host'
 
 if (performance.getEntriesByName('next-start').length === 0) {
@@ -16,27 +18,99 @@ import path from 'path'
 import http from 'http'
 import https from 'https'
 import os from 'os'
+import { exec } from 'child_process'
 import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import {
-  RESTART_EXIT_CODE,
-  getFormattedDebugAddress,
-  getNodeDebugType,
-} from './utils'
+import { RESTART_EXIT_CODE } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import { CONFIG_FILES } from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
-import { isPostpone } from './router-utils/is-postpone'
 import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
+import type { ConfiguredExperimentalFeature } from '../config'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
+
+/**
+ * Get the process ID (PID) of the process using the specified port
+ */
+async function getProcessIdUsingPort(port: number): Promise<string | null> {
+  const timeoutMs = 250
+  const processLookupController = new AbortController()
+
+  const pidPromise = new Promise<string | null>((resolve) => {
+    const handleError = (error: Error) => {
+      debug('Failed to get process ID for port', port, error)
+      resolve(null)
+    }
+
+    try {
+      // Use lsof on Unix-like systems (macOS, Linux)
+      if (process.platform !== 'win32') {
+        exec(
+          `lsof -ti:${port} -sTCP:LISTEN`,
+          { signal: processLookupController.signal },
+          (error, stdout) => {
+            if (error) {
+              handleError(error)
+              return
+            }
+            // `-sTCP` will ensure there's only one port, clean up output
+            const pid = stdout.trim()
+            resolve(pid || null)
+          }
+        )
+      } else {
+        // Use netstat on Windows
+        exec(
+          `netstat -ano | findstr /C:":${port} " | findstr LISTENING`,
+          { signal: processLookupController.signal },
+          (error, stdout) => {
+            if (error) {
+              handleError(error)
+              return
+            }
+            // Clean up output and extract PID
+            const cleanOutput = stdout.replace(/\s+/g, ' ').trim()
+            if (cleanOutput) {
+              const lines = cleanOutput.split('\n')
+              const firstLine = lines[0].trim()
+              if (firstLine) {
+                const parts = firstLine.split(' ')
+                const pid = parts[parts.length - 1]
+                resolve(pid || null)
+              } else {
+                resolve(null)
+              }
+            } else {
+              resolve(null)
+            }
+          }
+        )
+      }
+    } catch (cause) {
+      handleError(
+        new Error('Unexpected error during process lookup', { cause })
+      )
+    }
+  })
+
+  const timeoutId = setTimeout(() => {
+    processLookupController.abort(
+      `PID detection timed out after ${timeoutMs}ms for port ${port}.`
+    )
+  }, timeoutMs)
+
+  pidPromise.finally(() => clearTimeout(timeoutId))
+
+  return pidPromise
+}
 
 export interface StartServerOptions {
   dir: string
@@ -202,6 +276,7 @@ export async function startServer(
   })
 
   let portRetryCount = 0
+  const originalPort = port
 
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (
@@ -211,7 +286,6 @@ export async function startServer(
       err.code === 'EADDRINUSE' &&
       portRetryCount < 10
     ) {
-      Log.warn(`Port ${port} is in use, trying ${port + 1} instead.`)
       port += 1
       portRetryCount += 1
       server.listen(port, hostname)
@@ -226,8 +300,6 @@ export async function startServer(
 
   await new Promise<void>((resolve) => {
     server.on('listening', async () => {
-      const nodeDebugType = getNodeDebugType()
-
       const addr = server.address()
       const actualHostname = formatHostname(
         typeof addr === 'object'
@@ -243,6 +315,19 @@ export async function startServer(
 
       port = typeof addr === 'object' ? addr?.port || port : port
 
+      if (portRetryCount) {
+        const pid = await getProcessIdUsingPort(originalPort)
+        if (pid) {
+          Log.warn(
+            `Port ${originalPort} is in use by process ${pid}, using available port ${port} instead.`
+          )
+        } else {
+          Log.warn(
+            `Port ${originalPort} is in use by an unknown process, using available port ${port} instead.`
+          )
+        }
+      }
+
       const networkHostname =
         hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
 
@@ -254,13 +339,6 @@ export async function startServer(
 
       const appUrl = `${protocol}://${formattedHostname}:${port}`
 
-      if (nodeDebugType) {
-        const formattedDebugAddress = getFormattedDebugAddress()
-        Log.info(
-          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at ${formattedDebugAddress}.`
-        )
-      }
-
       // Store the selected port to:
       // - expose it to render workers
       // - re-use it for automatic dev server restarts with a randomly selected port
@@ -268,26 +346,35 @@ export async function startServer(
 
       process.env.__NEXT_PRIVATE_ORIGIN = appUrl
 
+      // Set experimental HTTPS flag for metadata resolution
+      if (selfSignedCertificate) {
+        process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
+      }
+
       // Only load env and config in dev to for logging purposes
       let envInfo: string[] | undefined
-      let expFeatureInfo: string[] | undefined
-      if (isDev) {
-        const startServerInfo = await getStartServerInfo(dir, isDev)
-        envInfo = startServerInfo.envInfo
-        expFeatureInfo = startServerInfo.expFeatureInfo
-      }
-      logStartInfo({
-        networkUrl,
-        appUrl,
-        envInfo,
-        expFeatureInfo,
-        maxExperimentalFeatures: 3,
-      })
-
-      Log.event(`Starting...`)
-
+      let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
+      let cacheComponents: boolean | undefined
       try {
+        if (isDev) {
+          const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
+          envInfo = startServerInfo.envInfo
+          cacheComponents = startServerInfo.cacheComponents
+          experimentalFeatures = startServerInfo.experimentalFeatures
+        }
+        logStartInfo({
+          networkUrl,
+          appUrl,
+          envInfo,
+          experimentalFeatures,
+          cacheComponents,
+          logBundler: isDev,
+        })
+
+        Log.event(`Starting...`)
+
         let cleanupStarted = false
+        let closeUpgraded: (() => void) | null = null
         const cleanup = () => {
           if (cleanupStarted) {
             // We can get duplicate signals, e.g. when `ctrl+c` is used in an
@@ -302,12 +389,16 @@ export async function startServer(
 
             // first, stop accepting new connections and finish pending requests,
             // because they might affect `nextServer.close()` (e.g. by scheduling an `after`)
-            await new Promise<void>((res) =>
+            await new Promise<void>((res) => {
               server.close((err) => {
                 if (err) console.error(err)
                 res()
               })
-            )
+              if (isDev) {
+                server.closeAllConnections()
+                closeUpgraded?.()
+              }
+            })
 
             // now that no new requests can come in, clean up the rest
             await Promise.all([
@@ -315,33 +406,38 @@ export async function startServer(
               cleanupListeners?.runAll().catch(console.error),
             ])
 
+            // Flush telemetry if this is a dev server
+            if (isDev) {
+              try {
+                const { traceGlobals } =
+                  require('../../trace/shared') as typeof import('../../trace/shared')
+                const telemetry = traceGlobals.get('telemetry') as
+                  | InstanceType<
+                      typeof import('../../telemetry/storage').Telemetry
+                    >
+                  | undefined
+                if (telemetry) {
+                  // Use flushDetached to avoid blocking process exit
+                  // Each process writes to a unique file (_events_${pid}.json)
+                  // to avoid race conditions with the parent process
+                  telemetry.flushDetached('dev', dir)
+                }
+              } catch (_) {
+                // Ignore telemetry errors during cleanup
+              }
+            }
+
             debug('start-server process cleanup finished')
             process.exit(0)
           })()
         }
-        const exception = (err: Error) => {
-          if (isPostpone(err)) {
-            // React postpones that are unhandled might end up logged here but they're
-            // not really errors. They're just part of rendering.
-            return
-          }
 
-          // This is the render worker, we keep the process alive
-          console.error(err)
-        }
         // Make sure commands gracefully respect termination signals (e.g. from Docker)
         // Allow the graceful termination to be manually configurable
         if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
           process.on('SIGINT', cleanup)
           process.on('SIGTERM', cleanup)
         }
-        process.on('rejectionHandled', () => {
-          // It is ok to await a Promise late in Next.js as it allows for better
-          // prefetching patterns to avoid waterfalls. We ignore loggining these.
-          // We should've already errored in anyway unhandledRejection.
-        })
-        process.on('uncaughtException', exception)
-        process.on('unhandledRejection', exception)
 
         const initResult = await getRequestHandlers({
           dir,
@@ -359,6 +455,7 @@ export async function startServer(
         requestHandler = initResult.requestHandler
         upgradeHandler = initResult.upgradeHandler
         nextServer = initResult.server
+        closeUpgraded = initResult.closeUpgraded
 
         const startServerProcessDuration =
           performance.mark('next-start-end') &&
@@ -379,7 +476,7 @@ export async function startServer(
         if (process.env.TURBOPACK) {
           await validateTurboNextConfig({
             dir: serverOptions.dir,
-            isDev: true,
+            isDev: serverOptions.isDev,
           })
         }
       } catch (err) {
@@ -425,7 +522,12 @@ export async function startServer(
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
   process.addListener('message', async (msg: any) => {
-    if (msg && typeof msg && msg.nextWorkerOptions && process.send) {
+    if (
+      msg &&
+      typeof msg === 'object' &&
+      msg.nextWorkerOptions &&
+      process.send
+    ) {
       startServerSpan = trace('start-dev-server', undefined, {
         cpus: String(os.cpus().length),
         platform: os.platform(),

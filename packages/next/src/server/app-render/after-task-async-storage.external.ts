@@ -5,7 +5,7 @@ import { afterTaskAsyncStorageInstance as afterTaskAsyncStorage } from './after-
 import type { WorkUnitStore } from './work-unit-async-storage.external'
 
 export interface AfterTaskStore {
-  /** The phase in which the topmost `unstable_after` was called.
+  /** The phase in which the topmost `after` was called.
    *
    * NOTE: Can be undefined when running `generateStaticParams`,
    * where we only have a `workStore`, no `workUnitStore`.
