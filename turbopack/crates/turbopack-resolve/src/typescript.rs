@@ -21,7 +21,7 @@ use turbopack_core::{
             ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
             ResolveOptions,
         },
-        origin::{ResolveOrigin, ResolveOriginExt},
+        origin::ResolveOrigin,
         parse::Request,
         pattern::Pattern,
         resolve,
@@ -417,7 +417,7 @@ pub async fn type_resolve(
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined);
     let context_path = origin.origin_path().await?.parent();
-    let options = origin.resolve_options(ty.clone()).await?;
+    let options = origin.resolve_options(ty.clone());
     let options = apply_typescript_types_options(options);
     let types_request = if let Request::Module {
         module: m,

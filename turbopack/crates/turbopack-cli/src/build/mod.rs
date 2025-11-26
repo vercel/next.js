@@ -39,7 +39,7 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
-        origin::{PlainResolveOrigin, ResolveOriginExt},
+        origin::{PlainResolveOrigin, ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
 };
@@ -287,7 +287,7 @@ async fn build_internal(
                 let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
                 let request = request_vc.await?;
                 origin
-                    .resolve_asset(request_vc, origin.resolve_options(ty.clone()).await?, ty)
+                    .resolve_asset(request_vc, origin.resolve_options(ty.clone()), ty)
                     .await?
                     .first_module()
                     .await?

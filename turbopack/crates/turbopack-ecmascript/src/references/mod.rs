@@ -80,7 +80,7 @@ use turbopack_core::{
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
         FindContextFileResult, ImportUsage, ModulePart, find_context_file,
-        origin::{PlainResolveOrigin, ResolveOrigin, ResolveOriginExt},
+        origin::{PlainResolveOrigin, ResolveOrigin},
         parse::Request,
         pattern::Pattern,
         resolve,
@@ -3914,7 +3914,7 @@ async fn resolve_as_webpack_runtime(
     transforms: Vc<EcmascriptInputTransforms>,
 ) -> Result<Vc<WebpackRuntime>> {
     let ty = ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined);
-    let options = origin.resolve_options(ty.clone()).await?;
+    let options = origin.resolve_options(ty.clone());
 
     let options = apply_cjs_specific_options(options);
 

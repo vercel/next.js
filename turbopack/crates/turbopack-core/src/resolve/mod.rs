@@ -24,7 +24,7 @@ use self::{
         ConditionValue, ImportMapResult, ResolveInPackage, ResolveIntoPackage, ResolveModules,
         ResolveModulesOptions, ResolveOptions, resolve_modules_options,
     },
-    origin::{ResolveOrigin, ResolveOriginExt},
+    origin::ResolveOrigin,
     parse::Request,
     pattern::Pattern,
     plugin::BeforeResolvePlugin,
@@ -1603,7 +1603,7 @@ pub async fn url_resolve(
     issue_source: Option<IssueSource>,
     is_optional: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
-    let resolve_options = origin.resolve_options(reference_type.clone()).await?;
+    let resolve_options = origin.resolve_options(reference_type.clone());
     let rel_request = request.as_relative();
     let origin_path_parent = origin.origin_path().await?.parent();
     let rel_result = resolve(
