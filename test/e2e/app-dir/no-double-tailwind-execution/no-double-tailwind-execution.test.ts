@@ -42,7 +42,12 @@ describe('no-double-tailwind-execution', () => {
           })
         }
       )
+      // Wait for the patch revert to get processed
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe('hello world')
+      })
     }
+
     let tailwindProcessingCount = [
       ...next.cliOutput.matchAll(/\[@tailwindcss\/postcss\] app\/globals.css/g),
     ].length
