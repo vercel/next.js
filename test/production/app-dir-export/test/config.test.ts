@@ -1,94 +1,100 @@
-import fs from 'fs-extra'
-import { nextBuild, runNextCommand } from 'next-test-utils'
+import { runNextCommand } from 'next-test-utils'
 import { join } from 'path'
-import {
-  appDir,
-  distDir,
-  expectedWhenTrailingSlashTrue,
-  exportDir,
-  getFiles,
-  nextConfig,
-} from './utils'
+import { expectedWhenTrailingSlashTrue, getFiles } from './utils'
+import { FileRef, isNextStart, nextTestSetup, PatchedFileRef } from 'e2e-utils'
 
-describe('app dir - with output export (next dev / next build)', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      it('should throw when exportPathMap configured', async () => {
-        nextConfig.replace(
-          'trailingSlash: true,',
-          `trailingSlash: true,
+if (isNextStart) {
+  describe('app dir - with output export', () => {
+    describe('with exportPathMap configured', () => {
+      let { next } = nextTestSetup({
+        files: {
+          app: new FileRef(join(__dirname, '..', 'app')),
+          'next.config.js': new PatchedFileRef(
+            join(__dirname, '..', 'next.config.js'),
+            (content) =>
+              content.replace(
+                'trailingSlash: true,',
+                `trailingSlash: true,
        exportPathMap: async function (map) {
         return map
       },`
-        )
-        await fs.remove(distDir)
-        await fs.remove(exportDir)
-        let result = { code: 0, stderr: '' }
-        try {
-          result = await nextBuild(appDir, [], { stderr: true })
-        } finally {
-          nextConfig.restore()
-        }
-        expect(result.code).toBe(1)
-        expect(result.stderr).toContain(
+              )
+          ),
+        },
+        skipStart: true,
+      })
+
+      it('should throw', async () => {
+        let { exitCode, cliOutput } = await next.build()
+        expect(exitCode).toBe(1)
+        expect(cliOutput).toContain(
           'The "exportPathMap" configuration cannot be used with the "app" directory. Please use generateStaticParams() instead.'
         )
       })
+    })
+
+    describe('without next config', () => {
+      let { next } = nextTestSetup({
+        files: {
+          app: new FileRef(join(__dirname, '..', 'app')),
+        },
+        skipStart: true,
+      })
+
       it('should error when running next export', async () => {
-        await fs.remove(distDir)
-        await fs.remove(exportDir)
-        nextConfig.delete()
+        let { exitCode } = await next.build()
+        expect(exitCode).toBe(0)
+        expect(await getFiles(join(next.testDir, 'out'))).toEqual([])
+
+        let stdout = ''
+        let stderr = ''
+        let error = undefined
         try {
-          await nextBuild(appDir)
-          expect(await getFiles()).toEqual([])
-          let stdout = ''
-          let stderr = ''
-          let error = undefined
-          try {
-            await runNextCommand(['export', appDir], {
-              onStdout(msg) {
-                stdout += msg
-              },
-              onStderr(msg) {
-                stderr += msg
-              },
-            })
-          } catch (e) {
-            error = e
-          }
-          expect(error).toBeDefined()
-          expect(stderr).toContain(
-            `\`next export\` has been removed in favor of 'output: export' in next.config.js`
-          )
-          expect(stdout).not.toContain('Export successful. Files written to')
-          expect(await getFiles()).toEqual([])
-        } finally {
-          nextConfig.restore()
-          await fs.remove(distDir)
-          await fs.remove(exportDir)
+          await runNextCommand(['export'], {
+            cwd: next.testDir,
+            onStdout(msg) {
+              stdout += msg
+            },
+            onStderr(msg) {
+              stderr += msg
+            },
+          })
+        } catch (e) {
+          error = e
         }
-      })
-      it('should correctly emit exported assets to config.distDir', async () => {
-        const outputDir = join(appDir, 'output')
-        await fs.remove(distDir)
-        await fs.remove(outputDir)
-        nextConfig.replace(
-          'trailingSlash: true,',
-          `trailingSlash: true,
-       distDir: 'output',`
+        expect(error).toBeDefined()
+        expect(stderr).toContain(
+          `\`next export\` has been removed in favor of 'output: export' in next.config.js`
         )
-        try {
-          await nextBuild(appDir)
-          expect(await getFiles(outputDir)).toEqual(
-            expectedWhenTrailingSlashTrue
-          )
-        } finally {
-          nextConfig.restore()
-          await fs.remove(distDir)
-          await fs.remove(outputDir)
-        }
+        expect(stdout).not.toContain('Export successful. Files written to')
+        expect(await getFiles(join(next.testDir, 'out'))).toEqual([])
       })
-    }
-  )
-})
+    })
+
+    describe('with distDir configured', () => {
+      let { next } = nextTestSetup({
+        files: {
+          app: new FileRef(join(__dirname, '..', 'app')),
+          'next.config.js': new PatchedFileRef(
+            join(__dirname, '..', 'next.config.js'),
+            (content) =>
+              content.replace(
+                'trailingSlash: true,',
+                `trailingSlash: true,
+       distDir: 'output',`
+              )
+          ),
+        },
+        skipStart: true,
+      })
+
+      it('should correctly emit exported assets to config.distDir', async () => {
+        let { exitCode } = await next.build()
+        expect(exitCode).toBe(0)
+        expect(await getFiles(join(next.testDir, 'output'))).toEqual(
+          expectedWhenTrailingSlashTrue
+        )
+      })
+    })
+  })
+}

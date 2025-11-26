@@ -1,17 +1,23 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('app dir - with output export (next start)', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {
-      const { next } = nextTestSetup({
+      const { next, skipped } = nextTestSetup({
         files: join(__dirname, '..'),
         skipStart: true,
+        skipDeployment: true,
       })
+
+      if (isNextDev || skipped) {
+        it('skipped', () => {})
+        return
+      }
 
       it('should error during next start with output export', async () => {
         const { exitCode } = await next.build()
