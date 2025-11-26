@@ -60,40 +60,33 @@ const MenuPanel = () => {
             }
           },
         },
-        !!process.env.__NEXT_CACHE_COMPONENTS
-          ? {
-              title: 'Rendering is using Cache Components',
-              label: 'Render',
-              value: 'Cache Components',
-            }
-          : state.staticIndicator === 'disabled'
-            ? undefined
-            : state.staticIndicator === 'pending'
-              ? {
-                  title: 'Loading...',
-                  label: 'Render',
-                  value: <LoadingIcon />,
-                }
-              : {
-                  title: `Current route is ${state.staticIndicator}.`,
-                  label: 'Render',
-                  value:
-                    state.staticIndicator === 'static' ? 'Static' : 'Dynamic',
-                  onClick: () => setPanel('route-type'),
-                  attributes: {
-                    'data-nextjs-route-type': state.staticIndicator,
-                  },
+        state.staticIndicator === 'disabled'
+          ? undefined
+          : state.staticIndicator === 'pending'
+            ? {
+                title: 'Loading...',
+                label: 'Route',
+                value: <LoadingIcon />,
+              }
+            : {
+                title: `Current route is ${state.staticIndicator}.`,
+                label: 'Route',
+                value:
+                  state.staticIndicator === 'static' ? 'Static' : 'Dynamic',
+                onClick: () => setPanel('route-type'),
+                attributes: {
+                  'data-nextjs-route-type': state.staticIndicator,
                 },
-
+              },
         !!process.env.TURBOPACK
           ? {
-              title: 'Bundler',
+              title: 'Turbopack is enabled.',
               label: 'Bundler',
               value: 'Turbopack',
             }
           : {
-              // Encourage users to upgrade to Turbopack
-              title: 'Upgrade to Turbopack',
+              title:
+                'Learn about Turbopack and how to enable it in your application.',
               label: 'Bundler',
               value: (
                 <a
@@ -102,11 +95,15 @@ const MenuPanel = () => {
                   rel="noreferrer noopener"
                   className="turbopack-upgrade-link"
                 >
-                  Webpack
+                  {process.env.__NEXT_BUNDLER || 'Webpack'}
                 </a>
               ),
             },
-
+        !!process.env.__NEXT_CACHE_COMPONENTS && {
+          title: 'Cache Components is enabled.',
+          label: 'Cache Components',
+          value: 'Enabled',
+        },
         isAppRouter && {
           label: 'Route Info',
           value: <ChevronRight />,
