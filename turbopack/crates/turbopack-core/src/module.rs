@@ -2,7 +2,12 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
 use turbo_tasks_fs::glob::Glob;
 
-use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences, source::OptionSource};
+use crate::{
+    asset::Asset,
+    ident::AssetIdent,
+    reference::{ModuleReferences, ModulesWithRefData, primary_chunkable_referenced_modules},
+    source::OptionSource,
+};
 
 #[derive(Clone, Copy, Debug, TaskInput, Hash)]
 #[turbo_tasks::value(shared)]
@@ -36,6 +41,14 @@ pub trait Module: Asset {
     #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
         ModuleReferences::empty()
+    }
+
+    #[turbo_tasks::function]
+    fn primary_chunkable_referenced_modules(
+        self: Vc<Self>,
+        include_traced: bool,
+    ) -> Vc<ModulesWithRefData> {
+        primary_chunkable_referenced_modules(self, include_traced)
     }
 
     /// Signifies the module itself is async, e.g. it uses top-level await, is a wasm module, etc.

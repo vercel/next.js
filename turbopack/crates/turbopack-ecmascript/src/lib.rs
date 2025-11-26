@@ -102,7 +102,7 @@ use turbopack_core::{
     module::{Module, OptionModule},
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
-    reference::ModuleReferences,
+    reference::{ModuleReferences, ModulesWithRefData},
     reference_type::InnerAssets,
     resolve::{
         FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json,
@@ -745,6 +745,15 @@ impl Module for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         Ok(self.analyze().references())
+    }
+
+    #[turbo_tasks::function]
+    fn primary_chunkable_referenced_modules(
+        self: Vc<Self>,
+        include_traced: bool,
+    ) -> Vc<ModulesWithRefData> {
+        self.analyze()
+            .primary_chunkable_referenced_modules(include_traced)
     }
 
     #[turbo_tasks::function]

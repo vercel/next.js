@@ -340,72 +340,42 @@ impl EsmAssetReference {
             *self.origin
         }
     }
-}
 
-impl EsmAssetReference {
-    pub fn new(
-        module: ResolvedVc<EcmascriptModuleAsset>,
-        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        request: RcStr,
-        issue_source: IssueSource,
-        annotations: ImportAnnotations,
-        export_name: Option<ModulePart>,
-        import_usage: ImportUsage,
-        import_externals: bool,
-        tree_shaking_mode: Option<TreeShakingMode>,
-    ) -> Self {
-        EsmAssetReference {
-            module,
-            origin,
-            request,
-            issue_source,
-            annotations,
-            export_name,
-            import_usage,
-            import_externals,
-            tree_shaking_mode,
-            is_pure_import: false,
+    pub fn chunking_type_ref(&self) -> Result<Option<ChunkingType>> {
+        if let Some(chunking_type) = self.annotations.chunking_type() {
+            if chunking_type == "parallel" {
+                Ok(Some(ChunkingType::Parallel {
+                    inherit_async: true,
+                    hoisted: true,
+                }))
+            } else if chunking_type == "none" {
+                Ok(None)
+            } else {
+                Err(anyhow!(
+                    "unknown chunking_type: {}",
+                    chunking_type.to_string_lossy()
+                ))
+            }
+        } else {
+            Ok(Some(ChunkingType::Parallel {
+                inherit_async: true,
+                hoisted: true,
+            }))
         }
     }
 
-    pub fn new_pure(
-        module: ResolvedVc<EcmascriptModuleAsset>,
-        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        request: RcStr,
-        issue_source: IssueSource,
-        annotations: ImportAnnotations,
-        export_name: Option<ModulePart>,
-        import_usage: ImportUsage,
-        import_externals: bool,
-        tree_shaking_mode: Option<TreeShakingMode>,
-    ) -> Self {
-        EsmAssetReference {
-            module,
-            origin,
-            request,
-            issue_source,
-            annotations,
-            export_name,
-            import_usage,
-            import_externals,
-            tree_shaking_mode,
-            is_pure_import: true,
+    pub fn binding_usage_ref(&self) -> BindingUsage {
+        BindingUsage {
+            import: self.import_usage.clone(),
+            export: match &self.export_name {
+                Some(ModulePart::Export(export_name)) => ExportUsage::Named(export_name.clone()),
+                Some(ModulePart::Evaluation) => ExportUsage::Evaluation,
+                _ => ExportUsage::All,
+            },
         }
     }
-}
 
-#[turbo_tasks::value_impl]
-impl EsmAssetReference {
-    #[turbo_tasks::function]
-    pub(crate) fn get_referenced_asset(self: Vc<Self>) -> Vc<ReferencedAsset> {
-        ReferencedAsset::from_resolve_result(self.resolve_reference())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for EsmAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+    pub async fn resolve_reference_ref(&self) -> Result<Vc<ModuleResolveResult>> {
         let ty = if self.annotations.module_type().is_some_and(|v| v == "json") {
             EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Json)
         } else if self.annotations.module_type().is_some_and(|v| v == "bytes") {
@@ -482,6 +452,74 @@ impl ModuleReference for EsmAssetReference {
     }
 }
 
+impl EsmAssetReference {
+    pub fn new(
+        module: ResolvedVc<EcmascriptModuleAsset>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: RcStr,
+        issue_source: IssueSource,
+        annotations: ImportAnnotations,
+        export_name: Option<ModulePart>,
+        import_usage: ImportUsage,
+        import_externals: bool,
+        tree_shaking_mode: Option<TreeShakingMode>,
+    ) -> Self {
+        EsmAssetReference {
+            module,
+            origin,
+            request,
+            issue_source,
+            annotations,
+            export_name,
+            import_usage,
+            import_externals,
+            tree_shaking_mode,
+            is_pure_import: false,
+        }
+    }
+
+    pub fn new_pure(
+        module: ResolvedVc<EcmascriptModuleAsset>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: RcStr,
+        issue_source: IssueSource,
+        annotations: ImportAnnotations,
+        export_name: Option<ModulePart>,
+        import_usage: ImportUsage,
+        import_externals: bool,
+        tree_shaking_mode: Option<TreeShakingMode>,
+    ) -> Self {
+        EsmAssetReference {
+            module,
+            origin,
+            request,
+            issue_source,
+            annotations,
+            export_name,
+            import_usage,
+            import_externals,
+            tree_shaking_mode,
+            is_pure_import: true,
+        }
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EsmAssetReference {
+    #[turbo_tasks::function]
+    pub(crate) fn get_referenced_asset(self: Vc<Self>) -> Vc<ReferencedAsset> {
+        ReferencedAsset::from_resolve_result(self.resolve_reference())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleReference for EsmAssetReference {
+    #[turbo_tasks::function]
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        self.resolve_reference_ref().await
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl ValueToString for EsmAssetReference {
     #[turbo_tasks::function]
@@ -494,41 +532,12 @@ impl ValueToString for EsmAssetReference {
 impl ChunkableModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Result<Vc<ChunkingTypeOption>> {
-        Ok(Vc::cell(
-            if let Some(chunking_type) = self.annotations.chunking_type() {
-                if chunking_type == "parallel" {
-                    Some(ChunkingType::Parallel {
-                        inherit_async: true,
-                        hoisted: true,
-                    })
-                } else if chunking_type == "none" {
-                    None
-                } else {
-                    return Err(anyhow!(
-                        "unknown chunking_type: {}",
-                        chunking_type.to_string_lossy()
-                    ));
-                }
-            } else {
-                Some(ChunkingType::Parallel {
-                    inherit_async: true,
-                    hoisted: true,
-                })
-            },
-        ))
+        Ok(Vc::cell(self.chunking_type_ref()?))
     }
 
     #[turbo_tasks::function]
     fn binding_usage(&self) -> Vc<BindingUsage> {
-        BindingUsage {
-            import: self.import_usage.clone(),
-            export: match &self.export_name {
-                Some(ModulePart::Export(export_name)) => ExportUsage::Named(export_name.clone()),
-                Some(ModulePart::Evaluation) => ExportUsage::Evaluation,
-                _ => ExportUsage::All,
-            },
-        }
-        .cell()
+        self.binding_usage_ref().cell()
     }
 }
 

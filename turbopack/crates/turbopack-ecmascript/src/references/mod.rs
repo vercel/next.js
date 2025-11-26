@@ -63,11 +63,12 @@ use tokio::sync::OnceCell;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Upcast,
-    ValueToString, Vc, trace::TraceRawVcs,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
+    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
+    chunk::{ChunkableModuleReference, ChunkingType},
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefinableNameSegment,
         FreeVarReference, FreeVarReferences, FreeVarReferencesIndividual, InputRelativeConstant,
@@ -76,7 +77,7 @@ use turbopack_core::{
     error::PrettyPrintError,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
     module::Module,
-    reference::{ModuleReference, ModuleReferences},
+    reference::{ModuleReference, ModuleReferences, ModulesWithRefData, ResolvedReference},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
         FindContextFileResult, ImportUsage, ModulePart, find_context_file,
@@ -196,6 +197,81 @@ impl AnalyzeEcmascriptModuleResult {
                 .chain(self.references.iter().copied())
                 .collect(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn primary_chunkable_referenced_modules(
+        &self,
+        include_traced: bool,
+    ) -> Result<Vc<ModulesWithRefData>> {
+        let mut esm_references: Vec<(ResolvedVc<Box<dyn ModuleReference>>, ResolvedReference)> =
+            self.esm_references
+                .await?
+                .into_iter()
+                .map(async |&reference| {
+                    let reference_value = reference.await?;
+                    let resolved = reference_value
+                        .resolve_reference_ref()
+                        .await?
+                        .await?
+                        .primary_modules_ref()
+                        .await?;
+
+                    let Some(chunking_type) = reference_value.chunking_type_ref()? else {
+                        return Ok(None);
+                    };
+                    if !include_traced && matches!(chunking_type, ChunkingType::Traced) {
+                        return Ok(None);
+                    }
+
+                    Ok(Some((
+                        ResolvedVc::upcast(reference),
+                        ResolvedReference {
+                            chunking_type,
+                            binding_usage: reference_value.binding_usage_ref(),
+                            modules: resolved,
+                        },
+                    )))
+                })
+                .try_flat_join()
+                .await?;
+
+        let reference = self
+            .references
+            .iter()
+            .map(|reference| async {
+                if let Some(reference) =
+                    ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(*reference)
+                    && let Some(chunking_type) = &*reference.chunking_type().await?
+                {
+                    if !include_traced && matches!(chunking_type, ChunkingType::Traced) {
+                        return Ok(None);
+                    }
+
+                    let resolved = reference
+                        .resolve_reference()
+                        .await?
+                        .primary_modules_ref()
+                        .await?;
+                    let binding_usage = reference.binding_usage().owned().await?;
+
+                    return Ok(Some((
+                        ResolvedVc::upcast(reference),
+                        ResolvedReference {
+                            chunking_type: chunking_type.clone(),
+                            binding_usage,
+                            modules: resolved,
+                        },
+                    )));
+                }
+                Ok(None)
+            })
+            .try_flat_join()
+            .await?;
+
+        esm_references.extend(reference.into_iter());
+
+        Ok(Vc::cell(esm_references))
     }
 
     #[turbo_tasks::function]

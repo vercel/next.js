@@ -11,9 +11,7 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbopack::css::chunk::CssChunkPlaceable;
-use turbopack_core::{
-    chunk::ChunkingType, module::Module, reference::primary_chunkable_referenced_modules,
-};
+use turbopack_core::{chunk::ChunkingType, module::Module};
 
 use crate::{
     next_client_reference::{
@@ -187,8 +185,9 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
         async move {
             // Pass include_traced to reuse the same cached `primary_chunkable_referenced_modules`
             // task result, but the traced references will be filtered out again afterwards.
-            let referenced_modules =
-                primary_chunkable_referenced_modules(parent_module, include_traced).await?;
+            let referenced_modules = parent_module
+                .primary_chunkable_referenced_modules(include_traced)
+                .await?;
 
             let referenced_modules = referenced_modules
                 .iter()
