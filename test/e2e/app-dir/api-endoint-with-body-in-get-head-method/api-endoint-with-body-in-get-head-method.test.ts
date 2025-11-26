@@ -44,7 +44,7 @@ const requestWithBody = (
   })
 }
 
-describe('api-endoint-with-body-in-get-head-method', () => {
+describe('api-endpoint-with-body-in-get-head-method', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
