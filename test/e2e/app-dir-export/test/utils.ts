@@ -10,8 +10,13 @@ import {
   getRedboxHeader,
   getRedboxSource,
   retry,
+  findPort,
+  startStaticServer,
+  stopApp,
+  fetchViaHTTP,
 } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
+import webdriver from 'next-webdriver'
 
 const glob = promisify(globOrig)
 
@@ -252,13 +257,30 @@ export function runTests({
     }
   })
 
-  it('should work', async () => {
-    await next.start()
+  let port: number
+  let stopOrKill: (() => Promise<void>) | undefined
+  beforeAll(async () => {
+    if (isNextDev) {
+      await next.start()
+    } else {
+      await next.build()
 
+      port = await findPort()
+      const app = await startStaticServer(join(next.testDir, 'out'), null, port)
+      stopOrKill = () => stopApp(app)
+    }
+  })
+  afterAll(async () => {
+    if (stopOrKill) {
+      await stopOrKill()
+    }
+  })
+
+  it('should work', async () => {
     if (expectedErrMsg) {
       if (isNextDev) {
         const url = dynamicPage ? '/another/first' : '/api/json'
-        const browser = await next.browser(url)
+        const browser = await webdriver(port, url)
         await waitForRedbox(browser)
         const header = await getRedboxHeader(browser)
         const source = await getRedboxSource(browser)
@@ -273,7 +295,7 @@ export function runTests({
       expect(next.cliOutput).toMatch(expectedErrMsg)
     } else {
       const a = (n: number) => `li:nth-child(${n}) a`
-      const browser = await next.browser('/')
+      const browser = await webdriver(port, '/')
       await check(() => browser.elementByCss('h1').text(), 'Home')
       expect(await browser.elementByCss(a(1)).text()).toBe(
         'another no trailingslash'
@@ -324,11 +346,11 @@ export function runTests({
       expect(await browser.elementByCss(a(2)).getAttribute('href')).toMatch(
         /\/test\.(.*)\.png/
       )
-      const res1 = await next.fetch('/api/json')
+      const res1 = await fetchViaHTTP(port, '/api/json')
       expect(res1.status).toBe(200)
       expect(await res1.json()).toEqual({ answer: 42 })
 
-      const res2 = await next.fetch('/api/txt')
+      const res2 = await fetchViaHTTP(port, '/api/txt')
       expect(res2.status).toBe(200)
       expect(await res2.text()).toEqual('this is plain text')
 
