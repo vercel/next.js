@@ -20,7 +20,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Vc};
-use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
+use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
@@ -127,7 +127,7 @@ pub(crate) async fn build_server_actions_loader(
     let file = File::from(contents.build());
     let source = VirtualSource::new_with_ident(
         AssetIdent::from_path(path).with_modifier(rcstr!("server actions loader")),
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
     let import_map = import_map.into_iter().map(|(k, v)| (v, k)).collect();
     let module = asset_context
@@ -209,7 +209,9 @@ async fn build_manifest(
     Ok(ResolvedVc::upcast(
         VirtualOutputAsset::new(
             manifest_path,
-            AssetContent::file(File::from(serde_json::to_string_pretty(&manifest)?).into()),
+            AssetContent::file(
+                FileContent::Content(File::from(serde_json::to_string_pretty(&manifest)?)).cell(),
+            ),
         )
         .to_resolved()
         .await?,

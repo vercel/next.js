@@ -9,7 +9,7 @@ use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
 };
 use turbo_tasks_fs::{
-    DirectoryEntry, File, FileSystem, FileSystemPath,
+    DirectoryEntry, File, FileContent, FileSystem, FileSystemPath,
     glob::{Glob, GlobOptions},
 };
 use turbopack_core::{
@@ -349,7 +349,9 @@ impl Asset for NftJsonAsset {
               "files": result
             });
 
-            Ok(AssetContent::file(File::from(json.to_string()).into()))
+            Ok(AssetContent::file(
+                FileContent::Content(File::from(json.to_string())).cell(),
+            ))
         }
         .instrument(span)
         .await

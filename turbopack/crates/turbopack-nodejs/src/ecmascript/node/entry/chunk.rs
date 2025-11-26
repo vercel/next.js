@@ -213,7 +213,7 @@ impl Asset for EcmascriptBuildNodeEntryChunk {
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let code = self.code().await?;
         Ok(AssetContent::file(
-            File::from(code.source_code().clone()).into(),
+            FileContent::Content(File::from(code.source_code().clone())).cell(),
         ))
     }
 }

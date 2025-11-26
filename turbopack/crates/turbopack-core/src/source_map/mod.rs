@@ -626,7 +626,7 @@ impl SourceMap {
 impl GenerateSourceMap for SourceMap {
     #[turbo_tasks::function]
     fn generate_source_map(&self) -> Result<Vc<FileContent>> {
-        Ok(File::from(self.to_rope()?).into())
+        Ok(FileContent::Content(File::from(self.to_rope()?)).cell())
     }
 }
 

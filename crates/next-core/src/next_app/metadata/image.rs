@@ -109,7 +109,7 @@ async fn dynamic_image_metadata_with_generator_source(
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--metadata.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -177,7 +177,7 @@ async fn dynamic_image_metadata_without_generator_source(
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--metadata.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))

@@ -8,7 +8,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, IntoTraitRef, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::File;
+use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
@@ -177,7 +177,7 @@ impl VersionedContent for EcmascriptDevChunkListContent {
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let code = self.code().await?;
         Ok(AssetContent::file(
-            File::from(code.source_code().clone()).into(),
+            FileContent::Content(File::from(code.source_code().clone())).cell(),
         ))
     }
 
