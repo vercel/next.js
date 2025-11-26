@@ -21,6 +21,105 @@ export class NextDevInstance extends NextInstance {
     return this._cliOutput || ''
   }
 
+  private handleStdio = (childProcess) => {
+    childProcess.stdout.on('data', (chunk) => {
+      const msg = chunk.toString()
+      process.stdout.write(chunk)
+      this._cliOutput += msg
+      this.emit('stdout', [msg])
+    })
+    childProcess.stderr.on('data', (chunk) => {
+      const msg = chunk.toString()
+      process.stderr.write(chunk)
+      this._cliOutput += msg
+      this.emit('stderr', [msg])
+    })
+  }
+
+  private getBuildArgs(args?: string[]) {
+    let buildArgs = ['pnpm', 'next', 'build']
+
+    if (this.buildCommand) {
+      buildArgs = this.buildCommand.split(' ')
+    }
+
+    if (this.buildArgs) {
+      buildArgs.push(...this.buildArgs)
+    }
+
+    if (args) {
+      buildArgs.push(...args)
+    }
+
+    if (process.env.NEXT_SKIP_ISOLATE) {
+      // without isolation yarn can't be used and pnpm must be used instead
+      if (buildArgs[0] === 'yarn') {
+        buildArgs[0] = 'pnpm'
+      }
+    }
+
+    return buildArgs
+  }
+
+  private getSpawnOpts(
+    env?: Record<string, string>
+  ): import('child_process').SpawnOptions {
+    return {
+      cwd: this.testDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+      env: {
+        ...process.env,
+        ...this.env,
+        ...env,
+        NODE_ENV: this.env.NODE_ENV || ('' as any),
+        PORT: this.forcedPort || '0',
+        __NEXT_TEST_MODE: 'e2e',
+      },
+    }
+  }
+
+  public async build(
+    options: { env?: Record<string, string>; args?: string[] } = {}
+  ) {
+    if (this.childProcess) {
+      throw new Error(
+        `can not run build while server is running, use next.stop() first`
+      )
+    }
+
+    return new Promise<{
+      exitCode: NodeJS.Signals | number | null
+      cliOutput: string
+    }>((resolve) => {
+      const curOutput = this._cliOutput.length
+      const spawnOpts = this.getSpawnOpts(options.env)
+      const buildArgs = this.getBuildArgs(options.args)
+
+      console.log('running', shellQuote(buildArgs))
+
+      this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
+      this.handleStdio(this.childProcess)
+
+      this.childProcess.on('error', (error) => {
+        this.childProcess = undefined
+        resolve({
+          exitCode: 1,
+          cliOutput:
+            this.cliOutput.slice(curOutput) + '\nSpawn error: ' + error.message,
+        })
+      })
+
+      this.childProcess.on('exit', (code, signal) => {
+        this.childProcess = undefined
+        resolve({
+          exitCode: signal || code,
+          cliOutput: this.cliOutput.slice(curOutput),
+        })
+      })
+    })
+  }
+
   public async start() {
     if (this.childProcess) {
       throw new Error('next already started')

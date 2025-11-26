@@ -1356,7 +1356,7 @@ function assignDefaultsAndValidate(
   ;(result as NextConfigComplete).distDirRoot = result.distDir
   if (
     phase === PHASE_DEVELOPMENT_SERVER &&
-    result.experimental?.isolatedDevBuild
+    result.experimental.isolatedDevBuild
   ) {
     result.distDir = join(result.distDir, 'dev')
   }
