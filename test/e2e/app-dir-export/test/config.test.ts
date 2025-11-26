@@ -3,8 +3,8 @@ import { join } from 'path'
 import { expectedWhenTrailingSlashTrue, getFiles } from './utils'
 import { FileRef, isNextStart, nextTestSetup, PatchedFileRef } from 'e2e-utils'
 
-if (isNextStart) {
-  describe('app dir - with output export', () => {
+describe('app dir - with output export', () => {
+  if (isNextStart) {
     describe('with exportPathMap configured', () => {
       let { next } = nextTestSetup({
         files: {
@@ -96,5 +96,7 @@ if (isNextStart) {
         )
       })
     })
-  })
-}
+  } else {
+    it('skipped in dev', () => {})
+  }
+})
