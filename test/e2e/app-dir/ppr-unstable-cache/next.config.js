@@ -1,6 +1,10 @@
 module.exports = {
-  experimental: {
-    ppr: true,
-    pprFallbacks: true,
+  cacheComponents: true,
+  cacheLife: {
+    expireNow: {
+      stale: 0,
+      expire: 0,
+      revalidate: 0,
+    },
   },
 }

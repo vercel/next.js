@@ -1,9 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/typeof-exports-esm/typeof-exports-esm/input/other-dep.js"],"sourcesContent":["console.log('other-dep')\n"],"names":[],"mappings":"AAAA,QAAQ,GAAG,CAAC"}},
-    {"offset": {"line": 5, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 10, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/typeof-exports-esm/typeof-exports-esm/input/index.js"],"sourcesContent":["import './other-dep.js'\n\n// this cannot be an execution test, because `module` is always defined when running the test in Node.js\nconsole.log(typeof module)\n"],"names":[],"mappings":";;;;AAEA,wGAAwG;AACxG,QAAQ,GAAG,CAAC,OAAO"}},
-    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}

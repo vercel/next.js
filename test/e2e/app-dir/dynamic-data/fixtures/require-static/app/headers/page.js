@@ -11,7 +11,7 @@ export default async function Page() {
       </section>
       <section id="headers">
         <h3>headers</h3>
-        {Array.from(headers().entries()).map(([key, value]) => {
+        {Array.from((await headers()).entries()).map(([key, value]) => {
           if (key === 'cookie') return null
           return (
             <div key={key}>

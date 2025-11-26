@@ -5,7 +5,14 @@ export default function App() {
     useEffect(()=>{
         console.log('Hello World');
     }, []);
-    null;
+    process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE && useLayoutEffect(()=>{
+        function foo() {}
+        return ()=>{};
+    }, [
+        1,
+        2,
+        App
+    ]);
     const a = useMemo(()=>{
         return 1;
     }, []);

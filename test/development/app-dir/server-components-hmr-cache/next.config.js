@@ -2,8 +2,8 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  // cacheMaxMemorySize: 0,
   experimental: {
-    after: true,
     // serverComponentsHmrCache: false,
   },
 }

@@ -7,9 +7,7 @@
             then: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "a1",
-                        ),
+                        var: "a1",
                         ast_path: [
                             Program(
                                 Module,
@@ -73,7 +71,6 @@
                             ),
                         ],
                         span: 34..36,
-                        in_try: false,
                     },
                     Call {
                         func: FreeVar(
@@ -135,6 +132,7 @@
                         ],
                         span: 34..38,
                         in_try: false,
+                        new: false,
                     },
                     Unreachable {
                         start_ast_path: [
@@ -228,9 +226,7 @@
             else: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "a2",
-                        ),
+                        var: "a2",
                         ast_path: [
                             Program(
                                 Module,
@@ -280,7 +276,6 @@
                             ),
                         ],
                         span: 58..60,
-                        in_try: false,
                     },
                     Call {
                         func: FreeVar(
@@ -328,6 +323,7 @@
                         ],
                         span: 58..62,
                         in_try: false,
+                        new: false,
                     },
                 ],
                 range: StartAfter(
@@ -404,7 +400,6 @@
             ),
         ],
         span: 18..55,
-        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -415,9 +410,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "b1",
-                            ),
+                            var: "b1",
                             ast_path: [
                                 Program(
                                     Module,
@@ -481,7 +474,6 @@
                                 ),
                             ],
                             span: 100..102,
-                            in_try: false,
                         },
                         Call {
                             func: FreeVar(
@@ -543,6 +535,7 @@
                             ],
                             span: 100..104,
                             in_try: false,
+                            new: false,
                         },
                         Unreachable {
                             start_ast_path: [
@@ -638,9 +631,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "b2",
-                            ),
+                            var: "b2",
                             ast_path: [
                                 Program(
                                     Module,
@@ -704,7 +695,6 @@
                                 ),
                             ],
                             span: 133..135,
-                            in_try: false,
                         },
                         Call {
                             func: FreeVar(
@@ -766,6 +756,7 @@
                             ],
                             span: 133..137,
                             in_try: false,
+                            new: false,
                         },
                     ],
                     range: Exact(
@@ -810,9 +801,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "b3",
-                            ),
+                            var: "b3",
                             ast_path: [
                                 Program(
                                     Module,
@@ -862,7 +851,6 @@
                                 ),
                             ],
                             span: 145..147,
-                            in_try: false,
                         },
                         Call {
                             func: FreeVar(
@@ -910,6 +898,7 @@
                             ],
                             span: 145..149,
                             in_try: false,
+                            new: false,
                         },
                     ],
                     range: StartAfter(
@@ -987,7 +976,6 @@
             ),
         ],
         span: 84..142,
-        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -1088,9 +1076,7 @@
             else: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "c1",
-                        ),
+                        var: "c1",
                         ast_path: [
                             Program(
                                 Module,
@@ -1140,7 +1126,6 @@
                             ),
                         ],
                         span: 201..203,
-                        in_try: false,
                     },
                     Call {
                         func: FreeVar(
@@ -1188,6 +1173,7 @@
                         ],
                         span: 201..205,
                         in_try: false,
+                        new: false,
                     },
                 ],
                 range: StartAfter(
@@ -1264,7 +1250,6 @@
             ),
         ],
         span: 171..198,
-        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -1368,9 +1353,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "d1",
-                            ),
+                            var: "d1",
                             ast_path: [
                                 Program(
                                     Module,
@@ -1434,7 +1417,6 @@
                                 ),
                             ],
                             span: 266..268,
-                            in_try: false,
                         },
                         Call {
                             func: FreeVar(
@@ -1496,6 +1478,7 @@
                             ],
                             span: 266..270,
                             in_try: false,
+                            new: false,
                         },
                     ],
                     range: Exact(
@@ -1540,9 +1523,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "d2",
-                            ),
+                            var: "d2",
                             ast_path: [
                                 Program(
                                     Module,
@@ -1592,7 +1573,6 @@
                                 ),
                             ],
                             span: 278..280,
-                            in_try: false,
                         },
                         Call {
                             func: FreeVar(
@@ -1640,6 +1620,7 @@
                             ],
                             span: 278..282,
                             in_try: false,
+                            new: false,
                         },
                     ],
                     range: StartAfter(
@@ -1717,7 +1698,6 @@
             ),
         ],
         span: 227..275,
-        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -1728,9 +1708,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "e1",
-                            ),
+                            var: "e1",
                             ast_path: [
                                 Program(
                                     Module,
@@ -1794,7 +1772,6 @@
                                 ),
                             ],
                             span: 321..323,
-                            in_try: false,
                         },
                         Call {
                             func: FreeVar(
@@ -1856,6 +1833,7 @@
                             ],
                             span: 321..325,
                             in_try: false,
+                            new: false,
                         },
                     ],
                     range: Exact(
@@ -1900,9 +1878,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "e2",
-                            ),
+                            var: "e2",
                             ast_path: [
                                 Program(
                                     Module,
@@ -1952,7 +1928,6 @@
                                 ),
                             ],
                             span: 356..358,
-                            in_try: false,
                         },
                         Call {
                             func: FreeVar(
@@ -2000,6 +1975,7 @@
                             ],
                             span: 356..360,
                             in_try: false,
+                            new: false,
                         },
                     ],
                     range: StartAfter(
@@ -2170,7 +2146,6 @@
             ),
         ],
         span: 304..353,
-        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -2180,9 +2155,7 @@
             then: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "f1",
-                        ),
+                        var: "f1",
                         ast_path: [
                             Program(
                                 Module,
@@ -2232,7 +2205,6 @@
                             ),
                         ],
                         span: 424..426,
-                        in_try: false,
                     },
                     Call {
                         func: FreeVar(
@@ -2280,6 +2252,7 @@
                         ],
                         span: 424..428,
                         in_try: false,
+                        new: false,
                     },
                 ],
                 range: StartAfter(
@@ -2447,7 +2420,6 @@
             ),
         ],
         span: 382..421,
-        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -2458,9 +2430,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "g1",
-                            ),
+                            var: "g1",
                             ast_path: [
                                 Program(
                                     Module,
@@ -2524,7 +2494,6 @@
                                 ),
                             ],
                             span: 467..469,
-                            in_try: false,
                         },
                         Call {
                             func: FreeVar(
@@ -2586,6 +2555,7 @@
                             ],
                             span: 467..471,
                             in_try: false,
+                            new: false,
                         },
                     ],
                     range: Exact(
@@ -2630,9 +2600,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "g3",
-                            ),
+                            var: "g3",
                             ast_path: [
                                 Program(
                                     Module,
@@ -2682,7 +2650,6 @@
                                 ),
                             ],
                             span: 512..514,
-                            in_try: false,
                         },
                         Call {
                             func: FreeVar(
@@ -2730,6 +2697,7 @@
                             ],
                             span: 512..516,
                             in_try: false,
+                            new: false,
                         },
                     ],
                     range: StartAfter(
@@ -2773,9 +2741,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "g2",
-                            ),
+                            var: "g2",
                             ast_path: [
                                 Program(
                                     Module,
@@ -2839,7 +2805,6 @@
                                 ),
                             ],
                             span: 488..490,
-                            in_try: false,
                         },
                         Call {
                             func: FreeVar(
@@ -2901,6 +2866,7 @@
                             ],
                             span: 488..492,
                             in_try: false,
+                            new: false,
                         },
                         Unreachable {
                             start_ast_path: [
@@ -3030,7 +2996,6 @@
             ),
         ],
         span: 450..509,
-        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -3040,9 +3005,7 @@
             then: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "h2",
-                        ),
+                        var: "h2",
                         ast_path: [
                             Program(
                                 Module,
@@ -3092,7 +3055,6 @@
                             ),
                         ],
                         span: 590..592,
-                        in_try: false,
                     },
                     Call {
                         func: FreeVar(
@@ -3140,6 +3102,7 @@
                         ],
                         span: 590..594,
                         in_try: false,
+                        new: false,
                     },
                 ],
                 range: StartAfter(
@@ -3181,9 +3144,7 @@
             else: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "h1",
-                        ),
+                        var: "h1",
                         ast_path: [
                             Program(
                                 Module,
@@ -3247,7 +3208,6 @@
                             ),
                         ],
                         span: 566..568,
-                        in_try: false,
                     },
                     Call {
                         func: FreeVar(
@@ -3309,6 +3269,7 @@
                         ],
                         span: 566..570,
                         in_try: false,
+                        new: false,
                     },
                     Unreachable {
                         start_ast_path: [
@@ -3437,12 +3398,9 @@
             ),
         ],
         span: 538..587,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "i1",
-        ),
+        var: "i1",
         ast_path: [
             Program(
                 Module,
@@ -3501,7 +3459,6 @@
             ),
         ],
         span: 642..644,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -3558,6 +3515,7 @@
         ],
         span: 642..646,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -3604,9 +3562,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "i2",
-        ),
+        var: "i2",
         ast_path: [
             Program(
                 Module,
@@ -3659,7 +3615,6 @@
             ),
         ],
         span: 657..659,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -3710,6 +3665,7 @@
         ],
         span: 657..661,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -3750,9 +3706,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "i1",
-        ),
+        var: "i1",
         ast_path: [
             Program(
                 Module,
@@ -3819,7 +3773,6 @@
             ),
         ],
         span: 715..717,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -3884,6 +3837,7 @@
         ],
         span: 715..719,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -3938,9 +3892,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "i2",
-        ),
+        var: "i2",
         ast_path: [
             Program(
                 Module,
@@ -3993,7 +3945,6 @@
             ),
         ],
         span: 734..736,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -4044,6 +3995,7 @@
         ],
         span: 734..738,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [

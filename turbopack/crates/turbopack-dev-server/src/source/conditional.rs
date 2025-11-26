@@ -1,17 +1,19 @@
 use anyhow::Result;
-use turbo_tasks::{Completion, RcStr, State, Value, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{Completion, ResolvedVc, State, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
-    route_tree::{MapGetContentSourceContent, RouteTree, RouteTrees},
     ContentSource, ContentSourceData, ContentSourceDataVary, ContentSourceSideEffect,
     GetContentSourceContent,
+    route_tree::{MapGetContentSourceContent, RouteTree, RouteTrees},
 };
 use crate::source::{ContentSourceContent, ContentSources};
 
 /// Combines two [ContentSource]s like the [CombinedContentSource], but only
 /// allows to serve from the second source when the first source has
 /// successfully served something once.
+///
 /// This is a laziness optimization when the content of the second source can
 /// only be reached via references from the first source.
 ///
@@ -21,8 +23,8 @@ use crate::source::{ContentSourceContent, ContentSources};
 /// served once.
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
 pub struct ConditionalContentSource {
-    activator: Vc<Box<dyn ContentSource>>,
-    action: Vc<Box<dyn ContentSource>>,
+    activator: ResolvedVc<Box<dyn ContentSource>>,
+    action: ResolvedVc<Box<dyn ContentSource>>,
     activated: State<bool>,
 }
 
@@ -30,8 +32,8 @@ pub struct ConditionalContentSource {
 impl ConditionalContentSource {
     #[turbo_tasks::function]
     pub fn new(
-        activator: Vc<Box<dyn ContentSource>>,
-        action: Vc<Box<dyn ContentSource>>,
+        activator: ResolvedVc<Box<dyn ContentSource>>,
+        action: ResolvedVc<Box<dyn ContentSource>>,
     ) -> Vc<Self> {
         ConditionalContentSource {
             activator,
@@ -45,15 +47,18 @@ impl ConditionalContentSource {
 #[turbo_tasks::value_impl]
 impl ContentSource for ConditionalContentSource {
     #[turbo_tasks::function]
-    async fn get_routes(self: Vc<Self>) -> Result<Vc<RouteTree>> {
+    async fn get_routes(self: ResolvedVc<Self>) -> Result<Vc<RouteTree>> {
         let this = self.await?;
         Ok(if !*this.activated.get() {
             this.activator.get_routes().map_routes(Vc::upcast(
                 ConditionalContentSourceMapper { source: self }.cell(),
             ))
         } else {
-            Vc::<RouteTrees>::cell(vec![this.activator.get_routes(), this.action.get_routes()])
-                .merge()
+            Vc::<RouteTrees>::cell(vec![
+                this.activator.get_routes().to_resolved().await?,
+                this.action.get_routes().to_resolved().await?,
+            ])
+            .merge()
         })
     }
 
@@ -65,7 +70,7 @@ impl ContentSource for ConditionalContentSource {
 
 #[turbo_tasks::value]
 struct ConditionalContentSourceMapper {
-    source: Vc<ConditionalContentSource>,
+    source: ResolvedVc<ConditionalContentSource>,
 }
 
 #[turbo_tasks::value_impl]
@@ -73,7 +78,7 @@ impl MapGetContentSourceContent for ConditionalContentSourceMapper {
     #[turbo_tasks::function]
     fn map_get_content(
         &self,
-        get_content: Vc<Box<dyn GetContentSourceContent>>,
+        get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
     ) -> Vc<Box<dyn GetContentSourceContent>> {
         Vc::upcast(
             ActivateOnGetContentSource {
@@ -85,44 +90,25 @@ impl MapGetContentSourceContent for ConditionalContentSourceMapper {
     }
 }
 
-#[turbo_tasks::function]
-fn introspectable_type() -> Vc<RcStr> {
-    Vc::cell("conditional content source".into())
-}
-
-#[turbo_tasks::function]
-fn activator_key() -> Vc<RcStr> {
-    Vc::cell("activator".into())
-}
-
-#[turbo_tasks::function]
-fn action_key() -> Vc<RcStr> {
-    Vc::cell("action".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for ConditionalContentSource {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        introspectable_type()
+        Vc::cell(rcstr!("conditional content source"))
     }
 
     #[turbo_tasks::function]
-    async fn details(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            if *self.activated.get() {
-                "activated"
-            } else {
-                "not activated"
-            }
-            .into(),
-        ))
+    fn details(&self) -> Vc<RcStr> {
+        Vc::cell(if *self.activated.get() {
+            rcstr!("activated")
+        } else {
+            rcstr!("not activated")
+        })
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<RcStr>> {
-        if let Some(activator) =
-            Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(self.activator).await?
+    fn title(&self) -> Result<Vc<RcStr>> {
+        if let Some(activator) = ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.activator)
         {
             Ok(activator.title())
         } else {
@@ -131,15 +117,13 @@ impl Introspectable for ConditionalContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
+    fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         Ok(Vc::cell(
             [
-                Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(self.activator)
-                    .await?
-                    .map(|i| (activator_key(), i)),
-                Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(self.action)
-                    .await?
-                    .map(|i| (action_key(), i)),
+                ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.activator)
+                    .map(|i| (rcstr!("activator"), i)),
+                ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.action)
+                    .map(|i| (rcstr!("action"), i)),
             ]
             .into_iter()
             .flatten()
@@ -150,8 +134,8 @@ impl Introspectable for ConditionalContentSource {
 
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
 struct ActivateOnGetContentSource {
-    source: Vc<ConditionalContentSource>,
-    get_content: Vc<Box<dyn GetContentSourceContent>>,
+    source: ResolvedVc<ConditionalContentSource>,
+    get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -163,11 +147,11 @@ impl GetContentSourceContent for ActivateOnGetContentSource {
 
     #[turbo_tasks::function]
     async fn get(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         path: RcStr,
-        data: Value<ContentSourceData>,
+        data: ContentSourceData,
     ) -> Result<Vc<ContentSourceContent>> {
-        turbo_tasks::emit(Vc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
+        turbo_tasks::emit(ResolvedVc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
         Ok(self.await?.get_content.get(path, data))
     }
 }

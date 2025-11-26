@@ -3,24 +3,16 @@ use swc_core::{
     common::{errors::HANDLER, Span, DUMMY_SP},
     ecma::{
         ast::*,
-        visit::{Fold, FoldWith},
+        visit::{fold_pass, Fold, FoldWith},
     },
 };
 
-pub fn page_config(is_development: bool, is_page_file: bool) -> impl Fold {
-    PageConfig {
+pub fn page_config(is_development: bool, is_page_file: bool) -> impl Pass {
+    fold_pass(PageConfig {
         is_development,
         is_page_file,
         ..Default::default()
-    }
-}
-
-pub fn page_config_test() -> impl Fold {
-    PageConfig {
-        in_test: true,
-        is_page_file: true,
-        ..Default::default()
-    }
+    })
 }
 
 #[derive(Debug, Default)]
@@ -34,6 +26,7 @@ struct PageConfig {
 const STRING_LITERAL_DROP_BUNDLE: &str = "__NEXT_DROP_CLIENT_FILE__";
 const CONFIG_KEY: &str = "config";
 
+/// TODO: Implement this as a [Pass] instead of a full visitor ([Fold])
 impl Fold for PageConfig {
     fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
         let mut new_items = vec![];
@@ -88,29 +81,7 @@ impl Fold for PageConfig {
                                 if let PropOrSpread::Prop(prop) = prop {
                                     if let Prop::KeyValue(kv) = &**prop {
                                         match &kv.key {
-                                            PropName::Ident(ident) => {
-                                                if &ident.sym == "amp" {
-                                                    if let Expr::Lit(Lit::Bool(Bool {
-                                                        value,
-                                                        ..
-                                                    })) = &*kv.value
-                                                    {
-                                                        if *value && self.is_page_file {
-                                                            self.drop_bundle = true;
-                                                        }
-                                                    } else if let Expr::Lit(Lit::Str(_)) =
-                                                        &*kv.value
-                                                    {
-                                                        // Do not replace
-                                                        // bundle
-                                                    } else {
-                                                        self.handle_error(
-                                                            "Invalid value found.",
-                                                            export.span,
-                                                        );
-                                                    }
-                                                }
-                                            }
+                                            PropName::Ident(_) => {}
                                             _ => {
                                                 self.handle_error(
                                                     "Invalid property found.",

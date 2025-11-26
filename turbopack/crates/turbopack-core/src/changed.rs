@@ -1,44 +1,42 @@
 use anyhow::Result;
 use turbo_tasks::{
-    graph::{GraphTraversal, NonDeterministic},
-    Completion, Completions, Vc,
+    Completion, Completions, ResolvedVc, TryJoinIterExt, Vc,
+    graph::{AdjacencyMap, GraphTraversal},
 };
 
 use crate::{
     asset::Asset,
     module::Module,
-    output::{OutputAsset, OutputAssets},
+    output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
     reference::primary_referenced_modules,
 };
 
-async fn get_referenced_output_assets(
-    parent: Vc<Box<dyn OutputAsset>>,
-) -> Result<impl Iterator<Item = Vc<Box<dyn OutputAsset>>> + Send> {
-    Ok(parent.references().await?.clone_value().into_iter())
-}
-
 pub async fn get_referenced_modules(
-    parent: Vc<Box<dyn Module>>,
-) -> Result<impl Iterator<Item = Vc<Box<dyn Module>>> + Send> {
-    Ok(primary_referenced_modules(parent)
+    parent: ResolvedVc<Box<dyn Module>>,
+) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send> {
+    Ok(primary_referenced_modules(*parent)
+        .owned()
         .await?
-        .clone_value()
         .into_iter())
 }
 
 /// Returns a completion that changes when any content of any asset in the whole
 /// asset graph changes.
 #[turbo_tasks::function]
-pub async fn any_content_changed_of_module(root: Vc<Box<dyn Module>>) -> Result<Vc<Completion>> {
-    let completions = NonDeterministic::new()
+pub async fn any_content_changed_of_module(
+    root: ResolvedVc<Box<dyn Module>>,
+) -> Result<Vc<Completion>> {
+    let completions = AdjacencyMap::new()
         .skip_duplicates()
         .visit([root], get_referenced_modules)
         .await
         .completed()?
         .into_inner()
-        .into_iter()
-        .map(|m| content_changed(Vc::upcast(m)))
-        .collect();
+        .into_postorder_topological()
+        .map(|m| content_changed(*ResolvedVc::upcast(m)))
+        .map(|v| v.to_resolved())
+        .try_join()
+        .await?;
 
     Ok(Vc::<Completions>::cell(completions).completed())
 }
@@ -47,17 +45,16 @@ pub async fn any_content_changed_of_module(root: Vc<Box<dyn Module>>) -> Result<
 /// asset graph changes.
 #[turbo_tasks::function]
 pub async fn any_content_changed_of_output_asset(
-    root: Vc<Box<dyn OutputAsset>>,
+    root: ResolvedVc<Box<dyn OutputAsset>>,
 ) -> Result<Vc<Completion>> {
-    let completions = NonDeterministic::new()
-        .skip_duplicates()
-        .visit([root], get_referenced_output_assets)
-        .await
-        .completed()?
-        .into_inner()
-        .into_iter()
-        .map(|m| content_changed(Vc::upcast(m)))
-        .collect();
+    let completions =
+        expand_output_assets(std::iter::once(ExpandOutputAssetsInput::Asset(root)), true)
+            .await?
+            .into_iter()
+            .map(|m| content_changed(*ResolvedVc::upcast(m)))
+            .map(|v| v.to_resolved())
+            .try_join()
+            .await?;
 
     Ok(Vc::<Completions>::cell(completions).completed())
 }
@@ -72,8 +69,10 @@ pub async fn any_content_changed_of_output_assets(
         roots
             .await?
             .iter()
-            .map(|&a| any_content_changed_of_output_asset(a))
-            .collect(),
+            .map(|&a| any_content_changed_of_output_asset(*a))
+            .map(|v| v.to_resolved())
+            .try_join()
+            .await?,
     )
     .completed())
 }

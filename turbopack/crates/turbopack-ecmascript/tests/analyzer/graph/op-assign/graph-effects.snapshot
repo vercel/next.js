@@ -107,12 +107,9 @@
             ),
         ],
         span: 212..227,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "performance",
-        ),
+        var: "performance",
         ast_path: [
             Program(
                 Module,
@@ -216,7 +213,6 @@
             ),
         ],
         span: 212..223,
-        in_try: false,
     },
     MemberCall {
         obj: FreeVar(
@@ -319,6 +315,7 @@
         ],
         span: 212..229,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Member(
@@ -444,7 +441,6 @@
             ),
         ],
         span: 257..292,
-        in_try: true,
     },
     Member {
         obj: Variable(
@@ -566,7 +562,6 @@
             ),
         ],
         span: 257..282,
-        in_try: true,
     },
     MemberCall {
         obj: Member(
@@ -687,6 +682,7 @@
         ],
         span: 257..301,
         in_try: true,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -897,12 +893,9 @@
             ),
         ],
         span: 356..371,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "performance",
-        ),
+        var: "performance",
         ast_path: [
             Program(
                 Module,
@@ -1021,7 +1014,6 @@
             ),
         ],
         span: 356..367,
-        in_try: false,
     },
     MemberCall {
         obj: FreeVar(
@@ -1139,6 +1131,7 @@
         ],
         span: 356..373,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -1198,71 +1191,7 @@
         ),
         kind: Ternary {
             then: EffectsBlock {
-                effects: [
-                    FreeVar {
-                        var: FreeVar(
-                            "undefined",
-                        ),
-                        ast_path: [
-                            Program(
-                                Module,
-                            ),
-                            Module(
-                                Body(
-                                    2,
-                                ),
-                            ),
-                            ModuleItem(
-                                ModuleDecl,
-                            ),
-                            ModuleDecl(
-                                ExportDecl,
-                            ),
-                            ExportDecl(
-                                Decl,
-                            ),
-                            Decl(
-                                Fn,
-                            ),
-                            FnDecl(
-                                Function,
-                            ),
-                            Function(
-                                Body,
-                            ),
-                            BlockStmt(
-                                Stmts(
-                                    0,
-                                ),
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Var,
-                            ),
-                            VarDecl(
-                                Decls(
-                                    0,
-                                ),
-                            ),
-                            VarDeclarator(
-                                Init,
-                            ),
-                            Expr(
-                                Cond,
-                            ),
-                            CondExpr(
-                                Cons,
-                            ),
-                            Expr(
-                                Ident,
-                            ),
-                        ],
-                        span: 535..544,
-                        in_try: false,
-                    },
-                ],
+                effects: [],
                 range: Exact(
                     [
                         Program(
@@ -1432,7 +1361,6 @@
             ),
         ],
         span: 496..600,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -1491,7 +1419,6 @@
             ),
         ],
         span: 608..621,
-        in_try: false,
     },
     Unreachable {
         start_ast_path: [

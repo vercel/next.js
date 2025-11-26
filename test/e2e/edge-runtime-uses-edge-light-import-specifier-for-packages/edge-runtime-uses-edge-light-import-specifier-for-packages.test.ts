@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import { shouldRunTurboDevTest } from '../../lib/next-test-utils'
 
 describe('edge-runtime uses edge-light import specifier for packages', () => {
   const { next, skipped } = nextTestSetup({
@@ -7,7 +6,7 @@ describe('edge-runtime uses edge-light import specifier for packages', () => {
     packageJson: {
       scripts: {
         build: 'next build',
-        dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
+        dev: 'next dev',
         start: 'next start',
       },
     },
@@ -27,7 +26,7 @@ describe('edge-runtime uses edge-light import specifier for packages', () => {
     const html = await res.json()
     expect(html).toEqual({
       // edge-light is only supported in `exports` and `imports` but webpack also adds the top level `edge-light` key incorrectly.
-      edgeLightPackage: process.env.TURBOPACK ? 'import' : 'edge-light',
+      edgeLightPackage: process.env.IS_TURBOPACK_TEST ? 'import' : 'edge-light',
       edgeLightPackageExports: 'edge-light',
     })
   })
@@ -37,7 +36,7 @@ describe('edge-runtime uses edge-light import specifier for packages', () => {
     const text = JSON.parse($('pre#result').text())
     expect(text).toEqual({
       // edge-light is only supported in `exports` and `imports` but webpack also adds the top level `edge-light` key incorrectly.
-      edgeLightPackage: process.env.TURBOPACK ? 'import' : 'edge-light',
+      edgeLightPackage: process.env.IS_TURBOPACK_TEST ? 'import' : 'edge-light',
       edgeLightPackageExports: 'edge-light',
     })
   })
@@ -47,7 +46,7 @@ describe('edge-runtime uses edge-light import specifier for packages', () => {
     const text = JSON.parse($('pre#result').text())
     expect(text).toEqual({
       // edge-light is only supported in `exports` and `imports` but webpack also adds the top level `edge-light` key incorrectly.
-      edgeLightPackage: process.env.TURBOPACK ? 'import' : 'edge-light',
+      edgeLightPackage: process.env.IS_TURBOPACK_TEST ? 'import' : 'edge-light',
       edgeLightPackageExports: 'edge-light',
     })
   })

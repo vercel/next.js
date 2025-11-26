@@ -1,7 +1,8 @@
 import { Suspense } from 'react'
 
+import { LayoutSentinel } from './getSentinelValue'
+
 export default async function Layout({ children }) {
-  const { __TEST_SENTINEL } = process.env
   return (
     <html lang="en">
       <head>
@@ -14,7 +15,7 @@ export default async function Layout({ children }) {
           intended
         </p>
         <main>
-          <div id="layout">{__TEST_SENTINEL}</div>
+          <LayoutSentinel />
           <Suspense fallback={<div id="boundary">loading...</div>}>
             {children}
           </Suspense>

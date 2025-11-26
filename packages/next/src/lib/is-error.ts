@@ -10,6 +10,28 @@ export interface NextError extends Error {
 }
 
 /**
+ * This is a safe stringify function that handles circular references.
+ * We're using a simpler version here to avoid introducing
+ * the dependency `safe-stable-stringify` into production bundle.
+ *
+ * This helper is used both in development and production.
+ */
+function safeStringifyLite(obj: any) {
+  const seen = new WeakSet()
+
+  return JSON.stringify(obj, (_key, value) => {
+    // If value is an object and already seen, replace with "[Circular]"
+    if (typeof value === 'object' && value !== null) {
+      if (seen.has(value)) {
+        return '[Circular]'
+      }
+      seen.add(value)
+    }
+    return value
+  })
+}
+
+/**
  * Checks whether the given value is a NextError.
  * This can be used to print a more detailed error message with properties like `code` & `digest`.
  */
@@ -42,5 +64,5 @@ export function getProperError(err: unknown): Error {
     }
   }
 
-  return new Error(isPlainObject(err) ? JSON.stringify(err) : err + '')
+  return new Error(isPlainObject(err) ? safeStringifyLite(err) : err + '')
 }

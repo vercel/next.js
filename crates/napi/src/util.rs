@@ -26,65 +26,68 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-use std::{cell::RefCell, path::PathBuf};
+use std::{cell::RefCell, env, path::PathBuf};
 
 use anyhow::anyhow;
 use napi::bindgen_prelude::{External, Status};
+use napi_derive::napi;
 use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
-use tracing_subscriber::{filter, prelude::*, util::SubscriberInitExt, Layer};
+use tracing_subscriber::{Layer, filter, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[napi]
-pub fn get_target_triple() -> String {
-    crate::build::BUILD_TARGET.to_string()
+pub fn get_target_triple() -> &'static str {
+    env!("VERGEN_CARGO_TARGET_TRIPLE")
 }
 
 pub trait MapErr<T>: Into<Result<T, anyhow::Error>> {
     fn convert_err(self) -> napi::Result<T> {
         self.into()
-            .map_err(|err| napi::Error::new(Status::GenericFailure, format!("{:?}", err)))
+            .map_err(|err| napi::Error::new(Status::GenericFailure, format!("{err:?}")))
     }
 }
 
 impl<T> MapErr<T> for Result<T, anyhow::Error> {}
 
+/// An opaque type potentially wrapping a [`dhat::Profiler`] instance. If we
+/// were not compiled with dhat support, this is an empty struct.
 #[cfg(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc"))]
-#[napi]
-pub fn init_heap_profiler() -> napi::Result<External<RefCell<Option<dhat::Profiler>>>> {
-    #[cfg(feature = "__internal_dhat-heap")]
-    {
-        println!("[dhat-heap]: Initializing heap profiler");
-        let _profiler = dhat::Profiler::new_heap();
-        return Ok(External::new(RefCell::new(Some(_profiler))));
-    }
+#[non_exhaustive]
+pub struct DhatProfilerGuard(dhat::Profiler);
 
-    #[cfg(feature = "__internal_dhat-ad-hoc")]
-    {
-        println!("[dhat-ad-hoc]: Initializing ad-hoc profiler");
-        let _profiler = dhat::Profiler::new_ad_hoc();
-        return Ok(External::new(RefCell::new(Some(_profiler))));
+/// An opaque type potentially wrapping a [`dhat::Profiler`] instance. If we
+/// were not compiled with dhat support, this is an empty struct.
+///
+/// [`dhat::Profiler`]: https://docs.rs/dhat/latest/dhat/struct.Profiler.html
+#[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
+#[non_exhaustive]
+pub struct DhatProfilerGuard;
+
+impl DhatProfilerGuard {
+    /// Constructs an instance if we were compiled with dhat support.
+    pub fn try_init() -> Option<Self> {
+        #[cfg(feature = "__internal_dhat-heap")]
+        {
+            println!("[dhat-heap]: Initializing heap profiler");
+            Some(Self(dhat::Profiler::new_heap()))
+        }
+        #[cfg(feature = "__internal_dhat-ad-hoc")]
+        {
+            println!("[dhat-ad-hoc]: Initializing ad-hoc profiler");
+            Some(Self(dhat::Profiler::new_ad_hoc()))
+        }
+        #[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
+        {
+            None
+        }
     }
 }
 
-#[cfg(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc"))]
-#[napi]
-pub fn teardown_heap_profiler(guard_external: External<RefCell<Option<dhat::Profiler>>>) {
-    let guard_cell = &*guard_external;
-
-    if let Some(guard) = guard_cell.take() {
+impl Drop for DhatProfilerGuard {
+    fn drop(&mut self) {
+        #[cfg(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc"))]
         println!("[dhat]: Teardown profiler");
-        drop(guard);
     }
 }
-
-#[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
-#[napi]
-pub fn init_heap_profiler() -> napi::Result<External<RefCell<Option<u32>>>> {
-    Ok(External::new(RefCell::new(Some(0))))
-}
-
-#[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
-#[napi]
-pub fn teardown_heap_profiler(_guard_external: External<RefCell<Option<u32>>>) {}
 
 /// Initialize tracing subscriber to emit traces. This configures subscribers
 /// for Trace Event Format <https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview>.

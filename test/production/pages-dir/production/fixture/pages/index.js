@@ -1,15 +1,11 @@
 import Link from 'next/link?loaderQuery'
 
-if (typeof window === 'undefined') {
-  try {
-    let file = 'clear.js'
-    require('es5-ext/array/#/' + file)
-  } catch (_) {}
-  import('nanoid').then((mod) => console.log(mod.nanoid()))
-}
-
 // prevent static generation for build trace test
 export function getServerSideProps() {
+  try {
+    require('es5-ext/array/from/index.js')
+  } catch (_) {}
+  import('nanoid').then((mod) => console.log(mod.nanoid()))
   return {
     props: {},
   }

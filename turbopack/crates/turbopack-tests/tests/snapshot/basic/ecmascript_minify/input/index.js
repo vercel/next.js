@@ -1,9 +1,9 @@
-const inlined = 3;
-const message = getMessage();
+const inlined = 3
+const message = getMessage()
 
-console.log("Hello," + " world!", inlined, message);
-console.log(message);
+console.log('Hello,' + ' world!', inlined, message)
+console.log(message)
 
 function getMessage() {
-  return "Hello";
+  return 'Hello'
 }

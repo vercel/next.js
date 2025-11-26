@@ -6,7 +6,7 @@ We use a snapshot-based testing system to ensure that changes to the parser don'
 To add a new test, you need to create a new directory in `tests/analyzer/graph` with an 'input.js' file
 inside.
 
-The snapshot tests are done with the `testing` crate. You can upate them by passing the env var
+The snapshot tests are done with the `testing` crate. You can update them by passing the env var
 `UPDATE=1` to the test runner.
 
 ```sh

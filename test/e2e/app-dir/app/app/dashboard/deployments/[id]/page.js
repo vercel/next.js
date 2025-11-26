@@ -11,7 +11,7 @@ async function getData({ params }) {
   console.log('data.json', data)
 
   return {
-    id: params.id,
+    id: (await params).id,
   }
 }
 

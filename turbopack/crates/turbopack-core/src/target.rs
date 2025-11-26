@@ -1,9 +1,9 @@
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Vc};
+use turbo_tasks::{NonLocalValue, Vc, trace::TraceRawVcs};
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Debug, Copy, Clone)]
 pub struct CompileTarget {
     /// <https://nodejs.org/api/os.html#osarch>
@@ -15,16 +15,22 @@ pub struct CompileTarget {
     pub libc: Libc,
 }
 
+impl Default for CompileTarget {
+    fn default() -> Self {
+        CompileTarget {
+            arch: Arch::Unknown,
+            platform: Platform::Unknown,
+            endianness: Endianness::Big,
+            libc: Libc::Unknown,
+        }
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl CompileTarget {
     #[turbo_tasks::function]
     pub fn current() -> Vc<Self> {
-        Self::cell(CompileTarget {
-            arch: CompileTarget::current_arch(),
-            platform: CompileTarget::current_platform(),
-            endianness: CompileTarget::current_endianness(),
-            libc: CompileTarget::current_libc(),
-        })
+        Self::cell(Self::current_raw())
     }
 
     #[turbo_tasks::function]
@@ -40,17 +46,27 @@ impl CompileTarget {
 
 impl Display for CompileTarget {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
 impl CompileTarget {
+    pub fn current_raw() -> Self {
+        CompileTarget {
+            arch: CompileTarget::current_arch(),
+            platform: CompileTarget::current_platform(),
+            endianness: CompileTarget::current_endianness(),
+            libc: CompileTarget::current_libc(),
+        }
+    }
+
+    /// Returns the expected extension of the dynamic library, including the `.`.
     pub fn dylib_ext(&self) -> &'static str {
         let platform = self.platform;
         match platform {
-            Platform::Win32 => "dll",
-            Platform::Darwin => "dylib",
-            _ => "so",
+            Platform::Win32 => ".dll",
+            Platform::Darwin => ".dylib",
+            _ => ".so",
         }
     }
 
@@ -157,7 +173,9 @@ impl CompileTarget {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 #[repr(u8)]
 #[non_exhaustive]
 pub enum Arch {
@@ -198,7 +216,9 @@ impl Display for Arch {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 #[repr(u8)]
 #[non_exhaustive]
 pub enum Platform {
@@ -235,7 +255,9 @@ impl Display for Platform {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 #[repr(u8)]
 pub enum Endianness {
     Big,
@@ -257,7 +279,9 @@ impl Display for Endianness {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 #[repr(u8)]
 pub enum Libc {
     Glibc,

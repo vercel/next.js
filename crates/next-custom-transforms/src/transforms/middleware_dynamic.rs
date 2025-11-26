@@ -12,12 +12,13 @@ enum WrappedExpr {
     WasmInstantiate,
 }
 
-/// Replaces call / expr to dynamic evaluation in the give code to
-/// wrapped expression (__next_eval__, __next_webassembly_compile__,..) to raise
-/// corresponding error.
+/// Replaces call / expr to dynamic evaluation in the give code to wrapped expression
+/// (__next_eval__, __next_webassembly_compile__,..) to raise a (nicer) error message.
 ///
-/// This transform is specific to edge runtime which are not allowed to
-/// call certain dynamic evaluation (eval, webassembly.instantiate, etc)
+/// This should only be only used in development mode.
+///
+/// This transform is specific to edge runtime which are not allowed to call certain dynamic
+/// evaluation (eval, webassembly.instantiate, etc)
 ///
 /// check middleware-plugin for corresponding webpack side transform.
 pub fn next_middleware_dynamic() -> MiddlewareDynamic {

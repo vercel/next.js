@@ -13,7 +13,7 @@
         "b",
         Constant(
             Str(
-                Word(
+                Atom(
                     "foo",
                 ),
             ),
@@ -35,7 +35,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "foo",
                             ),
                         ),
@@ -72,7 +72,7 @@
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "foo",
                         ),
                     ),
@@ -142,6 +142,29 @@
                     ),
                 ),
             ),
+        ),
+    ),
+    (
+        "value#3",
+        Iterated(
+            2,
+            Variable(
+                (
+                    "d1",
+                    #2,
+                ),
+            ),
+        ),
+    ),
+    (
+        "value#5",
+        Iterated(
+            2,
+            Array {
+                total_nodes: 1,
+                items: [],
+                mutable: true,
+            },
         ),
     ),
 ]

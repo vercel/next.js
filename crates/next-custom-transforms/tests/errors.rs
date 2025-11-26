@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{iter::FromIterator, path::PathBuf};
 
 use next_custom_transforms::transforms::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
@@ -6,13 +6,13 @@ use next_custom_transforms::transforms::{
     fonts::{next_font_loaders, Config as FontLoaderConfig},
     next_ssg::next_ssg,
     react_server_components::server_components,
-    server_actions::{
-        server_actions, {self},
-    },
+    server_actions::{self, server_actions, ServerActionsMode},
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
 };
+use rustc_hash::FxHashSet;
 use swc_core::{
-    common::{chain, FileName, Mark},
+    atoms::atom,
+    common::{FileName, Mark},
     ecma::{
         parser::{EsSyntax, Syntax},
         transforms::{
@@ -22,6 +22,7 @@ use swc_core::{
     },
 };
 use testing::fixture;
+use turbo_rcstr::rcstr;
 
 fn syntax() -> Syntax {
     Syntax::Es(EsSyntax {
@@ -40,6 +41,7 @@ fn re_export_all_in_page(input: PathBuf) {
         &output,
         FixtureTestConfig {
             allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );
@@ -65,6 +67,7 @@ fn next_dynamic_errors(input: PathBuf) {
         &output,
         FixtureTestConfig {
             allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );
@@ -80,56 +83,46 @@ fn next_ssg_errors(input: PathBuf) {
         &output,
         FixtureTestConfig {
             allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );
 }
 
-#[fixture("tests/errors/react-server-components/server-graph/**/input.js")]
-fn react_server_components_server_graph_errors(input: PathBuf) {
+#[fixture("tests/errors/react-server-components/**/input.js")]
+#[fixture("tests/errors/react-server-components/**/page.js")]
+#[fixture("tests/errors/react-server-components/**/route.js")]
+fn react_server_components_errors(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
+    let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
+    let cache_components_enabled = input.iter().any(|s| s.to_str() == Some("cache-components"));
+    let use_cache_enabled = input.iter().any(|s| s.to_str() == Some("use-cache"));
+
+    let app_dir = input
+        .iter()
+        .position(|s| s.to_str() == Some("app-dir"))
+        .map(|pos| input.iter().take(pos + 1).collect());
+
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
         &|tr| {
             server_components(
-                FileName::Real(PathBuf::from("/some-project/src/layout.js")).into(),
+                FileName::Real(input.clone()).into(),
                 Config::WithOptions(Options {
-                    is_react_server_layer: true,
+                    is_react_server_layer,
+                    cache_components_enabled,
+                    use_cache_enabled,
                 }),
                 tr.comments.as_ref().clone(),
-                None,
+                app_dir.clone(),
             )
         },
         &input,
         &output,
         FixtureTestConfig {
             allow_error: true,
-            ..Default::default()
-        },
-    );
-}
-
-#[fixture("tests/errors/react-server-components/client-graph/**/input.js")]
-fn react_server_components_client_graph_errors(input: PathBuf) {
-    use next_custom_transforms::transforms::react_server_components::{Config, Options};
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|tr| {
-            server_components(
-                FileName::Real(PathBuf::from("/some-project/src/page.js")).into(),
-                Config::WithOptions(Options {
-                    is_react_server_layer: false,
-                }),
-                tr.comments.as_ref().clone(),
-                None,
-            )
-        },
-        &input,
-        &output,
-        FixtureTestConfig {
-            allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );
@@ -142,88 +135,67 @@ fn next_font_loaders_errors(input: PathBuf) {
         syntax(),
         &|_tr| {
             next_font_loaders(FontLoaderConfig {
-                relative_file_path_from_root: "pages/test.tsx".into(),
-                font_loaders: vec!["@next/font/google".into(), "cool-fonts".into()],
+                relative_file_path_from_root: atom!("pages/test.tsx"),
+                font_loaders: vec![
+                    atom!("@next/font/google").into(),
+                    atom!("cool-fonts").into(),
+                ],
             })
         },
         &input,
         &output,
         FixtureTestConfig {
             allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );
 }
 
-#[fixture("tests/errors/server-actions/server-graph/**/input.js")]
-fn react_server_actions_server_errors(input: PathBuf) {
+#[fixture("tests/errors/server-actions/**/input.js")]
+fn react_server_actions_errors(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
+    let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
         &|tr| {
-            chain!(
+            (
+                // The transforms are intentionally declared in the same order as in
+                // crates/next-custom-transforms/src/chain_transforms.rs
                 resolver(Mark::new(), Mark::new(), false),
                 server_components(
                     FileName::Real(PathBuf::from("/app/item.js")).into(),
                     Config::WithOptions(Options {
-                        is_react_server_layer: true
-                    },),
+                        is_react_server_layer,
+                        cache_components_enabled: true,
+                        use_cache_enabled: true,
+                    }),
                     tr.comments.as_ref().clone(),
                     None,
                 ),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
+                    None,
                     server_actions::Config {
-                        is_react_server_layer: true,
-                        enabled: true,
-                        hash_salt: "".into()
+                        is_react_server_layer,
+                        is_development: true,
+                        use_cache_enabled: true,
+                        hash_salt: "".into(),
+                        cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
-                )
+                    tr.cm.clone(),
+                    Default::default(),
+                    ServerActionsMode::Webpack,
+                ),
             )
         },
         &input,
         &output,
         FixtureTestConfig {
             allow_error: true,
-            ..Default::default()
-        },
-    );
-}
-
-#[fixture("tests/errors/server-actions/client-graph/**/input.js")]
-fn react_server_actions_client_errors(input: PathBuf) {
-    use next_custom_transforms::transforms::react_server_components::{Config, Options};
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|tr| {
-            chain!(
-                resolver(Mark::new(), Mark::new(), false),
-                server_components(
-                    FileName::Real(PathBuf::from("/app/item.js")).into(),
-                    Config::WithOptions(Options {
-                        is_react_server_layer: false
-                    },),
-                    tr.comments.as_ref().clone(),
-                    None,
-                ),
-                server_actions(
-                    &FileName::Real("/app/item.js".into()),
-                    server_actions::Config {
-                        is_react_server_layer: false,
-                        enabled: true,
-                        hash_salt: "".into()
-                    },
-                    tr.comments.as_ref().clone(),
-                )
-            )
-        },
-        &input,
-        &output,
-        FixtureTestConfig {
-            allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );
@@ -241,6 +213,55 @@ fn next_transform_strip_page_exports_errors(input: PathBuf) {
         &output,
         FixtureTestConfig {
             allow_error: true,
+            module: Some(true),
+            ..Default::default()
+        },
+    );
+}
+
+#[fixture("tests/errors/use-cache-not-allowed/**/input.js")]
+fn use_cache_not_allowed(input: PathBuf) {
+    use next_custom_transforms::transforms::react_server_components::{Config, Options};
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|tr| {
+            (
+                // The transforms are intentionally declared in the same order as in
+                // crates/next-custom-transforms/src/chain_transforms.rs
+                resolver(Mark::new(), Mark::new(), false),
+                server_components(
+                    FileName::Real(PathBuf::from("/app/item.js")).into(),
+                    Config::WithOptions(Options {
+                        is_react_server_layer: true,
+                        cache_components_enabled: false,
+                        use_cache_enabled: false,
+                    }),
+                    tr.comments.as_ref().clone(),
+                    None,
+                ),
+                server_actions(
+                    &FileName::Real("/app/item.js".into()),
+                    None,
+                    server_actions::Config {
+                        is_react_server_layer: true,
+                        is_development: true,
+                        use_cache_enabled: false,
+                        hash_salt: "".into(),
+                        cache_kinds: FxHashSet::from_iter([rcstr!("x")]),
+                    },
+                    tr.comments.as_ref().clone(),
+                    tr.cm.clone(),
+                    Default::default(),
+                    ServerActionsMode::Webpack,
+                ),
+            )
+        },
+        &input,
+        &output,
+        FixtureTestConfig {
+            allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );

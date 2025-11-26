@@ -10,7 +10,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "1",
                         ),
                     ),
@@ -19,7 +19,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "2",
                         ),
                     ),
@@ -55,6 +55,7 @@
         ],
         span: 59..70,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [

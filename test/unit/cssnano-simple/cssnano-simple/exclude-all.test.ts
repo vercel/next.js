@@ -33,7 +33,7 @@ describe('exclude all test', () => {
     const res = await postcss([
       mod({
         excludeAll: true,
-        discardComments: true,
+        discardComments: { removeAll: true },
         normalizeWhitespace: { exclude: false },
       }),
     ]).process(input, {
@@ -57,7 +57,7 @@ describe('exclude all test', () => {
     const res = await postcss([
       mod({
         excludeAll: true,
-        discardComments: true,
+        discardComments: { removeAll: true },
         normalizeWhitespace: { exclude: false },
         discardEmpty: {},
       }),

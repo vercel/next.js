@@ -11,7 +11,7 @@ describe('typechecking', () => {
   it('should typecheck', async () => {
     const { status, stdout } = childProcess.spawnSync(
       'pnpm',
-      ['tsc', '--project', 'tsconfig.json', '--skipLibCheck', 'false'],
+      ['tsc', '--project', 'tsconfig.json'],
       {
         cwd: next.testDir,
         encoding: 'utf-8',

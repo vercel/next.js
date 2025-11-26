@@ -103,15 +103,15 @@ describe('middleware can use wasm files', () => {
     it('lists the necessary wasm bindings in the manifest', async () => {
       const manifestPath = path.join(
         next.testDir,
-        '.next/server/middleware-manifest.json'
+        `${next.distDir}/server/middleware-manifest.json`
       )
       const manifest = await fs.readJSON(manifestPath)
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(manifest.middleware['/'].wasm).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
               filePath: expect.stringMatching(
-                /^server\/edge\/chunks\/ssr\/.*\.wasm$/
+                /^server\/edge\/chunks\/.*\.wasm$/
               ),
               name: expect.stringMatching(/^wasm_/),
             }),

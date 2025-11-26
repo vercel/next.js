@@ -1,8 +1,7 @@
 use std::{cell::RefCell, mem::take, rc::Rc};
 
 use anyhow::Result;
-use indexmap::{IndexMap, IndexSet};
-use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{FxIndexMap, FxIndexSet, TryJoinIterExt};
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct ContainmentTree<K, V> {
@@ -37,7 +36,7 @@ where
         let mut common_parents = values
             .iter()
             .filter_map(|(key, _)| key.clone())
-            .collect::<IndexSet<_>>();
+            .collect::<FxIndexSet<_>>();
 
         Self::expand_common_parents(&mut common_parents).await?;
 
@@ -68,7 +67,7 @@ where
     }
 
     /// Expand all common parents to include all their parents.
-    async fn expand_common_parents(common_parents: &mut IndexSet<K>) -> Result<()> {
+    async fn expand_common_parents(common_parents: &mut FxIndexSet<K>) -> Result<()> {
         // This is mutated while iterating, so we need to loop with index
         let mut i = 0;
         while i < common_parents.len() {
@@ -81,7 +80,7 @@ where
     }
 
     /// Compute parent -> child relationships between common_parents.
-    async fn compute_relationships(common_parents: &IndexSet<K>) -> Result<Vec<(Option<K>, K)>> {
+    async fn compute_relationships(common_parents: &FxIndexSet<K>) -> Result<Vec<(Option<K>, K)>> {
         common_parents
             .iter()
             .map(|key| {
@@ -107,8 +106,8 @@ where
     }
 
     /// Create the tree nodes.
-    fn create_node_tree(common_parents: IndexSet<K>) -> IndexMap<K, Rc<RefCell<Node<K, V>>>> {
-        let mut trees = IndexMap::<K, Rc<RefCell<Node<K, V>>>>::new();
+    fn create_node_tree(common_parents: FxIndexSet<K>) -> FxIndexMap<K, Rc<RefCell<Node<K, V>>>> {
+        let mut trees = FxIndexMap::<K, Rc<RefCell<Node<K, V>>>>::default();
         for common_parent in common_parents {
             trees.insert(
                 common_parent.clone(),
@@ -124,7 +123,7 @@ where
 
     /// Add chunks to nodes.
     fn add_values_to_tree(
-        trees: &mut IndexMap<K, Rc<RefCell<Node<K, V>>>>,
+        trees: &mut FxIndexMap<K, Rc<RefCell<Node<K, V>>>>,
         values: Vec<(Option<K>, V)>,
     ) -> Vec<V> {
         let mut orphan_values = Vec::new();
@@ -146,7 +145,7 @@ where
     /// Nest each tree by relationship, compute the roots
     fn treeify(
         relationships: Vec<(Option<K>, K)>,
-        trees: &IndexMap<K, Rc<RefCell<Node<K, V>>>>,
+        trees: &FxIndexMap<K, Rc<RefCell<Node<K, V>>>>,
     ) -> Vec<Rc<RefCell<Node<K, V>>>> {
         relationships
             .into_iter()
@@ -163,7 +162,7 @@ where
     }
 
     /// Optimize tree by removing unnecessary nodes.
-    fn skip_unnecessary_nodes(trees: &mut IndexMap<K, Rc<RefCell<Node<K, V>>>>) {
+    fn skip_unnecessary_nodes(trees: &mut FxIndexMap<K, Rc<RefCell<Node<K, V>>>>) {
         for tree in trees.values_mut() {
             let mut tree = tree.borrow_mut();
             if tree.values.is_empty() && tree.children.len() == 1 {
@@ -210,6 +209,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
     use async_trait::async_trait;
 
     use super::*;
@@ -272,6 +272,7 @@ mod tests {
                 ]
             }
         );
+
         Ok(())
     }
 }

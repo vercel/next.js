@@ -28,24 +28,20 @@ describe('esm-externals', () => {
 
     it('should return the correct SSR HTML', async () => {
       const $ = await next.render$(url)
-      const body = $('body > div > div').html()
+      const body = $('body p').html()
       expect(normalize(body)).toEqual(expectedHtml)
     })
 
     it('should render the correct page', async () => {
       const browser = await next.browser(url)
-      expect(await browser.elementByCss('body > div').text()).toEqual(
-        expectedText
-      )
+      expect(await browser.elementByCss('body p').text()).toEqual(expectedText)
     })
   })
 
   // App dir
   describe.each(['/server', '/client'])('app dir url %s', (url) => {
     const expectedHtml = isTurbopack
-      ? url === '/client'
-        ? 'Hello Wrong+Wrong+Alternative'
-        : 'Hello World+World+World'
+      ? 'Hello World+World+World'
       : 'Hello World+World+Alternative'
 
     const expectedText = isTurbopack
@@ -56,13 +52,13 @@ describe('esm-externals', () => {
 
     it('should return the correct SSR HTML', async () => {
       const $ = await next.render$(url)
-      const body = $('body > div').html()
+      const body = $('body > p').html()
       expect(normalize(body)).toEqual(expectedHtml)
     })
 
     it('should render the correct page', async () => {
       const browser = await next.browser(url)
-      expect(await browser.elementByCss('body > div').text()).toEqual(
+      expect(await browser.elementByCss('body > p').text()).toEqual(
         expectedText
       )
     })

@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use anyhow::Result;
 
-use crate::{backend::TypedCellContent, ReadRef, TraitRef, VcValueTrait, VcValueType};
+use crate::{ReadRef, TraitRef, VcValueTrait, VcValueType, backend::TypedCellContent};
 
 /// Trait defined to share behavior between values and traits within
 /// [`ReadRawVcFuture`][crate::ReadRawVcFuture]. See [`VcValueTypeCast`] and

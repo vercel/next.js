@@ -1,3 +1,8 @@
-export default function Page({ params }: { params: { ids: string[] } }) {
-  return <div>Regular Item Page. Id: {params.ids}</div>
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ ids: string[] }>
+}) {
+  const { ids } = await params
+  return <div>Regular Item Page. Id: {ids}</div>
 }

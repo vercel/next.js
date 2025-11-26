@@ -2,6 +2,7 @@ import { PackageManager } from "../helpers/get-pkg-manager";
 
 export type TemplateType =
   | "app"
+  | "app-api"
   | "app-empty"
   | "app-tw"
   | "app-tw-empty"
@@ -25,9 +26,17 @@ export interface InstallTemplateArgs {
   template: TemplateType;
   mode: TemplateMode;
   eslint: boolean;
+  biome: boolean;
   tailwind: boolean;
   srcDir: boolean;
   importAlias: string;
   skipInstall: boolean;
-  turbo: boolean;
+  bundler: Bundler;
+  reactCompiler: boolean;
+}
+
+export enum Bundler {
+  Turbopack = "turbopack",
+  Webpack = "webpack",
+  Rspack = "rspack",
 }

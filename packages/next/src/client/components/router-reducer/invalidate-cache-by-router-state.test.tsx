@@ -1,11 +1,15 @@
-import React from 'react'
 import { invalidateCacheByRouterState } from './invalidate-cache-by-router-state'
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import type { FlightRouterState } from '../../../server/app-render/types'
+import type {
+  CacheNode,
+  FlightRouterState,
+} from '../../../shared/lib/app-router-types'
+
+const navigatedAt = -1
 
 describe('invalidateCacheByRouterState', () => {
   it('should invalidate the cache by router state', () => {
     const cache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
@@ -15,6 +19,7 @@ describe('invalidateCacheByRouterState', () => {
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: <>Root layout</>,
       prefetchRsc: null,
@@ -28,6 +33,7 @@ describe('invalidateCacheByRouterState', () => {
             [
               'linking',
               {
+                navigatedAt,
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
@@ -41,6 +47,7 @@ describe('invalidateCacheByRouterState', () => {
                       [
                         '',
                         {
+                          navigatedAt,
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
@@ -83,6 +90,7 @@ describe('invalidateCacheByRouterState', () => {
     invalidateCacheByRouterState(cache, existingCache, routerState)
 
     const expectedCache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: null,
       prefetchRsc: null,

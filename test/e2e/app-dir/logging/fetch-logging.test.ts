@@ -43,6 +43,42 @@ function parseLogsFromCli(cliOutput: string) {
   }, [])
 }
 
+describe('app-dir - fetch logging', () => {
+  const { next, isNextDev } = nextTestSetup({
+    skipDeployment: true,
+    files: __dirname,
+  })
+
+  isNextDev &&
+    it('should not log requests for HMR refreshes', async () => {
+      const browser = await next.browser('/fetch-no-store')
+
+      let headline = await browser.waitForElementByCss('h1').text()
+      expect(headline).toBe('Hello World!')
+      const outputIndex = next.cliOutput.length
+
+      await next.patchFile(
+        'app/fetch-no-store/page.js',
+        (content) => content.replace('Hello World!', 'Hello Test!'),
+        async () => {
+          await retry(async () => {
+            headline = await browser.waitForElementByCss('h1').text()
+            expect(headline).toBe('Hello Test!')
+            const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+            expect(logs).toInclude(' GET /fetch-no-store')
+            expect(logs).not.toInclude(` │ GET `)
+            // TODO: remove custom duration in case we increase the default.
+          }, 5000)
+        }
+      )
+    })
+
+  // TODO: remove when there is a test for isNextDev === false
+  it('placeholder to satisfy at least one test when isNextDev is false', async () => {
+    expect(true).toBe(true)
+  })
+})
+
 describe('app-dir - logging', () => {
   const { next, isNextDev } = nextTestSetup({
     skipDeployment: true,
@@ -226,24 +262,27 @@ describe('app-dir - logging', () => {
           })
         })
 
-        it('should not log requests for HMR refreshes', async () => {
-          const browser = await next.browser('/fetch-no-store')
-          let headline = await browser.waitForElementByCss('h1').text()
-          expect(headline).toBe('Hello World!')
-          const outputIndex = next.cliOutput.length
+        it('should log requests for after revalidation via server action', async () => {
+          let outputIndex = next.cliOutput.length
+          const browser = await next.browser('/default-cache')
 
-          await next.patchFile(
-            'app/fetch-no-store/page.js',
-            (content) => content.replace('Hello World!', 'Hello Test!'),
-            async () =>
-              retry(async () => {
-                headline = await browser.waitForElementByCss('h1').text()
-                expect(headline).toBe('Hello Test!')
-                const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-                expect(logs).toInclude(' GET /fetch-no-store')
-                expect(logs).not.toInclude(` │ GET `)
-              })
-          )
+          const expectedUrl = withFullUrlFetches
+            ? 'https://next-data-api-endpoint.vercel.app/api/random'
+            : 'https://next-data-api-en../api/random'
+
+          await retry(() => {
+            const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+            expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 7)
+          })
+
+          outputIndex = next.cliOutput.length
+
+          await browser.elementById('revalidate-button').click()
+
+          await retry(() => {
+            const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+            expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 7)
+          })
         })
 
         describe('when logging.fetches.hmrRefreshes is true', () => {
@@ -285,7 +324,8 @@ describe('app-dir - logging', () => {
                   expect(logs).toInclude(
                     ` │ GET ${expectedUrl}?request-input 200 in 1ms (HMR cache)`
                   )
-                })
+                  // TODO: remove custom duration in case we increase the default.
+                }, 5000)
               }
             )
           })
@@ -322,7 +362,7 @@ describe('app-dir - logging', () => {
 
         await retry(() => {
           const output = stripAnsi(next.cliOutput.slice(logLength))
-          expect(output).toContain('/dynamic/[slug]/icon')
+          expect(output).toContain('/dynamic/big/icon')
           expect(output).not.toContain('/(group)')
           expect(output).not.toContain('[__metadata_id__]')
           expect(output).not.toContain('/route')

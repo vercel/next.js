@@ -75,6 +75,9 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       it('should re-use the cache for 5 minutes (default "static" time)', async () => {
         const browser = await next.browser('/', browserConfigWithFixedTime)
 
+        // Wait for the prefetch to complete before clicking
+        await browser.waitForIdleNetwork()
+
         let initialRandomNumber = await browser
           .elementByCss('[href="/0?timeout=0"]')
           .click()
@@ -264,6 +267,9 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
     describe('prefetch={true}', () => {
       it('should use the custom static override time (3 minutes)', async () => {
         const browser = await next.browser('/', browserConfigWithFixedTime)
+
+        // Wait for the prefetch to complete before clicking
+        await browser.waitForIdleNetwork()
 
         let initialRandomNumber = await browser
           .elementByCss('[href="/0?timeout=0"]')

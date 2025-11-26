@@ -29,10 +29,16 @@ export const metadata: Metadata = {
   publisher: 'vercel',
   robots: 'index, follow',
   alternates: {},
+  pagination: {
+    previous: '/basic?page=1',
+    next: '/basic?page=3',
+  },
   formatDetection: {
     email: false,
     address: false,
     telephone: false,
+    // Properties set to `true` should not be included in `format-detection` meta tag
+    url: true,
   },
 }
 

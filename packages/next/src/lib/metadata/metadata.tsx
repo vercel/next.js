@@ -1,11 +1,8 @@
+import React, { Suspense, cache, cloneElement } from 'react'
 import type { ParsedUrlQuery } from 'querystring'
-import type {
-  AppRenderContext,
-  GetDynamicParamFromSegment,
-} from '../../server/app-render/app-render'
+import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
-
-import React from 'react'
+import type { SearchParams } from '../../server/request/search-params'
 import {
   AppleWebAppMeta,
   FormatDetectionMeta,
@@ -14,6 +11,7 @@ import {
   ViewportMeta,
   VerificationMeta,
   FacebookMeta,
+  PinterestMeta,
 } from './generate/basic'
 import { AlternatesMetadata } from './generate/alternate'
 import {
@@ -22,59 +20,28 @@ import {
   AppLinksMeta,
 } from './generate/opengraph'
 import { IconsMetadata } from './generate/icons'
-import { resolveMetadata } from './resolve-metadata'
+import {
+  type MetadataErrorType,
+  resolveMetadata,
+  resolveViewport,
+} from './resolve-metadata'
 import { MetaFilter } from './generate/meta'
 import type {
   ResolvedMetadata,
   ResolvedViewport,
 } from './types/metadata-interface'
-import { isNotFoundError } from '../../client/components/not-found'
+import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback/http-access-fallback'
 import type { MetadataContext } from './types/resolvers'
-import type { CreateDynamicallyTrackedParams } from '../../client/components/fallback-params'
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
-import { trackFallbackParamAccessed } from '../../server/app-render/dynamic-rendering'
+import type { WorkStore } from '../../server/app-render/work-async-storage.external'
+import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
+import { createServerPathnameForMetadata } from '../../server/request/pathname'
+import { isPostpone } from '../../server/lib/router-utils/is-postpone'
 
-export function createMetadataContext(
-  pathname: string,
-  renderOpts: AppRenderContext['renderOpts']
-): MetadataContext {
-  return {
-    pathname,
-    trailingSlash: renderOpts.trailingSlash,
-    isStandaloneMode: renderOpts.nextConfigOutput === 'standalone',
-  }
-}
-
-export function createTrackedMetadataContext(
-  pathname: string,
-  renderOpts: AppRenderContext['renderOpts'],
-  staticGenerationStore: StaticGenerationStore | null
-): MetadataContext {
-  return {
-    // Use the regular metadata context, but we trap the pathname access.
-    ...createMetadataContext(pathname, renderOpts),
-
-    // Setup the trap around the pathname access so we can track when the
-    // pathname is accessed while resolving metadata which would indicate it's
-    // being used to resolve a relative URL. If that's the case, we don't want
-    // to provide it, and instead we should error.
-    get pathname() {
-      if (
-        staticGenerationStore &&
-        staticGenerationStore.isStaticGeneration &&
-        staticGenerationStore.fallbackRouteParams &&
-        staticGenerationStore.fallbackRouteParams.size > 0
-      ) {
-        trackFallbackParamAccessed(
-          staticGenerationStore,
-          'metadata relative url resolving'
-        )
-      }
-
-      return pathname
-    },
-  }
-}
+import {
+  MetadataBoundary,
+  ViewportBoundary,
+  OutletBoundary,
+} from '../framework/boundary-components'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -84,162 +51,311 @@ export function createTrackedMetadataContext(
 // and the error will be caught by the error boundary and trigger fallbacks.
 export function createMetadataComponents({
   tree,
-  query,
+  pathname,
+  parsedQuery,
   metadataContext,
   getDynamicParamFromSegment,
-  appUsingSizeAdjustment,
   errorType,
-  createDynamicallyTrackedSearchParams,
-  createDynamicallyTrackedParams,
+  workStore,
+  serveStreamingMetadata,
 }: {
   tree: LoaderTree
-  query: ParsedUrlQuery
+  pathname: string
+  parsedQuery: SearchParams
   metadataContext: MetadataContext
   getDynamicParamFromSegment: GetDynamicParamFromSegment
-  appUsingSizeAdjustment: boolean
-  errorType?: 'not-found' | 'redirect'
-  createDynamicallyTrackedParams: CreateDynamicallyTrackedParams
-  createDynamicallyTrackedSearchParams: (
-    searchParams: ParsedUrlQuery
-  ) => ParsedUrlQuery
-}): [React.ComponentType, () => Promise<void>] {
-  let currentMetadataReady:
-    | null
-    | (Promise<void> & {
-        status?: string
-        value?: unknown
-      }) = null
+  errorType?: MetadataErrorType | 'redirect'
+  workStore: WorkStore
+  serveStreamingMetadata: boolean
+}): {
+  Viewport: React.ComponentType
+  Metadata: React.ComponentType
+  MetadataOutlet: React.ComponentType
+} {
+  const searchParams = createServerSearchParamsForMetadata(
+    parsedQuery,
+    workStore
+  )
+  const pathnameForMetadata = createServerPathnameForMetadata(
+    pathname,
+    workStore
+  )
 
-  async function MetadataTree() {
-    const pendingMetadata = getResolvedMetadata(
+  async function Viewport() {
+    const tags = await getResolvedViewport(
       tree,
-      query,
+      searchParams,
       getDynamicParamFromSegment,
-      metadataContext,
-      createDynamicallyTrackedSearchParams,
-      createDynamicallyTrackedParams,
+      workStore,
       errorType
-    )
-
-    // We instrument the promise compatible with React. This isn't necessary but we can
-    // perform a similar trick in synchronously unwrapping in the outlet component to avoid
-    // ticking a new microtask unecessarily
-    const metadataReady: Promise<void> & { status: string; value: unknown } =
-      pendingMetadata.then(
-        ([error]) => {
-          if (error) {
-            metadataReady.status = 'rejected'
-            metadataReady.value = error
-            throw error
-          }
-          metadataReady.status = 'fulfilled'
-          metadataReady.value = undefined
-        },
-        (error) => {
-          metadataReady.status = 'rejected'
-          metadataReady.value = error
-          throw error
-        }
-      ) as Promise<void> & { status: string; value: unknown }
-    metadataReady.status = 'pending'
-    currentMetadataReady = metadataReady
-    // We aren't going to await this promise immediately but if it rejects early we don't
-    // want unhandled rejection errors so we attach a throwaway catch handler.
-    metadataReady.catch(() => {})
-
-    // We ignore any error from metadata here because it needs to be thrown from within the Page
-    // not where the metadata itself is actually rendered
-    const [, elements] = await pendingMetadata
-
-    return (
-      <>
-        {elements.map((el, index) => {
-          return React.cloneElement(el as React.ReactElement, { key: index })
-        })}
-        {appUsingSizeAdjustment ? <meta name="next-size-adjust" /> : null}
-      </>
-    )
-  }
-
-  function getMetadataReady() {
-    return Promise.resolve().then(() => {
-      if (currentMetadataReady) {
-        return currentMetadataReady
+    ).catch((viewportErr) => {
+      // When Legacy PPR is enabled viewport can reject with a Postpone type
+      // This will go away once Legacy PPR is removed and dynamic metadata will
+      // stay pending until after the prerender is complete when it is dynamic
+      if (isPostpone(viewportErr)) {
+        throw viewportErr
       }
-      throw new Error(
-        'getMetadataReady was called before MetadataTree rendered'
-      )
-    })
-  }
-
-  return [MetadataTree, getMetadataReady]
-}
-
-async function getResolvedMetadata(
-  tree: LoaderTree,
-  query: ParsedUrlQuery,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  metadataContext: MetadataContext,
-  createDynamicallyTrackedSearchParams: (
-    searchParams: ParsedUrlQuery
-  ) => ParsedUrlQuery,
-  createDynamicallyTrackedParams: CreateDynamicallyTrackedParams,
-  errorType?: 'not-found' | 'redirect'
-): Promise<[any, Array<React.ReactNode>]> {
-  const errorMetadataItem: [null, null, null] = [null, null, null]
-  const errorConvention = errorType === 'redirect' ? undefined : errorType
-  const searchParams = createDynamicallyTrackedSearchParams(query)
-
-  const [error, metadata, viewport] = await resolveMetadata({
-    tree,
-    parentParams: {},
-    metadataItems: [],
-    errorMetadataItem,
-    searchParams,
-    getDynamicParamFromSegment,
-    errorConvention,
-    metadataContext,
-    createDynamicallyTrackedParams,
-  })
-  if (!error) {
-    return [null, createMetadataElements(metadata, viewport)]
-  } else {
-    // If a not-found error is triggered during metadata resolution, we want to capture the metadata
-    // for the not-found route instead of whatever triggered the error. For all error types, we resolve an
-    // error, which will cause the outlet to throw it so it'll be handled by an error boundary
-    // (either an actual error, or an internal error that renders UI such as the NotFoundBoundary).
-    if (!errorType && isNotFoundError(error)) {
-      const [notFoundMetadataError, notFoundMetadata, notFoundViewport] =
-        await resolveMetadata({
+      if (!errorType && isHTTPAccessFallbackError(viewportErr)) {
+        return getNotFoundViewport(
           tree,
-          parentParams: {},
-          metadataItems: [],
-          errorMetadataItem,
           searchParams,
           getDynamicParamFromSegment,
-          errorConvention: 'not-found',
+          workStore
+        ).catch(() => null)
+      }
+      // We're going to throw the error from the metadata outlet so we just render null here instead
+      return null
+    })
+
+    return tags
+  }
+  Viewport.displayName = 'Next.Viewport'
+
+  function ViewportWrapper() {
+    return (
+      <ViewportBoundary>
+        <Viewport />
+      </ViewportBoundary>
+    )
+  }
+
+  async function Metadata() {
+    const tags = await getResolvedMetadata(
+      tree,
+      pathnameForMetadata,
+      searchParams,
+      getDynamicParamFromSegment,
+      metadataContext,
+      workStore,
+      errorType
+    ).catch((metadataErr) => {
+      // When Legacy PPR is enabled metadata can reject with a Postpone type
+      // This will go away once Legacy PPR is removed and dynamic metadata will
+      // stay pending until after the prerender is complete when it is dynamic
+      if (isPostpone(metadataErr)) {
+        throw metadataErr
+      }
+      if (!errorType && isHTTPAccessFallbackError(metadataErr)) {
+        return getNotFoundMetadata(
+          tree,
+          pathnameForMetadata,
+          searchParams,
+          getDynamicParamFromSegment,
           metadataContext,
-          createDynamicallyTrackedParams,
-        })
-      return [
-        notFoundMetadataError || error,
-        createMetadataElements(notFoundMetadata, notFoundViewport),
-      ]
+          workStore
+        ).catch(() => null)
+      }
+      // We're going to throw the error from the metadata outlet so we just render null here instead
+      return null
+    })
+
+    return tags
+  }
+  Metadata.displayName = 'Next.Metadata'
+
+  function MetadataWrapper() {
+    // TODO: We shouldn't change what we render based on whether we are streaming or not.
+    // If we aren't streaming we should just block the response until we have resolved the
+    // metadata.
+    if (!serveStreamingMetadata) {
+      return (
+        <MetadataBoundary>
+          <Metadata />
+        </MetadataBoundary>
+      )
     }
-    return [error, []]
+    return (
+      <div hidden>
+        <MetadataBoundary>
+          <Suspense name="Next.Metadata">
+            <Metadata />
+          </Suspense>
+        </MetadataBoundary>
+      </div>
+    )
+  }
+
+  function MetadataOutlet() {
+    const pendingOutlet = Promise.all([
+      getResolvedMetadata(
+        tree,
+        pathnameForMetadata,
+        searchParams,
+        getDynamicParamFromSegment,
+        metadataContext,
+        workStore,
+        errorType
+      ),
+      getResolvedViewport(
+        tree,
+        searchParams,
+        getDynamicParamFromSegment,
+        workStore,
+        errorType
+      ),
+    ]).then(() => null)
+
+    // TODO: We shouldn't change what we render based on whether we are streaming or not.
+    // If we aren't streaming we should just block the response until we have resolved the
+    // metadata.
+    if (!serveStreamingMetadata) {
+      return <OutletBoundary>{pendingOutlet}</OutletBoundary>
+    }
+    return (
+      <OutletBoundary>
+        <Suspense name="Next.MetadataOutlet">{pendingOutlet}</Suspense>
+      </OutletBoundary>
+    )
+  }
+  MetadataOutlet.displayName = 'Next.MetadataOutlet'
+
+  return {
+    Viewport: ViewportWrapper,
+    Metadata: MetadataWrapper,
+    MetadataOutlet,
   }
 }
 
-function createMetadataElements(
-  metadata: ResolvedMetadata,
-  viewport: ResolvedViewport
+const getResolvedMetadata = cache(getResolvedMetadataImpl)
+async function getResolvedMetadataImpl(
+  tree: LoaderTree,
+  pathname: Promise<string>,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  metadataContext: MetadataContext,
+  workStore: WorkStore,
+  errorType?: MetadataErrorType | 'redirect'
+): Promise<React.ReactNode> {
+  const errorConvention = errorType === 'redirect' ? undefined : errorType
+  return renderMetadata(
+    tree,
+    pathname,
+    searchParams,
+    getDynamicParamFromSegment,
+    metadataContext,
+    workStore,
+    errorConvention
+  )
+}
+
+const getNotFoundMetadata = cache(getNotFoundMetadataImpl)
+async function getNotFoundMetadataImpl(
+  tree: LoaderTree,
+  pathname: Promise<string>,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  metadataContext: MetadataContext,
+  workStore: WorkStore
+): Promise<React.ReactNode> {
+  const notFoundErrorConvention = 'not-found'
+  return renderMetadata(
+    tree,
+    pathname,
+    searchParams,
+    getDynamicParamFromSegment,
+    metadataContext,
+    workStore,
+    notFoundErrorConvention
+  )
+}
+
+const getResolvedViewport = cache(getResolvedViewportImpl)
+async function getResolvedViewportImpl(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  workStore: WorkStore,
+  errorType?: MetadataErrorType | 'redirect'
+): Promise<React.ReactNode> {
+  const errorConvention = errorType === 'redirect' ? undefined : errorType
+  return renderViewport(
+    tree,
+    searchParams,
+    getDynamicParamFromSegment,
+    workStore,
+    errorConvention
+  )
+}
+
+const getNotFoundViewport = cache(getNotFoundViewportImpl)
+async function getNotFoundViewportImpl(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  workStore: WorkStore
+): Promise<React.ReactNode> {
+  const notFoundErrorConvention = 'not-found'
+  return renderViewport(
+    tree,
+    searchParams,
+    getDynamicParamFromSegment,
+    workStore,
+    notFoundErrorConvention
+  )
+}
+
+async function renderMetadata(
+  tree: LoaderTree,
+  pathname: Promise<string>,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  metadataContext: MetadataContext,
+  workStore: WorkStore,
+  errorConvention?: MetadataErrorType
 ) {
+  const resolvedMetadata = await resolveMetadata(
+    tree,
+    pathname,
+    searchParams,
+    errorConvention,
+    getDynamicParamFromSegment,
+    workStore,
+    metadataContext
+  )
+  const elements: Array<React.ReactNode> =
+    createMetadataElements(resolvedMetadata)
+  return (
+    <>
+      {elements.map((el, index) => {
+        return cloneElement(el as React.ReactElement, { key: index })
+      })}
+    </>
+  )
+}
+
+async function renderViewport(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  workStore: WorkStore,
+  errorConvention?: MetadataErrorType
+) {
+  const resolvedViewport = await resolveViewport(
+    tree,
+    searchParams,
+    errorConvention,
+    getDynamicParamFromSegment,
+    workStore
+  )
+
+  const elements: Array<React.ReactNode> =
+    createViewportElements(resolvedViewport)
+  return (
+    <>
+      {elements.map((el, index) => {
+        return cloneElement(el as React.ReactElement, { key: index })
+      })}
+    </>
+  )
+}
+
+function createMetadataElements(metadata: ResolvedMetadata) {
   return MetaFilter([
-    ViewportMeta({ viewport: viewport }),
     BasicMeta({ metadata }),
     AlternatesMetadata({ alternates: metadata.alternates }),
     ItunesMeta({ itunes: metadata.itunes }),
     FacebookMeta({ facebook: metadata.facebook }),
+    PinterestMeta({ pinterest: metadata.pinterest }),
     FormatDetectionMeta({ formatDetection: metadata.formatDetection }),
     VerificationMeta({ verification: metadata.verification }),
     AppleWebAppMeta({ appleWebApp: metadata.appleWebApp }),
@@ -248,4 +364,8 @@ function createMetadataElements(
     AppLinksMeta({ appLinks: metadata.appLinks }),
     IconsMetadata({ icons: metadata.icons }),
   ])
+}
+
+function createViewportElements(viewport: ResolvedViewport) {
+  return MetaFilter([ViewportMeta({ viewport: viewport })])
 }

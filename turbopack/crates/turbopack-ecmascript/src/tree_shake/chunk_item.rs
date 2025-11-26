@@ -1,16 +1,25 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
+use turbo_tasks_fs::rope::RopeBuilder;
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext},
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     module::Module,
-    reference::ModuleReferences,
+    module_graph::ModuleGraph,
+    output::OutputAssetsReference,
 };
 
-use super::{asset::EcmascriptModulePartAsset, part_of_module, split_module};
+use super::asset::EcmascriptModulePartAsset;
 use crate::{
-    chunk::{EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType},
-    EcmascriptModuleContent,
+    EcmascriptAnalyzableExt,
+    chunk::{
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
+        EcmascriptChunkPlaceable, EcmascriptChunkType, item::RewriteSourcePath,
+    },
+    references::async_module::AsyncModuleOptions,
+    runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
+    tree_shake::side_effect_module::SideEffectsModule,
+    utils::StringifyModuleId,
 };
 
 /// This is an implementation of [ChunkItem] for
@@ -19,8 +28,8 @@ use crate::{
 /// This is a pointer to a part of an ES module.
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModulePartChunkItem {
-    pub(super) module: Vc<EcmascriptModulePartAsset>,
-    pub(super) chunking_context: Vc<Box<dyn ChunkingContext>>,
+    pub(super) module: ResolvedVc<EcmascriptModulePartAsset>,
+    pub(super) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -32,62 +41,39 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
 
     #[turbo_tasks::function]
     async fn content_with_async_module_info(
-        self: Vc<Self>,
+        &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let this = self.await?;
-        let module = this.module.await?;
+        let analyze = self.module.analyze();
+        let analyze_ref = analyze.await?;
+        let async_module_options = analyze_ref.async_module.module_options(async_module_info);
 
-        let split_data = split_module(module.full_module);
-        let parsed = part_of_module(split_data, module.part);
-
-        let analyze = this.module.analyze().await?;
-        let async_module_options = analyze.async_module.module_options(async_module_info);
-
-        let module_type_result = *module.full_module.determine_module_type().await?;
-
-        let content = EcmascriptModuleContent::new(
-            parsed,
-            module.full_module.ident(),
-            module_type_result.module_type,
-            this.chunking_context,
-            analyze.references,
-            analyze.code_generation,
-            analyze.async_module,
-            analyze.source_map,
-            analyze.exports,
-            async_module_info,
-        );
+        let content = self
+            .module
+            .module_content(*self.chunking_context, async_module_info);
 
         Ok(EcmascriptChunkItemContent::new(
             content,
-            this.chunking_context,
-            module.full_module.await?.options,
+            *self.chunking_context,
             async_module_options,
         ))
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
     }
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for EcmascriptModulePartChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for EcmascriptModulePartChunkItem {
     #[turbo_tasks::function]
-    async fn references(&self) -> Vc<ModuleReferences> {
-        self.module.references()
+    fn asset_ident(&self) -> Vc<AssetIdent> {
+        self.module.ident()
     }
 
     #[turbo_tasks::function]
-    async fn asset_ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self.module.ident())
-    }
-
-    #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -99,11 +85,110 @@ impl ChunkItem for EcmascriptModulePartChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+        *ResolvedVc::upcast(self.module)
+    }
+}
+
+#[turbo_tasks::value(shared)]
+pub(super) struct SideEffectsModuleChunkItem {
+    pub module: ResolvedVc<SideEffectsModule>,
+    pub module_graph: ResolvedVc<ModuleGraph>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for SideEffectsModuleChunkItem {}
+
+#[turbo_tasks::value_impl]
+impl ChunkItem for SideEffectsModuleChunkItem {
+    #[turbo_tasks::function]
+    fn asset_ident(&self) -> Vc<AssetIdent> {
+        self.module.ident()
     }
 
     #[turbo_tasks::function]
-    fn is_self_async(&self) -> Vc<bool> {
-        self.module.is_async_module()
+    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
+        Vc::upcast(EcmascriptChunkType::value_default())
+    }
+
+    #[turbo_tasks::function]
+    fn module(&self) -> Vc<Box<dyn Module>> {
+        *ResolvedVc::upcast(self.module)
+    }
+
+    #[turbo_tasks::function]
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        *self.chunking_context
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
+    #[turbo_tasks::function]
+    async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let mut code = RopeBuilder::default();
+        let mut has_top_level_await = false;
+
+        let module = self.module.await?;
+
+        for &side_effect in self.module.await?.side_effects.iter() {
+            let need_await = 'need_await: {
+                let async_module = *side_effect.get_async_module().await?;
+                if let Some(async_module) = async_module
+                    && async_module.await?.has_top_level_await
+                {
+                    break 'need_await true;
+                }
+                false
+            };
+
+            if !has_top_level_await && need_await {
+                has_top_level_await = true;
+            }
+
+            code.push_bytes(
+                format!(
+                    "{}{TURBOPACK_IMPORT}({});\n",
+                    if need_await { "await " } else { "" },
+                    StringifyModuleId(&*side_effect.chunk_item_id(*self.chunking_context).await?)
+                )
+                .as_bytes(),
+            );
+        }
+
+        code.push_bytes(
+            format!(
+                "{TURBOPACK_EXPORT_NAMESPACE}({TURBOPACK_IMPORT}({}));\n",
+                StringifyModuleId(
+                    &*module
+                        .resolved_as
+                        .chunk_item_id(*self.chunking_context)
+                        .await?
+                )
+            )
+            .as_bytes(),
+        );
+
+        let code = code.build();
+
+        Ok(EcmascriptChunkItemContent {
+            inner_code: code,
+            source_map: None,
+            rewrite_source_path: RewriteSourcePath::None,
+            options: EcmascriptChunkItemOptions {
+                strict: true,
+                async_module: if has_top_level_await {
+                    Some(AsyncModuleOptions {
+                        has_top_level_await: true,
+                    })
+                } else {
+                    None
+                },
+                ..Default::default()
+            },
+            additional_ids: Default::default(),
+            placeholder_for_future_extensions: (),
+        }
+        .cell())
     }
 }

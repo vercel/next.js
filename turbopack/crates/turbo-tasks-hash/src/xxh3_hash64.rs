@@ -1,6 +1,6 @@
 use std::hash::Hasher;
 
-use twox_hash::xxh3;
+use twox_hash::XxHash3_64;
 
 use crate::{DeterministicHash, DeterministicHasher};
 
@@ -12,12 +12,12 @@ pub fn hash_xxh3_hash64<T: DeterministicHash>(input: T) -> u64 {
 }
 
 /// Xxh3Hash64 hasher.
-pub struct Xxh3Hash64Hasher(xxh3::Hash64);
+pub struct Xxh3Hash64Hasher(XxHash3_64);
 
 impl Xxh3Hash64Hasher {
     /// Create a new hasher.
     pub fn new() -> Self {
-        Self(xxh3::Hash64::with_seed(0))
+        Self(XxHash3_64::with_seed(0))
     }
 
     /// Uses the DeterministicHash trait to hash the input in a

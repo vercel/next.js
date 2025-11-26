@@ -7,17 +7,18 @@ import {
   getNodeDebugType,
   getParsedDebugAddress,
   getMaxOldSpaceSize,
-  getParsedNodeOptionsWithoutInspect,
   printAndExit,
   formatNodeOptions,
   formatDebugAddress,
+  getParsedNodeOptions,
+  type DebugAddress,
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
 import type { NextConfigComplete } from '../server/config-shared'
-import { setGlobal, traceGlobals } from '../trace/shared'
+import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -37,9 +38,20 @@ import os from 'os'
 import { once } from 'node:events'
 import { clearTimeout } from 'timers'
 import { flushAllTraces, trace } from '../trace'
+import { traceId } from '../trace/shared'
+import {
+  Bundler,
+  finalizeBundlerFromConfig,
+  parseBundlerArgs,
+} from '../lib/bundler'
 
 export type NextDevOptions = {
+  disableSourceMaps: boolean
+  // Commander is not putting `--inspect` through the arg parser
+  inspect?: DebugAddress | true
   turbo?: boolean
+  turbopack?: boolean
+  webpack?: boolean
   port: number
   hostname?: string
   experimentalHttps?: boolean
@@ -47,18 +59,20 @@ export type NextDevOptions = {
   experimentalHttpsCert?: string
   experimentalHttpsCa?: string
   experimentalUploadTrace?: string
+  experimentalNextConfigStripTypes?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
 
 let dir: string
 let child: undefined | ChildProcess
+// The config in next-dev is only used to access config.distDir for telemetry and trace.
 let config: NextConfigComplete
-let isTurboSession = false
+let bundler: Bundler
 let traceUploadUrl: string
 let sessionStopHandled = false
-let sessionStarted = Date.now()
-let sessionSpan = trace('next-dev')
+const sessionStarted = Date.now()
+const sessionSpan = trace('next-dev')
 
 // How long should we wait for the child to cleanly exit after sending
 // SIGINT/SIGTERM to the child process before sending SIGKILL?
@@ -71,6 +85,10 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   if (signal != null && child?.pid) child.kill(signal)
   if (sessionStopHandled) return
   sessionStopHandled = true
+
+  // Capture the child's exit code if it has already exited and caused the
+  // session stop (via the 'exit' event), otherwise assume success (0).
+  const exitCode = child?.exitCode || 0
 
   if (
     signal != null &&
@@ -86,21 +104,11 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   }
 
   sessionSpan.stop()
-  await flushAllTraces()
+  await flushAllTraces({ end: true })
 
   try {
     const { eventCliSessionStopped } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
-
-    config = config || (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir))
-
-    let telemetry =
-      (traceGlobals.get('telemetry') as InstanceType<
-        typeof import('../telemetry/storage').Telemetry
-      >) ||
-      new Telemetry({
-        distDir: path.join(dir, config.distDir),
-      })
 
     let pagesDir: boolean = !!traceGlobals.get('pagesDir')
     let appDir: boolean = !!traceGlobals.get('appDir')
@@ -114,10 +122,24 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       pagesDir = !!pagesResult.pagesDir
     }
 
+    config =
+      config ||
+      (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, { silent: true }))
+
+    let telemetry =
+      (traceGlobals.get('telemetry') as InstanceType<
+        typeof import('../telemetry/storage').Telemetry
+      >) ||
+      new Telemetry({
+        distDir: path.join(dir, config.distDir),
+      })
+    // Reading the config can modify environment variables that influence the bundler selection.
+    bundler = finalizeBundlerFromConfig(bundler)
+
     telemetry.record(
       eventCliSessionStopped({
         cliCommand: 'dev',
-        turboFlag: isTurboSession,
+        turboFlag: bundler === Bundler.Turbopack,
         durationMilliseconds: Date.now() - sessionStarted,
         pagesDir,
         appDir,
@@ -136,6 +158,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       mode: 'dev',
       projectDir: dir,
       distDir: config.distDir,
+      isTurboSession: bundler === Bundler.Turbopack,
     })
   }
 
@@ -143,7 +166,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   // the program, or the cursor could remain hidden
   process.stdout.write('\x1B[?25h')
   process.stdout.write('\n')
-  process.exit(0)
+  process.exit(exitCode)
 }
 
 process.on('SIGINT', () => handleSessionStop('SIGINT'))
@@ -157,6 +180,8 @@ const nextDev = async (
   portSource: PortSource,
   directory?: string
 ) => {
+  bundler = parseBundlerArgs(options)
+
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
 
   // Check if pages dir exists and warn if not
@@ -166,7 +191,7 @@ const nextDev = async (
 
   async function preflight(skipOnReboot: boolean) {
     const { getPackageVersion, getDependencies } = (await Promise.resolve(
-      require('../lib/get-package-version')
+      require('../lib/get-package-version') as typeof import('../lib/get-package-version')
     )) as typeof import('../lib/get-package-version')
 
     const [sassVersion, nodeSassVersion] = await Promise.all([
@@ -202,7 +227,7 @@ const nextDev = async (
     }
   }
 
-  const port = options.port
+  let port = options.port
 
   if (isPortIsReserved(port)) {
     printAndExit(getReservedPortExplanation(port), 1)
@@ -214,8 +239,6 @@ const nextDev = async (
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = options.hostname
-
-  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
   if (
     options.experimentalUploadTrace &&
@@ -232,16 +255,6 @@ const nextDev = async (
     hostname: host,
   }
 
-  if (options.turbo) {
-    process.env.TURBOPACK = '1'
-  }
-
-  isTurboSession = !!process.env.TURBOPACK
-
-  const distDir = path.join(dir, config.distDir ?? '.next')
-  setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
-  setGlobal('distDir', distDir)
-
   const startServerPath = require.resolve('../server/lib/start-server')
 
   async function startServer(startServerOptions: StartServerOptions) {
@@ -249,8 +262,7 @@ const nextDev = async (
       let resolved = false
       const defaultEnv = (initialEnv || process.env) as typeof process.env
 
-      const nodeOptions = getParsedNodeOptionsWithoutInspect()
-      const nodeDebugType = getNodeDebugType()
+      const nodeOptions = getParsedNodeOptions()
 
       let maxOldSpaceSize: string | number | undefined = getMaxOldSpaceSize()
       if (!maxOldSpaceSize && !process.env.NEXT_DISABLE_MEM_OVERRIDE) {
@@ -264,22 +276,48 @@ const nextDev = async (
         delete nodeOptions['max_old_space_size']
       }
 
-      if (nodeDebugType) {
-        const address = getParsedDebugAddress()
-        address.port = address.port + 1
+      if (options.disableSourceMaps) {
+        delete nodeOptions['enable-source-maps']
+      } else {
+        nodeOptions['enable-source-maps'] = true
+      }
+
+      const nodeDebugType = getNodeDebugType(nodeOptions)
+      const originalAddress =
+        nodeDebugType === undefined ? undefined : nodeOptions[nodeDebugType]
+      delete nodeOptions.inspect
+      delete nodeOptions['inspect-brk']
+      delete nodeOptions['inspect_brk']
+      if (nodeDebugType !== undefined) {
+        const address = getParsedDebugAddress(originalAddress)
+        address.port = address.port === 0 ? 0 : address.port + 1
         nodeOptions[nodeDebugType] = formatDebugAddress(address)
+      } else if (options.inspect) {
+        const address: DebugAddress =
+          options.inspect === true
+            ? getParsedDebugAddress(true)
+            : options.inspect
+        nodeOptions.inspect = formatDebugAddress(address)
       }
 
       child = fork(startServerPath, {
         stdio: 'inherit',
         env: {
           ...defaultEnv,
-          TURBOPACK: process.env.TURBOPACK,
+          ...(bundler === Bundler.Turbopack
+            ? { TURBOPACK: process.env.TURBOPACK }
+            : undefined),
           NEXT_PRIVATE_WORKER: '1',
+          NEXT_PRIVATE_TRACE_ID: traceId,
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
           NODE_OPTIONS: formatNodeOptions(nodeOptions),
+          // There is a node.js bug on MacOS which causes closing file watchers to be really slow.
+          // This limits the number of watchers to mitigate the issue.
+          // https://github.com/nodejs/node/issues/29949
+          WATCHPACK_WATCHER_LIMIT:
+            os.platform() === 'darwin' ? '20' : undefined,
         },
       })
 
@@ -288,6 +326,12 @@ const nextDev = async (
           if (msg.nextWorkerReady) {
             child?.send({ nextWorkerOptions: startServerOptions })
           } else if (msg.nextServerReady && !resolved) {
+            if (msg.port) {
+              // Store the used port in case a random one was selected, so that
+              // it can be re-used on automatic dev server restarts.
+              port = parseInt(msg.port, 10)
+            }
+
             resolved = true
             resolve()
           }
@@ -303,15 +347,25 @@ const nextDev = async (
           // must upload the existing contents before restarting the server to
           // preserve the metrics.
           if (traceUploadUrl) {
+            // Postpone loading next config when we need to get
+            //  config.distDir for upload trace.
+            config =
+              config ||
+              (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+                silent: true,
+              }))
+            bundler = finalizeBundlerFromConfig(bundler)
             uploadTrace({
               traceUploadUrl,
               mode: 'dev',
               projectDir: dir,
               distDir: config.distDir,
+              isTurboSession: bundler === Bundler.Turbopack,
               sync: true,
             })
           }
-          return startServer(startServerOptions)
+
+          return startServer({ ...startServerOptions, port })
         }
         // Call handler (e.g. upload telemetry). Don't try to send a signal to
         // the child, as it has already exited.

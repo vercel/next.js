@@ -52,7 +52,7 @@
                         ),
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     ".js",
                                 ),
                             ),
@@ -70,14 +70,14 @@
             values: [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "hello",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "world",
                         ),
                     ),

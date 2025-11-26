@@ -14,7 +14,7 @@ if (!process.env.PAYLOAD_SECRET) {
  * in development. This prevents connections growing exponentially
  * during API Route usage.
  *
- * Source: https://github.com/vercel/next.js/blob/canary/examples/with-mongodb-mongoose/lib/dbConnect.js
+ * Source: https://github.com/vercel/next.js/blob/canary/examples/with-mongodb-mongoose/lib/dbConnect.ts
  */
 let cached = (global as any).payload;
 

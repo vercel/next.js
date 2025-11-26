@@ -18,7 +18,7 @@ export function missingDepsError(
     bold(
       'If you are not trying to use TypeScript, please remove the ' +
         cyan('tsconfig.json') +
-        ' file from your package root (and any TypeScript files in your pages directory).'
+        ' file from your package root (and any TypeScript files in your app and pages directories).'
     )
 
   throw new FatalError(

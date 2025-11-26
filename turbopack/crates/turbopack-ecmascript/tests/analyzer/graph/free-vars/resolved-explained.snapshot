@@ -1,7 +1,2 @@
-buf = ???*0*
-- *0* ???*1*["from"]("Hello World")
-  ⚠️  unknown callee object
-  ⚠️  This value might have side effects
-- *1* FreeVar(Buffer)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+buf = Buffer*0*["from"]("Hello World")
+- *0* Buffer: The Node.js Buffer object: https://nodejs.org/api/buffer.html#class-buffer

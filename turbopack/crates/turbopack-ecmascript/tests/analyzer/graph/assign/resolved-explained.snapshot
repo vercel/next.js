@@ -1,7 +1,5 @@
-a = ("" | `${("" | ???*0*)}x`)
-- *0* `${???*1*}x`
-  ⚠️  nested operation
-- *1* a
+a = ("" | `${???*0*}x`)
+- *0* a
   ⚠️  circular variable reference
 
 b = (0 | ???*0*)

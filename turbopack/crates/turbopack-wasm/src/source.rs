@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, TaskInput, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -21,6 +21,7 @@ use turbopack_core::{
     Deserialize,
     TaskInput,
     TraceRawVcs,
+    NonLocalValue,
 )]
 pub enum WebAssemblySourceType {
     /// Binary WebAssembly files (.wasm).
@@ -34,14 +35,14 @@ pub enum WebAssemblySourceType {
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct WebAssemblySource {
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     source_ty: WebAssemblySourceType,
 }
 
 #[turbo_tasks::value_impl]
 impl WebAssemblySource {
     #[turbo_tasks::function]
-    pub fn new(source: Vc<Box<dyn Source>>, source_ty: WebAssemblySourceType) -> Vc<Self> {
+    pub fn new(source: ResolvedVc<Box<dyn Source>>, source_ty: WebAssemblySourceType) -> Vc<Self> {
         Self::cell(WebAssemblySource { source, source_ty })
     }
 }
@@ -49,14 +50,14 @@ impl WebAssemblySource {
 #[turbo_tasks::value_impl]
 impl Source for WebAssemblySource {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        match self.source_ty {
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(match self.source_ty {
             WebAssemblySourceType::Binary => self.source.ident(),
             WebAssemblySourceType::Text => self
                 .source
                 .ident()
-                .with_path(self.source.ident().path().append("_.wasm".into())),
-        }
+                .with_path(self.source.ident().path().await?.append("_.wasm")?),
+        })
     }
 }
 
@@ -75,7 +76,7 @@ impl Asset for WebAssemblySource {
             return Ok(AssetContent::file(FileContent::NotFound.cell()));
         };
 
-        let bytes = file.content().to_bytes()?;
+        let bytes = file.content().to_bytes();
         let parsed = wat::parse_bytes(&bytes)?;
 
         Ok(AssetContent::file(File::from(&*parsed).into()))

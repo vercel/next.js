@@ -12,6 +12,7 @@
 "production" !== process.env.NODE_ENV &&
   (function () {
     function performWorkUntilDeadline() {
+      needsPaint = !1;
       if (isMessageLoopRunning) {
         var currentTime = exports.unstable_now();
         startTime = currentTime;
@@ -150,7 +151,9 @@
       advanceTimers(currentTime);
       if (!isHostCallbackScheduled)
         if (null !== peek(taskQueue))
-          (isHostCallbackScheduled = !0), requestHostCallback();
+          (isHostCallbackScheduled = !0),
+            isMessageLoopRunning ||
+              ((isMessageLoopRunning = !0), schedulePerformWorkUntilDeadline());
         else {
           var firstTimer = peek(timerQueue);
           null !== firstTimer &&
@@ -161,11 +164,11 @@
         }
     }
     function shouldYieldToHost() {
-      return exports.unstable_now() - startTime < frameInterval ? !1 : !0;
-    }
-    function requestHostCallback() {
-      isMessageLoopRunning ||
-        ((isMessageLoopRunning = !0), schedulePerformWorkUntilDeadline());
+      return needsPaint
+        ? !0
+        : exports.unstable_now() - startTime < frameInterval
+          ? !1
+          : !0;
     }
     function requestHostTimeout(callback, ms) {
       taskTimeoutID = localSetTimeout(function () {
@@ -200,6 +203,7 @@
       isPerformingWork = !1,
       isHostCallbackScheduled = !1,
       isHostTimeoutScheduled = !1,
+      needsPaint = !1,
       localSetTimeout = "function" === typeof setTimeout ? setTimeout : null,
       localClearTimeout =
         "function" === typeof clearTimeout ? clearTimeout : null,
@@ -233,11 +237,6 @@
     exports.unstable_cancelCallback = function (task) {
       task.callback = null;
     };
-    exports.unstable_continueExecution = function () {
-      isHostCallbackScheduled ||
-        isPerformingWork ||
-        ((isHostCallbackScheduled = !0), requestHostCallback());
-    };
     exports.unstable_forceFrameRate = function (fps) {
       0 > fps || 125 < fps
         ? console.error(
@@ -247,9 +246,6 @@
     };
     exports.unstable_getCurrentPriorityLevel = function () {
       return currentPriorityLevel;
-    };
-    exports.unstable_getFirstCallbackNode = function () {
-      return peek(taskQueue);
     };
     exports.unstable_next = function (eventHandler) {
       switch (currentPriorityLevel) {
@@ -269,8 +265,9 @@
         currentPriorityLevel = previousPriorityLevel;
       }
     };
-    exports.unstable_pauseExecution = function () {};
-    exports.unstable_requestPaint = function () {};
+    exports.unstable_requestPaint = function () {
+      needsPaint = !0;
+    };
     exports.unstable_runWithPriority = function (priorityLevel, eventHandler) {
       switch (priorityLevel) {
         case 1:
@@ -341,7 +338,10 @@
           push(taskQueue, priorityLevel),
           isHostCallbackScheduled ||
             isPerformingWork ||
-            ((isHostCallbackScheduled = !0), requestHostCallback()));
+            ((isHostCallbackScheduled = !0),
+            isMessageLoopRunning ||
+              ((isMessageLoopRunning = !0),
+              schedulePerformWorkUntilDeadline())));
       return priorityLevel;
     };
     exports.unstable_shouldYield = shouldYieldToHost;

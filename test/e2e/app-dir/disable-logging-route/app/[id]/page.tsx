@@ -1,3 +1,3 @@
-export default function Page({ params: { id } }) {
-  return <p>{id}</p>
+export default async function Page({ params }: { params: Promise<{ id }> }) {
+  return <p>{(await params).id}</p>
 }

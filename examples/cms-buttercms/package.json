@@ -4,7 +4,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@popperjs/core": "^2.10.2",
@@ -21,7 +21,7 @@
     "typescript": "^3.3.1"
   },
   "devDependencies": {
-    "eslint": "^8.12.0",
+    "eslint": "^9",
     "eslint-config-next": "^12.1.4"
   }
 }

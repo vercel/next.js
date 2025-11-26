@@ -42,7 +42,9 @@ function Page() {
       </Link>
       <br />
       <div id="base-path">{router.basePath}</div>
-      <div id="pathname">{routerObj.pathname}</div>
+      <div id="pathname" suppressHydrationWarning>
+        {routerObj.pathname}
+      </div>
       <div
         id="trigger-error"
         onClick={() => {
@@ -52,7 +54,9 @@ function Page() {
         click me for error
       </div>
       <br />
-      <div id="as-path">{routerObj.asPath}</div>
+      <div id="as-path" suppressHydrationWarning>
+        {routerObj.asPath}
+      </div>
       <Link href="/slow-route" id="slow-route">
         <h1>Slow route</h1>
       </Link>

@@ -1,8 +1,6 @@
 [
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -40,7 +38,6 @@
             ),
         ],
         span: 33..40,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -50,7 +47,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "./libvips",
                         ),
                     ),
@@ -86,6 +83,7 @@
         ],
         span: 33..53,
         in_try: false,
+        new: false,
     },
     Call {
         func: Variable(
@@ -124,6 +122,7 @@
         ],
         span: 79..100,
         in_try: false,
+        new: false,
     },
     Member {
         obj: FreeVar(
@@ -165,12 +164,9 @@
             ),
         ],
         span: 102..113,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "console",
-        ),
+        var: "console",
         ast_path: [
             Program(
                 Script,
@@ -206,7 +202,6 @@
             ),
         ],
         span: 102..109,
-        in_try: false,
     },
     MemberCall {
         obj: FreeVar(
@@ -223,7 +218,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "runtimePlatform:",
                         ),
                     ),
@@ -259,11 +254,10 @@
         ],
         span: 102..150,
         in_try: false,
+        new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -324,7 +318,6 @@
             ),
         ],
         span: 429..436,
-        in_try: true,
     },
     Call {
         func: FreeVar(
@@ -392,6 +385,7 @@
         ],
         span: 429..442,
         in_try: true,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -464,7 +458,6 @@
             ),
         ],
         span: 508..519,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -539,5 +532,6 @@
         ],
         span: 508..524,
         in_try: false,
+        new: false,
     },
 ]

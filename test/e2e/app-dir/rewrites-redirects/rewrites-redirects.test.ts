@@ -68,5 +68,36 @@ describe('redirects and rewrites', () => {
       const url = new URL(await browser.url())
       expect(url.pathname).toEndWith('-after/thing')
     })
+    it('should redirect from next.config.js correctly with empty query params', async () => {
+      const browser = await next.browser('/?q=1&=')
+      await browser
+        .elementById(`${testType}-config-redirect`)
+        .click()
+        .waitForElementByCss('.page_config-redirect-after')
+      const url = new URL(await browser.url())
+      expect(url.pathname).toEndWith('-after')
+    })
+  })
+
+  it('redirects to exotic url schemes preserving slashes', async () => {
+    const response = await next.fetch('/config-redirect-itms-apps-slashes', {
+      redirect: 'manual',
+    })
+
+    expect(response.headers.get('location')).toEqual(
+      'itms-apps://apps.apple.com/de/app/xcode/id497799835?l=en-GB&mt=12'
+    )
+    expect(response.status).toBe(308)
+  })
+
+  it('redirects to exotic url schemes without adding unwanted slashes', async () => {
+    const response = await next.fetch('/config-redirect-itms-apps-no-slashes', {
+      redirect: 'manual',
+    })
+
+    expect(response.headers.get('location')).toEqual(
+      'itms-apps:apps.apple.com/de/app/xcode/id497799835?l=en-GB&mt=12'
+    )
+    expect(response.status).toBe(308)
   })
 })

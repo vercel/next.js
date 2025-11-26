@@ -1,7 +1,6 @@
-import type { FlightRouterState } from '../../server/app-render/types'
-import type { Params } from './params'
+import type { Params } from '../../server/request/params'
 
-import { useContext, useMemo } from 'react'
+import React, { useContext, useMemo, use } from 'react'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -11,11 +10,27 @@ import {
   SearchParamsContext,
   PathnameContext,
   PathParamsContext,
+  NavigationPromisesContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
-import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
-import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
-import { ReadonlyURLSearchParams } from './navigation.react-server'
-import { trackFallbackParamAccessed } from '../../server/app-render/dynamic-rendering'
+import {
+  computeSelectedLayoutSegment,
+  getSelectedLayoutSegmentPath,
+} from '../../shared/lib/segment'
+import { ReadonlyURLSearchParams } from './readonly-url-search-params'
+
+const useDynamicRouteParams =
+  typeof window === 'undefined'
+    ? (
+        require('../../server/app-render/dynamic-rendering') as typeof import('../../server/app-render/dynamic-rendering')
+      ).useDynamicRouteParams
+    : undefined
+
+const useDynamicSearchParams =
+  typeof window === 'undefined'
+    ? (
+        require('../../server/app-render/dynamic-rendering') as typeof import('../../server/app-render/dynamic-rendering')
+      ).useDynamicSearchParams
+    : undefined
 
 /**
  * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
@@ -39,6 +54,8 @@ import { trackFallbackParamAccessed } from '../../server/app-render/dynamic-rend
  */
 // Client components API
 export function useSearchParams(): ReadonlyURLSearchParams {
+  useDynamicSearchParams?.('useSearchParams()')
+
   const searchParams = useContext(SearchParamsContext)
 
   // In the case where this is `null`, the compat types added in
@@ -54,36 +71,15 @@ export function useSearchParams(): ReadonlyURLSearchParams {
     return new ReadonlyURLSearchParams(searchParams)
   }, [searchParams]) as ReadonlyURLSearchParams
 
-  if (typeof window === 'undefined') {
-    // AsyncLocalStorage should not be included in the client bundle.
-    const { bailoutToClientRendering } =
-      require('./bailout-to-client-rendering') as typeof import('./bailout-to-client-rendering')
-    // TODO-APP: handle dynamic = 'force-static' here and on the client
-    bailoutToClientRendering('useSearchParams()')
+  // Instrument with Suspense DevTools (dev-only)
+  if (process.env.NODE_ENV !== 'production' && 'use' in React) {
+    const navigationPromises = use(NavigationPromisesContext)
+    if (navigationPromises) {
+      return use(navigationPromises.searchParams)
+    }
   }
 
   return readonlySearchParams
-}
-
-function trackParamsAccessed(expression: string) {
-  if (typeof window === 'undefined') {
-    // AsyncLocalStorage should not be included in the client bundle.
-    const { staticGenerationAsyncStorage } =
-      require('./static-generation-async-storage.external') as typeof import('./static-generation-async-storage.external')
-
-    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-
-    if (
-      staticGenerationStore &&
-      staticGenerationStore.isStaticGeneration &&
-      staticGenerationStore.fallbackRouteParams &&
-      staticGenerationStore.fallbackRouteParams.size > 0
-    ) {
-      // There are fallback route params, we should track these as dynamic
-      // accesses.
-      trackFallbackParamAccessed(staticGenerationStore, expression)
-    }
-  }
 }
 
 /**
@@ -105,11 +101,21 @@ function trackParamsAccessed(expression: string) {
  */
 // Client components API
 export function usePathname(): string {
-  trackParamsAccessed('usePathname()')
+  useDynamicRouteParams?.('usePathname()')
 
   // In the case where this is `null`, the compat types added in `next-env.d.ts`
   // will add a new overload that changes the return type to include `null`.
-  return useContext(PathnameContext) as string
+  const pathname = useContext(PathnameContext) as string
+
+  // Instrument with Suspense DevTools (dev-only)
+  if (process.env.NODE_ENV !== 'production' && 'use' in React) {
+    const navigationPromises = use(NavigationPromisesContext)
+    if (navigationPromises) {
+      return use(navigationPromises.pathname)
+    }
+  }
+
+  return pathname
 }
 
 // Client components API
@@ -165,48 +171,19 @@ export function useRouter(): AppRouterInstance {
  */
 // Client components API
 export function useParams<T extends Params = Params>(): T {
-  trackParamsAccessed('useParams()')
+  useDynamicRouteParams?.('useParams()')
 
-  return useContext(PathParamsContext) as T
-}
+  const params = useContext(PathParamsContext) as T
 
-/** Get the canonical parameters from the current level to the leaf node. */
-// Client components API
-export function getSelectedLayoutSegmentPath(
-  tree: FlightRouterState,
-  parallelRouteKey: string,
-  first = true,
-  segmentPath: string[] = []
-): string[] {
-  trackParamsAccessed('getSelectedLayoutSegmentPath()')
-
-  let node: FlightRouterState
-  if (first) {
-    // Use the provided parallel route key on the first parallel route
-    node = tree[1][parallelRouteKey]
-  } else {
-    // After first parallel route prefer children, if there's no children pick the first parallel route.
-    const parallelRoutes = tree[1]
-    node = parallelRoutes.children ?? Object.values(parallelRoutes)[0]
+  // Instrument with Suspense DevTools (dev-only)
+  if (process.env.NODE_ENV !== 'production' && 'use' in React) {
+    const navigationPromises = use(NavigationPromisesContext)
+    if (navigationPromises) {
+      return use(navigationPromises.params) as T
+    }
   }
 
-  if (!node) return segmentPath
-  const segment = node[0]
-
-  let segmentValue = getSegmentValue(segment)
-
-  if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) {
-    return segmentPath
-  }
-
-  segmentPath.push(segmentValue)
-
-  return getSelectedLayoutSegmentPath(
-    node,
-    parallelRouteKey,
-    false,
-    segmentPath
-  )
+  return params
 }
 
 /**
@@ -238,13 +215,27 @@ export function getSelectedLayoutSegmentPath(
 export function useSelectedLayoutSegments(
   parallelRouteKey: string = 'children'
 ): string[] {
-  trackParamsAccessed('useSelectedLayoutSegments()')
+  useDynamicRouteParams?.('useSelectedLayoutSegments()')
 
   const context = useContext(LayoutRouterContext)
   // @ts-expect-error This only happens in `pages`. Type is overwritten in navigation.d.ts
   if (!context) return null
 
-  return getSelectedLayoutSegmentPath(context.tree, parallelRouteKey)
+  // Instrument with Suspense DevTools (dev-only)
+  if (process.env.NODE_ENV !== 'production' && 'use' in React) {
+    const navigationPromises = use(NavigationPromisesContext)
+    if (navigationPromises) {
+      const promise =
+        navigationPromises.selectedLayoutSegmentsPromises?.get(parallelRouteKey)
+      if (promise) {
+        // We should always have a promise here, but if we don't, it's not worth erroring over.
+        // We just won't be able to instrument it, but can still provide the value.
+        return use(promise)
+      }
+    }
+  }
+
+  return getSelectedLayoutSegmentPath(context.parentTree, parallelRouteKey)
 }
 
 /**
@@ -269,29 +260,35 @@ export function useSelectedLayoutSegments(
 export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
 ): string | null {
-  trackParamsAccessed('useSelectedLayoutSegment()')
-
+  useDynamicRouteParams?.('useSelectedLayoutSegment()')
+  const navigationPromises = useContext(NavigationPromisesContext)
   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
 
-  if (!selectedLayoutSegments || selectedLayoutSegments.length === 0) {
-    return null
+  // Instrument with Suspense DevTools (dev-only)
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    navigationPromises &&
+    'use' in React
+  ) {
+    const promise =
+      navigationPromises.selectedLayoutSegmentPromises?.get(parallelRouteKey)
+    if (promise) {
+      // We should always have a promise here, but if we don't, it's not worth erroring over.
+      // We just won't be able to instrument it, but can still provide the value.
+      return use(promise)
+    }
   }
 
-  const selectedLayoutSegment =
-    parallelRouteKey === 'children'
-      ? selectedLayoutSegments[0]
-      : selectedLayoutSegments[selectedLayoutSegments.length - 1]
-
-  // if the default slot is showing, we return null since it's not technically "selected" (it's a fallback)
-  // and returning an internal value like `__DEFAULT__` would be confusing.
-  return selectedLayoutSegment === DEFAULT_SEGMENT_KEY
-    ? null
-    : selectedLayoutSegment
+  return computeSelectedLayoutSegment(selectedLayoutSegments, parallelRouteKey)
 }
+
+export { unstable_isUnrecognizedActionError } from './unrecognized-action-error'
 
 // Shared components APIs
 export {
   notFound,
+  forbidden,
+  unauthorized,
   redirect,
   permanentRedirect,
   RedirectType,

@@ -1,8 +1,6 @@
 [
     FreeVar {
-        var: FreeVar(
-            "ESBUILD_BINARY_PATH",
-        ),
+        var: "ESBUILD_BINARY_PATH",
         ast_path: [
             Program(
                 Script,
@@ -75,7 +73,6 @@
             ),
         ],
         span: 2687..2706,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -172,12 +169,9 @@
             ),
         ],
         span: 2725..2739,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "__filename",
-        ),
+        var: "__filename",
         ast_path: [
             Program(
                 Script,
@@ -261,7 +255,6 @@
             ),
         ],
         span: 2740..2750,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -357,6 +350,7 @@
         ],
         span: 2725..2751,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -453,12 +447,9 @@
             ),
         ],
         span: 2775..2789,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "__dirname",
-        ),
+        var: "__dirname",
         ast_path: [
             Program(
                 Script,
@@ -542,7 +533,6 @@
             ),
         ],
         span: 2790..2799,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -638,6 +628,7 @@
         ],
         span: 2775..2800,
         in_try: false,
+        new: false,
     },
     Conditional {
         condition: Logical(
@@ -689,7 +680,7 @@
                             StrictNotEqual,
                             Constant(
                                 Str(
-                                    Word(
+                                    Atom(
                                         "main.js",
                                     ),
                                 ),
@@ -721,7 +712,7 @@
                             StrictNotEqual,
                             Constant(
                                 Str(
-                                    Word(
+                                    Atom(
                                         "lib",
                                     ),
                                 ),
@@ -735,9 +726,7 @@
             then: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "Error",
-                        ),
+                        var: "Error",
                         ast_path: [
                             Program(
                                 Script,
@@ -806,12 +795,9 @@
                             ),
                         ],
                         span: 2832..2837,
-                        in_try: false,
                     },
                     FreeVar {
-                        var: FreeVar(
-                            "__filename",
-                        ),
+                        var: "__filename",
                         ast_path: [
                             Program(
                                 Script,
@@ -893,7 +879,101 @@
                             ),
                         ],
                         span: 3047..3057,
+                    },
+                    Call {
+                        func: FreeVar(
+                            "Error",
+                        ),
+                        args: [
+                            Value(
+                                Concat(
+                                    4,
+                                    [
+                                        Constant(
+                                            Str(
+                                                Atom(
+                                                    "The esbuild JavaScript API cannot be bundled. Please mark the \"esbuild\" package as external so it's not included in the bundle.\n\nMore information: The file containing the code for esbuild's JavaScript API (",
+                                                ),
+                                            ),
+                                        ),
+                                        FreeVar(
+                                            "__filename",
+                                        ),
+                                        Constant(
+                                            Str(
+                                                Atom(
+                                                    ") does not appear to be inside the esbuild package on the file system, which usually means that the esbuild package was bundled into another file. This is problematic because the API needs to run a binary executable inside the esbuild package which is located using a relative path from the API code to the executable. If the esbuild package is bundled, the relative path will be incorrect and the executable won't be found.",
+                                                ),
+                                            ),
+                                        ),
+                                    ],
+                                ),
+                            ),
+                        ],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    7,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Arrow,
+                            ),
+                            ArrowExpr(
+                                Body,
+                            ),
+                            BlockStmtOrExpr(
+                                BlockStmt,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                If,
+                            ),
+                            IfStmt(
+                                Cons,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Throw,
+                            ),
+                            ThrowStmt(
+                                Arg,
+                            ),
+                            Expr(
+                                New,
+                            ),
+                        ],
+                        span: 2828..3484,
                         in_try: false,
+                        new: true,
                     },
                 ],
                 range: Exact(
@@ -989,7 +1069,6 @@
             ),
         ],
         span: 2676..3489,
-        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -1105,12 +1184,9 @@
                             ),
                         ],
                         span: 3526..3536,
-                        in_try: false,
                     },
                     FreeVar {
-                        var: FreeVar(
-                            "__dirname",
-                        ),
+                        var: "__dirname",
                         ast_path: [
                             Program(
                                 Script,
@@ -1206,7 +1282,6 @@
                             ),
                         ],
                         span: 3537..3546,
-                        in_try: false,
                     },
                     MemberCall {
                         obj: Variable(
@@ -1231,7 +1306,7 @@
                             Value(
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "..",
                                         ),
                                     ),
@@ -1240,7 +1315,7 @@
                             Value(
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "bin",
                                         ),
                                     ),
@@ -1249,7 +1324,7 @@
                             Value(
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "esbuild",
                                         ),
                                     ),
@@ -1341,6 +1416,7 @@
                         ],
                         span: 3526..3571,
                         in_try: false,
+                        new: false,
                     },
                     Unreachable {
                         start_ast_path: [
@@ -1517,6 +1593,7 @@
                         ],
                         span: 3589..3606,
                         in_try: false,
+                        new: false,
                     },
                     Unreachable {
                         start_ast_path: [
@@ -1652,7 +1729,6 @@
             ),
         ],
         span: 3492..3578,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1691,6 +1767,7 @@
         ],
         span: 3638..3661,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -1743,7 +1820,6 @@
             ),
         ],
         span: 3671..3682,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -1772,7 +1848,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "--ping",
                         ),
                     ),
@@ -1808,11 +1884,10 @@
         ],
         span: 3671..3718,
         in_try: false,
+        new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -1850,7 +1925,6 @@
             ),
         ],
         span: 12..19,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -1860,7 +1934,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "path",
                         ),
                     ),
@@ -1896,11 +1970,10 @@
         ],
         span: 12..27,
         in_try: false,
+        new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -1938,7 +2011,6 @@
             ),
         ],
         span: 41..48,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -1948,7 +2020,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "path",
                         ),
                     ),
@@ -1984,11 +2056,10 @@
         ],
         span: 41..56,
         in_try: false,
+        new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -2026,7 +2097,6 @@
             ),
         ],
         span: 67..74,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -2036,7 +2106,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "os",
                         ),
                     ),
@@ -2072,6 +2142,7 @@
         ],
         span: 67..80,
         in_try: false,
+        new: false,
     },
     Member {
         obj: FreeVar(
@@ -2137,12 +2208,9 @@
             ),
         ],
         span: 1005..1021,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "process",
-        ),
+        var: "process",
         ast_path: [
             Program(
                 Script,
@@ -2202,7 +2270,6 @@
             ),
         ],
         span: 1005..1012,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -2280,7 +2347,6 @@
             ),
         ],
         span: 1025..1032,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -2351,6 +2417,7 @@
         ],
         span: 1025..1034,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -2428,7 +2495,6 @@
             ),
         ],
         span: 1038..1051,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -2499,6 +2565,7 @@
         ],
         span: 1038..1053,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -2570,7 +2637,6 @@
             ),
         ],
         span: 1112..1145,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -2648,12 +2714,9 @@
             ),
         ],
         span: 1239..1273,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "Error",
-        ),
+        var: "Error",
         ast_path: [
             Program(
                 Script,
@@ -2717,7 +2780,92 @@
             ),
         ],
         span: 1329..1334,
+    },
+    Call {
+        func: FreeVar(
+            "Error",
+        ),
+        args: [
+            Value(
+                Concat(
+                    3,
+                    [
+                        Constant(
+                            Str(
+                                Atom(
+                                    "Unsupported platform: ",
+                                ),
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "platformKey",
+                                #3,
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    5,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    3,
+                ),
+            ),
+            Stmt(
+                If,
+            ),
+            IfStmt(
+                Alt,
+            ),
+            Stmt(
+                If,
+            ),
+            IfStmt(
+                Alt,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Throw,
+            ),
+            ThrowStmt(
+                Arg,
+            ),
+            Expr(
+                New,
+            ),
+        ],
+        span: 1325..1374,
         in_try: false,
+        new: true,
     },
     Unreachable {
         start_ast_path: [
@@ -2752,9 +2900,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "ESBUILD_BINARY_PATH",
-        ),
+        var: "ESBUILD_BINARY_PATH",
         ast_path: [
             Program(
                 Script,
@@ -2792,7 +2938,6 @@
             ),
         ],
         span: 1444..1463,
-        in_try: false,
     },
     Conditional {
         condition: FreeVar(
@@ -2802,9 +2947,7 @@
             then: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "ESBUILD_BINARY_PATH",
-                        ),
+                        var: "ESBUILD_BINARY_PATH",
                         ast_path: [
                             Program(
                                 Script,
@@ -2856,7 +2999,6 @@
                             ),
                         ],
                         span: 1478..1497,
-                        in_try: false,
                     },
                     Unreachable {
                         start_ast_path: [
@@ -2997,6 +3139,7 @@
                         ],
                         span: 1530..1563,
                         in_try: false,
+                        new: false,
                     },
                     Member {
                         obj: FreeVar(
@@ -3072,12 +3215,9 @@
                             ),
                         ],
                         span: 1602..1617,
-                        in_try: true,
                     },
                     FreeVar {
-                        var: FreeVar(
-                            "require",
-                        ),
+                        var: "require",
                         ast_path: [
                             Program(
                                 Script,
@@ -3147,7 +3287,6 @@
                             ),
                         ],
                         span: 1602..1609,
-                        in_try: true,
                     },
                     MemberCall {
                         obj: FreeVar(
@@ -3243,11 +3382,10 @@
                         ],
                         span: 1602..1638,
                         in_try: true,
+                        new: false,
                     },
                     FreeVar {
-                        var: FreeVar(
-                            "downloadedBinPath",
-                        ),
+                        var: "downloadedBinPath",
                         ast_path: [
                             Program(
                                 Script,
@@ -3314,7 +3452,6 @@
                             ),
                         ],
                         span: 1670..1687,
-                        in_try: false,
                     },
                     Call {
                         func: FreeVar(
@@ -3396,6 +3533,7 @@
                         ],
                         span: 1670..1701,
                         in_try: false,
+                        new: false,
                     },
                     Member {
                         obj: FreeVar(
@@ -3474,12 +3612,9 @@
                             ),
                         ],
                         span: 1712..1725,
-                        in_try: false,
                     },
                     FreeVar {
-                        var: FreeVar(
-                            "fs",
-                        ),
+                        var: "fs",
                         ast_path: [
                             Program(
                                 Script,
@@ -3552,7 +3687,6 @@
                             ),
                         ],
                         span: 1712..1714,
-                        in_try: false,
                     },
                     MemberCall {
                         obj: FreeVar(
@@ -3633,6 +3767,7 @@
                         ],
                         span: 1712..1734,
                         in_try: false,
+                        new: false,
                     },
                     Conditional {
                         condition: Not(
@@ -3758,12 +3893,9 @@
                                             ),
                                         ],
                                         span: 1758..1773,
-                                        in_try: true,
                                     },
                                     FreeVar {
-                                        var: FreeVar(
-                                            "require",
-                                        ),
+                                        var: "require",
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -3855,7 +3987,6 @@
                                             ),
                                         ],
                                         span: 1758..1765,
-                                        in_try: true,
                                     },
                                     MemberCall {
                                         obj: FreeVar(
@@ -3955,11 +4086,10 @@
                                         ],
                                         span: 1758..1778,
                                         in_try: true,
+                                        new: false,
                                     },
                                     FreeVar {
-                                        var: FreeVar(
-                                            "Error",
-                                        ),
+                                        var: "Error",
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -4045,7 +4175,121 @@
                                             ),
                                         ],
                                         span: 1814..1819,
+                                    },
+                                    Call {
+                                        func: FreeVar(
+                                            "Error",
+                                        ),
+                                        args: [
+                                            Value(
+                                                Concat(
+                                                    4,
+                                                    [
+                                                        Constant(
+                                                            Str(
+                                                                Atom(
+                                                                    "The package \"",
+                                                                ),
+                                                            ),
+                                                        ),
+                                                        Variable(
+                                                            (
+                                                                "pkg",
+                                                                #7,
+                                                            ),
+                                                        ),
+                                                        Constant(
+                                                            Str(
+                                                                Atom(
+                                                                    "\" could not be found, and is needed by esbuild.\n\nIf you are installing esbuild with npm, make sure that you don't specify the\n\"--no-optional\" flag. The \"optionalDependencies\" package.json feature is used\nby esbuild to install the correct binary executable for your current platform.",
+                                                                ),
+                                                            ),
+                                                        ),
+                                                    ],
+                                                ),
+                                            ),
+                                        ],
+                                        ast_path: [
+                                            Program(
+                                                Script,
+                                            ),
+                                            Script(
+                                                Body(
+                                                    6,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                Decl,
+                                            ),
+                                            Decl(
+                                                Fn,
+                                            ),
+                                            FnDecl(
+                                                Function,
+                                            ),
+                                            Function(
+                                                Body,
+                                            ),
+                                            BlockStmt(
+                                                Stmts(
+                                                    3,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                Try,
+                                            ),
+                                            TryStmt(
+                                                Handler,
+                                            ),
+                                            CatchClause(
+                                                Body,
+                                            ),
+                                            BlockStmt(
+                                                Stmts(
+                                                    1,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                If,
+                                            ),
+                                            IfStmt(
+                                                Cons,
+                                            ),
+                                            Stmt(
+                                                Block,
+                                            ),
+                                            BlockStmt(
+                                                Stmts(
+                                                    0,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                Try,
+                                            ),
+                                            TryStmt(
+                                                Handler,
+                                            ),
+                                            CatchClause(
+                                                Body,
+                                            ),
+                                            BlockStmt(
+                                                Stmts(
+                                                    0,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                Throw,
+                                            ),
+                                            ThrowStmt(
+                                                Arg,
+                                            ),
+                                            Expr(
+                                                New,
+                                            ),
+                                        ],
+                                        span: 1810..2124,
                                         in_try: false,
+                                        new: true,
                                     },
                                 ],
                                 range: Exact(
@@ -4147,12 +4391,9 @@
                             ),
                         ],
                         span: 1707..2154,
-                        in_try: false,
                     },
                     FreeVar {
-                        var: FreeVar(
-                            "require",
-                        ),
+                        var: "require",
                         ast_path: [
                             Program(
                                 Script,
@@ -4210,7 +4451,6 @@
                             ),
                         ],
                         span: 2196..2203,
-                        in_try: true,
                     },
                     Call {
                         func: FreeVar(
@@ -4220,7 +4460,7 @@
                             Value(
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "pnpapi",
                                         ),
                                     ),
@@ -4276,6 +4516,7 @@
                         ],
                         span: 2196..2213,
                         in_try: true,
+                        new: false,
                     },
                     Conditional {
                         condition: Variable(
@@ -4369,7 +4610,6 @@
                                             ),
                                         ],
                                         span: 2299..2311,
-                                        in_try: false,
                                     },
                                     Member {
                                         obj: FreeVar(
@@ -4461,12 +4701,9 @@
                                             ),
                                         ],
                                         span: 2312..2327,
-                                        in_try: false,
                                     },
                                     FreeVar {
-                                        var: FreeVar(
-                                            "require",
-                                        ),
+                                        var: "require",
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -4552,7 +4789,6 @@
                                             ),
                                         ],
                                         span: 2312..2319,
-                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: FreeVar(
@@ -4569,7 +4805,7 @@
                                             Value(
                                                 Constant(
                                                     Str(
-                                                        Word(
+                                                        Atom(
                                                             "esbuild",
                                                         ),
                                                     ),
@@ -4647,6 +4883,7 @@
                                         ],
                                         span: 2312..2338,
                                         in_try: false,
+                                        new: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -4679,7 +4916,7 @@
                                                     [
                                                         Constant(
                                                             Str(
-                                                                Word(
+                                                                Atom(
                                                                     "esbuild",
                                                                 ),
                                                             ),
@@ -4748,6 +4985,7 @@
                                         ],
                                         span: 2299..2339,
                                         in_try: false,
+                                        new: false,
                                     },
                                     Member {
                                         obj: Variable(
@@ -4831,7 +5069,6 @@
                                             ),
                                         ],
                                         span: 2367..2376,
-                                        in_try: false,
                                     },
                                     Member {
                                         obj: Variable(
@@ -4934,7 +5171,6 @@
                                             ),
                                         ],
                                         span: 2422..2435,
-                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -5039,6 +5275,7 @@
                                         ],
                                         span: 2422..2444,
                                         in_try: false,
+                                        new: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -5175,6 +5412,7 @@
                                         ],
                                         span: 2367..2452,
                                         in_try: false,
+                                        new: false,
                                     },
                                     Member {
                                         obj: FreeVar(
@@ -5253,12 +5491,9 @@
                                             ),
                                         ],
                                         span: 2463..2476,
-                                        in_try: false,
                                     },
                                     FreeVar {
-                                        var: FreeVar(
-                                            "fs",
-                                        ),
+                                        var: "fs",
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -5331,7 +5566,6 @@
                                             ),
                                         ],
                                         span: 2463..2465,
-                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: FreeVar(
@@ -5412,6 +5646,7 @@
                                         ],
                                         span: 2463..2491,
                                         in_try: false,
+                                        new: false,
                                     },
                                     Conditional {
                                         condition: Not(
@@ -5526,12 +5761,9 @@
                                                             ),
                                                         ],
                                                         span: 2501..2516,
-                                                        in_try: false,
                                                     },
                                                     FreeVar {
-                                                        var: FreeVar(
-                                                            "fs",
-                                                        ),
+                                                        var: "fs",
                                                         ast_path: [
                                                             Program(
                                                                 Script,
@@ -5612,7 +5844,6 @@
                                                             ),
                                                         ],
                                                         span: 2501..2503,
-                                                        in_try: false,
                                                     },
                                                     MemberCall {
                                                         obj: FreeVar(
@@ -5709,6 +5940,7 @@
                                                         ],
                                                         span: 2501..2540,
                                                         in_try: false,
+                                                        new: false,
                                                     },
                                                     Member {
                                                         obj: FreeVar(
@@ -5795,12 +6027,9 @@
                                                             ),
                                                         ],
                                                         span: 2548..2560,
-                                                        in_try: false,
                                                     },
                                                     FreeVar {
-                                                        var: FreeVar(
-                                                            "fs",
-                                                        ),
+                                                        var: "fs",
                                                         ast_path: [
                                                             Program(
                                                                 Script,
@@ -5881,7 +6110,6 @@
                                                             ),
                                                         ],
                                                         span: 2548..2550,
-                                                        in_try: false,
                                                     },
                                                     MemberCall {
                                                         obj: FreeVar(
@@ -5979,6 +6207,7 @@
                                                         ],
                                                         span: 2548..2580,
                                                         in_try: false,
+                                                        new: false,
                                                     },
                                                 ],
                                                 range: Exact(
@@ -6080,7 +6309,6 @@
                                             ),
                                         ],
                                         span: 2458..2587,
-                                        in_try: false,
                                     },
                                     Unreachable {
                                         start_ast_path: [
@@ -6268,7 +6496,6 @@
                             ),
                         ],
                         span: 2256..2617,
-                        in_try: false,
                     },
                 ],
                 range: StartAfter(
@@ -6339,6 +6566,5 @@
             ),
         ],
         span: 1440..1502,
-        in_try: false,
     },
 ]

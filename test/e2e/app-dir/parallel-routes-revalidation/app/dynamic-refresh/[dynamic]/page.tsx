@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { UpdateSearchParamsButton } from '../../components/UpdateSearchParamsButton'
 
-export default function Home({ searchParams }) {
+export default async function Home(props) {
+  const searchParams = await props.searchParams
   return (
     <main>
       <Link href="/dynamic-refresh/foo/login">

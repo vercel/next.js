@@ -9,11 +9,14 @@ path = (
   | "../src/build/Release/sharp-wasm32.node"
   | `@img/sharp-${???*1*}/sharp.node`
   | "@img/sharp-wasm32/sharp.node"
+  | ???*2*
 )
 - *0* module<./libvips, {}>["runtimePlatformArch"]()
   ⚠️  nested operation
 - *1* module<./libvips, {}>["runtimePlatformArch"]()
   ⚠️  nested operation
+- *2* unknown mutation
+  ⚠️  This value might have side effects
 
 paths = [
     `../src/build/Release/sharp-${???*0*}.node`,
@@ -39,6 +42,7 @@ sharp = (???*0* | ???*1*)
           | "../src/build/Release/sharp-wasm32.node"
           | `@img/sharp-${???*4*}/sharp.node`
           | "@img/sharp-wasm32/sharp.node"
+          | ???*5*
         )
     )
   ⚠️  only constant argument is supported
@@ -48,3 +52,5 @@ sharp = (???*0* | ???*1*)
   ⚠️  nested operation
 - *4* module<./libvips, {}>["runtimePlatformArch"]()
   ⚠️  nested operation
+- *5* unknown mutation
+  ⚠️  This value might have side effects

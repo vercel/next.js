@@ -8,6 +8,7 @@ export type Env = { [key: string]: string | undefined }
 export type LoadedEnvFiles = Array<{
   path: string
   contents: string
+  env: Env
 }>
 
 export let initialEnv: Env | undefined = undefined
@@ -91,6 +92,9 @@ export function processEnv(
           parsed[key] = result.parsed?.[key]!
         }
       }
+
+      // Add the parsed env to the loadedEnvFiles
+      envFile.env = result.parsed || {}
     } catch (err) {
       log.error(
         `Failed to load env from ${path.join(dir || '', envFile.path)}`,
@@ -148,8 +152,8 @@ export function loadEnvConfig(
     try {
       const stats = fs.statSync(dotEnvPath)
 
-      // make sure to only attempt to read files
-      if (!stats.isFile()) {
+      // make sure to only attempt to read files or named pipes
+      if (!stats.isFile() && !stats.isFIFO()) {
         continue
       }
 
@@ -157,6 +161,7 @@ export function loadEnvConfig(
       cachedLoadedEnvFiles.push({
         path: envFile,
         contents,
+        env: {}, // This will be populated in processEnv
       })
     } catch (err: any) {
       if (err.code !== 'ENOENT') {

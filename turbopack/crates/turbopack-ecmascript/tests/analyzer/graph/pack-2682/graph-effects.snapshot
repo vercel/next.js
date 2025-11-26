@@ -73,12 +73,9 @@
             ),
         ],
         span: 50..61,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "Math",
-        ),
+        var: "Math",
         ast_path: [
             Program(
                 Script,
@@ -148,7 +145,6 @@
             ),
         ],
         span: 50..54,
-        in_try: false,
     },
     MemberCall {
         obj: FreeVar(
@@ -217,6 +213,7 @@
         ],
         span: 50..63,
         in_try: false,
+        new: false,
     },
     Member {
         obj: FreeVar(
@@ -286,12 +283,9 @@
             ),
         ],
         span: 273..287,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "JSON",
-        ),
+        var: "JSON",
         ast_path: [
             Program(
                 Script,
@@ -355,7 +349,6 @@
             ),
         ],
         span: 273..277,
-        in_try: false,
     },
     Conditional {
         condition: Binary(
@@ -369,7 +362,7 @@
             StrictEqual,
             Constant(
                 Str(
-                    Word(
+                    Atom(
                         "true",
                     ),
                 ),
@@ -622,7 +615,6 @@
             ),
         ],
         span: 354..392,
-        in_try: false,
     },
     MemberCall {
         obj: FreeVar(
@@ -659,7 +651,7 @@
                                 StrictEqual,
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "true",
                                         ),
                                     ),
@@ -687,7 +679,7 @@
                                     StrictEqual,
                                     Constant(
                                         Str(
-                                            Word(
+                                            Atom(
                                                 "true",
                                             ),
                                         ),
@@ -695,14 +687,14 @@
                                 ),
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "true",
                                         ),
                                     ),
                                 ),
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "false",
                                         ),
                                     ),
@@ -763,6 +755,7 @@
         ],
         span: 273..398,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -829,7 +822,7 @@
                             ),
                             Constant(
                                 Str(
-                                    Word(
+                                    Atom(
                                         "false",
                                     ),
                                 ),
@@ -869,5 +862,6 @@
         ],
         span: 416..453,
         in_try: false,
+        new: false,
     },
 ]

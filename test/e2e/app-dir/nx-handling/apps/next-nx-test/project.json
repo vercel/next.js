@@ -1,0 +1,47 @@
+{
+  "name": "next-nx-test",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/next-nx-test",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "@nx/next:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/next-nx-test"
+      },
+      "configurations": {
+        "development": {
+          "outputPath": "apps/next-nx-test"
+        },
+        "production": {}
+      }
+    },
+    "serve": {
+      "executor": "@nx/next:server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "next-nx-test:build",
+        "dev": true
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "next-nx-test:build:development",
+          "dev": true
+        },
+        "production": {
+          "buildTarget": "next-nx-test:build:production",
+          "dev": false
+        }
+      }
+    },
+    "export": {
+      "executor": "@nx/next:export",
+      "options": {
+        "buildTarget": "next-nx-test:build:production"
+      }
+    }
+  },
+  "tags": []
+}

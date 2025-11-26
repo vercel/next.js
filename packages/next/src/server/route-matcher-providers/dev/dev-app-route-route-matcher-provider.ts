@@ -6,10 +6,12 @@ import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provid
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { DevAppNormalizers } from '../../normalizers/built/app'
 import {
-  isMetadataRoute,
+  isMetadataRouteFile,
   isStaticMetadataRoute,
+  isStaticMetadataFile,
 } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
+import path from '../../../shared/lib/isomorphic/path'
 
 export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppRouteRouteMatcher> {
   private readonly normalizers: {
@@ -17,15 +19,20 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
     pathname: Normalizer
     bundlePath: Normalizer
   }
+  private readonly appDir: string
+  private readonly isTurbopack: boolean
 
   constructor(
     appDir: string,
     extensions: ReadonlyArray<string>,
-    reader: FileReader
+    reader: FileReader,
+    isTurbopack: boolean
   ) {
     super(appDir, reader)
 
-    this.normalizers = new DevAppNormalizers(appDir, extensions)
+    this.appDir = appDir
+    this.isTurbopack = isTurbopack
+    this.normalizers = new DevAppNormalizers(appDir, extensions, isTurbopack)
   }
 
   protected async transform(
@@ -33,7 +40,12 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
   ): Promise<ReadonlyArray<AppRouteRouteMatcher>> {
     const matchers: Array<AppRouteRouteMatcher> = []
     for (const filename of files) {
-      const page = this.normalizers.page.normalize(filename)
+      // Skip static metadata files as they are served from filesystem.
+      if (isStaticMetadataFile(filename.replace(this.appDir, ''))) {
+        continue
+      }
+
+      let page = this.normalizers.page.normalize(filename)
 
       // If the file isn't a match for this matcher, then skip it.
       if (!isAppRouteRoute(page)) continue
@@ -41,10 +53,24 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
       // Validate that this is not an ignored page.
       if (page.includes('/_')) continue
 
+      // Turbopack uses the correct page name with the underscore normalized.
+      // TODO: Move implementation to packages/next/src/server/normalizers/built/app/app-page-normalizer.ts.
+      // The `includes('/_')` check above needs to be moved for that to work as otherwise `%5Fsegmentname`
+      // will result in `_segmentname` which hits that includes check and be skipped.
+      if (this.isTurbopack) {
+        page = page.replace(/%5F/g, '_')
+      }
+
       const pathname = this.normalizers.pathname.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
+      const ext = path.extname(filename).slice(1)
+      const isEntryMetadataRouteFile = isMetadataRouteFile(
+        filename.replace(this.appDir, ''),
+        [ext],
+        true
+      )
 
-      if (isMetadataRoute(page) && !isStaticMetadataRoute(page)) {
+      if (isEntryMetadataRouteFile && !isStaticMetadataRoute(page)) {
         // Matching dynamic metadata routes.
         // Add 2 possibilities for both single and multiple routes:
         {
@@ -54,12 +80,12 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
           // We'll map the filename before normalization:
           // sitemap.ts -> sitemap.xml/route.ts
           // icon.ts -> icon/route.ts
-          const metadataPage = normalizeMetadataPageToRoute(page, false) // this.normalizers.page.normalize(dummyFilename)
-          const metadataPathname = normalizeMetadataPageToRoute(pathname, false) // this.normalizers.pathname.normalize(dummyFilename)
+          const metadataPage = normalizeMetadataPageToRoute(page, false)
+          const metadataPathname = normalizeMetadataPageToRoute(pathname, false)
           const metadataBundlePath = normalizeMetadataPageToRoute(
             bundlePath,
             false
-          ) // this.normalizers.bundlePath.normalize(dummyFilename)
+          )
 
           const matcher = new AppRouteRouteMatcher({
             kind: RouteKind.APP_ROUTE,
@@ -94,7 +120,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
           matchers.push(matcher)
         }
       } else {
-        // Normal app routes and static metadata routes.
+        // Normal app routes.
         matchers.push(
           new AppRouteRouteMatcher({
             kind: RouteKind.APP_ROUTE,

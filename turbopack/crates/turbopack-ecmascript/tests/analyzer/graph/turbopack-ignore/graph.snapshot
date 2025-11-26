@@ -1,20 +1,41 @@
 [
     (
-        "t_i",
+        "exported_t_r",
         Call(
             3,
             FreeVar(
-                "import",
+                "require",
             ),
             [
                 Constant(
                     Str(
-                        Word(
-                            "t_i",
+                        Atom(
+                            "exported_t_r",
                         ),
                     ),
                 ),
             ],
+        ),
+    ),
+    (
+        "t_i",
+        Awaited(
+            4,
+            Call(
+                3,
+                FreeVar(
+                    "import",
+                ),
+                [
+                    Constant(
+                        Str(
+                            Atom(
+                                "t_i",
+                            ),
+                        ),
+                    ),
+                ],
+            ),
         ),
     ),
     (
@@ -30,7 +51,7 @@
                     [
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "w_i_f",
                                 ),
                             ),
@@ -45,7 +66,7 @@
                     [
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "t_i_f",
                                 ),
                             ),
@@ -60,7 +81,7 @@
                     [
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "t_r_t",
                                 ),
                             ),
@@ -75,7 +96,7 @@
                     [
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "t_r_f",
                                 ),
                             ),
@@ -88,20 +109,23 @@
     ),
     (
         "w_i",
-        Call(
-            3,
-            FreeVar(
-                "import",
-            ),
-            [
-                Constant(
-                    Str(
-                        Word(
-                            "w_i",
+        Awaited(
+            4,
+            Call(
+                3,
+                FreeVar(
+                    "import",
+                ),
+                [
+                    Constant(
+                        Str(
+                            Atom(
+                                "w_i",
+                            ),
                         ),
                     ),
-                ),
-            ],
+                ],
+            ),
         ),
     ),
     (
@@ -117,7 +141,7 @@
                     [
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "w_r_t",
                                 ),
                             ),
@@ -132,7 +156,7 @@
                     [
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "w_r_f",
                                 ),
                             ),

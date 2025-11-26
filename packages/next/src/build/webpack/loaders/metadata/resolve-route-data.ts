@@ -48,12 +48,16 @@ export function resolveSitemap(data: MetadataRoute.Sitemap): string {
     (item) => Object.keys(item.alternates ?? {}).length > 0
   )
   const hasImages = data.some((item) => Boolean(item.images?.length))
+  const hasVideos = data.some((item) => Boolean(item.videos?.length))
 
   let content = ''
   content += '<?xml version="1.0" encoding="UTF-8"?>\n'
   content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
   if (hasImages) {
     content += ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"'
+  }
+  if (hasVideos) {
+    content += ' xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"'
   }
   if (hasAlternates) {
     content += ' xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
@@ -77,6 +81,43 @@ export function resolveSitemap(data: MetadataRoute.Sitemap): string {
     if (item.images?.length) {
       for (const image of item.images) {
         content += `<image:image>\n<image:loc>${image}</image:loc>\n</image:image>\n`
+      }
+    }
+    if (item.videos?.length) {
+      for (const video of item.videos) {
+        let videoFields = [
+          `<video:video>`,
+          `<video:title>${video.title}</video:title>`,
+          `<video:thumbnail_loc>${video.thumbnail_loc}</video:thumbnail_loc>`,
+          `<video:description>${video.description}</video:description>`,
+          video.content_loc &&
+            `<video:content_loc>${video.content_loc}</video:content_loc>`,
+          video.player_loc &&
+            `<video:player_loc>${video.player_loc}</video:player_loc>`,
+          video.duration &&
+            `<video:duration>${video.duration}</video:duration>`,
+          video.view_count &&
+            `<video:view_count>${video.view_count}</video:view_count>`,
+          video.tag && `<video:tag>${video.tag}</video:tag>`,
+          video.rating && `<video:rating>${video.rating}</video:rating>`,
+          video.expiration_date &&
+            `<video:expiration_date>${video.expiration_date}</video:expiration_date>`,
+          video.publication_date &&
+            `<video:publication_date>${video.publication_date}</video:publication_date>`,
+          video.family_friendly &&
+            `<video:family_friendly>${video.family_friendly}</video:family_friendly>`,
+          video.requires_subscription &&
+            `<video:requires_subscription>${video.requires_subscription}</video:requires_subscription>`,
+          video.live && `<video:live>${video.live}</video:live>`,
+          video.restriction &&
+            `<video:restriction relationship="${video.restriction.relationship}">${video.restriction.content}</video:restriction>`,
+          video.platform &&
+            `<video:platform relationship="${video.platform.relationship}">${video.platform.content}</video:platform>`,
+          video.uploader &&
+            `<video:uploader${video.uploader.info && ` info="${video.uploader.info}"`}>${video.uploader.content}</video:uploader>`,
+          `</video:video>\n`,
+        ].filter(Boolean)
+        content += videoFields.join('\n')
       }
     }
     if (item.lastModified) {

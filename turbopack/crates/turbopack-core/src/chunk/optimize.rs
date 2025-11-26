@@ -10,11 +10,11 @@ use turbo_tasks_fs::{FileSystemPath, FileSystemPathOption};
 use crate::chunk::containment_tree::{ContainmentTree, ContainmentTreeKey};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-struct FileSystemPathKey(Vc<FileSystemPath>);
+struct FileSystemPathKey(FileSystemPath);
 
 impl FileSystemPathKey {
-    async fn new(path: Vc<FileSystemPath>) -> Result<Self> {
-        Ok(Self(path.resolve().await?))
+    async fn new(path: FileSystemPath) -> Result<Self> {
+        Ok(Self(path))
     }
 }
 
@@ -45,7 +45,7 @@ where
 
                     Ok((
                         if let Some(common_parent) = &*common_parent {
-                            Some(FileSystemPathKey::new(*common_parent).await?)
+                            Some(FileSystemPathKey::new(common_parent.clone()).await?)
                         } else {
                             None
                         },

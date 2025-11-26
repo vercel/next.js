@@ -11,6 +11,9 @@ import type {
   AttributeValue,
   TextMapGetter,
 } from 'next/dist/compiled/@opentelemetry/api'
+import { isThenable } from '../../../shared/lib/is-thenable'
+
+const NEXT_OTEL_PERFORMANCE_PREFIX = process.env.NEXT_OTEL_PERFORMANCE_PREFIX
 
 let api: typeof import('next/dist/compiled/@opentelemetry/api')
 
@@ -22,21 +25,18 @@ let api: typeof import('next/dist/compiled/@opentelemetry/api')
 // the version that is bundled with Next.js.
 // the API is ~stable, so this should be fine
 if (process.env.NEXT_RUNTIME === 'edge') {
-  api = require('@opentelemetry/api')
+  api = require('@opentelemetry/api') as typeof import('@opentelemetry/api')
 } else {
   try {
-    api = require('@opentelemetry/api')
+    api = require('@opentelemetry/api') as typeof import('@opentelemetry/api')
   } catch (err) {
-    api = require('next/dist/compiled/@opentelemetry/api')
+    api =
+      require('next/dist/compiled/@opentelemetry/api') as typeof import('next/dist/compiled/@opentelemetry/api')
   }
 }
 
 const { context, propagation, trace, SpanStatusCode, SpanKind, ROOT_CONTEXT } =
   api
-
-const isPromise = <T>(p: any): p is Promise<T> => {
-  return p !== null && typeof p === 'object' && typeof p.then === 'function'
-}
 
 export class BubbledError extends Error {
   constructor(
@@ -58,6 +58,7 @@ const closeSpanWithError = (span: Span, error?: Error) => {
   } else {
     if (error) {
       span.recordException(error)
+      span.setAttribute('error.type', error.name)
     }
     span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
   }
@@ -275,7 +276,7 @@ class NextTracerImpl implements NextTracer {
     const spanName = options.spanName ?? type
 
     if (
-      (!NextVanillaSpanAllowlist.includes(type) &&
+      (!NextVanillaSpanAllowlist.has(type) &&
         process.env.NEXT_OTEL_VERBOSE !== '1') ||
       options.hideSpan
     ) {
@@ -286,14 +287,18 @@ class NextTracerImpl implements NextTracer {
     let spanContext = this.getSpanContext(
       options?.parentSpan ?? this.getActiveScopeSpan()
     )
-    let isRootSpan = false
 
     if (!spanContext) {
       spanContext = context?.active() ?? ROOT_CONTEXT
-      isRootSpan = true
-    } else if (trace.getSpanContext(spanContext)?.isRemote) {
-      isRootSpan = true
     }
+    // Check if there's already a root span in the store for this trace
+    // We are intentionally not checking whether there is an active context
+    // from outside of nextjs to ensure that we can provide the same level
+    // of telemetry when using a custom server
+    const existingRootSpanId = spanContext.getValue(rootSpanIdKey)
+    const isRootSpan =
+      typeof existingRootSpanId !== 'number' ||
+      !rootSpanAttributesStore.has(existingRootSpanId)
 
     const spanId = getSpanId()
 
@@ -308,20 +313,26 @@ class NextTracerImpl implements NextTracer {
         spanName,
         options,
         (span: Span) => {
-          const startTime =
-            'performance' in globalThis && 'measure' in performance
-              ? globalThis.performance.now()
-              : undefined
+          let startTime: number | undefined
+          if (
+            NEXT_OTEL_PERFORMANCE_PREFIX &&
+            type &&
+            LogSpanAllowList.has(type)
+          ) {
+            startTime =
+              'performance' in globalThis && 'measure' in performance
+                ? globalThis.performance.now()
+                : undefined
+          }
 
+          let cleanedUp = false
           const onCleanup = () => {
+            if (cleanedUp) return
+            cleanedUp = true
             rootSpanAttributesStore.delete(spanId)
-            if (
-              startTime &&
-              process.env.NEXT_OTEL_PERFORMANCE_PREFIX &&
-              LogSpanAllowList.includes(type || ('' as any))
-            ) {
+            if (startTime) {
               performance.measure(
-                `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
+                `${NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
                   type.split('.').pop() || ''
                 ).replace(
                   /[A-Z]/g,
@@ -346,13 +357,20 @@ class NextTracerImpl implements NextTracer {
               )
             )
           }
-          try {
-            if (fn.length > 1) {
+          if (fn.length > 1) {
+            try {
               return fn(span, (err) => closeSpanWithError(span, err))
+            } catch (err: any) {
+              closeSpanWithError(span, err)
+              throw err
+            } finally {
+              onCleanup()
             }
+          }
 
+          try {
             const result = fn(span)
-            if (isPromise(result)) {
+            if (isThenable(result)) {
               // If there's error make sure it throws
               return result
                 .then((res) => {
@@ -399,7 +417,7 @@ class NextTracerImpl implements NextTracer {
       args.length === 3 ? args : [args[0], {}, args[1]]
 
     if (
-      !NextVanillaSpanAllowlist.includes(name) &&
+      !NextVanillaSpanAllowlist.has(name) &&
       process.env.NEXT_OTEL_VERBOSE !== '1'
     ) {
       return fn
@@ -452,6 +470,14 @@ class NextTracerImpl implements NextTracer {
   public getRootSpanAttributes() {
     const spanId = context.active().getValue(rootSpanIdKey) as number
     return rootSpanAttributesStore.get(spanId)
+  }
+
+  public setRootSpanAttribute(key: AttributeNames, value: AttributeValue) {
+    const spanId = context.active().getValue(rootSpanIdKey) as number
+    const attributes = rootSpanAttributesStore.get(spanId)
+    if (attributes && !attributes.has(key)) {
+      attributes.set(key, value)
+    }
   }
 }
 

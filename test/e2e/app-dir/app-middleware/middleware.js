@@ -8,7 +8,7 @@ import { headers as nextHeaders, draftMode } from 'next/headers'
 export async function middleware(request) {
   const headersFromRequest = new Headers(request.headers)
   // It should be able to import and use `headers` inside middleware
-  const headersFromNext = nextHeaders()
+  const headersFromNext = await nextHeaders()
   headersFromRequest.set('x-from-middleware', 'hello-from-middleware')
 
   // make sure headers() from `next/headers` is behaving properly
@@ -21,7 +21,7 @@ export async function middleware(request) {
   }
 
   if (request.nextUrl.searchParams.get('draft')) {
-    draftMode().enable()
+    ;(await draftMode()).enable()
   }
 
   const removeHeaders = request.nextUrl.searchParams.get('remove-headers')
@@ -67,6 +67,26 @@ export async function middleware(request) {
     res.cookies.delete('rsc-cookie-value-1')
 
     return res
+  }
+
+  if (request.nextUrl.pathname === '/preloads') {
+    const res = NextResponse.next({
+      headers: {
+        link: '<https://example.com/page>; rel="alternate"; hreflang="en"',
+      },
+    })
+    return res
+  }
+
+  if (request.nextUrl.pathname === '/test-location-header') {
+    return NextResponse.json(
+      { foo: 'bar' },
+      {
+        headers: {
+          location: 'https://next-data-api-endpoint.vercel.app/api/random',
+        },
+      }
+    )
   }
 
   return NextResponse.next({

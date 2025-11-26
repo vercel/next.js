@@ -11,7 +11,7 @@
 - *0* ???*1*["variable"]
   ⚠️  unknown object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 7 member call = ???*0*["stringify"](
     {
@@ -25,13 +25,13 @@
 - *1* ???*2*["variable"]
   ⚠️  unknown object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *3* ((???*4* | "true") === "true")
   ⚠️  nested operation
 - *4* ???*5*["variable"]
   ⚠️  unknown object
 - *5* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 8 unreachable = ???*0*
 - *0* unreachable

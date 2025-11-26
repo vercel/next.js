@@ -1,18 +1,19 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
+    ident::AssetIdent,
     resolve::{
+        ResolveResult,
         options::{ImportMapResult, ImportMappingReplacement, ReplacedImportMapping},
         parse::Request,
         pattern::Pattern,
-        ResolveResult,
     },
     virtual_source::VirtualSource,
 };
-use turbopack_node::execution_context::ExecutionContext;
+use turbopack_ecmascript::runtime_functions::TURBOPACK_EXPORT_NAMESPACE;
 
 /// Intercepts requests for the given request to `unsupported` error messages
 /// by returning a VirtualSource proxies to any import request to raise a
@@ -20,22 +21,13 @@ use turbopack_node::execution_context::ExecutionContext;
 ///
 /// This can be used by import map alias, refer `next_import_map` for the setup.
 #[turbo_tasks::value(shared)]
-pub struct NextEdgeUnsupportedModuleReplacer {
-    project_path: Vc<FileSystemPath>,
-    execution_context: Vc<ExecutionContext>,
-}
+pub struct NextEdgeUnsupportedModuleReplacer {}
 
 #[turbo_tasks::value_impl]
 impl NextEdgeUnsupportedModuleReplacer {
     #[turbo_tasks::function]
-    pub fn new(
-        project_path: Vc<FileSystemPath>,
-        execution_context: Vc<ExecutionContext>,
-    ) -> Vc<Self> {
-        Self::cell(NextEdgeUnsupportedModuleReplacer {
-            project_path,
-            execution_context,
-        })
+    pub fn new() -> Vc<Self> {
+        NextEdgeUnsupportedModuleReplacer {}.cell()
     }
 }
 
@@ -43,31 +35,45 @@ impl NextEdgeUnsupportedModuleReplacer {
 impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
     #[turbo_tasks::function]
     fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
-        ReplacedImportMapping::Ignore.into()
+        ReplacedImportMapping::Ignore.cell()
     }
 
     #[turbo_tasks::function]
     async fn result(
         &self,
-        root_path: Vc<FileSystemPath>,
+        lookup_path: FileSystemPath,
         request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
         let request = &*request.await?;
         if let Request::Module { module, .. } = request {
-            // packages/next/src/server/web/globals.ts augments global with
-            // `__import_unsupported` and necessary functions.
-            let code = formatdoc! {
-              r#"
-              __turbopack_export_namespace__(__import_unsupported(`{module}`));
-              "#
-            };
-            let content = AssetContent::file(File::from(code).into());
-            let source = VirtualSource::new(root_path, content);
-            return Ok(
-                ImportMapResult::Result(ResolveResult::source(Vc::upcast(source)).into()).into(),
-            );
-        };
-
-        Ok(ImportMapResult::NoEntry.into())
+            // Call out to separate `unsupported_module_source` to only have a single Source cell
+            // for requests with different subpaths: `fs` and `fs/promises`.
+            let source =
+                unsupported_module_source(lookup_path.root().owned().await?, module.clone())
+                    .to_resolved()
+                    .await?;
+            Ok(ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(source))).cell())
+        } else {
+            Ok(ImportMapResult::NoEntry.cell())
+        }
     }
+}
+
+#[turbo_tasks::function]
+fn unsupported_module_source(root_path: FileSystemPath, module: Pattern) -> Vc<VirtualSource> {
+    // packages/next/src/server/web/globals.ts augments global with
+    // `__import_unsupported` and necessary functions.
+    let code = formatdoc! {
+        r#"
+        {TURBOPACK_EXPORT_NAMESPACE}(__import_unsupported(`{module}`));
+        "#,
+        module = module.as_constant_string().map(ToString::to_string).unwrap_or_else(|| module.describe_as_string()),
+    };
+    let content = AssetContent::file(File::from(code).into());
+    VirtualSource::new_with_ident(
+        AssetIdent::from_path(root_path).with_modifier(
+            format!("unsupported edge import {}", module.describe_as_string()).into(),
+        ),
+        content,
+    )
 }

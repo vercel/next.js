@@ -148,7 +148,6 @@
             ),
         ],
         span: 18..34,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -158,7 +157,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "a",
                         ),
                     ),
@@ -197,6 +196,7 @@
         ],
         span: 11..35,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Member(
@@ -273,7 +273,6 @@
             ),
         ],
         span: 57..81,
-        in_try: false,
     },
     Member {
         obj: FreeVar(
@@ -346,12 +345,9 @@
             ),
         ],
         span: 57..68,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "process",
-        ),
+        var: "process",
         ast_path: [
             Program(
                 Module,
@@ -418,7 +414,6 @@
             ),
         ],
         span: 57..64,
-        in_try: false,
     },
     Conditional {
         condition: Binary(
@@ -449,7 +444,7 @@
             StrictEqual,
             Constant(
                 Str(
-                    Word(
+                    Atom(
                         "edge",
                     ),
                 ),
@@ -600,7 +595,6 @@
             ),
         ],
         span: 57..196,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -638,7 +632,7 @@
                         StrictEqual,
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "edge",
                                 ),
                             ),
@@ -646,14 +640,14 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "next/dist/compiled/@vercel/og/index.edge.js",
                             ),
                         ),
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "next/dist/compiled/@vercel/og/index.node.js",
                             ),
                         ),
@@ -693,6 +687,7 @@
         ],
         span: 47..198,
         in_try: false,
+        new: false,
     },
     Conditional {
         condition: Constant(
@@ -709,7 +704,7 @@
                             Value(
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "a",
                                         ),
                                     ),
@@ -760,6 +755,7 @@
                         ],
                         span: 226..237,
                         in_try: false,
+                        new: false,
                     },
                 ],
                 range: Exact(
@@ -794,7 +790,7 @@
                             Value(
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "b",
                                         ),
                                     ),
@@ -845,6 +841,7 @@
                         ],
                         span: 254..265,
                         in_try: false,
+                        new: false,
                     },
                 ],
                 range: Exact(
@@ -890,7 +887,6 @@
             ),
         ],
         span: 208..268,
-        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -941,7 +937,6 @@
                             ),
                         ],
                         span: 354..355,
-                        in_try: false,
                     },
                 ],
                 range: Exact(
@@ -1010,7 +1005,6 @@
                             ),
                         ],
                         span: 368..369,
-                        in_try: false,
                     },
                 ],
                 range: Exact(
@@ -1056,7 +1050,6 @@
             ),
         ],
         span: 340..372,
-        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -1230,7 +1223,6 @@
             ),
         ],
         span: 399..434,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -1240,7 +1232,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "c",
                         ),
                     ),
@@ -1288,6 +1280,7 @@
         ],
         span: 438..449,
         in_try: false,
+        new: false,
     },
     ImportedBinding {
         esm_reference_index: 4,
@@ -1334,6 +1327,5 @@
             ),
         ],
         span: 453..454,
-        in_try: false,
     },
 ]

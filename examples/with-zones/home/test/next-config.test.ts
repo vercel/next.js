@@ -60,5 +60,11 @@ describe("next.config.js test", () => {
         `${BLOG_URL}/blog/post/1`,
       );
     });
+
+    it("/blog static resources are rewritten to child zone", () => {
+      expect(
+        getRewrittenUrl("/blog-static/_next/static/chunks/chunk.css"),
+      ).toEqual(`${BLOG_URL}/blog-static/_next/static/chunks/chunk.css`);
+    });
   });
 });

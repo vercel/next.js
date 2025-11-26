@@ -1,6 +1,6 @@
 use std::{error::Error, str::FromStr};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 
 /// Reads an environment variable.
 pub fn read_env<T>(name: &str, default: T) -> Result<T>
@@ -17,8 +17,8 @@ where
     }
 }
 
-/// Reads an boolean-like environment variable, where any value but "0", "no",
-/// or "false" is are considered true.
+/// Reads a boolean-like environment variable, where any value but "0", "no",
+/// or "false" is considered true.
 pub fn read_env_bool(name: &str) -> bool {
     let config = std::env::var(name).ok();
     !matches!(

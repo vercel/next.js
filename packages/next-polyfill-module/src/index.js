@@ -1,4 +1,4 @@
-/* eslint-disable no-extend-native, no-sequences */
+/* eslint-disable no-extend-native */
 
 // Contains polyfills for methods missing after browser version(s):
 // Edge 16, Firefox 60, Chrome 61, Safari 10.1
@@ -159,5 +159,25 @@ if (!Object.hasOwn) {
       throw new TypeError('Cannot convert undefined or null to object')
     }
     return Object.prototype.hasOwnProperty.call(Object(object), property)
+  }
+}
+
+/**
+ * Available in:
+ * Edge: 120
+ * Firefox: 115
+ * Chrome: 120
+ * Safari: 17.0
+ *
+ * https://caniuse.com/mdn-api_url_canparse_static
+ */
+// Modified from https://github.com/zloirock/core-js/blob/master/packages/core-js/modules/web.url.can-parse.js
+if (!('canParse' in URL)) {
+  URL.canParse = function (url, base) {
+    try {
+      return !!new URL(url, base)
+    } catch {
+      return false
+    }
   }
 }

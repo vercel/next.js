@@ -1,7 +1,8 @@
-export default function PhotoModal({
-  params: { id: photoId },
+export default async function PhotoModal({
+  params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id: photoId } = await params
   return <div>Intercepted Photo ID: {photoId}</div>
 }

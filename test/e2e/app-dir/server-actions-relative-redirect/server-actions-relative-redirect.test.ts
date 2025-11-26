@@ -1,6 +1,5 @@
-// @ts-check
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('server-actions-relative-redirect', () => {
   const { next } = nextTestSetup({
@@ -11,25 +10,57 @@ describe('server-actions-relative-redirect', () => {
     const browser = await next.browser('/')
     await browser.waitForElementByCss('#relative-redirect').click()
 
-    await check(async () => {
+    await retry(async () => {
       expect(await browser.waitForElementByCss('#page-loaded').text()).toBe(
         'hello nested page'
       )
-
-      return 'success'
-    }, 'success')
+    })
   })
 
   it('should work with absolute redirect', async () => {
     const browser = await next.browser('/')
     await browser.waitForElementByCss('#absolute-redirect').click()
 
-    await check(async () => {
+    await retry(async () => {
       expect(await browser.waitForElementByCss('#page-loaded').text()).toBe(
         'hello nested page'
       )
+    })
+  })
 
-      return 'success'
-    }, 'success')
+  it('should work with relative redirect from subdir', async () => {
+    const browser = await next.browser('/subdir')
+    await browser.waitForElementByCss('#relative-subdir-redirect').click()
+
+    await retry(async () => {
+      expect(await browser.waitForElementByCss('#page-loaded').text()).toBe(
+        'hello subdir nested page'
+      )
+    })
+  })
+
+  it('should work with absolute redirect from subdir', async () => {
+    const browser = await next.browser('/subdir')
+    await browser.waitForElementByCss('#absolute-subdir-redirect').click()
+
+    await retry(async () => {
+      expect(await browser.waitForElementByCss('#page-loaded').text()).toBe(
+        'hello nested page'
+      )
+    })
+  })
+
+  it('should work with multi-level relative redirect from subdir', async () => {
+    const browser = await next.browser('/subdir')
+    await browser.eval('window.notReloaded = true')
+    await browser.waitForElementByCss('#multi-relative-subdir-redirect').click()
+
+    await retry(async () => {
+      expect(await browser.waitForElementByCss('#page-loaded').text()).toBe(
+        'hello nested page'
+      )
+    })
+
+    expect(await browser.eval('window.notReloaded')).toBe(true)
   })
 })

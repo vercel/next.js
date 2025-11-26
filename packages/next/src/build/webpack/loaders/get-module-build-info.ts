@@ -1,6 +1,6 @@
 import type {
-  MiddlewareConfig,
-  MiddlewareMatcher,
+  ProxyConfig,
+  ProxyMatcher,
   RSCModuleType,
 } from '../../analysis/get-page-static-info'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
@@ -28,7 +28,7 @@ export function getModuleBuildInfo(webpackModule: webpack.Module) {
 
 export interface RSCMeta {
   type: RSCModuleType
-  actions?: string[]
+  actionIds?: Record<string, string>
   clientRefs?: string[]
   clientEntryType?: 'cjs' | 'auto'
   isClientRef?: boolean
@@ -39,7 +39,7 @@ export interface RouteMeta {
   page: string
   absolutePagePath: string
   preferredRegion: string | string[] | undefined
-  middlewareConfig: MiddlewareConfig
+  middlewareConfig: ProxyConfig
   // references to other modules that this route needs
   // e.g. related routes, not-found routes, etc
   relatedModules?: string[]
@@ -47,7 +47,7 @@ export interface RouteMeta {
 
 export interface EdgeMiddlewareMeta {
   page: string
-  matchers?: MiddlewareMatcher[]
+  matchers?: ProxyMatcher[]
 }
 
 export interface EdgeSSRMeta {

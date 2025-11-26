@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_env::{DotenvProcessEnv, EnvMap, ProcessEnv};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{IssueExt, StyledString};
@@ -8,22 +8,27 @@ use crate::ProcessEnvIssue;
 
 #[turbo_tasks::value]
 pub struct TryDotenvProcessEnv {
-    dotenv: Vc<DotenvProcessEnv>,
-    prior: Vc<Box<dyn ProcessEnv>>,
-    path: Vc<FileSystemPath>,
+    dotenv: ResolvedVc<DotenvProcessEnv>,
+    prior: ResolvedVc<Box<dyn ProcessEnv>>,
+    path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl TryDotenvProcessEnv {
     #[turbo_tasks::function]
-    pub fn new(prior: Vc<Box<dyn ProcessEnv>>, path: Vc<FileSystemPath>) -> Vc<Self> {
-        let dotenv = DotenvProcessEnv::new(Some(prior), path);
-        TryDotenvProcessEnv {
+    pub async fn new(
+        prior: ResolvedVc<Box<dyn ProcessEnv>>,
+        path: FileSystemPath,
+    ) -> Result<Vc<Self>> {
+        let dotenv = DotenvProcessEnv::new(Some(*prior), path.clone())
+            .to_resolved()
+            .await?;
+        Ok(TryDotenvProcessEnv {
             dotenv,
             prior,
             path,
         }
-        .cell()
+        .cell())
     }
 }
 
@@ -46,13 +51,14 @@ impl ProcessEnv for TryDotenvProcessEnv {
                 // If parsing the dotenv file fails (but getting the prior value didn't), then
                 // we want to emit an Issue and fall back to the prior's read.
                 ProcessEnvIssue {
-                    path: self.path,
+                    path: self.path.clone(),
                     // read_all_with_prior will wrap a current error with a context containing the
                     // failing file, which we don't really care about (we report the filepath as the
                     // Issue context, not the description). So extract the real error.
-                    description: StyledString::Text(e.root_cause().to_string().into()).cell(),
+                    description: StyledString::Text(e.root_cause().to_string().into())
+                        .resolved_cell(),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
                 Ok(prior)
             }

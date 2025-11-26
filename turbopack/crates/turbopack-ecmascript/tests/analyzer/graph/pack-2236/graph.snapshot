@@ -14,7 +14,7 @@
                 StrictEqual,
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "undefined",
                         ),
                     ),
@@ -28,7 +28,7 @@
                 [
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "ioredis",
                             ),
                         ),

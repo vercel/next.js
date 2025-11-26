@@ -11,7 +11,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
   public request: Request
   public headers: IncomingHttpHeaders
-  public fetchMetrics?: FetchMetrics
+  public fetchMetrics: FetchMetrics | undefined
 
   constructor(request: NextRequestHint) {
     const url = new URL(request.url)
@@ -44,10 +44,7 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
   public statusCode: number | undefined
   public statusMessage: string | undefined
 
-  constructor(
-    public transformStream = new TransformStream(),
-    private trackOnClose = false
-  ) {
+  constructor(public transformStream = new TransformStream()) {
     super(transformStream.writable)
   }
 
@@ -113,10 +110,11 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
 
     let bodyInit: BodyInit = body
 
+    // if the response is streaming, onClose() can still be called after this point.
     const canAddListenersLater = typeof bodyInit !== 'string'
-    const shouldTrackBody =
-      this.trackOnClose &&
-      (canAddListenersLater ? true : this.closeController.listeners > 0)
+    const shouldTrackBody = canAddListenersLater
+      ? true
+      : this.closeController.listeners > 0
 
     if (shouldTrackBody) {
       bodyInit = trackBodyConsumed(body, () => {
@@ -132,11 +130,6 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
   }
 
   public onClose(callback: () => void) {
-    if (!this.trackOnClose) {
-      throw new InvariantError(
-        'Cannot call onClose on a WebNextResponse initialized with `trackOnClose = false`'
-      )
-    }
     if (this.closeController.isClosed) {
       throw new InvariantError(
         'Cannot call onClose on a WebNextResponse that is already closed'

@@ -1,10 +1,21 @@
 import type { NodejsRequestData, FetchEventResult, RequestData } from '../types'
 import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
-import { getModuleContext, requestStore } from './context'
+import {
+  getModuleContext,
+  requestStore,
+  edgeSandboxNextRequestContext,
+} from './context'
 import { requestToBodyStream } from '../../body-streams'
-import { NEXT_RSC_UNION_QUERY } from '../../../client/components/app-router-headers'
 import type { ServerComponentsHmrCache } from '../../response-cache'
+import {
+  getBuiltinRequestContext,
+  type BuiltinRequestContextValue,
+} from '../../after/builtin-request-context'
+import {
+  RouterServerContextSymbol,
+  routerServerGlobal,
+} from '../../lib/router-utils/router-server-context'
 
 export const ErrorSource = Symbol('SandboxError')
 
@@ -36,7 +47,7 @@ type RunnerFn = (params: RunnerFnParams) => Promise<FetchEventResult>
 function withTaggedErrors(fn: RunnerFn): RunnerFn {
   if (process.env.NODE_ENV === 'development') {
     const { getServerError } =
-      require('../../../client/components/react-dev-overlay/server/middleware') as typeof import('../../../client/components/react-dev-overlay/server/middleware')
+      require('../../dev/node-stack-frames') as typeof import('../../dev/node-stack-frames')
 
     return (params) =>
       fn(params)
@@ -69,8 +80,15 @@ export async function getRuntimeContext(
   })
 
   if (params.incrementalCache) {
+    runtime.context.globalThis.__incrementalCacheShared = true
     runtime.context.globalThis.__incrementalCache = params.incrementalCache
   }
+
+  // expose router server context for access to dev handlers like
+  // logErrorWithOriginalStack
+  ;(runtime.context.globalThis as any as typeof routerServerGlobal)[
+    RouterServerContextSymbol
+  ] = routerServerGlobal[RouterServerContextSymbol]
 
   if (params.serverComponentsHmrCache) {
     runtime.context.globalThis.__serverComponentsHmrCache =
@@ -85,25 +103,6 @@ export async function getRuntimeContext(
 
 export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
   const runtime = await getRuntimeContext(params)
-  const subreq = params.request.headers[`x-middleware-subrequest`]
-  const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
-
-  const MAX_RECURSION_DEPTH = 5
-  const depth = subrequests.reduce(
-    (acc, curr) => (curr === params.name ? acc + 1 : acc),
-    0
-  )
-
-  if (depth >= MAX_RECURSION_DEPTH) {
-    return {
-      waitUntil: Promise.resolve(),
-      response: new runtime.context.Response(null, {
-        headers: {
-          'x-middleware-next': '1',
-        },
-      }),
-    }
-  }
 
   const edgeFunction: (args: {
     request: RequestData
@@ -117,7 +116,6 @@ export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
 
   const KUint8Array = runtime.evaluate('Uint8Array')
   const urlInstance = new URL(params.request.url)
-  urlInstance.searchParams.delete(NEXT_RSC_UNION_QUERY)
 
   params.request.url = urlInstance.toString()
 
@@ -128,18 +126,30 @@ export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
 
   try {
     let result: FetchEventResult | undefined = undefined
-    await requestStore.run({ headers }, async () => {
-      result = await edgeFunction({
-        request: {
-          ...params.request,
-          body:
-            cloned && requestToBodyStream(runtime.context, KUint8Array, cloned),
-        },
+    const builtinRequestCtx: BuiltinRequestContextValue = {
+      ...getBuiltinRequestContext(),
+      // FIXME(after):
+      // arguably, this is an abuse of "@next/request-context" --
+      // it'd make more sense to simply forward its existing value into the sandbox (in `createModuleContext`)
+      // but here we're using it to just pass in `waitUntil` regardless if we were running in this context or not.
+      waitUntil: params.request.waitUntil,
+    }
+    await edgeSandboxNextRequestContext.run(builtinRequestCtx, () =>
+      requestStore.run({ headers }, async () => {
+        result = await edgeFunction({
+          request: {
+            ...params.request,
+            body:
+              cloned &&
+              requestToBodyStream(runtime.context, KUint8Array, cloned),
+          },
+        })
+        for (const headerName of FORBIDDEN_HEADERS) {
+          result.response.headers.delete(headerName)
+        }
       })
-      for (const headerName of FORBIDDEN_HEADERS) {
-        result.response.headers.delete(headerName)
-      }
-    })
+    )
+
     if (!result) throw new Error('Edge function did not return a response')
     return result
   } finally {

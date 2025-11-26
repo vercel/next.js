@@ -3,46 +3,44 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::{
-    atoms::JsWord,
+    atoms::{Atom, atom},
     base::SwcComments,
-    common::{chain, collections::AHashMap, comments::Comments, util::take::Take, Mark, SourceMap},
+    common::{Mark, SourceMap, comments::Comments},
     ecma::{
-        ast::{Module, ModuleItem, Program, Script},
+        ast::{ExprStmt, ModuleItem, Pass, Program, Stmt},
         preset_env::{self, Targets},
         transforms::{
-            base::{feature::FeatureFlag, helpers::inject_helpers, Assumptions},
-            optimization::inline_globals2,
+            base::{
+                assumptions::Assumptions,
+                helpers::{HELPERS, HelperData, Helpers},
+            },
             react::react,
         },
-        visit::{FoldWith, VisitMutWith},
+        utils::IsDirective,
     },
     quote,
 };
-use turbo_tasks::{RcStr, ValueDefault, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::{
-    environment::Environment,
-    issue::{Issue, IssueSeverity, IssueStage, StyledString},
-};
+use turbopack_core::{environment::Environment, source::Source};
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+use crate::runtime_functions::{TURBOPACK_MODULE, TURBOPACK_REFRESH};
+
+#[turbo_tasks::value]
 #[derive(Debug, Clone, Hash)]
 pub enum EcmascriptInputTransform {
-    CommonJs,
-    Plugin(Vc<TransformPlugin>),
-    PresetEnv(Vc<Environment>),
+    Plugin(ResolvedVc<TransformPlugin>),
+    PresetEnv(ResolvedVc<Environment>),
     React {
         #[serde(default)]
         development: bool,
         #[serde(default)]
         refresh: bool,
         // swc.jsc.transform.react.importSource
-        import_source: Vc<Option<RcStr>>,
+        import_source: ResolvedVc<Option<RcStr>>,
         // swc.jsc.transform.react.runtime,
-        runtime: Vc<Option<RcStr>>,
-    },
-    GlobalTypeofs {
-        window_value: String,
+        runtime: ResolvedVc<Option<RcStr>>,
     },
     // These options are subset of swc_core::ecma::transforms::typescript::Config, but
     // it doesn't derive `Copy` so repeating values in here
@@ -71,26 +69,9 @@ pub trait CustomTransformer: Debug {
 
 /// A wrapper around a TransformPlugin instance, allowing it to operate with
 /// the turbo_task caching requirements.
-#[turbo_tasks::value(
-    transparent,
-    serialization = "none",
-    eq = "manual",
-    into = "new",
-    cell = "new"
-)]
+#[turbo_tasks::value(transparent, serialization = "none", eq = "manual", cell = "new")]
 #[derive(Debug)]
 pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionTransformPlugin(Option<Vc<TransformPlugin>>);
-
-#[turbo_tasks::value_impl]
-impl ValueDefault for OptionTransformPlugin {
-    #[turbo_tasks::function]
-    fn value_default() -> Vc<Self> {
-        Vc::cell(None)
-    }
-}
 
 #[async_trait]
 impl CustomTransformer for TransformPlugin {
@@ -99,7 +80,7 @@ impl CustomTransformer for TransformPlugin {
     }
 }
 
-#[turbo_tasks::value(transparent, serialization = "auto_for_input")]
+#[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone, Hash)]
 pub struct EcmascriptInputTransforms(Vec<EcmascriptInputTransform>);
 
@@ -112,8 +93,8 @@ impl EcmascriptInputTransforms {
 
     #[turbo_tasks::function]
     pub async fn extend(self: Vc<Self>, other: Vc<EcmascriptInputTransforms>) -> Result<Vc<Self>> {
-        let mut transforms = self.await?.clone_value();
-        transforms.extend(other.await?.clone_value());
+        let mut transforms = self.owned().await?;
+        transforms.extend(other.owned().await?);
         Ok(Vc::cell(transforms))
     }
 }
@@ -126,11 +107,18 @@ pub struct TransformContext<'a> {
     pub file_path_str: &'a str,
     pub file_name_str: &'a str,
     pub file_name_hash: u128,
-    pub file_path: Vc<FileSystemPath>,
+    pub query_str: RcStr,
+    pub file_path: FileSystemPath,
+    pub source: ResolvedVc<Box<dyn Source>>,
 }
 
 impl EcmascriptInputTransform {
-    pub async fn apply(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+    pub async fn apply(
+        &self,
+        program: &mut Program,
+        ctx: &TransformContext<'_>,
+        helpers: HelperData,
+    ) -> Result<HelperData> {
         let &TransformContext {
             comments,
             source_map,
@@ -138,18 +126,8 @@ impl EcmascriptInputTransform {
             unresolved_mark,
             ..
         } = ctx;
-        match self {
-            EcmascriptInputTransform::GlobalTypeofs { window_value } => {
-                let mut typeofs: AHashMap<JsWord, JsWord> = Default::default();
-                typeofs.insert("window".into(), JsWord::from(&**window_value));
 
-                program.visit_mut_with(&mut inline_globals2(
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    Arc::new(typeofs),
-                ));
-            }
+        Ok(match self {
             EcmascriptInputTransform::React {
                 development,
                 refresh,
@@ -165,7 +143,7 @@ impl EcmascriptInputTransform {
                             return Err(anyhow::anyhow!(
                                 "Invalid value for swc.jsc.transform.react.runtime: {}",
                                 runtime
-                            ))
+                            ));
                         }
                     }
                 } else {
@@ -175,11 +153,12 @@ impl EcmascriptInputTransform {
                 let config = Options {
                     runtime: Some(runtime),
                     development: Some(*development),
-                    import_source: import_source.await?.as_deref().map(ToString::to_string),
+                    import_source: import_source.await?.as_deref().map(Atom::from),
                     refresh: if *refresh {
+                        debug_assert_eq!(TURBOPACK_REFRESH.full, "__turbopack_context__.k");
                         Some(swc_core::ecma::transforms::react::RefreshOptions {
-                            refresh_reg: "__turbopack_refresh__.register".to_string(),
-                            refresh_sig: "__turbopack_refresh__.signature".to_string(),
+                            refresh_reg: atom!("__turbopack_context__.k.register"),
+                            refresh_sig: atom!("__turbopack_context__.k.signature"),
                             ..Default::default()
                         })
                     } else {
@@ -190,21 +169,27 @@ impl EcmascriptInputTransform {
 
                 // Explicit type annotation to ensure that we don't duplicate transforms in the
                 // final binary
-                program.visit_mut_with(&mut react::<&dyn Comments>(
-                    source_map.clone(),
-                    Some(&comments),
-                    config,
-                    top_level_mark,
-                    unresolved_mark,
-                ));
+                let helpers = apply_transform(
+                    program,
+                    helpers,
+                    react::<&dyn Comments>(
+                        source_map.clone(),
+                        Some(&comments),
+                        config,
+                        top_level_mark,
+                        unresolved_mark,
+                    ),
+                );
 
                 if *refresh {
+                    debug_assert_eq!(TURBOPACK_REFRESH.full, "__turbopack_context__.k");
+                    debug_assert_eq!(TURBOPACK_MODULE.full, "__turbopack_context__.m");
                     let stmt = quote!(
-                        // AMP / No-JS mode does not inject these helpers
-                        "\nif (typeof globalThis.$RefreshHelpers$ === 'object' && \
+                        // No-JS mode does not inject these helpers
+                        "if (typeof globalThis.$RefreshHelpers$ === 'object' && \
                          globalThis.$RefreshHelpers !== null) { \
-                         __turbopack_refresh__.registerExports(module, \
-                         globalThis.$RefreshHelpers$); }\n" as Stmt
+                         __turbopack_context__.k.registerExports(__turbopack_context__.m, \
+                         globalThis.$RefreshHelpers$); }" as Stmt
                     );
 
                     match program {
@@ -216,62 +201,31 @@ impl EcmascriptInputTransform {
                         }
                     }
                 }
-            }
-            EcmascriptInputTransform::CommonJs => {
-                // Explicit type annotation to ensure that we don't duplicate transforms in the
-                // final binary
-                program.visit_mut_with(&mut swc_core::ecma::transforms::module::common_js::<
-                    &dyn Comments,
-                >(
-                    unresolved_mark,
-                    swc_core::ecma::transforms::module::util::Config {
-                        allow_top_level_this: true,
-                        import_interop: Some(
-                            swc_core::ecma::transforms::module::util::ImportInterop::Swc,
-                        ),
-                        ..Default::default()
-                    },
-                    swc_core::ecma::transforms::base::feature::FeatureFlag::all(),
-                    Some(&comments),
-                ));
+
+                helpers
             }
             EcmascriptInputTransform::PresetEnv(env) => {
                 let versions = env.runtime_versions().await?;
-                let config = swc_core::ecma::preset_env::Config {
-                    targets: Some(Targets::Versions(*versions)),
-                    mode: None, // Don't insert core-js polyfills
-                    ..Default::default()
-                };
-
-                let module_program = std::mem::replace(program, Program::Module(Module::dummy()));
-
-                let module_program = if let Program::Script(Script {
-                    span,
-                    mut body,
-                    shebang,
-                }) = module_program
-                {
-                    Program::Module(Module {
-                        span,
-                        body: body.drain(..).map(ModuleItem::Stmt).collect(),
-                        shebang,
-                    })
-                } else {
-                    module_program
-                };
+                let config = swc_core::ecma::preset_env::EnvConfig::from(
+                    swc_core::ecma::preset_env::Config {
+                        targets: Some(Targets::Versions(*versions)),
+                        mode: None, // Don't insert core-js polyfills
+                        ..Default::default()
+                    },
+                );
 
                 // Explicit type annotation to ensure that we don't duplicate transforms in the
                 // final binary
-                *program = module_program.fold_with(&mut chain!(
-                    preset_env::preset_env::<&'_ dyn Comments>(
-                        top_level_mark,
+                apply_transform(
+                    program,
+                    helpers,
+                    preset_env::transform_from_env::<&'_ dyn Comments>(
+                        unresolved_mark,
                         Some(&comments),
                         config,
                         Assumptions::default(),
-                        &mut FeatureFlag::empty(),
                     ),
-                    inject_helpers(unresolved_mark),
-                ));
+                )
             }
             EcmascriptInputTransform::TypeScript {
                 // TODO(WEB-1213)
@@ -279,7 +233,11 @@ impl EcmascriptInputTransform {
             } => {
                 use swc_core::ecma::transforms::typescript::typescript;
                 let config = Default::default();
-                program.visit_mut_with(&mut typescript(config, unresolved_mark, top_level_mark));
+                apply_transform(
+                    program,
+                    helpers,
+                    typescript(config, unresolved_mark, top_level_mark),
+                )
             }
             EcmascriptInputTransform::Decorators {
                 is_legacy,
@@ -288,25 +246,30 @@ impl EcmascriptInputTransform {
                 // TODO(WEB-1213)
                 use_define_for_class_fields: _use_define_for_class_fields,
             } => {
-                use swc_core::ecma::transforms::proposal::decorators::{decorators, Config};
+                use swc_core::ecma::transforms::proposal::decorators::{Config, decorators};
                 let config = Config {
                     legacy: *is_legacy,
                     emit_metadata: *emit_decorators_metadata,
                     ..Default::default()
                 };
 
-                let p = std::mem::replace(program, Program::Module(Module::dummy()));
-                *program = p.fold_with(&mut chain!(
-                    decorators(config),
-                    inject_helpers(unresolved_mark)
-                ));
+                apply_transform(program, helpers, decorators(config))
             }
             EcmascriptInputTransform::Plugin(transform) => {
-                transform.await?.transform(program, ctx).await?
+                // We cannot pass helpers to plugins, so we return them as is
+                transform.await?.transform(program, ctx).await?;
+                helpers
             }
-        }
-        Ok(())
+        })
     }
+}
+
+fn apply_transform(program: &mut Program, helpers: HelperData, op: impl Pass) -> HelperData {
+    let helpers = Helpers::from_data(helpers);
+    HELPERS.set(&helpers, || {
+        program.mutate(op);
+    });
+    helpers.data()
 }
 
 pub fn remove_shebang(program: &mut Program) {
@@ -320,33 +283,47 @@ pub fn remove_shebang(program: &mut Program) {
     }
 }
 
-#[turbo_tasks::value(shared)]
-pub struct UnsupportedServerActionIssue {
-    pub file_path: Vc<FileSystemPath>,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for UnsupportedServerActionIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Error.into()
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(
-            "Server actions (\"use server\") are not yet supported in Turbopack".into(),
-        )
-        .cell()
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path
-    }
-
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+pub fn remove_directives(program: &mut Program) {
+    match program {
+        Program::Module(module) => {
+            let directive_count = module
+                .body
+                .iter()
+                .take_while(|i| match i {
+                    ModuleItem::Stmt(stmt) => stmt.directive_continue(),
+                    ModuleItem::ModuleDecl(_) => false,
+                })
+                .take_while(|i| match i {
+                    ModuleItem::Stmt(stmt) => match stmt {
+                        Stmt::Expr(ExprStmt { expr, .. }) => expr
+                            .as_lit()
+                            .and_then(|lit| lit.as_str())
+                            .and_then(|str| str.raw.as_ref())
+                            .is_some_and(|raw| {
+                                raw.starts_with("\"use ") || raw.starts_with("'use ")
+                            }),
+                        _ => false,
+                    },
+                    ModuleItem::ModuleDecl(_) => false,
+                })
+                .count();
+            module.body.drain(0..directive_count);
+        }
+        Program::Script(script) => {
+            let directive_count = script
+                .body
+                .iter()
+                .take_while(|stmt| stmt.directive_continue())
+                .take_while(|stmt| match stmt {
+                    Stmt::Expr(ExprStmt { expr, .. }) => expr
+                        .as_lit()
+                        .and_then(|lit| lit.as_str())
+                        .and_then(|str| str.raw.as_ref())
+                        .is_some_and(|raw| raw.starts_with("\"use ") || raw.starts_with("'use ")),
+                    _ => false,
+                })
+                .count();
+            script.body.drain(0..directive_count);
+        }
     }
 }

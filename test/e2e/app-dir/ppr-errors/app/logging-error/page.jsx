@@ -11,10 +11,10 @@ export default async function Page() {
 
 async function Foobar() {
   try {
-    cookies()
+    await cookies()
   } catch (err) {
     console.log('User land logged error: ' + err.message)
   }
-  cookies() // still postpones so doesn't fail build
+  await cookies() // still postpones so doesn't fail build
   return null
 }

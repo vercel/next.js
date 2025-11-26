@@ -1,34 +1,30 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::rcstr;
+use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
-    ident::AssetIdent,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     source::Source,
 };
 
 use crate::source::WebAssemblySource;
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("wasm".into())
-}
-
 /// Emits the [WebAssemblySource] at a chunk path determined by the
 /// [ChunkingContext].
 #[turbo_tasks::value]
 pub(crate) struct WebAssemblyAsset {
-    source: Vc<WebAssemblySource>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    source: ResolvedVc<WebAssemblySource>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
 impl WebAssemblyAsset {
     #[turbo_tasks::function]
     pub(crate) fn new(
-        source: Vc<WebAssemblySource>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        source: ResolvedVc<WebAssemblySource>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Self> {
         Self::cell(WebAssemblyAsset {
             source,
@@ -38,14 +34,17 @@ impl WebAssemblyAsset {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for WebAssemblyAsset {}
+
+#[turbo_tasks::value_impl]
 impl OutputAsset for WebAssemblyAsset {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let ident = self.source.ident().with_modifier(modifier());
-
-        let asset_path = self.chunking_context.chunk_path(ident, ".wasm".into());
-
-        Ok(AssetIdent::from_path(asset_path))
+    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        let ident = this.source.ident().with_modifier(rcstr!("wasm"));
+        Ok(this
+            .chunking_context
+            .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".wasm")))
     }
 }
 

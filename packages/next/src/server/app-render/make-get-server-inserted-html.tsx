@@ -1,23 +1,16 @@
+/* eslint-disable @next/internal/no-ambiguous-jsx -- whole module is used in React Client */
 import React, { type JSX } from 'react'
-import { isNotFoundError } from '../../client/components/not-found'
+import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback/http-access-fallback'
 import {
   getURLFromRedirectError,
-  isRedirectError,
   getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
-import { renderToReadableStream } from 'react-dom/server.edge'
+import { isRedirectError } from '../../client/components/redirect-error'
+import { renderToReadableStream } from 'react-dom/server'
 import { streamToString } from '../stream-utils/node-web-streams-helper'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import type { ClientTraceDataEntry } from '../lib/trace/tracer'
-
-export function getTracedMetadata(
-  traceData: ClientTraceDataEntry[],
-  clientTraceMetadata: string[] | undefined
-): ClientTraceDataEntry[] | undefined {
-  if (!clientTraceMetadata) return undefined
-  return traceData.filter(({ key }) => clientTraceMetadata.includes(key))
-}
 
 export function makeGetServerInsertedHTML({
   polyfills,
@@ -33,12 +26,14 @@ export function makeGetServerInsertedHTML({
   basePath: string
 }) {
   let flushedErrorMetaTagsUntilIndex = 0
-  // flag for static content that only needs to be flushed once
-  let hasFlushedInitially = false
 
-  const polyfillTags = polyfills.map((polyfill) => {
+  // These only need to be rendered once, they'll be set to empty arrays once flushed.
+  let polyfillTags = polyfills.map((polyfill) => {
     return <script key={polyfill.src} {...polyfill} />
   })
+  let traceMetaTags = (tracingMetadata || []).map(({ key, value }, index) => (
+    <meta key={`next-trace-data-${index}`} name={key} content={value} />
+  ))
 
   return async function getServerInsertedHTML() {
     // Loop through all the errors that have been captured but not yet
@@ -48,7 +43,7 @@ export function makeGetServerInsertedHTML({
       const error = serverCapturedErrors[flushedErrorMetaTagsUntilIndex]
       flushedErrorMetaTagsUntilIndex++
 
-      if (isNotFoundError(error)) {
+      if (isHTTPAccessFallbackError(error)) {
         errorMetaTags.push(
           <meta name="robots" content="noindex" key={error.digest} />,
           process.env.NODE_ENV === 'development' ? (
@@ -76,12 +71,6 @@ export function makeGetServerInsertedHTML({
       }
     }
 
-    const traceMetaTags = (tracingMetadata || []).map(
-      ({ key, value }, index) => (
-        <meta key={`next-trace-data-${index}`} name={key} content={value} />
-      )
-    )
-
     const serverInsertedHTML = renderServerInsertedHTML()
 
     // Skip React rendering if we know the content is empty.
@@ -97,12 +86,9 @@ export function makeGetServerInsertedHTML({
 
     const stream = await renderToReadableStream(
       <>
-        {
-          /* Insert the polyfills if they haven't been flushed yet. */
-          hasFlushedInitially ? null : polyfillTags
-        }
+        {polyfillTags}
         {serverInsertedHTML}
-        {hasFlushedInitially ? null : traceMetaTags}
+        {traceMetaTags}
         {errorMetaTags}
       </>,
       {
@@ -112,7 +98,9 @@ export function makeGetServerInsertedHTML({
       }
     )
 
-    hasFlushedInitially = true
+    // The polyfills and trace metadata have been flushed, so they don't need to be rendered again
+    polyfillTags = []
+    traceMetaTags = []
 
     // There's no need to wait for the stream to be ready
     // e.g. calling `await stream.allReady` because `streamToString` will

@@ -1,4 +1,5 @@
 import * as Log from '../build/output/log'
+import { hrtimeDurationToString } from './duration-to-string'
 import createSpinner from './spinner'
 
 function divideSegments(number: number, segments: number): number[] {
@@ -15,6 +16,8 @@ function divideSegments(number: number, segments: number): number[] {
 }
 
 export const createProgress = (total: number, label: string) => {
+  const progressStart = process.hrtime()
+
   const segments = divideSegments(total, 4)
 
   if (total === 0) {
@@ -47,7 +50,7 @@ export const createProgress = (total: number, label: string) => {
     },
   })
 
-  return () => {
+  const run = () => {
     curProgress++
 
     // Make sure we only log once
@@ -74,10 +77,29 @@ export const createProgress = (total: number, label: string) => {
     } else {
       progressSpinner?.stop()
       if (isFinished) {
-        Log.event(message)
+        const progressEnd = process.hrtime(progressStart)
+        Log.event(`${message} in ${hrtimeDurationToString(progressEnd)}`)
       } else {
         Log.info(`${message} ${process.stdout.isTTY ? '\n' : '\r'}`)
       }
     }
+  }
+
+  const clear = () => {
+    if (
+      progressSpinner &&
+      // Ensure only reset and clear once to avoid set operation overflow in ora
+      progressSpinner.isSpinning
+    ) {
+      progressSpinner.prefixText = '\r'
+      progressSpinner.text = '\r'
+      progressSpinner.clear()
+      progressSpinner.stop()
+    }
+  }
+
+  return {
+    run,
+    clear,
   }
 }

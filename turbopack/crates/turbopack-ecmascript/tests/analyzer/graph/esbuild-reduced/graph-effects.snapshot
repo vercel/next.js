@@ -36,11 +36,10 @@
         ],
         span: 598..615,
         in_try: false,
+        new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -78,7 +77,6 @@
             ),
         ],
         span: 12..19,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -88,7 +86,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "path",
                         ),
                     ),
@@ -124,11 +122,10 @@
         ],
         span: 12..27,
         in_try: false,
+        new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -166,7 +163,6 @@
             ),
         ],
         span: 41..48,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -176,7 +172,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "path",
                         ),
                     ),
@@ -212,6 +208,7 @@
         ],
         span: 41..56,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -266,12 +263,9 @@
             ),
         ],
         span: 296..329,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "platformKey",
-        ),
+        var: "platformKey",
         ast_path: [
             Program(
                 Script,
@@ -327,7 +321,6 @@
             ),
         ],
         span: 317..328,
-        in_try: false,
     },
     Unreachable {
         start_ast_path: [
@@ -415,6 +408,7 @@
         ],
         span: 443..476,
         in_try: false,
+        new: false,
     },
     Member {
         obj: FreeVar(
@@ -490,12 +484,9 @@
             ),
         ],
         span: 515..530,
-        in_try: true,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -565,7 +556,6 @@
             ),
         ],
         span: 515..522,
-        in_try: true,
     },
     MemberCall {
         obj: FreeVar(
@@ -661,6 +651,7 @@
         ],
         span: 515..551,
         in_try: true,
+        new: false,
     },
     Unreachable {
         start_ast_path: [

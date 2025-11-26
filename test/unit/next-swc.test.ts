@@ -1,5 +1,6 @@
 /* eslint-env jest */
 import { transform } from 'next/dist/build/swc'
+import { installBindings } from 'next/dist/build/swc/install-bindings'
 import path from 'path'
 import fsp from 'fs/promises'
 
@@ -11,6 +12,9 @@ const swc = async (code) => {
 const trim = (s) => s.join('\n').trim().replace(/^\s+/gm, '')
 
 describe('next/swc', () => {
+  beforeAll(async () => {
+    await installBindings()
+  })
   describe('hook_optimizer', () => {
     it('should leave alone array destructuring of hooks', async () => {
       const output = await swc(
@@ -115,15 +119,17 @@ describe('next/swc', () => {
   })
 
   describe('private env replacement', () => {
-    it('__NEXT_REQUIRED_NODE_VERSION is replaced', async () => {
+    it('__NEXT_REQUIRED_NODE_VERSION_RANGE is replaced', async () => {
       const pkgDir = path.dirname(require.resolve('next/package.json'))
       const nextEntryContent = await fsp.readFile(
         path.join(pkgDir, 'dist/bin/next'),
         'utf8'
       )
-      expect(nextEntryContent).not.toContain('__NEXT_REQUIRED_NODE_VERSION')
+      expect(nextEntryContent).not.toContain(
+        '__NEXT_REQUIRED_NODE_VERSION_RANGE'
+      )
       expect(nextEntryContent).toMatch(
-        /For Next.js, Node.js version >= v\$\{"\d+\.\d+\.\d*"\}/
+        /For Next.js, Node.js version "\$\{">=\d+\.\d+\.\d*"\}" is required./
       )
     })
   })

@@ -1,4 +1,3 @@
-// tslint:disable:no-console
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../../server/config'
 import type { MittEmitter } from '../mitt'
@@ -22,7 +21,6 @@ import mitt from '../mitt'
 import { getLocationOrigin, getURL, loadGetInitialProps, ST } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
-import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 import { formatWithValidation } from './utils/format-url'
@@ -42,8 +40,16 @@ import { isLocalURL } from './utils/is-local-url'
 import { isBot } from './utils/is-bot'
 import { omit } from './utils/omit'
 import { interpolateAs } from './utils/interpolate-as'
-import { handleSmoothScroll } from './utils/handle-smooth-scroll'
-import type { Params } from '../../../client/components/params'
+import { disableSmoothScrollDuringRouteTransition } from './utils/disable-smooth-scroll'
+import type { Params } from '../../../server/request/params'
+import { MATCHED_PATH_HEADER } from '../../../lib/constants'
+
+let resolveRewrites: typeof import('./utils/resolve-rewrites').default
+if (process.env.__NEXT_HAS_REWRITES) {
+  resolveRewrites = (
+    require('./utils/resolve-rewrites') as typeof import('./utils/resolve-rewrites')
+  ).default
+}
 
 declare global {
   interface Window {
@@ -174,7 +180,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
   let rewriteTarget =
     rewriteHeader || response.headers.get('x-nextjs-matched-path')
 
-  const matchedPath = response.headers.get('x-matched-path')
+  const matchedPath = response.headers.get(MATCHED_PATH_HEADER)
 
   if (
     matchedPath &&
@@ -347,9 +353,9 @@ export type BaseRouter = {
   asPath: string
   basePath: string
   locale?: string | undefined
-  locales?: string[] | undefined
+  locales?: readonly string[] | undefined
   defaultLocale?: string | undefined
-  domainLocales?: DomainLocale[] | undefined
+  domainLocales?: readonly DomainLocale[] | undefined
   isLocaleDomain: boolean
 }
 
@@ -416,8 +422,7 @@ const manualScrollRestoration =
   !!(function () {
     try {
       let v = '__next'
-      // eslint-disable-next-line no-sequences
-      return sessionStorage.setItem(v, v), sessionStorage.removeItem(v), true
+      return (sessionStorage.setItem(v, v), sessionStorage.removeItem(v), true)
     } catch (n) {}
   })()
 
@@ -497,7 +502,10 @@ function fetchNextData({
       headers: Object.assign(
         {} as HeadersInit,
         isPrefetch ? { purpose: 'prefetch' } : {},
-        isPrefetch && hasMiddleware ? { 'x-middleware-prefetch': '1' } : {}
+        isPrefetch && hasMiddleware ? { 'x-middleware-prefetch': '1' } : {},
+        process.env.NEXT_DEPLOYMENT_ID
+          ? { 'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID }
+          : {}
       ),
       method: params?.method ?? 'GET',
     })
@@ -680,9 +688,9 @@ export default class Router implements BaseRouter {
   isSsr: boolean
   _inFlightRoute?: string | undefined
   _shallow?: boolean | undefined
-  locales?: string[] | undefined
+  locales?: readonly string[] | undefined
   defaultLocale?: string | undefined
-  domainLocales?: DomainLocale[] | undefined
+  domainLocales?: readonly DomainLocale[] | undefined
   isReady: boolean
   isLocaleDomain: boolean
   isFirstPopStateEvent = true
@@ -734,9 +742,9 @@ export default class Router implements BaseRouter {
       err?: Error
       isFallback: boolean
       locale?: string
-      locales?: string[]
+      locales?: readonly string[]
       defaultLocale?: string
-      domainLocales?: DomainLocale[]
+      domainLocales?: readonly DomainLocale[]
       isPreview?: boolean
     }
   ) {
@@ -1093,13 +1101,6 @@ export default class Router implements BaseRouter {
       let matchesBflDynamic = false
       const pathsToCheck: Array<{ as?: string; allowMatchCurrent?: boolean }> =
         [{ as }, { as: resolvedAs }]
-
-      if (process.env.__NEXT_FLYING_SHUTTLE) {
-        // if existing page changed we hard navigate to
-        // avoid runtime conflict with new page
-        // TODO: check buildManifest files instead?
-        pathsToCheck.push({ as: this.asPath, allowMatchCurrent: true })
-      }
 
       for (const { as: curAs, allowMatchCurrent } of pathsToCheck) {
         if (curAs) {
@@ -1893,8 +1894,6 @@ export default class Router implements BaseRouter {
     routeProps: RouteProperties,
     loadErrorFail?: boolean
   ): Promise<CompletePrivateRouteInfo> {
-    console.error(err)
-
     if (err.cancelled) {
       // bubble up cancellation errors
       throw err
@@ -1918,6 +1917,8 @@ export default class Router implements BaseRouter {
       // So let's throw a cancellation error stop the routing logic.
       throw buildCancellationError()
     }
+
+    console.error(err)
 
     try {
       let props: Record<string, any> | undefined
@@ -2128,7 +2129,8 @@ export default class Router implements BaseRouter {
         ))
 
       if (process.env.NODE_ENV !== 'production') {
-        const { isValidElementType } = require('next/dist/compiled/react-is')
+        const { isValidElementType } =
+          require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
         if (!isValidElementType(routeInfo.Component)) {
           throw new Error(
             `The default export is not a React Component in page: "${pathname}"`
@@ -2282,7 +2284,7 @@ export default class Router implements BaseRouter {
   scrollToHash(as: string): void {
     const [, hash = ''] = as.split('#', 2)
 
-    handleSmoothScroll(
+    disableSmoothScrollDuringRouteTransition(
       () => {
         // Scroll to top if the hash is just `#` with no value or `#top`
         // To mirror browsers

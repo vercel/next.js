@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-;(process.env.TURBOPACK ? describe : describe.skip)(
+;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'ecmascript-features turbopack',
   () => {
     const { next } = nextTestSetup({

@@ -2,10 +2,11 @@ use std::sync::Arc;
 
 use anyhow::Context as _;
 use napi::bindgen_prelude::*;
+use napi_derive::napi;
 use swc_core::{
     base::{config::ParseOptions, try_with_handler},
     common::{
-        comments::Comments, errors::ColorConfig, FileName, FilePathMapping, SourceMap, GLOBALS,
+        FileName, FilePathMapping, GLOBALS, SourceMap, comments::Comments, errors::ColorConfig,
     },
 };
 
@@ -53,6 +54,7 @@ impl Task for ParseTask {
                     )
                 },
             )
+            .map_err(|e| e.to_pretty_error())
             .convert_err()?;
 
             let ast_json = serde_json::to_string(&program)

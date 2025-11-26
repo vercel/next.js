@@ -1,15 +1,18 @@
 import type { AppRouteHandlerFn, AppRouteHandlers } from '../module'
 
 import { HTTP_METHODS, type HTTP_METHOD } from '../../../web/http'
-import { handleMethodNotAllowedResponse } from '../../helpers/response-handlers'
 
 const AUTOMATIC_ROUTE_METHODS = ['HEAD', 'OPTIONS'] as const
+
+function handleMethodNotAllowedResponse(): Response {
+  return new Response(null, { status: 405 })
+}
 
 export function autoImplementMethods(
   handlers: AppRouteHandlers
 ): Record<HTTP_METHOD, AppRouteHandlerFn> {
   // Loop through all the HTTP methods to create the initial methods object.
-  // Each of the methods will be set to the the 405 response handler.
+  // Each of the methods will be set to the 405 response handler.
   const methods: Record<HTTP_METHOD, AppRouteHandlerFn> = HTTP_METHODS.reduce(
     (acc, method) => ({
       ...acc,

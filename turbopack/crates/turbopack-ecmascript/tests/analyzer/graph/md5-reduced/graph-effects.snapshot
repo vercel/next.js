@@ -39,12 +39,9 @@
             ),
         ],
         span: 1622..1636,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "module",
-        ),
+        var: "module",
         ast_path: [
             Program(
                 Script,
@@ -80,12 +77,9 @@
             ),
         ],
         span: 1622..1628,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "md5",
-        ),
+        var: "md5",
         ast_path: [
             Program(
                 Script,
@@ -112,7 +106,6 @@
             ),
         ],
         span: 1639..1642,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -172,7 +165,6 @@
             ),
         ],
         span: 138..149,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -244,7 +236,6 @@
             ),
         ],
         span: 173..206,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -303,7 +294,6 @@
             ),
         ],
         span: 380..388,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -386,7 +376,6 @@
             ),
         ],
         span: 484..488,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -520,6 +509,7 @@
         ],
         span: 466..504,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -614,7 +604,6 @@
             ),
         ],
         span: 532..540,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -760,6 +749,7 @@
         ],
         span: 514..557,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -854,7 +844,6 @@
             ),
         ],
         span: 585..593,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1002,6 +991,7 @@
         ],
         span: 567..609,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -1096,7 +1086,6 @@
             ),
         ],
         span: 637..645,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1242,6 +1231,7 @@
         ],
         span: 619..663,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -1336,7 +1326,6 @@
             ),
         ],
         span: 691..699,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1482,6 +1471,7 @@
         ],
         span: 673..715,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -1576,7 +1566,6 @@
             ),
         ],
         span: 743..751,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1724,6 +1713,7 @@
         ],
         span: 725..768,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -1818,7 +1808,6 @@
             ),
         ],
         span: 796..804,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1964,6 +1953,7 @@
         ],
         span: 778..822,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -2058,7 +2048,6 @@
             ),
         ],
         span: 850..858,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -2204,6 +2193,7 @@
         ],
         span: 832..874,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -2298,7 +2288,6 @@
             ),
         ],
         span: 902..910,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -2446,6 +2435,7 @@
         ],
         span: 884..926,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -2540,7 +2530,6 @@
             ),
         ],
         span: 954..962,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -2686,6 +2675,7 @@
         ],
         span: 936..980,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -2780,7 +2770,6 @@
             ),
         ],
         span: 1008..1017,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -2926,6 +2915,7 @@
         ],
         span: 990..1030,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -3020,7 +3010,6 @@
             ),
         ],
         span: 1058..1067,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -3166,6 +3155,7 @@
         ],
         span: 1040..1085,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -3260,7 +3250,6 @@
             ),
         ],
         span: 1113..1122,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -3408,6 +3397,7 @@
         ],
         span: 1095..1138,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -3502,7 +3492,6 @@
             ),
         ],
         span: 1166..1175,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -3648,6 +3637,7 @@
         ],
         span: 1148..1191,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -3742,7 +3732,6 @@
             ),
         ],
         span: 1219..1228,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -3888,6 +3877,7 @@
         ],
         span: 1201..1246,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -3982,7 +3972,6 @@
             ),
         ],
         span: 1274..1283,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -4130,6 +4119,7 @@
         ],
         span: 1256..1300,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -4164,9 +4154,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "safeAdd",
-        ),
+        var: "safeAdd",
         ast_path: [
             Program(
                 Script,
@@ -4213,12 +4201,9 @@
             ),
         ],
         span: 1459..1466,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "bitRotateLeft",
-        ),
+        var: "bitRotateLeft",
         ast_path: [
             Program(
                 Script,
@@ -4276,12 +4261,9 @@
             ),
         ],
         span: 1467..1480,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "safeAdd",
-        ),
+        var: "safeAdd",
         ast_path: [
             Program(
                 Script,
@@ -4350,12 +4332,9 @@
             ),
         ],
         span: 1481..1488,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "safeAdd",
-        ),
+        var: "safeAdd",
         ast_path: [
             Program(
                 Script,
@@ -4435,7 +4414,6 @@
             ),
         ],
         span: 1489..1496,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -4530,11 +4508,10 @@
         ],
         span: 1489..1502,
         in_try: false,
+        new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "safeAdd",
-        ),
+        var: "safeAdd",
         ast_path: [
             Program(
                 Script,
@@ -4614,7 +4591,6 @@
             ),
         ],
         span: 1504..1511,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -4709,6 +4685,7 @@
         ],
         span: 1504..1517,
         in_try: false,
+        new: false,
     },
     Call {
         func: FreeVar(
@@ -4820,6 +4797,7 @@
         ],
         span: 1481..1518,
         in_try: false,
+        new: false,
     },
     Call {
         func: FreeVar(
@@ -4934,6 +4912,7 @@
         ],
         span: 1467..1522,
         in_try: false,
+        new: false,
     },
     Call {
         func: FreeVar(
@@ -5051,6 +5030,7 @@
         ],
         span: 1459..1526,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -5178,6 +5158,7 @@
         ],
         span: 1577..1618,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [

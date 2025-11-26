@@ -77,7 +77,6 @@
             ),
         ],
         span: 46..56,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -157,7 +156,6 @@
             ),
         ],
         span: 66..77,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -237,7 +235,6 @@
             ),
         ],
         span: 89..104,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -360,7 +357,6 @@
             ),
         ],
         span: 259..280,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -485,6 +481,7 @@
         ],
         span: 259..301,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -607,7 +604,6 @@
             ),
         ],
         span: 327..348,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -755,11 +751,10 @@
         ],
         span: 327..426,
         in_try: false,
+        new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -875,7 +870,6 @@
             ),
         ],
         span: 515..522,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -885,7 +879,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "fs/promises",
                         ),
                     ),
@@ -999,6 +993,7 @@
         ],
         span: 515..537,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -1166,7 +1161,6 @@
             ),
         ],
         span: 828..861,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -1186,7 +1180,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "./hello.txt",
                         ),
                     ),
@@ -1195,7 +1189,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "utf-8",
                         ),
                     ),
@@ -1332,6 +1326,7 @@
         ],
         span: 824..916,
         in_try: false,
+        new: false,
     },
     Member {
         obj: MemberCall(
@@ -1490,7 +1485,6 @@
             ),
         ],
         span: 965..985,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -1645,7 +1639,6 @@
             ),
         ],
         span: 965..975,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -1803,6 +1796,7 @@
         ],
         span: 965..980,
         in_try: false,
+        new: false,
     },
     MemberCall {
         obj: MemberCall(
@@ -1993,11 +1987,10 @@
         ],
         span: 965..1032,
         in_try: false,
+        new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -2070,7 +2063,6 @@
             ),
         ],
         span: 1113..1120,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -2080,7 +2072,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../../webpack-api-runtime.js",
                         ),
                     ),
@@ -2151,6 +2143,7 @@
         ],
         span: 1113..1152,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -2230,7 +2223,6 @@
             ),
         ],
         span: 1156..1177,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -2312,6 +2304,7 @@
         ],
         span: 1156..1186,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -2425,7 +2418,6 @@
             ),
         ],
         span: 1252..1273,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -2438,7 +2430,7 @@
             Value(
                 Unknown {
                     original_value: None,
-                    reason: "unsupported expression",
+                    reason: "assignment expression",
                     has_side_effects: true,
                 },
             ),
@@ -2516,6 +2508,7 @@
         ],
         span: 1231..1286,
         in_try: false,
+        new: false,
     },
     Call {
         func: Variable(
@@ -2599,6 +2592,7 @@
         ],
         span: 1316..1338,
         in_try: false,
+        new: false,
     },
     Member {
         obj: FreeVar(
@@ -2675,12 +2669,9 @@
             ),
         ],
         span: 1342..1356,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "module",
-        ),
+        var: "module",
         ast_path: [
             Program(
                 Script,
@@ -2751,6 +2742,5 @@
             ),
         ],
         span: 1342..1348,
-        in_try: false,
     },
 ]

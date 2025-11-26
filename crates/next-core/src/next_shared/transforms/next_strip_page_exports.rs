@@ -1,60 +1,51 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::strip_page_exports::{
-    next_transform_strip_page_exports, ExportFilter,
+    ExportFilter, next_transform_strip_page_exports,
 };
-use swc_core::{
-    common::util::take::Take,
-    ecma::{
-        ast::{Module, Program},
-        visit::FoldWith,
-    },
-};
-use turbo_tasks::Vc;
+use swc_core::ecma::ast::Program;
+use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect};
+use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
 use super::module_rule_match_js_no_url;
 
 /// Returns a rule which applies the Next.js page export stripping transform.
-pub async fn get_next_pages_transforms_rule(
-    pages_dir: Vc<FileSystemPath>,
+pub fn get_next_pages_transforms_rule(
+    pages_dir: FileSystemPath,
     export_filter: ExportFilter,
     enable_mdx_rs: bool,
+    extra_conditions: Vec<RuleCondition>,
 ) -> Result<ModuleRule> {
     // Apply the Next SSG transform to all pages.
-    let strip_transform = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
-        NextJsStripPageExports { export_filter },
-    ) as _));
-    Ok(ModuleRule::new(
-        ModuleRuleCondition::all(vec![
-            ModuleRuleCondition::all(vec![
-                ModuleRuleCondition::ResourcePathInExactDirectory(pages_dir.await?),
-                ModuleRuleCondition::not(ModuleRuleCondition::ResourcePathInExactDirectory(
-                    pages_dir.join("api".into()).await?,
-                )),
-                ModuleRuleCondition::not(ModuleRuleCondition::any(vec![
-                    // TODO(alexkirsz): Possibly ignore _app as well?
-                    ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.js".into()).await?,
-                    ),
-                    ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.jsx".into()).await?,
-                    ),
-                    ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.ts".into()).await?,
-                    ),
-                    ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.tsx".into()).await?,
-                    ),
-                ])),
-            ]),
-            module_rule_match_js_no_url(enable_mdx_rs),
+    let strip_transform =
+        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextJsStripPageExports {
+            export_filter,
+        }) as _));
+    let conditions = RuleCondition::all(vec![
+        RuleCondition::all(vec![
+            RuleCondition::ResourcePathInExactDirectory(pages_dir.clone()),
+            RuleCondition::not(RuleCondition::ResourcePathInExactDirectory(
+                pages_dir.join("api")?,
+            )),
+            RuleCondition::not(RuleCondition::any(vec![
+                // TODO(alexkirsz): Possibly ignore _app as well?
+                RuleCondition::ResourcePathEquals(pages_dir.join("_document.js")?),
+                RuleCondition::ResourcePathEquals(pages_dir.join("_document.jsx")?),
+                RuleCondition::ResourcePathEquals(pages_dir.join("_document.ts")?),
+                RuleCondition::ResourcePathEquals(pages_dir.join("_document.tsx")?),
+            ])),
         ]),
+        module_rule_match_js_no_url(enable_mdx_rs),
+        RuleCondition::all(extra_conditions),
+    ]);
+    Ok(ModuleRule::new(
+        conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: Vc::cell(vec![]),
-            append: Vc::cell(vec![strip_transform]),
+            preprocess: ResolvedVc::cell(vec![]),
+            main: ResolvedVc::cell(vec![]),
+            postprocess: ResolvedVc::cell(vec![strip_transform]),
         }],
     ))
 }
@@ -70,9 +61,7 @@ impl CustomTransformer for NextJsStripPageExports {
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         // TODO(alexkirsz) Connect the eliminated_packages to telemetry.
         let eliminated_packages = Default::default();
-
-        let p = std::mem::replace(program, Program::Module(Module::dummy()));
-        *program = p.fold_with(&mut next_transform_strip_page_exports(
+        program.mutate(next_transform_strip_page_exports(
             self.export_filter,
             eliminated_packages,
         ));
