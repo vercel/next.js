@@ -1,17 +1,17 @@
 use std::{cell::RefCell, mem::take, rc::Rc};
 
-use easy_error::{bail, Error};
+use easy_error::{Error, bail};
 use rustc_hash::FxHashSet;
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{Atom, atom},
     common::{
+        DUMMY_SP,
         errors::HANDLER,
         pass::{Repeat, Repeated},
-        DUMMY_SP,
     },
     ecma::{
         ast::*,
-        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
+        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
     },
 };
 
@@ -144,9 +144,11 @@ impl VisitMut for Analyzer<'_> {
                 return;
             }
 
-            if let Pat::Ident(id) = &d.decls[0].name {
-                if !SSG_EXPORTS.contains(&&*id.id.sym) {
-                    self.add_ref(id.to_id());
+            for decl in &d.decls {
+                if let Pat::Ident(id) = &decl.name {
+                    if !SSG_EXPORTS.contains(&&*id.id.sym) {
+                        self.add_ref(id.to_id());
+                    }
                 }
             }
         }
