@@ -1,5 +1,5 @@
 import http from 'http'
-import { NextInstance, createNextDescribe } from 'e2e-utils'
+import { NextInstance, nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 // Taken from https://github.com/whatwg/fetch/issues/551#issuecomment-655848415
@@ -44,71 +44,68 @@ const requestWithBody = (
   })
 }
 
-createNextDescribe(
-  'api-endoint-with-body-in-get-head-method',
-  {
+describe('api-endoint-with-body-in-get-head-method', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
-  },
-  ({ next }) => {
-    //First check a normal requests working succesfully
-    it('GET Request without body', async () => {
-      const res = await fetchViaHTTP(next.appPort, '/api/hello')
+  })
+  //First check a normal requests working succesfully
+  it('GET Request without body', async () => {
+    const res = await fetchViaHTTP(next.appPort, '/api/hello')
 
-      expect(res.status).toBe(200)
-      expect(await res.json()).toEqual({
-        msg: 'hello',
-      })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      msg: 'hello',
     })
-    it('HEAD Request without body', async () => {
-      const res = await fetchViaHTTP(
-        next.appPort,
-        '/api/hello',
-        {},
-        {
-          method: 'HEAD',
-        }
-      )
-      expect(res.status).toBe(200)
-    })
-
-    //Then check requests whith body, the key of these test is in the conent-length
-    //the Error 'UND_ERR_REQ_CONTENT_LENGTH_MISMATCH'
-    it('GET Request with body', async () => {
-      const body = JSON.stringify({ a: 1 })
-      const options = {
-        host: 'localhost',
-        port: next.appPort,
-        protocol: 'http:',
-        path: '/api/hello',
-        method: 'GET',
-        headers: {
-          'content-type': 'application/json',
-          'content-length': body.length,
-        },
-      }
-      await expect(requestWithBody(next, body, options)).resolves.toEqual({
-        statusCode: 200,
-        data: { msg: 'hello' },
-      })
-    })
-
-    it('HEAD Request with body', async () => {
-      const body = JSON.stringify({ a: 1 })
-      const options = {
-        host: 'localhost',
-        port: next.appPort,
-        protocol: 'http:',
-        path: '/api/hello',
+  })
+  it('HEAD Request without body', async () => {
+    const res = await fetchViaHTTP(
+      next.appPort,
+      '/api/hello',
+      {},
+      {
         method: 'HEAD',
-        headers: {
-          'content-type': 'application/json',
-          'content-length': body.length,
-        },
       }
-      await expect(requestWithBody(next, body, options)).resolves.toEqual({
-        statusCode: 200,
-        data: {},
-      })
+    )
+    expect(res.status).toBe(200)
+  })
+
+  //Then check requests whith body, the key of these test is in the conent-length
+  //the Error 'UND_ERR_REQ_CONTENT_LENGTH_MISMATCH'
+  it('GET Request with body', async () => {
+    const body = JSON.stringify({ a: 1 })
+    const options = {
+      host: 'localhost',
+      port: next.appPort,
+      protocol: 'http:',
+      path: '/api/hello',
+      method: 'GET',
+      headers: {
+        'content-type': 'application/json',
+        'content-length': body.length,
+      },
+    }
+    await expect(requestWithBody(next, body, options)).resolves.toEqual({
+      statusCode: 200,
+      data: { msg: 'hello' },
     })
-  }
-)
+  })
+
+  it('HEAD Request with body', async () => {
+    const body = JSON.stringify({ a: 1 })
+    const options = {
+      host: 'localhost',
+      port: next.appPort,
+      protocol: 'http:',
+      path: '/api/hello',
+      method: 'HEAD',
+      headers: {
+        'content-type': 'application/json',
+        'content-length': body.length,
+      },
+    }
+    await expect(requestWithBody(next, body, options)).resolves.toEqual({
+      statusCode: 200,
+      data: {},
+    })
+  })
+})
