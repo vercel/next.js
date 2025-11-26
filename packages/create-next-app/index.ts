@@ -81,6 +81,10 @@ const program = new Command(packageJson.name)
     'Explicitly tell the CLI to bootstrap the application using Bun.'
   )
   .option(
+    '--use-deno',
+    'Explicitly tell the CLI to bootstrap the application using Deno.'
+  )
+  .option(
     '--reset, --reset-preferences',
     'Reset the preferences saved for create-next-app.'
   )
@@ -131,7 +135,9 @@ const packageManager: PackageManager = !!opts.useNpm
       ? 'yarn'
       : !!opts.useBun
         ? 'bun'
-        : getPkgManager()
+        : !!opts.useDeno
+          ? 'deno'
+          : getPkgManager()
 
 async function run(): Promise<void> {
   const conf = new Conf({ projectName: 'create-next-app' })
@@ -662,17 +668,17 @@ async function notifyUpdate(): Promise<void> {
   try {
     if ((await update)?.latest) {
       const global = {
-        npm: 'npm i -g',
-        yarn: 'yarn global add',
-        pnpm: 'pnpm add -g',
-        bun: 'bun add -g',
+        npm: 'npm i -g create-next-app',
+        yarn: 'yarn global add create-next-app',
+        pnpm: 'pnpm add -g create-next-app',
+        bun: 'bun add -g create-next-app',
+        deno: 'deno i -g npm:create-next-app',
       }
-      const updateMessage = `${global[packageManager]} create-next-app`
       console.log(
         yellow(bold('A new version of `create-next-app` is available!')) +
           '\n' +
           'You can update by running: ' +
-          cyan(updateMessage) +
+          cyan(global[packageManager]) +
           '\n'
       )
     }
