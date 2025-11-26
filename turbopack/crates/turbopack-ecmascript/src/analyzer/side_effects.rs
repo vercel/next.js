@@ -165,10 +165,6 @@ static KNOWN_PURE_CONSTRUCTORS: phf::Set<&'static str> = phf_set! {
 // rather that we can safely reason about their side effects when called on literal expressions.
 // We do however assume that these functions are not monkey patched.
 
-// For prototype methods we are not saying that these functions are always side effect free but
-// rather that we can safely reason about their side effects when called on literal expressions.
-// We do however assume that these functions are not monkey patched.
-
 /// Known pure prototype methods for string literals.
 ///
 /// These methods don't mutate the string (strings are immutable) and don't have side effects.
