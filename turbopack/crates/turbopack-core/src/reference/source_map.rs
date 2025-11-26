@@ -1,16 +1,14 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemEntryType, FileSystemPath};
 
 use super::ModuleReference;
 use crate::{
     file_source::FileSource,
     raw_module::RawModule,
     resolve::ModuleResolveResult,
-    source_map::{
-        GenerateSourceMap, OptionStringifiedSourceMap, utils::resolve_source_map_sources,
-    },
+    source_map::{GenerateSourceMap, utils::resolve_source_map_sources},
 };
 
 #[turbo_tasks::value]
@@ -57,15 +55,18 @@ impl ModuleReference for SourceMapReference {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMapReference {
     #[turbo_tasks::function]
-    async fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
+    async fn generate_source_map(&self) -> Result<Vc<FileContent>> {
         let Some(file) = self.get_file().await else {
-            return Ok(Vc::cell(None));
+            return Ok(FileContent::NotFound.cell());
         };
 
         let content = file.read().await?;
         let content = content.as_content().map(|file| file.content());
-        let source_map = resolve_source_map_sources(content, &self.from).await?;
-        Ok(Vc::cell(source_map))
+        if let Some(source_map) = resolve_source_map_sources(content, &self.from).await? {
+            Ok(File::from(source_map).into())
+        } else {
+            Ok(FileContent::NotFound.cell())
+        }
     }
 }
 
