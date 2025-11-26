@@ -1020,7 +1020,7 @@ impl ModuleGraphRef {
     ) -> impl Iterator<Item = (GraphEdgeIndex, GraphNodeIndex)> + 'a {
         let graph = &*self.get_graph(node.graph_idx).graph;
 
-        if cfg!(debug_assertions) {
+        if cfg!(debug_assertions) && direction == Direction::Outgoing {
             let node_weight = graph.node_weight(node.node_idx).unwrap();
             if let SingleModuleGraphNode::VisitedModule { .. } = node_weight {
                 panic!("iter_graphs_neighbors_rev called on VisitedModule node");
