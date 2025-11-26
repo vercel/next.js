@@ -260,6 +260,17 @@ impl ModuleResolveResult {
         })
     }
 
+    /// Returns a set (no duplicates) of primary modules in the result.
+    pub async fn primary_modules_ref(&self) -> Result<Vec<ResolvedVc<Box<dyn Module>>>> {
+        let mut set = FxIndexSet::default();
+        for (_, item) in self.primary.iter() {
+            if let Some(module) = item.as_module().await? {
+                set.insert(module);
+            }
+        }
+        Ok(set.into_iter().collect())
+    }
+
     pub fn affecting_sources_iter(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Source>>> + '_ {
         self.affecting_sources.iter().copied()
     }
