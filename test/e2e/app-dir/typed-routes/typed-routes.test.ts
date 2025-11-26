@@ -22,28 +22,26 @@ describe('typed-routes', () => {
   }
 
   it('should generate route types correctly', async () => {
-    // To wait for the (dev) server to have started up.
-    await next.render('/')
-
-    const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
-    expect(dts).toContain(expectedDts)
+    await retry(async () => {
+      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
+      expect(dts).toContain(expectedDts)
+    })
   })
 
   it('should correctly convert custom route patterns from path-to-regexp to bracket syntax', async () => {
-    // To wait for the (dev) server to have started up.
-    await next.render('/')
+    await retry(async () => {
+      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
 
-    const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
+      // Test standard dynamic segment: :slug -> [slug]
+      expect(dts).toContain('"/project/[slug]"')
 
-    // Test standard dynamic segment: :slug -> [slug]
-    expect(dts).toContain('"/project/[slug]"')
+      // Test catch-all one-or-more: :path+ -> [...path]
+      expect(dts).toContain('"/docs-old/[...path]"')
 
-    // Test catch-all one-or-more: :path+ -> [...path]
-    expect(dts).toContain('"/docs-old/[...path]"')
-
-    // Test catch-all zero-or-more: :slug* -> [[...slug]]
-    expect(dts).toContain('"/blog/[category]/[[...slug]]"')
-    expect(dts).toContain('"/api-legacy/[version]/[[...endpoint]]"')
+      // Test catch-all zero-or-more: :slug* -> [[...slug]]
+      expect(dts).toContain('"/blog/[category]/[[...slug]]"')
+      expect(dts).toContain('"/api-legacy/[version]/[[...endpoint]]"')
+    })
   })
 
   if (isNextDev) {
@@ -71,14 +69,13 @@ describe('typed-routes', () => {
   }
 
   it('should generate RouteContext type for route handlers', async () => {
-    // To wait for the (dev) server to have started up.
-    await next.render('/')
-
-    const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
-    expect(dts).toContain(
-      'interface RouteContext<AppRouteHandlerRoute extends AppRouteHandlerRoutes>'
-    )
-    expect(dts).toContain('params: Promise<ParamMap[AppRouteHandlerRoute]>')
+    await retry(async () => {
+      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
+      expect(dts).toContain(
+        'interface RouteContext<AppRouteHandlerRoute extends AppRouteHandlerRoutes>'
+      )
+      expect(dts).toContain('params: Promise<ParamMap[AppRouteHandlerRoute]>')
+    })
   })
 
   if (isNextStart) {
