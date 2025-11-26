@@ -1,5 +1,4 @@
 import { denormalizePagePath } from './denormalize-page-path'
-import { flatten } from '../flatten'
 import path from '../isomorphic/path'
 
 /**
@@ -8,7 +7,8 @@ import path from '../isomorphic/path'
  * and to debug inspected locations.
  *
  * For pages, map `/route` to [`/route.[ext]`, `/route/index.[ext]`]
- * For app paths, map `/route/page` to [`/route/page.[ext]`]
+ * For app paths, map `/route/page` to [`/route/page.[ext]`] or `/route/route`
+ * to [`/route/route.[ext]`]
  *
  * @param normalizedPagePath Normalized page path (it will denormalize).
  * @param extensions Allowed extensions.
@@ -20,15 +20,21 @@ export function getPagePaths(
 ) {
   const page = denormalizePagePath(normalizedPagePath)
 
-  return flatten(
-    extensions.map((extension) => {
-      const appPage = `${page}.${extension}`
-      const folderIndexPage = path.join(page, `index.${extension}`)
+  let prefixes: string[]
+  if (isAppDir) {
+    prefixes = [page]
+  } else if (normalizedPagePath.endsWith('/index')) {
+    prefixes = [path.join(page, 'index')]
+  } else {
+    prefixes = [page, path.join(page, 'index')]
+  }
 
-      if (!normalizedPagePath.endsWith('/index')) {
-        return isAppDir ? [appPage] : [`${page}.${extension}`, folderIndexPage]
-      }
-      return [isAppDir ? appPage : folderIndexPage]
-    })
-  )
+  const paths: string[] = []
+  for (const extension of extensions) {
+    for (const prefix of prefixes) {
+      paths.push(`${prefix}.${extension}`)
+    }
+  }
+
+  return paths
 }

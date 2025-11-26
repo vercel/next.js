@@ -2,18 +2,24 @@ import type { NextRequest } from './spec-extension/request'
 import type {
   AppRouteRouteHandlerContext,
   AppRouteRouteModule,
-} from '../future/route-modules/app-route/module'
-import type { PrerenderManifest } from '../../build'
+} from '../route-modules/app-route/module'
 
 import './globals'
 
 import { adapter, type AdapterOptions } from './adapter'
 import { IncrementalCache } from '../lib/incremental-cache'
-import { RouteMatcher } from '../future/route-matchers/route-matcher'
-import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
-import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
+import { RouteMatcher } from '../route-matchers/route-matcher'
+import type { NextFetchEvent } from './spec-extension/fetch-event'
+import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
+import { getServerUtils } from '../server-utils'
+import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
+import { CloseController, trackStreamConsumed } from './web-on-close'
+import { getEdgePreviewProps } from './get-edge-preview-props'
+import type { NextConfigComplete } from '../config-shared'
 
-type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
+export interface WrapOptions {
+  nextConfig: NextConfigComplete
+}
 
 /**
  * EdgeRouteModuleWrapper is a wrapper around a route module.
@@ -29,7 +35,10 @@ export class EdgeRouteModuleWrapper {
    *
    * @param routeModule the route module to wrap
    */
-  private constructor(private readonly routeModule: AppRouteRouteModule) {
+  private constructor(
+    private readonly routeModule: AppRouteRouteModule,
+    private readonly nextConfig: NextConfigComplete
+  ) {
     // TODO: (wyattjoh) possibly allow the module to define it's own matcher
     this.matcher = new RouteMatcher(routeModule.definition)
   }
@@ -43,18 +52,14 @@ export class EdgeRouteModuleWrapper {
    *                override the ones passed from the runtime
    * @returns a function that can be used as a handler for the edge runtime
    */
-  public static wrap(
-    routeModule: AppRouteRouteModule,
-    options: WrapOptions = {}
-  ) {
+  public static wrap(routeModule: AppRouteRouteModule, options: WrapOptions) {
     // Create the module wrapper.
-    const wrapper = new EdgeRouteModuleWrapper(routeModule)
+    const wrapper = new EdgeRouteModuleWrapper(routeModule, options.nextConfig)
 
     // Return the wrapping function.
     return (opts: AdapterOptions) => {
       return adapter({
         ...opts,
-        ...options,
         IncrementalCache,
         // Bind the handler method to the wrapper so it still has context.
         handler: wrapper.handler.bind(wrapper),
@@ -62,52 +67,83 @@ export class EdgeRouteModuleWrapper {
     }
   }
 
-  private async handler(request: NextRequest): Promise<Response> {
-    // Get the pathname for the matcher. Pathnames should not have trailing
-    // slashes for matching.
-    let pathname = removeTrailingSlash(new URL(request.url).pathname)
+  private async handler(
+    request: NextRequest,
+    evt: NextFetchEvent
+  ): Promise<Response> {
+    const utils = getServerUtils({
+      pageIsDynamic: this.matcher.isDynamic,
+      page: this.matcher.definition.pathname,
+      basePath: request.nextUrl.basePath,
+      // We don't need the `handleRewrite` util, so can just pass an empty object
+      rewrites: {},
+      // only used for rewrites, so setting an arbitrary default value here
+      caseSensitive: false,
+    })
 
-    // Get the base path and strip it from the pathname if it exists.
-    const { basePath } = request.nextUrl
-    if (basePath) {
-      // If the path prefix doesn't exist, then this will do nothing.
-      pathname = removePathPrefix(pathname, basePath)
-    }
+    const { params } = utils.normalizeDynamicRouteParams(
+      searchParamsToUrlQuery(request.nextUrl.searchParams),
+      false
+    )
 
-    // Get the match for this request.
-    const match = this.matcher.match(pathname)
-    if (!match) {
-      throw new Error(
-        `Invariant: no match found for request. Pathname '${pathname}' should have matched '${this.matcher.definition.pathname}'`
-      )
-    }
+    const waitUntil = evt.waitUntil.bind(evt)
+    const closeController = new CloseController()
 
-    const prerenderManifest: PrerenderManifest | undefined =
-      typeof self.__PRERENDER_MANIFEST === 'string'
-        ? JSON.parse(self.__PRERENDER_MANIFEST)
-        : undefined
+    const previewProps = getEdgePreviewProps()
 
     // Create the context for the handler. This contains the params from the
     // match (if any).
     const context: AppRouteRouteHandlerContext = {
-      params: match.params,
+      params,
       prerenderManifest: {
         version: 4,
         routes: {},
         dynamicRoutes: {},
-        preview: prerenderManifest?.preview || {
-          previewModeEncryptionKey: '',
-          previewModeId: 'development-id',
-          previewModeSigningKey: '',
-        },
+        preview: previewProps,
         notFoundRoutes: [],
       },
-      staticGenerationContext: {
-        supportsDynamicHTML: true,
+      renderOpts: {
+        supportsDynamicResponse: true,
+        waitUntil,
+        onClose: closeController.onClose.bind(closeController),
+        onAfterTaskError: undefined,
+        cacheComponents: !!process.env.__NEXT_CACHE_COMPONENTS,
+        experimental: {
+          authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
+        },
+        cacheLifeProfiles: this.nextConfig.cacheLife,
+      },
+      sharedContext: {
+        buildId: '', // TODO: Populate this properly.
       },
     }
 
     // Get the response from the handler.
-    return await this.routeModule.handle(request, context)
+    let res = await this.routeModule.handle(request, context)
+
+    const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()]
+    if (context.renderOpts.pendingWaitUntil) {
+      waitUntilPromises.push(context.renderOpts.pendingWaitUntil)
+    }
+    evt.waitUntil(Promise.all(waitUntilPromises))
+
+    if (!res.body) {
+      // we can delay running it until a bit later --
+      // if it's needed, we'll have a `waitUntil` lock anyway.
+      setTimeout(() => closeController.dispatchClose(), 0)
+    } else {
+      // NOTE: if this is a streaming response, onClose may be called later,
+      // so we can't rely on `closeController.listeners` -- it might be 0 at this point.
+      const trackedBody = trackStreamConsumed(res.body, () =>
+        closeController.dispatchClose()
+      )
+      res = new Response(trackedBody, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: res.headers,
+      })
+    }
+
+    return res
   }
 }

@@ -1,7 +1,6 @@
-/* eslint-disable import/no-extraneous-dependencies */
-import { execSync } from 'child_process'
-import path from 'path'
-import fs from 'fs'
+import { execSync } from 'node:child_process'
+import { join } from 'node:path'
+import { rmSync } from 'node:fs'
 
 function isInGitRepository(): boolean {
   try {
@@ -50,7 +49,7 @@ export function tryGitInit(root: string): boolean {
   } catch (e) {
     if (didInit) {
       try {
-        fs.rmSync(path.join(root, '.git'), { recursive: true, force: true })
+        rmSync(join(root, '.git'), { recursive: true, force: true })
       } catch (_) {}
     }
     return false

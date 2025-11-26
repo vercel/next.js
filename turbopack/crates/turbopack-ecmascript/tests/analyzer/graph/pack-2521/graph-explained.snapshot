@@ -1,0 +1,22 @@
+err (const after eval) = ???*0*
+- *0* err
+  ⚠️  pattern without value
+
+errors (const after eval) = []
+
+path (const after eval) = Iterated(paths)
+
+paths (const after eval) = [
+    `../src/build/Release/sharp-${runtimePlatform}.node`,
+    "../src/build/Release/sharp-wasm32.node",
+    `@img/sharp-${runtimePlatform}/sharp.node`,
+    "@img/sharp-wasm32/sharp.node"
+]
+
+runtimePlatform (const after eval) = runtimePlatformArch()
+
+runtimePlatformArch (const after eval) = FreeVar(require)("./libvips")["runtimePlatformArch"]
+
+sharp (const after eval) = (???*0* | FreeVar(require)(path))
+- *0* sharp
+  ⚠️  pattern without value

@@ -1,18 +1,18 @@
-import Head from 'next/head'
-import Link from 'next/link'
-import { useRouter } from 'next/router'
-import useSWR from 'swr'
-import fetcher from '../../lib/fetcher'
-import Header from '../../components/header'
-import Footer from '../../components/footer'
+import Head from "next/head";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import useSWR from "swr";
+import fetcher from "../../lib/fetcher";
+import Header from "../../components/header";
+import Footer from "../../components/footer";
 
 export default function Movie() {
-  const router = useRouter()
-  const { title } = router.query
-  const { data, error } = useSWR(`/api/movies/${title}`, fetcher)
+  const router = useRouter();
+  const { title } = router.query;
+  const { data, error } = useSWR(`/api/movies/${title}`, fetcher);
 
-  if (error) return <div>failed to load</div>
-  if (!data) return <div>loading...</div>
+  if (error) return <div>failed to load</div>;
+  if (!data) return <div>loading...</div>;
 
   return (
     <div className="container">
@@ -43,9 +43,9 @@ export default function Movie() {
                 <Link
                   key={actor}
                   href={`/actor/${encodeURIComponent(actor)}`}
-                  legacyBehavior
+                  className="link"
                 >
-                  <a className="link">{actor}</a>
+                  {actor}
                 </Link>
               </div>
             ))}
@@ -59,9 +59,7 @@ export default function Movie() {
         </div>
 
         <div className="back">
-          <Link href="/" legacyBehavior>
-            <a>🔙 Go Back</a>
-          </Link>
+          <Link href="/">🔙 Go Back</Link>
         </div>
       </main>
 
@@ -101,5 +99,5 @@ export default function Movie() {
         `}
       </style>
     </div>
-  )
+  );
 }

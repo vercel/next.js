@@ -1,3 +1,6 @@
+const fs = require('fs/promises')
+const path = require('path')
+
 const clientGlobs = [
   {
     name: 'Client Bundles (main, webpack)',
@@ -12,7 +15,10 @@ const clientGlobs = [
   },
   {
     name: 'Client Pages',
-    globs: ['.next/static/BUILD_ID/pages/**/*.js', '.next/static/css/**/*'],
+    globs: [
+      '.next/static/BUILD_ID/pages/!(edge-repeated*)',
+      '.next/static/css/**/*',
+    ],
   },
   {
     name: 'Client Build Manifests',
@@ -20,7 +26,7 @@ const clientGlobs = [
   },
   {
     name: 'Rendered Page Sizes',
-    globs: ['fetched-pages/**/*.html'],
+    globs: ['fetched-pages/!(edge-repeated*)'],
   },
   {
     name: 'Edge SSR bundle Size',
@@ -28,6 +34,37 @@ const clientGlobs = [
       '.next/server/pages/edge-ssr.js',
       '.next/server/app/app-edge-ssr/page.js',
     ],
+    getRequiredFiles: async (nextAppDir, fileName) => {
+      if (fileName.startsWith('.next/server/app')) {
+        const manifestJson = await fs.readFile(
+          path.join(nextAppDir, '.next/server/middleware-manifest.json')
+        )
+        const manifest = JSON.parse(manifestJson)
+        const manifestFileEntry = path.relative(
+          path.join(nextAppDir, '.next'),
+          path.join(nextAppDir, fileName)
+        )
+
+        const functionEntry = Object.values(manifest.functions).find(
+          (entry) => {
+            return entry.files.includes(manifestFileEntry)
+          }
+        )
+
+        if (functionEntry === undefined) {
+          throw new Error(
+            `${manifestFileEntry} is not listed in the files files of any functions in the manifest:\n` +
+              JSON.stringify(manifest, null, 2)
+          )
+        }
+
+        return functionEntry.files.map((file) => {
+          return path.join('.next', file)
+        })
+      } else {
+        return [fileName]
+      }
+    },
   },
   {
     name: 'Middleware size',
@@ -35,6 +72,14 @@ const clientGlobs = [
       '.next/server/middleware*.js',
       '.next/server/edge-runtime-webpack.js',
     ],
+  },
+  {
+    name: 'Next Runtimes',
+    globs: ['node_modules/next/dist/compiled/next-server/**/*.js'],
+  },
+  {
+    name: 'build cache',
+    globs: ['.next/cache/**/*'],
   },
 ]
 

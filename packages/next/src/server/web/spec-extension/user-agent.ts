@@ -6,6 +6,7 @@ interface UserAgent {
   browser: {
     name?: string
     version?: string
+    major?: string
   }
   device: {
     model?: string

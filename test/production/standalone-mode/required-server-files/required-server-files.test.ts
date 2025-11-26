@@ -4,40 +4,46 @@ import cheerio from 'cheerio'
 import { join } from 'path'
 import { nanoid } from 'nanoid'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   check,
+  createNowRouteMatches,
   fetchViaHTTP,
   findPort,
   initNextServerScript,
   killApp,
   renderViaHTTP,
+  retry,
   waitFor,
 } from 'next-test-utils'
+import { ChildProcess } from 'child_process'
 
-describe('should set-up next', () => {
+describe('required server files', () => {
   let next: NextInstance
-  let server
-  let appPort
+  let server: ChildProcess
+  let appPort: number | string
   let errors = []
   let stderr = ''
   let requiredFilesManifest
+  let minimalMode = true
 
-  const setupNext = async ({
-    nextEnv,
-    minimalMode,
-  }: {
-    nextEnv?: boolean
-    minimalMode?: boolean
-  }) => {
+  const setupNext = async ({ nextEnv }: { nextEnv?: boolean }) => {
     // test build against environment with next support
     process.env.NOW_BUILDER = nextEnv ? '1' : ''
+    process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'pages')),
         lib: new FileRef(join(__dirname, 'lib')),
-        'middleware.js': new FileRef(join(__dirname, 'middleware.js')),
+        'middleware.js': new FileRef(
+          join(
+            __dirname,
+            process.env.TEST_NODE_MIDDLEWARE
+              ? 'middleware-node.js'
+              : 'middleware.js'
+          )
+        ),
         'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
         'data.txt': new FileRef(join(__dirname, 'data.txt')),
         '.env': new FileRef(join(__dirname, '.env')),
@@ -45,12 +51,8 @@ describe('should set-up next', () => {
         '.env.production': new FileRef(join(__dirname, '.env.production')),
       },
       nextConfig: {
-        experimental: {
-          incrementalCacheHandlerPath: './cache-handler.js',
-        },
-        eslint: {
-          ignoreDuringBuilds: true,
-        },
+        cacheHandler: './cache-handler.js',
+        cacheMaxMemorySize: 0,
         output: 'standalone',
         async rewrites() {
           return {
@@ -108,22 +110,36 @@ describe('should set-up next', () => {
         await fs.remove(join(next.testDir, '.next/server', file))
       }
     }
+  }
 
-    const testServer = join(next.testDir, 'standalone/server.js')
+  beforeAll(async () => {
+    await setupNext({ nextEnv: true })
+  })
+
+  beforeEach(async () => {
+    errors = []
+    stderr = ''
+
+    const testServerFilename = join(next.testDir, 'standalone/server.js')
+    const testServerContent = await fs.readFile(testServerFilename, 'utf8')
+
     await fs.writeFile(
-      testServer,
-      (
-        await fs.readFile(testServer, 'utf8')
-      ).replace('port:', `minimalMode: ${minimalMode},port:`)
+      testServerFilename,
+      testServerContent.replace(
+        /(startServer\({\s*)(minimalMode: (true|false),\n {2})?/,
+        `$1minimalMode: ${minimalMode},\n  `
+      )
     )
+
     appPort = await findPort()
+
     server = await initNextServerScript(
-      testServer,
-      /ready started server on/,
+      testServerFilename,
+      /- Local:/,
       {
         ...process.env,
         ENV_FROM_HOST: 'FOOBAR',
-        PORT: appPort,
+        PORT: `${appPort}`,
       },
       undefined,
       {
@@ -132,16 +148,19 @@ describe('should set-up next', () => {
           errors.push(msg)
           stderr += msg
         },
+        shouldRejectOnError: true,
       }
     )
-  }
-
-  beforeAll(async () => {
-    await setupNext({ nextEnv: true, minimalMode: true })
   })
+
+  afterEach(async () => {
+    await killApp(server)
+  })
+
   afterAll(async () => {
+    delete process.env.NOW_BUILDER
+    delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
-    if (server) await killApp(server)
   })
 
   it('should resolve correctly when a redirect is returned', async () => {
@@ -194,13 +213,13 @@ describe('should set-up next', () => {
       case: 'redirect no revalidate',
       path: '/optional-ssg/redirect-1',
       dest: '/somewhere',
-      cacheControl: 's-maxage=31536000, stale-while-revalidate',
+      cacheControl: 's-maxage=31536000',
     },
     {
       case: 'redirect with revalidate',
       path: '/optional-ssg/redirect-2',
       dest: '/somewhere-else',
-      cacheControl: 's-maxage=5, stale-while-revalidate',
+      cacheControl: 's-maxage=5, stale-while-revalidate=31535995',
     },
   ])(
     `should have correct cache-control for $case`,
@@ -230,18 +249,54 @@ describe('should set-up next', () => {
     }
   )
 
+  it('should handle data routes with optional catch-all params', async () => {
+    let res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/catch-all.json`,
+      {},
+      {
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/catch-all.json`,
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+
+    let json = await res.json()
+    expect(json.pageProps.params).toEqual({
+      rest: undefined,
+    })
+
+    res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/catch-all/next.js.json`,
+      {},
+      {
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/catch-all/next.js.json`,
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+
+    json = await res.json()
+    expect(json.pageProps.params).toEqual({
+      rest: ['next.js'],
+    })
+  })
+
   it.each([
     {
       case: 'notFound no revalidate',
       path: '/optional-ssg/not-found-1',
       dest: '/somewhere',
-      cacheControl: 's-maxage=31536000, stale-while-revalidate',
+      cacheControl: 's-maxage=31536000',
     },
     {
       case: 'notFound with revalidate',
       path: '/optional-ssg/not-found-2',
       dest: '/somewhere-else',
-      cacheControl: 's-maxage=5, stale-while-revalidate',
+      cacheControl: 's-maxage=5, stale-while-revalidate=31535995',
     },
   ])(
     `should have correct cache-control for $case`,
@@ -267,9 +322,7 @@ describe('should set-up next', () => {
   it('should have the correct cache-control for props with no revalidate', async () => {
     const res = await fetchViaHTTP(appPort, '/optional-ssg/props-no-revalidate')
     expect(res.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe(
-      's-maxage=31536000, stale-while-revalidate'
-    )
+    expect(res.headers.get('cache-control')).toBe('s-maxage=31536000')
     const $ = cheerio.load(await res.text())
     expect(JSON.parse($('#props').text()).params).toEqual({
       rest: ['props-no-revalidate'],
@@ -281,21 +334,23 @@ describe('should set-up next', () => {
       undefined
     )
     expect(dataRes.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe(
-      's-maxage=31536000, stale-while-revalidate'
-    )
+    expect(res.headers.get('cache-control')).toBe('s-maxage=31536000')
     expect((await dataRes.json()).pageProps.params).toEqual({
       rest: ['props-no-revalidate'],
     })
   })
 
-  it('should warn when "next" is imported directly', async () => {
-    await renderViaHTTP(appPort, '/gssp')
-    await check(
-      () => stderr,
-      /"next" should not be imported directly, imported in/
-    )
-  })
+  // TODO(mischnic) do we still want to do this?
+  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
+    'should warn when "next" is imported directly',
+    async () => {
+      await renderViaHTTP(appPort, '/gssp')
+      await check(
+        () => stderr,
+        /"next" should not be imported directly, imported in/
+      )
+    }
+  )
 
   it('`compress` should be `false` in nextEnv', async () => {
     expect(
@@ -303,27 +358,50 @@ describe('should set-up next', () => {
     ).toContain('"compress":false')
   })
 
-  it('`incrementalCacheHandlerPath` should have correct path', async () => {
+  it('`cacheHandler` should have correct path', async () => {
     expect(
       await fs.pathExists(join(next.testDir, 'standalone/cache-handler.js'))
     ).toBe(true)
 
     expect(
       await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
-    ).toContain('"incrementalCacheHandlerPath":"../cache-handler.js"')
+    ).toContain('"cacheHandler":"../cache-handler.js"')
+  })
+
+  it('`cacheMaxMemorySize` should be disabled by setting to 0', async () => {
+    expect(
+      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
+    ).toContain('"cacheMaxMemorySize":0')
   })
 
   it('should output middleware correctly', async () => {
-    expect(
-      await fs.pathExists(
-        join(next.testDir, 'standalone/.next/server/edge-runtime-webpack.js')
+    if (process.env.TEST_NODE_MIDDLEWARE) {
+      expect(
+        await fs.pathExists(
+          join(next.testDir, 'standalone/.next/server/middleware.js')
+        )
+      ).toBe(true)
+    } else {
+      let manifest = await fs.readJSON(
+        join(next.testDir, 'standalone/.next/server/middleware-manifest.json')
       )
-    ).toBe(true)
-    expect(
-      await fs.pathExists(
-        join(next.testDir, 'standalone/.next/server/middleware.js')
-      )
-    ).toBe(true)
+      let middleware = manifest.middleware['/']
+      let files = [
+        ...middleware.files,
+        ...middleware.wasm.map((f) => f.filePath),
+        ...middleware.assets.map((f) => f.filePath),
+      ]
+      console.log(files)
+      for (const file of files) {
+        try {
+          expect(
+            await fs.pathExists(join(next.testDir, 'standalone/.next', file))
+          ).toBe(true)
+        } catch (err) {
+          throw new Error('Missing file ' + file)
+        }
+      }
+    }
   })
 
   it('should output required-server-files manifest correctly', async () => {
@@ -331,7 +409,7 @@ describe('should set-up next', () => {
     expect(Array.isArray(requiredFilesManifest.files)).toBe(true)
     expect(Array.isArray(requiredFilesManifest.ignore)).toBe(true)
     expect(requiredFilesManifest.files.length).toBeGreaterThan(0)
-    expect(requiredFilesManifest.ignore.length).toBeGreaterThan(0)
+    expect(requiredFilesManifest.ignore.length).toBe(0)
     expect(typeof requiredFilesManifest.config.configFile).toBe('undefined')
     expect(typeof requiredFilesManifest.config.trailingSlash).toBe('boolean')
     expect(typeof requiredFilesManifest.appDir).toBe('string')
@@ -444,7 +522,7 @@ describe('should set-up next', () => {
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
 
     await waitFor(2000)
@@ -455,7 +533,7 @@ describe('should set-up next', () => {
     })
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
   })
 
@@ -467,7 +545,7 @@ describe('should set-up next', () => {
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
 
     await next.patchFile('standalone/data.txt', 'hide')
@@ -479,7 +557,7 @@ describe('should set-up next', () => {
 
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
   })
 
@@ -617,12 +695,16 @@ describe('should set-up next', () => {
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
 
-    const html3 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/dynamic/[slug]',
-        'x-now-route-matches': '1=second&nxtPslug=second',
-      },
-    })
+    const html3 = await renderViaHTTP(
+      appPort,
+      '/some-other-path?nxtPslug=second',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
     const $3 = cheerio.load(html3)
     const data3 = JSON.parse($3('#props').text())
 
@@ -636,7 +718,9 @@ describe('should set-up next', () => {
     const html = await renderViaHTTP(appPort, '/fallback/first', undefined, {
       headers: {
         'x-matched-path': '/fallback/first',
-        'x-now-route-matches': '1=first',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'first',
+        }).toString(),
       },
     })
     const $ = cheerio.load(html)
@@ -649,7 +733,9 @@ describe('should set-up next', () => {
     const html2 = await renderViaHTTP(appPort, `/fallback/[slug]`, undefined, {
       headers: {
         'x-matched-path': '/fallback/[slug]',
-        'x-now-route-matches': '1=second',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'second',
+        }).toString(),
       },
     })
     const $2 = cheerio.load(html2)
@@ -665,7 +751,9 @@ describe('should set-up next', () => {
     const html = await renderViaHTTP(appPort, '/fallback/first', undefined, {
       headers: {
         'x-matched-path': '/fallback/first',
-        'x-now-route-matches': '1=fallback%2ffirst',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'fallback/first',
+        }).toString(),
       },
     })
     const $ = cheerio.load(html)
@@ -678,7 +766,9 @@ describe('should set-up next', () => {
     const html2 = await renderViaHTTP(appPort, `/fallback/second`, undefined, {
       headers: {
         'x-matched-path': '/fallback/[slug]',
-        'x-now-route-matches': '1=fallback%2fsecond',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'fallback/second',
+        }).toString(),
       },
     })
     const $2 = cheerio.load(html2)
@@ -694,7 +784,7 @@ describe('should set-up next', () => {
     const html = await renderViaHTTP(appPort, '/optional-ssg', undefined, {
       headers: {
         'x-matched-path': '/optional-ssg',
-        'x-now-route-matches': '1=optional-ssg',
+        'x-now-route-matches': '',
       },
     })
     const $ = cheerio.load(html)
@@ -704,7 +794,9 @@ describe('should set-up next', () => {
     const html2 = await renderViaHTTP(appPort, `/optional-ssg`, undefined, {
       headers: {
         'x-matched-path': '/optional-ssg',
-        'x-now-route-matches': '1=optional-ssg%2fanother',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'another',
+        }).toString(),
       },
     })
     const $2 = cheerio.load(html2)
@@ -717,7 +809,9 @@ describe('should set-up next', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/dynamic/first.json?nxtPslug=first`,
+      `/_next/data/${next.buildId}/dynamic/first.json?${createNowRouteMatches({
+        slug: 'first',
+      }).toString()}`,
       undefined,
       {
         headers: {
@@ -738,7 +832,9 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/fallback/[slug].json`,
-          'x-now-route-matches': '1=second',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: 'second',
+          }).toString(),
         },
       }
     )
@@ -775,7 +871,9 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello&nxtPcatchAll=hello',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: 'hello',
+          }).toString(),
         },
       }
     )
@@ -794,7 +892,9 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello/world&nxtPcatchAll=hello/world',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: 'hello/world',
+          }).toString(),
         },
       }
     )
@@ -832,7 +932,9 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello&nxtPrest=hello',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: 'hello',
+          }).toString(),
         },
       }
     )
@@ -849,7 +951,9 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello/world&nxtPrest=hello/world',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: 'hello/world',
+          }).toString(),
         },
       }
     )
@@ -901,7 +1005,9 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/to-dynamic/%c0.%c0.',
-      '?path=%c0.%c0.',
+      {
+        path: '%c0.%c0.',
+      },
       {
         headers: {
           'x-matched-path': '/dynamic/[slug]',
@@ -952,67 +1058,50 @@ describe('should set-up next', () => {
   })
 
   it('should bubble error correctly for gip page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
 
-    await check(
-      () =>
-        errors.join('\n').includes('gip hit an oops')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
-    )
+    await retry(() => {
+      expect(errors.join('\n')).toInclude('gip hit an oops')
+    })
   })
 
   it('should bubble error correctly for gssp page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () =>
-        errors.join('\n').includes('gssp hit an oops')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
-    )
+
+    await retry(() => {
+      expect(errors.join('\n')).toInclude('gssp hit an oops')
+    })
   })
 
   it('should bubble error correctly for gsp page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () =>
-        errors.join('\n').includes('gsp hit an oops')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
-    )
+
+    await retry(() => {
+      expect(errors.join('\n')).toInclude('gsp hit an oops')
+    })
   })
 
   it('should bubble error correctly for API page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/api/error')
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () =>
-        errors.join('\n').includes('some error from /api/error')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
-    )
+
+    await retry(() => {
+      expect(errors.join('\n')).toInclude('some error from /api/error')
+    })
   })
 
   it('should normalize optional values correctly for SSP page', async () => {
     const res = await fetchViaHTTP(
       appPort,
       '/optional-ssp',
-      { rest: '', another: 'value' },
+      { nxtPrest: '', another: 'value' },
       {
         headers: {
           'x-matched-path': '/optional-ssp/[[...rest]]',
@@ -1031,7 +1120,7 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/optional-ssg',
-      { rest: '', another: 'value' },
+      { nxtPrest: '', another: 'value' },
       {
         headers: {
           'x-matched-path': '/optional-ssg/[[...rest]]',
@@ -1076,7 +1165,9 @@ describe('should set-up next', () => {
         path: `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
-          'x-now-route-matches': '1=',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: '',
+          }).toString(),
         },
       },
       {
@@ -1133,8 +1224,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': '/optional-ssg/[[...rest]]',
-          'x-now-route-matches':
-            '1=en%2Fes%2Fhello%252Fworld&nxtPrest=en%2Fes%2Fhello%252Fworld',
+          'x-now-route-matches': 'nxtPrest=en%2Fes%2Fhello%252Fworld',
         },
       }
     )
@@ -1151,7 +1241,7 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/api/optional',
-      { rest: '', another: 'value' },
+      { nxtPrest: '', another: 'value' },
       {
         headers: {
           'x-matched-path': '/api/optional/[[...rest]]',
@@ -1177,7 +1267,7 @@ describe('should set-up next', () => {
     )
 
     const json = await res.json()
-    expect(json.query).toEqual({ another: 'value', rest: ['index'] })
+    expect(json.query).toEqual({ another: 'value' })
     expect(json.url).toBe('/api/optional/index?another=value')
   })
 
@@ -1278,49 +1368,37 @@ describe('should set-up next', () => {
     expect(envVariables.envFromHost).toBe('FOOBAR')
   })
 
-  it('should run middleware correctly (without minimalMode, with wasm)', async () => {
-    const standaloneDir = join(next.testDir, 'standalone')
+  describe('without minimalMode, with wasm', () => {
+    beforeAll(() => {
+      minimalMode = false
+    })
 
-    const testServer = join(standaloneDir, 'server.js')
-    await fs.writeFile(
-      testServer,
-      (
-        await fs.readFile(testServer, 'utf8')
-      ).replace('minimalMode: true', 'minimalMode: false')
-    )
-    appPort = await findPort()
-    server = await initNextServerScript(
-      testServer,
-      /ready started server on/,
-      {
-        ...process.env,
-        PORT: appPort,
-      },
-      undefined,
-      {
-        cwd: next.testDir,
-        onStderr(msg) {
-          errors.push(msg)
-          stderr += msg
-        },
+    it('should run middleware correctly', async () => {
+      const standaloneDir = join(next.testDir, 'standalone')
+      const res = await fetchViaHTTP(appPort, '/')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('index page')
+
+      if (!process.env.TEST_NODE_MIDDLEWARE) {
+        if (process.env.IS_TURBOPACK_TEST) {
+          expect(
+            fs.existsSync(join(standaloneDir, '.next/server/edge/chunks'))
+          ).toBe(true)
+        } else {
+          expect(
+            fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))
+          ).toBe(true)
+        }
       }
-    )
 
-    const res = await fetchViaHTTP(appPort, '/')
-    expect(res.status).toBe(200)
-    expect(await res.text()).toContain('index page')
+      const resImageResponse = await fetchViaHTTP(
+        appPort,
+        '/a-non-existent-page/to-test-with-middleware'
+      )
 
-    expect(fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))).toBe(
-      true
-    )
-
-    const resImageResponse = await fetchViaHTTP(
-      appPort,
-      '/a-non-existent-page/to-test-with-middleware'
-    )
-
-    expect(resImageResponse.status).toBe(200)
-    expect(resImageResponse.headers.get('content-type')).toBe('image/png')
+      expect(resImageResponse.status).toBe(200)
+      expect(resImageResponse.headers.get('content-type')).toBe('image/png')
+    })
   })
 
   it('should correctly handle a mismatch in buildIds when normalizing next data', async () => {

@@ -1,8 +1,8 @@
 /// <reference types="node" />
 import type { ReactElement } from 'react';
-import type { ImageResponseNodeOptions, ImageResponseOptions } from './types';
+import type { ImageResponseNodeOptions, ImageResponseOptions, FigmaImageResponseProps } from './types';
 import { Readable } from 'stream';
-export declare class ImageResponse {
+export declare class ImageResponse extends Response {
     constructor(element: ReactElement, options?: ImageResponseOptions);
 }
 /**
@@ -23,3 +23,5 @@ export declare class ImageResponse {
  * ```
  */
 export declare function unstable_createNodejsStream(element: ReactElement, options?: Omit<ImageResponseNodeOptions, 'status' | 'statusText' | 'headers'>): Promise<Readable>;
+export declare const experimental_FigmaImageResponse: (props: FigmaImageResponseProps) => Promise<import("./index.edge").ImageResponse>;
+export type NodeImageResponse = typeof ImageResponse;

@@ -1,12 +1,12 @@
-import Image from 'next/image'
+import Image from "next/image";
 
 type AvatarProps = {
-  name: string
-  picture: string
-}
+  name: string;
+  picture: string;
+};
 
 const Avatar = (props: AvatarProps) => {
-  const { name, picture } = props
+  const { name, picture } = props;
 
   return (
     <div className="flex items-center">
@@ -22,7 +22,7 @@ const Avatar = (props: AvatarProps) => {
       </div>
       <div className="text-xl font-bold">{name}</div>
     </div>
-  )
-}
+  );
+};
 
-export default Avatar
+export default Avatar;

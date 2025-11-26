@@ -3,9 +3,9 @@
  * that will apply to every page. Full info on how the default works
  * can be found here: https://github.com/garmeeh/next-seo#default-seo-configuration
  */
-import { DefaultSeo } from 'next-seo'
+import { DefaultSeo } from "next-seo";
 
-import SEO from '../next-seo.config'
+import SEO from "../next-seo.config";
 
 export default function MyApp({ Component, pageProps }) {
   return (
@@ -14,5 +14,5 @@ export default function MyApp({ Component, pageProps }) {
       <DefaultSeo {...SEO} />
       <Component {...pageProps} />
     </>
-  )
+  );
 }

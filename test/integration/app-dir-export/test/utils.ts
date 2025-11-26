@@ -6,12 +6,13 @@ import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import globOrig from 'glob'
 import {
+  waitForRedbox,
   check,
   fetchViaHTTP,
   File,
   findPort,
   getRedboxHeader,
-  hasRedbox,
+  getRedboxSource,
   killApp,
   launchApp,
   nextBuild,
@@ -30,20 +31,73 @@ const apiJson = new File(join(appDir, 'app/api/json/route.js'))
 export const expectedWhenTrailingSlashTrue = [
   '404.html',
   '404/index.html',
-  '_next/static/media/test.3f1a293b.png',
+  '__next.__PAGE__.txt',
+  '__next._full.txt',
+  '__next._head.txt',
+  '__next._index.txt',
+  '__next._tree.txt',
+  // Turbopack and plain next.js have different hash output for the file name
+  // Turbopack will output favicon in the _next/static/media folder
+  ...(process.env.IS_TURBOPACK_TEST
+    ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
+    : []),
+  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
+  ...(process.env.IS_TURBOPACK_TEST
+    ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
+    : []),
   '_next/static/test-build-id/_ssgManifest.js',
+  '_not-found/__next._full.txt',
+  '_not-found/__next._head.txt',
+  '_not-found/__next._index.txt',
+  '_not-found/__next._not-found.__PAGE__.txt',
+  '_not-found/__next._not-found.txt',
+  '_not-found/__next._tree.txt',
+  '_not-found/index.html',
+  '_not-found/index.txt',
+  'another/__next._full.txt',
+  'another/__next._head.txt',
+  'another/__next._index.txt',
+  'another/__next._tree.txt',
+  'another/__next.another.__PAGE__.txt',
+  'another/__next.another.txt',
+  'another/first/__next._full.txt',
+  'another/first/__next._head.txt',
+  'another/first/__next._index.txt',
+  'another/first/__next._tree.txt',
+  'another/first/__next.another.$d$slug.__PAGE__.txt',
+  'another/first/__next.another.$d$slug.txt',
+  'another/first/__next.another.txt',
   'another/first/index.html',
   'another/first/index.txt',
   'another/index.html',
   'another/index.txt',
+  'another/second/__next._full.txt',
+  'another/second/__next._head.txt',
+  'another/second/__next._index.txt',
+  'another/second/__next._tree.txt',
+  'another/second/__next.another.$d$slug.__PAGE__.txt',
+  'another/second/__next.another.$d$slug.txt',
+  'another/second/__next.another.txt',
   'another/second/index.html',
   'another/second/index.txt',
   'api/json',
   'api/txt',
+  'client/__next._full.txt',
+  'client/__next._head.txt',
+  'client/__next._index.txt',
+  'client/__next._tree.txt',
+  'client/__next.client.__PAGE__.txt',
+  'client/__next.client.txt',
   'client/index.html',
   'client/index.txt',
   'favicon.ico',
+  'image-import/__next._full.txt',
+  'image-import/__next._head.txt',
+  'image-import/__next._index.txt',
+  'image-import/__next._tree.txt',
+  'image-import/__next.image-import.__PAGE__.txt',
+  'image-import/__next.image-import.txt',
   'image-import/index.html',
   'image-import/index.txt',
   'index.html',
@@ -53,22 +107,74 @@ export const expectedWhenTrailingSlashTrue = [
 
 const expectedWhenTrailingSlashFalse = [
   '404.html',
-  '_next/static/media/test.3f1a293b.png',
+  '__next.__PAGE__.txt',
+  '__next._full.txt',
+  '__next._head.txt',
+  '__next._index.txt',
+  '__next._tree.txt',
+  // Turbopack will output favicon in the _next/static/media folder
+  ...(process.env.IS_TURBOPACK_TEST
+    ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
+    : []),
+  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
+  ...(process.env.IS_TURBOPACK_TEST
+    ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
+    : []),
   '_next/static/test-build-id/_ssgManifest.js',
+  '_not-found.html',
+  '_not-found.txt',
+  '_not-found/__next._full.txt',
+  '_not-found/__next._head.txt',
+  '_not-found/__next._index.txt',
+  '_not-found/__next._not-found.__PAGE__.txt',
+  '_not-found/__next._not-found.txt',
+  '_not-found/__next._tree.txt',
   'another.html',
   'another.txt',
+  'another/__next._full.txt',
+  'another/__next._head.txt',
+  'another/__next._index.txt',
+  'another/__next._tree.txt',
+  'another/__next.another.__PAGE__.txt',
+  'another/__next.another.txt',
   'another/first.html',
   'another/first.txt',
+  'another/first/__next._full.txt',
+  'another/first/__next._head.txt',
+  'another/first/__next._index.txt',
+  'another/first/__next._tree.txt',
+  'another/first/__next.another.$d$slug.__PAGE__.txt',
+  'another/first/__next.another.$d$slug.txt',
+  'another/first/__next.another.txt',
   'another/second.html',
   'another/second.txt',
+  'another/second/__next._full.txt',
+  'another/second/__next._head.txt',
+  'another/second/__next._index.txt',
+  'another/second/__next._tree.txt',
+  'another/second/__next.another.$d$slug.__PAGE__.txt',
+  'another/second/__next.another.$d$slug.txt',
+  'another/second/__next.another.txt',
   'api/json',
   'api/txt',
   'client.html',
   'client.txt',
+  'client/__next._full.txt',
+  'client/__next._head.txt',
+  'client/__next._index.txt',
+  'client/__next._tree.txt',
+  'client/__next.client.__PAGE__.txt',
+  'client/__next.client.txt',
   'favicon.ico',
   'image-import.html',
   'image-import.txt',
+  'image-import/__next._full.txt',
+  'image-import/__next._head.txt',
+  'image-import/__next._index.txt',
+  'image-import/__next._tree.txt',
+  'image-import/__next.image-import.__PAGE__.txt',
+  'image-import/__next.image-import.txt',
   'index.html',
   'index.txt',
   'robots.txt',
@@ -90,6 +196,7 @@ export async function runTests({
   isDev = false,
   trailingSlash = true,
   dynamicPage,
+  dynamicParams,
   dynamicApiRoute,
   generateStaticParamsOpt,
   expectedErrMsg,
@@ -97,9 +204,10 @@ export async function runTests({
   isDev?: boolean
   trailingSlash?: boolean
   dynamicPage?: string
+  dynamicParams?: string
   dynamicApiRoute?: string
   generateStaticParamsOpt?: 'set noop' | 'set client'
-  expectedErrMsg?: string
+  expectedErrMsg?: string | RegExp
 }) {
   if (trailingSlash !== undefined) {
     nextConfig.replace(
@@ -107,18 +215,25 @@ export async function runTests({
       `trailingSlash: ${trailingSlash},`
     )
   }
+
   if (dynamicPage !== undefined) {
     slugPage.replace(
-      `const dynamic = 'force-static'`,
-      `const dynamic = ${dynamicPage}`
+      `export const dynamic = 'force-static'`,
+      dynamicPage === 'undefined' ? '' : `export const dynamic = ${dynamicPage}`
     )
   }
+
   if (dynamicApiRoute !== undefined) {
     apiJson.replace(
-      `const dynamic = 'force-static'`,
-      `const dynamic = ${dynamicApiRoute}`
+      `export const dynamic = 'force-static'`,
+      `export const dynamic = ${dynamicApiRoute}`
     )
   }
+
+  if (dynamicParams !== undefined) {
+    slugPage.prepend(`export const dynamicParams = ${dynamicParams}\n`)
+  }
+
   if (generateStaticParamsOpt === 'set noop') {
     slugPage.replace('export function generateStaticParams', 'function noop')
   } else if (generateStaticParamsOpt === 'set client') {
@@ -152,8 +267,14 @@ export async function runTests({
       if (isDev) {
         const url = dynamicPage ? '/another/first' : '/api/json'
         const browser = await webdriver(port, url)
-        expect(await hasRedbox(browser, true)).toBe(true)
-        expect(await getRedboxHeader(browser)).toContain(expectedErrMsg)
+        await waitForRedbox(browser)
+        const header = await getRedboxHeader(browser)
+        const source = await getRedboxSource(browser)
+        if (expectedErrMsg instanceof RegExp) {
+          expect(`${header}\n${source}`).toContain(expectedErrMsg)
+        } else {
+          expect(`${header}\n${source}`).toContain(expectedErrMsg)
+        }
       } else {
         await check(() => result.stderr, /error/i)
       }
@@ -208,8 +329,8 @@ export async function runTests({
 
       await check(() => browser.elementByCss('h1').text(), 'Image Import')
       expect(await browser.elementByCss(a(2)).text()).toBe('View the image')
-      expect(await browser.elementByCss(a(2)).getAttribute('href')).toContain(
-        '/test.3f1a293b.png'
+      expect(await browser.elementByCss(a(2)).getAttribute('href')).toMatch(
+        /\/test\.(.*)\.png/
       )
       const res1 = await fetchViaHTTP(port, '/api/json')
       expect(res1.status).toBe(200)

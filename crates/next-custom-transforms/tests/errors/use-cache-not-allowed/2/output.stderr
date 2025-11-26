@@ -1,0 +1,9 @@
+  x To use "use cache: x", please enable the feature flag `cacheComponents` in your Next.js config.
+  | 
+  | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
+  | 
+   ,-[input.js:2:1]
+ 1 | export default async function Page() {
+ 2 |   'use cache: x'
+   :   ^^^^^^^^^^^^^^
+   `----

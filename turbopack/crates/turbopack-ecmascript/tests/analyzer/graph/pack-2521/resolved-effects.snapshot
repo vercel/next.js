@@ -1,0 +1,36 @@
+0 -> 1 free var = FreeVar(require)
+
+0 -> 2 call = require*0*("./libvips")
+- *0* require: The require method from CommonJS
+
+0 -> 3 call = module<./libvips, {}>["runtimePlatformArch"]()
+
+0 -> 5 free var = FreeVar(console)
+
+0 -> 6 member call = ???*0*["log"]("runtimePlatform:", module<./libvips, {}>["runtimePlatformArch"]())
+- *0* FreeVar(console)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 7 free var = FreeVar(require)
+
+0 -> 8 call = require*0*(
+    (
+      | `../src/build/Release/sharp-${???*1*}.node`
+      | "../src/build/Release/sharp-wasm32.node"
+      | `@img/sharp-${???*2*}/sharp.node`
+      | "@img/sharp-wasm32/sharp.node"
+      | ???*3*
+    )
+)
+- *0* require: The require method from CommonJS
+- *1* module<./libvips, {}>["runtimePlatformArch"]()
+  ⚠️  nested operation
+- *2* module<./libvips, {}>["runtimePlatformArch"]()
+  ⚠️  nested operation
+- *3* unknown mutation
+  ⚠️  This value might have side effects
+
+0 -> 10 member call = []["push"](???*0*)
+- *0* err
+  ⚠️  pattern without value

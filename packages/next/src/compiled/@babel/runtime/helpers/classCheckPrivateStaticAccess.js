@@ -1,8 +1,5 @@
-function _classCheckPrivateStaticAccess(receiver, classConstructor) {
-  if (receiver !== classConstructor) {
-    throw new TypeError("Private static access of wrong provenance");
-  }
+var assertClassBrand = require("./assertClassBrand.js");
+function _classCheckPrivateStaticAccess(s, a, r) {
+  return assertClassBrand(a, s, r);
 }
-
-module.exports = _classCheckPrivateStaticAccess;
-module.exports["default"] = module.exports, module.exports.__esModule = true;
+module.exports = _classCheckPrivateStaticAccess, module.exports.__esModule = true, module.exports["default"] = module.exports;

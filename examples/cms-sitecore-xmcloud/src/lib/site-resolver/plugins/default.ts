@@ -1,6 +1,6 @@
-import { SiteInfo } from '@sitecore-jss/sitecore-jss-nextjs/middleware'
-import config from 'temp/config'
-import { SiteResolverPlugin } from '..'
+import { SiteInfo } from "@sitecore-jss/sitecore-jss-nextjs/middleware";
+import config from "temp/config";
+import { SiteResolverPlugin } from "..";
 
 class DefaultPlugin implements SiteResolverPlugin {
   exec(sites: SiteInfo[]): SiteInfo[] {
@@ -8,11 +8,11 @@ class DefaultPlugin implements SiteResolverPlugin {
     sites.unshift({
       name: config.jssAppName,
       language: config.defaultLanguage,
-      hostName: '*',
-    })
+      hostName: "*",
+    });
 
-    return sites
+    return sites;
   }
 }
 
-export const defaultPlugin = new DefaultPlugin()
+export const defaultPlugin = new DefaultPlugin();

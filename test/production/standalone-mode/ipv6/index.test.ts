@@ -47,7 +47,7 @@ describe('standalone mode: ipv6 hostname', () => {
     appPort = await findPort()
     server = await initNextServerScript(
       testServer,
-      /ready started server on/,
+      /- Local:/,
       {
         ...process.env,
         HOSTNAME: '::',
@@ -71,7 +71,7 @@ describe('standalone mode: ipv6 hostname', () => {
   })
 
   it('should load the page without any errors', async () => {
-    expect(output).toContain(`started server on`)
+    expect(output).toContain(`- Local:`)
 
     let html = await renderViaHTTP(appPort, '/app-page')
     expect(html).toContain('Hello from App')

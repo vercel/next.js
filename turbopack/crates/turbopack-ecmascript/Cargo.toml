@@ -1,0 +1,91 @@
+[package]
+name = "turbopack-ecmascript"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[lib]
+bench = false
+
+[[bench]]
+name = "analyzer"
+harness = false
+
+[[bench]]
+name = "references"
+harness = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+auto-hash-map = { workspace = true }
+bytes-str = { workspace = true }
+data-encoding = { workspace = true }
+either = { workspace = true }
+indexmap = { workspace = true }
+indoc = { workspace = true }
+itertools = { workspace = true }
+num-bigint = "0.4"
+num-traits = "0.2.15"
+once_cell = { workspace = true }
+parking_lot = { workspace = true }
+petgraph = { workspace = true }
+dashmap = { workspace = true }
+regex = { workspace = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["raw_value"] }
+swc_sourcemap = { workspace = true }
+smallvec = { workspace = true }
+strsim = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+turbo-esregex = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-resolve = { workspace = true }
+turbopack-swc-utils = { workspace = true }
+url = { workspace = true }
+
+swc_core = { workspace = true, features = [
+  "ecma_ast",
+  "ecma_ast_serde",
+  "common",
+  "common_concurrent",
+  "common_sourcemap",
+  "ecma_ast_shrink",
+  "ecma_codegen",
+  "ecma_helpers_inline",
+  "ecma_lints",
+  "ecma_minifier",
+  "ecma_parser",
+  "ecma_preset_env",
+  "ecma_transforms",
+  "ecma_transforms_module",
+  "ecma_transforms_react",
+  "ecma_transforms_optimization",
+  "ecma_transforms_typescript",
+  "ecma_transforms_proposal",
+  "ecma_quote",
+  "ecma_visit",
+  "ecma_visit_path",
+  "ecma_visit_serde",
+  "ecma_utils",
+  "testing",
+  "base",
+] }
+
+[dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
+turbo-tasks-backend = { workspace = true }
+turbo-tasks-malloc = { workspace = true }
+turbo-tasks-testing = { workspace = true }
+turbopack-test-utils = { workspace = true }

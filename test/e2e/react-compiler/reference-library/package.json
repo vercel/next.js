@@ -1,0 +1,20 @@
+{
+  "name": "reference-library",
+  "version": "1.0.0",
+  "types": "./index.d.ts",
+  "exports": {
+    "./client": {
+      "types": "./index.d.ts",
+      "default": "./compiled/client.js"
+    },
+    "./missing-react-server": {
+      "types": "./index.d.ts",
+      "default": "./compiled/missing-react-server.js"
+    },
+    ".": {
+      "types": "./index.d.ts",
+      "react-server": "./compiled/index.react-server.js",
+      "default": "./compiled/index.js"
+    }
+  }
+}

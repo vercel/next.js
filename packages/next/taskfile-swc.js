@@ -5,35 +5,44 @@ const MODERN_BROWSERSLIST_TARGET = require('./src/shared/lib/modern-browserslist
 
 const path = require('path')
 
-// eslint-disable-next-line import/no-extraneous-dependencies
 const transform = require('@swc/core').transform
 
 module.exports = function (task) {
-  // eslint-disable-next-line require-yield
   task.plugin(
     'swc',
     {},
     function* (
       file,
       serverOrClient,
-      {
-        stripExtension,
-        keepImportAssertions = false,
-        interopClientDefaultExport = false,
-        esm = false,
-      } = {}
+      { stripExtension, interopClientDefaultExport = false, esm = false } = {}
     ) {
       // Don't compile .d.ts
-      if (file.base.endsWith('.d.ts') || file.base.endsWith('.json')) return
+      if (
+        file.base.endsWith('.d.ts') ||
+        file.base.endsWith('.json') ||
+        file.base.endsWith('.jsonc') ||
+        file.base.endsWith('.woff2')
+      )
+        return
+
+      const plugins = [
+        ...(file.base.includes('.test.') || file.base.includes('.stories.')
+          ? []
+          : [[path.join(__dirname, 'next_error_code_swc_plugin.wasm'), {}]]),
+      ]
 
       const isClient = serverOrClient === 'client'
       /** @type {import('@swc/core').Options} */
       const swcClientOptions = {
-        module: {
-          type: esm ? 'es6' : 'commonjs',
-          ignoreDynamic: true,
-          exportInteropAnnotation: true,
-        },
+        module: esm
+          ? {
+              type: 'es6',
+            }
+          : {
+              type: 'commonjs',
+              ignoreDynamic: true,
+              exportInteropAnnotation: true,
+            },
         env: {
           targets: MODERN_BROWSERSLIST_TARGET,
         },
@@ -43,15 +52,16 @@ module.exports = function (task) {
           parser: {
             syntax: 'typescript',
             dynamicImport: true,
-            importAssertions: true,
+            importAttributes: true,
             tsx: file.base.endsWith('.tsx'),
           },
           experimental: {
-            keepImportAssertions,
+            keepImportAttributes: esm,
+            plugins,
           },
           transform: {
             react: {
-              pragma: 'React.createElement',
+              runtime: 'automatic',
               pragmaFrag: 'React.Fragment',
               throwIfNamespace: true,
               development: false,
@@ -63,11 +73,15 @@ module.exports = function (task) {
 
       /** @type {import('@swc/core').Options} */
       const swcServerOptions = {
-        module: {
-          type: esm ? 'es6' : 'commonjs',
-          ignoreDynamic: true,
-          exportInteropAnnotation: true,
-        },
+        module: esm
+          ? {
+              type: 'es6',
+            }
+          : {
+              type: 'commonjs',
+              ignoreDynamic: true,
+              exportInteropAnnotation: true,
+            },
         env: {
           targets: {
             // Ideally, should be same version defined in packages/next/package.json#engines
@@ -79,20 +93,21 @@ module.exports = function (task) {
         jsc: {
           loose: true,
           // Do not enable external helpers on server-side files build
-          // _is_native_funtion helper is not compatible with edge runtime (need investigate)
+          // _is_native_function helper is not compatible with edge runtime (need investigate)
           externalHelpers: false,
           parser: {
             syntax: 'typescript',
             dynamicImport: true,
-            importAssertions: true,
+            importAttributes: true,
             tsx: file.base.endsWith('.tsx'),
           },
           experimental: {
-            keepImportAssertions,
+            keepImportAttributes: esm,
+            plugins,
           },
           transform: {
             react: {
-              pragma: 'React.createElement',
+              runtime: 'automatic',
               pragmaFrag: 'React.Fragment',
               throwIfNamespace: true,
               development: false,
@@ -109,13 +124,17 @@ module.exports = function (task) {
       const distFilePath = path.dirname(
         // we must strip src from filePath as it isn't carried into
         // the dist file path
-        path.join(__dirname, 'dist', filePath.replace(/^src[/\\]/, ''))
+        path.join(
+          __dirname,
+          esm ? 'dist/esm' : 'dist',
+          filePath.replace(/^src[/\\]/, '')
+        )
       )
 
       const options = {
         filename: path.join(file.dir, file.base),
         sourceMaps: true,
-        inlineSourcesContent: false,
+        inlineSourcesContent: true,
         sourceFileName: path.relative(distFilePath, fullFilePath),
 
         ...swcOptions,
@@ -125,22 +144,14 @@ module.exports = function (task) {
       const output = yield transform(source, options)
       const ext = path.extname(file.base)
 
-      // Make sure the output content keeps the `"use client"` directive.
-      // TODO: Remove this once SWC fixes the issue.
-      if (/^['"]use client['"]/.test(source)) {
-        output.code =
-          '"use client";\n' +
-          output.code
-            .split('\n')
-            .map((l) => (/^['"]use client['"]/.test(l) ? '' : l))
-            .join('\n')
-      }
-
       // Replace `.ts|.tsx` with `.js` in files with an extension
       if (ext) {
         const extRegex = new RegExp(ext.replace('.', '\\.') + '$', 'i')
         // Remove the extension if stripExtension is enabled or replace it with `.js`
-        file.base = file.base.replace(extRegex, stripExtension ? '' : '.js')
+        file.base = file.base.replace(
+          extRegex,
+          stripExtension ? '' : `.${ext === '.mts' ? 'm' : ''}js`
+        )
       }
 
       if (output.map) {
@@ -158,11 +169,24 @@ if ((typeof exports.default === 'function' || (typeof exports.default === 'objec
 
         output.code += Buffer.from(`\n//# sourceMappingURL=${map}`)
 
+        const sourceMapPayload = JSON.parse(output.map)
+        if ('ignoreList' in sourceMapPayload) {
+          throw new Error(
+            'SWC already sets an ignoreList. We may no longer need to manually set ignoreList.'
+          )
+        }
+        // ignore-list everything
+        sourceMapPayload.ignoreList = sourceMapPayload.sources.map(
+          (source, sourceIndex) => {
+            return sourceIndex
+          }
+        )
+
         // add sourcemap to `files` array
         this._.files.push({
           base: map,
           dir: file.dir,
-          data: Buffer.from(output.map),
+          data: Buffer.from(JSON.stringify(sourceMapPayload)),
         })
       }
 
@@ -176,6 +200,10 @@ function setNextVersion(code) {
     .replace(
       /process\.env\.__NEXT_VERSION/g,
       `"${require('./package.json').version}"`
+    )
+    .replace(
+      /process\.env\.__NEXT_REQUIRED_NODE_VERSION_RANGE/g,
+      `"${require('./package.json').engines.node}"`
     )
     .replace(
       /process\.env\.REQUIRED_APP_REACT_VERSION/,

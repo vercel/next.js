@@ -1,0 +1,39 @@
+[package]
+name = "turbopack-browser"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[lib]
+bench = false
+
+[features]
+# enable "HMR" for embedded assets
+dynamic_embed_contents = ["turbo-tasks-fs/dynamic_embed_contents"]
+# enable test utilities such as `RuntimeType::Dummy`
+test = ["turbopack-ecmascript-runtime/test"]
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+either = { workspace = true }
+indoc = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_qs = { workspace = true }
+tracing = { workspace = true }
+urlencoding = { workspace = true }
+
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-ecmascript = { workspace = true }
+turbopack-ecmascript-runtime = { workspace = true }
+turbopack-resolve = { workspace = true }
+

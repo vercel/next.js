@@ -1,9 +1,0 @@
-{
-  "main": "main.js",
-  "exports": {
-    ".": {
-      "react-server": "./react-server.js",
-      "default": "./default.js"
-    }
-  }
-}

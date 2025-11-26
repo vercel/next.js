@@ -1,0 +1,10 @@
+{
+  "name": "esm-package",
+  "exports": {
+    "./entry": {
+      "browser": "./browser.mjs",
+      "import": "./correct.mjs",
+      "require": "./wrong.js"
+    }
+  }
+}

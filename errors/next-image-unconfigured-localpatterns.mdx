@@ -1,0 +1,45 @@
+---
+title: '`next/image` Un-configured localPatterns'
+---
+
+## Why This Error Occurred
+
+One of your pages that leverages the `next/image` component, passed a `src` value that uses a URL that isn't defined in the `images.localPatterns` property in `next.config.js`.
+
+## Possible Ways to Fix It
+
+Add an entry to `images.localPatterns` array in `next.config.js` with the expected URL pattern. For example:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    localPatterns: [
+      {
+        pathname: '/assets/**',
+      },
+    ],
+  },
+}
+```
+
+Omitting the `search` will allow all query strings.
+
+If you want to prevent the query string from matching, you can use the empty string, for example:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    localPatterns: [
+      {
+        pathname: '/assets/**',
+        search: '',
+      },
+    ],
+  },
+}
+```
+
+## Useful Links
+
+- [Image Optimization Documentation](/docs/pages/api-reference/components/image)
+- [Local Patterns Documentation](/docs/pages/api-reference/components/image#localpatterns)

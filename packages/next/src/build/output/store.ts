@@ -1,24 +1,31 @@
 import createStore from 'next/dist/compiled/unistore'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { flushAllTraces } from '../../trace'
-import {
-  teardownCrashReporter,
-  teardownHeapProfiler,
-  teardownTraceSubscriber,
-} from '../swc'
+import { type Span, flushAllTraces, trace } from '../../trace'
+import { teardownTraceSubscriber } from '../swc'
 import * as Log from './log'
 
+const MAX_LOG_SKIP_DURATION_MS = 3000
+
 export type OutputState =
-  | { bootstrap: true; appUrl: string | null; bindAddr: string | null }
-  | ({ bootstrap: false; appUrl: string | null; bindAddr: string | null } & (
+  | {
+      bootstrap: true
+      appUrl: string | null
+      bindAddr: string | null
+      logging: boolean
+    }
+  | ({
+      bootstrap: false
+      appUrl: string | null
+      bindAddr: string | null
+      logging: boolean
+    } & (
       | {
           loading: true
           trigger: string | undefined
+          url: string | undefined
         }
       | {
           loading: false
           typeChecking: boolean
-          partial: 'client and server' | undefined
           totalModulesCount: number
           errors: string[] | null
           warnings: string[] | null
@@ -26,13 +33,32 @@ export type OutputState =
         }
     ))
 
+export function formatTrigger(trigger: string) {
+  // Format dynamic sitemap routes to simpler file path
+  // e.g., /sitemap.xml[] -> /sitemap.xml
+  if (trigger.includes('[__metadata_id__]')) {
+    trigger = trigger.replace('/[__metadata_id__]', '/[id]')
+  }
+
+  if (trigger.length > 1 && trigger.endsWith('/')) {
+    trigger = trigger.slice(0, -1)
+  }
+  return trigger
+}
+
 export const store = createStore<OutputState>({
   appUrl: null,
   bindAddr: null,
   bootstrap: true,
+  logging: true,
 })
 
-let lastStore: OutputState = { appUrl: null, bindAddr: null, bootstrap: true }
+let lastStore: OutputState = {
+  appUrl: null,
+  bindAddr: null,
+  bootstrap: true,
+  logging: true,
+}
 function hasStoreChanged(nextStore: OutputState) {
   if (
     (
@@ -49,26 +75,54 @@ function hasStoreChanged(nextStore: OutputState) {
 }
 
 let startTime = 0
+let trigger = '' // default, use empty string for trigger
+let triggerUrl: string | undefined = undefined
+let loadingLogTimer: NodeJS.Timeout | null = null
+let traceSpan: Span | null = null
+let logging = true
 
 store.subscribe((state) => {
+  // Update persisted logging state
+  if ('logging' in state) {
+    logging = state.logging
+  }
+
+  // If logging is disabled, do not log
+  if (!logging) {
+    return
+  }
+
   if (!hasStoreChanged(state)) {
     return
   }
 
   if (state.bootstrap) {
-    if (state.appUrl) {
-      Log.ready(`started server on ${state.bindAddr}, url: ${state.appUrl}`)
-    }
     return
   }
 
   if (state.loading) {
     if (state.trigger) {
-      if (state.trigger !== 'initial') {
-        Log.wait(`compiling ${state.trigger}...`)
+      trigger = formatTrigger(state.trigger)
+      triggerUrl = state.url
+      if (trigger !== 'initial') {
+        traceSpan = trace('compile-path', undefined, {
+          trigger: trigger,
+        })
+        if (!loadingLogTimer) {
+          // Only log compiling if compiled is not finished quickly
+          loadingLogTimer = setTimeout(() => {
+            if (
+              triggerUrl &&
+              triggerUrl !== trigger &&
+              process.env.NEXT_TRIGGER_URL
+            ) {
+              Log.wait(`Compiling ${trigger} (${triggerUrl}) ...`)
+            } else {
+              Log.wait(`Compiling ${trigger} ...`)
+            }
+          }, MAX_LOG_SKIP_DURATION_MS)
+        }
       }
-    } else {
-      Log.wait('compiling...')
     }
     if (startTime === 0) {
       startTime = Date.now()
@@ -77,27 +131,13 @@ store.subscribe((state) => {
   }
 
   if (state.errors) {
+    // Log compilation errors
     Log.error(state.errors[0])
 
-    const cleanError = stripAnsi(state.errors[0])
-    if (cleanError.indexOf('SyntaxError') > -1) {
-      const matches = cleanError.match(/\[.*\]=/)
-      if (matches) {
-        for (const match of matches) {
-          const prop = (match.split(']').shift() || '').slice(1)
-          console.log(
-            `AMP bind syntax [${prop}]='' is not supported in JSX, use 'data-amp-bind-${prop}' instead. https://nextjs.org/docs/messages/amp-bind-jsx-alt`
-          )
-        }
-        return
-      }
-    }
     startTime = 0
     // Ensure traces are flushed after each compile in development mode
     flushAllTraces()
     teardownTraceSubscriber()
-    teardownHeapProfiler()
-    teardownCrashReporter()
     return
   }
 
@@ -107,7 +147,8 @@ store.subscribe((state) => {
     startTime = 0
 
     timeMessage =
-      time > 2000 ? ` in ${Math.round(time / 100) / 10}s` : ` in ${time} ms`
+      ' ' +
+      (time > 2000 ? `in ${Math.round(time / 100) / 10}s` : `in ${time}ms`)
   }
 
   let modulesMessage = ''
@@ -115,34 +156,36 @@ store.subscribe((state) => {
     modulesMessage = ` (${state.totalModulesCount} modules)`
   }
 
-  let partialMessage = ''
-  if (state.partial) {
-    partialMessage = ` ${state.partial}`
-  }
-
   if (state.warnings) {
     Log.warn(state.warnings.join('\n\n'))
     // Ensure traces are flushed after each compile in development mode
     flushAllTraces()
     teardownTraceSubscriber()
-    teardownHeapProfiler()
-    teardownCrashReporter()
     return
   }
 
   if (state.typeChecking) {
     Log.info(
-      `bundled${partialMessage} successfully${timeMessage}${modulesMessage}, waiting for typecheck results...`
+      `bundled ${trigger}${timeMessage}${modulesMessage}, type checking...`
     )
     return
   }
 
-  Log.event(
-    `compiled${partialMessage} successfully${timeMessage}${modulesMessage}`
-  )
+  if (trigger === 'initial') {
+    trigger = ''
+  } else {
+    if (loadingLogTimer) {
+      clearTimeout(loadingLogTimer)
+      loadingLogTimer = null
+    }
+    if (traceSpan) {
+      traceSpan.stop()
+      traceSpan = null
+    }
+    trigger = ''
+  }
+
   // Ensure traces are flushed after each compile in development mode
   flushAllTraces()
   teardownTraceSubscriber()
-  teardownHeapProfiler()
-  teardownCrashReporter()
 })

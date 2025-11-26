@@ -3,7 +3,7 @@ import path from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   findPort,
   initNextServerScript,
@@ -78,7 +78,6 @@ describe('pnpm support', () => {
         },
       },
       buildCommand: 'pnpm run build',
-      installCommand: '',
     })
     await next.stop()
     expect(next.cliOutput).toMatch(/Compiled successfully/)
@@ -103,7 +102,7 @@ describe('pnpm support', () => {
       )
       server = await initNextServerScript(
         path.join(standaloneDir, 'server.js'),
-        /ready started server on/,
+        /- Local:/,
         {
           ...process.env,
           PORT: appPort,

@@ -1,33 +1,31 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
-createNextDescribe(
-  'root-layout-redirect',
-  {
+describe('root-layout-redirect', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
-  },
-  ({ next }) => {
-    it('should work using browser', async () => {
-      const browser = await next.browser('/')
+  })
 
-      expect(
-        await browser
-          .elementByCss('#trigger-redirect')
-          .click()
-          .waitForElementByCss('#result')
-          .text()
-      ).toBe('Result Page')
+  it('should work using browser', async () => {
+    const browser = await next.browser('/')
 
-      const browserLogs = await browser.log('browser')
+    expect(
+      await browser
+        .elementByCss('#trigger-redirect')
+        .click()
+        .waitForElementByCss('#result')
+        .text()
+    ).toBe('Result Page')
 
-      let foundErrors = false
+    const browserLogs = await browser.log()
 
-      browserLogs.forEach((log) => {
-        if (log.source === 'error') {
-          foundErrors = true
-        }
-      })
+    let foundErrors = false
 
-      expect(foundErrors).toBe(false)
+    browserLogs.forEach((log) => {
+      if (log.source === 'error') {
+        foundErrors = true
+      }
     })
-  }
-)
+
+    expect(foundErrors).toBe(false)
+  })
+})

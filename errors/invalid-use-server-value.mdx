@@ -1,0 +1,43 @@
+---
+title: 'Invalid "use server" Value'
+---
+
+## Why This Error Occurred
+
+This error occurs when a `"use server"` file exports a value that is not an async function. It might happen when you unintentionally export something like a configuration object, an arbitrary value, or missed the `async` keyword in the exported function declaration.
+
+These functions are required to be defined as async, because `"use server"` marks them as [Server Actions](/docs/app/getting-started/updating-data) and they can be invoked directly from the client through a network request.
+
+Examples of incorrect code:
+
+```js
+'use server'
+
+// ❌ This is incorrect: only async functions are allowed.
+export const value = 1
+
+// ❌ This is incorrect: missed the `async` keyword.
+export function getServerData() {
+  return '...'
+}
+```
+
+Correct code:
+
+```js
+'use server'
+
+// ✅ This is correct: an async function is exported.
+export async function getServerData() {
+  return '...'
+}
+```
+
+## Possible Ways to Fix It
+
+Check all exported values in the `"use server"` file (including `export *`) and make sure that they are all defined as async functions.
+
+## Useful Links
+
+- [Server Actions and Mutations - Next.js](/docs/app/getting-started/updating-data)
+- ['use server' directive - React](https://react.dev/reference/react/use-server)

@@ -1,5 +1,0 @@
-error - [image] [project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/image/basic/input/public/broken.svg  Processing image failed
-  Input image is not valid utf-8
-  
-  Caused by:
-  - invalid utf-8 sequence of 1 bytes from index 0

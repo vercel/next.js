@@ -1,0 +1,26 @@
+|name, initial| {
+  let path = std::path::PathBuf::from(
+    format!("{}/.cache/{}", env!("CARGO_TARGET_TMPDIR"), name));
+  if initial {
+    let _ = std::fs::remove_dir_all(&path);
+  }
+  std::fs::create_dir_all(&path).unwrap();
+  turbo_tasks::TurboTasks::new(
+    turbo_tasks_backend::TurboTasksBackend::new(
+      turbo_tasks_backend::BackendOptions {
+        num_workers: Some(2),
+        small_preallocation: true,
+        ..Default::default()
+      },
+      turbo_tasks_backend::default_backing_storage(
+        path.as_path(),
+        &turbo_tasks_backend::GitVersionInfo {
+          describe: "test-unversioned",
+          dirty: false,
+        },
+        false,
+        true,
+      ).unwrap().0
+    )
+  )
+}

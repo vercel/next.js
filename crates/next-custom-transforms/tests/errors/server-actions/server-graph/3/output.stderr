@@ -1,0 +1,7 @@
+  x Only async functions are allowed to be exported in a "use server" file.
+  | 
+   ,-[input.js:3:1]
+ 2 | 
+ 3 | export const x = 1
+   : ^^^^^^^^^^^^^^^^^^
+   `----

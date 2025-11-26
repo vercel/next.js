@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env/input/index.js"],"sourcesContent":["class Foo {}\n\nconsole.log(Foo, [].includes('foo'))\n"],"names":[],"mappings":";AAAA,IAAA,AAAM,MAAN,SAAM;;8BAAA;;AAEN,QAAQ,GAAG,CAAC,KAAK,EAAE,CAAC,QAAQ,CAAC"}},
+    {"offset": {"line": 13, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@swc/helpers/_/_class_call_check.js"],"sourcesContent":["export function _() {\n  return 'purposefully empty stub for @swc/helpers/_/_class_call_check.js'\n}\n"],"names":[],"mappings":";;;;AAAO,SAAS;IACd,OAAO;AACT","ignoreList":[0]}}]
+}

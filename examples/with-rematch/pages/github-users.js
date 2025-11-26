@@ -1,17 +1,17 @@
-import { useSelector } from 'react-redux'
-import { useRematchDispatch } from '../shared/utils'
-import { initializeStore } from '../shared/store'
-import CounterDisplay from '../shared/components/counter-display'
-import Header from '../shared/components/header'
+import { useSelector } from "react-redux";
+import { useRematchDispatch } from "../shared/utils";
+import { initializeStore } from "../shared/store";
+import CounterDisplay from "../shared/components/counter-display";
+import Header from "../shared/components/header";
 
 const Github = (props) => {
-  const github = useSelector((state) => state.github)
-  const { users, isLoading } = github
+  const github = useSelector((state) => state.github);
+  const { users, isLoading } = github;
   const { fetchUsers } = useRematchDispatch((dispatch) => ({
     fetchUsers: dispatch.github.fetchUsers,
-  }))
+  }));
 
-  const { usersList } = props
+  const { usersList } = props;
   return (
     <div>
       <Header />
@@ -47,18 +47,18 @@ const Github = (props) => {
       <br />
       <CounterDisplay />
     </div>
-  )
-}
+  );
+};
 
 export async function getStaticProps() {
-  const store = initializeStore()
-  const usersList = await store.dispatch.github.fetchUsers()
+  const store = initializeStore();
+  const usersList = await store.dispatch.github.fetchUsers();
 
   return {
     props: {
       usersList,
     },
-  }
+  };
 }
 
-export default Github
+export default Github;

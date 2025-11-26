@@ -3,7 +3,7 @@ import path from 'path'
 import isError from './is-error'
 import { realpathSync } from './realpath'
 
-const Module = require('module')
+const Module = require('module') as typeof import('module')
 
 export const resolveFrom = (
   fromDirectory: string,
@@ -37,10 +37,13 @@ export const resolveFrom = (
   const fromFile = path.join(fromDirectory, 'noop.js')
 
   const resolveFileName = () =>
+    // @ts-expect-error
     Module._resolveFilename(moduleId, {
       id: fromFile,
       filename: fromFile,
-      paths: Module._nodeModulePaths(fromDirectory),
+      paths:
+        // @ts-expect-error
+        Module._nodeModulePaths(fromDirectory),
     })
 
   if (silent) {

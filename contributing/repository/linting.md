@@ -14,7 +14,7 @@ If you get errors, you can run the ESLint and Prettier auto-fix using:
 pnpm lint-fix
 ```
 
-Not all rules can be auto-fixed, those require manual changes.
+Not all rules can be auto-fixed, some require manual changes.
 
 If you get a warning by alex, follow the instructions to correct the language.
 
@@ -22,7 +22,7 @@ If you get a warning by alex, follow the instructions to correct the language.
 
 We recommend installing the [ESLint plugin for VS Code](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint).
 
-You can find the enabled rules in the [ESLint config](../../.eslintrc.json).
+You can find the enabled rules in the [ESLint config](../../eslint.config.mjs).
 
 ## Prettier
 
