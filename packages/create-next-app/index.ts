@@ -672,7 +672,7 @@ async function notifyUpdate(): Promise<void> {
         yarn: 'yarn global add create-next-app',
         pnpm: 'pnpm add -g create-next-app',
         bun: 'bun add -g create-next-app',
-        deno: 'deno i -gfr npm:create-next-app',
+        deno: 'deno i -gfrA npm:create-next-app',
       }
       console.log(
         yellow(bold('A new version of `create-next-app` is available!')) +
