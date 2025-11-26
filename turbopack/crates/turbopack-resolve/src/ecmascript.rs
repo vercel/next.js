@@ -44,7 +44,7 @@ pub fn get_condition_maps(
 
 pub fn apply_esm_specific_options(
     options: Vc<ResolveOptions>,
-    reference_type: ReferenceType,
+    reference_type: &ReferenceType,
 ) -> Vc<ResolveOptions> {
     let clear_extensions = matches!(
         reference_type,
@@ -137,7 +137,7 @@ pub async fn cjs_resolve_source(
     handle_resolve_source_error(
         result,
         ty,
-        origin.origin_path().owned().await?,
+        *origin,
         *request,
         options,
         is_optional,
@@ -161,7 +161,7 @@ async fn specific_resolve(
     handle_resolve_error(
         result,
         reference_type,
-        origin.origin_path().owned().await?,
+        origin,
         request,
         options,
         is_optional,

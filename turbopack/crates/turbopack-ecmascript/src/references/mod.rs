@@ -459,6 +459,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
 
 struct AnalysisState<'a> {
     handler: &'a Handler,
+    module: ResolvedVc<EcmascriptModuleAsset>,
     source: ResolvedVc<Box<dyn Source>>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     compile_time_info: ResolvedVc<CompileTimeInfo>,
@@ -796,7 +797,8 @@ async fn analyze_ecmascript_module_internal(
         for (i, r) in eval_context.imports.references().enumerate() {
             let mut should_add_evaluation = false;
             let reference = EsmAssetReference::new(
-                origin,
+                module,
+                ResolvedVc::upcast(module),
                 RcStr::from(&*r.module_path.to_string_lossy()),
                 r.issue_source
                     .unwrap_or_else(|| IssueSource::from_source_only(source)),
@@ -1056,6 +1058,7 @@ async fn analyze_ecmascript_module_internal(
 
         let mut analysis_state = AnalysisState {
             handler: &handler,
+            module,
             source,
             origin,
             compile_time_info,
@@ -1477,6 +1480,7 @@ async fn analyze_ecmascript_module_internal(
                                         export.clone(),
                                         || {
                                             EsmAssetReference::new(
+                                                original_reference.module,
                                                 original_reference.origin,
                                                 original_reference.request.clone(),
                                                 original_reference.issue_source,
@@ -2902,6 +2906,7 @@ async fn handle_free_var_reference(
                     // import again if the variable reference turns out be dead code in some later
                     // stage of the build, thus mark the import call as /*@__PURE__*/.
                     Ok(EsmAssetReference::new_pure(
+                        state.module,
                         if let Some(lookup_path) = lookup_path {
                             ResolvedVc::upcast(
                                 PlainResolveOrigin::new(

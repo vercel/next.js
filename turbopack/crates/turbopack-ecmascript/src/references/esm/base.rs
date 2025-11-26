@@ -37,7 +37,7 @@ use turbopack_resolve::ecmascript::esm_resolve;
 
 use super::export::{all_known_export_names, is_export_missing};
 use crate::{
-    ScopeHoistingContext, TreeShakingMode,
+    EcmascriptModuleAsset, ScopeHoistingContext, TreeShakingMode,
     analyzer::imports::ImportAnnotations,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
@@ -319,6 +319,7 @@ impl EsmAssetReferences {
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
+    pub module: ResolvedVc<EcmascriptModuleAsset>,
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     // Request is a string to avoid eagerly parsing into a `Request` VC
     pub request: RcStr,
@@ -342,6 +343,7 @@ impl EsmAssetReference {
 
 impl EsmAssetReference {
     pub fn new(
+        module: ResolvedVc<EcmascriptModuleAsset>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
         issue_source: IssueSource,
@@ -351,6 +353,7 @@ impl EsmAssetReference {
         import_externals: bool,
     ) -> Self {
         EsmAssetReference {
+            module,
             origin,
             request,
             issue_source,
@@ -363,6 +366,7 @@ impl EsmAssetReference {
     }
 
     pub fn new_pure(
+        module: ResolvedVc<EcmascriptModuleAsset>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
         issue_source: IssueSource,
@@ -372,6 +376,7 @@ impl EsmAssetReference {
         import_externals: bool,
     ) -> Self {
         EsmAssetReference {
+            module,
             origin,
             request,
             issue_source,
@@ -407,18 +412,15 @@ impl ModuleReference for EsmAssetReference {
         };
 
         if let Some(ModulePart::Evaluation) = &self.export_name {
-            // remove cast
-            let module: ResolvedVc<crate::EcmascriptModuleAsset> =
-                ResolvedVc::try_downcast_type(self.origin)
-                    .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
-
             // move mode into EsmAssetReference
-            let tree_shaking_mode = module.options().await?.tree_shaking_mode;
+            let tree_shaking_mode = self.module.options().await?.tree_shaking_mode;
 
             if let Some(TreeShakingMode::ModuleFragments) = tree_shaking_mode {
-                let side_effect_free_packages = module.asset_context().side_effect_free_packages();
+                let side_effect_free_packages =
+                    self.module.asset_context().side_effect_free_packages();
 
-                if *module
+                if *self
+                    .module
                     .is_marked_as_side_effect_free(side_effect_free_packages)
                     .await?
                 {
@@ -440,12 +442,8 @@ impl ModuleReference for EsmAssetReference {
             && module.is_match(TURBOPACK_PART_IMPORT_SOURCE)
         {
             if let Some(part) = &self.export_name {
-                let module: ResolvedVc<crate::EcmascriptModuleAsset> =
-                    ResolvedVc::try_downcast_type(self.origin)
-                        .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
-
                 return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-                    EcmascriptModulePartAsset::select_part(*module, part.clone())
+                    EcmascriptModulePartAsset::select_part(*self.module, part.clone())
                         .to_resolved()
                         .await?,
                 )));

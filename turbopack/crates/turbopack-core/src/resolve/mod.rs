@@ -1594,8 +1594,9 @@ pub async fn url_resolve(
 ) -> Result<Vc<ModuleResolveResult>> {
     let resolve_options = origin.resolve_options(reference_type.clone()).await?;
     let rel_request = request.as_relative();
+    let origin_path_parent = origin.origin_path().await?.parent();
     let rel_result = resolve(
-        origin.origin_path().await?.parent(),
+        origin_path_parent.clone(),
         reference_type.clone(),
         rel_request,
         resolve_options,
@@ -1603,7 +1604,7 @@ pub async fn url_resolve(
     let result = if *rel_result.is_unresolvable().await? && rel_request.resolve().await? != request
     {
         let result = resolve(
-            origin.origin_path().await?.parent(),
+            origin_path_parent,
             reference_type.clone(),
             request,
             resolve_options,
@@ -3056,18 +3057,18 @@ async fn resolve_package_internal_with_imports_field(
 pub async fn handle_resolve_error(
     result: Vc<ModuleResolveResult>,
     reference_type: ReferenceType,
-    origin_path: FileSystemPath,
+    origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     is_optional: bool,
     source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
-    Ok(match result.await?.is_unresolvable_ref() {
-        Ok(unresolvable) => {
-            if unresolvable {
+    Ok(match result.await {
+        Ok(result_ref) => {
+            if result_ref.is_unresolvable_ref() {
                 emit_unresolvable_issue(
                     is_optional,
-                    origin_path,
+                    origin,
                     reference_type,
                     request,
                     resolve_options,
@@ -3081,7 +3082,7 @@ pub async fn handle_resolve_error(
         Err(err) => {
             emit_resolve_error_issue(
                 is_optional,
-                origin_path,
+                origin,
                 reference_type,
                 request,
                 resolve_options,
@@ -3097,7 +3098,7 @@ pub async fn handle_resolve_error(
 pub async fn handle_resolve_source_error(
     result: Vc<ResolveResult>,
     reference_type: ReferenceType,
-    origin_path: FileSystemPath,
+    origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     is_optional: bool,
@@ -3111,7 +3112,7 @@ pub async fn handle_resolve_source_error(
             if unresolvable {
                 emit_unresolvable_issue(
                     is_optional,
-                    origin_path,
+                    origin,
                     reference_type,
                     request,
                     resolve_options,
@@ -3125,7 +3126,7 @@ pub async fn handle_resolve_source_error(
         Err(err) => {
             emit_resolve_error_issue(
                 is_optional,
-                origin_path,
+                origin,
                 reference_type,
                 request,
                 resolve_options,
@@ -3140,7 +3141,7 @@ pub async fn handle_resolve_source_error(
 
 async fn emit_resolve_error_issue(
     is_optional: bool,
-    origin_path: FileSystemPath,
+    origin: Vc<Box<dyn ResolveOrigin>>,
     reference_type: ReferenceType,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
@@ -3154,7 +3155,7 @@ async fn emit_resolve_error_issue(
     };
     ResolvingIssue {
         severity,
-        file_path: origin_path.clone(),
+        file_path: origin.origin_path().owned().await?,
         request_type: format!("{reference_type} request"),
         request: request.to_resolved().await?,
         resolve_options: resolve_options.to_resolved().await?,
@@ -3168,7 +3169,7 @@ async fn emit_resolve_error_issue(
 
 async fn emit_unresolvable_issue(
     is_optional: bool,
-    origin_path: FileSystemPath,
+    origin: Vc<Box<dyn ResolveOrigin>>,
     reference_type: ReferenceType,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
@@ -3181,7 +3182,7 @@ async fn emit_unresolvable_issue(
     };
     ResolvingIssue {
         severity,
-        file_path: origin_path.clone(),
+        file_path: origin.origin_path().owned().await?,
         request_type: format!("{reference_type} request"),
         request: request.to_resolved().await?,
         resolve_options: resolve_options.to_resolved().await?,

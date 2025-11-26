@@ -472,16 +472,7 @@ pub async fn type_resolve(
             .asset_context()
             .process_resolve_result(result, ty.clone()),
     );
-    handle_resolve_error(
-        result,
-        ty,
-        origin.origin_path().owned().await?,
-        request,
-        options,
-        false,
-        None,
-    )
-    .await
+    handle_resolve_error(result, ty, origin, request, options, false, None).await
 }
 
 #[turbo_tasks::function]
