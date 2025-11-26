@@ -998,8 +998,8 @@ impl ModuleGraphRef {
             .context("Expected graph node")
     }
 
-    fn should_visit_node(&self, node: &SingleModuleGraphNode) -> bool {
-        if self.skip_visited_module_children {
+    fn should_visit_node(&self, node: &SingleModuleGraphNode, direction: Direction) -> bool {
+        if self.skip_visited_module_children && direction == Direction::Outgoing {
             !matches!(node, SingleModuleGraphNode::VisitedModule { .. })
         } else {
             true
@@ -1102,7 +1102,7 @@ impl ModuleGraphRef {
                     }
                     stack.push((Pass::Visit, current));
                     if action == GraphTraversalAction::Continue
-                        && self.should_visit_node(current_node)
+                        && self.should_visit_node(current_node, Direction::Outgoing)
                     {
                         let current = current_node.target_idx().unwrap_or(current);
                         stack.extend(
@@ -1154,7 +1154,7 @@ impl ModuleGraphRef {
                         Some((node_weight.module(), self.get_edge(edge)?)),
                         succ_weight.module(),
                     )?;
-                    if !self.should_visit_node(succ_weight) {
+                    if !self.should_visit_node(succ_weight, Direction::Outgoing) {
                         continue;
                     }
                     let succ = succ_weight.target_idx().unwrap_or(succ);
@@ -1203,7 +1203,7 @@ impl ModuleGraphRef {
                         Some((node_weight.module(), self.get_edge(edge)?)),
                         succ_weight.module(),
                     );
-                    if !self.should_visit_node(succ_weight) {
+                    if !self.should_visit_node(succ_weight, Direction::Outgoing) {
                         continue;
                     }
                     let succ = succ_weight.target_idx().unwrap_or(succ);
@@ -1380,7 +1380,7 @@ impl ModuleGraphRef {
                     stack.push((Pass::Visit, parent, current));
                     if action == GraphTraversalAction::Continue
                         && expanded.insert(current)
-                        && self.should_visit_node(current_node)
+                        && self.should_visit_node(current_node, direction)
                     {
                         let current = current_node.target_idx().unwrap_or(current);
                         stack.extend(self.iter_graphs_neighbors_rev(current, direction).map(
