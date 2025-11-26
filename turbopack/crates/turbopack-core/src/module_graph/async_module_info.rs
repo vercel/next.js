@@ -83,14 +83,16 @@ async fn compute_async_module_info_single(
     graph.traverse_edges_from_entries_dfs_reversed(
         self_async_modules,
         &mut (),
-        |parent, module, _state| {
+        // child is the previously visited module which must be async
+        // parent is a new module that depends on it
+        |child, parent, _state| {
             Ok(
-                if let Some((_, edge)) = parent
+                if let Some((_, edge)) = child
                     && edge.chunking_type.is_inherit_async()
                 {
-                    async_modules.insert(module);
+                    async_modules.insert(parent);
                     GraphTraversalAction::Continue
-                } else if parent.is_none() {
+                } else if child.is_none() {
                     // These are our entry points, just continue
                     GraphTraversalAction::Continue
                 } else {
