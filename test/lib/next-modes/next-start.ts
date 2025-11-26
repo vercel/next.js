@@ -110,12 +110,14 @@ export class NextStartInstance extends NextInstance {
         this.handleStdio(this.childProcess)
 
         this.childProcess.on('close', (code, signal) => {
-          if (this.isStopping) return
+          this.childProcess = undefined
           if (code || signal) {
             let message = `next start exited unexpectedly with code/signal ${
               code || signal
             }`
-            require('console').error(message)
+            if (!this.isStopping) {
+              require('console').error(message)
+            }
             reject(new Error(message))
           }
         })
