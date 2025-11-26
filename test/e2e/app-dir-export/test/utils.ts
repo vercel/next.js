@@ -261,6 +261,7 @@ export function runTests({
   beforeAll(async () => {
     if (isNextDev) {
       await next.start()
+      port = Number(next.appPort)
     } else {
       await next.build()
 

@@ -1,8 +1,8 @@
 import { join } from 'path'
 import { FileRef, isNextDev, nextTestSetup, PatchedFileRef } from 'e2e-utils'
 
-if (isNextDev) {
-  describe('app dir - with output export and custom distDir in dev', () => {
+describe('app dir - with output export and custom distDir in dev', () => {
+  if (isNextDev) {
     const { next } = nextTestSetup({
       files: {
         app: new FileRef(join(__dirname, '..', 'app')),
@@ -19,5 +19,7 @@ if (isNextDev) {
       const res = await next.render('/')
       expect(res).toContain('Home')
     })
-  })
-}
+  } else {
+    it('skipped in prod', () => {})
+  }
+})
