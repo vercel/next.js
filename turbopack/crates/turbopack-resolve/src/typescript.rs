@@ -255,7 +255,7 @@ async fn try_join_base_url(
     base_url: RcStr,
 ) -> Result<Vc<FileSystemPathOption>> {
     Ok(Vc::cell(
-        source.ident().path().await?.parent().try_join(&base_url)?,
+        source.ident().path().await?.parent().try_join(&base_url),
     ))
 }
 
@@ -294,7 +294,7 @@ pub async fn tsconfig_resolve_options(
         {
             let mut context_dir = source.ident().path().await?.parent();
             if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str()
-                && let Some(new_context) = context_dir.try_join(base_url)?
+                && let Some(new_context) = context_dir.try_join(base_url)
             {
                 context_dir = new_context;
             };
