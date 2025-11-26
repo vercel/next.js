@@ -3,30 +3,21 @@
 import { join } from 'path'
 import { promisify } from 'util'
 import fs from 'fs-extra'
-import webdriver from 'next-webdriver'
 import globOrig from 'glob'
 import {
   waitForRedbox,
-  check,
-  fetchViaHTTP,
-  File,
-  findPort,
   getRedboxHeader,
   getRedboxSource,
-  killApp,
-  launchApp,
-  nextBuild,
+  retry,
+  findPort,
   startStaticServer,
   stopApp,
+  fetchViaHTTP,
 } from 'next-test-utils'
+import { nextTestSetup } from 'e2e-utils'
+import webdriver from 'next-webdriver'
 
 const glob = promisify(globOrig)
-export const appDir = join(__dirname, '..')
-export const distDir = join(appDir, '.next')
-export const exportDir = join(appDir, 'out')
-export const nextConfig = new File(join(appDir, 'next.config.js'))
-const slugPage = new File(join(appDir, 'app/another/[slug]/page.js'))
-const apiJson = new File(join(appDir, 'app/api/json/route.js'))
 
 export const expectedWhenTrailingSlashTrue = [
   '404.html',
@@ -180,7 +171,7 @@ const expectedWhenTrailingSlashFalse = [
   'robots.txt',
 ]
 
-export async function getFiles(cwd = exportDir) {
+export async function getFiles(cwd) {
   const opts = { cwd, nodir: true }
   const files = ((await glob('**/*', opts)) as string[])
     .filter(
@@ -192,8 +183,7 @@ export async function getFiles(cwd = exportDir) {
     .sort()
   return files
 }
-export async function runTests({
-  isDev = false,
+export function runTests({
   trailingSlash = true,
   dynamicPage,
   dynamicParams,
@@ -201,7 +191,6 @@ export async function runTests({
   generateStaticParamsOpt,
   expectedErrMsg,
 }: {
-  isDev?: boolean
   trailingSlash?: boolean
   dynamicPage?: string
   dynamicParams?: string
@@ -209,62 +198,87 @@ export async function runTests({
   generateStaticParamsOpt?: 'set noop' | 'set client'
   expectedErrMsg?: string | RegExp
 }) {
-  if (trailingSlash !== undefined) {
-    nextConfig.replace(
-      'trailingSlash: true,',
-      `trailingSlash: ${trailingSlash},`
-    )
+  let { next, skipped, isNextDev } = nextTestSetup({
+    files: join(__dirname, '..'),
+    skipDeployment: true,
+    skipStart: true,
+  })
+  if (skipped) {
+    return
   }
 
-  if (dynamicPage !== undefined) {
-    slugPage.replace(
-      `export const dynamic = 'force-static'`,
-      dynamicPage === 'undefined' ? '' : `export const dynamic = ${dynamicPage}`
-    )
-  }
+  beforeAll(async () => {
+    if (trailingSlash !== undefined) {
+      await next.patchFile('next.config.js', (content) =>
+        content.replace(
+          'trailingSlash: true,',
+          `trailingSlash: ${trailingSlash},`
+        )
+      )
+    }
 
-  if (dynamicApiRoute !== undefined) {
-    apiJson.replace(
-      `export const dynamic = 'force-static'`,
-      `export const dynamic = ${dynamicApiRoute}`
-    )
-  }
+    if (dynamicPage !== undefined) {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `export const dynamic = 'force-static'`,
+          dynamicPage === 'undefined'
+            ? ''
+            : `export const dynamic = ${dynamicPage}`
+        )
+      )
+    }
 
-  if (dynamicParams !== undefined) {
-    slugPage.prepend(`export const dynamicParams = ${dynamicParams}\n`)
-  }
+    if (dynamicApiRoute !== undefined) {
+      await next.patchFile('app/api/json/route.js', (content) =>
+        content.replace(
+          `export const dynamic = 'force-static'`,
+          `export const dynamic = ${dynamicApiRoute}`
+        )
+      )
+    }
 
-  if (generateStaticParamsOpt === 'set noop') {
-    slugPage.replace('export function generateStaticParams', 'function noop')
-  } else if (generateStaticParamsOpt === 'set client') {
-    slugPage.prepend('"use client"\n')
-  }
-  await fs.remove(distDir)
-  await fs.remove(exportDir)
-  const port = await findPort()
-  let stopOrKill: () => Promise<void>
-  let result = { code: 0, stdout: '', stderr: '' }
-  if (isDev) {
-    const app = await launchApp(appDir, port, {
-      stdout: false,
-      onStdout(msg: string) {
-        result.stdout += msg || ''
-      },
-      stderr: false,
-      onStderr(msg: string) {
-        result.stderr += msg || ''
-      },
-    })
-    stopOrKill = async () => await killApp(app)
-  } else {
-    result = await nextBuild(appDir, [], { stdout: true, stderr: true })
-    const app = await startStaticServer(exportDir, null, port)
-    stopOrKill = async () => await stopApp(app)
-  }
+    if (dynamicParams !== undefined) {
+      await next.patchFile(
+        'app/another/[slug]/page.js',
+        (content) => `export const dynamicParams = ${dynamicParams}\n` + content
+      )
+    }
 
-  try {
+    if (generateStaticParamsOpt === 'set noop') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace('export function generateStaticParams', 'function noop')
+      )
+    } else if (generateStaticParamsOpt === 'set client') {
+      await next.patchFile(
+        'app/another/[slug]/page.js',
+        (content) => '"use client"\n' + content
+      )
+    }
+  })
+
+  let port: number
+  let stopOrKill: (() => Promise<void>) | undefined
+  beforeAll(async () => {
+    if (isNextDev) {
+      await next.start()
+      port = Number(next.appPort)
+    } else {
+      await next.build()
+
+      port = await findPort()
+      const app = await startStaticServer(join(next.testDir, 'out'), null, port)
+      stopOrKill = () => stopApp(app)
+    }
+  })
+  afterAll(async () => {
+    if (stopOrKill) {
+      await stopOrKill()
+    }
+  })
+
+  it('should work', async () => {
     if (expectedErrMsg) {
-      if (isDev) {
+      if (isNextDev) {
         const url = dynamicPage ? '/another/first' : '/api/json'
         const browser = await webdriver(port, url)
         await waitForRedbox(browser)
@@ -276,58 +290,80 @@ export async function runTests({
           expect(`${header}\n${source}`).toContain(expectedErrMsg)
         }
       } else {
-        await check(() => result.stderr, /error/i)
+        await retry(() => expect(next.cliOutput).toMatch(/error/i))
       }
-      expect(result.stderr).toMatch(expectedErrMsg)
+      expect(next.cliOutput).toMatch(expectedErrMsg)
     } else {
       const a = (n: number) => `li:nth-child(${n}) a`
       const browser = await webdriver(port, '/')
-      await check(() => browser.elementByCss('h1').text(), 'Home')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('Home')
+      )
       expect(await browser.elementByCss(a(1)).text()).toBe(
         'another no trailingslash'
       )
       await browser.elementByCss(a(1)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Another')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('Another')
+      )
       expect(await browser.elementByCss(a(1)).text()).toBe(
         'Visit the home page'
       )
       await browser.elementByCss(a(1)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Home')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('Home')
+      )
       expect(await browser.elementByCss(a(2)).text()).toBe(
         'another has trailingslash'
       )
       await browser.elementByCss(a(2)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Another')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('Another')
+      )
       expect(await browser.elementByCss(a(1)).text()).toBe(
         'Visit the home page'
       )
       await browser.elementByCss(a(1)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Home')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('Home')
+      )
       expect(await browser.elementByCss(a(3)).text()).toBe('another first page')
       await browser.elementByCss(a(3)).click()
-      await check(() => browser.elementByCss('h1').text(), 'first')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('first')
+      )
       expect(await browser.elementByCss(a(1)).text()).toBe('Visit another page')
       await browser.elementByCss(a(1)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Another')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('Another')
+      )
       expect(await browser.elementByCss(a(4)).text()).toBe(
         'another second page'
       )
       await browser.elementByCss(a(4)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'second')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('second')
+      )
       expect(await browser.elementByCss(a(1)).text()).toBe('Visit another page')
       await browser.elementByCss(a(1)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Another')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('Another')
+      )
       expect(await browser.elementByCss(a(5)).text()).toBe('image import page')
       await browser.elementByCss(a(5)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Image Import')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain(
+          'Image Import'
+        )
+      )
       expect(await browser.elementByCss(a(2)).text()).toBe('View the image')
       expect(await browser.elementByCss(a(2)).getAttribute('href')).toMatch(
         /\/test\.(.*)\.png/
@@ -340,20 +376,20 @@ export async function runTests({
       expect(res2.status).toBe(200)
       expect(await res2.text()).toEqual('this is plain text')
 
-      if (!isDev) {
+      if (!isNextDev) {
+        let outputDir = join(next.testDir, 'out')
         if (trailingSlash) {
-          expect(await getFiles()).toEqual(expectedWhenTrailingSlashTrue)
+          expect(await getFiles(outputDir)).toEqual(
+            expectedWhenTrailingSlashTrue
+          )
         } else {
-          expect(await getFiles()).toEqual(expectedWhenTrailingSlashFalse)
+          expect(await getFiles(outputDir)).toEqual(
+            expectedWhenTrailingSlashFalse
+          )
         }
-        const html404 = await fs.readFile(join(exportDir, '404.html'), 'utf8')
+        const html404 = await fs.readFile(join(outputDir, '404.html'), 'utf8')
         expect(html404).toContain('<h1>My custom not found page</h1>')
       }
     }
-  } finally {
-    await stopOrKill()
-    nextConfig.restore()
-    slugPage.restore()
-    apiJson.restore()
-  }
+  })
 }

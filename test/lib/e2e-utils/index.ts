@@ -127,6 +127,20 @@ export class FileRef {
   }
 }
 
+/**
+ * FileRef is wrapper around a file path that is meant be copied
+ * to the location where the next instance is being created
+ */
+export class PatchedFileRef {
+  public fsPath: string
+  public cb: (content: string) => string
+
+  constructor(path: string, cb: (content: string) => string) {
+    this.fsPath = path
+    this.cb = cb
+  }
+}
+
 let nextInstance: NextInstance | undefined = undefined
 
 if (typeof afterAll === 'function') {
