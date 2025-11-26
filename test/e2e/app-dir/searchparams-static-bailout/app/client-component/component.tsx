@@ -1,8 +1,15 @@
 'use client'
-export default function ClientComponent({ searchParams }) {
+
+import { use } from 'react'
+
+export default function ClientComponent({
+  searchParams,
+}: {
+  searchParams: Promise<any>
+}) {
   return (
     <>
-      <h1>Parameter: {searchParams.search}</h1>
+      <h1>Parameter: {use(searchParams).search}</h1>
     </>
   )
 }

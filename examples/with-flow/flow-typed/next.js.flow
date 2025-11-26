@@ -1,32 +1,32 @@
 // @flow
 
-declare module 'next' {
+declare module "next" {
   declare type NextApp = {
     prepare(): Promise<void>,
     getRequestHandler(): any,
     render(req: any, res: any, pathname: string, query: any): any,
-  }
-  declare module.exports: (...opts: any) => NextApp
+  };
+  declare module.exports: (...opts: any) => NextApp;
 }
 
-declare module 'next/head' {
-  declare module.exports: Class<React$Component<any, any>>
+declare module "next/head" {
+  declare module.exports: Class<React$Component<any, any>>;
 }
 
-declare module 'next/link' {
+declare module "next/link" {
   declare module.exports: Class<
-    React$Component<{ href: string, prefetch?: boolean }, any>
-  >
+    React$Component<{ href: string, prefetch?: boolean }, any>,
+  >;
 }
 
-declare module 'next/error' {
-  declare module.exports: Class<React$Component<{ statusCode: number }, any>>
+declare module "next/error" {
+  declare module.exports: Class<React$Component<{ statusCode: number }, any>>;
 }
 
-declare module 'next/document' {
-  declare export var Head: Class<React$Component<any, any>>
-  declare export var Main: Class<React$Component<any, any>>
-  declare export var NextScript: Class<React$Component<any, any>>
+declare module "next/document" {
+  declare export var Head: Class<React$Component<any, any>>;
+  declare export var Main: Class<React$Component<any, any>>;
+  declare export var NextScript: Class<React$Component<any, any>>;
   declare export default Class<React$Component<any, any>> & {
     getInitialProps: (ctx: {
       pathname: string,
@@ -36,5 +36,5 @@ declare module 'next/document' {
       err?: any,
     }) => Promise<any>,
     renderPage(cb: Function): void,
-  }
+  };
 }

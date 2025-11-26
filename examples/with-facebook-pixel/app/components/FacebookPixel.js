@@ -1,19 +1,19 @@
-'use client'
+"use client";
 
-import { usePathname } from 'next/navigation'
-import Script from 'next/script'
-import { useEffect, useState } from 'react'
-import * as pixel from '/lib/fpixel'
+import { usePathname } from "next/navigation";
+import Script from "next/script";
+import { useEffect, useState } from "react";
+import * as pixel from "../../lib/fpixel";
 
 const FacebookPixel = () => {
-  const [loaded, setLoaded] = useState(false)
-  const pathname = usePathname()
+  const [loaded, setLoaded] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (!loaded) return
+    if (!loaded) return;
 
-    pixel.pageview()
-  }, [pathname, loaded])
+    pixel.pageview();
+  }, [pathname, loaded]);
 
   return (
     <div>
@@ -25,7 +25,7 @@ const FacebookPixel = () => {
         data-pixel-id={pixel.FB_PIXEL_ID}
       />
     </div>
-  )
-}
+  );
+};
 
-export default FacebookPixel
+export default FacebookPixel;

@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 const Form = ({ isLogin, errorMessage, onSubmit }) => (
   <form onSubmit={onSubmit}>
@@ -20,16 +20,12 @@ const Form = ({ isLogin, errorMessage, onSubmit }) => (
     <div className="submit">
       {isLogin ? (
         <>
-          <Link href="/signup" legacyBehavior>
-            <a>I don't have an account</a>
-          </Link>
+          <Link href="/signup">I don't have an account</Link>
           <button type="submit">Login</button>
         </>
       ) : (
         <>
-          <Link href="/login" legacyBehavior>
-            <a>I already have an account</a>
-          </Link>
+          <Link href="/login">I already have an account</Link>
           <button type="submit">Signup</button>
         </>
       )}
@@ -77,6 +73,6 @@ const Form = ({ isLogin, errorMessage, onSubmit }) => (
       }
     `}</style>
   </form>
-)
+);
 
-export default Form
+export default Form;

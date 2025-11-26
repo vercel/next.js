@@ -4,7 +4,12 @@
 /node_modules
 /studio/node_modules
 /.pnp
-.pnp.js
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
 # testing
 /coverage
@@ -13,9 +18,9 @@
 /.next/
 /out/
 
-# production
-/build
-/studio/dist
+# sanity
+/.sanity/
+/dist/
 
 # misc
 .DS_Store
@@ -38,4 +43,4 @@ next-env.d.ts
 
 # Env files created by scripts for working locally
 .env
-studio/.env.development
+.env.local

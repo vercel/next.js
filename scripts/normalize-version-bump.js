@@ -2,7 +2,7 @@
 // @ts-check
 
 /*
- This prevents busting the turbo cache un-necessarily due 
+ This prevents busting the turbo cache un-necessarily due
  to bumping the version in the repo's package.json files
 */
 const path = require('path')
@@ -19,14 +19,6 @@ const writeJson = async (filePath, data) =>
 
 ;(async function () {
   const packages = await fs.readdir(path.join(cwd, 'packages'))
-
-  await fs.unlink(
-    path.join(
-      cwd,
-      'packages',
-      'next-swc/crates/next-dev-tests/tests-manifest.js'
-    )
-  )
 
   const pkgJsonData = new Map()
   const pkgNames = []
@@ -80,5 +72,6 @@ const writeJson = async (filePath, data) =>
     private: true,
     workspaces: ['packages/*'],
     scripts: {},
+    packageManager: 'pnpm@9.6.0',
   })
 })()

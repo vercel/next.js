@@ -1,0 +1,27 @@
+[package]
+name = "turbopack-wasm"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+indoc = { workspace = true }
+serde = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-ecmascript = { workspace = true }
+wasmparser = "0.235.0"
+wat = "1.0.69"
+

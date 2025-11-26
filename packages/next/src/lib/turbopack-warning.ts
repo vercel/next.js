@@ -1,137 +1,103 @@
-import path from 'path'
+import type { NextConfigComplete } from '../server/config-shared'
 import loadConfig from '../server/config'
-import { NextConfig } from '../server/config-shared'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import * as Log from '../build/output/log'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+} from '../shared/lib/constants'
 
-const supportedTurbopackNextConfigOptions = [
-  'configFileName',
-  'env',
-  'modularizeImports',
-  'compiler.emotion',
-  'compiler.relay',
-  'compiler.styledComponents',
-  'images',
-  'pageExtensions',
-  'onDemandEntries',
-  'rewrites',
-  'redirects',
-  'headers',
-  'reactStrictMode',
-  'swcMinify',
-  'transpilePackages',
-  'sassOptions.includePaths',
-  'experimental.serverComponentsExternalPackages',
-  'experimental.turbo',
-  'experimental.mdxRs',
+const unsupportedTurbopackNextConfigOptions = [
+  // Left to be implemented (priority)
+  // 'experimental.clientRouterFilter',
+  // 'experimental.optimizePackageImports',
+  // 'compiler.emotion',
+  // 'compiler.reactRemoveProperties',
+  // 'compiler.relay',
+  // 'compiler.removeConsole',
+  // 'compiler.styledComponents',
+  'experimental.fetchCacheKeyPrefix',
+
+  // Left to be implemented
+  // 'excludeDefaultMomentLocales',
+  // 'experimental.optimizeServerReact',
+  'experimental.clientRouterFilterAllowedRate',
+  // 'experimental.serverMinification',
+  // 'experimental.serverSourceMaps',
+
+  'experimental.allowedRevalidateHeaderKeys',
+  'experimental.extensionAlias',
+  'experimental.fallbackNodePolyfills',
+
+  'experimental.sri.algorithm',
+  'experimental.swcTraceProfiling',
+
+  // Left to be implemented (Might not be needed for Turbopack)
+  'experimental.craCompat',
+  'experimental.disablePostcssPresetEnv',
+  'experimental.esmExternals',
+  // This is used to force swc-loader to run regardless of finding Babel.
   'experimental.forceSwcTransforms',
-  // options below are not really supported, but ignored
-  'webpack',
-  'devIndicators',
-  'onDemandEntries',
-  'experimental.cpus',
-  'experimental.sharedPool',
-  'experimental.proxyTimeout',
-  'experimental.isrFlushToDisk',
-  'experimental.workerThreads',
-  'experimental.caseSensitiveRoutes',
+  'experimental.fullySpecified',
+  'experimental.urlImports',
+  'experimental.slowModuleDetection',
 ]
 
-// The following will need to be supported by `next build --turbo`
-const prodSpecificTurboNextConfigOptions = [
-  'eslint',
-  'typescript',
-  'staticPageGenerationTimeout',
-  'outputFileTracing',
-  'output',
-  'generateBuildId',
-  'analyticsId',
-  'compress',
-  'productionBrowserSourceMaps',
-  'optimizeFonts',
-  'poweredByHeader',
-  'staticPageGenerationTimeout',
-  'compiler.reactRemoveProperties',
-  'compiler.removeConsole',
-  'experimental.turbotrace',
-  'experimental.outputFileTracingRoot',
-  'experimental.outputFileTracingExcludes',
-  'experimental.outputFileTracingIgnores',
-  'experiemental.outputFileTracingIncludes',
-  'experimental.gzipSize',
-]
-
-// check for babelrc, swc plugins
+/**  */
 export async function validateTurboNextConfig({
   dir,
-  isCustomTurbopack,
   isDev,
 }: {
-  allowRetry?: boolean
-  isCustomTurbopack?: boolean
   dir: string
-  port: number
-  hostname?: string
   isDev?: boolean
 }) {
-  const { getPkgManager } =
-    require('../lib/helpers/get-pkg-manager') as typeof import('../lib/helpers/get-pkg-manager')
-  const { getBabelConfigFile } =
-    require('../build/get-babel-config-file') as typeof import('../build/get-babel-config-file')
   const { defaultConfig } =
     require('../server/config-shared') as typeof import('../server/config-shared')
-  const chalk =
-    require('next/dist/compiled/chalk') as typeof import('next/dist/compiled/chalk')
+  const { cyan, red, underline } =
+    require('../lib/picocolors') as typeof import('../lib/picocolors')
   const { interopDefault } =
     require('../lib/interop-default') as typeof import('../lib/interop-default')
 
-  // To regenerate the TURBOPACK gradient require('gradient-string')('blue', 'red')('>>> TURBOPACK')
-  const isTTY = process.stdout.isTTY
-
-  const turbopackGradient = `${chalk.bold(
-    isTTY
-      ? '\x1B[38;2;0;0;255m>\x1B[39m\x1B[38;2;23;0;232m>\x1B[39m\x1B[38;2;46;0;209m>\x1B[39m \x1B[38;2;70;0;185mT\x1B[39m\x1B[38;2;93;0;162mU\x1B[39m\x1B[38;2;116;0;139mR\x1B[39m\x1B[38;2;139;0;116mB\x1B[39m\x1B[38;2;162;0;93mO\x1B[39m\x1B[38;2;185;0;70mP\x1B[39m\x1B[38;2;209;0;46mA\x1B[39m\x1B[38;2;232;0;23mC\x1B[39m\x1B[38;2;255;0;0mK\x1B[39m'
-      : '>>> TURBOPACK'
-  )} ${chalk.dim('(beta)')}\n\n`
-
-  let thankYouMsg = `Thank you for trying Next.js v13 with Turbopack! As a reminder,\nTurbopack is currently in beta and not yet ready for production.\nWe appreciate your ongoing support as we work to make it ready\nfor everyone.\n`
-
   let unsupportedParts = ''
-  let babelrc = await getBabelConfigFile(dir)
-  if (babelrc) babelrc = path.basename(babelrc)
 
-  let hasWebpack = false
-  let hasTurbo = false
+  let hasWebpackConfig = false
+  let hasTurboConfig = false
 
-  let unsupportedConfig: string[] = []
-  let rawNextConfig: NextConfig = {}
+  const unsupportedConfig: string[] = []
+  let rawNextConfig: NextConfigComplete = {} as NextConfigComplete
 
+  const phase = isDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD
   try {
     rawNextConfig = interopDefault(
-      await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, undefined, true)
-    ) as NextConfig
+      await loadConfig(phase, dir, {
+        rawConfig: true,
+      })
+    )
 
     if (typeof rawNextConfig === 'function') {
-      rawNextConfig = (rawNextConfig as any)(PHASE_DEVELOPMENT_SERVER, {
+      rawNextConfig = (rawNextConfig as any)(phase, {
         defaultConfig,
       })
     }
+    hasWebpackConfig = Boolean(rawNextConfig.webpack)
+    hasTurboConfig = Boolean(rawNextConfig.turbopack)
 
     const flattenKeys = (obj: any, prefix: string = ''): string[] => {
       let keys: string[] = []
 
       for (const key in obj) {
-        if (typeof obj?.[key] === 'undefined') {
+        const value = obj?.[key]
+        if (typeof value === 'undefined') {
           continue
         }
 
         const pre = prefix.length ? `${prefix}.` : ''
 
         if (
-          typeof obj[key] === 'object' &&
-          !Array.isArray(obj[key]) &&
-          obj[key] !== null
+          typeof value === 'object' &&
+          !Array.isArray(value) &&
+          value !== null
         ) {
-          keys = keys.concat(flattenKeys(obj[key], pre + key))
+          keys = keys.concat(flattenKeys(value, pre + key))
         } else {
           keys.push(pre + key)
         }
@@ -152,112 +118,78 @@ export async function validateTurboNextConfig({
 
     const customKeys = flattenKeys(rawNextConfig)
 
-    let supportedKeys = isDev
-      ? [
-          ...supportedTurbopackNextConfigOptions,
-          ...prodSpecificTurboNextConfigOptions,
-        ]
-      : supportedTurbopackNextConfigOptions
-
     for (const key of customKeys) {
-      if (key.startsWith('webpack')) {
-        hasWebpack = true
-      }
       if (key.startsWith('experimental.turbo')) {
-        hasTurbo = true
+        hasTurboConfig = true
       }
 
-      let isSupported =
-        supportedKeys.some((supportedKey) => key.startsWith(supportedKey)) ||
-        getDeepValue(rawNextConfig, key) === getDeepValue(defaultConfig, key)
-      if (!isSupported) {
+      const isUnsupported =
+        unsupportedTurbopackNextConfigOptions.some(
+          (unsupportedKey) =>
+            // Either the key matches (or is a more specific subkey) of
+            // unsupportedKey, or the key is the path to a specific subkey.
+            // | key     | unsupportedKey |
+            // |---------|----------------|
+            // | foo     | foo            |
+            // | foo.bar | foo            |
+            // | foo     | foo.bar        |
+            key.startsWith(unsupportedKey) ||
+            unsupportedKey.startsWith(`${key}.`)
+        ) &&
+        getDeepValue(rawNextConfig, key) !== getDeepValue(defaultConfig, key)
+
+      if (isUnsupported) {
         unsupportedConfig.push(key)
       }
     }
   } catch (e) {
-    console.error('Unexpected error occurred while checking config', e)
+    Log.error('Unexpected error occurred while checking config', e)
   }
 
-  const hasWarningOrError = babelrc || unsupportedConfig.length
-  if (!hasWarningOrError) {
-    thankYouMsg = chalk.dim(thankYouMsg)
-  }
-  if (!isCustomTurbopack) {
-    console.log(turbopackGradient + thankYouMsg)
-  }
+  // If the build was defaulted to Turbopack, we want to warn about possibly ignored webpack
+  // configuration. Otherwise the user explicitly picked turbopack and thus we expect that
+  // they have configured it correctly.
+  if (process.env.TURBOPACK === 'auto' && hasWebpackConfig && !hasTurboConfig) {
+    const configFile = rawNextConfig.configFileName ?? 'your Next config file'
+    Log.error(
+      `ERROR: This build is using Turbopack, with a \`webpack\` config and no \`turbopack\` config.
+   This may be a mistake.
 
-  let feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${chalk.underline(
-    'https://nextjs.link/with-turbopack'
-  )}\nPlease direct feedback to: ${chalk.underline(
-    'https://nextjs.link/turbopack-feedback'
-  )}\n`
+   As of Next.js 16 Turbopack is enabled by default and
+   custom webpack configurations may need to be migrated to Turbopack.
 
-  if (!hasWarningOrError) {
-    feedbackMessage = chalk.dim(feedbackMessage)
-  }
+   NOTE: your \`webpack\` config may have been added by a configuration plugin.
 
-  if (hasWebpack && !hasTurbo) {
-    console.warn(
-      `\n${chalk.yellow(
-        'Warning:'
-      )} Webpack is configured while Turbopack is not, which may cause problems.\n
-  ${chalk.dim(
-    `See instructions if you need to configure Turbopack:\n  https://turbo.build/pack/docs/features/customizing-turbopack\n`
-  )}`
+   To configure Turbopack, see https://nextjs.org/docs/app/api-reference/next-config-js/turbopack
+
+   TIP: Many applications work fine under Turbopack with no configuration,
+   if that is the case for you, you can silence this error by passing the
+   \`--turbopack\` or \`--webpack\` flag explicitly or simply setting an 
+   empty turbopack config in ${configFile} (e.g. \`turbopack: {}\`).`
     )
+
+    process.exit(1)
   }
 
-  if (babelrc) {
-    unsupportedParts += `\n- Babel detected (${chalk.cyan(
-      babelrc
-    )})\n  ${chalk.dim(
-      `Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`
-    )}`
-  }
   if (unsupportedConfig.length) {
-    unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
+    unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${cyan(
       'next.config.js'
-    )})\n  ${chalk.dim(
-      `To use Turbopack, remove the following configuration options:\n${unsupportedConfig
-        .map((name) => `    - ${chalk.red(name)}\n`)
-        .join('')}  `
-    )}   `
+    )})\n  Turbopack will ignore the following configuration options:\n${unsupportedConfig
+      .map((name) => `    - ${red(name)}\n`)
+      .join('')}`
   }
 
-  if (unsupportedParts && !isCustomTurbopack) {
-    const pkgManager = getPkgManager(dir)
-
-    console.error(
-      `${chalk.bold.red(
-        'Error:'
-      )} You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}\n
-If you cannot make the changes above, but still want to try out\nNext.js v13 with Turbopack, create the Next.js v13 playground app\nby running the following commands:
-
-  ${chalk.bold.cyan(
-    `${
-      pkgManager === 'npm'
-        ? 'npx create-next-app'
-        : `${pkgManager} create next-app`
-    } --example with-turbopack with-turbopack-app`
-  )}\n  cd with-turbopack-app\n  ${pkgManager} run dev
-        `
+  if (unsupportedParts) {
+    Log.error(
+      `You are using configuration and/or tools that are not yet\nsupported by Next.js with Turbopack:\n${unsupportedParts}\n`
     )
 
-    if (!isCustomTurbopack) {
-      console.warn(feedbackMessage)
-
-      process.exit(1)
-    } else {
-      console.warn(
-        `\n${chalk.bold.yellow(
-          'Warning:'
-        )} Unsupported config found; but continuing with custom Turbopack binary.\n`
-      )
-    }
-  }
-
-  if (!isCustomTurbopack) {
-    console.log(feedbackMessage)
+    Log.warn(
+      'Learn more about how to configure Turbopack with Next.js:\n' +
+        underline(
+          'https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack'
+        )
+    )
   }
 
   return rawNextConfig

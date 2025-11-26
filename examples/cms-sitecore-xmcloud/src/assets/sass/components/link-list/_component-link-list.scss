@@ -1,7 +1,7 @@
-@import '@sass/abstracts/mixins';
-@import '@sass/abstracts/vars';
-@import '@fontawesome/scss/mixins';
-@import '@fontawesome/scss/variables';
+@import "@sass/abstracts/mixins";
+@import "@sass/abstracts/vars";
+@import "@fontawesome/scss/mixins";
+@import "@fontawesome/scss/variables";
 
 .link-list {
   background: $link-list-bg;
@@ -45,6 +45,6 @@
       }
     }
   }
-  @import '../../base/links';
-  @import '../../variants/link-list';
+  @import "../../base/links";
+  @import "../../variants/link-list";
 }

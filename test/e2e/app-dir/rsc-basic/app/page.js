@@ -4,8 +4,8 @@ import { headers } from 'next/headers'
 const envVar = process.env.ENV_VAR_TEST
 const headerKey = 'x-next-test-client'
 
-export default function Index() {
-  const headersList = headers()
+export default async function Index() {
+  const headersList = await headers()
   const header = headersList.get(headerKey)
 
   return (

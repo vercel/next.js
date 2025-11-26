@@ -9,7 +9,7 @@ function isIdentifierMatch(id1, id2) {
   return (id1 === null && id2 === null) || (id1 && id2 && id1.name === id2.name)
 }
 
-export = defineRule({
+export default defineRule({
   meta: {
     docs: {
       description: 'Prevent page-only custom fonts.',
@@ -20,7 +20,8 @@ export = defineRule({
     schema: [],
   },
   create(context) {
-    const paths = context.getFilename().split('pages')
+    const { sourceCode } = context
+    const paths = context.filename.split('pages')
     const page = paths[paths.length - 1]
 
     // outside of a file within `pages`, bail
@@ -71,7 +72,7 @@ export = defineRule({
           return
         }
 
-        const ancestors = context.getAncestors()
+        const ancestors = sourceCode.getAncestors(node)
 
         // if `export default <name>` is further down within the file after the
         // currently traversed component, then `localDefaultExportName` will

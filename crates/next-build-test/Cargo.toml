@@ -1,0 +1,30 @@
+[package]
+name = "next-build-test"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+futures-util = "0.3.30"
+next-api = { workspace = true }
+next-core = { workspace = true }
+num_cpus = "1.16.0"
+rand = { workspace = true, features = ["small_rng"] }
+swc_core = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tokio-stream = "0.1.15"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-backend = { workspace = true }
+turbo-tasks-malloc = { workspace = true }
+turbopack-trace-utils = { workspace = true }
+

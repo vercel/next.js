@@ -1,90 +1,183 @@
-import '../node-polyfill-fetch'
+// Start CPU profile if it wasn't already started.
+import './cpu-profile'
+import { getNetworkHost } from '../../lib/get-network-host'
+
+if (performance.getEntriesByName('next-start').length === 0) {
+  performance.mark('next-start')
+}
+import '../next'
 import '../require-hook'
 
 import type { IncomingMessage, ServerResponse } from 'http'
+import type { SelfSignedCertificate } from '../../lib/mkcert'
+import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 
+import fs from 'fs'
+import v8 from 'v8'
+import path from 'path'
 import http from 'http'
 import https from 'https'
+import os from 'os'
+import { exec } from 'child_process'
+import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { getDebugPort } from './utils'
+import { RESTART_EXIT_CODE } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
-import fs from 'fs'
-import {
-  WorkerRequestHandler,
-  WorkerUpgradeHandler,
-} from './setup-server-worker'
-import { checkIsNodeDebugging } from './is-node-debugging'
-const debug = setupDebug('next:start-server')
+import { CONFIG_FILES } from '../../shared/lib/constants'
+import { getStartServerInfo, logStartInfo } from './app-info-log'
+import { validateTurboNextConfig } from '../../lib/turbopack-warning'
+import { type Span, trace, flushAllTraces } from '../../trace'
+import { isIPv6 } from './is-ipv6'
+import { AsyncCallbackSet } from './async-callback-set'
+import type { NextServer } from '../next'
+import type { ConfiguredExperimentalFeature } from '../config'
 
-if (process.env.NEXT_CPU_PROF) {
-  process.env.__NEXT_PRIVATE_CPU_PROFILE = `CPU.router`
-  require('./cpu-profile')
+const debug = setupDebug('next:start-server')
+let startServerSpan: Span | undefined
+
+/**
+ * Get the process ID (PID) of the process using the specified port
+ */
+async function getProcessIdUsingPort(port: number): Promise<string | null> {
+  const timeoutMs = 250
+  const processLookupController = new AbortController()
+
+  const pidPromise = new Promise<string | null>((resolve) => {
+    const handleError = (error: Error) => {
+      debug('Failed to get process ID for port', port, error)
+      resolve(null)
+    }
+
+    try {
+      // Use lsof on Unix-like systems (macOS, Linux)
+      if (process.platform !== 'win32') {
+        exec(
+          `lsof -ti:${port} -sTCP:LISTEN`,
+          { signal: processLookupController.signal },
+          (error, stdout) => {
+            if (error) {
+              handleError(error)
+              return
+            }
+            // `-sTCP` will ensure there's only one port, clean up output
+            const pid = stdout.trim()
+            resolve(pid || null)
+          }
+        )
+      } else {
+        // Use netstat on Windows
+        exec(
+          `netstat -ano | findstr /C:":${port} " | findstr LISTENING`,
+          { signal: processLookupController.signal },
+          (error, stdout) => {
+            if (error) {
+              handleError(error)
+              return
+            }
+            // Clean up output and extract PID
+            const cleanOutput = stdout.replace(/\s+/g, ' ').trim()
+            if (cleanOutput) {
+              const lines = cleanOutput.split('\n')
+              const firstLine = lines[0].trim()
+              if (firstLine) {
+                const parts = firstLine.split(' ')
+                const pid = parts[parts.length - 1]
+                resolve(pid || null)
+              } else {
+                resolve(null)
+              }
+            } else {
+              resolve(null)
+            }
+          }
+        )
+      }
+    } catch (cause) {
+      handleError(
+        new Error('Unexpected error during process lookup', { cause })
+      )
+    }
+  })
+
+  const timeoutId = setTimeout(() => {
+    processLookupController.abort(
+      `PID detection timed out after ${timeoutMs}ms for port ${port}.`
+    )
+  }, timeoutMs)
+
+  pidPromise.finally(() => clearTimeout(timeoutId))
+
+  return pidPromise
 }
 
 export interface StartServerOptions {
   dir: string
   port: number
-  logReady?: boolean
   isDev: boolean
-  hostname: string
+  hostname?: string
   allowRetry?: boolean
   customServer?: boolean
   minimalMode?: boolean
   keepAliveTimeout?: number
   // this is dev-server only
-  selfSignedCertificate?: {
-    key: string
-    cert: string
-  }
-  isExperimentalTestProxy?: boolean
+  selfSignedCertificate?: SelfSignedCertificate
 }
 
 export async function getRequestHandlers({
   dir,
   port,
   isDev,
+  onDevServerCleanup,
+  server,
   hostname,
   minimalMode,
-  isNodeDebugging,
   keepAliveTimeout,
-  experimentalTestProxy,
+  experimentalHttpsServer,
+  quiet,
 }: {
   dir: string
   port: number
   isDev: boolean
-  hostname: string
+  onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
+  server?: import('http').Server
+  hostname?: string
   minimalMode?: boolean
-  isNodeDebugging?: boolean
   keepAliveTimeout?: number
-  experimentalTestProxy?: boolean
+  experimentalHttpsServer?: boolean
+  quiet?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
     dir,
     port,
     hostname,
+    onDevServerCleanup,
     dev: isDev,
     minimalMode,
-    workerType: 'router',
-    isNodeDebugging: isNodeDebugging || false,
+    server,
     keepAliveTimeout,
-    experimentalTestProxy,
+    experimentalHttpsServer,
+    startServerSpan,
+    quiet,
   })
 }
 
-export async function startServer({
-  dir,
-  port,
-  isDev,
-  hostname,
-  minimalMode,
-  allowRetry,
-  keepAliveTimeout,
-  isExperimentalTestProxy,
-  logReady = true,
-  selfSignedCertificate,
-}: StartServerOptions): Promise<void> {
+export async function startServer(
+  serverOptions: StartServerOptions
+): Promise<void> {
+  const {
+    dir,
+    isDev,
+    hostname,
+    minimalMode,
+    allowRetry,
+    keepAliveTimeout,
+    selfSignedCertificate,
+  } = serverOptions
+  let { port } = serverOptions
+
+  process.title = `next-server (v${process.env.__NEXT_VERSION})`
   let handlersReady = () => {}
   let handlersError = () => {}
 
@@ -116,6 +209,8 @@ export async function startServer({
     throw new Error('Invariant upgrade handler was not setup')
   }
 
+  let nextServer: NextServer | undefined
+
   // setup server listener as fast as possible
   if (selfSignedCertificate && !isDev) {
     throw new Error(
@@ -135,6 +230,25 @@ export async function startServer({
       res.end('Internal Server Error')
       Log.error(`Failed to handle request for ${req.url}`)
       console.error(err)
+    } finally {
+      if (isDev) {
+        if (
+          v8.getHeapStatistics().used_heap_size >
+          0.8 * v8.getHeapStatistics().heap_size_limit
+        ) {
+          Log.warn(
+            `Server is approaching the used memory threshold, restarting...`
+          )
+          trace('server-restart-close-to-memory-threshold', undefined, {
+            'memory.heapSizeLimit': String(
+              v8.getHeapStatistics().heap_size_limit
+            ),
+            'memory.heapUsed': String(v8.getHeapStatistics().used_heap_size),
+          }).stop()
+          await flushAllTraces()
+          process.exit(RESTART_EXIT_CODE)
+        }
+      }
     }
   }
 
@@ -162,6 +276,7 @@ export async function startServer({
   })
 
   let portRetryCount = 0
+  const originalPort = port
 
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (
@@ -171,7 +286,6 @@ export async function startServer({
       err.code === 'EADDRINUSE' &&
       portRetryCount < 10
     ) {
-      Log.warn(`Port ${port} is in use, trying ${port + 1} instead.`)
       port += 1
       portRetryCount += 1
       server.listen(port, hostname)
@@ -182,7 +296,7 @@ export async function startServer({
     }
   })
 
-  const isNodeDebugging = checkIsNodeDebugging()
+  let cleanupListeners = isDev ? new AsyncCallbackSet() : undefined
 
   await new Promise<void>((resolve) => {
     server.on('listening', async () => {
@@ -192,63 +306,179 @@ export async function startServer({
           ? addr?.address || hostname || 'localhost'
           : addr
       )
-
       const formattedHostname =
-        !hostname || hostname === '0.0.0.0'
+        !hostname || actualHostname === '0.0.0.0'
           ? 'localhost'
           : actualHostname === '[::]'
-          ? '[::1]'
-          : actualHostname
+            ? '[::1]'
+            : formatHostname(hostname)
 
       port = typeof addr === 'object' ? addr?.port || port : port
-      const appUrl = `${
-        selfSignedCertificate ? 'https' : 'http'
-      }://${formattedHostname}:${port}`
 
-      if (isNodeDebugging) {
-        const debugPort = getDebugPort()
-        Log.info(
-          `the --inspect${
-            isNodeDebugging === 'brk' ? '-brk' : ''
-          } option was detected, the Next.js router server should be inspected at port ${debugPort}.`
-        )
+      if (portRetryCount) {
+        const pid = await getProcessIdUsingPort(originalPort)
+        if (pid) {
+          Log.warn(
+            `Port ${originalPort} is in use by process ${pid}, using available port ${port} instead.`
+          )
+        } else {
+          Log.warn(
+            `Port ${originalPort} is in use by an unknown process, using available port ${port} instead.`
+          )
+        }
       }
 
-      if (logReady) {
-        Log.ready(`started server on ${actualHostname}:${port}, url: ${appUrl}`)
-        // expose the main port to render workers
-        process.env.PORT = port + ''
+      const networkHostname =
+        hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
+
+      const protocol = selfSignedCertificate ? 'https' : 'http'
+
+      const networkUrl = networkHostname
+        ? `${protocol}://${formatHostname(networkHostname)}:${port}`
+        : null
+
+      const appUrl = `${protocol}://${formattedHostname}:${port}`
+
+      // Store the selected port to:
+      // - expose it to render workers
+      // - re-use it for automatic dev server restarts with a randomly selected port
+      process.env.PORT = port + ''
+
+      process.env.__NEXT_PRIVATE_ORIGIN = appUrl
+
+      // Set experimental HTTPS flag for metadata resolution
+      if (selfSignedCertificate) {
+        process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
       }
 
+      // Only load env and config in dev to for logging purposes
+      let envInfo: string[] | undefined
+      let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
+      let cacheComponents: boolean | undefined
       try {
+        if (isDev) {
+          const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
+          envInfo = startServerInfo.envInfo
+          cacheComponents = startServerInfo.cacheComponents
+          experimentalFeatures = startServerInfo.experimentalFeatures
+        }
+        logStartInfo({
+          networkUrl,
+          appUrl,
+          envInfo,
+          experimentalFeatures,
+          cacheComponents,
+          logBundler: isDev,
+        })
+
+        Log.event(`Starting...`)
+
+        let cleanupStarted = false
+        let closeUpgraded: (() => void) | null = null
         const cleanup = () => {
-          debug('start-server process cleanup')
-          server.close()
-          process.exit(0)
+          if (cleanupStarted) {
+            // We can get duplicate signals, e.g. when `ctrl+c` is used in an
+            // interactive shell (i.e. bash, zsh), the shell will recursively
+            // send SIGINT to children. The parent `next-dev` process will also
+            // send us SIGINT.
+            return
+          }
+          cleanupStarted = true
+          ;(async () => {
+            debug('start-server process cleanup')
+
+            // first, stop accepting new connections and finish pending requests,
+            // because they might affect `nextServer.close()` (e.g. by scheduling an `after`)
+            await new Promise<void>((res) => {
+              server.close((err) => {
+                if (err) console.error(err)
+                res()
+              })
+              if (isDev) {
+                server.closeAllConnections()
+                closeUpgraded?.()
+              }
+            })
+
+            // now that no new requests can come in, clean up the rest
+            await Promise.all([
+              nextServer?.close().catch(console.error),
+              cleanupListeners?.runAll().catch(console.error),
+            ])
+
+            // Flush telemetry if this is a dev server
+            if (isDev) {
+              try {
+                const { traceGlobals } =
+                  require('../../trace/shared') as typeof import('../../trace/shared')
+                const telemetry = traceGlobals.get('telemetry') as
+                  | InstanceType<
+                      typeof import('../../telemetry/storage').Telemetry
+                    >
+                  | undefined
+                if (telemetry) {
+                  // Use flushDetached to avoid blocking process exit
+                  // Each process writes to a unique file (_events_${pid}.json)
+                  // to avoid race conditions with the parent process
+                  telemetry.flushDetached('dev', dir)
+                }
+              } catch (_) {
+                // Ignore telemetry errors during cleanup
+              }
+            }
+
+            debug('start-server process cleanup finished')
+            process.exit(0)
+          })()
         }
-        const exception = (err: Error) => {
-          // This is the render worker, we keep the process alive
-          console.error(err)
+
+        // Make sure commands gracefully respect termination signals (e.g. from Docker)
+        // Allow the graceful termination to be manually configurable
+        if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
+          process.on('SIGINT', cleanup)
+          process.on('SIGTERM', cleanup)
         }
-        process.on('exit', cleanup)
-        process.on('SIGINT', cleanup)
-        process.on('SIGTERM', cleanup)
-        process.on('uncaughtException', exception)
-        process.on('unhandledRejection', exception)
 
         const initResult = await getRequestHandlers({
           dir,
           port,
           isDev,
+          onDevServerCleanup: cleanupListeners
+            ? cleanupListeners.add.bind(cleanupListeners)
+            : undefined,
+          server,
           hostname,
           minimalMode,
-          isNodeDebugging: Boolean(isNodeDebugging),
           keepAliveTimeout,
-          experimentalTestProxy: !!isExperimentalTestProxy,
+          experimentalHttpsServer: !!selfSignedCertificate,
         })
-        requestHandler = initResult[0]
-        upgradeHandler = initResult[1]
+        requestHandler = initResult.requestHandler
+        upgradeHandler = initResult.upgradeHandler
+        nextServer = initResult.server
+        closeUpgraded = initResult.closeUpgraded
+
+        const startServerProcessDuration =
+          performance.mark('next-start-end') &&
+          performance.measure(
+            'next-start-duration',
+            'next-start',
+            'next-start-end'
+          ).duration
+
         handlersReady()
+        const formatDurationText =
+          startServerProcessDuration > 2000
+            ? `${Math.round(startServerProcessDuration / 100) / 10}s`
+            : `${Math.round(startServerProcessDuration)}ms`
+
+        Log.event(`Ready in ${formatDurationText}`)
+
+        if (process.env.TURBOPACK) {
+          await validateTurboNextConfig({
+            dir: serverOptions.dir,
+            isDev: serverOptions.isDev,
+          })
+        }
       } catch (err) {
         // fatal error if we can't setup
         handlersError()
@@ -260,4 +490,66 @@ export async function startServer({
     })
     server.listen(port, hostname)
   })
+
+  if (isDev) {
+    function watchConfigFiles(
+      dirToWatch: string,
+      onChange: (filename: string) => void
+    ) {
+      const wp = new Watchpack()
+      wp.watch({
+        files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)),
+      })
+      wp.on('change', onChange)
+    }
+    watchConfigFiles(dir, async (filename) => {
+      if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
+        Log.info(
+          `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
+        )
+        return
+      }
+
+      Log.warn(
+        `Found a change in ${path.basename(
+          filename
+        )}. Restarting the server to apply the changes...`
+      )
+      process.exit(RESTART_EXIT_CODE)
+    })
+  }
+}
+
+if (process.env.NEXT_PRIVATE_WORKER && process.send) {
+  process.addListener('message', async (msg: any) => {
+    if (
+      msg &&
+      typeof msg === 'object' &&
+      msg.nextWorkerOptions &&
+      process.send
+    ) {
+      startServerSpan = trace('start-dev-server', undefined, {
+        cpus: String(os.cpus().length),
+        platform: os.platform(),
+        'memory.freeMem': String(os.freemem()),
+        'memory.totalMem': String(os.totalmem()),
+        'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
+      })
+      await startServerSpan.traceAsyncFn(() =>
+        startServer(msg.nextWorkerOptions)
+      )
+      const memoryUsage = process.memoryUsage()
+      startServerSpan.setAttribute('memory.rss', String(memoryUsage.rss))
+      startServerSpan.setAttribute(
+        'memory.heapTotal',
+        String(memoryUsage.heapTotal)
+      )
+      startServerSpan.setAttribute(
+        'memory.heapUsed',
+        String(memoryUsage.heapUsed)
+      )
+      process.send({ nextServerReady: true, port: process.env.PORT })
+    }
+  })
+  process.send({ nextWorkerReady: true })
 }

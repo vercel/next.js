@@ -1,12 +1,8 @@
 # with react-hook-form
 
-This example shows how to integrate react-hook-form in Next.js
-
-Form handling doesn't have to be painful. React Hook Form will help you write less code while achieving better performance. For more information, see [react-hook-form](https://react-hook-form.com)
+This example demonstrates how to integrate [React Hook Form](https://react-hook-form.com/) with Next.js, helping you write less code and avoid unnecessary re-renders for improved performance.
 
 ## Deploy your own
-
-Deploy the example using [Vercel](https://vercel.com/now) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-react-hook-form)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-react-hook-form&project-name=with-react-hook-form&repository-name=with-react-hook-form)
 

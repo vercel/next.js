@@ -31,17 +31,23 @@ Using the Deploy Button below, you'll deploy the Next.js project as well as conn
 - [Enterspeed](/examples/cms-enterspeed)
 - [Ghost](/examples/cms-ghost)
 - [GraphCMS](/examples/cms-graphcms)
-- [Kontent](/examples/cms-kontent-ai)
+- [Kontent.ai](/examples/cms-kontent-ai)
+- [MakeSwift](/examples/cms-makeswift)
+- [Payload](/examples/cms-payload)
+- [Plasmic](/examples/cms-plasmic)
 - [Prepr](/examples/cms-prepr)
 - [Prismic](/examples/cms-prismic)
 - [Sanity](/examples/cms-sanity)
+- [Sitecore XM Cloud](/examples/cms-sitecore-xmcloud)
 - [Sitefinity](/examples/cms-sitefinity)
 - [Storyblok](/examples/cms-storyblok)
 - [TakeShape](/examples/cms-takeshape)
+- [Tina](/examples/cms-tina)
+- [Umbraco](/examples/cms-umbraco)
 - [Umbraco heartcore](/examples/cms-umbraco-heartcore)
 - [Webiny](/examples/cms-webiny)
-- [Blog Starter](/examples/blog-starter)
 - [WordPress](/examples/cms-wordpress)
+- [Blog Starter](/examples/blog-starter)
 
 ## How to use
 
@@ -52,11 +58,11 @@ npx create-next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
 ```
 
 ```bash
-yarn create-next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
+yarn create next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
 ```
 
 ```bash
-pnpm create-next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
+pnpm create next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
 ```
 
 ## Configuration

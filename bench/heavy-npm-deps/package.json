@@ -1,0 +1,23 @@
+{
+  "name": "bench-heavy-npm-deps",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev-turbopack": "next dev --turbopack",
+    "dev-webpack": "next dev --webpack",
+    "build-turbopack": "next build --turbopack",
+    "build-webpack": "next build --webpack",
+    "start-turbopack": "next start",
+    "start-webpack": "next start",
+    "build-application": "next build",
+    "start-application": "next start"
+  },
+  "dependencies": {
+    "@mantine/core": "^7.10.1",
+    "lodash-es": "^4.17.21",
+    "lucide-react": "^0.383.0",
+    "mermaid": "^10.9.1",
+    "next": "workspace:*",
+    "tailwindcss": "3.2.7"
+  }
+}

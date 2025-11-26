@@ -1,4 +1,4 @@
-import Head from 'next/head'
+import Head from "next/head";
 import {
   MDBBtn,
   MDBCard,
@@ -9,13 +9,13 @@ import {
   MDBContainer,
   MDBFooter,
   MDBRow,
-} from 'mdbreact'
+} from "mdbreact";
 
 export default function Home() {
   return (
     <>
       <Head>
-        <title>NextJS with Material Design Bootstrap for React</title>
+        <title>Next.js with Material Design Bootstrap for React</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <MDBContainer className="text-center mt-5">
@@ -114,5 +114,5 @@ export default function Home() {
         </MDBFooter>
       </MDBContainer>
     </>
-  )
+  );
 }

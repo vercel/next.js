@@ -1,11 +1,11 @@
 const withLabel = (incomingEditor) => {
-  const editor = incomingEditor
-  const { shouldBreakOutOnEnter } = editor
+  const editor = incomingEditor;
+  const { shouldBreakOutOnEnter } = editor;
 
   editor.shouldBreakOutOnEnter = (element) =>
-    element.type === 'label' ? true : shouldBreakOutOnEnter(element)
+    element.type === "label" ? true : shouldBreakOutOnEnter(element);
 
-  return editor
-}
+  return editor;
+};
 
-export default withLabel
+export default withLabel;

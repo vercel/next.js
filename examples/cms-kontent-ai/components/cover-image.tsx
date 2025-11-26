@@ -1,12 +1,12 @@
-import cn from 'classnames'
-import Image from './image'
-import Link from 'next/link'
+import cn from "classnames";
+import Image from "./image";
+import Link from "next/link";
 
 type CoverImageProps = {
-  title: string
-  src: string
-  slug?: string
-}
+  title: string;
+  src: string;
+  slug?: string;
+};
 
 export default function CoverImage({ title, src, slug }: CoverImageProps) {
   const image = (
@@ -15,11 +15,11 @@ export default function CoverImage({ title, src, slug }: CoverImageProps) {
       height={1000}
       alt={`Cover Image for ${title}`}
       src={src}
-      className={cn('shadow-small', {
-        'hover:shadow-medium transition-shadow duration-200': slug,
+      className={cn("shadow-small", {
+        "hover:shadow-medium transition-shadow duration-200": slug,
       })}
     />
-  )
+  );
   return (
     <div className="sm:mx-0">
       {slug ? (
@@ -30,5 +30,5 @@ export default function CoverImage({ title, src, slug }: CoverImageProps) {
         image
       )}
     </div>
-  )
+  );
 }

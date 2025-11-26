@@ -31,6 +31,10 @@ export default function Page() {
           To sticky first element
         </Link>
       </div>
+
+      <div>
+        <Link href="/new-metadata">To new metadata</Link>
+      </div>
     </>
   )
 }

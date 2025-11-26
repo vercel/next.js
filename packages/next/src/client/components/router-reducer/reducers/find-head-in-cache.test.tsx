@@ -1,10 +1,10 @@
-import React from 'react'
-import type { FlightRouterState } from '../../../../server/app-render/types'
-import {
+import type {
+  FlightRouterState,
   CacheNode,
-  CacheStates,
-} from '../../../../shared/lib/app-router-context'
+} from '../../../../shared/lib/app-router-types'
 import { findHeadInCache } from './find-head-in-cache'
+
+const navigatedAt = -1
 
 describe('findHeadInCache', () => {
   it('should find the head', () => {
@@ -29,9 +29,13 @@ describe('findHeadInCache', () => {
     ]
 
     const cache: CacheNode = {
-      data: null,
-      status: CacheStates.LAZY_INITIALIZED,
-      subTreeData: null,
+      navigatedAt,
+      lazyData: null,
+      rsc: null,
+      prefetchRsc: null,
+      head: null,
+      prefetchHead: null,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -39,9 +43,13 @@ describe('findHeadInCache', () => {
             [
               'linking',
               {
-                data: null,
-                status: CacheStates.LAZY_INITIALIZED,
-                subTreeData: null,
+                navigatedAt,
+                lazyData: null,
+                rsc: null,
+                prefetchRsc: null,
+                head: null,
+                prefetchHead: null,
+                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -49,7 +57,11 @@ describe('findHeadInCache', () => {
                       [
                         'about',
                         {
-                          data: null,
+                          navigatedAt,
+                          lazyData: null,
+                          head: null,
+                          prefetchHead: null,
+                          loading: null,
                           parallelRoutes: new Map([
                             [
                               'children',
@@ -57,31 +69,30 @@ describe('findHeadInCache', () => {
                                 [
                                   '',
                                   {
-                                    data: null,
-                                    status: CacheStates.LAZY_INITIALIZED,
-                                    subTreeData: null,
+                                    navigatedAt,
+                                    lazyData: null,
+                                    rsc: null,
+                                    prefetchRsc: null,
+                                    prefetchHead: null,
+                                    loading: null,
                                     parallelRoutes: new Map(),
-                                    head: (
-                                      <>
-                                        <title>About page!</title>
-                                      </>
-                                    ),
+                                    head: null,
                                   },
                                 ],
                               ]),
                             ],
                           ]),
-                          subTreeData: null,
-                          status: CacheStates.LAZY_INITIALIZED,
+                          rsc: null,
+                          prefetchRsc: null,
                         },
                       ],
                       // TODO-APP: this segment should be preserved when creating the new cache
                       // [
                       //   '',
                       //   {
-                      //     data: null,
-                      //     status: CacheStates.READY,
-                      //     subTreeData: <>Page</>,
+                      //     lazyData: null,
+                      //     rsc: <>Page</>,
+                      //     prefetchRsc: null,
                       //     parallelRoutes: new Map(),
                       //   },
                       // ],
@@ -96,11 +107,10 @@ describe('findHeadInCache', () => {
     }
 
     const result = findHeadInCache(cache, routerTree[1])
+    expect(result).not.toBeNull()
 
-    expect(result).toMatchObject(
-      <>
-        <title>About page!</title>
-      </>
-    )
+    const [cacheNode, key] = result!
+    expect(cacheNode.head).toBe(null)
+    expect(key).toBe('/linking/about/')
   })
 })

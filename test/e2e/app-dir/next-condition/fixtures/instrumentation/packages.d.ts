@@ -1,0 +1,8 @@
+declare module 'my-cjs-package/exports'
+declare module 'my-cjs-package/imports'
+declare module 'my-esm-package/exports'
+declare module 'my-esm-package/imports'
+declare module 'my-external-cjs-package/exports'
+declare module 'my-external-cjs-package/imports'
+declare module 'my-external-esm-package/exports'
+declare module 'my-external-esm-package/imports'

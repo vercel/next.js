@@ -4,8 +4,9 @@ import { nonNullable } from '../../lib/non-nullable'
 import { join, sep, normalize } from 'path'
 import { promises as fsPromises } from 'fs'
 import { warn } from '../../build/output/log'
-import chalk from '../../lib/chalk'
+import { cyan } from '../../lib/picocolors'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
+import type { PageExtensions } from '../../build/page-extensions-type'
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
   const pageSegments = normalize(pagePath).split(sep).filter(Boolean)
@@ -30,7 +31,7 @@ async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
 export async function findPageFile(
   pagesDir: string,
   normalizedPagePath: string,
-  pageExtensions: string[],
+  pageExtensions: PageExtensions,
   isAppDir: boolean
 ): Promise<string | null> {
   const pagePaths = getPagePaths(normalizedPagePath, pageExtensions, isAppDir)
@@ -58,11 +59,9 @@ export async function findPageFile(
 
   if (others.length > 0) {
     warn(
-      `Duplicate page detected. ${chalk.cyan(
-        join('pages', existingPath)
-      )} and ${chalk.cyan(
+      `Duplicate page detected. ${cyan(join('pages', existingPath))} and ${cyan(
         join('pages', others[0])
-      )} both resolve to ${chalk.cyan(normalizedPagePath)}.`
+      )} both resolve to ${cyan(normalizedPagePath)}.`
     )
   }
 
@@ -77,7 +76,7 @@ export async function findPageFile(
  *
  */
 export function createValidFileMatcher(
-  pageExtensions: string[],
+  pageExtensions: PageExtensions,
   appDirPath: string | undefined
 ) {
   const getExtensionRegexString = (extensions: string[]) =>
@@ -91,8 +90,18 @@ export function createValidFileMatcher(
       pageExtensions
     )}$`
   )
+
+  const leafOnlyRouteFileRegex = new RegExp(
+    `(^route|[\\\\/]route)\\.${getExtensionRegexString(pageExtensions)}$`
+  )
+  const leafOnlyLayoutFileRegex = new RegExp(
+    `(^(layout)|[\\\\/](layout))\\.${getExtensionRegexString(pageExtensions)}$`
+  )
   const rootNotFoundFileRegex = new RegExp(
     `^not-found\\.${getExtensionRegexString(pageExtensions)}$`
+  )
+  const leafOnlyDefaultFileRegex = new RegExp(
+    `(^(default)|[\\\\/](default))\\.${getExtensionRegexString(pageExtensions)}$`
   )
   /** TODO-METADATA: support other metadata routes
    *  regex for:
@@ -124,6 +133,19 @@ export function createValidFileMatcher(
     return leafOnlyPageFileRegex.test(filePath) || isMetadataFile(filePath)
   }
 
+  // Determine if the file is leaf node route file under app directory
+  function isAppRouterRoute(filePath: string) {
+    return leafOnlyRouteFileRegex.test(filePath)
+  }
+
+  function isAppLayoutPage(filePath: string) {
+    return leafOnlyLayoutFileRegex.test(filePath)
+  }
+
+  function isAppDefaultPage(filePath: string) {
+    return leafOnlyDefaultFileRegex.test(filePath)
+  }
+
   function isPageFile(filePath: string) {
     return validExtensionFileRegex.test(filePath) || isMetadataFile(filePath)
   }
@@ -142,6 +164,9 @@ export function createValidFileMatcher(
   return {
     isPageFile,
     isAppRouterPage,
+    isAppRouterRoute,
+    isAppLayoutPage,
+    isAppDefaultPage,
     isMetadataFile,
     isRootNotFound,
   }

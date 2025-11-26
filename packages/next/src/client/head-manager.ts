@@ -1,30 +1,10 @@
-export const DOMAttributeNames: Record<string, string> = {
-  acceptCharset: 'accept-charset',
-  className: 'class',
-  htmlFor: 'for',
-  httpEquiv: 'http-equiv',
-  noModule: 'noModule',
-}
+import { setAttributesFromProps } from './set-attributes-from-props'
+
+import type { JSX } from 'react'
 
 function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
   const el: HTMLElement = document.createElement(type)
-  for (const p in props) {
-    if (!props.hasOwnProperty(p)) continue
-    if (p === 'children' || p === 'dangerouslySetInnerHTML') continue
-
-    // we don't render undefined props to the DOM
-    if (props[p] === undefined) continue
-
-    const attr = DOMAttributeNames[p] || p.toLowerCase()
-    if (
-      type === 'script' &&
-      (attr === 'async' || attr === 'defer' || attr === 'noModule')
-    ) {
-      ;(el as HTMLScriptElement)[attr] = !!props[p]
-    } else {
-      el.setAttribute(attr, props[p])
-    }
-  }
+  setAttributesFromProps(el, props)
 
   const { children, dangerouslySetInnerHTML } = props
   if (dangerouslySetInnerHTML) {
@@ -34,8 +14,8 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
       typeof children === 'string'
         ? children
         : Array.isArray(children)
-        ? children.join('')
-        : ''
+          ? children.join('')
+          : ''
   }
   return el
 }
@@ -70,110 +50,52 @@ export function isEqualNode(oldTag: Element, newTag: Element) {
   return oldTag.isEqualNode(newTag)
 }
 
-let updateElements: (type: string, components: JSX.Element[]) => void
+function updateElements(type: string, components: JSX.Element[]) {
+  const headEl = document.querySelector('head')
+  if (!headEl) return
 
-if (process.env.__NEXT_STRICT_NEXT_HEAD) {
-  updateElements = (type: string, components: JSX.Element[]) => {
-    const headEl = document.querySelector('head')
-    if (!headEl) return
+  const oldTags = new Set(headEl.querySelectorAll(`${type}[data-next-head]`))
 
-    const headMetaTags = headEl.querySelectorAll('meta[name="next-head"]') || []
-    const oldTags: Element[] = []
-
-    if (type === 'meta') {
-      const metaCharset = headEl.querySelector('meta[charset]')
-      if (metaCharset) {
-        oldTags.push(metaCharset)
-      }
+  if (type === 'meta') {
+    const metaCharset = headEl.querySelector('meta[charset]')
+    if (metaCharset !== null) {
+      oldTags.add(metaCharset)
     }
-
-    for (let i = 0; i < headMetaTags.length; i++) {
-      const metaTag = headMetaTags[i]
-      const headTag = metaTag.nextSibling as Element
-
-      if (headTag?.tagName?.toLowerCase() === type) {
-        oldTags.push(headTag)
-      }
-    }
-    const newTags = (components.map(reactElementToDOM) as HTMLElement[]).filter(
-      (newTag) => {
-        for (let k = 0, len = oldTags.length; k < len; k++) {
-          const oldTag = oldTags[k]
-          if (isEqualNode(oldTag, newTag)) {
-            oldTags.splice(k, 1)
-            return false
-          }
-        }
-        return true
-      }
-    )
-
-    oldTags.forEach((t) => {
-      const metaTag = t.previousSibling as Element
-      if (metaTag && metaTag.getAttribute('name') === 'next-head') {
-        t.parentNode?.removeChild(metaTag)
-      }
-      t.parentNode?.removeChild(t)
-    })
-    newTags.forEach((t) => {
-      const meta = document.createElement('meta')
-      meta.name = 'next-head'
-      meta.content = '1'
-
-      // meta[charset] must be first element so special case
-      if (!(t.tagName?.toLowerCase() === 'meta' && t.getAttribute('charset'))) {
-        headEl.appendChild(meta)
-      }
-      headEl.appendChild(t)
-    })
   }
-} else {
-  updateElements = (type: string, components: JSX.Element[]) => {
-    const headEl = document.getElementsByTagName('head')[0]
-    const headCountEl: HTMLMetaElement = headEl.querySelector(
-      'meta[name=next-head-count]'
-    ) as HTMLMetaElement
-    if (process.env.NODE_ENV !== 'production') {
-      if (!headCountEl) {
-        console.error(
-          'Warning: next-head-count is missing. https://nextjs.org/docs/messages/next-head-count-missing'
-        )
-        return
+
+  const newTags: Element[] = []
+  for (let i = 0; i < components.length; i++) {
+    const component = components[i]
+    const newTag = reactElementToDOM(component)
+    newTag.setAttribute('data-next-head', '')
+
+    let isNew = true
+    for (const oldTag of oldTags) {
+      if (isEqualNode(oldTag, newTag)) {
+        oldTags.delete(oldTag)
+        isNew = false
+        break
       }
     }
 
-    const headCount = Number(headCountEl.content)
-    const oldTags: Element[] = []
+    if (isNew) {
+      newTags.push(newTag)
+    }
+  }
 
-    for (
-      let i = 0, j = headCountEl.previousElementSibling;
-      i < headCount;
-      i++, j = j?.previousElementSibling || null
+  for (const oldTag of oldTags) {
+    oldTag.parentNode?.removeChild(oldTag)
+  }
+
+  for (const newTag of newTags) {
+    // meta[charset] must be first element so special case
+    if (
+      newTag.tagName.toLowerCase() === 'meta' &&
+      newTag.getAttribute('charset') !== null
     ) {
-      if (j?.tagName?.toLowerCase() === type) {
-        oldTags.push(j)
-      }
+      headEl.prepend(newTag)
     }
-    const newTags = (components.map(reactElementToDOM) as HTMLElement[]).filter(
-      (newTag) => {
-        for (let k = 0, len = oldTags.length; k < len; k++) {
-          const oldTag = oldTags[k]
-          if (isEqualNode(oldTag, newTag)) {
-            oldTags.splice(k, 1)
-            return false
-          }
-        }
-        return true
-      }
-    )
-
-    oldTags.forEach((t) => t.parentNode?.removeChild(t))
-    newTags.forEach((t) => headEl.insertBefore(t, headCountEl))
-    headCountEl.content = (
-      headCount -
-      oldTags.length +
-      newTags.length
-    ).toString()
+    headEl.appendChild(newTag)
   }
 }
 
@@ -216,8 +138,8 @@ export default function initHeadManager(): {
           typeof children === 'string'
             ? children
             : Array.isArray(children)
-            ? children.join('')
-            : ''
+              ? children.join('')
+              : ''
       }
       if (title !== document.title) document.title = title
       ;['meta', 'base', 'link', 'style', 'script'].forEach((type) => {

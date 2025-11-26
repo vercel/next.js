@@ -1,20 +1,10 @@
-export default function _classApplyDescriptorDestructureSet(receiver, descriptor) {
-  if (descriptor.set) {
-    if (!("__destrObj" in descriptor)) {
-      descriptor.__destrObj = {
-        set value(v) {
-          descriptor.set.call(receiver, v);
-        }
-
-      };
+function _classApplyDescriptorDestructureSet(e, t) {
+  if (t.set) return "__destrObj" in t || (t.__destrObj = {
+    set value(r) {
+      t.set.call(e, r);
     }
-
-    return descriptor.__destrObj;
-  } else {
-    if (!descriptor.writable) {
-      throw new TypeError("attempted to set read only private field");
-    }
-
-    return descriptor;
-  }
+  }), t.__destrObj;
+  if (!t.writable) throw new TypeError("attempted to set read only private field");
+  return t;
 }
+export { _classApplyDescriptorDestructureSet as default };

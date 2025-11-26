@@ -1,0 +1,53 @@
+---
+title: revalidateTag Single Argument Deprecated
+---
+
+## Why This Error Occurred
+
+You are using `revalidateTag` without providing the second argument, which is now deprecated. The function now requires a second argument to specify the revalidation behavior.
+
+## Possible Ways to Fix It
+
+### Option 1: Add the second argument
+
+Update your `revalidateTag` calls to include the second argument `"max"`:
+
+```js
+// Before (deprecated)
+revalidateTag('posts')
+
+// After
+revalidateTag('posts', 'max')
+```
+
+### Option 2: Use updateTag in Server Actions
+
+If you're calling this from a Server Action and need immediate expiration for read-your-own-writes, use `updateTag` instead:
+
+```js
+// In a Server Action
+import { updateTag } from 'next/cache'
+
+export async function createPost() {
+  // ... create post ...
+
+  // Immediately expire the cache
+  updateTag('posts')
+}
+```
+
+## Revalidation Behavior
+
+- **`revalidateTag(tag, "max")` (recommended)**: The tag entry is marked as stale, and the next time a resource with that tag is visited, it will use stale-while-revalidate semantics. This means the stale content is served while fresh content is fetched in the background.
+
+- **`revalidateTag(tag, profile)`**: For advanced usage, you can specify any cache life profile that your application has defined in your `next.config` instead of `"max"`, allowing for custom revalidation behaviors.
+
+- **`updateTag(tag)`**: Only available in Server Actions. The tag entry is expired immediately, and the next request to that resource will be a blocking revalidate/cache miss. This ensures read-your-own-writes consistency.
+
+- **`revalidateTag(tag)` without second argument (deprecated)**: Same behavior as `updateTag` but shows this deprecation warning.
+
+## Useful Links
+
+- [revalidateTag Documentation](/docs/app/api-reference/functions/revalidateTag)
+- [updateTag Documentation](/docs/app/api-reference/functions/updateTag)
+- [Caching in Next.js](/docs/app/getting-started/caching-and-revalidating)

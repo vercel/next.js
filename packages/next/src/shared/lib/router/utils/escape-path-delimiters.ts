@@ -4,7 +4,7 @@ export default function escapePathDelimiters(
   escapeEncoded?: boolean
 ): string {
   return segment.replace(
-    new RegExp(`([/#?]${escapeEncoded ? '|%(2f|23|3f)' : ''})`, 'gi'),
+    new RegExp(`([/#?]${escapeEncoded ? '|%(2f|23|3f|5c)' : ''})`, 'gi'),
     (char: string) => encodeURIComponent(char)
   )
 }

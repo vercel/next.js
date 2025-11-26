@@ -1,13 +1,13 @@
-import { Heading, Text, Link, Flex, Box } from 'rebass'
+import { Heading, Text, Link, Flex, Box } from "rebass";
 
 function HomePage() {
   return (
     <Box
       sx={{
         maxWidth: 1100,
-        mx: 'auto',
+        mx: "auto",
         px: 3,
-        textAlign: 'center',
+        textAlign: "center",
       }}
     >
       <Heading
@@ -24,9 +24,9 @@ function HomePage() {
             fontWeight="bold"
             href="https://github.com/vercel/next.js/"
             sx={{
-              fontWeight: '600',
-              color: 'white',
-              textDecoration: 'none',
+              fontWeight: "600",
+              color: "white",
+              textDecoration: "none",
             }}
           >
             Next.js
@@ -36,9 +36,9 @@ function HomePage() {
             variant="nav"
             href="http://jxnblk.com/rebass/"
             sx={{
-              fontWeight: '600',
-              color: 'white',
-              textDecoration: 'none',
+              fontWeight: "600",
+              color: "white",
+              textDecoration: "none",
             }}
           >
             REBASS
@@ -59,7 +59,7 @@ function HomePage() {
         </Box>
       </Box>
     </Box>
-  )
+  );
 }
 
-export default HomePage
+export default HomePage;

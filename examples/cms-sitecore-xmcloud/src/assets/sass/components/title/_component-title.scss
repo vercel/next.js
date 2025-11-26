@@ -1,5 +1,5 @@
-@import '@sass/abstracts/vars';
-@import '@sass/abstracts/mixins';
+@import "@sass/abstracts/vars";
+@import "@sass/abstracts/mixins";
 
 .title {
   background: $title-bg;
@@ -21,5 +21,5 @@
       }
     }
   }
-  @import '@sass/variants/title';
+  @import "@sass/variants/title";
 }

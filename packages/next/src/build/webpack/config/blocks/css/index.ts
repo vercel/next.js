@@ -1,7 +1,8 @@
 import curry from 'next/dist/compiled/lodash.curry'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loader, plugin } from '../../helpers'
-import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
+import { pipe } from '../../utils'
+import type { ConfigurationContext, ConfigurationFn } from '../../utils'
 import { getCssModuleLoader, getGlobalCssLoader } from './loaders'
 import { getNextFontLoader } from './loaders/next-font'
 import {
@@ -13,6 +14,7 @@ import {
 import { getPostCssPlugins } from './plugins'
 import { nonNullable } from '../../../../../lib/non-nullable'
 import { WEBPACK_LAYERS } from '../../../../../lib/constants'
+import { getRspackCore } from '../../../../../shared/lib/get-rspack'
 
 // RegExps for all Style Sheet variants
 export const regexLikeCss = /\.(css|scss|sass)$/
@@ -56,11 +58,12 @@ let postcssInstancePromise: Promise<any>
 export async function lazyPostCSS(
   rootDirectory: string,
   supportedBrowsers: string[] | undefined,
-  disablePostcssPresetEnv: boolean | undefined
+  disablePostcssPresetEnv: boolean | undefined,
+  useLightningcss: boolean | undefined
 ) {
   if (!postcssInstancePromise) {
     postcssInstancePromise = (async () => {
-      const postcss = require('postcss')
+      const postcss = require('postcss') as typeof import('postcss')
       // @ts-ignore backwards compat
       postcss.plugin = function postcssPlugin(name, initializer) {
         function creator(...args: any) {
@@ -127,7 +130,8 @@ export async function lazyPostCSS(
       const postCssPlugins = await getPostCssPlugins(
         rootDirectory,
         supportedBrowsers,
-        disablePostcssPresetEnv
+        disablePostcssPresetEnv,
+        useLightningcss
       )
 
       return {
@@ -144,9 +148,11 @@ export const css = curry(async function css(
   ctx: ConfigurationContext,
   config: webpack.Configuration
 ) {
+  const isRspack = Boolean(process.env.NEXT_RSPACK)
   const {
     prependData: sassPrependData,
     additionalData: sassAdditionalData,
+    implementation: sassImplementation,
     ...sassOptions
   } = ctx.sassOptions
 
@@ -154,7 +160,8 @@ export const css = curry(async function css(
     lazyPostCSS(
       ctx.rootDirectory,
       ctx.supportedBrowsers,
-      ctx.experimental.disablePostcssPresetEnv
+      ctx.experimental.disablePostcssPresetEnv,
+      ctx.experimental.useLightningcss
     )
 
   const sassPreprocessors: webpack.RuleSetUseItem[] = [
@@ -163,20 +170,11 @@ export const css = curry(async function css(
     {
       loader: require.resolve('next/dist/compiled/sass-loader'),
       options: {
+        implementation: sassImplementation,
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
         sourceMap: true,
-        sassOptions: {
-          // The "fibers" option is not needed for Node.js 16+, but it's causing
-          // problems for Node.js <= 14 users as you'll have to manually install
-          // the `fibers` package:
-          // https://github.com/webpack-contrib/sass-loader#:~:text=We%20automatically%20inject%20the%20fibers%20package
-          // https://github.com/vercel/next.js/issues/45052
-          // Since it's optional and not required, we'll disable it by default
-          // to avoid the confusion.
-          fibers: false,
-          ...sassOptions,
-        },
+        sassOptions,
         additionalData: sassPrependData || sassAdditionalData,
       },
     },
@@ -207,9 +205,6 @@ export const css = curry(async function css(
   const nextFontLoaders: Array<[string | RegExp, string, any?]> = [
     [require.resolve('next/font/google/target.css'), googleLoader],
     [require.resolve('next/font/local/target.css'), localLoader],
-    // TODO: remove this in the next major version
-    [/node_modules[\\/]@next[\\/]font[\\/]google[\\/]target.css/, googleLoader],
-    [/node_modules[\\/]@next[\\/]font[\\/]local[\\/]target.css/, localLoader],
   ]
 
   nextFontLoaders.forEach(([fontLoaderTarget, fontLoaderPath]) => {
@@ -262,7 +257,7 @@ export const css = curry(async function css(
         // For app dir, we need to match the specific app layer.
         ctx.hasAppDir
           ? markRemovable({
-              sideEffects: false,
+              sideEffects: true,
               test: regexCssModules,
               issuerLayer: APP_LAYER_RULE,
               use: [
@@ -282,7 +277,7 @@ export const css = curry(async function css(
             })
           : null,
         markRemovable({
-          sideEffects: false,
+          sideEffects: true,
           test: regexCssModules,
           issuerLayer: PAGES_LAYER_RULE,
           use: getCssModuleLoader(
@@ -302,7 +297,7 @@ export const css = curry(async function css(
         // For app dir, we need to match the specific app layer.
         ctx.hasAppDir
           ? markRemovable({
-              sideEffects: false,
+              sideEffects: true,
               test: regexSassModules,
               issuerLayer: APP_LAYER_RULE,
               use: [
@@ -323,7 +318,7 @@ export const css = curry(async function css(
             })
           : null,
         markRemovable({
-          sideEffects: false,
+          sideEffects: true,
           test: regexSassModules,
           issuerLayer: PAGES_LAYER_RULE,
           use: getCssModuleLoader(
@@ -402,11 +397,11 @@ export const css = curry(async function css(
     const allowedPagesGlobalCSSIssuer = ctx.hasAppDir
       ? undefined
       : shouldIncludeExternalCSSImports
-      ? undefined
-      : {
-          and: [ctx.rootDirectory],
-          not: [/node_modules/],
-        }
+        ? undefined
+        : {
+            and: [ctx.rootDirectory],
+            not: [/node_modules/],
+          }
 
     fns.push(
       loader({
@@ -587,8 +582,12 @@ export const css = curry(async function css(
   // Enable full mini-css-extract-plugin hmr for prod mode pages or app dir
   if (ctx.isClient && (ctx.isProduction || ctx.hasAppDir)) {
     // Extract CSS as CSS file(s) in the client-side production bundle.
-    const MiniCssExtractPlugin =
-      require('../../../plugins/mini-css-extract-plugin').default
+    const MiniCssExtractPlugin = isRspack
+      ? getRspackCore().CssExtractRspackPlugin
+      : (
+          require('../../../plugins/mini-css-extract-plugin') as typeof import('../../../plugins/mini-css-extract-plugin')
+        ).default
+
     fns.push(
       plugin(
         // @ts-ignore webpack 5 compat
@@ -611,6 +610,21 @@ export const css = curry(async function css(
           // If this warning were to trigger, it'd be unactionable by the user,
           // but likely not valid -- so we disable it.
           ignoreOrder: true,
+          insert: function (linkTag: HTMLLinkElement) {
+            if (typeof _N_E_STYLE_LOAD === 'function') {
+              const { href, onload, onerror } = linkTag
+              _N_E_STYLE_LOAD(
+                href.indexOf(window.location.origin) === 0
+                  ? new URL(href).pathname
+                  : href
+              ).then(
+                () => onload?.call(linkTag, { type: 'load' } as Event),
+                () => onerror?.call(linkTag, {} as Event)
+              )
+            } else {
+              document.head.appendChild(linkTag)
+            }
+          },
         })
       )
     )

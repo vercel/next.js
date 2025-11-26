@@ -21,6 +21,18 @@ export const metadata = {
         alt: 'My custom alt',
       },
     ],
+    videos: [
+      {
+        url: 'https://example.com/video.mp4',
+        width: 800,
+        height: 450,
+      },
+    ],
+    audio: [
+      {
+        url: 'https://example.com/audio.mp3',
+      },
+    ],
     locale: 'en-US',
     type: 'website',
   },

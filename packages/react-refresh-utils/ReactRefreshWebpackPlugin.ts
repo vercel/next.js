@@ -1,4 +1,4 @@
-import {
+import type {
   Compiler as WebpackCompiler,
   Template as WebpackTemplate,
   RuntimeModule as WebpackRuntimeModule,
@@ -154,7 +154,12 @@ class ReactFreshWebpackPlugin {
   RuntimeModule: typeof WebpackRuntimeModule
   Template: typeof WebpackTemplate
   constructor(
-    { version, RuntimeGlobals, RuntimeModule, Template } = require('webpack')
+    {
+      version,
+      RuntimeGlobals,
+      RuntimeModule,
+      Template,
+    } = require('webpack') as typeof import('webpack')
   ) {
     this.webpackMajorVersion = parseInt(version ?? '', 10)
     this.RuntimeGlobals = RuntimeGlobals

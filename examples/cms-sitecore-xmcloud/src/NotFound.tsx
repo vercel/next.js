@@ -1,4 +1,4 @@
-import Head from 'next/head'
+import Head from "next/head";
 
 /**
  * Rendered in case if we have 404 error
@@ -14,6 +14,6 @@ const NotFound = (): JSX.Element => (
       <a href="/">Go to the Home page</a>
     </div>
   </>
-)
+);
 
-export default NotFound
+export default NotFound;

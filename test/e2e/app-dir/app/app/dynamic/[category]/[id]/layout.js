@@ -1,4 +1,8 @@
-export default function IdLayout({ children, params }) {
+export default async function IdLayout(props) {
+  const params = await props.params
+
+  const { children } = props
+
   return (
     <>
       <h3>

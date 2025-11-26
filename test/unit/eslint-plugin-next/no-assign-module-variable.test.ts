@@ -1,18 +1,9 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-assign-module-variable'
 import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
-    ecmaVersion: 2018,
-    sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
-    },
-  },
-})
-const ruleTester = new RuleTester()
+import { rules } from '@next/eslint-plugin-next'
 
-ruleTester.run('no-assign-module-variable', rule, {
+const NextESLintRule = rules['no-assign-module-variable']
+
+const tests = {
   valid: [
     `
       let myModule = {};
@@ -39,4 +30,19 @@ ruleTester.run('no-assign-module-variable', rule, {
       ],
     },
   ],
+}
+
+describe('no-assign-module-variable', () => {
+  new RuleTester({
+    languageOptions: {
+      ecmaVersion: 2018,
+      sourceType: 'module',
+      parserOptions: {
+        ecmaFeatures: {
+          modules: true,
+          jsx: true,
+        },
+      },
+    },
+  }).run('eslint', NextESLintRule, tests)
 })

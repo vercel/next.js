@@ -1,0 +1,186 @@
+[
+    (
+        "err",
+        Unknown {
+            original_value: Some(
+                Variable(
+                    (
+                        "err",
+                        #6,
+                    ),
+                ),
+            ),
+            reason: "pattern without value",
+            has_side_effects: false,
+        },
+    ),
+    (
+        "errors",
+        Array {
+            total_nodes: 1,
+            items: [],
+            mutable: true,
+        },
+    ),
+    (
+        "path",
+        Iterated(
+            2,
+            Variable(
+                (
+                    "paths",
+                    #2,
+                ),
+            ),
+        ),
+    ),
+    (
+        "paths",
+        Array {
+            total_nodes: 11,
+            items: [
+                Concat(
+                    4,
+                    [
+                        Constant(
+                            Str(
+                                Atom(
+                                    "../src/build/Release/sharp-",
+                                ),
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "runtimePlatform",
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Atom(
+                                    ".node",
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "../src/build/Release/sharp-wasm32.node",
+                        ),
+                    ),
+                ),
+                Concat(
+                    4,
+                    [
+                        Constant(
+                            Str(
+                                Atom(
+                                    "@img/sharp-",
+                                ),
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "runtimePlatform",
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Atom(
+                                    "/sharp.node",
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "@img/sharp-wasm32/sharp.node",
+                        ),
+                    ),
+                ),
+            ],
+            mutable: true,
+        },
+    ),
+    (
+        "runtimePlatform",
+        Call(
+            2,
+            Variable(
+                (
+                    "runtimePlatformArch",
+                    #2,
+                ),
+            ),
+            [],
+        ),
+    ),
+    (
+        "runtimePlatformArch",
+        Member(
+            5,
+            Call(
+                3,
+                FreeVar(
+                    "require",
+                ),
+                [
+                    Constant(
+                        Str(
+                            Atom(
+                                "./libvips",
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "runtimePlatformArch",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "sharp",
+        Alternatives {
+            total_nodes: 5,
+            values: [
+                Unknown {
+                    original_value: Some(
+                        Variable(
+                            (
+                                "sharp",
+                                #2,
+                            ),
+                        ),
+                    ),
+                    reason: "pattern without value",
+                    has_side_effects: false,
+                },
+                Call(
+                    3,
+                    FreeVar(
+                        "require",
+                    ),
+                    [
+                        Variable(
+                            (
+                                "path",
+                                #3,
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+]

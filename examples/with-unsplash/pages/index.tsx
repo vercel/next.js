@@ -1,8 +1,8 @@
-import Head from 'next/head'
-import Layout, { siteTitle } from 'components/Layout'
-import Gallery from 'components/Gallery'
-import Stats from 'components/Stats'
-import Collections from 'components/Collections'
+import Head from "next/head";
+import Layout, { siteTitle } from "components/Layout";
+import Gallery from "components/Gallery";
+import Stats from "components/Stats";
+import Collections from "components/Collections";
 
 const Home = () => {
   return (
@@ -17,7 +17,7 @@ const Home = () => {
 
       <Gallery />
     </Layout>
-  )
-}
+  );
+};
 
-export default Home
+export default Home;

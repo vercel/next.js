@@ -26,20 +26,102 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-import { isWasm, transform } from '../../swc'
+import type { NextConfig } from '../../../types'
+import { type WebpackLayerName, WEBPACK_LAYERS } from '../../../lib/constants'
+import { getBindingsSync, transform } from '../../swc'
+import { installBindings } from '../../swc/install-bindings'
 import { getLoaderSWCOptions } from '../../swc/options'
 import path, { isAbsolute } from 'path'
+import { babelIncludeRegexes } from '../../webpack-config'
+import { isResourceInPackages } from '../../handle-externals'
+import type { TelemetryLoaderContext } from '../plugins/telemetry-plugin/telemetry-plugin'
+import {
+  updateTelemetryLoaderCtxFromTransformOutput,
+  type SwcTransformTelemetryOutput,
+} from '../plugins/telemetry-plugin/update-telemetry-loader-context-from-swc'
+import type { LoaderContext } from 'webpack'
+import {
+  COMPILER_NAMES,
+  type CompilerNameValues,
+} from '../../../shared/lib/constants'
+
+const maybeExclude = (
+  excludePath: string,
+  transpilePackages: string[]
+): boolean => {
+  if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
+    return false
+  }
+
+  const shouldBeBundled = isResourceInPackages(excludePath, transpilePackages)
+  if (shouldBeBundled) return false
+
+  return excludePath.includes('node_modules')
+}
+
+export interface SWCLoaderOptions {
+  rootDir: string
+  isServer: boolean
+  compilerType: CompilerNameValues
+  pagesDir?: string
+  appDir?: string
+  hasReactRefresh: boolean
+  optimizeServerReact?: boolean
+  nextConfig: NextConfig
+  jsConfig: any
+  supportedBrowsers: string[] | undefined
+  swcCacheDir: string
+  serverComponents?: boolean
+  serverReferenceHashSalt: string
+  bundleLayer?: WebpackLayerName
+  esm?: boolean
+  transpilePackages?: string[]
+}
+
+// these are exact code conditions checked
+// for to force transpiling a `node_module`
+const FORCE_TRANSPILE_CONDITIONS =
+  /next\/font|next\/dynamic|use server|use client|use cache/
+// same as above, but including `import(...)`.
+// (note the optional whitespace: `import  (...)` is also syntactically valid)
+const FORCE_TRANSPILE_CONDITIONS_WITH_IMPORT = new RegExp(
+  String.raw`(?:${FORCE_TRANSPILE_CONDITIONS.source})|import\s*\(`
+)
 
 async function loaderTransform(
-  this: any,
-  parentTrace: any,
+  this: LoaderContext<SWCLoaderOptions> & TelemetryLoaderContext,
   source?: string,
   inputSourceMap?: any
 ) {
   // Make the loader async
   const filename = this.resourcePath
 
-  let loaderOptions = this.getOptions() || {}
+  // Ensure `.d.ts` are not processed.
+  if (filename.endsWith('.d.ts')) {
+    return [source, inputSourceMap]
+  }
+
+  let loaderOptions: SWCLoaderOptions = this.getOptions() || {}
+  const shouldMaybeExclude = maybeExclude(
+    filename,
+    loaderOptions.transpilePackages || []
+  )
+
+  const trackDynamicImports = shouldTrackDynamicImports(loaderOptions)
+
+  if (shouldMaybeExclude) {
+    if (!source) {
+      throw new Error(`Invariant might be excluded but missing source`)
+    }
+
+    const forceTranspileConditions = trackDynamicImports
+      ? FORCE_TRANSPILE_CONDITIONS_WITH_IMPORT
+      : FORCE_TRANSPILE_CONDITIONS
+
+    if (!forceTranspileConditions.test(source)) {
+      return [source, inputSourceMap]
+    }
+  }
 
   const {
     isServer,
@@ -51,19 +133,13 @@ async function loaderTransform(
     jsConfig,
     supportedBrowsers,
     swcCacheDir,
-    hasServerComponents,
-    isServerLayer,
-    optimizeBarrelExports,
+    serverComponents,
+    serverReferenceHashSalt,
+    bundleLayer,
+    esm,
   } = loaderOptions
-  const isPageFile = filename.startsWith(pagesDir)
+  const isPageFile = pagesDir ? filename.startsWith(pagesDir) : false
   const relativeFilePathFromRoot = path.relative(rootDir, filename)
-
-  // For testing purposes
-  if (process.env.NEXT_TEST_MODE) {
-    if (loaderOptions.optimizeBarrelExports) {
-      console.log('optimizeBarrelExports:', filename)
-    }
-  }
 
   const swcOptions = getLoaderSWCOptions({
     pagesDir,
@@ -71,20 +147,27 @@ async function loaderTransform(
     filename,
     isServer,
     isPageFile,
-    development: this.mode === 'development',
+    development:
+      this.mode === 'development' ||
+      !!nextConfig.experimental?.allowDevelopmentBuild,
+    isCacheComponents: nextConfig.cacheComponents,
     hasReactRefresh,
     modularizeImports: nextConfig?.modularizeImports,
     optimizePackageImports: nextConfig?.experimental?.optimizePackageImports,
     swcPlugins: nextConfig?.experimental?.swcPlugins,
     compilerOptions: nextConfig?.compiler,
+    optimizeServerReact: nextConfig?.experimental?.optimizeServerReact,
     jsConfig,
     supportedBrowsers,
     swcCacheDir,
     relativeFilePathFromRoot,
-    hasServerComponents,
-    isServerActionsEnabled: nextConfig?.experimental?.serverActions,
-    isServerLayer,
-    optimizeBarrelExports,
+    serverComponents,
+    serverReferenceHashSalt,
+    bundleLayer,
+    esm,
+    cacheHandlers: nextConfig.cacheHandlers,
+    useCacheEnabled: nextConfig.experimental?.useCache,
+    trackDynamicImports,
   })
 
   const programmaticOptions = {
@@ -121,16 +204,30 @@ async function loaderTransform(
       this.mode === 'development'
   }
 
-  const swcSpan = parentTrace.traceChild('next-swc-transform')
-  return swcSpan.traceAsyncFn(() =>
-    transform(source as any, programmaticOptions).then((output) => {
-      if (output.eliminatedPackages && this.eliminatedPackages) {
-        for (const pkg of JSON.parse(output.eliminatedPackages)) {
-          this.eliminatedPackages.add(pkg)
-        }
-      }
+  return transform(source as any, programmaticOptions).then(
+    (
+      output: {
+        code: string
+        map?: string
+      } & SwcTransformTelemetryOutput
+    ) => {
+      updateTelemetryLoaderCtxFromTransformOutput(this, output)
       return [output.code, output.map ? JSON.parse(output.map) : undefined]
-    })
+    }
+  )
+}
+
+function shouldTrackDynamicImports(loaderOptions: SWCLoaderOptions): boolean {
+  // we only need to track `import()` 1. in cacheComponents, 2. on the server (RSC and SSR)
+  // (Note: logic duplicated in crates/next-core/src/next_server/transforms.rs)
+  const { nextConfig, bundleLayer, compilerType } = loaderOptions
+  return (
+    !!nextConfig.cacheComponents &&
+    // NOTE: `server` means nodejs. `cacheComponents` is not supported in the edge runtime, so we want to exclude it.
+    // (also, the code generated by the dynamic imports transform relies on `CacheSignal`, which uses nodejs-specific APIs)
+    compilerType === COMPILER_NAMES.server &&
+    (bundleLayer === WEBPACK_LAYERS.reactServerComponents ||
+      bundleLayer === WEBPACK_LAYERS.serverSideRendering)
   )
 }
 
@@ -139,20 +236,26 @@ const EXCLUDED_PATHS =
 
 export function pitch(this: any) {
   const callback = this.async()
+  let loaderOptions: SWCLoaderOptions = this.getOptions() || {}
+
+  const shouldMaybeExclude = maybeExclude(
+    this.resourcePath,
+    loaderOptions.transpilePackages || []
+  )
+
   ;(async () => {
     if (
+      // if it might be excluded/no-op we can't use pitch loader
+      !shouldMaybeExclude &&
       // TODO: investigate swc file reading in PnP mode?
       !process.versions.pnp &&
       !EXCLUDED_PATHS.test(this.resourcePath) &&
       this.loaders.length - 1 === this.loaderIndex &&
       isAbsolute(this.resourcePath) &&
-      !(await isWasm())
+      !getBindingsSync().isWasm
     ) {
-      const loaderSpan = this.currentTraceSpan.traceChild('next-swc-loader')
       this.addDependency(this.resourcePath)
-      return loaderSpan.traceAsyncFn(() =>
-        loaderTransform.call(this, loaderSpan)
-      )
+      return loaderTransform.call(this)
     }
   })().then((r) => {
     if (r) return callback(null, ...r)
@@ -165,13 +268,12 @@ export default function swcLoader(
   inputSource: string,
   inputSourceMap: any
 ) {
-  const loaderSpan = this.currentTraceSpan.traceChild('next-swc-loader')
   const callback = this.async()
-  loaderSpan
-    .traceAsyncFn(() =>
-      loaderTransform.call(this, loaderSpan, inputSource, inputSourceMap)
-    )
-    .then(
+  // Install bindings early so they are definitely available to the loader.
+  // When run by webpack in next this is already done with correct configuration so this is a no-op.
+  // In turbopack loaders are run in a subprocess so it may or may not be done.
+  installBindings().then(() =>
+    loaderTransform.call(this, inputSource, inputSourceMap).then(
       ([transformedSource, outputSourceMap]: any) => {
         callback(null, transformedSource, outputSourceMap || inputSourceMap)
       },
@@ -179,6 +281,7 @@ export default function swcLoader(
         callback(err)
       }
     )
+  )
 }
 
 // accept Buffers instead of strings

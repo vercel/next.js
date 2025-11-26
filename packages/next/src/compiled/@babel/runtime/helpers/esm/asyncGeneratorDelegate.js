@@ -1,54 +1,24 @@
-export default function _asyncGeneratorDelegate(inner, awaitWrap) {
-  var iter = {},
-      waiting = false;
-
-  function pump(key, value) {
-    waiting = true;
-    value = new Promise(function (resolve) {
-      resolve(inner[key](value));
-    });
-    return {
-      done: false,
-      value: awaitWrap(value)
+import OverloadYield from "./OverloadYield.js";
+function _asyncGeneratorDelegate(t) {
+  var e = {},
+    n = !1;
+  function pump(e, r) {
+    return n = !0, r = new Promise(function (n) {
+      n(t[e](r));
+    }), {
+      done: !1,
+      value: new OverloadYield(r, 1)
     };
   }
-
-  ;
-
-  iter[typeof Symbol !== "undefined" && Symbol.iterator || "@@iterator"] = function () {
+  return e["undefined" != typeof Symbol && Symbol.iterator || "@@iterator"] = function () {
     return this;
-  };
-
-  iter.next = function (value) {
-    if (waiting) {
-      waiting = false;
-      return value;
-    }
-
-    return pump("next", value);
-  };
-
-  if (typeof inner["throw"] === "function") {
-    iter["throw"] = function (value) {
-      if (waiting) {
-        waiting = false;
-        throw value;
-      }
-
-      return pump("throw", value);
-    };
-  }
-
-  if (typeof inner["return"] === "function") {
-    iter["return"] = function (value) {
-      if (waiting) {
-        waiting = false;
-        return value;
-      }
-
-      return pump("return", value);
-    };
-  }
-
-  return iter;
+  }, e.next = function (t) {
+    return n ? (n = !1, t) : pump("next", t);
+  }, "function" == typeof t["throw"] && (e["throw"] = function (t) {
+    if (n) throw n = !1, t;
+    return pump("throw", t);
+  }), "function" == typeof t["return"] && (e["return"] = function (t) {
+    return n ? (n = !1, t) : pump("return", t);
+  }), e;
 }
+export { _asyncGeneratorDelegate as default };

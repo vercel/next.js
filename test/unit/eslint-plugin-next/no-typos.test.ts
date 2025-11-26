@@ -1,19 +1,9 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-typos'
 import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
-    ecmaVersion: 2018,
-    sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
-    },
-  },
-})
+import { rules } from '@next/eslint-plugin-next'
 
-const ruleTester = new RuleTester()
+const NextESLintRule = rules['no-typos']
 
-ruleTester.run('no-typos', rule, {
+const tests = {
   valid: [
     `
       export default function Page() {
@@ -127,4 +117,19 @@ ruleTester.run('no-typos', rule, {
       ],
     },
   ],
+}
+
+describe('no-typos', () => {
+  new RuleTester({
+    languageOptions: {
+      ecmaVersion: 2018,
+      sourceType: 'module',
+      parserOptions: {
+        ecmaFeatures: {
+          modules: true,
+          jsx: true,
+        },
+      },
+    },
+  }).run('eslint', NextESLintRule, tests)
 })

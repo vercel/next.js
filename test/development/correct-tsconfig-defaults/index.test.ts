@@ -1,6 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 
 describe('correct tsconfig.json defaults', () => {
   let next: NextInstance

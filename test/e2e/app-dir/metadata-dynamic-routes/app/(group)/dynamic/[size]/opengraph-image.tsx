@@ -1,9 +1,10 @@
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 
 export const alt = 'Open Graph'
 
-export default function og({ params }) {
-  const big = params.size === 'big'
+export default async function og({ params }) {
+  const { size } = await params
+  const big = size === 'big'
   const background = big ? 'orange' : '#000'
   return new ImageResponse(
     (

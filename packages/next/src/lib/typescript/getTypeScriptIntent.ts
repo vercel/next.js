@@ -1,6 +1,5 @@
-import { promises as fs } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import path from 'path'
-import { fileExists } from '../file-exists'
 import { recursiveReadDir } from '../recursive-readdir'
 
 export type TypeScriptIntent = { firstTimeSetup: boolean }
@@ -14,14 +13,12 @@ export async function getTypeScriptIntent(
 
   // The integration turns on if we find a `tsconfig.json` in the user's
   // project.
-  const hasTypeScriptConfiguration = await fileExists(resolvedTsConfigPath)
+  const hasTypeScriptConfiguration = existsSync(resolvedTsConfigPath)
   if (hasTypeScriptConfiguration) {
-    const content = await fs
-      .readFile(resolvedTsConfigPath, { encoding: 'utf8' })
-      .then(
-        (txt) => txt.trim(),
-        () => null
-      )
+    const content = readFileSync(resolvedTsConfigPath, {
+      encoding: 'utf8',
+    }).trim()
+
     return { firstTimeSetup: content === '' || content === '{}' }
   }
 

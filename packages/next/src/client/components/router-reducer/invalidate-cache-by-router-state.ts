@@ -1,5 +1,7 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context'
-import type { FlightRouterState } from '../../../server/app-render/types'
+import type {
+  CacheNode,
+  FlightRouterState,
+} from '../../../shared/lib/app-router-types'
 import { createRouterCacheKey } from './create-router-cache-key'
 
 /**
@@ -10,7 +12,7 @@ export function invalidateCacheByRouterState(
   existingCache: CacheNode,
   routerState: FlightRouterState
 ): void {
-  // Remove segment that we got data for so that it is filled in during rendering of subTreeData.
+  // Remove segment that we got data for so that it is filled in during rendering of rsc.
   for (const key in routerState[1]) {
     const segmentForParallelRoute = routerState[1][key][0]
     const cacheKey = createRouterCacheKey(segmentForParallelRoute)

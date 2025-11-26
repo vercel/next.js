@@ -1,9 +1,9 @@
-import Link from 'next/link'
-import React from 'react'
-import { useOvermind } from '../overmind'
+import Link from "next/link";
+import React from "react";
+import { useOvermind } from "../overmind";
 
 function Header() {
-  const { state } = useOvermind()
+  const { state } = useOvermind();
 
   return (
     <div>
@@ -11,7 +11,7 @@ function Header() {
       <Link href="/">Home page</Link>
       <Link href="/about">About Page</Link>
     </div>
-  )
+  );
 }
 
-export default Header
+export default Header;

@@ -1,8 +1,8 @@
-import { requireComponentDependancyByName } from '../dependancies'
+import { requireComponentDependencyByName } from "../dependencies";
 
 export default function CMSPageTemplate(props) {
-  const AgilityPageTemplateToRender = requireComponentDependancyByName(
-    props.pageTemplateName
-  )
-  return <AgilityPageTemplateToRender {...props} />
+  const AgilityPageTemplateToRender = requireComponentDependencyByName(
+    props.pageTemplateName,
+  );
+  return <AgilityPageTemplateToRender {...props} />;
 }

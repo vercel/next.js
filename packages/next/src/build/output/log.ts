@@ -1,13 +1,14 @@
-import chalk from '../../lib/chalk'
+import { bold, green, magenta, red, yellow, white } from '../../lib/picocolors'
+import { LRUCache } from '../../server/lib/lru-cache'
 
 export const prefixes = {
-  wait: '- ' + chalk.cyan('wait'),
-  error: '- ' + chalk.red('error'),
-  warn: '- ' + chalk.yellow('warn'),
-  ready: '- ' + chalk.green('ready'),
-  info: '- ' + chalk.cyan('info'),
-  event: '- ' + chalk.magenta('event'),
-  trace: '- ' + chalk.magenta('trace'),
+  wait: white(bold('○')),
+  error: red(bold('⨯')),
+  warn: yellow(bold('⚠')),
+  ready: '▲', // no color
+  info: white(bold(' ')),
+  event: green(bold('✓')),
+  trace: magenta(bold('»')),
 } as const
 
 const LOGGING_METHOD = {
@@ -31,8 +32,18 @@ function prefixedLog(prefixType: keyof typeof prefixes, ...message: any[]) {
   if (message.length === 0) {
     console[consoleMethod]('')
   } else {
-    console[consoleMethod](prefix, ...message)
+    // Ensure if there's ANSI escape codes it's concatenated into one string.
+    // Chrome DevTool can only handle color if it's in one string.
+    if (message.length === 1 && typeof message[0] === 'string') {
+      console[consoleMethod](prefix + ' ' + message[0])
+    } else {
+      console[consoleMethod](prefix, ...message)
+    }
   }
+}
+
+export function bootstrap(message: string) {
+  console.log(message)
 }
 
 export function wait(...message: any[]) {
@@ -63,11 +74,20 @@ export function trace(...message: any[]) {
   prefixedLog('trace', ...message)
 }
 
-const warnOnceMessages = new Set()
+const warnOnceCache = new LRUCache<string>(10_000, (value) => value.length)
 export function warnOnce(...message: any[]) {
-  if (!warnOnceMessages.has(message[0])) {
-    warnOnceMessages.add(message.join(' '))
-
+  const key = message.join(' ')
+  if (!warnOnceCache.has(key)) {
+    warnOnceCache.set(key, key)
     warn(...message)
+  }
+}
+
+const errorOnceCache = new LRUCache<string>(10_000, (value) => value.length)
+export function errorOnce(...message: any[]) {
+  const key = message.join(' ')
+  if (!errorOnceCache.has(key)) {
+    errorOnceCache.set(key, key)
+    error(...message)
   }
 }

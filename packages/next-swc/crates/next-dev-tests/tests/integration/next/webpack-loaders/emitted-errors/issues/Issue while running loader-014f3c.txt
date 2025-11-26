@@ -1,2 +1,0 @@
-warning - [loaders] [project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/webpack-loaders/emitted-errors/input/pages/hello.emit  Issue while running loader
-  Error: Warning!

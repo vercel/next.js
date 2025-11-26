@@ -1,6 +1,6 @@
 import { useRouter } from 'next/router'
 
-const $comment = ({ gipQuery }) => {
+const Comment = ({ gipQuery }) => {
   const router = useRouter()
   const { query } = router
 
@@ -14,8 +14,8 @@ const $comment = ({ gipQuery }) => {
   )
 }
 
-$comment.getInitialProps = async ({ query }) => {
+Comment.getInitialProps = async ({ query }) => {
   return { gipQuery: query }
 }
 
-export default $comment
+export default Comment

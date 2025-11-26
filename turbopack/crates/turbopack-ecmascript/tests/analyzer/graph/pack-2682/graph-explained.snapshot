@@ -1,0 +1,12 @@
+*arrow function 24* (const after eval) = (...) => FreeVar(JSON)["stringify"](
+    {
+        "condition": (variable === "true"),
+        "buggedConditionalCheck": ((variable === "true") ? "true" : "false")
+    }
+)
+
+BuggyArguments (const after eval) = *arrow function 24*
+
+res (const after eval) = BuggyArguments({"variable": "false"})
+
+variable = (arguments[0]["variable"] | "true")

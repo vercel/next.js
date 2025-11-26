@@ -1,0 +1,14 @@
+id: resolved-vc-in-trait-arguments
+valid:
+  - |
+    #[turbo_tasks::value_trait]
+    pub trait Example {
+        fn write_to_disk(self: Vc<Self>);
+        fn write_to_disk(self: ResolvedVc<Self>) {}
+    }
+invalid:
+  - |
+    #[turbo_tasks::value_trait]
+    pub trait Example {
+        fn write_to_disk(self: ResolvedVc<Self>);
+    }

@@ -1,0 +1,76 @@
+[package]
+edition = "2018"
+name = "next-custom-transforms"
+version = "0.0.0"
+publish = false
+
+[features]
+plugin = [
+  "swc_core/plugin_transform_host_native",
+  "turbopack-ecmascript-plugins/swc_ecma_transform_plugin",
+]
+
+[package.metadata.cargo-shear]
+ignored = [
+  # when using the `plugin` feature, we need to set a feature flag on `turbopack-ecmascript-plugins`
+  # so we must list it as a dependency even though we don't directly use it
+  "turbopack-ecmascript-plugins",
+]
+
+[lints]
+workspace = true
+
+[dependencies]
+base64 = "0.21.0"
+bytes-str = { workspace = true }
+chrono = "0.4"
+easy-error = "1.0.0"
+either = "1"
+hex = "0.4.3"
+indexmap = { workspace = true }
+indoc = { workspace = true }
+once_cell = { workspace = true }
+pathdiff = { workspace = true }
+regex = "1.5"
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+sha1 = "0.10.1"
+tracing = { version = "0.1.37" }
+anyhow = { workspace = true }
+
+swc_core = { workspace = true, features = [
+  "base",
+  "common_concurrent",
+  "ecma_ast",
+  "ecma_codegen",
+  "ecma_loader_lru",
+  "ecma_loader_node",
+  "ecma_minifier",
+  "ecma_parser",
+  "ecma_parser_typescript",
+  "ecma_preset_env",
+  "ecma_quote",
+  "ecma_transforms",
+  "ecma_transforms_optimization",
+  "ecma_transforms_react",
+  "ecma_transforms_typescript",
+  "ecma_utils",
+  "ecma_visit",
+] }
+modularize_imports = { workspace = true }
+styled_components = { workspace = true }
+styled_jsx = { workspace = true }
+swc_emotion = { workspace = true }
+swc_relay = { workspace = true }
+turbopack-ecmascript-plugins = { workspace = true, optional = true }
+turbo-rcstr = { workspace = true }
+urlencoding = { workspace = true }
+
+react_remove_properties = { workspace = true }
+remove_console = { workspace = true }
+preset_env_base = { workspace = true }
+
+[dev-dependencies]
+swc_core = { workspace = true, features = ["testing_transform", "plugin_backend_wasmer"] }
+testing = { workspace = true }

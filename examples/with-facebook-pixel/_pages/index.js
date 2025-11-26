@@ -1,10 +1,10 @@
-import Link from 'next/link'
-import * as fbq from '../lib/fpixel'
+import Link from "next/link";
+import * as fbq from "../lib/fpixel";
 
 export default function Home() {
   const handleClick = () => {
-    fbq.event('Purchase', { currency: 'USD', value: 10 })
-  }
+    fbq.event("Purchase", { currency: "USD", value: 10 });
+  };
 
   return (
     <div>
@@ -21,5 +21,5 @@ export default function Home() {
         <Link href="/navigation">Navigation page</Link>
       </p>
     </div>
-  )
+  );
 }

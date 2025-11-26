@@ -1,0 +1,134 @@
+import { nextTestSetup } from 'e2e-utils'
+import { createRouterAct } from 'router-act'
+import path from 'path'
+import { Playwright } from 'next-webdriver'
+import type { Page as PlaywrightPage } from 'playwright'
+
+describe('app dir client cache with parallel routes', () => {
+  const { next, isNextDev } = nextTestSetup({
+    files: path.join(__dirname, 'fixtures', 'parallel-routes'),
+  })
+
+  if (isNextDev) {
+    // dev doesn't support prefetch={true}
+    it('should skip dev', () => {})
+    return
+  }
+
+  async function reveal(browser: Playwright, href: string) {
+    // Get the reveal element and scroll it into view.
+    const reveal = await browser.elementByCss(`[data-link-accordion="${href}"]`)
+    await reveal.scrollIntoViewIfNeeded()
+
+    // Click the reveal element to reveal the content.
+    await reveal.click()
+
+    // Return the anchor link element.
+    return browser.elementByCss(`a[href="${href}"]`)
+  }
+
+  describe('prefetch={true}', () => {
+    it('should prefetch the full page', async () => {
+      let page: PlaywrightPage
+      const browser = await next.browser('/', {
+        async beforePageLoad(p) {
+          page = p
+          await page.clock.install()
+        },
+      })
+      const act = createRouterAct(page)
+
+      // Reveal the link to trigger prefetch and wait for it to complete
+      const link = await act(
+        async () => {
+          return reveal(browser, '/0')
+        },
+        { includes: 'random-number' }
+      )
+
+      // Navigate to /0 - should not make additional requests
+      await act(async () => {
+        await link.click()
+        await browser.waitForElementByCss('#random-number')
+      }, 'no-requests')
+    })
+
+    it('should re-use the cache for the full page, only for 5 mins', async () => {
+      let page: PlaywrightPage
+      const browser = await next.browser('/', {
+        async beforePageLoad(p) {
+          page = p
+          await page.clock.install()
+        },
+      })
+      const act = createRouterAct(page)
+
+      // Toggle the link, assert on the prefetch content
+      const link = await act(
+        async () => {
+          await reveal(browser, '/0')
+          return browser.elementByCss('[href="/0"]')
+        },
+        { includes: 'random-number' }
+      )
+
+      // Navigate to the page, assert no requests are made
+      const randomNumber = await act(async () => {
+        await link.click()
+        await browser.waitForElementByCss('#random-number')
+        return browser.elementByCss('#random-number').text()
+      }, 'no-requests')
+
+      // Toggle the home link, assert on the homepage content
+      const homeLink = await act(
+        async () => {
+          return reveal(browser, '/')
+        },
+        { includes: 'home-page' }
+      )
+
+      // Navigate home, assert no requests are made
+      await act(async () => {
+        await homeLink.click()
+        await browser.waitForElementByCss('#home-page')
+      }, 'no-requests')
+
+      // Toggle the link to the other page again, navigate, assert no requests (because it's cached)
+      const number = await act(async () => {
+        const link = await reveal(browser, '/0')
+        await link.click()
+        await browser.waitForElementByCss('#random-number')
+        return browser.elementByCss('#random-number').text()
+      }, 'no-requests')
+
+      expect(number).toBe(randomNumber)
+
+      // Navigate back home
+      await act(async () => {
+        const link = await reveal(browser, '/')
+        await link.click()
+        await browser.waitForElementByCss('#home-page')
+      }, 'no-requests')
+
+      // Fast forward 5 minutes
+      await page.clock.fastForward(5 * 60 * 1000)
+
+      // Toggle the link to the other page again, assert on prefetch content
+      const linkAfterExpiry = await act(
+        async () => {
+          return reveal(browser, '/0')
+        },
+        { includes: 'random-number' }
+      )
+
+      // Navigate to the page and verify the content is fresh (different from cached)
+      const newNumber = await act(async () => {
+        await linkAfterExpiry.click()
+        await browser.waitForElementByCss('#random-number')
+        return browser.elementByCss('#random-number').text()
+      }, 'no-requests')
+
+      expect(newNumber).not.toBe(randomNumber)
+    })
+  })
+})

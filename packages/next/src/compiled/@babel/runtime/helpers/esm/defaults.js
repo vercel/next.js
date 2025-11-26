@@ -1,14 +1,9 @@
-export default function _defaults(obj, defaults) {
-  var keys = Object.getOwnPropertyNames(defaults);
-
-  for (var i = 0; i < keys.length; i++) {
-    var key = keys[i];
-    var value = Object.getOwnPropertyDescriptor(defaults, key);
-
-    if (value && value.configurable && obj[key] === undefined) {
-      Object.defineProperty(obj, key, value);
-    }
+function _defaults(e, r) {
+  for (var t = Object.getOwnPropertyNames(r), o = 0; o < t.length; o++) {
+    var n = t[o],
+      a = Object.getOwnPropertyDescriptor(r, n);
+    a && a.configurable && void 0 === e[n] && Object.defineProperty(e, n, a);
   }
-
-  return obj;
+  return e;
 }
+export { _defaults as default };

@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+
+    "allowJs": true,
+    "checkJs": true,
+
+    "lib": ["ESNext", "DOM"],
+    "skipLibCheck": true,
+
+    "strict": true,
+    "jsx": "react-jsx",
+
+    // most of the code is untyped
+    "noImplicitAny": false,
+    "noImplicitThis": false,
+
+    "target": "ESNext",
+    "esModuleInterop": true,
+    "module": "Preserve",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force"
+  },
+  "files": ["./index.ts"], // loads ambient declarations for modules used in tests
+  "include": ["./**/*/input.*", "./**/*/output.*"],
+  "exclude": [
+    // FIXME: invalid transformation of hoisted functions (https://github.com/vercel/next.js/issues/57392)
+    "./server-graph/25/output.js",
+    "./server-graph/28/output.js",
+    "./server-graph/30/output.js",
+    // FIXME: buggy renaming of anonymous functions
+    "./server-graph/51/output.js",
+    // Excluded because of weird TS behavior around `action.bind(...)` making args optional
+    // (but only if no JSDoc type annotations are present)
+    "./server-graph/24/output.js"
+  ]
+}
