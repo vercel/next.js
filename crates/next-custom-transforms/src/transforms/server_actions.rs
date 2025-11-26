@@ -2005,9 +2005,25 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         ));
                                     }
 
-                                    // Remove the original export...from statement. The post-pass
-                                    // will handle registration.
-                                    should_remove_statement = true;
+                                    // Remove value specifiers from the export statement, keeping
+                                    // only type-only specifiers.
+                                    named.specifiers.retain(|spec| {
+                                        if let ExportSpecifier::Named(ExportNamedSpecifier {
+                                            is_type_only: true,
+                                            ..
+                                        }) = spec
+                                        {
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    });
+
+                                    // If all specifiers were value specifiers (converted to
+                                    // imports), remove the entire statement.
+                                    if named.specifiers.is_empty() {
+                                        should_remove_statement = true;
+                                    }
                                 } else if named.specifiers.iter().any(|s| match s {
                                     ExportSpecifier::Namespace(_) | ExportSpecifier::Default(_) => {
                                         true
@@ -2017,38 +2033,24 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     disallowed_export_span = named.span;
                                 }
                             } else {
-                                // For cache files, handle mixed exports by selectively removing
-                                // specifiers that need runtime wrappers while keeping function
-                                // declarations.
+                                // For cache files, remove specifiers that need cache runtime
+                                // wrappers. Keep type-only specifiers and value specifiers that
+                                // don't need wrappers (like function declarations).
                                 if in_cache_file {
-                                    let mut indices_to_remove = Vec::new();
-
-                                    for (idx, spec) in named.specifiers.iter().enumerate() {
+                                    named.specifiers.retain(|spec| {
                                         if let ExportSpecifier::Named(ExportNamedSpecifier {
                                             orig: ModuleExportName::Ident(ident),
                                             is_type_only: false,
                                             ..
                                         }) = spec
                                         {
-                                            // Check if this identifier needs a cache runtime
-                                            // wrapper.
-                                            if self
-                                                    .local_ids_that_need_cache_runtime_wrapper_if_exported
-                                                    .contains(&ident.to_id())
-                                                {
-                                                    // Mark for removal (registration happens in
-                                                    // post-pass).
-                                                    indices_to_remove.push(idx);
-                                                }
-                                            // Otherwise, keep the specifier (it's a function
-                                            // declaration that will be handled by the visitor).
+                                            !self
+                                                .local_ids_that_need_cache_runtime_wrapper_if_exported
+                                                .contains(&ident.to_id())
+                                        } else {
+                                            true
                                         }
-                                    }
-
-                                    // Remove specifiers in reverse order to maintain indices.
-                                    for idx in indices_to_remove.iter().rev() {
-                                        named.specifiers.remove(*idx);
-                                    }
+                                    });
 
                                     if named.specifiers.is_empty() {
                                         should_remove_statement = true;

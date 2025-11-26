@@ -3,7 +3,7 @@ import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 import { cache as $$reactCache__ } from "react";
 // @ts-ignore
 import { getStuff, wrap, type Stuff } from './foo';
-// @ts-ignore
+export { type Data } from './data';
 import { getData } from './data';
 const $$RSC_SERVER_CACHE_0_INNER = async function getCachedData() {
     // This is not using the wrapped version of getStuff, as we're only

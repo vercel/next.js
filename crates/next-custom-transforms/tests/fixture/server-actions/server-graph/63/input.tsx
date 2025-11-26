@@ -2,7 +2,6 @@
 
 // @ts-ignore
 import { getStuff, wrap, type Stuff } from './foo'
-// @ts-ignore
 export { getData, type Data } from './data'
 
 export const getCachedData = async (): Stuff => {
