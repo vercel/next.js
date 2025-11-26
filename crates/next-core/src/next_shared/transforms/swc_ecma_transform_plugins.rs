@@ -4,6 +4,8 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::ModuleRule;
+#[allow(unused_imports)]
+use turbopack_core::{context::AssetContext, resolve::origin::ResolveOrigin};
 
 use crate::next_config::NextConfig;
 
@@ -26,6 +28,36 @@ pub async fn get_swc_ecma_transform_plugin_rule(
         }
     } else {
         Ok(None)
+    }
+}
+
+/// A resolve origin without any asset_context, intended for handle_resolve_error
+#[cfg(feature = "plugin")]
+#[turbo_tasks::value]
+pub struct DummyResolveOrigin {
+    origin_path: FileSystemPath,
+}
+
+#[cfg(feature = "plugin")]
+#[turbo_tasks::value_impl]
+impl DummyResolveOrigin {
+    #[turbo_tasks::function]
+    pub fn new(origin_path: FileSystemPath) -> Vc<Self> {
+        DummyResolveOrigin { origin_path }.cell()
+    }
+}
+
+#[cfg(feature = "plugin")]
+#[turbo_tasks::value_impl]
+impl ResolveOrigin for DummyResolveOrigin {
+    #[turbo_tasks::function]
+    fn origin_path(&self) -> Vc<FileSystemPath> {
+        self.origin_path.clone().cell()
+    }
+
+    #[turbo_tasks::function]
+    fn asset_context(&self) -> Result<Vc<Box<dyn AssetContext>>> {
+        anyhow::bail!("DummyResolveOrigin has no asset context");
     }
 }
 
@@ -82,7 +114,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
                     .as_raw_module_result(),
                     ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
                     // TODO proper error location
-                    project_path.clone(),
+                    Vc::upcast(DummyResolveOrigin::new(project_path.clone())),
                     request,
                     resolve_options,
                     false,

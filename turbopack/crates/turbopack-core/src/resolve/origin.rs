@@ -31,6 +31,17 @@ pub trait ResolveOrigin {
         let _ = request;
         Vc::cell(None)
     }
+
+    /// Get the resolve options that apply for this origin.
+    #[turbo_tasks::function]
+    async fn resolve_options(
+        self: Vc<Self>,
+        reference_type: ReferenceType,
+    ) -> Result<Vc<ResolveOptions>> {
+        Ok(self
+            .asset_context()
+            .resolve_options(self.origin_path().owned().await?, reference_type))
+    }
 }
 
 // TODO it would be nice if these methods can be moved to the trait to allow
@@ -45,12 +56,6 @@ pub trait ResolveOriginExt: Send {
         options: Vc<ResolveOptions>,
         reference_type: ReferenceType,
     ) -> impl Future<Output = Result<Vc<ModuleResolveResult>>> + Send;
-
-    /// Get the resolve options that apply for this origin.
-    fn resolve_options(
-        self: Vc<Self>,
-        reference_type: ReferenceType,
-    ) -> impl std::future::Future<Output = Result<Vc<ResolveOptions>>> + Send;
 
     /// Adds a transition that is used for resolved assets.
     fn with_transition(self: ResolvedVc<Self>, transition: RcStr) -> Vc<Box<dyn ResolveOrigin>>;
@@ -72,15 +77,6 @@ where
             options,
             reference_type,
         )
-    }
-
-    async fn resolve_options(
-        self: Vc<Self>,
-        reference_type: ReferenceType,
-    ) -> Result<Vc<ResolveOptions>> {
-        Ok(self
-            .asset_context()
-            .resolve_options(self.origin_path().owned().await?, reference_type))
     }
 
     fn with_transition(self: ResolvedVc<Self>, transition: RcStr) -> Vc<Box<dyn ResolveOrigin>> {

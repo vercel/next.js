@@ -15,7 +15,7 @@ use turbopack_core::{
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
-        origin::{PlainResolveOrigin, ResolveOriginExt},
+        origin::{PlainResolveOrigin, ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
 };
@@ -139,7 +139,7 @@ pub async fn create_web_entry_source(
         .map(|request| async move {
             let ty = ReferenceType::Entry(EntryReferenceSubType::Web);
             Ok(origin
-                .resolve_asset(request, origin.resolve_options(ty.clone()).await?, ty)
+                .resolve_asset(request, origin.resolve_options(ty.clone()), ty)
                 .await?
                 .resolve()
                 .await?
