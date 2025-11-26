@@ -205,9 +205,10 @@ pub struct EdgeChunkingContextOptions {
     pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
     pub export_usage: Vc<OptionExportUsageInfo>,
     pub turbo_minify: Vc<bool>,
-    pub turbo_source_maps: Vc<bool>,
+    pub turbo_source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub nested_async_chunking: Vc<bool>,
     pub client_root: FileSystemPath,
     pub asset_prefix: RcStr,
 }
@@ -229,6 +230,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         turbo_source_maps,
         no_mangling,
         scope_hoisting,
+        nested_async_chunking,
         client_root,
         asset_prefix,
     } = options;
@@ -253,13 +255,10 @@ pub async fn get_edge_chunking_context_with_client_assets(
     } else {
         MinifyType::NoMinify
     })
-    .source_maps(if *turbo_source_maps.await? {
-        SourceMapsType::Full
-    } else {
-        SourceMapsType::None
-    })
+    .source_maps(*turbo_source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
-    .export_usage(*export_usage.await?);
+    .export_usage(*export_usage.await?)
+    .nested_async_availability(*nested_async_chunking.await?);
 
     if !next_mode.is_development() {
         builder = builder
@@ -300,6 +299,7 @@ pub async fn get_edge_chunking_context(
         turbo_source_maps,
         no_mangling,
         scope_hoisting,
+        nested_async_chunking,
         client_root,
         asset_prefix,
     } = options;
@@ -330,13 +330,10 @@ pub async fn get_edge_chunking_context(
     } else {
         MinifyType::NoMinify
     })
-    .source_maps(if *turbo_source_maps.await? {
-        SourceMapsType::Full
-    } else {
-        SourceMapsType::None
-    })
+    .source_maps(*turbo_source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
-    .export_usage(*export_usage.await?);
+    .export_usage(*export_usage.await?)
+    .nested_async_availability(*nested_async_chunking.await?);
 
     if !next_mode.is_development() {
         builder = builder

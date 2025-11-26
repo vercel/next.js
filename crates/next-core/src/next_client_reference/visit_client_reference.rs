@@ -1,12 +1,11 @@
 use std::future::Future;
 
 use anyhow::Result;
-use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
+    NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::TraceRawVcs,
@@ -43,19 +42,6 @@ pub struct ClientReference {
     pub ty: ClientReferenceType,
 }
 
-impl ClientReference {
-    pub fn server_component(&self) -> Option<ResolvedVc<NextServerComponentModule>> {
-        self.server_component
-    }
-
-    pub fn ty(&self) -> ClientReferenceType {
-        self.ty
-    }
-}
-
-#[turbo_tasks::value(transparent)]
-pub struct ClientReferences(Vec<ClientReference>);
-
 #[derive(
     Copy,
     Clone,
@@ -80,33 +66,6 @@ pub struct ClientReferenceGraphResult {
     pub client_references: Vec<ClientReference>,
     pub server_component_entries: Vec<ResolvedVc<NextServerComponentModule>>,
     pub server_utils: Vec<ResolvedVc<NextServerUtilityModule>>,
-}
-
-#[turbo_tasks::value(shared)]
-pub struct VisitedClientReferenceGraphNodes(FxHashSet<FindServerEntriesNode>);
-
-#[turbo_tasks::value_impl]
-impl VisitedClientReferenceGraphNodes {
-    #[turbo_tasks::function]
-    pub fn empty() -> Vc<Self> {
-        VisitedClientReferenceGraphNodes(Default::default()).cell()
-    }
-}
-
-#[turbo_tasks::value(transparent)]
-pub struct ClientReferenceTypes(FxIndexSet<ClientReferenceType>);
-
-#[turbo_tasks::value_impl]
-impl ClientReferenceGraphResult {
-    #[turbo_tasks::function]
-    pub fn types(&self) -> Vc<ClientReferenceTypes> {
-        Vc::cell(
-            self.client_references
-                .iter()
-                .map(|r| r.ty())
-                .collect::<FxIndexSet<_>>(),
-        )
-    }
 }
 
 #[turbo_tasks::value(shared)]

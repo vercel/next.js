@@ -10,6 +10,13 @@ import {
 describe('app-dir - missing required html tags', () => {
   const { next } = nextTestSetup({ files: __dirname })
 
+  if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
+    // TODO(restart-on-cache-miss): reenable once the bug is fixed in:
+    // https://github.com/vercel/next.js/pull/85818
+    it.skip('currently broken in Cache Components', () => {})
+    return
+  }
+
   it('should display correct error count in dev indicator', async () => {
     const browser = await next.browser('/')
     await waitForRedbox(browser)

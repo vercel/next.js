@@ -499,6 +499,7 @@ describe('use-cache', () => {
           '/static-class-method',
           withCacheComponents && '/unhandled-promise-regression',
           '/use-action-state',
+          '/use-action-state-separate-export',
           '/with-server-action',
         ].filter(Boolean)
       )
@@ -691,6 +692,26 @@ describe('use-cache', () => {
 
   it('works with useActionState if previousState parameter is not used in "use cache" function', async () => {
     const browser = await next.browser('/use-action-state')
+
+    let value = await browser.elementByCss('p').text()
+    expect(value).toBe('-1')
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      value = await browser.elementByCss('p').text()
+      expect(value).toMatch(/\d\.\d+/)
+    })
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe(value)
+    })
+  })
+
+  it('works with useActionState if previousState parameter is not used in "use cache" function (separate export)', async () => {
+    const browser = await next.browser('/use-action-state-separate-export')
 
     let value = await browser.elementByCss('p').text()
     expect(value).toBe('-1')

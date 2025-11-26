@@ -287,14 +287,18 @@ class NextTracerImpl implements NextTracer {
     let spanContext = this.getSpanContext(
       options?.parentSpan ?? this.getActiveScopeSpan()
     )
-    let isRootSpan = false
 
     if (!spanContext) {
       spanContext = context?.active() ?? ROOT_CONTEXT
-      isRootSpan = true
-    } else if (trace.getSpanContext(spanContext)?.isRemote) {
-      isRootSpan = true
     }
+    // Check if there's already a root span in the store for this trace
+    // We are intentionally not checking whether there is an active context
+    // from outside of nextjs to ensure that we can provide the same level
+    // of telemetry when using a custom server
+    const existingRootSpanId = spanContext.getValue(rootSpanIdKey)
+    const isRootSpan =
+      typeof existingRootSpanId !== 'number' ||
+      !rootSpanAttributesStore.has(existingRootSpanId)
 
     const spanId = getSpanId()
 

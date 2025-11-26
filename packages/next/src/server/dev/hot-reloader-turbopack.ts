@@ -1,5 +1,6 @@
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
+import * as inspector from 'inspector'
 import { join, extname, relative } from 'path'
 import { pathToFileURL } from 'url'
 
@@ -24,7 +25,7 @@ import type {
   Project,
   Entrypoints,
 } from '../../build/swc/types'
-import { createDefineEnv } from '../../build/swc'
+import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import {
@@ -78,7 +79,6 @@ import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-serv
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { ModernSourceMapPayload } from '../lib/source-maps'
-import { getNodeDebugType, getParsedNodeOptions } from '../lib/utils'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
@@ -107,6 +107,7 @@ import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
 } from '../../next-devtools/server/devtools-config-middleware'
+import { getAttachNodejsDebuggerMiddleware } from '../../next-devtools/server/attach-nodejs-debugger-middleware'
 import {
   connectReactDebugChannel,
   connectReactDebugChannelForHtmlRequest,
@@ -125,6 +126,11 @@ import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
+import {
+  sendSerializedErrorsToClient,
+  sendSerializedErrorsToClientForHtmlRequest,
+  setErrorsRscStreamForHtmlRequest,
+} from './serialized-errors'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -193,10 +199,7 @@ export async function createHotReloaderTurbopack(
   const buildId = 'development'
   const { nextConfig, dir: projectPath } = opts
 
-  const { loadBindings } =
-    require('../../build/swc') as typeof import('../../build/swc')
-
-  let bindings = await loadBindings()
+  const bindings = getBindingsSync()
 
   // For the debugging purpose, check if createNext or equivalent next instance setup in test cases
   // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.
@@ -276,6 +279,7 @@ export async function createHotReloaderTurbopack(
       previewProps: opts.fsChecker.prerenderManifest.preview,
       browserslistQuery: supportedBrowsers.join(', '),
       noMangling: false,
+      writeRoutesHashesManifest: false,
       currentNodeJsVersion,
     },
     {
@@ -776,11 +780,15 @@ export async function createHotReloaderTurbopack(
         })
       },
     }),
+    getAttachNodejsDebuggerMiddleware(),
     ...(nextConfig.experimental.mcpServer
       ? [
           getMcpMiddleware({
             projectPath,
             distDir,
+            nextConfig,
+            pagesDir: opts.pagesDir,
+            appDir: opts.appDir,
             sendHmrMessage: (message) => hotReloader.send(message),
             getActiveConnectionCount: () =>
               clientsWithoutHtmlRequestId.size + clientsByHtmlRequestId.size,
@@ -814,15 +822,14 @@ export async function createHotReloaderTurbopack(
   }
 
   let devtoolsFrontendUrl: string | undefined
-  const nodeOptions = getParsedNodeOptions()
-  const nodeDebugType = getNodeDebugType(nodeOptions)
-  if (nodeDebugType) {
-    const debugPort = process.debugPort
+  const inspectorURLRaw = inspector.url()
+  if (inspectorURLRaw !== undefined) {
+    const inspectorURL = new URL(inspectorURLRaw)
+
     let debugInfo
     try {
-      // It requires to use 127.0.0.1 instead of localhost for server-side fetching.
       const debugInfoList = await fetch(
-        `http://127.0.0.1:${debugPort}/json/list`
+        `http://${inspectorURL.host}/json/list`
       ).then((res) => res.json())
       debugInfo = debugInfoList[0]
     } catch {}
@@ -906,6 +913,16 @@ export async function createHotReloaderTurbopack(
           } else {
             onUpgrade(client, { isLegacyClient: true })
           }
+
+          connectReactDebugChannelForHtmlRequest(
+            htmlRequestId,
+            sendToClient.bind(null, client)
+          )
+
+          sendSerializedErrorsToClientForHtmlRequest(
+            htmlRequestId,
+            sendToClient.bind(null, client)
+          )
         } else {
           clientsWithoutHtmlRequestId.add(client)
           onUpgrade(client, { isLegacyClient: true })
@@ -1097,13 +1114,6 @@ export async function createHotReloaderTurbopack(
           }
 
           sendToClient(client, syncMessage)
-
-          if (htmlRequestId) {
-            connectReactDebugChannelForHtmlRequest(
-              htmlRequestId,
-              sendToClient.bind(null, client)
-            )
-          }
         })()
       })
     },
@@ -1181,6 +1191,22 @@ export async function createHotReloaderTurbopack(
           debugChannel,
           sendToClient.bind(null, client)
         )
+      }
+    },
+
+    sendErrorsToBrowser(errorsRscStream, htmlRequestId) {
+      const client = clientsByHtmlRequestId.get(htmlRequestId)
+
+      if (client) {
+        // If the client is connected, we can send the errors immediately.
+        sendSerializedErrorsToClient(
+          errorsRscStream,
+          sendToClient.bind(null, client)
+        )
+      } else {
+        // Otherwise, store the errors stream so that we can send it when the
+        // client connects.
+        setErrorsRscStreamForHtmlRequest(htmlRequestId, errorsRscStream)
       }
     },
 

@@ -7,8 +7,13 @@ import RenderResult, { type RenderResultMetadata } from '../render-result'
 export class FlightRenderResult extends RenderResult {
   constructor(
     response: string | ReadableStream<Uint8Array>,
-    metadata: RenderResultMetadata = {}
+    metadata: RenderResultMetadata = {},
+    waitUntil?: Promise<unknown>
   ) {
-    super(response, { contentType: RSC_CONTENT_TYPE_HEADER, metadata })
+    super(response, {
+      contentType: RSC_CONTENT_TYPE_HEADER,
+      metadata,
+      waitUntil,
+    })
   }
 }

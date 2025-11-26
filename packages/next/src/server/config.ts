@@ -400,7 +400,7 @@ function assignDefaultsAndValidate(
 
   if (isStableBuild()) {
     // Prevents usage of certain experimental features outside of canary
-    if (result.experimental?.turbopackFileSystemCacheForBuild) {
+    if (result.experimental.turbopackFileSystemCacheForBuild) {
       throw new CanaryOnlyConfigError({
         feature: 'experimental.turbopackFileSystemCacheForBuild',
       })
@@ -1671,7 +1671,9 @@ export default async function loadConfig(
     if (userConfig.experimental?.useLightningcss) {
       const { loadBindings } =
         require('../build/swc') as typeof import('../build/swc')
-      const isLightningSupported = (await loadBindings())?.css?.lightning
+      const isLightningSupported = (
+        await loadBindings(userConfig.experimental?.useWasmBinary)
+      )?.css?.lightning
 
       if (!isLightningSupported) {
         curLog.warn(
@@ -1857,6 +1859,24 @@ function enforceExperimentalFeatures(
         'reactDebugChannel',
         true,
         'enabled by `__NEXT_EXPERIMENTAL_DEBUG_CHANNEL`'
+      )
+    }
+  }
+
+  if (
+    process.env.__NEXT_EXPERIMENTAL_TRANSITION_INDICATOR === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.transitionIndicator === undefined ||
+      (isDefaultConfig && !config.experimental.transitionIndicator))
+  ) {
+    config.experimental.transitionIndicator = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'transitionIndicator',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_TRANSITION_INDICATOR`'
       )
     }
   }

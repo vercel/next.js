@@ -11,9 +11,8 @@ use syn::{
     parse_macro_input, parse_quote,
     spanned::Spanned,
 };
-use turbo_tasks_macros_shared::get_value_type_ident;
 
-use crate::global_name::global_name;
+use crate::{global_name::global_name, ident::get_value_type_ident};
 
 enum CellMode {
     Compare,

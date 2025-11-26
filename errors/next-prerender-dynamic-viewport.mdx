@@ -1,16 +1,61 @@
 ---
-title: Cannot access Request information or uncached data in `generateViewport()`
+title: Cannot access Runtime data or uncached data in `generateViewport()`
 ---
 
 ## Why This Error Occurred
 
-When `cacheComponents` is enabled, Next.js requires that `generateViewport()` not depend on uncached data or Request data unless you explicitly opt into having a fully dynamic page. If you encountered this error, it means that `generateViewport` depends on one of these types of data and you have not specifically indicated that the affected route should be entirely dynamic.
+When `cacheComponents` is enabled, Next.js requires that `generateViewport()` not depend on uncached data or Runtime data (`cookies()`, `headers()`, `params`, `searchParams`) unless you explicitly opt into having a fully dynamic page. If you encountered this error, it means that `generateViewport` depends on one of these types of data and you have not specifically indicated that blocking navigations are acceptable.
 
 ## Possible Ways to Fix It
 
 To fix this issue, you must first determine your goal for the affected route.
 
-Normally, the way you indicate to Next.js that you want to allow reading Request data or uncached external data is by performing this data access inside a component with an ancestor Suspense boundary. With Viewport, however, you aren't directly in control of wrapping the location where this metadata will be rendered, and even if you could wrap it in a Suspense boundary, it would not be correct to render it with a fallback. This is because this metadata is critical to properly loading resources such as images and must be part of the initial App Shell (the initial HTML containing the document head as well as the first paintable UI).
+Normally, Next.js ensures every page can produce an initial UI that allows the page to start loading even before uncached data and Runtime data is available. This is accomplished by defining prerenderable UI with Suspense. However viewport metadata is not able to be deferred until after the page loads because it affects initial page load UI.
+
+Ideally, you update `generateViewport` so it does not depend on any uncached data or Runtime data. This allows navigations to appear instant.
+
+However if this is not possibl you can instruct Next.js to allow all navigations to be potentially blocking by wrapping your document `<body>` in a Suspense boundary.
+
+### Caching External Data
+
+When external data is cached, Next.js can prerender with it, which ensures that the App Shell always has the complete viewport metadata available. Consider using `"use cache"` to mark the function producing the external data as cacheable.
+
+Before:
+
+```jsx filename="app/.../layout.tsx"
+import { db } from './db'
+
+export async function generateViewport() {
+  const { width, initialScale } = await db.query('viewport-size')
+  return {
+    width,
+    initialScale,
+  }
+}
+
+export default async function Layout({ children }) {
+  return ...
+}
+```
+
+After:
+
+```jsx filename="app/.../layout.tsx"
+import { db } from './db'
+
+export async function generateViewport() {
+  "use cache"
+  const { width, initialScale } = await db.query('viewport-size')
+  return {
+    width,
+    initialScale,
+  }
+}
+
+export default async function Layout({ children }) {
+  return ...
+}
+```
 
 ### If you must access Request Data or your external data is uncacheable
 
@@ -58,47 +103,6 @@ export default function RootLayout({ children }) {
       </html>
     </Suspense>
   )
-}
-```
-
-### Caching External Data
-
-When external data is cached, Next.js can prerender with it, which ensures that the App Shell always has the complete viewport metadata available. Consider using `"use cache"` to mark the function producing the external data as cacheable.
-
-Before:
-
-```jsx filename="app/.../layout.tsx"
-import { db } from './db'
-
-export async function generateViewport() {
-  const { width, initialScale } = await db.query('viewport-size')
-  return {
-    width,
-    initialScale,
-  }
-}
-
-export default async function Layout({ children }) {
-  return ...
-}
-```
-
-After:
-
-```jsx filename="app/.../layout.tsx"
-import { db } from './db'
-
-export async function generateViewport() {
-  "use cache"
-  const { width, initialScale } = await db.query('viewport-size')
-  return {
-    width,
-    initialScale,
-  }
-}
-
-export default async function Layout({ children }) {
-  return ...
 }
 ```
 

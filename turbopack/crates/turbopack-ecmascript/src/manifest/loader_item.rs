@@ -12,7 +12,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
-    output::OutputAssets,
+    output::{OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 use super::chunk_asset::ManifestAsyncModule;
@@ -81,6 +81,14 @@ impl ManifestLoaderChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for ManifestLoaderChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
+        self.manifest.manifest_chunk_group()
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for ManifestLoaderChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
@@ -90,11 +98,6 @@ impl ChunkItem for ManifestLoaderChunkItem {
     #[turbo_tasks::function]
     fn content_ident(&self) -> Vc<AssetIdent> {
         self.manifest.content_ident().with_modifier(modifier())
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<OutputAssets> {
-        self.manifest.manifest_chunk_group().all_assets()
     }
 
     #[turbo_tasks::function]

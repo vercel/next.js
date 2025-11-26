@@ -1,6 +1,5 @@
 use anyhow::{Result, bail};
 use next_core::{
-    all_assets_from_entries,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{InstrumentationDefinition, MiddlewaresManifestV2},
 };
@@ -108,7 +107,7 @@ impl InstrumentationEndpoint {
             module.ident(),
             ChunkGroup::Entry(vec![module]),
             module_graph,
-            AvailabilityInfo::Root,
+            AvailabilityInfo::root(),
         ))
     }
 
@@ -135,7 +134,7 @@ impl InstrumentationEndpoint {
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),
-                AvailabilityInfo::Root,
+                AvailabilityInfo::root(),
             )
             .await?;
         Ok(*chunk)
@@ -147,7 +146,7 @@ impl InstrumentationEndpoint {
 
         if this.is_edge {
             let edge_chunk_group = self.edge_chunk_group();
-            let edge_all_assets = edge_chunk_group.all_assets();
+            let edge_all_assets = edge_chunk_group.expand_all_assets();
 
             let node_root = this.project.node_root().owned().await?;
             let node_root_value = node_root.clone();
@@ -156,10 +155,10 @@ impl InstrumentationEndpoint {
                 get_js_paths_from_root(&node_root_value, &edge_chunk_group.await?.assets.await?)
                     .await?;
 
-            let mut output_assets = all_assets_from_entries(edge_all_assets).owned().await?;
+            let mut output_assets = edge_chunk_group.all_assets().owned().await?;
 
             let wasm_paths_from_root =
-                get_wasm_paths_from_root(&node_root_value, &output_assets).await?;
+                get_wasm_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
 
             let instrumentation_definition = InstrumentationDefinition {
                 files: file_paths_from_root,

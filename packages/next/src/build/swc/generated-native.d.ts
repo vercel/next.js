@@ -123,8 +123,8 @@ export interface NapiProjectOptions {
    */
   projectPath: RcStr
   /**
-   * A path where to emit the build outputs, relative to [`Project::project_path`], always Unix
-   * path. Corresponds to next.config.js's `distDir`.
+   * A path where tracing output will be written to and/or cache is read/written.
+   * Usually equal to the `distDir` in next.config.js.
    * E.g. `.next`
    */
   distDir: RcStr
@@ -155,6 +155,8 @@ export interface NapiProjectOptions {
    * debugging/profiling purposes.
    */
   noMangling: boolean
+  /** Whether to write the route hashes manifest. */
+  writeRoutesHashesManifest: boolean
   /** The version of Node.js that is available/currently running. */
   currentNodeJsVersion: RcStr
 }
@@ -172,12 +174,6 @@ export interface NapiPartialProjectOptions {
    * E.g. `apps/my-app`
    */
   projectPath?: RcStr
-  /**
-   * A path where to emit the build outputs, relative to [`Project::project_path`], always a
-   * Unix path. Corresponds to next.config.js's `distDir`.
-   * E.g. `.next`
-   */
-  distDir?: RcStr | undefined | null
   /** Filesystem watcher options. */
   watch?: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
@@ -199,6 +195,8 @@ export interface NapiPartialProjectOptions {
   previewProps?: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
   browserslistQuery?: RcStr
+  /** Whether to write the route hashes manifest. */
+  writeRoutesHashesManifest?: boolean
   /**
    * When the code is minified, this opts out of the default mangling of
    * local names for variables, functions etc., which can be useful for
