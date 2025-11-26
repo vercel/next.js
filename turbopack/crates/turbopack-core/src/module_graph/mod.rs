@@ -1288,7 +1288,7 @@ impl ModuleGraphRef {
     }
 
     /// Traverses all reachable edges in dfs order over the reversed graph. The preorder visitor can
-    /// be used to forward state down the graph, and to skip subgraphs
+    /// be used to forward state up the graph, and to skip subgraphs
     ///
     /// Target nodes can be revisited (once per incoming edge) in the preorder_visitor, in the post
     /// order visitor they are visited exactly once with the first edge they were discovered with.
@@ -1300,7 +1300,7 @@ impl ModuleGraphRef {
     ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
     ///    - Can return [GraphTraversalAction]s to control the traversal
-    /// * `visit_postorder` - Called after visiting the children of a node. Return
+    /// * `visit_postorder` - Called after visiting the parents of a node. Return
     ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
     pub fn traverse_edges_from_entries_dfs_reversed<S>(
