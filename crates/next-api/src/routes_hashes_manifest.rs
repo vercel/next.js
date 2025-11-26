@@ -1,5 +1,6 @@
 use anyhow::Result;
 use serde::Serialize;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
@@ -15,7 +16,7 @@ use turbopack_core::{
 
 use crate::{
     project::Project,
-    route::{AppPageRoute, Endpoint, Route},
+    route::{Endpoint, EndpointGroup},
 };
 
 #[turbo_tasks::value(shared)]
@@ -25,7 +26,7 @@ pub struct EndpointHashes {
 }
 
 impl EndpointHashes {
-    pub fn merge<'l>(iterator: impl Iterator<Item = (&'l str, &'l EndpointHashes)>) -> Self {
+    pub fn merge<'l>(iterator: impl Iterator<Item = (Option<RcStr>, &'l EndpointHashes)>) -> Self {
         let mut sources_hasher = Xxh3Hash64Hasher::new();
         let mut outputs_hasher = Xxh3Hash64Hasher::new();
 
@@ -151,126 +152,37 @@ impl RoutesHashesManifestAsset {
 impl Asset for RoutesHashesManifestAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        let entrypoints = self.project.entrypoints().await?;
         let module_graphs = self.project.whole_app_module_graphs().await?;
         let base_module_graph = *module_graphs.base;
         let full_module_graph = *module_graphs.full;
 
         let mut entrypoint_hashes = FxIndexMap::default();
 
-        if let Some(instrumentation) = &entrypoints.instrumentation {
-            entrypoint_hashes.insert(
-                "instrumentation",
-                endpoint_hashes(
-                    base_module_graph,
-                    full_module_graph,
-                    *instrumentation.node_js,
-                ),
-            );
-            entrypoint_hashes.insert(
-                "edgeInstrumentation",
-                endpoint_hashes(base_module_graph, full_module_graph, *instrumentation.edge),
-            );
-        }
-        if let Some(middleware) = &entrypoints.middleware {
-            entrypoint_hashes.insert(
-                "middleware",
-                endpoint_hashes(base_module_graph, full_module_graph, *middleware.endpoint),
-            );
-        }
-        entrypoint_hashes.insert(
-            "_document",
-            endpoint_hashes(
-                base_module_graph,
-                full_module_graph,
-                *entrypoints.pages_document_endpoint,
-            ),
-        );
-        entrypoint_hashes.insert(
-            "_app",
-            endpoint_hashes(
-                base_module_graph,
-                full_module_graph,
-                *entrypoints.pages_app_endpoint,
-            ),
-        );
-        entrypoint_hashes.insert(
-            "_error",
-            endpoint_hashes(
-                base_module_graph,
-                full_module_graph,
-                *entrypoints.pages_error_endpoint,
-            ),
-        );
+        let entrypoint_groups = self.project.get_all_endpoint_groups(false).await?;
 
-        for (key, route) in entrypoints.routes.iter() {
-            match route {
-                Route::Page {
-                    html_endpoint,
-                    // Only for dev
-                    data_endpoint: _,
-                } => {
-                    entrypoint_hashes.insert(
-                        key,
-                        endpoint_hashes(base_module_graph, full_module_graph, **html_endpoint),
-                    );
-                }
-                Route::PageApi { endpoint } => {
-                    entrypoint_hashes.insert(
-                        key,
-                        endpoint_hashes(base_module_graph, full_module_graph, **endpoint),
-                    );
-                }
-                Route::AppPage(pages) => {
-                    if pages.len() == 1 {
-                        entrypoint_hashes.insert(
-                            key,
-                            endpoint_hashes(
-                                base_module_graph,
-                                full_module_graph,
-                                *pages[0].html_endpoint,
-                            ),
-                        );
-                    } else {
-                        let hashes = pages
-                            .iter()
-                            .map(
-                                |&AppPageRoute {
-                                     original_name: _,
-                                     html_endpoint,
-                                     // Only for dev
-                                     rsc_endpoint: _,
-                                 }| {
-                                    endpoint_hashes(
-                                        base_module_graph,
-                                        full_module_graph,
-                                        *html_endpoint,
-                                    )
-                                },
-                            )
-                            .try_join()
-                            .await?;
-                        let hashes = EndpointHashes::merge(
-                            pages
-                                .iter()
-                                .map(|page| page.original_name.as_str())
-                                .zip(hashes.iter())
-                                .map(|(k, v)| (k, &**v)),
-                        )
-                        .cell();
-                        entrypoint_hashes.insert(key, hashes);
-                    }
-                }
-                Route::AppRoute {
-                    original_name: _,
-                    endpoint,
-                } => {
-                    entrypoint_hashes.insert(
-                        key,
-                        endpoint_hashes(base_module_graph, full_module_graph, **endpoint),
-                    );
-                }
-                Route::Conflict => {}
+        for (key, EndpointGroup { primary, .. }) in entrypoint_groups {
+            if let &[entry] = &primary.as_slice() {
+                entrypoint_hashes.insert(
+                    key.as_str(),
+                    endpoint_hashes(base_module_graph, full_module_graph, *entry.endpoint),
+                );
+            } else {
+                let hashes = primary
+                    .iter()
+                    .map(|entry| {
+                        endpoint_hashes(base_module_graph, full_module_graph, *entry.endpoint)
+                    })
+                    .try_join()
+                    .await?;
+                let hashes = EndpointHashes::merge(
+                    primary
+                        .iter()
+                        .map(|page| page.sub_name.clone())
+                        .zip(hashes.iter())
+                        .map(|(k, v)| (k, &**v)),
+                )
+                .cell();
+                entrypoint_hashes.insert(key.as_str(), hashes);
             }
         }
 
@@ -278,11 +190,11 @@ impl Asset for RoutesHashesManifestAsset {
 
         let manifest = serde_json::to_string_pretty(&RoutesHashesManifest {
             routes: entrypoint_hashes
-                .keys()
-                .zip(entrypoint_hashes_values.iter())
+                .into_keys()
+                .zip(entrypoint_hashes_values.into_iter())
                 .map(|(k, v)| {
                     (
-                        *k,
+                        k,
                         EndpointHashStrings {
                             sources_hash: format!("{:016x}", v.sources_hash),
                             outputs_hash: format!("{:016x}", v.outputs_hash),
