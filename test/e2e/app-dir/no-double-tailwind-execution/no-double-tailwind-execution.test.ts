@@ -23,33 +23,37 @@ describe('no-double-tailwind-execution', () => {
     const browser = await next.browser('/')
     expect(await browser.elementByCss('p').text()).toBe('hello world')
 
+    function getTailwindProcessingCount() {
+      return [
+        ...next.cliOutput.matchAll(
+          /\[@tailwindcss\/postcss\] app\/globals.css/g
+        ),
+      ].length
+    }
+
+    expect(getTailwindProcessingCount()).toBe(1) // initial
+
     if (isNextDev) {
-      const filePath = 'app/page.tsx'
-      const origContent = await next.readFile(filePath)
-      let getOutput = next.getCliOutputFromHere()
       await next.patchFile(
-        filePath,
-        origContent.replace('hello world', 'hello hmr'),
+        'app/page.tsx',
+        (content) => content.replace('hello world', 'hello hmr'),
         async () => {
           await retry(async () => {
             expect(await browser.elementByCss('p').text()).toBe('hello hmr')
-            let tailwindProcessingCount = [
-              ...getOutput().matchAll(
-                /\[@tailwindcss\/postcss\] app\/globals.css/g
-              ),
-            ].length
-            expect(tailwindProcessingCount).toBe(1)
+            expect(getTailwindProcessingCount()).toBe(2) // dev: initial + hmr
           })
         }
       )
+      // Wait for the patchFile revert to get processed
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe('hello world')
+      })
     }
-    let tailwindProcessingCount = [
-      ...next.cliOutput.matchAll(/\[@tailwindcss\/postcss\] app\/globals.css/g),
-    ].length
+
     if (isNextDev) {
-      expect(tailwindProcessingCount).toBe(3) // dev: initial + hmr + hmr (revert)
+      expect(getTailwindProcessingCount()).toBe(3) // dev: initial + hmr + hmr (revert)
     } else {
-      expect(tailwindProcessingCount).toBe(1) // build
+      expect(getTailwindProcessingCount()).toBe(1) // build
     }
   })
 })
