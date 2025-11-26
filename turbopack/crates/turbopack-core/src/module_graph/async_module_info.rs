@@ -4,7 +4,7 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     module::{Module, Modules},
-    module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraph},
+    module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraphWithBindingUsage},
 };
 
 #[turbo_tasks::value(transparent)]
@@ -37,25 +37,29 @@ impl AsyncModulesInfo {
 
 #[turbo_tasks::function(operation)]
 pub async fn compute_async_module_info(
-    graph: ResolvedVc<ModuleGraph>,
+    graphs: ResolvedVc<ModuleGraph>,
 ) -> Result<Vc<AsyncModulesInfo>> {
     // Layout segment optimization, we can individually compute the async modules for each graph.
     let mut result: Vc<AsyncModulesInfo> = Vc::cell(Default::default());
-    for g in &graph.await?.graphs {
-        result = compute_async_module_info_single(**g, result);
+    let graphs = graphs.await?;
+    for graph in graphs.iter_graphs() {
+        result = compute_async_module_info_single(graph, result);
     }
     Ok(result)
 }
 
 #[turbo_tasks::function]
 async fn compute_async_module_info_single(
-    graph: Vc<SingleModuleGraph>,
+    graph: SingleModuleGraphWithBindingUsage,
     parent_async_modules: Vc<AsyncModulesInfo>,
 ) -> Result<Vc<AsyncModulesInfo>> {
     let parent_async_modules = parent_async_modules.await?;
-    let graph = graph.await?;
+    let graph = graph.read().await?;
 
     let self_async_modules = graph
+        .graphs
+        .first()
+        .unwrap()
         .iter_nodes()
         .map(async |node| Ok((node, *node.is_self_async().await?)))
         .try_join()
@@ -73,9 +77,8 @@ async fn compute_async_module_info_single(
     // modules in the SCC is async.
 
     let mut async_modules = self_async_modules;
-    let graph_ref = graph.read();
-    graph_ref.traverse_edges_from_entries_dfs(
-        graph.entry_modules(),
+    graph.traverse_edges_from_entries_dfs(
+        graph.graphs.first().unwrap().entry_modules(),
         &mut (),
         |_, _, _| Ok(GraphTraversalAction::Continue),
         |parent_info, module, _| {
@@ -91,7 +94,7 @@ async fn compute_async_module_info_single(
         },
     )?;
 
-    graph_ref.traverse_cycles(
+    graph.traverse_cycles(
         |ref_data| ref_data.chunking_type.is_inherit_async(),
         |cycle| {
             if cycle.iter().any(|node| async_modules.contains(node)) {

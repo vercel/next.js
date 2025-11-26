@@ -453,6 +453,11 @@ export interface ExperimentalConfig {
   turbopackTreeShaking?: boolean
 
   /**
+   * Enable removing unused imports for turbopack dev server and build.
+   */
+  turbopackRemoveUnusedImports?: boolean
+
+  /**
    * Enable removing unused exports for turbopack dev server and build.
    */
   turbopackRemoveUnusedExports?: boolean

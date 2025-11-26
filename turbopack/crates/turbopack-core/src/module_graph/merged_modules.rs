@@ -148,21 +148,22 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 .map(|e| Ok((*e, -*module_depth.get(e).context("Module depth not found")?)))
                 .collect::<Result<Vec<_>>>()?,
             &mut (),
-            |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData)>,
+            |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData, _)>,
              node: ResolvedVc<Box<dyn Module>>,
              _|
              -> Result<GraphTraversalAction> {
                 // On the down traversal, establish which edges are mergeable and set the list
                 // indices.
-                let (parent_module, hoisted) = parent_info.map_or((None, false), |(node, ty)| {
-                    (
-                        Some(node),
-                        match &ty.chunking_type {
-                            ChunkingType::Parallel { hoisted, .. } => *hoisted,
-                            _ => false,
-                        },
-                    )
-                });
+                let (parent_module, hoisted) =
+                    parent_info.map_or((None, false), |(node, ty, _)| {
+                        (
+                            Some(node),
+                            match &ty.chunking_type {
+                                ChunkingType::Parallel { hoisted, .. } => *hoisted,
+                                _ => false,
+                            },
+                        )
+                    });
                 let module = node;
 
                 Ok(if parent_module.is_some_and(|p| p == module) {
@@ -490,7 +491,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     // necessarily needed for browser),
                     exposed_modules_imported.insert(module);
                 }
-                if parent_info.is_some_and(|(_, r)| matches!(r.export, ExportUsage::All)) {
+                if parent_info
+                    .is_some_and(|(_, r)| matches!(r.binding_usage.export, ExportUsage::All))
+                {
                     // This module needs to be exposed:
                     // - namespace import from another group
                     exposed_modules_namespace.insert(module);

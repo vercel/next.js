@@ -47,8 +47,8 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         ModuleGraph,
+        binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
-        export_usage::compute_export_usage_info,
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -83,6 +83,8 @@ struct SnapshotOptions {
     environment: SnapshotEnvironment,
     #[serde(default)]
     tree_shaking_mode: Option<TreeShakingMode>,
+    #[serde(default)]
+    remove_unused_imports: bool,
     #[serde(default)]
     remove_unused_exports: bool,
     #[serde(default)]
@@ -119,6 +121,7 @@ impl Default for SnapshotOptions {
             runtime_type: default_runtime_type(),
             environment: Default::default(),
             tree_shaking_mode: None,
+            remove_unused_imports: false,
             remove_unused_exports: false,
             scope_hoisting: false,
             production_chunking: false,
@@ -426,20 +429,26 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")
     };
 
-    let module_graph = ModuleGraph::from_modules(
+    let mut module_graph = ModuleGraph::from_modules(
         Vc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
         false,
     );
 
-    let export_usage = if options.remove_unused_exports {
+    let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
         Some(
-            compute_export_usage_info(module_graph.to_resolved().await?)
-                .resolve_strongly_consistent()
-                .await?,
+            compute_binding_usage_info(
+                module_graph.to_resolved().await?,
+                options.remove_unused_imports,
+            )
+            .resolve_strongly_consistent()
+            .await?,
         )
     } else {
         None
     };
+    if options.remove_unused_imports {
+        module_graph = module_graph.without_unused_references(*binding_usage.unwrap());
+    }
 
     let chunk_root_path = project_path.join("output")?;
     let static_root_path = project_path.join("static")?;
@@ -463,7 +472,16 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(export_usage)
+            .export_usage(
+                options
+                    .remove_unused_exports
+                    .then(|| binding_usage.unwrap()),
+            )
+            .unused_references(
+                options
+                    .remove_unused_exports
+                    .then(|| binding_usage.unwrap()),
+            )
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type);
 
@@ -495,7 +513,16 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(export_usage)
+            .export_usage(
+                options
+                    .remove_unused_exports
+                    .then(|| binding_usage.unwrap()),
+            )
+            .unused_references(
+                options
+                    .remove_unused_exports
+                    .then(|| binding_usage.unwrap()),
+            )
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type);
 

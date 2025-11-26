@@ -21,7 +21,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, analyze::AnalyzeIssue},
     module::Module,
-    module_graph::export_usage::ModuleExportUsageInfo,
+    module_graph::binding_usage_info::ModuleExportUsageInfo,
     reference::ModuleReference,
     resolve::ModulePart,
 };

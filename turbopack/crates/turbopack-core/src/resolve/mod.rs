@@ -7,6 +7,7 @@ use std::{
 };
 
 use anyhow::{Result, bail};
+use auto_hash_map::AutoSet;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
@@ -101,6 +102,35 @@ impl ModuleResolveResultItem {
             _ => None,
         })
     }
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug, Hash, Default)]
+pub struct BindingUsage {
+    pub import: ImportUsage,
+    pub export: ExportUsage,
+}
+
+#[turbo_tasks::value_impl]
+impl BindingUsage {
+    #[turbo_tasks::function]
+    pub fn all() -> Vc<Self> {
+        Self::default().cell()
+    }
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Default, Hash)]
+pub enum ImportUsage {
+    /// This import is used by some side effect in the module (and can't be tree shaken).
+    #[default]
+    SideEffects,
+    /// This import is used only by these specific exports, if all exports are unused, the import
+    /// can also be removed.
+    ///
+    /// (This is only ever set on `ModulePart::Export` references. Side effects are handled via
+    /// `ModulePart::Evaluation` references, which always have `ImportUsage::SideEffects`.)
+    Exports(AutoSet<RcStr>),
 }
 
 #[turbo_tasks::value]

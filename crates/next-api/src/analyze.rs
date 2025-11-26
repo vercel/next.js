@@ -430,15 +430,17 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
     let mut all_async_edges = FxIndexSet::default();
     for &module_graph in module_graphs.await? {
         let module_graph = module_graph.read_graphs().await?;
-        module_graph.traverse_all_edges_unordered(|(parent_node, reference), node| {
-            all_modules.insert(parent_node);
-            all_modules.insert(node);
-            match reference.chunking_type {
-                ChunkingType::Async => {
-                    all_async_edges.insert((parent_node, node));
-                }
-                _ => {
-                    all_edges.insert((parent_node, node));
+        module_graph.traverse_all_edges_unordered(|parent, node| {
+            if let Some((parent_node, reference)) = parent {
+                all_modules.insert(parent_node);
+                all_modules.insert(node);
+                match reference.chunking_type {
+                    ChunkingType::Async => {
+                        all_async_edges.insert((parent_node, node));
+                    }
+                    _ => {
+                        all_edges.insert((parent_node, node));
+                    }
                 }
             }
             Ok(())

@@ -54,6 +54,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
@@ -726,7 +727,8 @@ impl PageEndpoint {
         let project = this.pages_project.project();
 
         if *project.per_page_module_graph().await? {
-            let should_trace = project.next_mode().await?.is_production();
+            let next_mode = project.next_mode();
+            let should_trace = next_mode.await?.is_production();
             let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
             // Implements layout segment optimization to compute a graph "chain" for document, app,
             // page
@@ -755,7 +757,21 @@ impl PageEndpoint {
             );
             graphs.push(graph);
 
-            Ok(ModuleGraph::from_graphs(graphs))
+            let mut graph = ModuleGraph::from_graphs(graphs);
+
+            if *project
+                .next_config()
+                .turbopack_remove_unused_imports(next_mode)
+                .await?
+            {
+                graph = graph.without_unused_references(
+                    *compute_binding_usage_info(graph.to_resolved().await?, true)
+                        .resolve_strongly_consistent()
+                        .await?,
+                );
+            }
+
+            Ok(graph)
         } else {
             Ok(*project.whole_app_module_graphs().await?.full)
         }

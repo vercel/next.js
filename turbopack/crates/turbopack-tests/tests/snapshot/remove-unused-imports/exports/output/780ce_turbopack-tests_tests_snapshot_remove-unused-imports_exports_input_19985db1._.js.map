@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/remove-unused-imports/exports/input/library/leaf.js"],"sourcesContent":["export function leafX() {}\nexport function leafY() {}\n"],"names":[],"mappings":"AAAO,SAAS,SAAS;AAClB,SAAS,SAAS"}},
+    {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/remove-unused-imports/exports/input/library/shared.js"],"sourcesContent":["import { leafX, leafY } from './leaf'\n\nexport function sharedX() {\n  leafX()\n}\nexport function sharedY() {\n  leafY()\n}\n"],"names":[],"mappings":"AAAA;;AAEO,SAAS;IACd,IAAA,uOAAK;AACP;AACO,SAAS;IACd,IAAA,uOAAK;AACP"}},
+    {"offset": {"line": 30, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/remove-unused-imports/exports/input/library/y.js"],"sourcesContent":["import { sharedY } from './shared'\n\nglobalThis.yBundled = true\n\nexport function y() {\n  sharedY()\n}\n"],"names":[],"mappings":"AAAA;;AAEA,WAAW,QAAQ,GAAG;AAEf,SAAS;IACd,IAAA,2OAAO;AACT"}},
+    {"offset": {"line": 44, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/remove-unused-imports/exports/input/a.js"],"sourcesContent":["import { x } from './library/x.js'\nimport { y } from './library/y.js'\n\ny()\n\nfunction helper() {\n  return x()\n}\n\nexport function unused() {\n  return helper()\n}\n\nexport function used() {\n  return 1234\n}\n"],"names":[],"mappings":"AACA;;;AAEA,IAAA,gOAAC;AAED,SAAS;IACP,OAAO,IAAA,gOAAC;AACV;AAEO,SAAS;IACd,OAAO;AACT;AAEO,SAAS;IACd,OAAO;AACT"}},
+    {"offset": {"line": 65, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/remove-unused-imports/exports/input/index.js"],"sourcesContent":["import { used } from './a.js'\n\nconsole.log(used)\n"],"names":[],"mappings":"AAAA;;AAEA,QAAQ,GAAG,CAAC,wNAAI"}}]
+}
