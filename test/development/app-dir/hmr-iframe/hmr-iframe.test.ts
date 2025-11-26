@@ -15,6 +15,8 @@ describe('hmr-iframe', () => {
         .innerText()
     ).toEqual('content')
 
+    let cliOutputLength = next.cliOutput.length
+
     await next.patchFile('app/page2/page.tsx', (content) =>
       content.replace('content', 'content-new')
     )
@@ -26,8 +28,9 @@ describe('hmr-iframe', () => {
         .innerText()
     ).toEqual('content-new')
 
-    expect(next.cliOutput).not.toContain('Error')
-    expect(next.cliOutput).not.toContain('Could not find the module')
+    const cliOutput = next.cliOutput.slice(cliOutputLength)
+    expect(cliOutput).not.toContain('Error')
+    expect(cliOutput).not.toContain('Could not find the module')
 
     await next.stop()
     await next.clean()

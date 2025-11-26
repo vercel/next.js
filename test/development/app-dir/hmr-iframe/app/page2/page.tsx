@@ -1,6 +1,6 @@
 import { subscribeToHMR } from '../page1/subscribeToHMR'
 
-export default async function Page() {
+export default async function Page2() {
   await subscribeToHMR()
 
   return (
