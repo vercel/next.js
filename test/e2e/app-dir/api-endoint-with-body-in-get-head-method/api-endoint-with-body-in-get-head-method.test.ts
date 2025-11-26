@@ -1,6 +1,5 @@
 import http from 'http'
 import { NextInstance, nextTestSetup } from 'e2e-utils'
-import { fetchViaHTTP } from 'next-test-utils'
 
 // Taken from https://github.com/whatwg/fetch/issues/551#issuecomment-655848415
 // Use this method instead of fetchViaHTTP for make a GET/HEAD request with body
@@ -50,7 +49,7 @@ describe('api-endpoint-with-body-in-get-head-method', () => {
   })
   //First check a normal requests working succesfully
   it('GET Request without body', async () => {
-    const res = await fetchViaHTTP(next.appPort, '/api/hello')
+    const res = await next.fetch('/api/hello')
 
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({
@@ -58,14 +57,9 @@ describe('api-endpoint-with-body-in-get-head-method', () => {
     })
   })
   it('HEAD Request without body', async () => {
-    const res = await fetchViaHTTP(
-      next.appPort,
-      '/api/hello',
-      {},
-      {
-        method: 'HEAD',
-      }
-    )
+    const res = await next.fetch('/api/hello', {
+      method: 'HEAD',
+    })
     expect(res.status).toBe(200)
   })
 
