@@ -23,7 +23,7 @@ const requireComponent = (name) => {
 //Bug: when dynamic imports are used within the module, it doest not get outputted server-side
 //let AgilityModule = dynamic(() => import ('../components/' + m.moduleName));
 
-export const requireComponentDependancyByName = (name) => {
+export const requireComponentDependencyByName = (name) => {
   let pascalCaseName = name;
   let kebabCaseName = convertPascalToKebabCase(name);
   let Component = null;
