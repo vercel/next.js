@@ -31,10 +31,14 @@ describe('custom-cache-control', () => {
       const res = await next.fetch('/app-ssg/another')
       // eslint-disable-next-line jest/no-standalone-expect
       expect(res.headers.get('cache-control')).toBe(
-        isNextDev
-          ? 'no-store, must-revalidate'
-          : 's-maxage=120, stale-while-revalidate=31535880'
+        isNextDev ? 'no-store, must-revalidate' : 'max-age=0, must-revalidate'
       )
+      if (!isNextDev) {
+        // eslint-disable-next-line jest/no-standalone-expect
+        expect(res.headers.get('cdn-cache-control')).toBe(
+          'max-age=120, stale-while-revalidate=31535880'
+        )
+      }
     }
   )
 
@@ -69,10 +73,13 @@ describe('custom-cache-control', () => {
   it('should have default cache-control for pages-ssg another', async () => {
     const res = await next.fetch('/pages-ssg/another')
     expect(res.headers.get('cache-control')).toBe(
-      isNextDev
-        ? 'no-store, must-revalidate'
-        : 's-maxage=120, stale-while-revalidate=31535880'
+      isNextDev ? 'no-store, must-revalidate' : 'max-age=0, must-revalidate'
     )
+    if (!isNextDev) {
+      expect(res.headers.get('cdn-cache-control')).toBe(
+        'max-age=120, stale-while-revalidate=31535880'
+      )
+    }
   })
 
   it('should have default cache-control for pages-ssr', async () => {

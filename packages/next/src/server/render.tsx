@@ -101,7 +101,7 @@ import {
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
-import { getCacheControlHeader } from './lib/cache-control'
+import { setCacheControlHeaders } from './lib/cache-control'
 import { getErrorSource } from '../shared/lib/error-source'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
@@ -555,10 +555,7 @@ export async function renderToHTMLImpl(
   // ensure we set cache header so it's not rendered on-demand
   // every request
   if (isAutoExport && !dev && isExperimentalCompile) {
-    res.setHeader(
-      'Cache-Control',
-      getCacheControlHeader({ revalidate: false, expire: expireTime })
-    )
+    setCacheControlHeaders(res, { revalidate: false, expire: expireTime })
     isAutoExport = false
   }
 

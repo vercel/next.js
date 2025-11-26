@@ -17,7 +17,7 @@ import {
 } from '../../response-cache'
 
 import {
-  getCacheControlHeader,
+  setCacheControlHeaders,
   type CacheControl,
 } from '../../lib/cache-control'
 import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
@@ -607,7 +607,7 @@ export const getHandler = ({
         // If cache control is already set on the response we don't
         // override it to allow users to customize it via next.config
         if (cacheControl && !res.getHeader('Cache-Control')) {
-          res.setHeader('Cache-Control', getCacheControlHeader(cacheControl))
+          setCacheControlHeaders(res, cacheControl)
         }
 
         // notFound: true case
