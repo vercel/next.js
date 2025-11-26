@@ -184,11 +184,11 @@ export function urlToUrlWithoutFlightMarker(url: URL): URL {
   if (process.env.NODE_ENV === 'production') {
     if (
       process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
-      urlWithoutFlightParameters.pathname.endsWith('.txt')
+      urlWithoutFlightParameters.pathname.endsWith('.rsc.txt')
     ) {
       const { pathname } = urlWithoutFlightParameters
-      const length = pathname.endsWith('/index.txt') ? 10 : 4
-      // Slice off `/index.txt` or `.txt` from the end of the pathname
+      const length = pathname.endsWith('/index.rsc.txt') ? 14 : 8
+      // Slice off `/index.rsc.txt` or `.rsc.txt` from the end of the pathname
       urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
     }
   }

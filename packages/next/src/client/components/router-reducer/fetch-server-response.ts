@@ -179,9 +179,9 @@ export async function fetchServerResponse(
         // to the request.
         url = new URL(url)
         if (url.pathname.endsWith('/')) {
-          url.pathname += 'index.txt'
+          url.pathname += 'index.rsc.txt'
         } else {
-          url.pathname += '.txt'
+          url.pathname += '.rsc.txt'
         }
       }
     }
