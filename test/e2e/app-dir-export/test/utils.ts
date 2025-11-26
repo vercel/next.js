@@ -6,7 +6,6 @@ import fs from 'fs-extra'
 import globOrig from 'glob'
 import {
   waitForRedbox,
-  check,
   getRedboxHeader,
   getRedboxSource,
   retry,
@@ -296,52 +295,74 @@ export function runTests({
     } else {
       const a = (n: number) => `li:nth-child(${n}) a`
       const browser = await webdriver(port, '/')
-      await check(() => browser.elementByCss('h1').text(), 'Home')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('Home')
+      )
       expect(await browser.elementByCss(a(1)).text()).toBe(
         'another no trailingslash'
       )
       await browser.elementByCss(a(1)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Another')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('Another')
+      )
       expect(await browser.elementByCss(a(1)).text()).toBe(
         'Visit the home page'
       )
       await browser.elementByCss(a(1)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Home')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('Home')
+      )
       expect(await browser.elementByCss(a(2)).text()).toBe(
         'another has trailingslash'
       )
       await browser.elementByCss(a(2)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Another')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('Another')
+      )
       expect(await browser.elementByCss(a(1)).text()).toBe(
         'Visit the home page'
       )
       await browser.elementByCss(a(1)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Home')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('Home')
+      )
       expect(await browser.elementByCss(a(3)).text()).toBe('another first page')
       await browser.elementByCss(a(3)).click()
-      await check(() => browser.elementByCss('h1').text(), 'first')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('first')
+      )
       expect(await browser.elementByCss(a(1)).text()).toBe('Visit another page')
       await browser.elementByCss(a(1)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Another')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('Another')
+      )
       expect(await browser.elementByCss(a(4)).text()).toBe(
         'another second page'
       )
       await browser.elementByCss(a(4)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'second')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('second')
+      )
       expect(await browser.elementByCss(a(1)).text()).toBe('Visit another page')
       await browser.elementByCss(a(1)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Another')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain('Another')
+      )
       expect(await browser.elementByCss(a(5)).text()).toBe('image import page')
       await browser.elementByCss(a(5)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Image Import')
+      await retry(async () =>
+        expect(await browser.elementByCss('h1').text()).toContain(
+          'Image Import'
+        )
+      )
       expect(await browser.elementByCss(a(2)).text()).toBe('View the image')
       expect(await browser.elementByCss(a(2)).getAttribute('href')).toMatch(
         /\/test\.(.*)\.png/
