@@ -89,8 +89,9 @@ export function createReactServerErrorHandler(
         // environment (e.g. 'use cache'). We recover the original error here.
         err = reactServerErrors.get(err.digest)!
       } else {
-        // The error is not from react-server but has a digest from other means
-        // so we don't need to produce a new one.
+        // Either we're in development (where we want to keep the transported
+        // error with environmentName), or the error is not in reactServerErrors
+        // but has a digest from other means. Keep the error as-is.
       }
     } else {
       err.digest = createDigestWithErrorCode(
