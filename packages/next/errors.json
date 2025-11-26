@@ -946,5 +946,6 @@
   "945": "createNodeStreamFromChunks cannot be used in the edge runtime",
   "946": "Failed to deserialize errors.",
   "947": "Expected `sendErrorsToBrowser` to be defined in renderOpts.",
-  "948": "Failed to serialize errors."
+  "948": "Failed to serialize errors.",
+  "949": "Route %s errored during %s. These errors are normally ignored and may not prevent the route from prerendering but are logged here because build debugging is enabled.\n          \nOriginal Error: %s"
 }

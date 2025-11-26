@@ -3,6 +3,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{IntoTraitRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
+    asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, MinifyType},
     context::AssetContext,
     environment::Environment,
@@ -162,6 +163,14 @@ impl StyleModule for CssModuleAsset {
             CssModuleAssetType::Default => StyleType::GlobalStyle.cell(),
             CssModuleAssetType::Module => StyleType::IsolatedStyle.cell(),
         }
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for CssModuleAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        self.source.content()
     }
 }
 

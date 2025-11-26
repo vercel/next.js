@@ -1,8 +1,9 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
-use turbo_tasks_fs::glob::Glob;
+use turbo_tasks_fs::{FileContent, glob::Glob};
 use turbopack_core::{
+    asset::{Asset, AssetContent},
     chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
     module::Module,
@@ -115,6 +116,21 @@ impl Module for SideEffectsModule {
     #[turbo_tasks::function]
     fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
         Vc::cell(true)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for SideEffectsModule {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        AssetContent::File(
+            FileContent::Content(
+                "// This is a proxy module for reexportings a module with additional side effects."
+                    .into(),
+            )
+            .resolved_cell(),
+        )
+        .cell()
     }
 }
 

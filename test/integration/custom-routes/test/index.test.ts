@@ -2437,7 +2437,6 @@ const runTests = (isDev = false) => {
            "prefetchSegmentDirSuffix": ".segments",
            "prefetchSegmentHeader": "next-router-segment-prefetch",
            "prefetchSegmentSuffix": ".segment.rsc",
-           "prefetchSuffix": ".prefetch.rsc",
            "suffix": ".rsc",
            "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
          },

@@ -1144,7 +1144,6 @@ impl Project {
             client_root: self.client_relative_path().owned().await?,
             client_root_to_root_path: rcstr!("/ROOT"),
             asset_prefix: self.next_config().computed_asset_prefix(),
-            chunk_suffix_path: self.next_config().chunk_suffix_path(),
             environment: self.client_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
