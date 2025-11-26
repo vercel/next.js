@@ -16,7 +16,7 @@ async function a() {
   }
 }
 
-export const obj = {
+export const { foo } = {
   foo() {
     return 42
   },

@@ -7,6 +7,7 @@ use std::{
 };
 
 use anyhow::{Result, bail};
+use auto_hash_map::AutoSet;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
@@ -101,6 +102,35 @@ impl ModuleResolveResultItem {
             _ => None,
         })
     }
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug, Hash, Default)]
+pub struct BindingUsage {
+    pub import: ImportUsage,
+    pub export: ExportUsage,
+}
+
+#[turbo_tasks::value_impl]
+impl BindingUsage {
+    #[turbo_tasks::function]
+    pub fn all() -> Vc<Self> {
+        Self::default().cell()
+    }
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Default, Hash)]
+pub enum ImportUsage {
+    /// This import is used by some side effect in the module (and can't be tree shaken).
+    #[default]
+    SideEffects,
+    /// This import is used only by these specific exports, if all exports are unused, the import
+    /// can also be removed.
+    ///
+    /// (This is only ever set on `ModulePart::Export` references. Side effects are handled via
+    /// `ModulePart::Evaluation` references, which always have `ImportUsage::SideEffects`.)
+    Exports(AutoSet<RcStr>),
 }
 
 #[turbo_tasks::value]
@@ -414,6 +444,9 @@ pub enum ResolveResultItem {
         name: RcStr,
         ty: ExternalType,
         traced: ExternalTraced,
+        /// The file path to the resolved file. Passing a value will create a symlink in the output
+        /// root to be able to access potentially transitive dependencies.
+        target: Option<FileSystemPath>,
     },
     Ignore,
     Error(ResolvedVc<RcStr>),
@@ -494,10 +527,19 @@ impl ValueToString for ResolveResult {
                     name: s,
                     ty,
                     traced,
+                    target,
                 } => {
                     result.push_str("external ");
                     result.push_str(s);
-                    write!(result, " ({ty}, {traced})")?;
+                    write!(
+                        result,
+                        " ({ty}, {traced}, {:?})",
+                        if let Some(target) = target {
+                            Some(target.value_to_string().await?)
+                        } else {
+                            None
+                        }
+                    )?;
                 }
                 ResolveResultItem::Ignore => {
                     result.push_str("ignore");
@@ -626,8 +668,13 @@ impl ResolveResult {
                             request,
                             match item {
                                 ResolveResultItem::Source(source) => asset_fn(source).await?,
-                                ResolveResultItem::External { name, ty, traced } => {
-                                    if traced == ExternalTraced::Traced {
+                                ResolveResultItem::External {
+                                    name,
+                                    ty,
+                                    traced,
+                                    target,
+                                } => {
+                                    if traced == ExternalTraced::Traced || target.is_some() {
                                         // Should use map_primary_items instead
                                         bail!("map_module doesn't handle traced externals");
                                     }
@@ -1979,6 +2026,7 @@ async fn resolve_internal_inline(
                             name: uri,
                             ty: ExternalType::Url,
                             traced: ExternalTraced::Untraced,
+                            target: None,
                         },
                     )
                 }
@@ -1996,6 +2044,7 @@ async fn resolve_internal_inline(
                         name: uri,
                         ty: ExternalType::Url,
                         traced: ExternalTraced::Untraced,
+                        target: None,
                     },
                 )
             }
@@ -2721,13 +2770,17 @@ async fn resolve_import_map_result(
                 ))
             }
         }
-        ImportMapResult::External { name, ty, traced } => {
-            Some(*ResolveResult::primary(ResolveResultItem::External {
-                name: name.clone(),
-                ty: *ty,
-                traced: *traced,
-            }))
-        }
+        ImportMapResult::External {
+            name,
+            ty,
+            traced,
+            target,
+        } => Some(*ResolveResult::primary(ResolveResultItem::External {
+            name: name.clone(),
+            ty: *ty,
+            traced: *traced,
+            target: target.clone(),
+        })),
         ImportMapResult::AliasExternal {
             name,
             ty,
@@ -2763,6 +2816,7 @@ async fn resolve_import_map_result(
                         name: name.clone(),
                         ty: *ty,
                         traced: *traced,
+                        target: None,
                     }))
                 } else {
                     None

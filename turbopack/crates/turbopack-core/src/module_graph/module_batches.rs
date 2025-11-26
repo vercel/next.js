@@ -350,28 +350,30 @@ pub async fn compute_module_batches(
 
         // Walk the module graph and mark all modules that are boundary modules (referenced from a
         // different chunk group bitmap)
-        module_graph.traverse_all_edges_unordered(|(parent, ty), node| {
-            let std::collections::hash_set::Entry::Vacant(entry) =
-                pre_batches.boundary_modules.entry(node)
-            else {
-                // Already a boundary module, can skip check
-                return Ok(());
-            };
-            if ty.chunking_type.is_parallel() {
-                let parent_chunk_groups = chunk_group_info
-                    .module_chunk_groups
-                    .get(&parent)
-                    .context("all modules need to have chunk group info")?;
-                let chunk_groups = chunk_group_info
-                    .module_chunk_groups
-                    .get(&node)
-                    .context("all modules need to have chunk group info")?;
-                if parent_chunk_groups != chunk_groups {
-                    // This is a boundary module
+        module_graph.traverse_all_edges_unordered(|parent, node| {
+            if let Some((parent, ty)) = parent {
+                let std::collections::hash_set::Entry::Vacant(entry) =
+                    pre_batches.boundary_modules.entry(node)
+                else {
+                    // Already a boundary module, can skip check
+                    return Ok(());
+                };
+                if ty.chunking_type.is_parallel() {
+                    let parent_chunk_groups = chunk_group_info
+                        .module_chunk_groups
+                        .get(&parent)
+                        .context("all modules need to have chunk group info")?;
+                    let chunk_groups = chunk_group_info
+                        .module_chunk_groups
+                        .get(&node)
+                        .context("all modules need to have chunk group info")?;
+                    if parent_chunk_groups != chunk_groups {
+                        // This is a boundary module
+                        entry.insert();
+                    }
+                } else {
                     entry.insert();
                 }
-            } else {
-                entry.insert();
             }
             Ok(())
         })?;

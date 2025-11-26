@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { runNextCommand } from 'next-test-utils'
+import { retry, runNextCommand } from 'next-test-utils'
 
 const expectedDts = `
 type AppRoutes = "/" | "/_shop/[[...category]]" | "/dashboard" | "/dashboard/settings" | "/docs/[...slug]" | "/gallery/photo/[id]" | "/project/[slug]"
@@ -22,22 +22,26 @@ describe('typed-routes', () => {
   }
 
   it('should generate route types correctly', async () => {
-    const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
-    expect(dts).toContain(expectedDts)
+    await retry(async () => {
+      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
+      expect(dts).toContain(expectedDts)
+    })
   })
 
   it('should correctly convert custom route patterns from path-to-regexp to bracket syntax', async () => {
-    const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
+    await retry(async () => {
+      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
 
-    // Test standard dynamic segment: :slug -> [slug]
-    expect(dts).toContain('"/project/[slug]"')
+      // Test standard dynamic segment: :slug -> [slug]
+      expect(dts).toContain('"/project/[slug]"')
 
-    // Test catch-all one-or-more: :path+ -> [...path]
-    expect(dts).toContain('"/docs-old/[...path]"')
+      // Test catch-all one-or-more: :path+ -> [...path]
+      expect(dts).toContain('"/docs-old/[...path]"')
 
-    // Test catch-all zero-or-more: :slug* -> [[...slug]]
-    expect(dts).toContain('"/blog/[category]/[[...slug]]"')
-    expect(dts).toContain('"/api-legacy/[version]/[[...endpoint]]"')
+      // Test catch-all zero-or-more: :slug* -> [[...slug]]
+      expect(dts).toContain('"/blog/[category]/[[...slug]]"')
+      expect(dts).toContain('"/api-legacy/[version]/[[...endpoint]]"')
+    })
   })
 
   if (isNextDev) {
@@ -52,22 +56,26 @@ describe('typed-routes', () => {
     `
       )
 
-      const routeTypesContent = await next.readFile(
-        `${next.distDir}/types/routes.d.ts`
-      )
+      await retry(async () => {
+        const routeTypesContent = await next.readFile(
+          `${next.distDir}/types/routes.d.ts`
+        )
 
-      expect(routeTypesContent).toContain(
-        'type LayoutRoutes = "/" | "/dashboard" | "/new-layout"'
-      )
+        expect(routeTypesContent).toContain(
+          'type LayoutRoutes = "/" | "/dashboard" | "/new-layout"'
+        )
+      })
     })
   }
 
   it('should generate RouteContext type for route handlers', async () => {
-    const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
-    expect(dts).toContain(
-      'interface RouteContext<AppRouteHandlerRoute extends AppRouteHandlerRoutes>'
-    )
-    expect(dts).toContain('params: Promise<ParamMap[AppRouteHandlerRoute]>')
+    await retry(async () => {
+      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
+      expect(dts).toContain(
+        'interface RouteContext<AppRouteHandlerRoute extends AppRouteHandlerRoutes>'
+      )
+      expect(dts).toContain('params: Promise<ParamMap[AppRouteHandlerRoute]>')
+    })
   })
 
   if (isNextStart) {
@@ -92,13 +100,13 @@ type InvalidRoute = RouteContext<'/api/users/invalid'>`
         `Type '"/api/users/invalid"' does not satisfy the constraint 'AppRouteHandlerRoutes'.`
       )
     })
-  }
 
-  it('should exit typegen successfully', async () => {
-    const { code } = await runNextCommand(['typegen'], {
-      cwd: next.testDir,
+    it('should exit typegen successfully', async () => {
+      const { code } = await runNextCommand(['typegen'], {
+        cwd: next.testDir,
+      })
+
+      expect(code).toBe(0)
     })
-
-    expect(code).toBe(0)
-  })
+  }
 })

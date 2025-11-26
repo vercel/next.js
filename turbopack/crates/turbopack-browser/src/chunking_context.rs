@@ -23,10 +23,11 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         ModuleGraph,
+        binding_usage_info::{BindingUsageInfo, ModuleExportUsage},
         chunk_group_info::ChunkGroup,
-        export_usage::{ExportUsageInfo, ModuleExportUsage},
     },
     output::{OutputAsset, OutputAssets},
+    reference::ModuleReference,
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
@@ -168,8 +169,16 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn export_usage(mut self, export_usage: Option<ResolvedVc<ExportUsageInfo>>) -> Self {
+    pub fn export_usage(mut self, export_usage: Option<ResolvedVc<BindingUsageInfo>>) -> Self {
         self.chunking_context.export_usage = export_usage;
+        self
+    }
+
+    pub fn unused_references(
+        mut self,
+        unused_references: Option<ResolvedVc<BindingUsageInfo>>,
+    ) -> Self {
+        self.chunking_context.unused_references = unused_references;
         self
     }
 
@@ -291,7 +300,9 @@ pub struct BrowserChunkingContext {
     /// The module id strategy to use
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     /// The module export usage info, if available.
-    export_usage: Option<ResolvedVc<ExportUsageInfo>>,
+    export_usage: Option<ResolvedVc<BindingUsageInfo>>,
+    /// Which references are unused and should be skipped (e.g. during codegen).
+    unused_references: Option<ResolvedVc<BindingUsageInfo>>,
     /// The chunking configs
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
     /// Whether to use absolute URLs for static assets (e.g. in CSS: `url("/absolute/path")`)
@@ -340,6 +351,7 @@ impl BrowserChunkingContext {
                 manifest_chunks: false,
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
                 export_usage: None,
+                unused_references: None,
                 chunking_configs: Default::default(),
                 should_use_absolute_url_references: false,
             },
@@ -866,9 +878,21 @@ impl ChunkingContext for BrowserChunkingContext {
         if let Some(export_usage) = self.await?.export_usage {
             Ok(export_usage.await?.used_exports(module).await?)
         } else {
-            // In development mode, we don't have export usage info, so we assume all exports are
-            // used.
             Ok(ModuleExportUsage::all())
+        }
+    }
+
+    #[turbo_tasks::function]
+    async fn is_reference_unused(
+        self: Vc<Self>,
+        reference: ResolvedVc<Box<dyn ModuleReference>>,
+    ) -> Result<Vc<bool>> {
+        if let Some(unused_references) = self.await?.unused_references {
+            Ok(Vc::cell(
+                unused_references.await?.is_reference_unused(&reference),
+            ))
+        } else {
+            Ok(Vc::cell(false))
         }
     }
 
