@@ -9058,6 +9058,53 @@ export declare function Google_Sans_Code<
     | 'vietnamese'
   >
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Google_Sans_Flex<
+  T extends CssVariable | undefined = undefined,
+>(options?: {
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | '1000'
+    | 'variable'
+    | Array<
+        | '100'
+        | '200'
+        | '300'
+        | '400'
+        | '500'
+        | '600'
+        | '700'
+        | '800'
+        | '900'
+        | '1000'
+      >
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'canadian-aboriginal'
+    | 'cherokee'
+    | 'latin'
+    | 'latin-ext'
+    | 'math'
+    | 'nushu'
+    | 'symbols'
+    | 'syriac'
+    | 'tifinagh'
+    | 'vietnamese'
+  >
+  axes?: ('GRAD' | 'ROND' | 'opsz' | 'slnt' | 'wdth')[]
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gorditas<
   T extends CssVariable | undefined = undefined,
 >(options: {
@@ -11742,6 +11789,25 @@ export declare function Keania_One<
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Kedebideri<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<'400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kelly_Slab<
   T extends CssVariable | undefined = undefined,
 >(options: {
@@ -12944,8 +13010,14 @@ export declare function Libre_Barcode_EAN13_Text<
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Libre_Baskerville<
   T extends CssVariable | undefined = undefined,
->(options: {
-  weight: '400' | '700' | Array<'400' | '700'>
+>(options?: {
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
@@ -25210,6 +25282,34 @@ export declare function Schoolbell<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<'latin'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Science_Gothic<
+  T extends CssVariable | undefined = undefined,
+>(options?: {
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
+  axes?: ('CTRS' | 'slnt' | 'wdth')[]
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Scope_One<
   T extends CssVariable | undefined = undefined,
