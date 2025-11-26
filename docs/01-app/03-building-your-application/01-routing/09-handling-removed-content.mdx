@@ -33,7 +33,7 @@ Use a **404 Not Found** status when:
 In React Server Components, you can use the `gone()` function to trigger a 410 Gone response:
 
 ```tsx filename="app/posts/[slug]/page.tsx"
-import { gone } from 'next/navigation'
+import { gone, notFound } from 'next/navigation'
 
 async function getPost(slug: string) {
   const res = await fetch(`https://api.example.com/posts/${slug}`)
