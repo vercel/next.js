@@ -98,8 +98,9 @@ impl OutputAsset for SourceMapAsset {
 impl Asset for SourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        if let Some(sm) = &*self.generate_source_map.generate_source_map().await? {
-            Ok(AssetContent::file(File::from(sm.clone()).into()))
+        let content = self.generate_source_map.generate_source_map();
+        if content.await?.is_content() {
+            Ok(AssetContent::file(content))
         } else {
             Ok(AssetContent::file(
                 File::from(SourceMap::empty_rope()).into(),

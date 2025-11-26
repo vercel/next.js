@@ -86,7 +86,7 @@ pub use transform::{
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxDashMap, FxIndexMap, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
-    TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs,
+    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -2135,14 +2135,21 @@ async fn emit_content(
     }
 
     let source_map = if generate_source_map {
+        let original_source_maps = original_source_map
+            .iter()
+            .map(|map| map.generate_source_map())
+            .try_join()
+            .await?;
+        let original_source_maps = original_source_maps
+            .iter()
+            .filter_map(|map| map.as_content())
+            .map(|map| map.content())
+            .collect::<Vec<_>>();
+
         Some(generate_js_source_map(
             &*source_map,
             mappings,
-            original_source_map
-                .iter()
-                .map(|map| map.generate_source_map())
-                .try_flat_join()
-                .await?,
+            original_source_maps,
             matches!(
                 original_source_map,
                 CodeGenResultOriginalSourceMap::Single(_)

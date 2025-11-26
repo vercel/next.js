@@ -1766,6 +1766,7 @@ impl From<File> for FileContent {
     }
 }
 
+// TODO remove this, it hides cell creation
 impl From<File> for Vc<FileContent> {
     fn from(file: File) -> Self {
         FileContent::Content(file).cell()

@@ -16,7 +16,7 @@ use swc_core::base::sourcemap::SourceMapBuilder;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
     SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
@@ -30,7 +30,7 @@ use turbopack_core::{
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::Source,
-    source_map::{OptionStringifiedSourceMap, utils::add_default_ignore_list},
+    source_map::utils::add_default_ignore_list,
     source_pos::SourcePos,
 };
 
@@ -179,7 +179,7 @@ pub enum FinalCssResult {
         #[turbo_tasks(trace_ignore)]
         output_code: String,
 
-        source_map: ResolvedVc<OptionStringifiedSourceMap>,
+        source_map: ResolvedVc<FileContent>,
     },
     Unparsable,
     NotFound,
@@ -246,7 +246,7 @@ pub async fn finalize_css(
     result: Vc<CssWithPlaceholderResult>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     minify_type: MinifyType,
-    origin_source_map: Vc<OptionStringifiedSourceMap>,
+    origin_source_map: Vc<FileContent>,
     environment: Option<ResolvedVc<Environment>>,
 ) -> Result<Vc<FinalCssResult>> {
     let result = result.await?;
@@ -286,8 +286,11 @@ pub async fn finalize_css(
                 _ => bail!("this case should be filtered out while parsing"),
             };
 
-            let origin_source_map = if let Some(rope) = &*origin_source_map.await? {
-                Some(parcel_sourcemap::SourceMap::from_json("", &rope.to_str()?)?)
+            let origin_source_map = if let Some(rope) = origin_source_map.await?.as_content() {
+                Some(parcel_sourcemap::SourceMap::from_json(
+                    "",
+                    &rope.content().to_str()?,
+                )?)
             } else {
                 None
             };
@@ -305,7 +308,11 @@ pub async fn finalize_css(
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
-                source_map: ResolvedVc::cell(srcmap),
+                source_map: if let Some(srcmap) = srcmap {
+                    FileContent::Content(File::from(srcmap)).resolved_cell()
+                } else {
+                    FileContent::NotFound.resolved_cell()
+                },
             }
             .cell())
         }

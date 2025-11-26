@@ -29,28 +29,17 @@ pub use source_map_asset::SourceMapAsset;
 /// Represents an empty value in a u32 variable in the sourcemap crate.
 static SOURCEMAP_CRATE_NONE_U32: u32 = !0;
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionStringifiedSourceMap(Option<Rope>);
-
-#[turbo_tasks::value_impl]
-impl OptionStringifiedSourceMap {
-    #[turbo_tasks::function]
-    pub fn none() -> Vc<Self> {
-        Vc::cell(None)
-    }
-}
-
 /// Allows callers to generate source maps.
 #[turbo_tasks::value_trait]
 pub trait GenerateSourceMap {
     /// Generates a usable source map, capable of both tracing and stringifying.
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap>;
+    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent>;
 
     /// Returns an individual section of the larger source map, if found.
     #[turbo_tasks::function]
-    fn by_section(self: Vc<Self>, _section: RcStr) -> Vc<OptionStringifiedSourceMap> {
-        Vc::cell(None)
+    fn by_section(self: Vc<Self>, _section: RcStr) -> Vc<FileContent> {
+        FileContent::NotFound.cell()
     }
 }
 
@@ -260,13 +249,12 @@ impl SourceMap {
     /// This function should be used sparingly to reduce memory usage, only in cold code paths
     /// (issue resolving, etc).
     #[turbo_tasks::function]
-    pub async fn new_from_rope_cached(
-        content: Vc<OptionStringifiedSourceMap>,
-    ) -> Result<Vc<OptionSourceMap>> {
-        let Some(content) = &*content.await? else {
+    pub async fn new_from_rope_cached(content: Vc<FileContent>) -> Result<Vc<OptionSourceMap>> {
+        let content = content.await?;
+        let Some(content) = content.as_content() else {
             return Ok(OptionSourceMap::none());
         };
-        Ok(Vc::cell(SourceMap::new_from_rope(content)?))
+        Ok(Vc::cell(SourceMap::new_from_rope(content.content())?))
     }
 }
 
@@ -637,8 +625,8 @@ impl SourceMap {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMap {
     #[turbo_tasks::function]
-    fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
-        Ok(Vc::cell(Some(self.to_rope()?)))
+    fn generate_source_map(&self) -> Result<Vc<FileContent>> {
+        Ok(File::from(self.to_rope()?).into())
     }
 }
 

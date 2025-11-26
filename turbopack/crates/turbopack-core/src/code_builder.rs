@@ -8,13 +8,16 @@ use anyhow::Result;
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::rope::{Rope, RopeBuilder};
+use turbo_tasks_fs::{
+    File, FileContent,
+    rope::{Rope, RopeBuilder},
+};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use crate::{
     debug_id::generate_debug_id,
     output::OutputAsset,
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMap, SourceMapAsset},
     source_pos::SourcePos,
 };
 
@@ -255,13 +258,9 @@ impl GenerateSourceMap for Code {
     /// far the simplest way to concatenate the source maps of the multiple
     /// chunk items into a single map file.
     #[turbo_tasks::function]
-    pub async fn generate_source_map(
-        self: ResolvedVc<Self>,
-    ) -> Result<Vc<OptionStringifiedSourceMap>> {
+    pub async fn generate_source_map(self: ResolvedVc<Self>) -> Result<Vc<FileContent>> {
         let debug_id = self.debug_id().owned().await?;
-        Ok(Vc::cell(Some(
-            self.await?.generate_source_map_ref(debug_id),
-        )))
+        Ok(File::from(self.await?.generate_source_map_ref(debug_id)).into())
     }
 }
 

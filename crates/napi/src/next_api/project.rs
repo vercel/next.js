@@ -51,7 +51,7 @@ use turbopack_core::{
     error::PrettyPrintError,
     issue::PlainIssue,
     output::{OutputAsset, OutputAssets},
-    source_map::{OptionStringifiedSourceMap, SourceMap, Token},
+    source_map::{SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
 };
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, ResourceIdentifier};
@@ -1550,7 +1550,7 @@ pub struct OptionStackFrame(Option<StackFrame>);
 pub async fn get_source_map_rope(
     container: Vc<ProjectContainer>,
     source_url: RcStr,
-) -> Result<Vc<OptionStringifiedSourceMap>> {
+) -> Result<Vc<FileContent>> {
     let (file_path_sys, module) = match Url::parse(&source_url) {
         Ok(url) => match url.scheme() {
             "file" => {
@@ -1579,7 +1579,7 @@ pub async fn get_source_map_rope(
             Some(relative_path) => sys_to_unix(relative_path),
             None => {
                 // File doesn't exist within the dist dir
-                return Ok(OptionStringifiedSourceMap::none());
+                return Ok(FileContent::NotFound.cell());
             }
         };
 
@@ -1597,13 +1597,13 @@ pub async fn get_source_map_rope(
 
     let mut map = container.get_source_map(server_path, module.clone());
 
-    if map.await?.is_none() {
+    if !map.await?.is_content() {
         // If the chunk doesn't exist as a server chunk, try a client chunk.
         // TODO: Properly tag all server chunks and use the `isServer` query param.
         // Currently, this is inaccurate as it does not cover RSC server
         // chunks.
         map = container.get_source_map(client_path, module);
-        if map.await?.is_none() {
+        if !map.await?.is_content() {
             bail!("chunk/module '{}' is missing a sourcemap", source_url);
         }
     }
@@ -1615,7 +1615,7 @@ pub async fn get_source_map_rope(
 pub fn get_source_map_rope_operation(
     container: ResolvedVc<ProjectContainer>,
     file_path: RcStr,
-) -> Vc<OptionStringifiedSourceMap> {
+) -> Vc<FileContent> {
     get_source_map_rope(*container, file_path)
 }
 
@@ -1782,13 +1782,13 @@ pub async fn project_get_source_map(
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
         .run(async move {
-            let Some(map) = &*get_source_map_rope_operation(container, file_path)
+            let source_map = get_source_map_rope_operation(container, file_path)
                 .read_strongly_consistent()
-                .await?
-            else {
+                .await?;
+            let Some(map) = source_map.as_content() else {
                 return Ok(None);
             };
-            Ok(Some(map.to_str()?.to_string()))
+            Ok(Some(map.content().to_str()?.to_string()))
         })
         // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
         // source files may have changed or been deleted), so these probably aren't internal errors?

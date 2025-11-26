@@ -272,7 +272,8 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
             )
             .await?
             {
-                source_map.generate_source_map().owned().await?
+                let source_map = source_map.generate_source_map().await?;
+                source_map.as_content().map(|f| f.content().clone())
             } else {
                 None
             };
