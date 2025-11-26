@@ -29,7 +29,7 @@ use swc_core::{
     common::{comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
     ecma::{
         ast::Pass,
-        parser::{EsSyntax, Syntax},
+        parser::{EsSyntax, Syntax, TsSyntax},
         transforms::{
             base::resolver,
             react::jsx,
@@ -534,10 +534,16 @@ fn next_font_loaders_fixture(input: PathBuf) {
 
 #[fixture("tests/fixture/server-actions/**/input.*")]
 fn server_actions_fixture(input: PathBuf) {
-    let (input_syntax, extension) = if input.extension() == Some("ts".as_ref()) {
-        (Syntax::Typescript(Default::default()), "ts")
-    } else {
-        (syntax(), "js")
+    let (input_syntax, extension) = match input.extension().and_then(|e| e.to_str()) {
+        Some("ts") => (Syntax::Typescript(Default::default()), "ts"),
+        Some("tsx") => (
+            Syntax::Typescript(TsSyntax {
+                tsx: true,
+                ..Default::default()
+            }),
+            "tsx",
+        ),
+        _ => (syntax(), "js"),
     };
 
     let output = input.parent().unwrap().join(format!("output.{extension}"));

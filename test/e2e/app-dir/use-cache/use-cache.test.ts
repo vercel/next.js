@@ -1361,6 +1361,16 @@ describe('use-cache', () => {
       expect(initialScale2).toBe(initialScale)
       expect(maximumScale2).toBe(maximumScale)
     })
+
+    it('caches a higher-order component in a "use cache" module', async () => {
+      const browser = await next.browser('/hoc/foo')
+      const slug = await browser.elementById('slug').text()
+      expect(slug).toBe('foo')
+      const date = await browser.elementById('date').text()
+      expect(date).toBeDateString()
+      await browser.refresh()
+      expect(await browser.elementById('date').text()).toBe(date)
+    })
   }
 })
 

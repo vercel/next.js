@@ -1,0 +1,18 @@
+/* __next_internal_action_entry_do_not_use__ {"802af4786baeeb4011d0d5e5ff1cb669d517c9b125":"staticallyKnownFunction","807f03edbc83b6cc7e5ccc12da8fecf25146585bb7":"getCachedData","ff1acff246876a467753785a92d1f95ac6fe32c9b9":"Other","ff27fadf3eeb97c777cea9f14a407b5c0b42ac65bb":"aliased","ff438bb59117ff1af890c80ca3e39d9e888fc93033":"wrapped","ff84effee663e5ce4e0948b55df129a8df904c67aa":"Sync","ff8fa22f08e492db15701f58a1458cc4ebf782f855":"getData","ff980f8c891ae27674b86a4804d306bdb3065c2e4f":"getStuff","ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d":"default"} */ import { createServerReference, callServer, findSourceMapURL } from "private-next-rsc-action-client-wrapper";
+const $$RSC_SERVER_CACHE_0 = /*#__PURE__*/ createServerReference("807f03edbc83b6cc7e5ccc12da8fecf25146585bb7", callServer, void 0, findSourceMapURL, "getCachedData");
+export { $$RSC_SERVER_CACHE_0 as getCachedData };
+const $$RSC_SERVER_CACHE_1 = /*#__PURE__*/ createServerReference("802af4786baeeb4011d0d5e5ff1cb669d517c9b125", callServer, void 0, findSourceMapURL, "staticallyKnownFunction");
+export { $$RSC_SERVER_CACHE_1 as staticallyKnownFunction };
+const $$RSC_SERVER_CACHE_2 = /*#__PURE__*/ createServerReference("ff27fadf3eeb97c777cea9f14a407b5c0b42ac65bb", callServer, void 0, findSourceMapURL, "aliased");
+export { $$RSC_SERVER_CACHE_2 as aliased };
+const $$RSC_SERVER_CACHE_3 = /*#__PURE__*/ createServerReference("ff84effee663e5ce4e0948b55df129a8df904c67aa", callServer, void 0, findSourceMapURL, "Sync");
+export { $$RSC_SERVER_CACHE_3 as Sync };
+const $$RSC_SERVER_CACHE_4 = /*#__PURE__*/ createServerReference("ff438bb59117ff1af890c80ca3e39d9e888fc93033", callServer, void 0, findSourceMapURL, "wrapped");
+export { $$RSC_SERVER_CACHE_4 as wrapped };
+export default /*#__PURE__*/ createServerReference("ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", callServer, void 0, findSourceMapURL, "default");
+const $$RSC_SERVER_CACHE_5 = /*#__PURE__*/ createServerReference("ff1acff246876a467753785a92d1f95ac6fe32c9b9", callServer, void 0, findSourceMapURL, "Other");
+export { $$RSC_SERVER_CACHE_5 as Other };
+const $$RSC_SERVER_CACHE_6 = /*#__PURE__*/ createServerReference("ff980f8c891ae27674b86a4804d306bdb3065c2e4f", callServer, void 0, findSourceMapURL, "getStuff");
+export { $$RSC_SERVER_CACHE_6 as getStuff };
+const $$RSC_SERVER_CACHE_7 = /*#__PURE__*/ createServerReference("ff8fa22f08e492db15701f58a1458cc4ebf782f855", callServer, void 0, findSourceMapURL, "getData");
+export { $$RSC_SERVER_CACHE_7 as getData };
