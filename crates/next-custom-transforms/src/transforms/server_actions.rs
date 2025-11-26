@@ -2008,15 +2008,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     // Remove value specifiers from the export statement, keeping
                                     // only type-only specifiers.
                                     named.specifiers.retain(|spec| {
-                                        if let ExportSpecifier::Named(ExportNamedSpecifier {
-                                            is_type_only: true,
-                                            ..
-                                        }) = spec
-                                        {
-                                            true
-                                        } else {
-                                            false
-                                        }
+                                        matches!(
+                                            spec,
+                                            ExportSpecifier::Named(ExportNamedSpecifier {
+                                                is_type_only: true,
+                                                ..
+                                            })
+                                        )
                                     });
 
                                     // If all specifiers were value specifiers (converted to
