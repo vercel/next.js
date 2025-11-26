@@ -17,6 +17,8 @@ export type IssuesMap = Map<IssueKey, Issue>
 export type EntryIssuesMap = Map<EntryKey, IssuesMap>
 export type TopLevelIssuesMap = IssuesMap
 
+const VERBOSE_ISSUES = !!process.env.NEXT_TURBOPACK_VERBOSE_ISSUES
+
 /**
  * An error generated from emitted Turbopack issues. This can include build
  * errors caused by issues with user code.
@@ -91,7 +93,7 @@ export function processIssues(
 }
 
 export function formatIssue(issue: Issue) {
-  const { filePath, title, description, source, importTraces } = issue
+  const { filePath, title, description, detail, source, importTraces } = issue
   let { documentationLink } = issue
   const formattedTitle = renderStyledStringToErrorAnsi(title).replace(
     /\n/g,
@@ -166,10 +168,10 @@ export function formatIssue(issue: Issue) {
     }
   }
 
-  // TODO: make it possible to enable this for debugging, but not in tests.
-  // if (detail) {
-  //   message += renderStyledStringToErrorAnsi(detail) + '\n\n'
-  // }
+  // TODO: make it easier to enable this for debugging
+  if (VERBOSE_ISSUES && detail) {
+    message += renderStyledStringToErrorAnsi(detail) + '\n\n'
+  }
 
   if (importTraces?.length) {
     // This is the same logic as in turbopack/crates/turbopack-cli-utils/src/issue.rs
