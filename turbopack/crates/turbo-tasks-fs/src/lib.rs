@@ -1438,30 +1438,27 @@ impl FileSystemPath {
         ))
     }
 
-    /// Similar to [FileSystemPath::join], but returns an Option that will be
-    /// None when the joined path would leave the filesystem root.
+    /// Similar to [FileSystemPath::join], but returns an [`Option`] that will be [`None`] when the
+    /// joined path would leave the filesystem root.
     #[allow(clippy::needless_borrow)] // for windows build
-    pub fn try_join(&self, path: &str) -> Result<Option<FileSystemPath>> {
+    pub fn try_join(&self, path: &str) -> Option<FileSystemPath> {
         // TODO(PACK-3279): Remove this once we do not produce invalid paths at the first place.
         #[cfg(target_os = "windows")]
         let path = path.replace('\\', "/");
 
-        if let Some(path) = join_path(&self.path, &path) {
-            Ok(Some(Self::new_normalized(self.fs, path.into())))
-        } else {
-            Ok(None)
-        }
+        join_path(&self.path, &path).map(|p| Self::new_normalized(self.fs, RcStr::from(p)))
     }
 
-    /// Similar to [FileSystemPath::join], but returns an Option that will be
-    /// None when the joined path would leave the current path.
-    pub fn try_join_inside(&self, path: &str) -> Result<Option<FileSystemPath>> {
-        if let Some(path) = join_path(&self.path, path)
-            && path.starts_with(&*self.path)
+    /// Similar to [FileSystemPath::try_join], but returns [`None`] when the new path would leave
+    /// the current path (not just the filesystem root). This is useful for preventing access
+    /// outside of a directory.
+    pub fn try_join_inside(&self, path: &str) -> Option<FileSystemPath> {
+        if let Some(p) = join_path(&self.path, path)
+            && p.starts_with(&*self.path)
         {
-            return Ok(Some(Self::new_normalized(self.fs, path.into())));
+            return Some(Self::new_normalized(self.fs, RcStr::from(p)));
         }
-        Ok(None)
+        None
     }
 
     /// DETERMINISM: Result is in random order. Either sort result or do not depend
