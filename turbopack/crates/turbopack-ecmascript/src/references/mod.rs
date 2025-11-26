@@ -834,6 +834,7 @@ async fn analyze_ecmascript_module_internal(
                 },
                 import_usage.get(&i).cloned().unwrap_or_default(),
                 import_externals,
+                options.tree_shaking_mode,
             )
             .resolved_cell();
 
@@ -1492,6 +1493,7 @@ async fn analyze_ecmascript_module_internal(
                                                 // logic earlier (see TODO above)
                                                 original_reference.import_usage.clone(),
                                                 original_reference.import_externals,
+                                                original_reference.tree_shaking_mode,
                                             )
                                             .resolved_cell()
                                         },
@@ -2934,6 +2936,7 @@ async fn handle_free_var_reference(
                         },
                         ImportUsage::SideEffects,
                         state.import_externals,
+                        state.tree_shaking_mode,
                     )
                     .resolved_cell())
                 })
