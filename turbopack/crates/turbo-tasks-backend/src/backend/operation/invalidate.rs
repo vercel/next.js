@@ -295,21 +295,22 @@ pub fn make_task_dirty_internal(
     )
     .entered();
 
-    let should_schedule = {
-        let aggregated_update =
-            dirty_container.update_with_dirtyness_and_session(Dirtyness::Dirty, None);
-        if !aggregated_update.is_zero() {
-            queue.extend(AggregationUpdateJob::data_update(
-                &mut task,
-                AggregatedDataUpdate::new().dirty_container_update(
-                    task_id,
-                    aggregated_update.count,
-                    aggregated_update.current_session_clean(ctx.session_id()),
-                ),
-            ));
-        }
-        !ctx.should_track_activeness() || task.has_key(&CachedDataItemKey::Activeness {})
-    };
+    let aggregated_update =
+        dirty_container.update_with_dirtyness_and_session(Dirtyness::Dirty, None);
+    if !aggregated_update.is_zero() {
+        let aggregated_update = AggregatedDataUpdate::new().dirty_container_update(
+            task_id,
+            aggregated_update.count,
+            aggregated_update.current_session_clean(ctx.session_id()),
+        );
+        queue.extend(AggregationUpdateJob::data_update(
+            &mut task,
+            aggregated_update,
+        ));
+    }
+
+    let should_schedule =
+        !ctx.should_track_activeness() || task.has_key(&CachedDataItemKey::Activeness {});
 
     if should_schedule {
         let description = || ctx.get_task_desc_fn(task_id);
