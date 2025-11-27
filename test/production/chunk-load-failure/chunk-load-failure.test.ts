@@ -9,7 +9,7 @@ describe('chunk-load-failure', () => {
     files: __dirname,
   })
 
-  it('should report async chunk load failures', async () => {
+  async function getNextDynamicChunk() {
     const chunksPath = path.join(next.testDir, '.next/static/')
     const browserChunks = await recursiveReadDir(chunksPath, {
       pathnameFilter: (f) => /\.js$/.test(f),
@@ -20,7 +20,12 @@ describe('chunk-load-failure', () => {
         .includes('this is a lazy loaded async component')
     )
     expect(nextDynamicChunks).toHaveLength(1)
-    let nextDynamicChunk = nextDynamicChunks[0]
+
+    return nextDynamicChunks[0]
+  }
+
+  it('should report async chunk load failures', async () => {
+    let nextDynamicChunk = await getNextDynamicChunk()
 
     let pageError: Error | undefined
     const browser = await next.browser('/dynamic', {
@@ -52,4 +57,51 @@ describe('chunk-load-failure', () => {
       expect(pageError.message).toContain('/_next/static/' + nextDynamicChunk)
     }
   })
+
+  it.each(['chrome', 'firefox'])(
+    'should report aborted chunks when navigating away with %s',
+    async (browserName) => {
+      let nextDynamicChunk = await getNextDynamicChunk()
+
+      let resolve
+      let oldBrowserName = process.env.BROWSER_NAME
+      process.env.BROWSER_NAME = browserName
+      try {
+        const browser = await next.browser('/dynamic', {
+          beforePageLoad(page) {
+            page.route('**/' + nextDynamicChunk, async (route) => {
+              await new Promise((r) => {
+                resolve = r
+              })
+            })
+          },
+        })
+
+        await browser.get(next.url + '/other')
+
+        let body = await browser.elementByCss('body')
+        expect(await body.text()).toMatch('this is other')
+
+        const browserLogs = (await browser.log()).filter(
+          (m) => m.source === 'warning' || m.source === 'error'
+        )
+        if (browserName === 'firefox') {
+          expect(browserLogs).toContainEqual(
+            expect.objectContaining({
+              message: expect.stringContaining(
+                'Loading failed for the <script> with source'
+              ),
+            })
+          )
+        } else {
+          // Chrome doesn't show any errors or warnings here
+          expect(browserLogs).toBeEmpty()
+        }
+      } finally {
+        process.env.BROWSER_NAME = oldBrowserName
+        // prevent hanging
+        resolve?.()
+      }
+    }
+  )
 })
