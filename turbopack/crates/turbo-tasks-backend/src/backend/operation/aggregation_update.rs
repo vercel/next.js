@@ -573,6 +573,23 @@ impl AggregatedDataUpdate {
                 let upper_current_session_clean_update =
                     before_after_to_diff_value(was_flagged_clean, is_flagged_clean);
 
+                let compute_result = ComputeDirtyAndCleanUpdate {
+                    old_dirty_container_count,
+                    new_dirty_container_count,
+                    old_current_session_clean_container_count,
+                    new_current_session_clean_container_count,
+                    old_dirty_value: dirty_value,
+                    new_dirty_value: dirty_value,
+                    old_current_session_clean_value: clean_value,
+                    new_current_session_clean_value: clean_value,
+                }
+                .compute();
+                assert_eq!(compute_result.dirty_count_update, upper_count_update);
+                assert_eq!(
+                    compute_result.current_session_clean_update,
+                    upper_current_session_clean_update
+                );
+
                 if upper_count_update != 0 || upper_current_session_clean_update != 0 {
                     result.dirty_container_update = Some((
                         task_id,
