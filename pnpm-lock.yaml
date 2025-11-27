@@ -999,7 +999,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 16.1.0-canary.4
+        specifier: 16.1.0-canary.5
         version: link:../eslint-plugin-next
       eslint:
         specifier: '>=9.0.0'
@@ -1076,7 +1076,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 16.1.0-canary.4
+        specifier: 16.1.0-canary.5
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.15
@@ -1204,19 +1204,19 @@ importers:
         specifier: 0.0.1
         version: link:../../apps/bundle-analyzer
       '@next/font':
-        specifier: 16.1.0-canary.4
+        specifier: 16.1.0-canary.5
         version: link:../font
       '@next/polyfill-module':
-        specifier: 16.1.0-canary.4
+        specifier: 16.1.0-canary.5
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 16.1.0-canary.4
+        specifier: 16.1.0-canary.5
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 16.1.0-canary.4
+        specifier: 16.1.0-canary.5
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 16.1.0-canary.4
+        specifier: 16.1.0-canary.5
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1919,7 +1919,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 16.1.0-canary.4
+        specifier: 16.1.0-canary.5
         version: link:../next
       outdent:
         specifier: 0.8.0
