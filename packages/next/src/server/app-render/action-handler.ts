@@ -59,6 +59,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import { executeRevalidates } from '../revalidation-utils'
 import { getRequestMeta } from '../request-meta'
 import { setCacheBustingSearchParam } from '../../client/components/router-reducer/set-cache-busting-search-param'
+import { getServerModuleMap } from './encryption-utils'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -503,7 +504,6 @@ export async function handleAction({
   req,
   res,
   ComponentMod,
-  serverModuleMap,
   generateFlight,
   workStore,
   requestStore,
@@ -514,7 +514,6 @@ export async function handleAction({
   req: BaseNextRequest
   res: BaseNextResponse
   ComponentMod: AppPageModule
-  serverModuleMap: ServerModuleMap
   generateFlight: GenerateFlight
   workStore: WorkStore
   requestStore: RequestStore
@@ -524,6 +523,7 @@ export async function handleAction({
 }): Promise<HandleActionResult> {
   const contentType = req.headers['content-type']
   const { serverActionsManifest, page } = ctx.renderOpts
+  const serverModuleMap = getServerModuleMap()
 
   const {
     actionId,

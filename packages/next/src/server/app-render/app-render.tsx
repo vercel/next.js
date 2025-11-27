@@ -101,10 +101,7 @@ import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
 import { createComponentTree, getRootParams } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
-import {
-  getServerModuleMap,
-  setReferenceManifestsSingleton,
-} from './encryption-utils'
+import { getServerModuleMap } from './encryption-utils'
 import {
   DynamicState,
   type PostponedState,
@@ -147,7 +144,6 @@ import {
   getClientComponentLoaderMetrics,
   wrapClientComponentLoader,
 } from '../client-component-renderer-logger'
-import { createServerModuleMap } from './action-utils'
 import { isNodeNextRequest } from '../base-http/helpers'
 import { parseRelativeUrl } from '../../shared/lib/router/utils/parse-relative-url'
 import AppRouter from '../../client/components/app-router'
@@ -1844,7 +1840,6 @@ async function renderToHTMLOrFlightImpl(
 
   const {
     clientReferenceManifest,
-    serverActionsManifest,
     ComponentMod,
     nextFontManifest,
     serverActions,
@@ -1970,15 +1965,6 @@ async function renderToHTMLOrFlightImpl(
   const appUsingSizeAdjustment = !!nextFontManifest?.appUsingSizeAdjust
 
   assertClientReferenceManifest(clientReferenceManifest)
-
-  const serverModuleMap = createServerModuleMap({ serverActionsManifest })
-
-  setReferenceManifestsSingleton({
-    page: workStore.page,
-    clientReferenceManifest,
-    serverActionsManifest,
-    serverModuleMap,
-  })
 
   ComponentMod.patchFetch()
 
@@ -2256,7 +2242,6 @@ async function renderToHTMLOrFlightImpl(
         req,
         res,
         ComponentMod,
-        serverModuleMap,
         generateFlight: generateDynamicFlightRenderResult,
         workStore,
         requestStore,
