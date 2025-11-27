@@ -298,7 +298,9 @@ impl Asset for JsonSource {
                     }
                     None => &*json,
                 };
-                Ok(AssetContent::file(File::from(value.to_string()).into()))
+                Ok(AssetContent::file(
+                    FileContent::Content(File::from(value.to_string())).cell(),
+                ))
             }
             FileSystemEntryType::NotFound => {
                 Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())
@@ -364,7 +366,7 @@ pub(crate) async fn config_loader_source(
 
     Ok(Vc::upcast(VirtualSource::new(
         postcss_config_path.append("_.loader.mjs")?,
-        AssetContent::file(File::from(code).into()),
+        AssetContent::file(FileContent::Content(File::from(code)).cell()),
     )))
 }
 

@@ -9,7 +9,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
 };
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId},
@@ -466,15 +466,15 @@ async fn build_manifest(
         let normalized_manifest_entry = entry_name.replace("%5F", "_");
         Ok(ClientReferenceManifestResult {
             content: AssetContent::file(
-                File::from(formatdoc! {
+                FileContent::Content(File::from(formatdoc! {
                     r#"
                         globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {{}};
                         globalThis.__RSC_MANIFEST[{entry_name}] = {manifest}
                     "#,
                     entry_name = StringifyJs(&normalized_manifest_entry),
                     manifest = &client_reference_manifest_json
-                })
-                .into(),
+                }))
+                .cell(),
             )
             .to_resolved()
             .await?,

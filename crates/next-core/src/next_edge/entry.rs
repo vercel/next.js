@@ -2,7 +2,7 @@ use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent, context::AssetContext, module::Module, reference_type::ReferenceType,
     virtual_source::VirtualSource,
@@ -47,7 +47,7 @@ pub fn wrap_edge_entry(
     // TODO(alexkirsz) Figure out how to name this virtual asset.
     let virtual_source = VirtualSource::new(
         project_root.join("edge-wrapper.js")?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     let inner_assets = fxindexmap! {

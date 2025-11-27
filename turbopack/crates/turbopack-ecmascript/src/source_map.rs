@@ -31,7 +31,7 @@ impl GenerateSourceMap for InlineSourceMap {
         if let Some(source_map) =
             resolve_source_map_sources(source_map.as_ref(), &self.origin_path).await?
         {
-            Ok(File::from(source_map).into())
+            Ok(FileContent::Content(File::from(source_map)).cell())
         } else {
             Ok(FileContent::NotFound.cell())
         }

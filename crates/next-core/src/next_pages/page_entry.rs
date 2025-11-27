@@ -4,7 +4,7 @@ use anyhow::{Result, bail};
 use serde::Serialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
-use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     context::AssetContext,
@@ -117,7 +117,7 @@ pub async fn create_page_ssr_entry_module(
 
         source = Vc::upcast(VirtualSource::new_with_ident(
             source.ident(),
-            AssetContent::file(file.into()),
+            AssetContent::file(FileContent::Content(file).cell()),
         ));
     }
 

@@ -10,7 +10,9 @@ use turbo_tasks::{
     NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, File, FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    DirectoryContent, DirectoryEntry, File, FileContent, FileSystemPath, glob::Glob,
+};
 use turbopack::externals_tracing_module_context;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -161,7 +163,9 @@ impl Asset for ServerNftJsonAsset {
           "files": server_output_assets
         });
 
-        Ok(AssetContent::file(File::from(json.to_string()).into()))
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(json.to_string())).cell(),
+        ))
     }
 }
 

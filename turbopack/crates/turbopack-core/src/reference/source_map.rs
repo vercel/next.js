@@ -63,7 +63,7 @@ impl GenerateSourceMap for SourceMapReference {
         let content = file.read().await?;
         let content = content.as_content().map(|file| file.content());
         if let Some(source_map) = resolve_source_map_sources(content, &self.from).await? {
-            Ok(File::from(source_map).into())
+            Ok(FileContent::Content(File::from(source_map)).cell())
         } else {
             Ok(FileContent::NotFound.cell())
         }

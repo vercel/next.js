@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
-use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
+use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -106,7 +106,7 @@ pub async fn get_app_page_entry(
     let file = File::from(result.build());
     let source = VirtualSource::new_with_ident(
         source.ident().with_query(RcStr::from(format!("?{query}"))),
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     let mut rsc_entry = module_asset_context

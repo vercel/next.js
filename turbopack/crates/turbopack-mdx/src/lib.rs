@@ -173,9 +173,11 @@ impl MdxTransformedAsset {
 
         match result {
             Ok(mdx_jsx_component) => Ok(MdxTransformResult {
-                content: AssetContent::file(File::from(Rope::from(mdx_jsx_component)).into())
-                    .to_resolved()
-                    .await?,
+                content: AssetContent::file(
+                    FileContent::Content(File::from(Rope::from(mdx_jsx_component))).cell(),
+                )
+                .to_resolved()
+                .await?,
             }
             .cell()),
             Err(err) => {

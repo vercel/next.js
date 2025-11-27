@@ -94,6 +94,6 @@ impl GenerateSourceMap for SingleFileEcmascriptOutput {
         );
 
         let map = generate_js_source_map(&*sm, mappings, None::<&Rope>, true, true)?;
-        Ok(File::from(map).into())
+        Ok(FileContent::Content(File::from(map)).cell())
     }
 }

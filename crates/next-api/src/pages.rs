@@ -1212,7 +1212,10 @@ impl PageEndpoint {
             node_root.join(&format!(
                 "server/pages{manifest_path_prefix}/pages-manifest.json",
             ))?,
-            AssetContent::file(File::from(serde_json::to_string_pretty(&pages_manifest)?).into()),
+            AssetContent::file(
+                FileContent::Content(File::from(serde_json::to_string_pretty(&pages_manifest)?))
+                    .cell(),
+            ),
         ));
         Ok(asset)
     }
@@ -1384,7 +1387,8 @@ impl PageEndpoint {
                     "server/pages{manifest_path_prefix}/webpack-stats.json",
                 ))?,
                 AssetContent::file(
-                    File::from(serde_json::to_string_pretty(&webpack_stats)?).into(),
+                    FileContent::Content(File::from(serde_json::to_string_pretty(&webpack_stats)?))
+                        .cell(),
                 ),
             )
             .to_resolved()

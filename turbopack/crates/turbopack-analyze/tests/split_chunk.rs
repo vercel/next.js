@@ -124,7 +124,7 @@ impl Asset for TestAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         Ok(AssetContent::file(
-            File::from(self.code.await?.source_code().clone()).into(),
+            FileContent::Content(File::from(self.code.await?.source_code().clone())).cell(),
         ))
     }
 }

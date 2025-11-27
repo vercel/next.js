@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     chunk::EvaluatableAsset,
@@ -76,14 +76,14 @@ pub async fn bootstrap(
             Vc::upcast(VirtualSource::new(
                 asset.ident().path().await?.join("bootstrap-config.ts")?,
                 AssetContent::file(
-                    File::from(
+                    FileContent::Content(File::from(
                         config
                             .iter()
                             .map(|(k, v)| format!("export const {} = {};\n", k, StringifyJs(v)))
                             .collect::<Vec<_>>()
                             .join(""),
-                    )
-                    .into(),
+                    ))
+                    .cell(),
                 ),
             )),
             ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
