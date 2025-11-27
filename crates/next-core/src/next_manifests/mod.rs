@@ -10,7 +10,7 @@ use turbo_tasks::{
     FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
     Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
@@ -153,7 +153,7 @@ impl Asset for BuildManifest {
         };
 
         Ok(AssetContent::file(
-            File::from(serde_json::to_string_pretty(&manifest)?).into(),
+            FileContent::Content(File::from(serde_json::to_string_pretty(&manifest)?)).cell(),
         ))
     }
 }
@@ -210,7 +210,7 @@ impl Asset for ClientBuildManifest {
             .collect();
 
         Ok(AssetContent::file(
-            File::from(serde_json::to_string_pretty(&manifest)?).into(),
+            FileContent::Content(File::from(serde_json::to_string_pretty(&manifest)?)).cell(),
         ))
     }
 }

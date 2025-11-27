@@ -158,12 +158,12 @@ impl Asset for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         Ok(AssetContent::file(
-            File::from(
+            FileContent::Content(File::from(
                 self.code()
                     .to_rope_with_magic_comments(|| self.source_map())
                     .await?,
-            )
-            .into(),
+            ))
+            .cell(),
         ))
     }
 }

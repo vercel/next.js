@@ -102,12 +102,12 @@ impl VersionedContent for EcmascriptBuildNodeChunkContent {
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = self.await?;
         Ok(AssetContent::file(
-            File::from(
+            FileContent::Content(File::from(
                 self.code()
                     .to_rope_with_magic_comments(|| *this.source_map)
                     .await?,
-            )
-            .into(),
+            ))
+            .cell(),
         ))
     }
 
