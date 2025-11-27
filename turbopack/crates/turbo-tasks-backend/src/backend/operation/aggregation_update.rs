@@ -350,24 +350,24 @@ impl AggregatedDataUpdate {
             }
 
             // Update AggregatedDirtyContainer and compute aggregated update
-            let mut aggregated_count_update = 0;
-            let old_dirty_container_count;
-            let new_dirty_container_count;
+            let mut dirty_container_count_update = 0;
+            let old_dirty_single_container_count;
+            let new_dirty_single_container_count;
             if count != 0 {
-                new_dirty_container_count = update_count_and_get!(
+                new_dirty_single_container_count = update_count_and_get!(
                     task,
                     AggregatedDirtyContainer {
                         task: dirty_container_id
                     },
                     count
                 );
-                old_dirty_container_count = new_dirty_container_count - count;
-                aggregated_count_update = before_after_to_diff_value(
-                    old_dirty_container_count > 0,
-                    new_dirty_container_count > 0,
+                old_dirty_single_container_count = new_dirty_single_container_count - count;
+                dirty_container_count_update = before_after_to_diff_value(
+                    old_dirty_single_container_count > 0,
+                    new_dirty_single_container_count > 0,
                 );
             } else {
-                new_dirty_container_count = get!(
+                new_dirty_single_container_count = get!(
                     task,
                     AggregatedDirtyContainer {
                         task: dirty_container_id
@@ -375,14 +375,14 @@ impl AggregatedDataUpdate {
                 )
                 .copied()
                 .unwrap_or_default();
-                old_dirty_container_count = new_dirty_container_count;
+                old_dirty_single_container_count = new_dirty_single_container_count;
             }
 
             // Update AggregatedSessionDependentCleanContainer
-            let old_container_current_session_clean_count;
-            let new_container_current_session_clean_count;
+            let old_single_container_current_session_clean_count;
+            let new_single_container_current_session_clean_count;
             if *current_session_clean_update != 0 {
-                new_container_current_session_clean_count = update_count_and_get!(
+                new_single_container_current_session_clean_count = update_count_and_get!(
                     task,
                     AggregatedSessionDependentCleanContainer {
                         task: dirty_container_id,
@@ -390,10 +390,11 @@ impl AggregatedDataUpdate {
                     },
                     *current_session_clean_update
                 );
-                old_container_current_session_clean_count =
-                    new_container_current_session_clean_count - *current_session_clean_update;
+                old_single_container_current_session_clean_count =
+                    new_single_container_current_session_clean_count
+                        - *current_session_clean_update;
             } else {
-                new_container_current_session_clean_count = get!(
+                new_single_container_current_session_clean_count = get!(
                     task,
                     AggregatedSessionDependentCleanContainer {
                         task: dirty_container_id,
@@ -402,22 +403,26 @@ impl AggregatedDataUpdate {
                 )
                 .copied()
                 .unwrap_or_default();
-                old_container_current_session_clean_count =
-                    new_container_current_session_clean_count;
+                old_single_container_current_session_clean_count =
+                    new_single_container_current_session_clean_count;
             }
 
             // compute aggregated update
-            let was_container_clean = old_dirty_container_count > 0
-                && old_dirty_container_count - old_container_current_session_clean_count <= 0;
-            let is_container_clean = new_dirty_container_count > 0
-                && new_dirty_container_count - new_container_current_session_clean_count <= 0;
-            let aggregated_current_session_clean_update =
-                before_after_to_diff_value(was_container_clean, is_container_clean);
+            let was_single_container_clean = old_dirty_single_container_count > 0
+                && old_dirty_single_container_count
+                    - old_single_container_current_session_clean_count
+                    <= 0;
+            let is_single_container_clean = new_dirty_single_container_count > 0
+                && new_dirty_single_container_count
+                    - new_single_container_current_session_clean_count
+                    <= 0;
+            let current_session_clean_update =
+                before_after_to_diff_value(was_single_container_clean, is_single_container_clean);
 
             let aggregated_update = DirtyContainerCount::from_current_session_clean(
-                aggregated_count_update,
+                dirty_container_count_update,
                 current_session_id,
-                aggregated_current_session_clean_update,
+                current_session_clean_update,
             );
 
             if !aggregated_update.is_zero() {
