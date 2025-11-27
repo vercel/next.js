@@ -78,7 +78,7 @@ impl ModuleReference for TsReferencePathAssetReference {
                 .origin_path()
                 .await?
                 .parent()
-                .try_join(&self.path)?
+                .try_join(&self.path)
             {
                 let module = self
                     .origin

@@ -122,7 +122,7 @@ it('should evaluate !process.turbopack', () => {
 })
 
 it('should evaluate NODE_ENV', () => {
-  if (process.env.NODE_ENV !== 'development') {
+  if (process.env.NODE_ENV !== 'production') {
     require('fail')
     import('fail')
   }
