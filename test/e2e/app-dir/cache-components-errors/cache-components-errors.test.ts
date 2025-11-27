@@ -2797,7 +2797,7 @@ describe('Cache Components Errors', () => {
             `)
           })
         } else {
-          it('should show an error at runtime', async () => {
+          it('should log an error at runtime', async () => {
             try {
               await prerender('/use-cache-runtime-error')
             } catch (error) {
@@ -2817,24 +2817,89 @@ describe('Cache Components Errors', () => {
               { isMinified: !isDebugPrerender }
             )
 
-            // TODO: The obfuscated error should be hidden, and the original
-            // error should have a digest.
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Kaputt!
+               "⨯ Error: Kaputt!
                    at throwAnError (<next-dist-dir>)
                    at ThrowingComponent (<next-dist-dir>)
-                   at Object.then (<next-dist-dir>)
-               ⨯ [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+                   at Object.then (<next-dist-dir>) {
                  digest: '<error-digest>'
                }"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Kaputt!
+               "⨯ Error: Kaputt!
                    at a (<next-dist-dir>)
-                   at b (<next-dist-dir>)
-               ⨯ [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+                   at b (<next-dist-dir>) {
+                 digest: '<error-digest>'
+               }"
+              `)
+            }
+          })
+        }
+      })
+
+      describe('catching an error at runtime', () => {
+        if (isNextDev) {
+          it('should show a collapsed redbox error', async () => {
+            cliOutputLength = next.cliOutput.length
+            const browser = await next.browser('/use-cache-catch-error')
+
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "description": "Kaputt!",
+               "environmentLabel": "Cache",
+               "label": "Console Error",
+               "source": "app/use-cache-catch-error/page.tsx (19:9) @ throwAnError
+             > 19 |   throw new Error('Kaputt!')
+                  |         ^",
+               "stack": [
+                 "throwAnError app/use-cache-catch-error/page.tsx (19:9)",
+                 "Page app/use-cache-catch-error/page.tsx (11:7)",
+               ],
+             }
+            `)
+          })
+        } else {
+          it('should log an error at runtime', async () => {
+            try {
+              await prerender('/use-cache-catch-error')
+            } catch (error) {
+              throw new Error('expected build not to fail', { cause: error })
+            }
+
+            await next.start({ skipBuild: true })
+            cliOutputLength = next.cliOutput.length
+            await next.fetch('/use-cache-catch-error')
+
+            await retry(async () => {
+              expect(next.cliOutput.slice(cliOutputLength)).toContain('Error')
+            })
+
+            const output = getDeterministicOutput(
+              next.cliOutput.slice(cliOutputLength),
+              { isMinified: !isDebugPrerender }
+            )
+
+            if (isDebugPrerender) {
+              expect(output).toMatchInlineSnapshot(`
+               "⨯ Error: Kaputt!
+                   at throwAnError (<next-dist-dir>)
+                   at Object.then (<next-dist-dir>) {
+                 digest: '<error-digest>'
+               }
+               [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+                 digest: '<error-digest>'
+               }"
+              `)
+            } else {
+              expect(output).toMatchInlineSnapshot(`
+               "⨯ Error: Kaputt!
+                   at a (<next-dist-dir>)
+                   at b (<next-dist-dir>) {
+                 digest: '<error-digest>'
+               }
+               [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
                  digest: '<error-digest>'
                }"
               `)
@@ -3011,7 +3076,7 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                 "⨯ Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at Private (app/use-cache-private-in-use-cache/page.tsx:15:1)
                      at stringify (<anonymous>)
                    13 | }
@@ -3020,7 +3085,9 @@ describe('Cache Components Errors', () => {
                       | ^
                    16 |   'use cache: private'
                    17 |
-                   18 |   return <p>Private</p>
+                   18 |   return <p>Private</p> {
+                   digest: '<error-digest>'
+                 }
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at Private (app/use-cache-private-in-use-cache/page.tsx:15:1)
                      at stringify (<anonymous>)
@@ -3030,7 +3097,9 @@ describe('Cache Components Errors', () => {
                       | ^
                    16 |   'use cache: private'
                    17 |
-                   18 |   return <p>Private</p>
+                   18 |   return <p>Private</p> {
+                   digest: '<error-digest>'
+                 }
                  To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -3039,7 +3108,7 @@ describe('Cache Components Errors', () => {
                 `)
               } else
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                 "⨯ Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at Private (webpack:///app/use-cache-private-in-use-cache/page.tsx:15:1)
                      at stringify (<anonymous>)
                    13 | }
@@ -3048,7 +3117,9 @@ describe('Cache Components Errors', () => {
                       | ^
                    16 |   'use cache: private'
                    17 |
-                   18 |   return <p>Private</p>
+                   18 |   return <p>Private</p> {
+                   digest: '<error-digest>'
+                 }
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at Private (webpack:///app/use-cache-private-in-use-cache/page.tsx:15:1)
                      at stringify (<anonymous>)
@@ -3058,7 +3129,9 @@ describe('Cache Components Errors', () => {
                       | ^
                    16 |   'use cache: private'
                    17 |
-                   18 |   return <p>Private</p>
+                   18 |   return <p>Private</p> {
+                   digest: '<error-digest>'
+                 }
                  To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -3068,7 +3141,7 @@ describe('Cache Components Errors', () => {
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                 "⨯ Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
                      at a (<anonymous>)
                    13 | }
@@ -3077,7 +3150,9 @@ describe('Cache Components Errors', () => {
                       | ^
                    16 |   'use cache: private'
                    17 |
-                   18 |   return <p>Private</p>
+                   18 |   return <p>Private</p> {
+                   digest: '<error-digest>'
+                 }
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
                      at b (<anonymous>)
@@ -3087,7 +3162,9 @@ describe('Cache Components Errors', () => {
                       | ^
                    16 |   'use cache: private'
                    17 |
-                   18 |   return <p>Private</p>
+                   18 |   return <p>Private</p> {
+                   digest: '<error-digest>'
+                 }
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -3096,12 +3173,16 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                 "⨯ Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at a (<next-dist-dir>)
-                     at b (<anonymous>)
+                     at b (<anonymous>) {
+                   digest: '<error-digest>'
+                 }
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at c (<next-dist-dir>)
-                     at d (<anonymous>)
+                     at d (<anonymous>) {
+                   digest: '<error-digest>'
+                 }
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.

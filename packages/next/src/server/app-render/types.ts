@@ -81,7 +81,8 @@ export type ServerOnInstrumentationRequestError = (
   // The request could be middleware, node server or web server request,
   // we normalized them into an aligned format to `onRequestError` API later.
   request: NextRequestHint | BaseNextRequest | IncomingMessage,
-  errorContext: Parameters<InstrumentationOnRequestError>[2]
+  errorContext: Parameters<InstrumentationOnRequestError>[2],
+  silenceLog: boolean
 ) => void | Promise<void>
 
 export interface RenderOptsPartial {

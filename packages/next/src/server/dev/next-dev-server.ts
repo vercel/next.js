@@ -999,7 +999,9 @@ export default class DevServer extends Server {
   ) {
     await super.instrumentationOnRequestError(...args)
 
-    const err = args[0]
-    this.logErrorWithOriginalStack(err, 'app-dir')
+    const [err, , , silenceLog] = args
+    if (!silenceLog) {
+      this.logErrorWithOriginalStack(err, 'app-dir')
+    }
   }
 }
