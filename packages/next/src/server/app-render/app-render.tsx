@@ -617,20 +617,19 @@ async function generateDynamicFlightRenderResult(
     nextExport = false,
   } = renderOpts
 
-  function onFlightDataRenderError(err: DigestedError) {
+  function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
     return onInstrumentationRequestError?.(
       err,
       req,
-      createErrorContext(ctx, 'react-server-components-payload')
+      createErrorContext(ctx, 'react-server-components-payload'),
+      silenceLog
     )
   }
 
-  const silenceLogger = false
   const onError = createReactServerErrorHandler(
     dev,
     nextExport,
     workStore.reactServerErrorsByDigest,
-    silenceLogger,
     onFlightDataRenderError
   )
 
@@ -779,20 +778,19 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   } = renderOpts
   assertClientReferenceManifest(clientReferenceManifest)
 
-  function onFlightDataRenderError(err: DigestedError) {
+  function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
     return onInstrumentationRequestError?.(
       err,
       req,
-      createErrorContext(ctx, 'react-server-components-payload')
+      createErrorContext(ctx, 'react-server-components-payload'),
+      silenceLog
     )
   }
 
-  const silenceLogger = false
   const onError = createReactServerErrorHandler(
     dev,
     nextExport,
     workStore.reactServerErrorsByDigest,
-    silenceLogger,
     onFlightDataRenderError
   )
 
@@ -927,21 +925,20 @@ async function generateRuntimePrefetchResult(
   const { workStore, renderOpts } = ctx
   const { nextExport = false, onInstrumentationRequestError } = renderOpts
 
-  function onFlightDataRenderError(err: DigestedError) {
+  function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
     return onInstrumentationRequestError?.(
       err,
       req,
       // TODO(runtime-ppr): should we use a different value?
-      createErrorContext(ctx, 'react-server-components-payload')
+      createErrorContext(ctx, 'react-server-components-payload'),
+      silenceLog
     )
   }
 
-  const silenceLogger = false
   const onError = createReactServerErrorHandler(
     false,
     nextExport,
     workStore.reactServerErrorsByDigest,
-    silenceLogger,
     onFlightDataRenderError
   )
 
@@ -2633,27 +2630,30 @@ async function renderToStream(
       : undefined
 
   const { reactServerErrorsByDigest } = workStore
-  const silenceLogger = false
-  function onHTMLRenderRSCError(err: DigestedError) {
+  function onHTMLRenderRSCError(err: DigestedError, silenceLog: boolean) {
     return onInstrumentationRequestError?.(
       err,
       req,
-      createErrorContext(ctx, 'react-server-components')
+      createErrorContext(ctx, 'react-server-components'),
+      silenceLog
     )
   }
   const serverComponentsErrorHandler = createReactServerErrorHandler(
     dev,
     nextExport,
     reactServerErrorsByDigest,
-    silenceLogger,
     onHTMLRenderRSCError
   )
 
   function onHTMLRenderSSRError(err: DigestedError) {
+    // We don't need to silence logs here. onHTMLRenderSSRError won't be called
+    // at all if the error was logged before in the RSC error handler.
+    const silenceLog = false
     return onInstrumentationRequestError?.(
       err,
       req,
-      createErrorContext(ctx, 'server-rendering')
+      createErrorContext(ctx, 'server-rendering'),
+      silenceLog
     )
   }
 
@@ -2663,7 +2663,6 @@ async function renderToStream(
     nextExport,
     reactServerErrorsByDigest,
     allCapturedErrors,
-    silenceLogger,
     onHTMLRenderSSRError
   )
 
@@ -4178,28 +4177,36 @@ async function prerenderToStream(
 
   const { reactServerErrorsByDigest } = workStore
   // We don't report errors during prerendering through our instrumentation hooks
-  const silenceLogger = !!experimental.isRoutePPREnabled
-  function onHTMLRenderRSCError(err: DigestedError) {
-    return onInstrumentationRequestError?.(
-      err,
-      req,
-      createErrorContext(ctx, 'react-server-components')
-    )
+  const reportErrors = !experimental.isRoutePPREnabled
+  function onHTMLRenderRSCError(err: DigestedError, silenceLog: boolean) {
+    if (reportErrors) {
+      return onInstrumentationRequestError?.(
+        err,
+        req,
+        createErrorContext(ctx, 'react-server-components'),
+        silenceLog
+      )
+    }
   }
   const serverComponentsErrorHandler = createReactServerErrorHandler(
     dev,
     nextExport,
     reactServerErrorsByDigest,
-    silenceLogger,
     onHTMLRenderRSCError
   )
 
   function onHTMLRenderSSRError(err: DigestedError) {
-    return onInstrumentationRequestError?.(
-      err,
-      req,
-      createErrorContext(ctx, 'server-rendering')
-    )
+    if (reportErrors) {
+      // We don't need to silence logs here. onHTMLRenderSSRError won't be
+      // called at all if the error was logged before in the RSC error handler.
+      const silenceLog = false
+      return onInstrumentationRequestError?.(
+        err,
+        req,
+        createErrorContext(ctx, 'server-rendering'),
+        silenceLog
+      )
+    }
   }
   const allCapturedErrors: Array<unknown> = []
   const htmlRendererErrorHandler = createHTMLErrorHandler(
@@ -4207,7 +4214,6 @@ async function prerenderToStream(
     nextExport,
     reactServerErrorsByDigest,
     allCapturedErrors,
-    silenceLogger,
     onHTMLRenderSSRError
   )
 

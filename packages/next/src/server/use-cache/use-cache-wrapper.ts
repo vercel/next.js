@@ -70,6 +70,7 @@ import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 import type { CacheLife } from './cache-life'
 import { RenderStage } from '../app-render/staged-rendering'
+import * as Log from '../../build/output/log'
 
 interface PrivateCacheContext {
   readonly kind: 'private'
@@ -599,8 +600,16 @@ async function generateCacheEntryImpl(
     workStore.dev,
     workStore.isBuildTimePrerendering ?? false,
     workStore.reactServerErrorsByDigest,
-    false,
     (error) => {
+      // In production, we log the original error here. It gets a digest that
+      // can be used to associate the error with the obfuscated error that might
+      // be logged if the error is caught. In development, we prefer logging the
+      // transported error in the server environment. It's not obfuscated and
+      // also includes the (dev-only) environment name.
+      if (process.env.NODE_ENV === 'production') {
+        Log.error(error)
+      }
+
       errors.push(error)
     }
   )

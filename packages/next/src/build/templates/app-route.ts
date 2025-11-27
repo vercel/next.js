@@ -215,11 +215,17 @@ export async function handler(
         res.on('close', cb)
       },
       onAfterTaskError: undefined,
-      onInstrumentationRequestError: (error, _request, errorContext) =>
+      onInstrumentationRequestError: (
+        error,
+        _request,
+        errorContext,
+        silenceLog
+      ) =>
         routeModule.onRequestError(
           req,
           error,
           errorContext,
+          silenceLog,
           routerServerContext
         ),
     },
@@ -369,6 +375,7 @@ export async function handler(
           // if this is a background revalidate we need to report
           // the request error here as it won't be bubbled
           if (previousCacheEntry?.isStale) {
+            const silenceLog = false
             await routeModule.onRequestError(
               req,
               err,
@@ -381,6 +388,7 @@ export async function handler(
                   isOnDemandRevalidate,
                 }),
               },
+              silenceLog,
               routerServerContext
             )
           }
@@ -488,15 +496,22 @@ export async function handler(
     }
   } catch (err) {
     if (!(err instanceof NoFallbackError)) {
-      await routeModule.onRequestError(req, err, {
-        routerKind: 'App Router',
-        routePath: normalizedSrcPage,
-        routeType: 'route',
-        revalidateReason: getRevalidateReason({
-          isStaticGeneration,
-          isOnDemandRevalidate,
-        }),
-      })
+      const silenceLog = false
+      await routeModule.onRequestError(
+        req,
+        err,
+        {
+          routerKind: 'App Router',
+          routePath: normalizedSrcPage,
+          routeType: 'route',
+          revalidateReason: getRevalidateReason({
+            isStaticGeneration,
+            isOnDemandRevalidate,
+          }),
+        },
+        silenceLog,
+        routerServerContext
+      )
     }
 
     // rethrow so that we can handle serving error page

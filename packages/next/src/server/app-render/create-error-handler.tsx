@@ -52,8 +52,7 @@ export function createReactServerErrorHandler(
   shouldFormatError: boolean,
   isNextExport: boolean,
   reactServerErrors: Map<string, DigestedError>,
-  silenceLogger: boolean,
-  onReactServerRenderError: undefined | ((err: DigestedError) => void)
+  onReactServerRenderError: (err: DigestedError, silenceLog: boolean) => void
 ): RSCErrorHandler {
   return (thrownValue: unknown) => {
     if (typeof thrownValue === 'string') {
@@ -77,6 +76,7 @@ export function createReactServerErrorHandler(
     }
 
     let err = getProperError(thrownValue) as DigestedError
+    let silenceLog = false
 
     // If the error already has a digest, respect the original digest,
     // so it won't get re-generated into another new error.
@@ -86,8 +86,12 @@ export function createReactServerErrorHandler(
         reactServerErrors.has(err.digest)
       ) {
         // This error is likely an obfuscated error from another react-server
-        // environment (e.g. 'use cache'). We recover the original error here.
+        // environment (e.g. 'use cache'). We recover the original error here
+        // for reporting purposes.
         err = reactServerErrors.get(err.digest)!
+        // We don't log it again though, as it was already logged in the
+        // original environment.
+        silenceLog = true
       } else {
         // Either we're in development (where we want to keep the transported
         // error with environmentName), or the error is not in reactServerErrors
@@ -132,9 +136,7 @@ export function createReactServerErrorHandler(
         })
       }
 
-      if (!silenceLogger) {
-        onReactServerRenderError?.(err)
-      }
+      onReactServerRenderError(err, silenceLog)
     }
 
     return err.digest
@@ -146,7 +148,6 @@ export function createHTMLErrorHandler(
   isNextExport: boolean,
   reactServerErrors: Map<string, DigestedError>,
   allCapturedErrors: Array<unknown>,
-  silenceLogger: boolean,
   onHTMLRenderSSRError: (err: DigestedError, errorInfo?: ErrorInfo) => void
 ): SSRErrorHandler {
   return (thrownValue: unknown, errorInfo?: ErrorInfo) => {
@@ -170,6 +171,7 @@ export function createHTMLErrorHandler(
     }
 
     const err = getProperError(thrownValue) as DigestedError
+
     // If the error already has a digest, respect the original digest,
     // so it won't get re-generated into another new error.
     if (err.digest) {
@@ -216,11 +218,8 @@ export function createHTMLErrorHandler(
         })
       }
 
-      if (
-        !silenceLogger &&
-        // HTML errors contain RSC errors as well, filter them out before reporting
-        isSSRError
-      ) {
+      // HTML errors contain RSC errors as well, filter them out before reporting
+      if (isSSRError) {
         onHTMLRenderSSRError(err, errorInfo)
       }
     }
