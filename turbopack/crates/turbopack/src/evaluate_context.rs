@@ -17,7 +17,7 @@ use turbopack_node::execution_context::ExecutionContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
-    ModuleAssetContext,
+    ModuleAssetContext, externals_tracing_module_context,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
     transition::TransitionOptions,
 };
@@ -113,5 +113,31 @@ pub async fn node_evaluate_asset_context(
         .cell(),
         resolve_options_context,
         layer,
+    )))
+}
+
+#[turbo_tasks::function]
+pub async fn config_tracing_module_context(
+    execution_context: Vc<ExecutionContext>,
+) -> Result<Vc<Box<dyn AssetContext>>> {
+    let node_env: RcStr =
+        if let Some(node_env) = &*execution_context.env().read(rcstr!("NODE_ENV")).await? {
+            node_env.clone()
+        } else {
+            rcstr!("development")
+        };
+
+    Ok(Vc::upcast(externals_tracing_module_context(
+        CompileTimeInfo::builder(node_build_environment().to_resolved().await?)
+            .defines(
+                compile_time_defines!(
+                    process.turbopack = true,
+                    process.env.NODE_ENV = node_env.into_owned(),
+                    process.env.TURBOPACK = true
+                )
+                .resolved_cell(),
+            )
+            .cell()
+            .await?,
     )))
 }
