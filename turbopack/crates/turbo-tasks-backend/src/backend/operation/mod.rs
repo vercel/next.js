@@ -470,11 +470,19 @@ pub trait TaskGuard: Debug {
     }
 
     fn has_dirty_containers(&self, session_id: SessionId) -> bool {
-        get!(self, AggregatedDirtyContainerCount)
-            .cloned()
-            .unwrap_or_default()
-            .get(session_id)
-            > 0
+        let dirty_count = get!(self, AggregatedDirtyContainerCount)
+            .copied()
+            .unwrap_or_default();
+        if dirty_count <= 0 {
+            return false;
+        }
+        let clean_count = get!(
+            self,
+            AggregatedSessionDependentCleanContainerCount { session_id }
+        )
+        .copied()
+        .unwrap_or_default();
+        dirty_count > clean_count
     }
 }
 
@@ -801,8 +809,8 @@ impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 pub use self::invalidate::TaskDirtyCause;
 pub use self::{
     aggregation_update::{
-        AggregatedDataUpdate, AggregationUpdateJob, get_aggregation_number, get_uppers,
-        is_aggregating_node, is_root_node,
+        AggregatedDataUpdate, AggregationUpdateJob, ComputeDirtyAndCleanUpdate,
+        get_aggregation_number, get_uppers, is_aggregating_node, is_root_node,
     },
     cleanup_old_edges::OutdatedEdge,
     connect_children::connect_children,
