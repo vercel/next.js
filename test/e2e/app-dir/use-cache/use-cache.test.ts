@@ -710,33 +710,25 @@ describe('use-cache', () => {
     })
   })
 
-  // TODO: This test doesn't work currently because the compiler doesn't
-  // properly compute the server reference information byte that includes the
-  // function arity. Without this information, the client can't optimize the
-  // arguments it sends to the server, so the (unused) previous state is also
-  // sent as an argument, leading to cache misses.
-  it.failing(
-    'works with useActionState if previousState parameter is not used in "use cache" function (separate export)',
-    async () => {
-      const browser = await next.browser('/use-action-state-separate-export')
+  it('works with useActionState if previousState parameter is not used in "use cache" function (separate export)', async () => {
+    const browser = await next.browser('/use-action-state-separate-export')
 
-      let value = await browser.elementByCss('p').text()
-      expect(value).toBe('-1')
+    let value = await browser.elementByCss('p').text()
+    expect(value).toBe('-1')
 
-      await browser.elementByCss('button').click()
+    await browser.elementByCss('button').click()
 
-      await retry(async () => {
-        value = await browser.elementByCss('p').text()
-        expect(value).toMatch(/\d\.\d+/)
-      })
+    await retry(async () => {
+      value = await browser.elementByCss('p').text()
+      expect(value).toMatch(/\d\.\d+/)
+    })
 
-      await browser.elementByCss('button').click()
+    await browser.elementByCss('button').click()
 
-      await retry(async () => {
-        expect(await browser.elementByCss('p').text()).toBe(value)
-      })
-    }
-  )
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe(value)
+    })
+  })
 
   it('works with "use cache" in method props', async () => {
     const browser = await next.browser('/method-props')
@@ -1368,6 +1360,16 @@ describe('use-cache', () => {
         viewport2.match(/initial-scale=([\d.]+), maximum-scale=([\d.]+)/) ?? []
       expect(initialScale2).toBe(initialScale)
       expect(maximumScale2).toBe(maximumScale)
+    })
+
+    it('caches a higher-order component in a "use cache" module', async () => {
+      const browser = await next.browser('/hoc/foo')
+      const slug = await browser.elementById('slug').text()
+      expect(slug).toBe('foo')
+      const date = await browser.elementById('date').text()
+      expect(date).toBeDateString()
+      await browser.refresh()
+      expect(await browser.elementById('date').text()).toBe(date)
     })
   }
 })

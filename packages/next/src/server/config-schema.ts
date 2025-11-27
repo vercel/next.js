@@ -300,6 +300,7 @@ export const experimentalSchema = {
   turbopackSourceMaps: z.boolean().optional(),
   turbopackInputSourceMaps: z.boolean().optional(),
   turbopackTreeShaking: z.boolean().optional(),
+  turbopackRemoveUnusedImports: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),
   turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
