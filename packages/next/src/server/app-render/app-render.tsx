@@ -23,11 +23,6 @@ import type {
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
 import type { AppPageModule } from '../route-modules/app-page/module'
-import type {
-  ClientReferenceManifest,
-  ManifestNode,
-} from '../../build/webpack/plugins/flight-manifest-plugin'
-import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
 import * as ReactClient from 'react'
@@ -100,7 +95,10 @@ import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
 import { createComponentTree, getRootParams } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
-import { getServerModuleMap } from './encryption-utils'
+import {
+  getClientReferenceManifest,
+  getServerModuleMap,
+} from './manifests-singleton'
 import {
   DynamicState,
   type PostponedState,
@@ -255,7 +253,6 @@ export type AppRenderContext = {
   requestId: string
   htmlRequestId: string
   pagePath: string
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
   assetPrefix: string
   isNotFoundPath: boolean
   nonce: string | undefined
@@ -598,7 +595,6 @@ async function generateDynamicFlightRenderResult(
   }
 ): Promise<RenderResult> {
   const {
-    clientReferenceManifest,
     componentMod: { renderToReadableStream },
     htmlRequestId,
     renderOpts,
@@ -635,6 +631,8 @@ async function generateDynamicFlightRenderResult(
     setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
   }
 
+  const { clientModules } = getClientReferenceManifest()
+
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
   const rscPayload = await workUnitAsyncStorage.run(
@@ -648,7 +646,7 @@ async function generateDynamicFlightRenderResult(
     requestStore,
     renderToReadableStream,
     rscPayload,
-    clientReferenceManifest.clientModules,
+    clientModules,
     {
       onError,
       temporaryReferences: options?.temporaryReferences,
@@ -674,7 +672,6 @@ async function stagedRenderToReadableStreamWithoutCachesInDev(
   ctx: AppRenderContext,
   requestStore: RequestStore,
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
-  clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>,
   options: Omit<RenderToReadableStreamServerOptions, 'environmentName'>
 ) {
   const {
@@ -722,6 +719,7 @@ async function stagedRenderToReadableStreamWithoutCachesInDev(
     requestStore.headers
   )
 
+  const { clientModules } = getClientReferenceManifest()
   const rscPayload = await getPayload(requestStore)
 
   return await workUnitAsyncStorage.run(
@@ -729,14 +727,10 @@ async function stagedRenderToReadableStreamWithoutCachesInDev(
     scheduleInSequentialTasks,
     () => {
       stageController.advanceStage(RenderStage.Static)
-      return renderToReadableStream(
-        rscPayload,
-        clientReferenceManifest.clientModules,
-        {
-          ...options,
-          environmentName,
-        }
-      )
+      return renderToReadableStream(rscPayload, clientModules, {
+        ...options,
+        environmentName,
+      })
     },
     () => {
       stageController.advanceStage(RenderStage.Dynamic)
@@ -769,10 +763,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     onInstrumentationRequestError,
     setReactDebugChannel,
     setCacheStatus,
-    clientReferenceManifest,
     nextExport = false,
   } = renderOpts
-  assertClientReferenceManifest(clientReferenceManifest)
 
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
     return onInstrumentationRequestError?.(
@@ -871,7 +863,6 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         staticStageEndTime,
         runtimeStageEndTime,
         ctx,
-        clientReferenceManifest,
         finalRequestStore,
         devFallbackParams,
         validationDebugChannelClient
@@ -895,7 +886,6 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       ctx,
       initialRequestStore,
       getPayload,
-      clientReferenceManifest,
       {
         onError: onError,
         filterStackFrame,
@@ -1006,10 +996,7 @@ async function prospectiveRuntimeServerPrerender(
   draftMode: PrerenderStoreModernRuntime['draftMode']
 ) {
   const { implicitTags, renderOpts, workStore } = ctx
-
-  const { clientReferenceManifest, ComponentMod } = renderOpts
-
-  assertClientReferenceManifest(clientReferenceManifest)
+  const { ComponentMod } = renderOpts
 
   // Prerender controller represents the lifetime of the prerender.
   // It will be aborted when a Task is complete or a synchronously aborting
@@ -1056,6 +1043,8 @@ async function prospectiveRuntimeServerPrerender(
     draftMode,
   }
 
+  const { clientModules } = getClientReferenceManifest()
+
   // We're not going to use the result of this render because the only time it could be used
   // is if it completes in a microtask and that's likely very rare for any non-trivial app
   const initialServerPayload = await workUnitAsyncStorage.run(
@@ -1067,7 +1056,7 @@ async function prospectiveRuntimeServerPrerender(
     initialServerPrerenderStore,
     ComponentMod.prerender,
     initialServerPayload,
-    clientReferenceManifest.clientModules,
+    clientModules,
     {
       filterStackFrame,
       onError: (err) => {
@@ -1260,16 +1249,7 @@ async function finalRuntimeServerPrerender(
   runtimePrefetchSentinel: number
 ) {
   const { implicitTags, renderOpts } = ctx
-
-  const {
-    clientReferenceManifest,
-    ComponentMod,
-    experimental,
-    isDebugDynamicAccesses,
-  } = renderOpts
-
-  assertClientReferenceManifest(clientReferenceManifest)
-
+  const { ComponentMod, experimental, isDebugDynamicAccesses } = renderOpts
   const selectStaleTime = createSelectStaleTime(experimental)
 
   let serverIsDynamic = false
@@ -1309,6 +1289,8 @@ async function finalRuntimeServerPrerender(
     draftMode,
   }
 
+  const { clientModules } = getClientReferenceManifest()
+
   const finalRSCPayload = await workUnitAsyncStorage.run(
     finalServerPrerenderStore,
     getPayload
@@ -1322,7 +1304,7 @@ async function finalRuntimeServerPrerender(
         finalServerPrerenderStore,
         ComponentMod.prerender,
         finalRSCPayload,
-        clientReferenceManifest.clientModules,
+        clientModules,
         {
           filterStackFrame,
           onError,
@@ -1682,23 +1664,12 @@ async function getErrorRSCPayload(
   } satisfies InitialRSCPayload
 }
 
-function assertClientReferenceManifest(
-  clientReferenceManifest: RenderOpts['clientReferenceManifest']
-): asserts clientReferenceManifest is NonNullable<
-  RenderOpts['clientReferenceManifest']
-> {
-  if (!clientReferenceManifest) {
-    throw new InvariantError('Expected clientReferenceManifest to be defined.')
-  }
-}
-
 // This component must run in an SSR context. It will render the RSC root component
 function App<T>({
   reactServerStream,
   reactDebugStream,
   debugEndTime,
   preinitScripts,
-  clientReferenceManifest,
   ServerInsertedHTMLProvider,
   nonce,
   images,
@@ -1708,7 +1679,6 @@ function App<T>({
   reactDebugStream: Readable | ReadableStream<Uint8Array> | undefined
   debugEndTime: number | undefined
   preinitScripts: () => void
-  clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: ComponentType<{
     children: JSX.Element
   }>
@@ -1721,7 +1691,6 @@ function App<T>({
       reactServerStream,
       reactDebugStream,
       debugEndTime,
-      clientReferenceManifest,
       nonce
     )
   )
@@ -1767,14 +1736,12 @@ function App<T>({
 function ErrorApp<T>({
   reactServerStream,
   preinitScripts,
-  clientReferenceManifest,
   ServerInsertedHTMLProvider,
   nonce,
   images,
 }: {
   reactServerStream: BinaryStreamOf<T>
   preinitScripts: () => void
-  clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: ComponentType<{
     children: JSX.Element
   }>
@@ -1788,7 +1755,6 @@ function ErrorApp<T>({
       reactServerStream,
       undefined,
       undefined,
-      clientReferenceManifest,
       nonce
     )
   )
@@ -1852,7 +1818,6 @@ async function renderToHTMLOrFlightImpl(
   const requestTimestamp = Date.now()
 
   const {
-    clientReferenceManifest,
     ComponentMod,
     nextFontManifest,
     serverActions,
@@ -1977,8 +1942,6 @@ async function renderToHTMLOrFlightImpl(
 
   const appUsingSizeAdjustment = !!nextFontManifest?.appUsingSizeAdjust
 
-  assertClientReferenceManifest(clientReferenceManifest)
-
   ComponentMod.patchFetch()
 
   // Pull out the hooks/references from the component.
@@ -2070,7 +2033,6 @@ async function renderToHTMLOrFlightImpl(
     requestId,
     htmlRequestId,
     pagePath,
-    clientReferenceManifest,
     assetPrefix,
     isNotFoundPath,
     nonce,
@@ -2548,7 +2510,6 @@ async function renderToStream(
   const {
     basePath,
     buildManifest,
-    clientReferenceManifest,
     ComponentMod: {
       createElement,
       renderToReadableStream: serverRenderToReadableStream,
@@ -2566,8 +2527,6 @@ async function renderToStream(
     supportsDynamicResponse,
     cacheComponents,
   } = renderOpts
-
-  assertClientReferenceManifest(clientReferenceManifest)
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
@@ -2656,6 +2615,7 @@ async function renderToStream(
 
   const setHeader = res.setHeader.bind(res)
   const appendHeader = res.appendHeader.bind(res)
+  const { clientModules } = getClientReferenceManifest()
 
   try {
     if (
@@ -2739,7 +2699,6 @@ async function renderToStream(
           staticStageEndTime,
           runtimeStageEndTime,
           ctx,
-          clientReferenceManifest,
           finalRequestStore,
           devFallbackParams,
           validationDebugChannelClient
@@ -2759,7 +2718,6 @@ async function renderToStream(
             ctx,
             requestStore,
             getPayload,
-            clientReferenceManifest,
             {
               onError: serverComponentsErrorHandler,
               filterStackFrame,
@@ -2812,7 +2770,7 @@ async function renderToStream(
           requestStore,
           serverRenderToReadableStream,
           RSCPayload,
-          clientReferenceManifest.clientModules,
+          clientModules,
           {
             filterStackFrame,
             onError: serverComponentsErrorHandler,
@@ -2860,7 +2818,6 @@ async function renderToStream(
             reactDebugStream={reactDebugStream}
             debugEndTime={undefined}
             preinitScripts={preinitScripts}
-            clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             nonce={nonce}
             images={ctx.renderOpts.images}
@@ -2907,7 +2864,6 @@ async function renderToStream(
         reactDebugStream={reactDebugStream}
         debugEndTime={undefined}
         preinitScripts={preinitScripts}
-        clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
         nonce={nonce}
         images={ctx.renderOpts.images}
@@ -3043,7 +2999,7 @@ async function renderToStream(
       requestStore,
       serverRenderToReadableStream,
       errorRSCPayload,
-      clientReferenceManifest.clientModules,
+      clientModules,
       {
         filterStackFrame,
         onError: serverComponentsErrorHandler,
@@ -3068,7 +3024,6 @@ async function renderToStream(
               reactServerStream={errorServerStream}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               preinitScripts={errorPreinitScripts}
-              clientReferenceManifest={clientReferenceManifest}
               nonce={nonce}
               images={ctx.renderOpts.images}
             />
@@ -3154,13 +3109,8 @@ async function renderWithRestartOnCacheMissInDev(
       },
     },
   } = ctx
-  const {
-    clientReferenceManifest,
-    ComponentMod,
-    setCacheStatus,
-    setReactDebugChannel,
-  } = renderOpts
-  assertClientReferenceManifest(clientReferenceManifest)
+
+  const { ComponentMod, setCacheStatus, setReactDebugChannel } = renderOpts
 
   const hasRuntimePrefetch =
     await anySegmentHasRuntimePrefetchEnabled(loaderTree)
@@ -3224,6 +3174,7 @@ async function renderWithRestartOnCacheMissInDev(
   requestStore.cacheSignal = cacheSignal
 
   let debugChannel = setReactDebugChannel && createDebugChannel()
+  const { clientModules } = getClientReferenceManifest()
 
   // Note: The stage controller starts out in the `Before` stage,
   // where sync IO does not cause aborts, so it's okay if it happens before render.
@@ -3239,7 +3190,7 @@ async function renderWithRestartOnCacheMissInDev(
 
           const stream = ComponentMod.renderToReadableStream(
             initialRscPayload,
-            clientReferenceManifest.clientModules,
+            clientModules,
             {
               onError,
               environmentName,
@@ -3392,7 +3343,7 @@ async function renderWithRestartOnCacheMissInDev(
 
         const stream = ComponentMod.renderToReadableStream(
           finalRscPayload,
-          clientReferenceManifest.clientModules,
+          clientModules,
           {
             onError,
             environmentName,
@@ -3602,13 +3553,7 @@ async function logMessagesAndSendErrorsToBrowser(
   messages: unknown[],
   ctx: AppRenderContext
 ): Promise<void> {
-  const {
-    clientReferenceManifest,
-    componentMod: ComponentMod,
-    htmlRequestId,
-    renderOpts,
-  } = ctx
-
+  const { componentMod: ComponentMod, htmlRequestId, renderOpts } = ctx
   const { sendErrorsToBrowser } = renderOpts
 
   const errors: Error[] = []
@@ -3637,9 +3582,11 @@ async function logMessagesAndSendErrorsToBrowser(
       )
     }
 
+    const { clientModules } = getClientReferenceManifest()
+
     const errorsRscStream = ComponentMod.renderToReadableStream(
       errors,
-      clientReferenceManifest.clientModules,
+      clientModules,
       { filterStackFrame }
     )
 
@@ -3660,7 +3607,6 @@ async function spawnStaticShellValidationInDev(
   staticStageEndTime: number,
   runtimeStageEndTime: number,
   ctx: AppRenderContext,
-  clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>,
   requestStore: RequestStore,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   debugChannelClient: Readable | undefined
@@ -3708,8 +3654,7 @@ async function spawnStaticShellValidationInDev(
     rootParams,
     fallbackRouteParams,
     allowEmptyStaticShell,
-    ctx,
-    clientReferenceManifest
+    ctx
   )
 
   let debugChunks: Uint8Array[] | null = null
@@ -3727,7 +3672,6 @@ async function spawnStaticShellValidationInDev(
     fallbackRouteParams,
     allowEmptyStaticShell,
     ctx,
-    clientReferenceManifest,
     hmrRefreshHash,
     trackDynamicHoleInRuntimeShell
   )
@@ -3747,7 +3691,6 @@ async function spawnStaticShellValidationInDev(
     fallbackRouteParams,
     allowEmptyStaticShell,
     ctx,
-    clientReferenceManifest,
     hmrRefreshHash,
     trackDynamicHoleInStaticShell
   )
@@ -3761,8 +3704,7 @@ async function warmupModuleCacheForRuntimeValidationInDev(
   rootParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   allowEmptyStaticShell: boolean,
-  ctx: AppRenderContext,
-  clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
+  ctx: AppRenderContext
 ) {
   const { implicitTags, nonce, workStore } = ctx
 
@@ -3815,7 +3757,6 @@ async function warmupModuleCacheForRuntimeValidationInDev(
       reactDebugStream={undefined}
       debugEndTime={undefined}
       preinitScripts={preinitScripts}
-      clientReferenceManifest={clientReferenceManifest}
       ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
       nonce={nonce}
       images={ctx.renderOpts.images}
@@ -3903,7 +3844,6 @@ async function validateStagedShell(
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   allowEmptyStaticShell: boolean,
   ctx: AppRenderContext,
-  clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>,
   hmrRefreshHash: string | undefined,
   trackDynamicHole:
     | typeof trackDynamicHoleInStaticShell
@@ -3974,7 +3914,6 @@ async function validateStagedShell(
               reactDebugStream={debugChannelClient}
               debugEndTime={debugEndTime}
               preinitScripts={preinitScripts}
-              clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               nonce={nonce}
               images={ctx.renderOpts.images}
@@ -4104,7 +4043,6 @@ async function prerenderToStream(
     allowEmptyStaticShell = false,
     basePath,
     buildManifest,
-    clientReferenceManifest,
     ComponentMod,
     crossOrigin,
     dev = false,
@@ -4117,8 +4055,6 @@ async function prerenderToStream(
     subresourceIntegrityManifest,
     cacheComponents,
   } = renderOpts
-
-  assertClientReferenceManifest(clientReferenceManifest)
 
   const rootParams = getRootParams(tree, getDynamicParamFromSegment)
 
@@ -4224,6 +4160,7 @@ async function prerenderToStream(
   }
 
   const selectStaleTime = createSelectStaleTime(experimental)
+  const { clientModules } = getClientReferenceManifest()
 
   let prerenderStore: PrerenderStore | null = null
 
@@ -4352,7 +4289,7 @@ async function prerenderToStream(
         initialServerPrerenderStore,
         ComponentMod.prerender,
         initialServerPayload,
-        clientReferenceManifest.clientModules,
+        clientModules,
         {
           filterStackFrame,
           onError: (err) => {
@@ -4479,7 +4416,6 @@ async function prerenderToStream(
             reactDebugStream={undefined}
             debugEndTime={undefined}
             preinitScripts={preinitScripts}
-            clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             nonce={nonce}
             images={ctx.renderOpts.images}
@@ -4631,7 +4567,7 @@ async function prerenderToStream(
                 ComponentMod.prerender,
                 // ... the arguments for the function to run
                 finalAttemptRSCPayload,
-                clientReferenceManifest.clientModules,
+                clientModules,
                 {
                   filterStackFrame,
                   onError: (err: unknown) => {
@@ -4721,7 +4657,6 @@ async function prerenderToStream(
                 reactDebugStream={undefined}
                 debugEndTime={undefined}
                 preinitScripts={preinitScripts}
-                clientReferenceManifest={clientReferenceManifest}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
                 nonce={nonce}
                 images={ctx.renderOpts.images}
@@ -4881,7 +4816,6 @@ async function prerenderToStream(
               reactDebugStream={undefined}
               debugEndTime={undefined}
               preinitScripts={() => {}}
-              clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               nonce={nonce}
               images={ctx.renderOpts.images}
@@ -4920,14 +4854,10 @@ async function prerenderToStream(
           // segments, since those are the only ones whose data is not complete.
           const emptyReactServerResult =
             await createReactServerPrerenderResultFromRender(
-              ComponentMod.renderToReadableStream(
-                [],
-                clientReferenceManifest.clientModules,
-                {
-                  filterStackFrame,
-                  onError: serverComponentsErrorHandler,
-                }
-              )
+              ComponentMod.renderToReadableStream([], clientModules, {
+                filterStackFrame,
+                onError: serverComponentsErrorHandler,
+              })
             )
           finalStream = await continueStaticFallbackPrerender(htmlStream, {
             inlinedDataStream: createInlinedDataReadableStream(
@@ -5005,7 +4935,7 @@ async function prerenderToStream(
             ComponentMod.renderToReadableStream,
             // ... the arguments for the function to run
             RSCPayload,
-            clientReferenceManifest.clientModules,
+            clientModules,
             {
               filterStackFrame,
               onError: serverComponentsErrorHandler,
@@ -5039,7 +4969,6 @@ async function prerenderToStream(
             reactDebugStream={undefined}
             debugEndTime={undefined}
             preinitScripts={preinitScripts}
-            clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             nonce={nonce}
             images={ctx.renderOpts.images}
@@ -5183,7 +5112,6 @@ async function prerenderToStream(
               reactDebugStream={undefined}
               debugEndTime={undefined}
               preinitScripts={() => {}}
-              clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               nonce={nonce}
               images={ctx.renderOpts.images}
@@ -5250,7 +5178,7 @@ async function prerenderToStream(
             prerenderLegacyStore,
             ComponentMod.renderToReadableStream,
             RSCPayload,
-            clientReferenceManifest.clientModules,
+            clientModules,
             {
               filterStackFrame,
               onError: serverComponentsErrorHandler,
@@ -5270,7 +5198,6 @@ async function prerenderToStream(
           reactDebugStream={undefined}
           debugEndTime={undefined}
           preinitScripts={preinitScripts}
-          clientReferenceManifest={clientReferenceManifest}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
           nonce={nonce}
           images={ctx.renderOpts.images}
@@ -5423,7 +5350,7 @@ async function prerenderToStream(
       prerenderLegacyStore,
       ComponentMod.renderToReadableStream,
       errorRSCPayload,
-      clientReferenceManifest.clientModules,
+      clientModules,
       {
         filterStackFrame,
         onError: serverComponentsErrorHandler,
@@ -5446,7 +5373,6 @@ async function prerenderToStream(
               reactServerStream={errorServerStream}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               preinitScripts={errorPreinitScripts}
-              clientReferenceManifest={clientReferenceManifest}
               nonce={nonce}
               images={ctx.renderOpts.images}
             />
@@ -5613,10 +5539,8 @@ async function collectSegmentData(
   // generating the initial page HTML. The Flight stream for the whole page is
   // decomposed into a separate stream per segment.
 
-  const clientReferenceManifest = renderOpts.clientReferenceManifest
-  if (!clientReferenceManifest) {
-    return
-  }
+  const { clientModules, edgeRscModuleMapping, rscModuleMapping } =
+    getClientReferenceManifest()
 
   // Manifest passed to the Flight client for reading the full-page Flight
   // stream. Based off similar code in use-cache-wrapper.ts.
@@ -5626,9 +5550,7 @@ async function collectSegmentData(
     // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
     // which themselves will handle the preloading.
     moduleLoading: null,
-    moduleMap: isEdgeRuntime
-      ? clientReferenceManifest.edgeRscModuleMapping
-      : clientReferenceManifest.rscModuleMapping,
+    moduleMap: isEdgeRuntime ? edgeRscModuleMapping : rscModuleMapping,
     serverModuleMap: getServerModuleMap(),
   }
 
@@ -5638,7 +5560,7 @@ async function collectSegmentData(
     renderOpts.cacheComponents,
     fullPageDataBuffer,
     staleTime,
-    clientReferenceManifest.clientModules as ManifestNode,
+    clientModules,
     serverConsumerManifest
   )
 }
