@@ -910,10 +910,12 @@ jobs:
         export IS_WEBPACK_TEST=1
 
         BROWSER_NAME=firefox node run-tests.js \
-          test/production/pages-dir/production/test/index.test.ts
+          test/production/pages-dir/production/test/index.test.ts \
+          test/production/chunk-load-failure/chunk-load-failure.test.ts
 
         NEXT_TEST_MODE=start BROWSER_NAME=safari node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
+          test/production/chunk-load-failure/chunk-load-failure.test.ts \
           test/e2e/basepath/basepath.test.ts \
           test/e2e/basepath/error-pages.test.ts
 

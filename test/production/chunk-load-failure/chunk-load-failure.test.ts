@@ -58,50 +58,49 @@ describe('chunk-load-failure', () => {
     }
   })
 
-  it.each(['chrome', 'firefox'])(
-    'should report aborted chunks when navigating away with %s',
-    async (browserName) => {
-      let nextDynamicChunk = await getNextDynamicChunk()
+  it('should report aborted chunks when navigating away', async () => {
+    let nextDynamicChunk = await getNextDynamicChunk()
 
-      let resolve
-      let oldBrowserName = process.env.BROWSER_NAME
-      process.env.BROWSER_NAME = browserName
-      try {
-        const browser = await next.browser('/dynamic', {
-          beforePageLoad(page) {
-            page.route('**/' + nextDynamicChunk, async (route) => {
-              await new Promise((r) => {
-                resolve = r
-              })
+    let resolve
+    try {
+      const browser = await next.browser('/dynamic', {
+        beforePageLoad(page) {
+          page.route('**/' + nextDynamicChunk, async (route) => {
+            // deterministically ensure that the async chunk is still loading during the navigation
+            await new Promise((r) => {
+              resolve = r
             })
-          },
-        })
+          })
+          page.on('pageerror', (error: Error) => {
+            console.log('pageerror', error)
+          })
+        },
+      })
 
-        await browser.get(next.url + '/other')
+      await browser.get(next.url + '/other')
 
-        let body = await browser.elementByCss('body')
-        expect(await body.text()).toMatch('this is other')
+      let body = await browser.elementByCss('body')
+      expect(await body.text()).toMatch('this is other')
 
-        const browserLogs = (await browser.log()).filter(
-          (m) => m.source === 'warning' || m.source === 'error'
+      const browserLogs = (await browser.log()).filter(
+        (m) => m.source === 'warning' || m.source === 'error'
+      )
+
+      if (process.env.BROWSER_NAME === 'firefox') {
+        expect(browserLogs).toContainEqual(
+          expect.objectContaining({
+            message: expect.stringContaining(
+              'Loading failed for the <script> with source'
+            ),
+          })
         )
-        if (browserName === 'firefox') {
-          expect(browserLogs).toContainEqual(
-            expect.objectContaining({
-              message: expect.stringContaining(
-                'Loading failed for the <script> with source'
-              ),
-            })
-          )
-        } else {
-          // Chrome doesn't show any errors or warnings here
-          expect(browserLogs).toBeEmpty()
-        }
-      } finally {
-        process.env.BROWSER_NAME = oldBrowserName
-        // prevent hanging
-        resolve?.()
+      } else {
+        // Chrome and Safari doesn't show any errors or warnings here
+        expect(browserLogs).toBeEmpty()
       }
+    } finally {
+      // prevent hanging
+      resolve?.()
     }
-  )
+  })
 })
