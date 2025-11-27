@@ -43,17 +43,17 @@ export class ErrorBoundaryHandler extends React.Component<
     this.state = { error: null, previousPathname: this.props.pathname }
   }
 
-  static getDerivedStateFromError(error: Error) {
+static getDerivedStateFromError(error: Error) {
     if (isNextRouterError(error)) {
       // Re-throw if an expected internal Next.js router error occurs
       // this means it should be handled by a different boundary (such as a NotFound boundary in a parent segment)
       throw error
     }
 
-    return { error }
-  }
-
-  static getDerivedStateFromProps(
+    // Report error to active span for OTEL tracing
+    if (typeof window !== 'undefined' && (globalThis as any).otel) {
+      try {
+static getDerivedStateFromProps(
     props: ErrorBoundaryHandlerProps,
     state: ErrorBoundaryHandlerState
   ): ErrorBoundaryHandlerState | null {
@@ -90,16 +90,23 @@ export class ErrorBoundaryHandler extends React.Component<
       previousPathname: props.pathname,
     }
   }
-
-  reset = () => {
+     * Approach of setState in render is safe as it checks the previous pathname and then overrides
+() => {
     this.setState({ error: null })
-  }
-
-  // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific to the `@types/react` version.
-  render(): React.ReactNode {
+    if (this.state.error) {
+      queueMicrotask(() => {
+        if (typeof reportError === 'function') {
+render(): React.ReactNode {
     //When it's bot request, segment level error boundary will keep rendering the children,
     // the final error will be caught by the root error boundary and determine wether need to apply graceful degrade.
     if (this.state.error && !isBotUserAgent) {
+      if (typeof window === 'undefined' && process.env.NEXT_RUNTIME === 'nodejs') {
+        const { trace } = require('@opentelemetry/api')
+        const span = trace.getActiveSpan()
+        if (span) {
+          span.recordException(this.state.error)
+        }
+      }
       return (
         <>
           <HandleISRError error={this.state.error} />
@@ -115,17 +122,39 @@ export class ErrorBoundaryHandler extends React.Component<
 
     return this.props.children
   }
+
+  // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific to the `@types/react` version.
+  render(): React.ReactNode {
+    //When it's bot request, segment level error boundary will keep rendering the children,
+export function ErrorBoundary({
+  errorComponent,
+  errorStyles,
+  errorScripts,
+  children,
+}: ErrorBoundaryProps & {
+  children: React.ReactNode
+}): JSX.Element {
+  // When we're rendering the missing params shell, this will return null. This
+  // is because we won't be rendering any not found boundaries or error
+  // boundaries for the missing params shell. When this runs on the client
+  // (where these errors can occur), we will get the correct pathname.
+  const pathname = useUntrackedPathname()
+  if (errorComponent) {
+    return (
+      <ErrorBoundaryHandler
+        pathname={pathname}
+        errorComponent={errorComponent}
+        errorStyles={errorStyles}
+        errorScripts={errorScripts}
+        key={pathname}
+      >
+        {children}
+      </ErrorBoundaryHandler>
+    )
+  }
+
+  return <>{children}</>
 }
-
-/**
- * Handles errors through `getDerivedStateFromError`.
- * Renders the provided error component and provides a way to `reset` the error boundary state.
- */
-
-/**
- * Renders error boundary with the provided "errorComponent" property as the fallback.
- * If no "errorComponent" property is provided it renders the children without an error boundary.
- */
 export function ErrorBoundary({
   errorComponent,
   errorStyles,
