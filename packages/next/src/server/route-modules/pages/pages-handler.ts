@@ -693,11 +693,10 @@ export const getHandler = ({
         }
 
         // when invoking _error before pages/500 we don't actually
-        // send the _error response
-        if (
-          getRequestMeta(req, 'customErrorRender') ||
-          (isErrorPage && isMinimalMode && res.statusCode === 500)
-        ) {
+        // send the _error response - only skip if customErrorRender is set
+        // (meaning pages/500 exists and will be rendered next), or if using
+        // the builtin _error in minimalMode to allow error bubbling
+        if (getRequestMeta(req, 'customErrorRender')) {
           return null
         }
 

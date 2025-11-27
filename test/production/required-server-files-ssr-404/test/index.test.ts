@@ -551,19 +551,19 @@ describe('Required Server Files', () => {
       it('should bubble error correctly for gip page', async () => {
         const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
         expect(res.status).toBe(500)
-        expect(await res.text()).toBe('Internal Server Error')
+        expect(await res.text()).toContain('500 - Internal Server Error.')
       })
 
       it('should bubble error correctly for gssp page', async () => {
         const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
         expect(res.status).toBe(500)
-        expect(await res.text()).toBe('Internal Server Error')
+        expect(await res.text()).toContain('500 - Internal Server Error.')
       })
 
       it('should bubble error correctly for gsp page', async () => {
         const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
         expect(res.status).toBe(500)
-        expect(await res.text()).toBe('Internal Server Error')
+        expect(await res.text()).toContain('500 - Internal Server Error.')
       })
 
       it('should normalize optional values correctly for SSP page', async () => {
