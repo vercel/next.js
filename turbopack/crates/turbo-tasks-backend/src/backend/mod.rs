@@ -570,11 +570,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let is_dirty = task.is_dirty(self.session_id);
 
             // Check the dirty count of the root node
-            let dirty_tasks = get!(task, AggregatedDirtyContainerCount)
-                .cloned()
-                .unwrap_or_default()
-                .get(self.session_id);
-            if dirty_tasks > 0 || is_dirty {
+            let has_dirty_containers = task.has_dirty_containers(self.session_id);
+            if has_dirty_containers || is_dirty {
                 let activeness = get_mut!(task, Activeness);
                 let mut task_ids_to_schedule: Vec<_> = Vec::new();
                 // When there are dirty task, subscribe to the all_clean_event
@@ -637,10 +634,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             };
 
                             // Check the dirty count of the root node
-                            let dirty_tasks = get!(task, AggregatedDirtyContainerCount)
-                                .cloned()
-                                .unwrap_or_default()
-                                .get(ctx.session_id());
+                            let has_dirty_containers = task.has_dirty_containers(ctx.session_id());
 
                             let task_description = ctx.get_task_description(task_id);
                             let is_dirty = if is_dirty { ", dirty" } else { "" };
@@ -661,8 +655,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 info.push_str("\n  ERROR: missing upper connection");
                             }
 
-                            if dirty_tasks > 0 || !children.is_empty() {
-                                writeln!(info, "\n  {dirty_tasks} dirty tasks:").unwrap();
+                            if has_dirty_containers || !children.is_empty() {
+                                writeln!(info, "\n  dirty tasks:").unwrap();
 
                                 for (child_task_id, count) in children {
                                     let task_description = ctx.get_task_description(child_task_id);
@@ -2891,10 +2885,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let is_dirty = task.is_dirty(self.session_id);
-        let has_dirty_containers = get!(task, AggregatedDirtyContainerCount)
-            .map_or(false, |dirty_containers| {
-                dirty_containers.get(self.session_id) > 0
-            });
+        let has_dirty_containers = task.has_dirty_containers(self.session_id);
         if is_dirty || has_dirty_containers {
             if let Some(activeness_state) = get_mut!(task, Activeness) {
                 // We will finish the task, but it would be removed after the task is done
@@ -2984,8 +2975,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 }
 
                 let is_dirty = get!(task, Dirty).is_some();
-                let has_dirty_container =
-                    get!(task, AggregatedDirtyContainerCount).is_some_and(|count| count.count > 0);
+                let has_dirty_container = task.has_dirty_containers(self.session_id);
                 let should_be_in_upper = is_dirty || has_dirty_container;
 
                 let aggregation_number = get_aggregation_number(&task);
