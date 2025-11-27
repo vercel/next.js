@@ -519,12 +519,6 @@ impl AggregatedDataUpdate {
                     old_dirty_container_count = new_dirty_container_count;
                 };
 
-                let was_dirty_without_clean = is_self_dirty || old_dirty_container_count > 0;
-                let is_dirty_without_clean = is_self_dirty || new_dirty_container_count > 0;
-
-                let upper_count_update =
-                    before_after_to_diff_value(was_dirty_without_clean, is_dirty_without_clean);
-
                 // Update AggregatedSessionDependentCleanContainerCount and compute aggregate value
                 let new_current_session_clean_container_count;
                 let old_current_session_clean_container_count;
@@ -551,20 +545,6 @@ impl AggregatedDataUpdate {
                         new_current_session_clean_container_count;
                 };
 
-                let was_dirty = is_self_dirty && !current_session_self_clean
-                    || old_dirty_container_count > 0
-                        && old_dirty_container_count - old_current_session_clean_container_count
-                            > 0;
-                let is_dirty = is_self_dirty && !current_session_self_clean
-                    || new_dirty_container_count > 0
-                        && new_dirty_container_count - new_current_session_clean_container_count
-                            > 0;
-
-                let was_flagged_clean = was_dirty_without_clean && !was_dirty;
-                let is_flagged_clean = is_dirty_without_clean && !is_dirty;
-                let upper_current_session_clean_update =
-                    before_after_to_diff_value(was_flagged_clean, is_flagged_clean);
-
                 let compute_result = ComputeDirtyAndCleanUpdate {
                     old_dirty_container_count,
                     new_dirty_container_count,
@@ -576,28 +556,21 @@ impl AggregatedDataUpdate {
                     new_current_session_self_clean: current_session_self_clean,
                 }
                 .compute();
-                assert_eq!(compute_result.dirty_count_update, upper_count_update);
-                assert_eq!(
-                    compute_result.current_session_clean_update,
-                    upper_current_session_clean_update
-                );
 
-                if upper_count_update != 0 || upper_current_session_clean_update != 0 {
-                    result.dirty_container_update = Some((
-                        task_id,
-                        upper_count_update,
-                        SessionDependent::new(upper_current_session_clean_update),
-                    ));
-                }
+                if let Some(aggregated_update) = compute_result.aggregated_update(task_id) {
+                    result = aggregated_update;
 
-                if was_dirty && !is_dirty {
-                    // When the current task is no longer dirty, we need to fire the
-                    // aggregate root events and do some cleanup
-                    if let Some(activeness_state) = get_mut!(task, Activeness) {
-                        activeness_state.all_clean_event.notify(usize::MAX);
-                        activeness_state.unset_active_until_clean();
-                        if activeness_state.is_empty() {
-                            task.remove(&CachedDataItemKey::Activeness {});
+                    if let Some((_, count, current_session_clean)) = result.dirty_container_update
+                        && count - *current_session_clean < 0
+                    {
+                        // When the current task is no longer dirty, we need to fire the
+                        // aggregate root events and do some cleanup
+                        if let Some(activeness_state) = get_mut!(task, Activeness) {
+                            activeness_state.all_clean_event.notify(usize::MAX);
+                            activeness_state.unset_active_until_clean();
+                            if activeness_state.is_empty() {
+                                task.remove(&CachedDataItemKey::Activeness {});
+                            }
                         }
                     }
                 }
