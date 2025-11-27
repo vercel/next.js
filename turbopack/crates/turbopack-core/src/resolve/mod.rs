@@ -24,7 +24,7 @@ use self::{
         ConditionValue, ImportMapResult, ResolveInPackage, ResolveIntoPackage, ResolveModules,
         ResolveModulesOptions, ResolveOptions, resolve_modules_options,
     },
-    origin::{ResolveOrigin, ResolveOriginExt},
+    origin::ResolveOrigin,
     parse::Request,
     pattern::Pattern,
     plugin::BeforeResolvePlugin,
@@ -258,6 +258,17 @@ impl ModuleResolveResult {
             ModuleResolveResultItem::Module(a) => Some(a),
             _ => None,
         })
+    }
+
+    /// Returns a set (no duplicates) of primary modules in the result.
+    pub async fn primary_modules_ref(&self) -> Result<Vec<ResolvedVc<Box<dyn Module>>>> {
+        let mut set = FxIndexSet::default();
+        for (_, item) in self.primary.iter() {
+            if let Some(module) = item.as_module().await? {
+                set.insert(module);
+            }
+        }
+        Ok(set.into_iter().collect())
     }
 
     pub fn affecting_sources_iter(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Source>>> + '_ {
@@ -1609,10 +1620,11 @@ pub async fn url_resolve(
     issue_source: Option<IssueSource>,
     is_optional: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
-    let resolve_options = origin.resolve_options(reference_type.clone()).await?;
+    let resolve_options = origin.resolve_options(reference_type.clone());
     let rel_request = request.as_relative();
+    let origin_path_parent = origin.origin_path().await?.parent();
     let rel_result = resolve(
-        origin.origin_path().await?.parent(),
+        origin_path_parent.clone(),
         reference_type.clone(),
         rel_request,
         resolve_options,
@@ -1620,7 +1632,7 @@ pub async fn url_resolve(
     let result = if *rel_result.is_unresolvable().await? && rel_request.resolve().await? != request
     {
         let result = resolve(
-            origin.origin_path().await?.parent(),
+            origin_path_parent,
             reference_type.clone(),
             request,
             resolve_options,
@@ -1645,7 +1657,7 @@ pub async fn url_resolve(
     handle_resolve_error(
         result,
         reference_type,
-        origin.origin_path().owned().await?,
+        origin,
         request,
         resolve_options,
         is_optional,
@@ -3080,21 +3092,18 @@ async fn resolve_package_internal_with_imports_field(
 pub async fn handle_resolve_error(
     result: Vc<ModuleResolveResult>,
     reference_type: ReferenceType,
-    origin_path: FileSystemPath,
+    origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     is_optional: bool,
     source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
-    async fn is_unresolvable(result: Vc<ModuleResolveResult>) -> Result<bool> {
-        Ok(*result.resolve().await?.is_unresolvable().await?)
-    }
-    Ok(match is_unresolvable(result).await {
-        Ok(unresolvable) => {
-            if unresolvable {
+    Ok(match result.await {
+        Ok(result_ref) => {
+            if result_ref.is_unresolvable_ref() {
                 emit_unresolvable_issue(
                     is_optional,
-                    origin_path,
+                    origin,
                     reference_type,
                     request,
                     resolve_options,
@@ -3108,7 +3117,7 @@ pub async fn handle_resolve_error(
         Err(err) => {
             emit_resolve_error_issue(
                 is_optional,
-                origin_path,
+                origin,
                 reference_type,
                 request,
                 resolve_options,
@@ -3124,7 +3133,7 @@ pub async fn handle_resolve_error(
 pub async fn handle_resolve_source_error(
     result: Vc<ResolveResult>,
     reference_type: ReferenceType,
-    origin_path: FileSystemPath,
+    origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     is_optional: bool,
@@ -3138,7 +3147,7 @@ pub async fn handle_resolve_source_error(
             if unresolvable {
                 emit_unresolvable_issue(
                     is_optional,
-                    origin_path,
+                    origin,
                     reference_type,
                     request,
                     resolve_options,
@@ -3152,7 +3161,7 @@ pub async fn handle_resolve_source_error(
         Err(err) => {
             emit_resolve_error_issue(
                 is_optional,
-                origin_path,
+                origin,
                 reference_type,
                 request,
                 resolve_options,
@@ -3167,7 +3176,7 @@ pub async fn handle_resolve_source_error(
 
 async fn emit_resolve_error_issue(
     is_optional: bool,
-    origin_path: FileSystemPath,
+    origin: Vc<Box<dyn ResolveOrigin>>,
     reference_type: ReferenceType,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
@@ -3181,7 +3190,7 @@ async fn emit_resolve_error_issue(
     };
     ResolvingIssue {
         severity,
-        file_path: origin_path.clone(),
+        file_path: origin.origin_path().owned().await?,
         request_type: format!("{reference_type} request"),
         request: request.to_resolved().await?,
         resolve_options: resolve_options.to_resolved().await?,
@@ -3195,7 +3204,7 @@ async fn emit_resolve_error_issue(
 
 async fn emit_unresolvable_issue(
     is_optional: bool,
-    origin_path: FileSystemPath,
+    origin: Vc<Box<dyn ResolveOrigin>>,
     reference_type: ReferenceType,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
@@ -3208,7 +3217,7 @@ async fn emit_unresolvable_issue(
     };
     ResolvingIssue {
         severity,
-        file_path: origin_path.clone(),
+        file_path: origin.origin_path().owned().await?,
         request_type: format!("{reference_type} request"),
         request: request.to_resolved().await?,
         resolve_options: resolve_options.to_resolved().await?,

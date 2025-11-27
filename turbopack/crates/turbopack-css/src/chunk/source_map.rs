@@ -49,8 +49,9 @@ impl OutputAsset for CssChunkSourceMapAsset {
 impl Asset for CssChunkSourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        if let Some(sm) = &*self.chunk.generate_source_map().await? {
-            Ok(AssetContent::file(File::from(sm.clone()).into()))
+        let content = self.chunk.generate_source_map();
+        if content.await?.is_content() {
+            Ok(AssetContent::file(content))
         } else {
             Ok(AssetContent::file(
                 File::from(SourceMap::empty_rope()).into(),
