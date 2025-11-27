@@ -1200,6 +1200,9 @@ importers:
       '@napi-rs/triples':
         specifier: 1.2.0
         version: 1.2.0
+      '@next/bundle-analyzer-ui':
+        specifier: 0.0.1
+        version: link:../../apps/bundle-analyzer
       '@next/font':
         specifier: 16.1.0-canary.4
         version: link:../font
