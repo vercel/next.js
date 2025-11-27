@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, collections::BTreeSet};
 
 use anyhow::{Context, Result, bail};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::FxIndexSet;
 
 use super::options::{FontData, FontWeights};
@@ -47,8 +47,8 @@ pub(super) fn get_font_axes(
         .axes;
 
     let ital = {
-        let has_italic = styles.contains(&"italic".into());
-        let has_normal = styles.contains(&"normal".into());
+        let has_italic = styles.contains(&rcstr!("italic"));
+        let has_normal = styles.contains(&rcstr!("normal"));
         let mut set = FxIndexSet::default();
         if has_normal {
             set.insert(FontStyle::Normal);
@@ -61,12 +61,12 @@ pub(super) fn get_font_axes(
 
     match weights {
         FontWeights::Variable => {
-            let Some(defineable_axes) = all_axes else {
+            let Some(definable_axes) = all_axes else {
                 bail!("Font {} has no definable `axes`", font_family);
             };
 
             if let Some(selected_variable_axes) = selected_variable_axes {
-                let definable_axes_tags = defineable_axes
+                let definable_axes_tags = definable_axes
                     .iter()
                     .map(|axis| axis.tag.to_owned())
                     .collect::<Vec<RcStr>>();
@@ -85,16 +85,16 @@ pub(super) fn get_font_axes(
 
             let mut weight_axis = None;
             let mut variable_axes = vec![];
-            for axis in defineable_axes {
+            for axis in definable_axes {
                 if axis.tag == "wght" {
                     weight_axis = Some(format!("{}..{}", axis.min, axis.max).into());
-                } else if let Some(selected_variable_axes) = selected_variable_axes {
-                    if selected_variable_axes.contains(&axis.tag) {
-                        variable_axes.push((
-                            axis.tag.clone(),
-                            format!("{}..{}", axis.min, axis.max).into(),
-                        ));
-                    }
+                } else if let Some(selected_variable_axes) = selected_variable_axes
+                    && selected_variable_axes.contains(&axis.tag)
+                {
+                    variable_axes.push((
+                        axis.tag.clone(),
+                        format!("{}..{}", axis.min, axis.max).into(),
+                    ));
                 }
             }
 
@@ -168,13 +168,13 @@ pub(super) fn get_stylesheet_url(
 
     if weights.is_empty() {
         let mut variant = vec![];
-        if let Some(variable_axes) = &axes.variable_axes {
-            if !variable_axes.is_empty() {
-                for (key, val) in variable_axes {
-                    variant.push((key.as_str(), VariantValue::String(val.clone())));
-                }
-                variants.push(variant);
+        if let Some(variable_axes) = &axes.variable_axes
+            && !variable_axes.is_empty()
+        {
+            for (key, val) in variable_axes {
+                variant.push((key.as_str(), VariantValue::String(val.clone())));
             }
+            variants.push(variant);
         }
     } else {
         for wght in &weights {
@@ -291,6 +291,7 @@ mod tests {
     use std::collections::BTreeSet;
 
     use anyhow::Result;
+    use turbo_rcstr::rcstr;
     use turbo_tasks::fxindexset;
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
@@ -381,12 +382,12 @@ mod tests {
                 "Inter",
                 &FontWeights::Variable,
                 &[],
-                &Some(vec!["slnt".into()]),
+                &Some(vec![rcstr!("slnt")]),
             )?,
             FontAxes {
-                wght: FontAxesWeights::Variable(Some("100..900".into())),
+                wght: FontAxesWeights::Variable(Some(rcstr!("100..900"))),
                 ital: fxindexset! {},
-                variable_axes: Some(vec![("slnt".into(), "-10..0".into())])
+                variable_axes: Some(vec![(rcstr!("slnt"), rcstr!("-10..0"))])
             }
         );
         Ok(())
@@ -422,10 +423,10 @@ mod tests {
                 "Inter",
                 &FontWeights::Variable,
                 &[],
-                &Some(vec!["slnt".into()]),
+                &Some(vec![rcstr!("slnt")]),
             )?,
             FontAxes {
-                variable_axes: Some(vec![("slnt".into(), "-10..0".into())]),
+                variable_axes: Some(vec![(rcstr!("slnt"), rcstr!("-10..0"))]),
                 wght: FontAxesWeights::Variable(None),
                 ..Default::default()
             }
@@ -493,9 +494,9 @@ mod tests {
                     wght: FontAxesWeights::Fixed(BTreeSet::from([500])),
                     ital: fxindexset! {FontStyle::Normal},
                     variable_axes: Some(vec![
-                        ("GRAD".into(), "-50..100".into()),
-                        ("opsz".into(), "8..144".into()),
-                        ("wdth".into(), "50..150".into()),
+                        (rcstr!("GRAD"), rcstr!("-50..100")),
+                        (rcstr!("opsz"), rcstr!("8..144")),
+                        (rcstr!("wdth"), rcstr!("50..150")),
                     ])
                 },
                 "optional"
@@ -535,9 +536,9 @@ mod tests {
                     wght: FontAxesWeights::Fixed(BTreeSet::from([500, 300])),
                     ital: fxindexset! {FontStyle::Normal, FontStyle::Italic},
                     variable_axes: Some(vec![
-                        ("GRAD".into(), "-50..100".into()),
-                        ("opsz".into(), "8..144".into()),
-                        ("wdth".into(), "50..150".into()),
+                        (rcstr!("GRAD"), rcstr!("-50..100")),
+                        (rcstr!("opsz"), rcstr!("8..144")),
+                        (rcstr!("wdth"), rcstr!("50..150")),
                     ])
                 },
                 "optional"
@@ -557,8 +558,8 @@ mod tests {
                 "Nabla",
                 &FontAxes {
                     variable_axes: Some(vec![
-                        ("EDPT".into(), "0..200".into()),
-                        ("EHLT".into(), "0..24".into()),
+                        (rcstr!("EDPT"), rcstr!("0..200")),
+                        (rcstr!("EHLT"), rcstr!("0..24")),
                     ]),
                     ..Default::default()
                 },

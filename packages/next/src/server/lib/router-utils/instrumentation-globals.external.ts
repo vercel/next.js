@@ -6,6 +6,7 @@ import type {
   InstrumentationOnRequestError,
 } from '../../instrumentation/types'
 import { interopDefault } from '../../../lib/interop-default'
+import { afterRegistration as extendInstrumentationAfterRegistration } from './instrumentation-node-extensions'
 
 let cachedInstrumentationModule: InstrumentationModule
 
@@ -13,7 +14,7 @@ export async function getInstrumentationModule(
   projectDir: string,
   distDir: string
 ): Promise<InstrumentationModule | undefined> {
-  if (cachedInstrumentationModule && process.env.NODE_ENV === 'production') {
+  if (cachedInstrumentationModule) {
     return cachedInstrumentationModule
   }
 
@@ -42,9 +43,12 @@ export async function getInstrumentationModule(
 }
 
 let instrumentationModulePromise: Promise<any> | null = null
+
 async function registerInstrumentation(projectDir: string, distDir: string) {
   // Ensure registerInstrumentation is not called in production build
-  if (process.env.NEXT_PHASE === 'phase-production-build') return
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return
+  }
   if (!instrumentationModulePromise) {
     instrumentationModulePromise = getInstrumentationModule(projectDir, distDir)
   }
@@ -52,6 +56,7 @@ async function registerInstrumentation(projectDir: string, distDir: string) {
   if (instrumentation?.register) {
     try {
       await instrumentation.register()
+      extendInstrumentationAfterRegistration()
     } catch (err: any) {
       err.message = `An error occurred while loading instrumentation hook: ${err.message}`
       throw err

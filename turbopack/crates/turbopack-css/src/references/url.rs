@@ -2,13 +2,14 @@ use std::convert::Infallible;
 
 use anyhow::Result;
 use lightningcss::{
+    stylesheet::StyleSheet,
     values::url::Url,
     visit_types,
     visitor::{Visit, Visitor},
 };
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
@@ -18,9 +19,9 @@ use turbopack_core::{
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
 };
 
-use crate::{StyleSheetLike, embed::CssEmbed};
+use crate::embed::CssEmbed;
 
-#[turbo_tasks::value(into = "new")]
+#[turbo_tasks::value]
 pub enum ReferencedAsset {
     Some(ResolvedVc<Box<dyn OutputAsset>>),
     None,
@@ -54,17 +55,16 @@ impl UrlAssetReference {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<ReferencedAsset>> {
-        if let Some(module) = *self.resolve_reference().first_module().await? {
-            if let Some(embeddable) = Vc::try_resolve_downcast::<Box<dyn CssEmbed>>(*module).await?
-            {
-                return Ok(ReferencedAsset::Some(
-                    embeddable
-                        .embedded_asset(chunking_context)
-                        .to_resolved()
-                        .await?,
-                )
-                .into());
-            }
+        if let Some(module) = *self.resolve_reference().first_module().await?
+            && let Some(embeddable) = ResolvedVc::try_downcast::<Box<dyn CssEmbed>>(module)
+        {
+            return Ok(ReferencedAsset::Some(
+                embeddable
+                    .embedded_asset(chunking_context)
+                    .to_resolved()
+                    .await?,
+            )
+            .cell());
         }
         Ok(ReferencedAsset::cell(ReferencedAsset::None))
     }
@@ -77,8 +77,8 @@ impl ModuleReference for UrlAssetReference {
         url_resolve(
             *self.origin,
             *self.request,
-            Value::new(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
-            Some(self.issue_source.clone()),
+            ReferenceType::Url(UrlReferenceSubType::CssUrl),
+            Some(self.issue_source),
             false,
         )
     }
@@ -102,26 +102,30 @@ pub async fn resolve_url_reference(
     url: Vc<UrlAssetReference>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<Option<RcStr>>> {
-    let context_path = chunking_context.chunk_root_path().await?;
-
     if let ReferencedAsset::Some(asset) = &*url.get_referenced_asset(chunking_context).await? {
         let path = asset.path().await?;
-        let relative_path = context_path
-            .get_relative_path_to(&path)
-            .unwrap_or_else(|| format!("/{}", path.path).into());
 
-        return Ok(Vc::cell(Some(relative_path)));
+        let url_path = if *chunking_context
+            .should_use_absolute_url_references()
+            .await?
+        {
+            format!("/{}", path.path).into()
+        } else {
+            let context_path = chunking_context.chunk_root_path().await?;
+            context_path
+                .get_relative_path_to(&path)
+                .unwrap_or_else(|| format!("/{}", path.path).into())
+        };
+
+        return Ok(Vc::cell(Some(url_path)));
     }
 
     Ok(Vc::cell(None))
 }
 
-pub fn replace_url_references(
-    ss: &mut StyleSheetLike<'static, 'static>,
-    urls: &FxHashMap<RcStr, RcStr>,
-) {
+pub fn replace_url_references<'i, 'o>(ss: &mut StyleSheet<'i, 'o>, urls: &FxHashMap<RcStr, RcStr>) {
     let mut replacer = AssetReferenceReplacer { urls };
-    ss.0.visit(&mut replacer).unwrap();
+    ss.visit(&mut replacer).unwrap();
 }
 
 struct AssetReferenceReplacer<'a> {

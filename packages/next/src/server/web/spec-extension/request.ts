@@ -12,6 +12,7 @@ export const INTERNALS = Symbol('internal request')
  * Read more: [Next.js Docs: `NextRequest`](https://nextjs.org/docs/app/api-reference/functions/next-request)
  */
 export class NextRequest extends Request {
+  /** @internal */
   [INTERNALS]: {
     cookies: RequestCookies
     url: string

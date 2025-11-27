@@ -1,5 +1,5 @@
 export async function generateStaticParams() {
-  return []
+  return [{ lang: 'en', flags: 'us', rest: ['home'] }]
 }
 
 export default async function Page(props) {

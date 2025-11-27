@@ -21,9 +21,9 @@ pub const DATA_THRESHOLD_PER_COMPACTED_FILE: usize = 256 * 1024 * 1024;
 /// MAX_ENTRIES_PER_INITIAL_FILE and DATA_THRESHOLD_PER_INITIAL_FILE.
 pub const THREAD_LOCAL_SIZE_SHIFT: usize = 7;
 
-/// Maximum RAM bytes for AQMF cache
-pub const AQMF_CACHE_SIZE: u64 = 300 * 1024 * 1024;
-pub const AQMF_AVG_SIZE: usize = 37399;
+/// Maximum RAM bytes for AMQF cache
+pub const AMQF_CACHE_SIZE: u64 = 300 * 1024 * 1024;
+pub const AMQF_AVG_SIZE: usize = 37399;
 
 /// Maximum RAM bytes for key block cache
 pub const KEY_BLOCK_CACHE_SIZE: u64 = 400 * 1024 * 1024;

@@ -16,5 +16,6 @@ workspace = true
 serde = { workspace = true }
 serde_json = { workspace = true }
 
+turbo-rcstr = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }

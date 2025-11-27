@@ -1,18 +1,16 @@
-use std::{
-    borrow::Cow,
-    fmt::{Display, Formatter, Write},
-};
+use std::fmt::{Display, Formatter, Write};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 
 use crate::{rope::Rope, source_context::get_source_context};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
-pub struct UnparseableJson {
-    pub message: Cow<'static, str>,
-    pub path: Option<String>,
+pub struct UnparsableJson {
+    pub message: RcStr,
+    pub path: Option<RcStr>,
     /// The start line and column of the error.
     /// Line and column is 0-based.
     pub start_location: Option<(u32, u32)>,
@@ -31,21 +29,21 @@ fn byte_to_location(pos: usize, text: &str) -> (u32, u32) {
     (line as u32, column as u32)
 }
 
-impl UnparseableJson {
+impl UnparsableJson {
     pub fn from_jsonc_error(e: jsonc_parser::errors::ParseError, text: &str) -> Self {
         Self {
-            message: e.message.clone().into(),
+            message: RcStr::from(e.kind().to_string()),
             path: None,
-            start_location: Some(byte_to_location(e.range.start, text)),
-            end_location: Some(byte_to_location(e.range.end, text)),
+            start_location: Some(byte_to_location(e.range().start, text)),
+            end_location: Some(byte_to_location(e.range().end, text)),
         }
     }
 
     pub fn from_serde_path_to_error(e: serde_path_to_error::Error<serde_json::Error>) -> Self {
         let inner = e.inner();
         Self {
-            message: inner.to_string().into(),
-            path: Some(e.path().to_string()),
+            message: RcStr::from(inner.to_string()),
+            path: Some(RcStr::from(e.path().to_string())),
             start_location: Some((
                 inner.line().saturating_sub(1) as u32,
                 inner.column().saturating_sub(1) as u32,
@@ -88,7 +86,7 @@ impl UnparseableJson {
     }
 }
 
-impl Display for UnparseableJson {
+impl Display for UnparsableJson {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.message)?;
         if let Some(path) = &self.path {
@@ -103,7 +101,7 @@ pub fn parse_json_with_source_context<'de, T: Deserialize<'de>>(text: &'de str) 
     match serde_path_to_error::deserialize(de) {
         Ok(data) => Ok(data),
         Err(e) => Err(anyhow::Error::msg(
-            UnparseableJson::from_serde_path_to_error(e).to_string_with_content(text),
+            UnparsableJson::from_serde_path_to_error(e).to_string_with_content(text),
         )),
     }
 }
@@ -115,7 +113,7 @@ pub fn parse_json_rope_with_source_context<'de, T: Deserialize<'de>>(rope: &'de 
         Err(e) => {
             let cow = rope.to_str()?;
             Err(anyhow::Error::msg(
-                UnparseableJson::from_serde_path_to_error(e).to_string_with_content(&cow),
+                UnparsableJson::from_serde_path_to_error(e).to_string_with_content(&cow),
             ))
         }
     }

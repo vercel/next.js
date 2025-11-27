@@ -1,7 +1,5 @@
 use std::mem::take;
 
-use swc_core::ecma::atoms::atom;
-
 use super::{ConstantNumber, ConstantValue, JsValue, LogicalOperator, LogicalProperty, ObjectPart};
 use crate::analyzer::JsValueUrlKind;
 
@@ -220,7 +218,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                         prop.clone(),
                                     ),
                                     true,
-                                    "spreaded object",
+                                    "spread object",
                                 ));
                             }
                         }
@@ -303,7 +301,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             }
                         }
                         if potential_values.is_empty() {
-                            *value = JsValue::FreeVar(atom!("undefined"));
+                            *value = JsValue::Constant(ConstantValue::Undefined);
                         } else {
                             *value = potential_values_to_alternatives(
                                 potential_values,
@@ -317,7 +315,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         }
                         true
                     }
-                    // matching mutliple alternative properties on an object like `{a: 1, b: 2}[(a |
+                    // matching multiple alternative properties on an object like `{a: 1, b: 2}[(a |
                     // b)]`
                     JsValue::Alternatives {
                         total_nodes: _,
@@ -444,16 +442,16 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             }
 
             // matching calls on strings like `"dayjs/locale/".concat(userLocale, ".js")`
-            if obj.is_string() == Some(true) {
-                if let Some(str) = prop.as_str() {
-                    // The String.prototype.concat method
-                    if str == "concat" {
-                        let mut values = vec![take(obj)];
-                        values.extend(take(args));
+            if obj.is_string() == Some(true)
+                && let Some(str) = prop.as_str()
+            {
+                // The String.prototype.concat method
+                if str == "concat" {
+                    let mut values = vec![take(obj)];
+                    values.extend(take(args));
 
-                        *value = JsValue::concat(values);
-                        return true;
-                    }
+                    *value = JsValue::concat(values);
+                    return true;
                 }
             }
 
@@ -602,7 +600,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     }
                 };
                 if let Some(property) = property {
-                    *value = JsValue::alternatives_with_addtional_property(take(parts), property);
+                    *value = JsValue::alternatives_with_additional_property(take(parts), property);
                     true
                 } else {
                     *value = JsValue::alternatives(take(parts));

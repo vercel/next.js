@@ -73,7 +73,7 @@ pub enum TraceRow<'a> {
     Allocation {
         /// Timestamp
         ts: u64,
-        /// The thread id of the thread where allocations happend.
+        /// The thread id of the thread where allocations happened.
         thread_id: u64,
         /// Allocations
         allocations: u64,
@@ -89,7 +89,7 @@ pub enum TraceRow<'a> {
     AllocationCounters {
         /// Timestamp
         ts: u64,
-        /// The thread id of the thread where allocations happend.
+        /// The thread id of the thread where allocations happened.
         thread_id: u64,
         /// Allocations
         allocations: u64,

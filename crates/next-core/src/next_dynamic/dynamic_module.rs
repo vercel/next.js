@@ -1,16 +1,20 @@
 use std::collections::BTreeMap;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use indoc::formatdoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::{ModuleReferences, SingleChunkableModuleReference},
+    resolve::ExportUsage,
+    source::OptionSource,
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -21,11 +25,6 @@ use turbopack_ecmascript::{
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("next/dynamic entry".into())
-}
 
 /// A [`NextDynamicEntryModule`] is a marker asset used to indicate which
 /// dynamic assets should appear in the dynamic manifest.
@@ -42,16 +41,22 @@ impl NextDynamicEntryModule {
     }
 }
 
-#[turbo_tasks::function]
-fn dynamic_ref_description() -> Vc<RcStr> {
-    Vc::cell("next/dynamic reference".into())
+fn dynamic_ref_description() -> RcStr {
+    rcstr!("next/dynamic reference")
 }
 
 #[turbo_tasks::value_impl]
 impl Module for NextDynamicEntryModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.module.ident().with_modifier(modifier())
+        self.module
+            .ident()
+            .with_modifier(rcstr!("next/dynamic entry"))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
     }
 
     #[turbo_tasks::function]
@@ -60,6 +65,7 @@ impl Module for NextDynamicEntryModule {
             SingleChunkableModuleReference::new(
                 Vc::upcast(*self.module),
                 dynamic_ref_description(),
+                ExportUsage::all(),
             )
             .to_resolved()
             .await?,
@@ -70,8 +76,12 @@ impl Module for NextDynamicEntryModule {
 #[turbo_tasks::value_impl]
 impl Asset for NextDynamicEntryModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("Next.js Server Component module has no content")
+    fn content(&self) -> Vc<AssetContent> {
+        AssetContent::File(
+            FileContent::Content("// This is a marker module for Next.js dynamic.".into())
+                .resolved_cell(),
+        )
+        .cell()
     }
 }
 
@@ -102,15 +112,17 @@ impl EcmascriptChunkPlaceable for NextDynamicEntryModule {
             SingleChunkableModuleReference::new(
                 Vc::upcast(*self.module),
                 dynamic_ref_description(),
+                ExportUsage::all(),
             )
             .to_resolved()
             .await?,
         );
 
         let mut exports = BTreeMap::new();
+        let default = rcstr!("default");
         exports.insert(
-            "default".into(),
-            EsmExport::ImportedBinding(module_reference, "default".into(), false),
+            default.clone(),
+            EsmExport::ImportedBinding(module_reference, default, false),
         );
 
         Ok(EcmascriptExports::EsmExports(
@@ -132,15 +144,15 @@ struct NextDynamicEntryChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for NextDynamicEntryChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for NextDynamicEntryChunkItem {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let inner = self.inner.await?;
 
-        let module_id = inner
-            .module
-            .chunk_item_id(Vc::upcast(*self.chunking_context))
-            .await?;
+        let module_id = inner.module.chunk_item_id(*self.chunking_context).await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 r#"

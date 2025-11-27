@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/env/env/input/.env/.env.js"],"sourcesContent":["const env = process.env = {...process.env};\n\nenv[\"ALLFOOBAR\"] = foobarfoobar;\nenv[\"BARFOO\"] = barfoo;\nenv[\"FOO\"] = foo;\nenv[\"FOOBAR\"] = foobar;\n"],"names":[],"mappings":"AAAA,MAAM,MAAM,QAAQ,GAAG,GAAG;IAAC,GAAG,QAAQ,GAAG;AAAA;AAEzC,GAAG,CAAC,YAAY,GAAG;AACnB,GAAG,CAAC,SAAS,GAAG;AAChB,GAAG,CAAC,MAAM,GAAG;AACb,GAAG,CAAC,SAAS,GAAG"}},
+    {"offset": {"line": 13, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/env/env/input/index.js"],"sourcesContent":["console.log(process.env.FOOBAR)\nconsole.log(process.env.BARFOO)\nconsole.log(process.env.ALLFOOBAR)\n"],"names":[],"mappings":"AAAA,QAAQ,GAAG,CAAC,QAAQ,GAAG,CAAC,MAAM;AAC9B,QAAQ,GAAG,CAAC,QAAQ,GAAG,CAAC,MAAM;AAC9B,QAAQ,GAAG,CAAC,QAAQ,GAAG,CAAC,SAAS"}}]
+}

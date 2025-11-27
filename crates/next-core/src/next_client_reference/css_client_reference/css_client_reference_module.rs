@@ -1,6 +1,7 @@
-use anyhow::{Result, bail};
-use turbo_rcstr::RcStr;
+use anyhow::Result;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks_fs::FileContent;
 use turbopack::css::chunk::CssChunkPlaceable;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -9,6 +10,7 @@ use turbopack_core::{
     module::Module,
     reference::{ModuleReference, ModuleReferences},
     resolve::ModuleResolveResult,
+    source::OptionSource,
 };
 
 /// A [`CssClientReferenceModule`] is a marker module used to indicate which
@@ -31,18 +33,18 @@ impl CssClientReferenceModule {
     }
 }
 
-#[turbo_tasks::function]
-fn css_client_reference_modifier() -> Vc<RcStr> {
-    Vc::cell("css client reference".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Module for CssClientReferenceModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.client_module
             .ident()
-            .with_modifier(css_client_reference_modifier())
+            .with_modifier(rcstr!("css client reference"))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
     }
 
     #[turbo_tasks::function]
@@ -60,9 +62,14 @@ impl Module for CssClientReferenceModule {
 #[turbo_tasks::value_impl]
 impl Asset for CssClientReferenceModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
-        // The client reference asset only serves as a marker asset.
-        bail!("CssClientReferenceModule has no content")
+    fn content(&self) -> Vc<AssetContent> {
+        AssetContent::File(
+            FileContent::Content(
+                "// This is a marker module for Next.js client CSS references.".into(),
+            )
+            .resolved_cell(),
+        )
+        .cell()
     }
 }
 
@@ -85,7 +92,7 @@ impl ChunkableModuleReference for CssClientReference {
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Isolated {
             _ty: ChunkGroupType::Evaluated,
-            merge_tag: Some("client".into()),
+            merge_tag: Some(rcstr!("client")),
         }))
     }
 }
@@ -102,6 +109,6 @@ impl ModuleReference for CssClientReference {
 impl ValueToString for CssClientReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("css client reference to client".into())
+        Vc::cell(rcstr!("css client reference to client"))
     }
 }

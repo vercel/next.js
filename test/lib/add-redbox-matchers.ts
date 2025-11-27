@@ -1,7 +1,7 @@
 import type { MatcherContext } from 'expect'
 import { toMatchInlineSnapshot } from 'jest-snapshot'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   getRedboxCallStack,
   getRedboxComponentStack,
   getRedboxDescription,
@@ -37,7 +37,10 @@ declare global {
        *
        * @param inlineSnapshot - The snapshot to compare against.
        */
-      toDisplayRedbox(inlineSnapshot?: string): Promise<void>
+      toDisplayRedbox(
+        inlineSnapshot?: string,
+        opts?: ErrorSnapshotOptions
+      ): Promise<void>
 
       /**
        * Inline snapshot matcher for a Redbox that's collapsed by default.
@@ -57,9 +60,16 @@ declare global {
        *
        * @param inlineSnapshot - The snapshot to compare against.
        */
-      toDisplayCollapsedRedbox(inlineSnapshot?: string): Promise<void>
+      toDisplayCollapsedRedbox(
+        inlineSnapshot?: string,
+        opts?: ErrorSnapshotOptions
+      ): Promise<void>
     }
   }
+}
+
+interface ErrorSnapshotOptions {
+  label?: boolean
 }
 
 interface ErrorSnapshot {
@@ -73,11 +83,12 @@ interface ErrorSnapshot {
 
 async function createErrorSnapshot(
   browser: Playwright,
-  next: NextInstance | null
+  next: NextInstance | null,
+  { label: includeLabel = true }: ErrorSnapshotOptions = {}
 ): Promise<ErrorSnapshot> {
   const [label, environmentLabel, description, source, stack, componentStack] =
     await Promise.all([
-      getRedboxLabel(browser),
+      includeLabel ? getRedboxLabel(browser) : null,
       getRedboxEnvironmentLabel(browser),
       getRedboxDescription(browser),
       getRedboxSource(browser),
@@ -153,13 +164,25 @@ async function createErrorSnapshot(
     }
   }
 
+  let sanitizedDescription = description
+
+  if (sanitizedDescription) {
+    sanitizedDescription = sanitizedDescription
+      .replace(/{imported module [^}]+}/, '<turbopack-module-id>')
+      .replace(/\w+_WEBPACK_IMPORTED_MODULE_\w+/, '<webpack-module-id>')
+
+    if (next !== null) {
+      sanitizedDescription = sanitizedDescription.replace(
+        next.testDir,
+        '<FIXME-project-root>'
+      )
+    }
+  }
+
   const snapshot: ErrorSnapshot = {
     environmentLabel,
-    label,
-    description:
-      description !== null && next !== null
-        ? description.replace(next.testDir, '<FIXME-project-root>')
-        : description,
+    label: label ?? '<FIXME-excluded-label>',
+    description: sanitizedDescription,
     source: focusedSource,
     stack:
       next !== null && stack !== null
@@ -182,13 +205,14 @@ type RedboxSnapshot = ErrorSnapshot | ErrorSnapshot[]
 
 async function createRedboxSnapshot(
   browser: Playwright,
-  next: NextInstance | null
+  next: NextInstance | null,
+  opts?: ErrorSnapshotOptions
 ): Promise<RedboxSnapshot> {
   const errorTally = await getRedboxTotalErrorCount(browser)
   const errorSnapshots: ErrorSnapshot[] = []
 
   for (let errorIndex = 0; errorIndex < errorTally; errorIndex++) {
-    const errorSnapshot = await createErrorSnapshot(browser, next)
+    const errorSnapshot = await createErrorSnapshot(browser, next, opts)
     errorSnapshots.push(errorSnapshot)
 
     if (errorIndex < errorTally - 1) {
@@ -214,7 +238,8 @@ expect.extend({
   async toDisplayRedbox(
     this: MatcherContext,
     browserOrContext: Playwright | { browser: Playwright; next: NextInstance },
-    expectedRedboxSnapshot?: string
+    expectedRedboxSnapshot?: string,
+    opts?: ErrorSnapshotOptions
   ) {
     let browser: Playwright
     let next: NextInstance | null
@@ -235,7 +260,7 @@ expect.extend({
     this.dontThrow = () => {}
 
     try {
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
     } catch (cause) {
       // argument length is relevant.
       // Jest will update absent snapshots but fail if you specify a snapshot even if undefined.
@@ -250,7 +275,7 @@ expect.extend({
       }
     }
 
-    const redbox = await createRedboxSnapshot(browser, next)
+    const redbox = await createRedboxSnapshot(browser, next, opts)
 
     // argument length is relevant.
     // Jest will update absent snapshots but fail if you specify a snapshot even if undefined.
@@ -263,7 +288,8 @@ expect.extend({
   async toDisplayCollapsedRedbox(
     this: MatcherContext,
     browserOrContext: Playwright | { browser: Playwright; next: NextInstance },
-    expectedRedboxSnapshot?: string
+    expectedRedboxSnapshot?: string,
+    opts?: ErrorSnapshotOptions
   ) {
     let browser: Playwright
     let next: NextInstance | null
@@ -292,21 +318,21 @@ expect.extend({
         return toMatchInlineSnapshot.call(
           this,
           String(cause.message)
-            // Should switch to `toDisplayRedbox` not `assertHasRedbox`
-            .replace('assertHasRedbox', 'toDisplayRedbox')
+            // Should switch to `toDisplayRedbox` not `waitForRedbox`
+            .replace('waitForRedbox', 'toDisplayRedbox')
         )
       } else {
         return toMatchInlineSnapshot.call(
           this,
           String(cause.message)
-            // Should switch to `toDisplayRedbox` not `assertHasRedbox`
-            .replace('assertHasRedbox', 'toDisplayRedbox'),
+            // Should switch to `toDisplayRedbox` not `waitForRedbox`
+            .replace('waitForRedbox', 'toDisplayRedbox'),
           expectedRedboxSnapshot
         )
       }
     }
 
-    const redbox = await createRedboxSnapshot(browser, next)
+    const redbox = await createRedboxSnapshot(browser, next, opts)
 
     // argument length is relevant.
     // Jest will update absent snapshots but fail if you specify a snapshot even if undefined.

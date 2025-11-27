@@ -1,6 +1,10 @@
 /**
  * @type {import('next').NextConfig}
  */
-const nextConfig = {}
+const nextConfig = {
+  experimental: {
+    preloadEntriesOnStart: false,
+  },
+}
 
 module.exports = nextConfig

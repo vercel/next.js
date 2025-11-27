@@ -4,7 +4,7 @@ use crate::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
     module::Module,
-    source::Source,
+    source::{OptionSource, Source},
 };
 
 /// A module where source code doesn't need to be parsed but can be usd as is.
@@ -19,6 +19,11 @@ impl Module for RawModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident()
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(self.source))
     }
 }
 

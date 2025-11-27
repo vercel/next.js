@@ -1,6 +1,7 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_rcstr::rcstr;
+use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkableModule, ChunkingContext, availability_info::AvailabilityInfo},
@@ -11,11 +12,6 @@ use turbopack_core::{
 };
 
 use crate::async_chunk::chunk_item::AsyncLoaderChunkItem;
-
-#[turbo_tasks::function]
-fn async_loader_modifier() -> Vc<RcStr> {
-    Vc::cell("async loader".into())
-}
 
 /// The AsyncLoaderModule is a module that loads another module async, by
 /// putting it into a separate chunk group.
@@ -32,24 +28,19 @@ impl AsyncLoaderModule {
     pub fn new(
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Vc<Self> {
         Self::cell(AsyncLoaderModule {
             inner: module,
             chunking_context,
-            availability_info: availability_info.into_value(),
+            availability_info,
         })
     }
 
     #[turbo_tasks::function]
     pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
-        module.ident().with_modifier(async_loader_modifier())
+        module.ident().with_modifier(rcstr!("async loader"))
     }
-}
-
-#[turbo_tasks::function]
-fn inner_module_reference_description() -> Vc<RcStr> {
-    Vc::cell("async module".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -60,15 +51,28 @@ impl Module for AsyncLoaderModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![ResolvedVc::upcast(
             SingleModuleReference::new(
                 *ResolvedVc::upcast(self.await?.inner),
-                inner_module_reference_description(),
+                rcstr!("async module"),
             )
             .to_resolved()
             .await?,
         )]))
+    }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(
+        self: Vc<Self>,
+        _side_effect_free_packages: Vc<Glob>,
+    ) -> Vc<bool> {
+        Vc::cell(true)
     }
 }
 
@@ -83,7 +87,7 @@ impl Asset for AsyncLoaderModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for AsyncLoaderModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: ResolvedVc<Self>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,

@@ -8,7 +8,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, IntoTraitRef, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::File;
+use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
@@ -154,8 +154,10 @@ impl EcmascriptDevChunkListContent {
         // `TURBOPACK_CHUNK_LISTS` global variable.
         writedoc!(
             code,
+            // `||=` would be better but we need to be es2020 compatible
+            //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
             r#"
-                (globalThis.TURBOPACK_CHUNK_LISTS = globalThis.TURBOPACK_CHUNK_LISTS || []).push({{
+                (globalThis.TURBOPACK_CHUNK_LISTS || (globalThis.TURBOPACK_CHUNK_LISTS = [])).push({{
                     script: {script_or_path},
                     chunks: {:#},
                     source: {:#}
@@ -175,7 +177,7 @@ impl VersionedContent for EcmascriptDevChunkListContent {
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let code = self.code().await?;
         Ok(AssetContent::file(
-            File::from(code.source_code().clone()).into(),
+            FileContent::Content(File::from(code.source_code().clone())).cell(),
         ))
     }
 

@@ -50,104 +50,52 @@ export function isEqualNode(oldTag: Element, newTag: Element) {
   return oldTag.isEqualNode(newTag)
 }
 
-let updateElements: (type: string, components: JSX.Element[]) => void
+function updateElements(type: string, components: JSX.Element[]) {
+  const headEl = document.querySelector('head')
+  if (!headEl) return
 
-if (process.env.__NEXT_STRICT_NEXT_HEAD) {
-  updateElements = (type, components) => {
-    const headEl = document.querySelector('head')
-    if (!headEl) return
+  const oldTags = new Set(headEl.querySelectorAll(`${type}[data-next-head]`))
 
-    const oldTags = new Set(headEl.querySelectorAll(`${type}[data-next-head]`))
-
-    if (type === 'meta') {
-      const metaCharset = headEl.querySelector('meta[charset]')
-      if (metaCharset !== null) {
-        oldTags.add(metaCharset)
-      }
-    }
-
-    const newTags: Element[] = []
-    for (let i = 0; i < components.length; i++) {
-      const component = components[i]
-      const newTag = reactElementToDOM(component)
-      newTag.setAttribute('data-next-head', '')
-
-      let isNew = true
-      for (const oldTag of oldTags) {
-        if (isEqualNode(oldTag, newTag)) {
-          oldTags.delete(oldTag)
-          isNew = false
-          break
-        }
-      }
-
-      if (isNew) {
-        newTags.push(newTag)
-      }
-    }
-
-    for (const oldTag of oldTags) {
-      oldTag.parentNode?.removeChild(oldTag)
-    }
-
-    for (const newTag of newTags) {
-      // meta[charset] must be first element so special case
-      if (
-        newTag.tagName.toLowerCase() === 'meta' &&
-        newTag.getAttribute('charset') !== null
-      ) {
-        headEl.prepend(newTag)
-      }
-      headEl.appendChild(newTag)
+  if (type === 'meta') {
+    const metaCharset = headEl.querySelector('meta[charset]')
+    if (metaCharset !== null) {
+      oldTags.add(metaCharset)
     }
   }
-} else {
-  updateElements = (type, components) => {
-    const headEl = document.getElementsByTagName('head')[0]
-    const headCountEl: HTMLMetaElement = headEl.querySelector(
-      'meta[name=next-head-count]'
-    ) as HTMLMetaElement
-    if (process.env.NODE_ENV !== 'production') {
-      if (!headCountEl) {
-        console.error(
-          'Warning: next-head-count is missing. https://nextjs.org/docs/messages/next-head-count-missing'
-        )
-        return
+
+  const newTags: Element[] = []
+  for (let i = 0; i < components.length; i++) {
+    const component = components[i]
+    const newTag = reactElementToDOM(component)
+    newTag.setAttribute('data-next-head', '')
+
+    let isNew = true
+    for (const oldTag of oldTags) {
+      if (isEqualNode(oldTag, newTag)) {
+        oldTags.delete(oldTag)
+        isNew = false
+        break
       }
     }
 
-    const headCount = Number(headCountEl.content)
-    const oldTags: Element[] = []
+    if (isNew) {
+      newTags.push(newTag)
+    }
+  }
 
-    for (
-      let i = 0, j = headCountEl.previousElementSibling;
-      i < headCount;
-      i++, j = j?.previousElementSibling || null
+  for (const oldTag of oldTags) {
+    oldTag.parentNode?.removeChild(oldTag)
+  }
+
+  for (const newTag of newTags) {
+    // meta[charset] must be first element so special case
+    if (
+      newTag.tagName.toLowerCase() === 'meta' &&
+      newTag.getAttribute('charset') !== null
     ) {
-      if (j?.tagName?.toLowerCase() === type) {
-        oldTags.push(j)
-      }
+      headEl.prepend(newTag)
     }
-    const newTags = (components.map(reactElementToDOM) as HTMLElement[]).filter(
-      (newTag) => {
-        for (let k = 0, len = oldTags.length; k < len; k++) {
-          const oldTag = oldTags[k]
-          if (isEqualNode(oldTag, newTag)) {
-            oldTags.splice(k, 1)
-            return false
-          }
-        }
-        return true
-      }
-    )
-
-    oldTags.forEach((t) => t.parentNode?.removeChild(t))
-    newTags.forEach((t) => headEl.insertBefore(t, headCountEl))
-    headCountEl.content = (
-      headCount -
-      oldTags.length +
-      newTags.length
-    ).toString()
+    headEl.appendChild(newTag)
   }
 }
 

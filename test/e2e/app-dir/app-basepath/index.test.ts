@@ -78,9 +78,9 @@ describe('app dir - basepath', () => {
           page.on('request', (request) => {
             return request.allHeaders().then((headers) => {
               if (
-                headers['RSC'.toLowerCase()] === '1' &&
-                // Prefetches also include `RSC`
-                headers['Next-Router-Prefetch'.toLowerCase()] !== '1'
+                headers['rsc'] === '1' &&
+                // Prefetches also include `rsc`
+                headers['next-router-prefetch'] !== '1'
               ) {
                 rscRequests.push(request.url())
               }
@@ -140,7 +140,8 @@ describe('app dir - basepath', () => {
       // This verifies the redirect & server response happens in a single roundtrip,
       // if the redirect resource was static. In development, these responses are always
       // dynamically generated, so we only expect a single request for build/deploy.
-      if (!isNextDev) {
+      // TODO(client-segment-cache): re-enable when this optimization is added back
+      if (!isNextDev && !process.env.__NEXT_CACHE_COMPONENTS) {
         expect(requests).toHaveLength(1)
         expect(responses).toHaveLength(1)
       }
@@ -198,7 +199,7 @@ describe('app dir - basepath', () => {
 
     expect(firstResponse.status()).toEqual(303)
     // Since this is an external request to a resource outside of NextJS
-    // we expect to see a seperate request resolving the external URL.
+    // we expect to see a separate request resolving the external URL.
     expect(secondResponse.status()).toEqual(200)
   })
 })

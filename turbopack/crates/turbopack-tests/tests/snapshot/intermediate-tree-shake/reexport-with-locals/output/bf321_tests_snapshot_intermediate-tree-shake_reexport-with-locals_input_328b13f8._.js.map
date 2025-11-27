@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/intermediate-tree-shake/reexport-with-locals/input/index.js"],"sourcesContent":["import { local } from 'lib'\n\nlocal()\n"],"names":[],"mappings":"AAAA;;AAEA,IAAA,yRAAK"}},
+    {"offset": {"line": 12, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/intermediate-tree-shake/reexport-with-locals/input/node_modules/lib/unused.js"],"sourcesContent":["export function unusedStar() {}\n"],"names":[],"mappings":"AAAO,SAAS,cAAc","ignoreList":[0]}},
+    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/intermediate-tree-shake/reexport-with-locals/input/node_modules/lib/unused-star.js"],"sourcesContent":["export function unused() {}\n"],"names":[],"mappings":"AAAO,SAAS,UAAU","ignoreList":[0]}},
+    {"offset": {"line": 24, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/intermediate-tree-shake/reexport-with-locals/input/node_modules/lib/index.js"],"sourcesContent":["export { unused } from './unused.js'\nexport * from './unused-star.js'\n\nfunction local() {\n  console.log('This is a local function')\n}\nfunction localUnused() {\n  console.log('This is a local unused function')\n}\n\nexport { local, localUnused }\n"],"names":[],"mappings":"AAAA;AACA;;;AAEA,SAAS;IACP,QAAQ,GAAG,CAAC;AACd;AACA,SAAS;IACP,QAAQ,GAAG,CAAC;AACd","ignoreList":[0]}}]
+}

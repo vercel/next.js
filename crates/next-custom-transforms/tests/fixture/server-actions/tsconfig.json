@@ -10,7 +10,7 @@
     "skipLibCheck": true,
 
     "strict": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
 
     // most of the code is untyped
     "noImplicitAny": false,

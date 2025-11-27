@@ -1,0 +1,12 @@
+{
+  "name": "x",
+  "type": "module",
+  "imports": {
+    "#x": {
+      "module": "./no.js",
+      "default": {
+        "node": "./node.js"
+      }
+    }
+  }
+}

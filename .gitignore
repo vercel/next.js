@@ -33,6 +33,7 @@ coverage
 # test output
 test/**/out/*
 test/**/next-env.d.ts
+test/**/.next*
 .DS_Store
 /e2e-tests
 test/tmp/**

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use serde::Serialize;
-use turbo_tasks::{FxIndexMap, FxIndexSet, IntoTraitRef, ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, IntoTraitRef, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     chunk::{ChunkingContext, ModuleId},
@@ -84,10 +84,8 @@ struct EcmascriptModuleEntry {
 impl EcmascriptModuleEntry {
     async fn from_code(id: &ModuleId, code: Vc<Code>, chunk_path: &str) -> Result<Self> {
         let map = &*code.generate_source_map().await?;
-        Ok(Self::new(id, code.await?, map.clone(), chunk_path))
-    }
+        let map = map.as_content().map(|f| f.content().clone());
 
-    fn new(id: &ModuleId, code: ReadRef<Code>, map: Option<Rope>, chunk_path: &str) -> Self {
         /// serde_qs can't serialize a lone enum when it's [serde::untagged].
         #[derive(Serialize)]
         struct Id<'a> {
@@ -95,12 +93,12 @@ impl EcmascriptModuleEntry {
         }
         let id = serde_qs::to_string(&Id { id }).unwrap();
 
-        EcmascriptModuleEntry {
+        Ok(EcmascriptModuleEntry {
             // Cloning a rope is cheap.
-            code: code.source_code().clone(),
+            code: code.await?.source_code().clone(),
             url: format!("{}?{}", chunk_path, &id),
             map,
-        }
+        })
     }
 }
 
@@ -131,11 +129,11 @@ impl MergedModuleMap {
 
 pub(super) async fn update_ecmascript_merged_chunk(
     content: Vc<EcmascriptBrowserMergedChunkContent>,
-    from_version: Vc<Box<dyn Version>>,
+    from_version: ResolvedVc<Box<dyn Version>>,
 ) -> Result<Update> {
     let to_merged_version = content.version();
     let from_merged_version = if let Some(from) =
-        Vc::try_resolve_downcast_type::<EcmascriptBrowserMergedChunkVersion>(from_version).await?
+        ResolvedVc::try_downcast_type::<EcmascriptBrowserMergedChunkVersion>(from_version)
     {
         from
     } else {

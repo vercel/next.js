@@ -39,7 +39,7 @@ async function installDependencies(cwd, tmpDir) {
  * @param {object | null} [param0.resolutions]
  * @param { ((ctx: { dependencies: { [key: string]: string } }) => string) | string | null} [param0.installCommand]
  * @param {object} [param0.packageJson]
- * @param {string} [param0.dirSuffix]
+ * @param {string} [param0.subDir]
  * @param {boolean} [param0.keepRepoDir]
  * @param {(span: import('@next/telemetry').Span, installDir: string) => Promise<void>} param0.beforeInstall
  * @returns {Promise<{installDir: string, pkgPaths: Map<string, string>, tmpRepoDir: string | undefined}>}
@@ -50,7 +50,7 @@ async function createNextInstall({
   resolutions = null,
   installCommand = null,
   packageJson = {},
-  dirSuffix = '',
+  subDir = '',
   keepRepoDir = false,
   beforeInstall,
 }) {
@@ -62,7 +62,8 @@ async function createNextInstall({
       const origRepoDir = path.join(__dirname, '../../')
       const installDir = path.join(
         tmpDir,
-        `next-install-${randomBytes(32).toString('hex')}${dirSuffix}`
+        `next-install-${randomBytes(32).toString('hex')}`,
+        subDir
       )
       let tmpRepoDir
       require('console').log('Creating next instance in:')
@@ -77,11 +78,17 @@ async function createNextInstall({
       } else {
         tmpRepoDir = path.join(
           tmpDir,
-          `next-repo-${randomBytes(32).toString('hex')}${dirSuffix}`
+          `next-repo-${randomBytes(32).toString('hex')}`,
+          subDir
         )
         require('console').log('Creating temp repo dir', tmpRepoDir)
 
-        for (const item of ['package.json', 'packages']) {
+        for (const item of [
+          'package.json',
+          'packages',
+          // Otherwise pnpm will not recognize workspaces
+          'pnpm-workspace.yaml',
+        ]) {
           await rootSpan
             .traceChild(`copy ${item} to temp dir`)
             .traceAsyncFn(() =>
@@ -103,28 +110,38 @@ async function createNextInstall({
             )
         }
 
-        const nativePath = path.join(origRepoDir, 'packages/next-swc/native')
-
-        const hasNativeBinary = fs.existsSync(nativePath)
-          ? fs.readdirSync(nativePath).some((item) => item.endsWith('.node'))
-          : false
-
-        if (hasNativeBinary) {
-          process.env.NEXT_TEST_NATIVE_DIR = nativePath
-        } else {
-          const swcDirectory = fs
-            .readdirSync(path.join(origRepoDir, 'node_modules/@next'))
-            .find((directory) => directory.startsWith('swc-'))
-          process.env.NEXT_TEST_NATIVE_DIR = path.join(
-            origRepoDir,
-            'node_modules/@next',
-            swcDirectory
+        if (process.env.NEXT_TEST_WASM) {
+          const wasmPath = path.join(origRepoDir, 'crates', 'wasm', 'pkg')
+          const hasWasmBinary = fs.existsSync(
+            path.join(wasmPath, 'package.json')
           )
+          if (hasWasmBinary) {
+            process.env.NEXT_TEST_WASM_DIR = wasmPath
+          }
+        } else {
+          const nativePath = path.join(origRepoDir, 'packages/next-swc/native')
+          const hasNativeBinary = fs.existsSync(nativePath)
+            ? fs.readdirSync(nativePath).some((item) => item.endsWith('.node'))
+            : false
+
+          if (hasNativeBinary) {
+            process.env.NEXT_TEST_NATIVE_DIR = nativePath
+          } else {
+            const swcDirectory = fs
+              .readdirSync(path.join(origRepoDir, 'node_modules/@next'))
+              .find((directory) => directory.startsWith('swc-'))
+            process.env.NEXT_TEST_NATIVE_DIR = path.join(
+              origRepoDir,
+              'node_modules/@next',
+              swcDirectory
+            )
+          }
         }
 
         // log for clarity of which version we're using
         require('console').log({
-          swcDirectory: process.env.NEXT_TEST_NATIVE_DIR,
+          swcNativeDirectory: process.env.NEXT_TEST_NATIVE_DIR,
+          swcWasmDirectory: process.env.NEXT_TEST_WASM_DIR,
         })
 
         pkgPaths = await rootSpan

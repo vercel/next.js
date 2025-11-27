@@ -7,6 +7,7 @@ import type { RouteModuleOptions } from '../route-module'
 
 import { RouteModule, type RouteModuleHandleContext } from '../route-module'
 import { apiResolver } from '../../api-utils/node/api-resolver'
+import type { RevalidateFn } from '../../lib/router-utils/router-server-context'
 
 type PagesAPIHandleFn = (
   req: IncomingMessage,
@@ -92,6 +93,12 @@ type PagesAPIRouteHandlerContext = RouteModuleHandleContext & {
    * whether multi-zone flag is enabled for draft mode
    */
   multiZoneDraftMode?: boolean
+
+  /**
+   * Internal revalidate function to avoid revalidating
+   * over the network
+   */
+  internalRevalidate?: RevalidateFn
 }
 
 export type PagesAPIRouteModuleOptions = RouteModuleOptions<
@@ -144,6 +151,7 @@ export class PagesAPIRouteModule extends RouteModule<
         hostname: context.hostname,
         multiZoneDraftMode: context.multiZoneDraftMode,
         dev: context.dev,
+        internalRevalidate: context.internalRevalidate,
       },
       context.propagateError,
       context.dev,

@@ -29,7 +29,7 @@ import { ImageConfigContext } from '../shared/lib/image-config-context.shared-ru
 import { warnOnce } from '../shared/lib/utils/warn-once'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 
-// @ts-ignore - This is replaced by webpack alias
+// This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 import { useMergedRef } from './use-merged-ref'
 
@@ -314,7 +314,7 @@ function ImagePreload({
   isAppRouter: boolean
   imgAttributes: ImgProps
 }) {
-  const opts = {
+  const opts: ReactDOM.PreloadOptions = {
     as: 'image',
     imageSrcSet: imgAttributes.srcSet,
     imageSizes: imgAttributes.sizes,
@@ -324,12 +324,7 @@ function ImagePreload({
   }
 
   if (isAppRouter && ReactDOM.preload) {
-    // See https://github.com/facebook/react/pull/26940
-    ReactDOM.preload(
-      imgAttributes.src,
-      // @ts-expect-error TODO: upgrade to `@types/react-dom@18.3.x`
-      opts
-    )
+    ReactDOM.preload(imgAttributes.src, opts)
     return null
   }
 
@@ -369,10 +364,24 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     const configContext = useContext(ImageConfigContext)
     const config = useMemo(() => {
       const c = configEnv || configContext || imageConfigDefault
+
       const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
       const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
       const qualities = c.qualities?.sort((a, b) => a - b)
-      return { ...c, allSizes, deviceSizes, qualities }
+      return {
+        ...c,
+        allSizes,
+        deviceSizes,
+        qualities,
+        // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
+        // security sensitive configs like `localPatterns`, which is needed
+        // during the server render to ensure it's validated. Therefore use
+        // configContext, which holds the config from the server for validation.
+        localPatterns:
+          typeof window === 'undefined'
+            ? configContext?.localPatterns
+            : c.localPatterns,
+      }
     }, [configContext])
 
     const { onLoad, onLoadingComplete } = props
@@ -390,7 +399,6 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
 
     const [blurComplete, setBlurComplete] = useState(false)
     const [showAltText, setShowAltText] = useState(false)
-
     const { props: imgAttributes, meta: imgMeta } = getImgProps(props, {
       defaultLoader,
       imgConf: config,
@@ -414,7 +422,7 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
             ref={forwardedRef}
           />
         }
-        {imgMeta.priority ? (
+        {imgMeta.preload ? (
           <ImagePreload
             isAppRouter={isAppRouter}
             imgAttributes={imgAttributes}

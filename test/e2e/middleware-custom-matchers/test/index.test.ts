@@ -1,5 +1,4 @@
 /* eslint-env jest */
-/* eslint-disable jest/no-standalone-expect */
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { fetchViaHTTP } from 'next-test-utils'

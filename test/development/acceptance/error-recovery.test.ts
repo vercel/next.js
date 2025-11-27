@@ -8,7 +8,7 @@ import path from 'path'
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('pages/ error recovery', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
@@ -55,7 +55,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -63,14 +63,14 @@ describe('pages/ error recovery', () => {
          "label": "Build Error",
          "source": "./index.js
          × Module build failed:
-         ├─▶   ×
-         │     │   x Unexpected eof
-         │     │    ,-[<FIXME-project-root>/index.js:1:1]
-         │     │  1 | export default () => <div/
-         │     │    \`----
-         │     │
-         │
-         ╰─▶ Syntax Error
+         ╰─▶   × Error:   x Expected '>', got '<eof>'
+               │    ,----
+               │  1 | export default () => <div/
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
        Import trace for requested module:
        ./index.js
        ./pages/index.js",
@@ -80,11 +80,11 @@ describe('pages/ error recovery', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  x Unexpected eof",
+         "description": "  x Expected '>', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-       Error:   x Unexpected eof
+       Error:   x Expected '>', got '<eof>'
           ,----
         1 | export default () => <div/
           \`----
@@ -121,7 +121,7 @@ describe('pages/ error recovery', () => {
       /Count: 1/
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 
   test('logbox: can recover from a event handler error', async () => {
@@ -152,7 +152,7 @@ describe('pages/ error recovery', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('0')
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
@@ -167,8 +167,6 @@ describe('pages/ error recovery', () => {
           |           ^",
        "stack": [
          "Index.useCallback[increment] index.js (7:11)",
-         "UtilityScript.evaluate <anonymous> (236:17)",
-         "UtilityScript.<anonymous> <anonymous> (1:44)",
        ],
      }
     `)
@@ -190,20 +188,20 @@ describe('pages/ error recovery', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
 
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 1')
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 
-  test('logbox: can recover from a component error', async () => {
+  it('logbox: can recover from a component error', async () => {
     await using sandbox = await createSandbox(next)
     const { browser, session } = sandbox
 
@@ -245,10 +243,7 @@ describe('pages/ error recovery', () => {
       `
     )
 
-    // TODO(veil): ignore-list Webpack runtime (https://linear.app/vercel/issue/NDX-945)
-    // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
-    // Somehow we end up with two in React 18 due to React's attempt to recover from this error.
-    if (isReact18) {
+    if (isReact18 && isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        [
          {
@@ -260,9 +255,6 @@ describe('pages/ error recovery', () => {
            |         ^",
            "stack": [
              "Child child.js (3:9)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
            ],
          },
          {
@@ -274,30 +266,69 @@ describe('pages/ error recovery', () => {
            |         ^",
            "stack": [
              "Child child.js (3:9)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+           ],
+         },
+       ]
+      `)
+    } else if (isReact18 && isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "description": "oops",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "child.js (3:9) @ Child
+       > 3 |   throw new Error('oops')
+           |         ^",
+           "stack": [
+             "Child child.js (3:9)",
+           ],
+         },
+         {
+           "description": "oops",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "child.js (3:9) @ Child
+       > 3 |   throw new Error('oops')
+           |         ^",
+           "stack": [
+             "Child child.js (3:9)",
            ],
          },
        ]
       `)
     } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "oops",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "child.js (3:9) @ Child
-       > 3 |   throw new Error('oops')
-           |         ^",
-         "stack": [
-           "Child child.js (3:9)",
-           "Set.forEach <anonymous> (0:0)",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-         ],
-       }
-      `)
+      if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "oops",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "child.js (3:9) @ Child
+         > 3 |   throw new Error('oops')
+             |         ^",
+           "stack": [
+             "Child child.js (3:9)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "oops",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "child.js (3:9) @ Child
+         > 3 |   throw new Error('oops')
+             |         ^",
+           "stack": [
+             "Child child.js (3:9)",
+           ],
+         }
+        `)
+      }
     }
 
     const didNotReload = await session.patch(
@@ -310,7 +341,7 @@ describe('pages/ error recovery', () => {
     )
 
     expect(didNotReload).toBe(true)
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Hello')
@@ -369,7 +400,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -377,20 +408,20 @@ describe('pages/ error recovery', () => {
          "label": "Build Error",
          "source": "./index.js
          × Module build failed:
-         ├─▶   ×
-         │     │   x Expected '{', got 'return'
-         │     │    ,-[<FIXME-project-root>/index.js:5:1]
-         │     │  2 |
-         │     │  3 | class ClassDefault extends React.Component {
-         │     │  4 |   render()
-         │     │  5 |     return <h1>Default Export</h1>;
-         │     │    :     ^^^^^^
-         │     │  6 |   }
-         │     │  7 | }
-         │     │    \`----
-         │     │
-         │
-         ╰─▶ Syntax Error
+         ╰─▶   × Error:   x Expected '{', got 'return'
+               │    ,-[5:1]
+               │  2 |
+               │  3 | class ClassDefault extends React.Component {
+               │  4 |   render()
+               │  5 |     return <h1>Default Export</h1>;
+               │    :     ^^^^^^
+               │  6 |   }
+               │  7 | }
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
        Import trace for requested module:
        ./index.js
        ./pages/index.js",
@@ -454,7 +485,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -462,21 +493,21 @@ describe('pages/ error recovery', () => {
          "label": "Build Error",
          "source": "./index.js
          × Module build failed:
-         ├─▶   ×
-         │     │   x Expected '{', got 'throw'
-         │     │    ,-[<FIXME-project-root>/index.js:5:1]
-         │     │  2 |
-         │     │  3 | class ClassDefault extends React.Component {
-         │     │  4 |   render()
-         │     │  5 |     throw new Error('nooo');
-         │     │    :     ^^^^^
-         │     │  6 |     return <h1>Default Export</h1>;
-         │     │  7 |   }
-         │     │  8 | }
-         │     │    \`----
-         │     │
-         │
-         ╰─▶ Syntax Error
+         ╰─▶   × Error:   x Expected '{', got 'throw'
+               │    ,-[5:1]
+               │  2 |
+               │  3 | class ClassDefault extends React.Component {
+               │  4 |   render()
+               │  5 |     throw new Error('nooo');
+               │    :     ^^^^^
+               │  6 |     return <h1>Default Export</h1>;
+               │  7 |   }
+               │  8 | }
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
        Import trace for requested module:
        ./index.js
        ./pages/index.js",
@@ -533,10 +564,7 @@ describe('pages/ error recovery', () => {
       await expect(session.getRedboxSource()).resolves.toInclude('render() {')
     })
 
-    // TODO(veil): ignore-list Webpack runtime (https://linear.app/vercel/issue/NDX-945)
-    // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
-    // Somehow we end up with two in React 18 due to React's attempt to recover from this error.
-    if (isReact18) {
+    if (isReact18 && isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        [
          {
@@ -548,9 +576,6 @@ describe('pages/ error recovery', () => {
            |           ^",
            "stack": [
              "ClassDefault.render index.js (5:11)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
            ],
          },
          {
@@ -562,46 +587,24 @@ describe('pages/ error recovery', () => {
            |           ^",
            "stack": [
              "ClassDefault.render index.js (5:11)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
            ],
          },
        ]
       `)
     } else {
-      if (process.env.NEXT_RSPACK) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "nooo",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "index.js (5:11) @ ClassDefault.render
-         > 5 |     throw new Error('nooo');
-             |           ^",
-           "stack": [
-             "ClassDefault.render index.js (5:11)",
-           ],
-         }
-        `)
-      } else {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "nooo",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "index.js (5:11) @ ClassDefault.render
-         > 5 |     throw new Error('nooo');
-             |           ^",
-           "stack": [
-             "ClassDefault.render index.js (5:11)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           ],
-         }
-        `)
-      }
+      await expect(browser).toDisplayRedbox(`
+        {
+          "description": "nooo",
+          "environmentLabel": null,
+          "label": "Runtime Error",
+          "source": "index.js (5:11) @ ClassDefault.render
+        > 5 |     throw new Error('nooo');
+            |           ^",
+          "stack": [
+            "ClassDefault.render index.js (5:11)",
+          ],
+        }
+      `)
     }
   })
 
@@ -648,11 +651,7 @@ describe('pages/ error recovery', () => {
       `
     )
 
-    // TODO(veil): ignore-list Webpack runtime (https://linear.app/vercel/issue/NDX-945)
-    // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
-    // We get an error because Foo didn't import React. Fair.
-    // Somehow we end up with two in React 18 due to React's attempt to recover from this error.
-    if (isReact18) {
+    if (isReact18 && (isRspack || isTurbopack)) {
       await expect(browser).toDisplayRedbox(`
        [
          {
@@ -664,9 +663,6 @@ describe('pages/ error recovery', () => {
            |   ^",
            "stack": [
              "Foo Foo.js (3:3)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
            ],
          },
          {
@@ -678,30 +674,42 @@ describe('pages/ error recovery', () => {
            |   ^",
            "stack": [
              "Foo Foo.js (3:3)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
            ],
          },
        ]
       `)
     } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "React is not defined",
-         "environmentLabel": null,
-         "label": "Runtime ReferenceError",
-         "source": "Foo.js (3:3) @ Foo
-       > 3 |   return React.createElement('h1', null, 'Foo');
-           |   ^",
-         "stack": [
-           "Foo Foo.js (3:3)",
-           "Set.forEach <anonymous> (0:0)",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-         ],
-       }
-      `)
+      if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "React is not defined",
+           "environmentLabel": null,
+           "label": "Runtime ReferenceError",
+           "source": "Foo.js (3:3) @ Foo
+         > 3 |   return React.createElement('h1', null, 'Foo');
+             |   ^",
+           "stack": [
+             "Foo Foo.js (3:3)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "React is not defined",
+           "environmentLabel": null,
+           "label": "Runtime ReferenceError",
+           "source": "Foo.js (3:3) @ Foo
+         > 3 |   return React.createElement('h1', null, 'Foo');
+             |   ^",
+           "stack": [
+             "Foo Foo.js (3:3)",
+           ],
+         }
+        `)
+      }
     }
 
     // Let's add that to Foo.
@@ -716,7 +724,7 @@ describe('pages/ error recovery', () => {
     )
 
     // Expected: this fixes the problem
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554150098
@@ -752,17 +760,17 @@ describe('pages/ error recovery', () => {
     )
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    if (process.env.NEXT_RSPACK) {
+    if (isRspack) {
       await expect(browser).toDisplayRedbox(`
             {
               "description": "no 1",
               "environmentLabel": null,
               "label": "Runtime Error",
-              "source": "index.js (5:9) @ <unknown>
+              "source": "index.js (5:9) @ eval
             > 5 |   throw Error('no ' + i)
                 |         ^",
               "stack": [
-                "<unknown> index.js (5:9)",
+                "eval index.js (5:9)",
               ],
             }
           `)
@@ -805,14 +813,14 @@ describe('pages/ error recovery', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (7:41)
+         "source": "./index.js (7:42)
        Parsing ecmascript source code failed
        > 7 | export default function FunctionNamed() {
-           |                                         ^",
+           |                                          ^",
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -820,18 +828,17 @@ describe('pages/ error recovery', () => {
          "label": "Build Error",
          "source": "./index.js
          × Module build failed:
-         ├─▶   ×
-         │     │   x Expected '}', got '<eof>'
-         │     │    ,-[<FIXME-project-root>/index.js:7:1]
-         │     │  4 |   i++
-         │     │  5 |   throw Error('no ' + i)
-         │     │  6 | }, 1000)
-         │     │  7 | export default function FunctionNamed() {
-         │     │    :                                         ^
-         │     │    \`----
-         │     │
-         │
-         ╰─▶ Syntax Error
+         ╰─▶   × Error:   x Expected '}', got '<eof>'
+               │    ,-[7:1]
+               │  4 |   i++
+               │  5 |   throw Error('no ' + i)
+               │  6 | }, 1000)
+               │  7 | export default function FunctionNamed() {
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
        Import trace for requested module:
        ./index.js
        ./pages/index.js",
@@ -851,7 +858,6 @@ describe('pages/ error recovery', () => {
         5 |   throw Error('no ' + i)
         6 | }, 1000)
         7 | export default function FunctionNamed() {
-          :                                         ^
           \`----
        Caused by:
            Syntax Error
@@ -873,14 +879,14 @@ describe('pages/ error recovery', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (7:41)
+         "source": "./index.js (7:42)
        Parsing ecmascript source code failed
        > 7 | export default function FunctionNamed() {
-           |                                         ^",
+           |                                          ^",
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -888,18 +894,17 @@ describe('pages/ error recovery', () => {
          "label": "Build Error",
          "source": "./index.js
          × Module build failed:
-         ├─▶   ×
-         │     │   x Expected '}', got '<eof>'
-         │     │    ,-[<FIXME-project-root>/index.js:7:1]
-         │     │  4 |   i++
-         │     │  5 |   throw Error('no ' + i)
-         │     │  6 | }, 1000)
-         │     │  7 | export default function FunctionNamed() {
-         │     │    :                                         ^
-         │     │    \`----
-         │     │
-         │
-         ╰─▶ Syntax Error
+         ╰─▶   × Error:   x Expected '}', got '<eof>'
+               │    ,-[7:1]
+               │  4 |   i++
+               │  5 |   throw Error('no ' + i)
+               │  6 | }, 1000)
+               │  7 | export default function FunctionNamed() {
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
        Import trace for requested module:
        ./index.js
        ./pages/index.js",
@@ -919,7 +924,6 @@ describe('pages/ error recovery', () => {
         5 |   throw Error('no ' + i)
         6 | }, 1000)
         7 | export default function FunctionNamed() {
-          :                                         ^
           \`----
        Caused by:
            Syntax Error

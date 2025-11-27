@@ -124,7 +124,7 @@ describe('basePath', () => {
             { shallow: false },
           ],
         ])
-      })
+      }, 10_000)
     } finally {
       await browser.close()
     }

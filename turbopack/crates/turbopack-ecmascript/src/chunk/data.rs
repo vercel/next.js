@@ -19,13 +19,12 @@ pub enum EcmascriptChunkData<'a> {
 }
 
 impl EcmascriptChunkData<'_> {
-    pub fn new(chunk_data: &ChunkData) -> EcmascriptChunkData {
+    pub fn new(chunk_data: &ChunkData) -> EcmascriptChunkData<'_> {
         let ChunkData {
             path,
             included,
             excluded,
             module_chunks,
-            references: _,
         } = chunk_data;
         if included.is_empty() && excluded.is_empty() && module_chunks.is_empty() {
             return EcmascriptChunkData::Simple(path);

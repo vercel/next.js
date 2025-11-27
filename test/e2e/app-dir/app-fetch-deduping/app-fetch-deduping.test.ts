@@ -25,7 +25,10 @@ describe('app-fetch-deduping', () => {
             successfulRequests.push(req.url)
           }
 
-          res.end(`Request ${req.url} received at ${Date.now()}`)
+          // Generate a response with more than two MB of data.
+          res.end(
+            `Request ${req.url} received at ${Date.now()}\n\n${'a'.repeat(2_000_000)}`
+          )
         })
 
         await new Promise<void>((resolve, reject) => {
@@ -37,23 +40,25 @@ describe('app-fetch-deduping', () => {
             reject(err)
           })
         })
-      })
 
-      beforeEach(() => {
-        successfulRequests = []
-      })
-
-      afterAll(() => externalServer.close())
-
-      it('dedupes requests amongst static workers', async () => {
         await next.patchFile(
           'next.config.js',
           `module.exports = {
             env: { TEST_SERVER_PORT: "${externalServerPort}" },
           }`
         )
+
         await next.build()
+      })
+
+      afterAll(() => externalServer.close())
+
+      it('dedupes requests amongst static workers', async () => {
         expect(successfulRequests.length).toBe(1)
+      })
+
+      it('does not print a fetch cache size limit warning', async () => {
+        expect(next.cliOutput).not.toInclude('Failed to set Next.js data cache')
       })
     })
   } else if (isNextDev) {
@@ -115,7 +120,38 @@ describe('app-fetch-deduping', () => {
         await retry(async () => {
           await next.render('/test')
           expect(invocation(next.cliOutput)).toBe(2)
+          await next.stop()
         }, 10_000)
+      })
+
+      it('dedupes requests with different trace headers', async () => {
+        await next.start()
+        await next.patchFile(
+          'app/test/page.tsx',
+          outdent`
+          async function getTime(traceId: string) {
+            const res = await fetch("http://localhost:${next.appPort}/api/time", {
+              headers: {
+                'traceparent': '00-\${traceId}-b7ad6b7169203331-01',
+                'tracestate': 'vendor1=value1'
+              }
+            })
+            return res.text()
+          }
+          
+          export default async function Home() {
+            await getTime('b7ad6b7169203331')
+            await getTime('c7ad6b7169203332')
+            const time = await getTime('d7ad6b7169203333')
+          
+            return <h1>{time}</h1>
+          }`
+        )
+
+        await next.render('/test')
+
+        expect(invocation(next.cliOutput)).toBe(1)
+        await next.stop()
       })
     })
   } else {

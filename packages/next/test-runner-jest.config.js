@@ -13,6 +13,6 @@ module.exports = {
    *  to merge testRunnerConfig properties with your own
    * @see https://jestjs.io/docs/configuration
    */
-  rootDir: '<rootDir>/../src/client/components/react-dev-overlay/',
+  rootDir: '<rootDir>/../src/next-devtools/dev-overlay/',
   testMatch: ['**/*.stories.tsx', '**/*.test.tsx'],
 }

@@ -37,12 +37,6 @@ impl<T: KeyValueDatabase> KeyValueDatabase for FreshDbOptimization<T> {
     where
         Self: 'l;
 
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i> {
-        T::lower_read_transaction(tx)
-    }
-
     fn is_empty(&self) -> bool {
         self.fresh_db.load(Ordering::Acquire) || self.database.is_empty()
     }
@@ -137,6 +131,10 @@ impl<'a, B: SerialWriteBatch<'a>> SerialWriteBatch<'a> for FreshDbOptimizationWr
     fn delete(&mut self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         self.write_batch.delete(key_space, key)
     }
+
+    fn flush(&mut self, key_space: KeySpace) -> Result<()> {
+        self.write_batch.flush(key_space)
+    }
 }
 
 impl<'a, B: ConcurrentWriteBatch<'a>> ConcurrentWriteBatch<'a>
@@ -148,5 +146,9 @@ impl<'a, B: ConcurrentWriteBatch<'a>> ConcurrentWriteBatch<'a>
 
     fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         self.write_batch.delete(key_space, key)
+    }
+
+    unsafe fn flush(&self, key_space: KeySpace) -> Result<()> {
+        unsafe { self.write_batch.flush(key_space) }
     }
 }

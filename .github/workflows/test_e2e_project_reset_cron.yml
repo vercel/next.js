@@ -1,0 +1,44 @@
+name: test-e2e-project-reset-cron
+
+on:
+  # Run every Sunday at 5AM UTC
+  schedule:
+    - cron: '0 5 * * 0'
+  # Allow manual triggering for emergency resets
+  workflow_dispatch:
+
+env:
+  VERCEL_TEST_TEAM: vtest314-next-e2e-tests
+  VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+  NODE_LTS_VERSION: 20
+  TURBO_TEAM: 'vercel'
+  TURBO_CACHE: 'remote:rw'
+
+run-name: test-e2e-project-reset (scheduled)
+
+jobs:
+  reset-test-project:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'vercel'
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - name: Setup pnpm
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 25
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Reset test project
+        run: node scripts/run-e2e-test-project-reset.mjs

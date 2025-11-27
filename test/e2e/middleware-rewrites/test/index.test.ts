@@ -24,15 +24,19 @@ describe('Middleware Rewrite', () => {
 
   function tests() {
     it('should handle catch-all rewrite correctly', async () => {
-      const browser = await next.browser('/', { waitHydration: false })
+      let requests: string[] = []
+
+      const browser = await next.browser('/', {
+        waitHydration: false,
+        beforePageLoad(page) {
+          page.on('request', (request) => {
+            const url = new URL(request.url())
+            requests.push(url.pathname)
+          })
+        },
+      })
 
       if (!(global as any).isNextDev) {
-        let requests = []
-
-        browser.on('request', (req) => {
-          requests.push(new URL(req.url()).pathname)
-        })
-
         browser.elementByCss('#to-article-rewrite').moveTo()
 
         await retry(async () => {
@@ -66,6 +70,34 @@ describe('Middleware Rewrite', () => {
       })
       expect(res.status).toBe(200)
       expect(await res.text()).toEqual(body)
+    })
+
+    it('should handle middleware rewrite with body and headers correctly', async () => {
+      const body = JSON.stringify({ hello: 'world' })
+      const res = await next.fetch(
+        '/middleware-external-rewrite-body-headers-return-body',
+        {
+          redirect: 'manual',
+          method: 'POST',
+          body,
+        }
+      )
+
+      expect(res.status).toBe(200)
+      expect(await res.text()).toEqual(body)
+
+      const resWithHeaders = await next.fetch(
+        '/middleware-external-rewrite-body-headers-return-headers',
+        {
+          redirect: 'manual',
+          method: 'POST',
+          body,
+        }
+      )
+
+      expect(resWithHeaders.status).toBe(200)
+      const json = await resWithHeaders.json()
+      expect(json.headers['x-hello-from-middleware1']).toBe('hello')
     })
 
     it('should handle static dynamic rewrite from middleware correctly', async () => {

@@ -5,10 +5,11 @@ import initHMR from './dev/hot-middleware-client'
 import { pageBootstrap } from './page-bootstrap'
 //@ts-expect-error requires "moduleResolution": "node16" in tsconfig.json and not .ts extension
 import { connect } from '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
-import type { TurbopackMsgToBrowser } from '../server/dev/hot-reloader-types'
+import type { TurbopackMessageSentToBrowser } from '../server/dev/hot-reloader-types'
 
 window.next = {
-  version: `${version}-turbo`,
+  version,
+  turbopack: true,
   // router is initialized later so it has to be live-binded
   get router() {
     return router
@@ -31,7 +32,9 @@ initialize({
       page: string,
       chunksData: any
     ) => {
-      const chunkPromises = chunksData.map(__turbopack_load__)
+      const chunkPromises = chunksData.map((c: unknown) =>
+        __turbopack_load__(c)
+      )
 
       Promise.all(chunkPromises).catch((err) =>
         console.error('failed to load chunks for page ' + page, err)
@@ -39,7 +42,7 @@ initialize({
     }
 
     connect({
-      addMessageListener(cb: (msg: TurbopackMsgToBrowser) => void) {
+      addMessageListener(cb: (message: TurbopackMessageSentToBrowser) => void) {
         devClient.addTurbopackMessageListener(cb)
       },
       sendMessage: devClient.sendTurbopackMessage,

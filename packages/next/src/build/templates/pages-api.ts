@@ -12,6 +12,8 @@ import { hoist } from './helpers'
 import * as userland from 'VAR_USERLAND'
 import { getTracer, SpanKind } from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
+import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
+import { addRequestMeta } from '../../server/request-meta'
 
 // Re-export the handler (should be the default export).
 export default hoist(userland, 'default')
@@ -31,6 +33,7 @@ const routeModule = new PagesAPIRouteModule({
   },
   userland,
   distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
+  relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 })
 
 export async function handler(
@@ -40,15 +43,19 @@ export async function handler(
     waitUntil?: (prom: Promise<void>) => void
   }
 ): Promise<void> {
+  if (routeModule.isDev) {
+    addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
+  }
   let srcPage = 'VAR_DEFINITION_PAGE'
 
   // turbopack doesn't normalize `/index` in the page name
   // so we need to to process dynamic routes properly
+  // TODO: fix turbopack providing differing value from webpack
   if (process.env.TURBOPACK) {
-    srcPage = srcPage.replace(/\/index$/, '')
+    srcPage = srcPage.replace(/\/index$/, '') || '/'
   }
 
-  const prepareResult = await routeModule.prepare(req, srcPage)
+  const prepareResult = await routeModule.prepare(req, res, { srcPage })
 
   if (!prepareResult) {
     res.statusCode = 400
@@ -57,18 +64,24 @@ export async function handler(
     return
   }
 
-  const { query, params, prerenderManifest } = prepareResult
+  const { query, params, prerenderManifest, routerServerContext } =
+    prepareResult
 
   try {
     const method = req.method || 'GET'
     const tracer = getTracer()
 
     const activeSpan = tracer.getActiveScopeSpan()
+    const onRequestError =
+      routeModule.instrumentationOnRequestError.bind(routeModule)
 
     const invokeRouteModule = async (span?: Span) =>
       routeModule
         .render(req, res, {
-          query,
+          query: {
+            ...query,
+            ...params,
+          },
           params,
           allowedRevalidateHeaderKeys: process.env
             .__NEXT_ALLOWED_REVALIDATE_HEADERS as any as string[],
@@ -82,7 +95,10 @@ export async function handler(
           dev: routeModule.isDev,
           page: 'VAR_DEFINITION_PAGE',
 
-          onError: routeModule.instrumentationOnRequestError.bind(routeModule),
+          internalRevalidate: routerServerContext?.revalidate,
+
+          onError: (...args: Parameters<InstrumentationOnRequestError>) =>
+            onRequestError(req, ...args),
         })
         .finally(() => {
           if (!span) return
@@ -121,7 +137,7 @@ export async function handler(
             })
             span.updateName(name)
           } else {
-            span.updateName(`${method} ${req.url}`)
+            span.updateName(`${method} ${srcPage}`)
           }
         })
 
@@ -134,7 +150,7 @@ export async function handler(
         tracer.trace(
           BaseServerSpan.handleRequest,
           {
-            spanName: `${method} ${req.url}`,
+            spanName: `${method} ${srcPage}`,
             kind: SpanKind.SERVER,
             attributes: {
               'http.method': method,

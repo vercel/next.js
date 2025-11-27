@@ -63,7 +63,7 @@ export async function lazyPostCSS(
 ) {
   if (!postcssInstancePromise) {
     postcssInstancePromise = (async () => {
-      const postcss = require('postcss')
+      const postcss = require('postcss') as typeof import('postcss')
       // @ts-ignore backwards compat
       postcss.plugin = function postcssPlugin(name, initializer) {
         function creator(...args: any) {
@@ -174,19 +174,7 @@ export const css = curry(async function css(
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
         sourceMap: true,
-        sassOptions: {
-          // The "fibers" option is not needed for Node.js 16+, but it's causing
-          // problems for Node.js <= 14 users as you'll have to manually install
-          // the `fibers` package:
-          // https://github.com/webpack-contrib/sass-loader#:~:text=We%20automatically%20inject%20the%20fibers%20package
-          // https://github.com/vercel/next.js/issues/45052
-          // Since it's optional and not required, we'll disable it by default
-          // to avoid the confusion.
-          fibers: false,
-          // TODO: Remove this once we upgrade to sass-loader 16
-          silenceDeprecations: ['legacy-js-api'],
-          ...sassOptions,
-        },
+        sassOptions,
         additionalData: sassPrependData || sassAdditionalData,
       },
     },
@@ -596,7 +584,9 @@ export const css = curry(async function css(
     // Extract CSS as CSS file(s) in the client-side production bundle.
     const MiniCssExtractPlugin = isRspack
       ? getRspackCore().CssExtractRspackPlugin
-      : require('../../../plugins/mini-css-extract-plugin').default
+      : (
+          require('../../../plugins/mini-css-extract-plugin') as typeof import('../../../plugins/mini-css-extract-plugin')
+        ).default
 
     fns.push(
       plugin(

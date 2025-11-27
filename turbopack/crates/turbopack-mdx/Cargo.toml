@@ -14,7 +14,6 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-serde = { workspace = true }
 
 markdown = { workspace = true }
 mdxjs = { workspace = true }
@@ -25,5 +24,3 @@ turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

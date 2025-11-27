@@ -1,4 +1,3 @@
-pub mod amp_attributes;
 pub mod cjs_finder;
 pub mod cjs_optimizer;
 pub mod debug_fn_name;
@@ -12,7 +11,6 @@ pub mod next_ssg;
 pub mod optimize_barrel;
 pub mod optimize_server_react;
 pub mod page_config;
-pub mod page_static_info;
 pub mod pure;
 pub mod react_server_components;
 pub mod server_actions;

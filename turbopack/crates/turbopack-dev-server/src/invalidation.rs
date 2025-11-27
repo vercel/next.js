@@ -1,4 +1,7 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    any::Any,
+    fmt::{Display, Formatter},
+};
 
 use hyper::{Method, Uri};
 use turbo_tasks::{FxIndexSet, InvalidationReason, InvalidationReasonKind, util::StaticOrArc};
@@ -36,7 +39,12 @@ impl InvalidationReasonKind for ServerRequestKind {
     ) -> std::fmt::Result {
         let example = reasons
             .into_iter()
-            .map(|reason| reason.as_any().downcast_ref::<ServerRequest>().unwrap())
+            .map(|reason| {
+                let reason: &dyn InvalidationReason = &**reason;
+                (reason as &dyn Any)
+                    .downcast_ref::<ServerRequest>()
+                    .unwrap()
+            })
             .min_by_key(|reason| reason.uri.path().len())
             .unwrap();
         write!(
@@ -84,8 +92,8 @@ impl InvalidationReasonKind for ServerRequestSideEffectsKind {
         let example = reasons
             .into_iter()
             .map(|reason| {
-                reason
-                    .as_any()
+                let reason: &dyn InvalidationReason = &**reason;
+                (reason as &dyn Any)
                     .downcast_ref::<ServerRequestSideEffects>()
                     .unwrap()
             })

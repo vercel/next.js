@@ -22,17 +22,16 @@ pub async fn content_from_relative_path(
     let disk_fs = DiskFileSystem::new(
         root_path.to_string_lossy().into(),
         root_path.to_string_lossy().into(),
-        vec![],
     );
     disk_fs.await?.start_watching(None).await?;
 
-    let fs_path = disk_fs.root().join(path.into());
+    let fs_path = disk_fs.root().await?.join(path)?;
     Ok(fs_path.read())
 }
 
 #[turbo_tasks::function]
 pub fn content_from_str(string: RcStr) -> Vc<FileContent> {
-    File::from(string).into()
+    FileContent::Content(File::from(string)).cell()
 }
 
 /// Loads a file's content from disk and invalidates on change (debug builds).

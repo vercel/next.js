@@ -1,6 +1,6 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -17,21 +17,21 @@ use super::{
 #[turbo_tasks::value(shared)]
 pub struct StaticAssetsContentSource {
     pub prefix: ResolvedVc<RcStr>,
-    pub dir: ResolvedVc<FileSystemPath>,
+    pub dir: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl StaticAssetsContentSource {
     // TODO(WEB-1151): Remove this method and migrate users to `with_prefix`.
     #[turbo_tasks::function]
-    pub fn new(prefix: RcStr, dir: Vc<FileSystemPath>) -> Vc<StaticAssetsContentSource> {
+    pub fn new(prefix: RcStr, dir: FileSystemPath) -> Vc<StaticAssetsContentSource> {
         StaticAssetsContentSource::with_prefix(Vc::cell(prefix), dir)
     }
 
     #[turbo_tasks::function]
     pub async fn with_prefix(
         prefix: ResolvedVc<RcStr>,
-        dir: ResolvedVc<FileSystemPath>,
+        dir: FileSystemPath,
     ) -> Result<Vc<StaticAssetsContentSource>> {
         if cfg!(debug_assertions) {
             let prefix_string = prefix.await?;
@@ -44,7 +44,7 @@ impl StaticAssetsContentSource {
 
 // TODO(WEB-1251) It would be better to lazily enumerate the directory
 #[turbo_tasks::function]
-async fn get_routes_from_directory(dir: Vc<FileSystemPath>) -> Result<Vc<RouteTree>> {
+async fn get_routes_from_directory(dir: FileSystemPath) -> Result<Vc<RouteTree>> {
     let dir = dir.read_dir().await?;
     let DirectoryContent::Entries(entries) = &*dir else {
         return Ok(RouteTree::empty());
@@ -57,11 +57,11 @@ async fn get_routes_from_directory(dir: Vc<FileSystemPath>) -> Result<Vc<RouteTr
                 Some(RouteTree::new_route(
                     vec![BaseSegment::Static(name.clone())],
                     RouteType::Exact,
-                    Vc::upcast(StaticAssetsContentSourceItem::new(**path)),
+                    Vc::upcast(StaticAssetsContentSourceItem::new(path.clone())),
                 ))
             }
             DirectoryEntry::Directory(path) => Some(
-                get_routes_from_directory(**path)
+                get_routes_from_directory(path.clone())
                     .with_prepended_base(vec![BaseSegment::Static(name.clone())]),
             ),
             _ => None,
@@ -78,19 +78,19 @@ impl ContentSource for StaticAssetsContentSource {
     async fn get_routes(&self) -> Result<Vc<RouteTree>> {
         let prefix = self.prefix.await?;
         let prefix = BaseSegment::from_static_pathname(prefix.as_str()).collect::<Vec<_>>();
-        Ok(get_routes_from_directory(*self.dir).with_prepended_base(prefix))
+        Ok(get_routes_from_directory(self.dir.clone()).with_prepended_base(prefix))
     }
 }
 
 #[turbo_tasks::value]
 struct StaticAssetsContentSourceItem {
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl StaticAssetsContentSourceItem {
     #[turbo_tasks::function]
-    pub fn new(path: ResolvedVc<FileSystemPath>) -> Vc<StaticAssetsContentSourceItem> {
+    pub fn new(path: FileSystemPath) -> Vc<StaticAssetsContentSourceItem> {
         StaticAssetsContentSourceItem { path }.cell()
     }
 }
@@ -98,8 +98,8 @@ impl StaticAssetsContentSourceItem {
 #[turbo_tasks::value_impl]
 impl GetContentSourceContent for StaticAssetsContentSourceItem {
     #[turbo_tasks::function]
-    fn get(&self, _path: RcStr, _data: Value<ContentSourceData>) -> Vc<ContentSourceContent> {
-        let content = Vc::upcast::<Box<dyn Asset>>(FileSource::new(*self.path)).content();
+    fn get(&self, _path: RcStr, _data: ContentSourceData) -> Vc<ContentSourceContent> {
+        let content = Vc::upcast::<Box<dyn Asset>>(FileSource::new(self.path.clone())).content();
         ContentSourceContent::static_content(content.versioned())
     }
 }
@@ -108,7 +108,7 @@ impl GetContentSourceContent for StaticAssetsContentSourceItem {
 impl Introspectable for StaticAssetsContentSource {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        Vc::cell("static assets directory content source".into())
+        Vc::cell(rcstr!("static assets directory content source"))
     }
 
     #[turbo_tasks::function]
@@ -126,25 +126,23 @@ impl Introspectable for StaticAssetsContentSource {
                 async move {
                     let child = match entry {
                         DirectoryEntry::File(path) | DirectoryEntry::Symlink(path) => {
-                            ResolvedVc::upcast(
-                                IntrospectableSource::new(Vc::upcast(FileSource::new(**path)))
-                                    .to_resolved()
-                                    .await?,
-                            )
+                            IntrospectableSource::new(Vc::upcast(FileSource::new(path.clone())))
+                                .to_resolved()
+                                .await?
                         }
                         DirectoryEntry::Directory(path) => ResolvedVc::upcast(
                             StaticAssetsContentSource::with_prefix(
                                 Vc::cell(format!("{}{name}/", &*prefix).into()),
-                                **path,
+                                path.clone(),
                             )
                             .to_resolved()
                             .await?,
                         ),
-                        DirectoryEntry::Other(_) | DirectoryEntry::Error => {
+                        DirectoryEntry::Other(_) | DirectoryEntry::Error(_) => {
                             todo!("unsupported DirectoryContent variant: {entry:?}")
                         }
                     };
-                    Ok((ResolvedVc::cell(name.clone()), child))
+                    Ok((name.clone(), child))
                 }
             })
             .try_join()
