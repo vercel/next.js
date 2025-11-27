@@ -2359,32 +2359,31 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // Grab the old dirty state
         let old_dirtyness = get!(task, Dirty).cloned();
-        let (was_dirty, was_current_session_clean, old_clean_in_session) = match old_dirtyness {
-            None => (false, false, None),
-            Some(Dirtyness::Dirty) => (true, false, None),
-            Some(Dirtyness::SessionDependent) => {
-                let clean_in_session = get!(task, CleanInSession).copied();
-                (
-                    true,
-                    clean_in_session == Some(self.session_id),
-                    clean_in_session,
-                )
-            }
-        };
-        let old_dirty_value = if was_dirty { 1 } else { 0 };
-        let old_current_session_clean_value = if was_current_session_clean { 1 } else { 0 };
+        let (old_self_dirty, old_current_session_self_clean, old_clean_in_session) =
+            match old_dirtyness {
+                None => (false, false, None),
+                Some(Dirtyness::Dirty) => (true, false, None),
+                Some(Dirtyness::SessionDependent) => {
+                    let clean_in_session = get!(task, CleanInSession).copied();
+                    (
+                        true,
+                        clean_in_session == Some(self.session_id),
+                        clean_in_session,
+                    )
+                }
+            };
 
         // Compute the new dirty state
-        let (new_dirtyness, new_clean_in_session, new_dirty_value, new_current_session_clean_value) =
+        let (new_dirtyness, new_clean_in_session, new_self_dirty, new_current_session_self_clean) =
             if session_dependent {
                 (
                     Some(Dirtyness::SessionDependent),
                     Some(self.session_id),
-                    1,
-                    1,
+                    true,
+                    true,
                 )
             } else {
-                (None, None, 0, 0)
+                (None, None, false, false)
             };
 
         // Update the dirty state
@@ -2404,8 +2403,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         // Propagate dirtyness changes
-        let data_update = if old_dirty_value != new_dirty_value
-            || old_current_session_clean_value != new_current_session_clean_value
+        let data_update = if old_self_dirty != new_self_dirty
+            || old_current_session_self_clean != new_current_session_self_clean
         {
             let dirty_container_count = get!(task, AggregatedDirtyContainerCount)
                 .cloned()
@@ -2423,10 +2422,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 new_dirty_container_count: dirty_container_count,
                 old_current_session_clean_container_count: current_session_clean_container_count,
                 new_current_session_clean_container_count: current_session_clean_container_count,
-                old_dirty_value,
-                new_dirty_value,
-                old_current_session_clean_value,
-                new_current_session_clean_value,
+                old_self_dirty,
+                new_self_dirty,
+                old_current_session_self_clean,
+                new_current_session_self_clean,
             }
             .compute();
             result

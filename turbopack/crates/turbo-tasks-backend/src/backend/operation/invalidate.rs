@@ -234,7 +234,7 @@ pub fn make_task_dirty_internal(
     let old = task.insert(CachedDataItem::Dirty {
         value: Dirtyness::Dirty,
     });
-    let (old_dirty_value, old_current_session_clean_value) = match old {
+    let (old_self_dirty, old_current_session_self_clean) = match old {
         Some(CachedDataItemValue::Dirty {
             value: Dirtyness::Dirty,
         }) => {
@@ -259,7 +259,7 @@ pub fn make_task_dirty_internal(
             {
                 // There was a clean count for a session. If it was the current session, we need to
                 // propagate that change.
-                (1, 1)
+                (true, true)
             } else {
                 #[cfg(feature = "trace_task_dirty")]
                 let _span = tracing::trace_span!(
@@ -274,13 +274,13 @@ pub fn make_task_dirty_internal(
         }
         None => {
             // It was clean before, so we need to increase the dirty count
-            (0, 0)
+            (false, false)
         }
         _ => unreachable!(),
     };
 
-    let new_dirty_value = 1;
-    let new_current_session_clean_value = 0;
+    let new_self_dirty = true;
+    let new_current_session_self_clean = false;
 
     let dirty_container_count = get!(task, AggregatedDirtyContainerCount)
         .copied()
@@ -308,10 +308,10 @@ pub fn make_task_dirty_internal(
         new_dirty_container_count: dirty_container_count,
         old_current_session_clean_container_count: current_session_clean_container_count,
         new_current_session_clean_container_count: current_session_clean_container_count,
-        old_dirty_value,
-        new_dirty_value,
-        old_current_session_clean_value,
-        new_current_session_clean_value,
+        old_self_dirty,
+        new_self_dirty,
+        old_current_session_self_clean,
+        new_current_session_self_clean,
     }
     .compute();
 

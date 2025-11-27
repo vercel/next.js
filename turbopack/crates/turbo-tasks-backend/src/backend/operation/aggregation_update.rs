@@ -99,10 +99,10 @@ pub struct ComputeDirtyAndCleanUpdate {
     pub new_dirty_container_count: i32,
     pub old_current_session_clean_container_count: i32,
     pub new_current_session_clean_container_count: i32,
-    pub old_dirty_value: i32,
-    pub new_dirty_value: i32,
-    pub old_current_session_clean_value: i32,
-    pub new_current_session_clean_value: i32,
+    pub old_self_dirty: bool,
+    pub new_self_dirty: bool,
+    pub old_current_session_self_clean: bool,
+    pub new_current_session_self_clean: bool,
 }
 
 pub struct ComputeDirtyAndCleanUpdateResult {
@@ -117,23 +117,19 @@ impl ComputeDirtyAndCleanUpdate {
             new_dirty_container_count,
             old_current_session_clean_container_count,
             new_current_session_clean_container_count,
-            old_dirty_value,
-            new_dirty_value,
-            old_current_session_clean_value,
-            new_current_session_clean_value,
+            old_self_dirty,
+            new_self_dirty,
+            old_current_session_self_clean,
+            new_current_session_self_clean,
         } = self;
-        let was_dirty_without_clean = old_dirty_container_count + old_dirty_value > 0;
-        let is_dirty_without_clean = new_dirty_container_count + new_dirty_value > 0;
-        let was_dirty = was_dirty_without_clean
-            && old_dirty_container_count + old_dirty_value
-                - old_current_session_clean_container_count
-                - old_current_session_clean_value
-                > 0;
-        let is_dirty = is_dirty_without_clean
-            && new_dirty_container_count + new_dirty_value
-                - new_current_session_clean_container_count
-                - new_current_session_clean_value
-                > 0;
+        let was_dirty_without_clean = old_self_dirty || old_dirty_container_count > 0;
+        let is_dirty_without_clean = new_self_dirty || new_dirty_container_count > 0;
+        let was_dirty = old_self_dirty && !old_current_session_self_clean
+            || old_dirty_container_count > 0
+                && old_dirty_container_count > old_current_session_clean_container_count;
+        let is_dirty = new_self_dirty && !new_current_session_self_clean
+            || new_dirty_container_count > 0
+                && new_dirty_container_count > new_current_session_clean_container_count;
         let was_flagged_clean = was_dirty_without_clean && !was_dirty;
         let is_flagged_clean = is_dirty_without_clean && !is_dirty;
 
@@ -501,9 +497,7 @@ impl AggregatedDataUpdate {
                 before_after_to_diff_value(was_single_container_clean, is_single_container_clean);
 
             if dirty_container_count_update != 0 || current_session_clean_update != 0 {
-                let (is_dirty, current_session_clean) = task.dirty(current_session_id);
-                let dirty_value = if is_dirty { 1 } else { 0 };
-                let clean_value = if current_session_clean { 1 } else { 0 };
+                let (is_self_dirty, current_session_self_clean) = task.dirty(current_session_id);
 
                 let task_id = task.id();
 
@@ -525,8 +519,8 @@ impl AggregatedDataUpdate {
                     old_dirty_container_count = new_dirty_container_count;
                 };
 
-                let was_dirty_without_clean = old_dirty_container_count + dirty_value > 0;
-                let is_dirty_without_clean = new_dirty_container_count + dirty_value > 0;
+                let was_dirty_without_clean = is_self_dirty || old_dirty_container_count > 0;
+                let is_dirty_without_clean = is_self_dirty || new_dirty_container_count > 0;
 
                 let upper_count_update =
                     before_after_to_diff_value(was_dirty_without_clean, is_dirty_without_clean);
@@ -557,16 +551,14 @@ impl AggregatedDataUpdate {
                         new_current_session_clean_container_count;
                 };
 
-                let was_dirty = was_dirty_without_clean
-                    && old_dirty_container_count + dirty_value
-                        - old_current_session_clean_container_count
-                        - clean_value
-                        > 0;
-                let is_dirty = is_dirty_without_clean
-                    && new_dirty_container_count + dirty_value
-                        - new_current_session_clean_container_count
-                        - clean_value
-                        > 0;
+                let was_dirty = is_self_dirty && !current_session_self_clean
+                    || old_dirty_container_count > 0
+                        && old_dirty_container_count - old_current_session_clean_container_count
+                            > 0;
+                let is_dirty = is_self_dirty && !current_session_self_clean
+                    || new_dirty_container_count > 0
+                        && new_dirty_container_count - new_current_session_clean_container_count
+                            > 0;
 
                 let was_flagged_clean = was_dirty_without_clean && !was_dirty;
                 let is_flagged_clean = is_dirty_without_clean && !is_dirty;
@@ -578,10 +570,10 @@ impl AggregatedDataUpdate {
                     new_dirty_container_count,
                     old_current_session_clean_container_count,
                     new_current_session_clean_container_count,
-                    old_dirty_value: dirty_value,
-                    new_dirty_value: dirty_value,
-                    old_current_session_clean_value: clean_value,
-                    new_current_session_clean_value: clean_value,
+                    old_self_dirty: is_self_dirty,
+                    new_self_dirty: is_self_dirty,
+                    old_current_session_self_clean: current_session_self_clean,
+                    new_current_session_self_clean: current_session_self_clean,
                 }
                 .compute();
                 assert_eq!(compute_result.dirty_count_update, upper_count_update);
