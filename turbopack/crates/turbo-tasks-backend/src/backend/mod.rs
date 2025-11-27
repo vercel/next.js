@@ -2998,17 +2998,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
                 if should_be_in_upper {
                     for upper_id in uppers {
-                        let task = ctx.task(task_id, TaskDataCategory::All);
+                        let task = ctx.task(upper_id, TaskDataCategory::All);
                         let in_upper = get!(task, AggregatedDirtyContainer { task: task_id })
                             .is_some_and(|&dirty| dirty > 0);
                         if !in_upper {
+                            let containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task: task_id } value => (task_id, *value));
                             panic!(
                                 "Task {} ({}) is dirty, but is not listed in the upper task {} \
-                                 ({})",
+                                 ({})\nThese dirty containers are present:\n{:#?}",
                                 task_id,
                                 ctx.get_task_description(task_id),
                                 upper_id,
-                                ctx.get_task_description(upper_id)
+                                ctx.get_task_description(upper_id),
+                                containers,
                             );
                         }
                     }
