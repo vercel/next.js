@@ -234,7 +234,7 @@ pub fn make_task_dirty_internal(
     let old = task.insert(CachedDataItem::Dirty {
         value: Dirtyness::Dirty,
     });
-    let mut dirty_container = match old {
+    let dirty_session = match old {
         Some(CachedDataItemValue::Dirty {
             value: Dirtyness::Dirty,
         }) => {
@@ -252,37 +252,39 @@ pub fn make_task_dirty_internal(
         Some(CachedDataItemValue::Dirty {
             value: Dirtyness::SessionDependent,
         }) => {
+            // It was a session-dependent dirty before, so we need to remove that clean count
             let old = remove!(task, CleanInSession);
-            match old {
-                None => {
-                    #[cfg(feature = "trace_task_dirty")]
-                    let _span = tracing::trace_span!(
-                        "session-dependent task already dirty",
-                        name = ctx.get_task_description(task_id),
-                        cause = %TaskDirtyCauseInContext::new(&cause, ctx)
-                    )
-                    .entered();
-                    // already dirty
-                    return;
-                }
-                Some(session_id) => {
-                    // Got dirty in that one session only
-                    let mut dirty_container = get!(task, AggregatedDirtyContainerCount)
-                        .cloned()
-                        .unwrap_or_default();
-                    dirty_container.update_session_dependent(session_id, 1);
-                    dirty_container
-                }
+            if let Some(session_id) = old
+                && session_id == ctx.session_id()
+            {
+                // There was a clean count for a session. If it was the current session, we need to
+                // propagate that change.
+                Some(session_id)
+            } else {
+                #[cfg(feature = "trace_task_dirty")]
+                let _span = tracing::trace_span!(
+                    "session-dependent task already dirty",
+                    name = ctx.get_task_description(task_id),
+                    cause = %TaskDirtyCauseInContext::new(&cause, ctx)
+                )
+                .entered();
+                // already dirty
+                return;
             }
         }
         None => {
-            // Get dirty for all sessions
-            get!(task, AggregatedDirtyContainerCount)
-                .cloned()
-                .unwrap_or_default()
+            // It was clean before, so we need to increase the dirty count
+            None
         }
         _ => unreachable!(),
     };
+
+    let mut dirty_container = get!(task, AggregatedDirtyContainerCount)
+        .cloned()
+        .unwrap_or_default();
+    if let Some(session_id) = dirty_session {
+        dirty_container.update_session_dependent(session_id, 1);
+    }
 
     #[cfg(feature = "trace_task_dirty")]
     let _span = tracing::trace_span!(
