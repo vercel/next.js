@@ -210,7 +210,8 @@ impl EcmascriptInputTransform {
                     swc_core::ecma::preset_env::Config {
                         targets: Some(Targets::Versions(*versions)),
                         mode: None, // Don't insert core-js polyfills
-                        // Disable some ancient ES3 transforms, ReservedWords breaks resolving of some idents 
+                        // Disable some ancient ES3 transforms, ReservedWords breaks resolving of
+                        // some idents references
                         exclude: vec![
                             FeatureOrModule::Feature(Feature::ReservedWords),
                             FeatureOrModule::Feature(Feature::MemberExpressionLiterals),
