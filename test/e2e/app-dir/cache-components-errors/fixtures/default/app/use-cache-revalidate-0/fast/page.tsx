@@ -5,6 +5,11 @@ export default async function Page() {
 
   cacheLife({ revalidate: 0 })
 
+  // This cache can produce an entry microtaskily.
+  // We explicitly test it separately from "slow" caches,
+  // because of a dev bug where "fast" caches like this didn't register as a cache miss
+  // and thus sidestepped the usual logic for omitting short-lived caches.
+
   return (
     <>
       <p>
