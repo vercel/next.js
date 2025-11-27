@@ -43,6 +43,7 @@ describe('Required Server Files', () => {
           if (
             file === 'server' ||
             file === 'required-server-files.json' ||
+            file === 'node_modules' ||
             requiredFilesManifest.files.includes(join('.next', file))
           ) {
             continue

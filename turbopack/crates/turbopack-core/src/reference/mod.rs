@@ -4,8 +4,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
-    ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 
 use crate::{
@@ -299,7 +299,7 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
 pub struct ResolvedReference {
     pub chunking_type: ChunkingType,
     pub binding_usage: BindingUsage,
-    pub modules: ReadRef<Modules>,
+    pub modules: Vec<ResolvedVc<Box<dyn Module>>>,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -330,9 +330,8 @@ pub async fn primary_chunkable_referenced_modules(
 
                 let resolved = reference
                     .resolve_reference()
-                    .resolve()
                     .await?
-                    .primary_modules()
+                    .primary_modules_ref()
                     .await?;
                 let binding_usage = reference.binding_usage().owned().await?;
 

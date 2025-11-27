@@ -571,21 +571,29 @@
       "cache-components-dev-warmup - with runtime prefetch configs initial load cached data resolves in the correct phase cached data + private cache",
       "cache-components-dev-warmup - with runtime prefetch configs initial load cached data resolves in the correct phase cached data + short-lived cached data",
       "cache-components-dev-warmup - with runtime prefetch configs initial load request APIs resolve in the correct phase",
+      "cache-components-dev-warmup - with runtime prefetch configs initial load sync IO in the runtime phase",
+      "cache-components-dev-warmup - with runtime prefetch configs initial load sync IO in the static phase",
       "cache-components-dev-warmup - with runtime prefetch configs navigation cached data resolves in the correct phase cache reads that reveal more components with more caches",
       "cache-components-dev-warmup - with runtime prefetch configs navigation cached data resolves in the correct phase cached data + cached fetch",
       "cache-components-dev-warmup - with runtime prefetch configs navigation cached data resolves in the correct phase cached data + private cache",
       "cache-components-dev-warmup - with runtime prefetch configs navigation cached data resolves in the correct phase cached data + short-lived cached data",
       "cache-components-dev-warmup - with runtime prefetch configs navigation request APIs resolve in the correct phase",
+      "cache-components-dev-warmup - with runtime prefetch configs navigation sync IO in the runtime phase",
+      "cache-components-dev-warmup - with runtime prefetch configs navigation sync IO in the static phase",
       "cache-components-dev-warmup - without runtime prefetch configs initial load cached data resolves in the correct phase cache reads that reveal more components with more caches",
       "cache-components-dev-warmup - without runtime prefetch configs initial load cached data resolves in the correct phase cached data + cached fetch",
       "cache-components-dev-warmup - without runtime prefetch configs initial load cached data resolves in the correct phase cached data + private cache",
       "cache-components-dev-warmup - without runtime prefetch configs initial load cached data resolves in the correct phase cached data + short-lived cached data",
       "cache-components-dev-warmup - without runtime prefetch configs initial load request APIs resolve in the correct phase",
+      "cache-components-dev-warmup - without runtime prefetch configs initial load sync IO in the runtime phase",
+      "cache-components-dev-warmup - without runtime prefetch configs initial load sync IO in the static phase",
       "cache-components-dev-warmup - without runtime prefetch configs navigation cached data resolves in the correct phase cache reads that reveal more components with more caches",
       "cache-components-dev-warmup - without runtime prefetch configs navigation cached data resolves in the correct phase cached data + cached fetch",
       "cache-components-dev-warmup - without runtime prefetch configs navigation cached data resolves in the correct phase cached data + private cache",
       "cache-components-dev-warmup - without runtime prefetch configs navigation cached data resolves in the correct phase cached data + short-lived cached data",
-      "cache-components-dev-warmup - without runtime prefetch configs navigation request APIs resolve in the correct phase"
+      "cache-components-dev-warmup - without runtime prefetch configs navigation request APIs resolve in the correct phase",
+      "cache-components-dev-warmup - without runtime prefetch configs navigation sync IO in the runtime phase",
+      "cache-components-dev-warmup - without runtime prefetch configs navigation sync IO in the static phase"
     ],
     "failed": [],
     "pending": [],
@@ -8875,6 +8883,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/force-stale/force-stale.test.ts": {
+    "passed": ["force stale prefetching is disabled in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts": {
     "passed": [
       "segment cache memory pressure disabled in development / deployment"
@@ -9081,7 +9096,6 @@
       "shallow-routing pushState should support setting a different pathname reflected on usePathname",
       "shallow-routing pushState should support setting a different searchParam reflected on useSearchParams",
       "shallow-routing pushState should support setting a different url using a string",
-      "shallow-routing pushState should support setting data",
       "shallow-routing pushState should work when given a null state value",
       "shallow-routing replaceState should support setting a different pathname reflected on usePathname",
       "shallow-routing replaceState should support setting a different searchParam reflected on useSearchParams",
@@ -9091,7 +9105,7 @@
       "shallow-routing replaceState should work when given an undefined state value",
       "shallow-routing should work when given an undefined state value"
     ],
-    "failed": [],
+    "failed": ["shallow-routing pushState should support setting data"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9385,13 +9399,14 @@
   },
   "test/e2e/app-dir/use-cache-hanging-inputs/use-cache-hanging-inputs.test.ts": {
     "passed": [
+      "use-cache-hanging-inputs when an error is thrown should show an error overlay with only one error"
+    ],
+    "failed": [],
+    "pending": [
       "use-cache-hanging-inputs when a \"use cache\" function is closing over an uncached promise should show an error toast after a timeout",
-      "use-cache-hanging-inputs when an error is thrown should show an error overlay with only one error",
       "use-cache-hanging-inputs when an uncached promise is used inside of \"use cache\" should show an error toast after a timeout",
       "use-cache-hanging-inputs when an uncached promise is used inside of a nested \"use cache\" should show an error toast after a timeout"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10271,6 +10286,32 @@
     "failed": [],
     "pending": [
       "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/filesystem-cache/filesystem-cache.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "filesystem-caching with cache disabled should allow to change files while stopped (Pages change)",
+      "filesystem-caching with cache disabled should allow to change files while stopped (RCC change)",
+      "filesystem-caching with cache disabled should allow to change files while stopped (RSC change)",
+      "filesystem-caching with cache disabled should allow to change files while stopped (RSC change, RCC change, Pages change, rename app page, loader change, next config change, env var change)",
+      "filesystem-caching with cache disabled should allow to change files while stopped (env var change)",
+      "filesystem-caching with cache disabled should allow to change files while stopped (loader change)",
+      "filesystem-caching with cache disabled should allow to change files while stopped (next config change)",
+      "filesystem-caching with cache disabled should allow to change files while stopped (rename app page)",
+      "filesystem-caching with cache disabled should cache or not cache loaders",
+      "filesystem-caching with cache enabled should allow to change files while stopped (Pages change)",
+      "filesystem-caching with cache enabled should allow to change files while stopped (RCC change)",
+      "filesystem-caching with cache enabled should allow to change files while stopped (RSC change)",
+      "filesystem-caching with cache enabled should allow to change files while stopped (RSC change, RCC change, Pages change, rename app page, loader change, next config change, env var change)",
+      "filesystem-caching with cache enabled should allow to change files while stopped (env var change)",
+      "filesystem-caching with cache enabled should allow to change files while stopped (loader change)",
+      "filesystem-caching with cache enabled should allow to change files while stopped (next config change)",
+      "filesystem-caching with cache enabled should allow to change files while stopped (rename app page)",
+      "filesystem-caching with cache enabled should cache or not cache loaders"
     ],
     "flakey": [],
     "runtimeError": false
@@ -11331,6 +11372,7 @@
       "Middleware Rewrite should clear query parameters",
       "Middleware Rewrite should correctly rewriting to a different dynamic path",
       "Middleware Rewrite should handle catch-all rewrite correctly",
+      "Middleware Rewrite should handle middleware rewrite with body and headers correctly",
       "Middleware Rewrite should handle middleware rewrite with body correctly",
       "Middleware Rewrite should handle next.config.js rewrite with body correctly",
       "Middleware Rewrite should handle shallow navigation correctly (dynamic page)",

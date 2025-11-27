@@ -260,8 +260,10 @@ pub async fn load_next_js_template(
     )?;
 
     let file = File::from(content);
-
-    let source = VirtualSource::new(template_path, AssetContent::file(file.into()));
+    let source = VirtualSource::new(
+        template_path,
+        AssetContent::file(FileContent::Content(file).cell()),
+    );
 
     Ok(Vc::upcast(source))
 }
