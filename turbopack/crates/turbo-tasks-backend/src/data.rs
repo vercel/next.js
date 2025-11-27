@@ -310,6 +310,31 @@ impl DirtyContainerCount {
         diff
     }
 
+    /// Applies a dirtyness to the count. Returns an aggregated count that represents the change.
+    pub fn update_with_dirty_and_clean(
+        &mut self,
+        dirty_value: i32,
+        clean_value: i32,
+        session: SessionId,
+    ) -> DirtyContainerCount {
+        let mut diff = self.update(dirty_value - clean_value);
+        diff.update_count(&self.update_session_dependent(session, clean_value));
+        diff
+    }
+
+    /// Undoes the diff of dirtyness to the count. Returns an aggregated count that represents the
+    /// change.
+    pub fn undo_update_with_dirty_and_clean(
+        &mut self,
+        dirty_value: i32,
+        clean_value: i32,
+        session: SessionId,
+    ) -> DirtyContainerCount {
+        let mut diff = self.update(-dirty_value + clean_value);
+        diff.update_count(&self.update_session_dependent(session, -clean_value));
+        diff
+    }
+
     /// Returns true if the count is zero and applying it would have no effect
     pub fn is_zero(&self) -> bool {
         self.count == 0 && self.count_in_session.map(|(_, c)| c == 0).unwrap_or(true)

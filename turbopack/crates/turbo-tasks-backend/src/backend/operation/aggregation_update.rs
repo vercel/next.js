@@ -419,26 +419,29 @@ impl AggregatedDataUpdate {
             let current_session_clean_update =
                 before_after_to_diff_value(was_single_container_clean, is_single_container_clean);
 
-            let aggregated_update = DirtyContainerCount::from_current_session_clean(
-                dirty_container_count_update,
-                current_session_id,
-                current_session_clean_update,
-            );
+            if dirty_container_count_update != 0 || current_session_clean_update != 0 {
+                let aggregated_update = DirtyContainerCount::from_current_session_clean(
+                    dirty_container_count_update,
+                    current_session_id,
+                    current_session_clean_update,
+                );
 
-            if !aggregated_update.is_zero() {
-                let dirtyness_and_session = task.dirtyness_and_session();
+                let (is_dirty, current_session_clean) = task.dirty(current_session_id);
+                let dirty_value = if is_dirty { 1 } else { 0 };
+                let clean_value = if current_session_clean { 1 } else { 0 };
+
                 let task_id = task.id();
                 update!(task, AggregatedDirtyContainerCount, |old: Option<
                     DirtyContainerCount,
                 >| {
                     let mut new = old.unwrap_or_default();
-                    if let Some((dirtyness, clean_in_session)) = dirtyness_and_session {
-                        new.update_with_dirtyness_and_session(dirtyness, clean_in_session);
-                    }
+                    new.update_with_dirty_and_clean(dirty_value, clean_value, current_session_id);
                     let aggregated_update = new.update_count(&aggregated_update);
-                    if let Some((dirtyness, clean_in_session)) = dirtyness_and_session {
-                        new.undo_update_with_dirtyness_and_session(dirtyness, clean_in_session);
-                    }
+                    new.undo_update_with_dirty_and_clean(
+                        dirty_value,
+                        clean_value,
+                        current_session_id,
+                    );
                     if !aggregated_update.is_zero() {
                         result.dirty_container_update = Some((
                             task_id,
