@@ -612,7 +612,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             parent_and_count: Option<(TaskId, i32)>,
                             visited: &mut FxHashSet<TaskId>,
                         ) -> String {
-                            let task = ctx.task(task_id, TaskDataCategory::Data);
+                            let task = ctx.task(task_id, TaskDataCategory::All);
                             let is_dirty = task.is_dirty(ctx.session_id());
                             let in_progress =
                                 get!(task, InProgress).map_or("not in progress", |p| match p {
@@ -637,7 +637,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             let has_dirty_containers = task.has_dirty_containers(ctx.session_id());
 
                             let task_description = ctx.get_task_description(task_id);
-                            let is_dirty = if is_dirty { ", dirty" } else { "" };
+                            let is_dirty_label = if is_dirty { ", dirty" } else { "" };
+                            let has_dirty_containers_label = if has_dirty_containers {
+                                ", dirty containers"
+                            } else {
+                                ""
+                            };
                             let count = if let Some((_, count)) = parent_and_count {
                                 format!(" {count}")
                             } else {
@@ -645,7 +650,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             };
                             let mut info = format!(
                                 "{task_id} {task_description}{count} (aggr={aggregation_number}, \
-                                 {in_progress}, {activeness}{is_dirty})",
+                                 {in_progress}, \
+                                 {activeness}{is_dirty_label}{has_dirty_containers_label})",
                             );
                             let children: Vec<_> =
                                 task.dirty_containers_with_count(ctx.session_id()).collect();
