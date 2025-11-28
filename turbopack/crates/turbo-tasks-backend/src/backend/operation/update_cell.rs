@@ -24,14 +24,14 @@ use crate::{
 #[allow(clippy::large_enum_variant)]
 pub enum UpdateCellOperation {
     InvalidateWhenCellDependency {
-        is_transient_cell: bool,
+        serializable_cell_content: bool,
         cell_ref: CellRef,
         dependent_tasks: SmallVec<[TaskId; 4]>,
         content: Option<TypedSharedReference>,
         queue: AggregationUpdateQueue,
     },
     FinalCellChange {
-        is_transient_cell: bool,
+        serializable_cell_content: bool,
         cell_ref: CellRef,
         content: Option<TypedSharedReference>,
         queue: AggregationUpdateQueue,
@@ -48,7 +48,7 @@ impl UpdateCellOperation {
         task_id: TaskId,
         cell: CellId,
         content: CellContent,
-        is_transient_cell: bool,
+        serializable_cell_content: bool,
         #[cfg(feature = "verify_determinism")] verification_mode: VerificationMode,
         #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
         mut ctx: impl ExecuteContext,
@@ -68,7 +68,7 @@ impl UpdateCellOperation {
             !ctx.should_track_dependencies() || !task.has_key(&CachedDataItemKey::Dirty {});
 
         if assume_unchanged {
-            let has_old_content = task.has_cell_data(is_transient_cell, cell);
+            let has_old_content = task.has_cell_data(serializable_cell_content, cell);
             if has_old_content {
                 // Never update cells when recomputing if they already have a value.
                 // It's not expected that content changes during recomputation.
@@ -77,7 +77,7 @@ impl UpdateCellOperation {
                 #[cfg(feature = "verify_determinism")]
                 if !is_stateful
                     && matches!(verification_mode, VerificationMode::EqualityCheck)
-                    && content != task.get_cell_data(is_transient_cell, cell)
+                    && content != task.get_cell_data(serializable_cell_content, cell)
                 {
                     let task_description = ctx.get_task_description(task_id);
                     let cell_type = turbo_tasks::registry::get_value_type(cell.type_id).global_name;
@@ -117,14 +117,16 @@ impl UpdateCellOperation {
                 // tasks and after that set the new cell content. When the cell content is unset,
                 // readers will wait for it to be set via InProgressCell.
 
-                let old_content =
-                    task.remove(&CachedDataItemKey::cell_data(is_transient_cell, cell));
+                let old_content = task.remove(&CachedDataItemKey::cell_data(
+                    serializable_cell_content,
+                    cell,
+                ));
 
                 drop(task);
                 drop(old_content);
 
                 UpdateCellOperation::InvalidateWhenCellDependency {
-                    is_transient_cell,
+                    serializable_cell_content,
                     cell_ref: CellRef {
                         task: task_id,
                         cell,
@@ -143,12 +145,15 @@ impl UpdateCellOperation {
 
         let old_content = if let Some(new_content) = content {
             task.insert(CachedDataItem::cell_data(
-                is_transient_cell,
+                serializable_cell_content,
                 cell,
                 new_content,
             ))
         } else {
-            task.remove(&CachedDataItemKey::cell_data(is_transient_cell, cell))
+            task.remove(&CachedDataItemKey::cell_data(
+                serializable_cell_content,
+                cell,
+            ))
         };
 
         let in_progress_cell = remove!(task, InProgressCell { cell });
@@ -168,7 +173,7 @@ impl Operation for UpdateCellOperation {
             ctx.operation_suspend_point(&self);
             match self {
                 UpdateCellOperation::InvalidateWhenCellDependency {
-                    is_transient_cell,
+                    serializable_cell_content,
                     cell_ref,
                     ref mut dependent_tasks,
                     ref mut content,
@@ -209,7 +214,7 @@ impl Operation for UpdateCellOperation {
                     }
                     if dependent_tasks.is_empty() {
                         self = UpdateCellOperation::FinalCellChange {
-                            is_transient_cell,
+                            serializable_cell_content,
                             cell_ref,
                             content: take(content),
                             queue: take(queue),
@@ -217,7 +222,7 @@ impl Operation for UpdateCellOperation {
                     }
                 }
                 UpdateCellOperation::FinalCellChange {
-                    is_transient_cell,
+                    serializable_cell_content,
                     cell_ref: CellRef { task, cell },
                     content,
                     ref mut queue,
@@ -225,7 +230,11 @@ impl Operation for UpdateCellOperation {
                     let mut task = ctx.task(task, TaskDataCategory::Data);
 
                     if let Some(content) = content {
-                        task.add_new(CachedDataItem::cell_data(is_transient_cell, cell, content));
+                        task.add_new(CachedDataItem::cell_data(
+                            serializable_cell_content,
+                            cell,
+                            content,
+                        ));
                     }
 
                     let in_progress_cell = remove!(task, InProgressCell { cell });

@@ -611,7 +611,7 @@ macro_rules! into_future {
             type Output = <ReadVcFuture<T> as Future>::Output;
             type IntoFuture = ReadVcFuture<T>;
             fn into_future(self) -> Self::IntoFuture {
-                self.node.into_read(!T::has_serialization()).into()
+                self.node.into_read(T::has_serialization()).into()
             }
         }
     };
@@ -630,7 +630,7 @@ where
     #[must_use]
     pub fn strongly_consistent(self) -> ReadVcFuture<T> {
         self.node
-            .into_read(!T::has_serialization())
+            .into_read(T::has_serialization())
             .strongly_consistent()
             .into()
     }
@@ -640,7 +640,7 @@ where
     #[must_use]
     pub fn untracked(self) -> ReadVcFuture<T> {
         self.node
-            .into_read(!T::has_serialization())
+            .into_read(T::has_serialization())
             .untracked()
             .into()
     }
@@ -650,7 +650,7 @@ where
     #[must_use]
     pub fn final_read_hint(self) -> ReadVcFuture<T> {
         self.node
-            .into_read(!T::has_serialization())
+            .into_read(T::has_serialization())
             .final_read_hint()
             .into()
     }
@@ -663,7 +663,7 @@ where
 {
     /// Read the value and returns a owned version of it. It might clone the value.
     pub fn owned(self) -> ReadOwnedVcFuture<T> {
-        let future: ReadVcFuture<T> = self.node.into_read(!T::has_serialization()).into();
+        let future: ReadVcFuture<T> = self.node.into_read(T::has_serialization()).into();
         future.owned()
     }
 }

@@ -471,27 +471,31 @@ pub trait TaskGuard: Debug {
     }
     fn remove_cell_data(
         &mut self,
-        is_transient_cell: bool,
+        serializable_cell_content: bool,
         cell: CellId,
     ) -> Option<TypedSharedReference> {
-        if is_transient_cell {
-            remove!(self, TransientCellData { cell }).map(|sr| sr.into_typed(cell.type_id))
-        } else {
+        if serializable_cell_content {
             remove!(self, CellData { cell })
+        } else {
+            remove!(self, TransientCellData { cell }).map(|sr| sr.into_typed(cell.type_id))
         }
     }
-    fn get_cell_data(&self, is_transient_cell: bool, cell: CellId) -> Option<TypedSharedReference> {
-        if is_transient_cell {
-            get!(self, TransientCellData { cell }).map(|sr| sr.clone().into_typed(cell.type_id))
-        } else {
+    fn get_cell_data(
+        &self,
+        serializable_cell_content: bool,
+        cell: CellId,
+    ) -> Option<TypedSharedReference> {
+        if serializable_cell_content {
             get!(self, CellData { cell }).cloned()
+        } else {
+            get!(self, TransientCellData { cell }).map(|sr| sr.clone().into_typed(cell.type_id))
         }
     }
-    fn has_cell_data(&self, is_transient_cell: bool, cell: CellId) -> bool {
-        if is_transient_cell {
-            self.has_key(&CachedDataItemKey::TransientCellData { cell })
-        } else {
+    fn has_cell_data(&self, serializable_cell_content: bool, cell: CellId) -> bool {
+        if serializable_cell_content {
             self.has_key(&CachedDataItemKey::CellData { cell })
+        } else {
+            self.has_key(&CachedDataItemKey::TransientCellData { cell })
         }
     }
 }

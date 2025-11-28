@@ -368,14 +368,18 @@ pub enum CachedDataItem {
 }
 
 impl CachedDataItem {
-    pub fn cell_data(is_transient: bool, cell: CellId, value: TypedSharedReference) -> Self {
-        if is_transient {
+    pub fn cell_data(
+        serializable_cell_content: bool,
+        cell: CellId,
+        value: TypedSharedReference,
+    ) -> Self {
+        if serializable_cell_content {
+            CachedDataItem::CellData { cell, value }
+        } else {
             CachedDataItem::TransientCellData {
                 cell,
                 value: value.into_untyped(),
             }
-        } else {
-            CachedDataItem::CellData { cell, value }
         }
     }
 
@@ -503,11 +507,11 @@ impl CachedDataItem {
 }
 
 impl CachedDataItemKey {
-    pub fn cell_data(is_transient: bool, cell: CellId) -> Self {
-        if is_transient {
-            CachedDataItemKey::TransientCellData { cell }
-        } else {
+    pub fn cell_data(serializable_cell_content: bool, cell: CellId) -> Self {
+        if serializable_cell_content {
             CachedDataItemKey::CellData { cell }
+        } else {
+            CachedDataItemKey::TransientCellData { cell }
         }
     }
 

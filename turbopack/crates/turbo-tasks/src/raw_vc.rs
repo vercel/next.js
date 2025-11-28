@@ -147,13 +147,13 @@ impl RawVc {
         }
     }
 
-    pub(crate) fn into_read(self, is_transient_cell: bool) -> ReadRawVcFuture {
+    pub(crate) fn into_read(self, serializable_cell_content: bool) -> ReadRawVcFuture {
         // returns a custom future to have something concrete and sized
         // this avoids boxing in IntoFuture
-        ReadRawVcFuture::new(self, Some(is_transient_cell))
+        ReadRawVcFuture::new(self, Some(serializable_cell_content))
     }
 
-    pub(crate) fn into_read_determine_is_transient_cell(self) -> ReadRawVcFuture {
+    pub(crate) fn into_read_with_unknown_serializable_cell_content(self) -> ReadRawVcFuture {
         // returns a custom future to have something concrete and sized
         // this avoids boxing in IntoFuture
         ReadRawVcFuture::new(self, None)
@@ -210,7 +210,7 @@ impl RawVc {
                         task,
                         index,
                         ReadCellOptions {
-                            is_transient_cell: !value_type.is_serializable(),
+                            serializable_cell_content: value_type.is_serializable(),
                             final_read_hint: false,
                             tracking: ReadTracking::default(),
                         },
@@ -379,20 +379,20 @@ pub struct ReadRawVcFuture {
     current: RawVc,
     read_output_options: ReadOutputOptions,
     read_cell_options: ReadCellOptions,
-    determine_is_transient_cell: bool,
+    serializable_cell_content_unknown: bool,
     listener: Option<EventListener>,
 }
 
 impl ReadRawVcFuture {
-    pub(crate) fn new(vc: RawVc, is_transient_cell: Option<bool>) -> Self {
+    pub(crate) fn new(vc: RawVc, serializable_cell_content: Option<bool>) -> Self {
         ReadRawVcFuture {
             current: vc,
             read_output_options: ReadOutputOptions::default(),
             read_cell_options: ReadCellOptions {
-                is_transient_cell: is_transient_cell.unwrap_or(false),
+                serializable_cell_content: serializable_cell_content.unwrap_or(false),
                 ..Default::default()
             },
-            determine_is_transient_cell: is_transient_cell.is_none(),
+            serializable_cell_content_unknown: serializable_cell_content.is_none(),
             listener: None,
         }
     }
@@ -463,10 +463,10 @@ impl Future for ReadRawVcFuture {
                         }
                     }
                     RawVc::TaskCell(task, index) => {
-                        if this.determine_is_transient_cell {
+                        if this.serializable_cell_content_unknown {
                             let value_type = registry::get_value_type(index.type_id);
-                            this.read_cell_options.is_transient_cell =
-                                !value_type.is_serializable();
+                            this.read_cell_options.serializable_cell_content =
+                                value_type.is_serializable();
                         }
                         let read_result =
                             tt.try_read_task_cell(task, index, this.read_cell_options);

@@ -132,7 +132,7 @@ impl<T: ?Sized> OperationVc<T> {
     {
         self.connect()
             .node
-            .into_read(!T::has_serialization())
+            .into_read(T::has_serialization())
             .strongly_consistent()
             .into()
     }

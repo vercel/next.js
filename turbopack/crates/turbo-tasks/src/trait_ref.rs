@@ -157,6 +157,8 @@ where
     type Future = ReadVcFuture<T, VcValueTraitCast<T>>;
 
     fn into_trait_ref(self) -> Self::Future {
-        self.node.into_read_determine_is_transient_cell().into()
+        self.node
+            .into_read_with_unknown_serializable_cell_content()
+            .into()
     }
 }
