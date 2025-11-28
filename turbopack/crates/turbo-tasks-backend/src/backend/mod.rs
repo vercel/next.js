@@ -24,7 +24,7 @@ use parking_lot::{Condvar, Mutex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
-use tracing::{Span, info_span, trace_span};
+use tracing::{info_span, trace_span};
 use turbo_tasks::{
     CellId, FxDashMap, FxIndexMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
     ReadOutputOptions, ReadTracking, SessionId, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId,
@@ -1106,7 +1106,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
 
         let snapshot = {
-            let _span = tracing::trace_span!("take snapshot");
+            let _span = tracing::trace_span!("take snapshot").entered();
             self.storage
                 .take_snapshot(&preprocess, &process, &process_snapshot)
         };
@@ -1273,7 +1273,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         if self.should_persist() {
             // Schedule the snapshot job
-            let _span = Span::none().entered();
             turbo_tasks.schedule_backend_background_job(TurboTasksBackendJob::InitialSnapshot);
         }
     }
@@ -2527,7 +2526,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             }
                         }
 
-                        let _span = info_span!("persist", reason = reason).entered();
+                        let _span = info_span!(parent: None, "persist", reason = reason).entered();
                         let this = self.clone();
                         let snapshot = this.snapshot();
                         if let Some((snapshot_start, new_data)) = snapshot {
@@ -2541,7 +2540,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 Ordering::Relaxed,
                             );
 
-                            let _span = Span::none().entered();
                             turbo_tasks.schedule_backend_background_job(
                                 TurboTasksBackendJob::FollowUpSnapshot,
                             );
@@ -2550,7 +2548,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     }
                 }
                 TurboTasksBackendJob::Prefetch { data, range } => {
-                    let range = if let Some(range) = range {
+                    let range: Range<usize> = if let Some(range) = range {
                         range
                     } else {
                         if data.len() > 128 {
