@@ -177,9 +177,6 @@ importers:
       '@types/fs-extra':
         specifier: 8.1.0
         version: 8.1.0
-      '@types/glob':
-        specifier: 7.1.1
-        version: 7.1.1
       '@types/html-validator':
         specifier: 5.0.3
         version: 5.0.3
@@ -343,8 +340,8 @@ importers:
         specifier: 3.1.1
         version: 3.1.1
       glob:
-        specifier: 7.1.6
-        version: 7.1.6
+        specifier: 9.3.5
+        version: 9.3.5
       globals:
         specifier: 16.4.0
         version: 16.4.0
@@ -1311,9 +1308,6 @@ importers:
       '@types/fresh':
         specifier: 0.5.0
         version: 0.5.0
-      '@types/glob':
-        specifier: 7.1.1
-        version: 7.1.1
       '@types/jsonwebtoken':
         specifier: 9.0.0
         version: 9.0.0
@@ -1504,8 +1498,8 @@ importers:
         specifier: 0.5.2
         version: 0.5.2
       glob:
-        specifier: 7.1.7
-        version: 7.1.7
+        specifier: 9.3.5
+        version: 9.3.5
       gzip-size:
         specifier: 5.1.1
         version: 5.1.1
@@ -6281,9 +6275,6 @@ packages:
   '@types/estree@1.0.7':
     resolution: {integrity: sha512-w28IoSUCJpidD/TGviZwwMJckNESJZXFu7NBZ5YJ4mEUnNraUn9Pm8HSZm/jDF1pDWYKspWE7oVphigUPRakIQ==}
 
-  '@types/events@3.0.0':
-    resolution: {integrity: sha512-EaObqwIvayI5a8dCzhFrjKzVwKLxjoG9T6Ppd5CEo07LRKfQ8Yokw54r5+Wq7FaBQ+yXRvQAYPrHwya1/UFt9g==}
-
   '@types/express-serve-static-core@4.17.33':
     resolution: {integrity: sha512-TPBqmR/HRYI3eC2E5hmiivIzv+bidAfXofM+sbonAGvyDhySGw9/PQZFt2BLOrjUUR++4eJVpx6KnLQK1Fk9tA==}
 
@@ -6305,9 +6296,6 @@ packages:
 
   '@types/fs-extra@8.1.0':
     resolution: {integrity: sha512-UoOfVEzAUpeSPmjm7h1uk5MH6KZma2z2O7a75onTGjnNvAvMVrPzPL/vBbT65iIGHWj6rokwfmYcmxmlSf2uwg==}
-
-  '@types/glob@7.1.1':
-    resolution: {integrity: sha512-1Bh06cbWJUHMC97acuD6UMG29nMt0Aqz1vF3guLfG+kHHJhy3AyohZFFxYk2f7Q1SQIrNwvncxAE0N/9s70F2w==}
 
   '@types/graceful-fs@4.1.9':
     resolution: {integrity: sha512-olP3sd1qOEe5dXTSaFvQG+02VdRXcdytWLAZsAq1PecU8uqQAhkrnbli7DagjtXKW/Bl7YJbUsa8MPcuc8LHEQ==}
@@ -7457,9 +7445,6 @@ packages:
 
   bail@2.0.2:
     resolution: {integrity: sha512-0xO6mYd7JB2YesxDKplafRpsiOzPt9V02ddPCLbY1xYGPOX24NTyN50qnUxgCPcSoYMhKpAuBTjQoRZCAkUDRw==}
-
-  balanced-match@1.0.0:
-    resolution: {integrity: sha512-9Y0g0Q8rmSt+H33DfKv7FOc3v+iRI+o1lbzt8jGcIosYW37IIW/2XVYq5NPdmaD5NQ59Nk26Kl/vZbwW9Fr8vg==}
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
@@ -10563,17 +10548,13 @@ packages:
     engines: {node: 20 || >=22}
     hasBin: true
 
-  glob@7.1.6:
-    resolution: {integrity: sha512-LwaxwyZ72Lk7vZINtNNrywX0ZuLyStrdDtabefZKAY5ZGJhVtgdznluResxNmPitE0SAO+O26sWTHeKSI2wMBA==}
-    deprecated: Glob versions prior to v9 are no longer supported
-
-  glob@7.1.7:
-    resolution: {integrity: sha512-OvD9ENzPLbegENnYP5UUfJIirTg4+XwMWGaQfQTY0JenxNvvIKP3U3/tAQSPIu/lHxXYSZmpXlUHeqAIdKzBLQ==}
-    deprecated: Glob versions prior to v9 are no longer supported
-
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
     deprecated: Glob versions prior to v9 are no longer supported
+
+  glob@9.3.5:
+    resolution: {integrity: sha512-e1LleDykUz2Iu+MTYdkSsuWX8lvAjAcs0Xef0lNIu0S2wOAzuTxCJtcd9S3cijlwYF18EsU3rzb8jPVobxDh9Q==}
+    engines: {node: '>=16 || 14 >=14.17'}
 
   global-dirs@2.1.0:
     resolution: {integrity: sha512-MG6kdOUh/xBnyo9cJFeIKkLEc1AyFq42QTU4XiX51i2NEdxLxLWXIjEjmqKeSuKR7pAZjTqUVoT2b2huxVLgYQ==}
@@ -13228,6 +13209,10 @@ packages:
   minimatch@5.1.6:
     resolution: {integrity: sha512-lKwV/1brpG6mBUFHtb7NUmtABCb2WZZmm2wNiOA5hAb8VdCS4B3dtMWyvcoViccwAW/COERjXLt0zP1zXUN26g==}
     engines: {node: '>=10'}
+
+  minimatch@8.0.4:
+    resolution: {integrity: sha512-W0Wvr9HyFXZRGIDgCicunpQ299OKXs9RgZfaukz4qAW/pJhcpUfupc9c+OObPOFueNy8VSrZgEmDtk6Kh4WzDA==}
+    engines: {node: '>=16 || 14 >=14.17'}
 
   minimatch@9.0.5:
     resolution: {integrity: sha512-G6T0ZX48xgozx7587koeX9Ys2NYy6Gmv//P89sEte9V9whIapMNF4idKxnW2QtCcLiTWlb/wfCabAtAFWhhBow==}
@@ -20371,7 +20356,7 @@ snapshots:
       chalk: 4.1.2
       collect-v8-coverage: 1.0.1
       exit: 0.1.2
-      glob: 7.1.7
+      glob: 7.2.3
       graceful-fs: 4.2.11
       istanbul-lib-coverage: 3.2.0
       istanbul-lib-instrument: 6.0.1
@@ -22471,7 +22456,7 @@ snapshots:
       '@rollup/pluginutils': 3.1.0(rollup@2.35.1)
       commondir: 1.0.1
       estree-walker: 2.0.2
-      glob: 7.1.7
+      glob: 7.2.3
       is-reference: 1.2.1
       magic-string: 0.25.7
       resolve: 1.22.10
@@ -23385,8 +23370,6 @@ snapshots:
 
   '@types/estree@1.0.7': {}
 
-  '@types/events@3.0.0': {}
-
   '@types/express-serve-static-core@4.17.33':
     dependencies:
       '@types/node': 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
@@ -23418,12 +23401,6 @@ snapshots:
 
   '@types/fs-extra@8.1.0':
     dependencies:
-      '@types/node': 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
-
-  '@types/glob@7.1.1':
-    dependencies:
-      '@types/events': 3.0.0
-      '@types/minimatch': 3.0.3
       '@types/node': 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
 
   '@types/graceful-fs@4.1.9':
@@ -23945,7 +23922,7 @@ snapshots:
       async-sema: 3.1.1
       bindings: 1.5.0
       estree-walker: 2.0.2
-      glob: 7.1.7
+      glob: 7.2.3
       graceful-fs: 4.2.11
       micromatch: 4.0.5
       node-gyp-build: 4.6.0
@@ -24737,8 +24714,6 @@ snapshots:
 
   bail@2.0.2: {}
 
-  balanced-match@1.0.0: {}
-
   balanced-match@1.0.2: {}
 
   base64-js@0.0.8: {}
@@ -24997,7 +24972,7 @@ snapshots:
       '@npmcli/move-file': 1.0.1
       chownr: 2.0.0
       fs-minipass: 2.1.0
-      glob: 7.1.7
+      glob: 7.2.3
       infer-owner: 1.0.4
       lru-cache: 6.0.0
       minipass: 3.1.3
@@ -28729,24 +28704,6 @@ snapshots:
       package-json-from-dist: 1.0.0
       path-scurry: 2.0.0
 
-  glob@7.1.6:
-    dependencies:
-      fs.realpath: 1.0.0
-      inflight: 1.0.6
-      inherits: 2.0.4
-      minimatch: 3.1.2
-      once: 1.4.0
-      path-is-absolute: 1.0.1
-
-  glob@7.1.7:
-    dependencies:
-      fs.realpath: 1.0.0
-      inflight: 1.0.6
-      inherits: 2.0.4
-      minimatch: 3.1.2
-      once: 1.4.0
-      path-is-absolute: 1.0.1
-
   glob@7.2.3:
     dependencies:
       fs.realpath: 1.0.0
@@ -28755,6 +28712,13 @@ snapshots:
       minimatch: 3.1.2
       once: 1.4.0
       path-is-absolute: 1.0.1
+
+  glob@9.3.5:
+    dependencies:
+      fs.realpath: 1.0.0
+      minimatch: 8.0.4
+      minipass: 4.2.8
+      path-scurry: 1.11.1
 
   global-dirs@2.1.0:
     dependencies:
@@ -28819,7 +28783,7 @@ snapshots:
     dependencies:
       array-union: 1.0.2
       arrify: 1.0.1
-      glob: 7.1.7
+      glob: 7.2.3
       object-assign: 4.1.1
       pify: 2.3.0
       pinkie-promise: 2.0.1
@@ -29210,7 +29174,7 @@ snapshots:
       deepmerge: 4.2.2
       eslint: 7.32.0
       espree: 7.3.1
-      glob: 7.1.7
+      glob: 7.2.3
       inquirer: 7.3.3
       json-merge-patch: 1.0.2
       minimist: 1.2.8
@@ -29497,7 +29461,7 @@ snapshots:
 
   init-package-json@2.0.2:
     dependencies:
-      glob: 7.1.7
+      glob: 7.2.3
       npm-package-arg: 8.1.0
       promzard: 0.3.0
       read: 1.0.7
@@ -30196,7 +30160,7 @@ snapshots:
       chalk: 4.1.2
       ci-info: 3.8.0
       deepmerge: 4.2.2
-      glob: 7.1.7
+      glob: 7.2.3
       graceful-fs: 4.2.11
       jest-circus: 29.7.0(babel-plugin-macros@3.1.0)
       jest-environment-node: 29.7.0
@@ -30493,7 +30457,7 @@ snapshots:
       chalk: 4.1.2
       cjs-module-lexer: 1.2.2
       collect-v8-coverage: 1.0.1
-      glob: 7.1.7
+      glob: 7.2.3
       graceful-fs: 4.2.11
       jest-haste-map: 29.7.0
       jest-message-util: 29.7.0
@@ -32501,6 +32465,10 @@ snapshots:
     dependencies:
       brace-expansion: 2.0.1
 
+  minimatch@8.0.4:
+    dependencies:
+      brace-expansion: 2.0.1
+
   minimatch@9.0.5:
     dependencies:
       brace-expansion: 2.0.1
@@ -32810,7 +32778,7 @@ snapshots:
   node-gyp@5.1.1:
     dependencies:
       env-paths: 2.2.1
-      glob: 7.1.7
+      glob: 7.2.3
       graceful-fs: 4.2.11
       mkdirp: 0.5.5
       nopt: 4.0.3
@@ -32824,7 +32792,7 @@ snapshots:
   node-gyp@7.1.2:
     dependencies:
       env-paths: 2.2.1
-      glob: 7.1.7
+      glob: 7.2.3
       graceful-fs: 4.2.11
       nopt: 5.0.0
       npmlog: 4.1.2
@@ -32952,7 +32920,7 @@ snapshots:
 
   npm-packlist@2.1.4:
     dependencies:
-      glob: 7.1.7
+      glob: 7.2.3
       ignore-walk: 3.0.4
       npm-bundled: 1.1.2
       npm-normalize-package-bin: 1.0.1
@@ -33050,7 +33018,7 @@ snapshots:
       find-up: 4.1.0
       foreground-child: 2.0.0
       get-package-type: 0.1.0
-      glob: 7.1.7
+      glob: 7.2.3
       istanbul-lib-coverage: 3.2.0
       istanbul-lib-hook: 3.0.0
       istanbul-lib-instrument: 4.0.3
@@ -34339,7 +34307,7 @@ snapshots:
 
   postcss-selector-not@5.0.0(postcss@8.4.31):
     dependencies:
-      balanced-match: 1.0.0
+      balanced-match: 1.0.2
       postcss: 8.4.31
 
   postcss-selector-parser@3.1.1:
@@ -34669,7 +34637,7 @@ snapshots:
 
   purgecss@1.4.2:
     dependencies:
-      glob: 7.1.7
+      glob: 7.2.3
       postcss: 7.0.32
       postcss-selector-parser: 6.0.11
       yargs: 14.2.2
@@ -34980,7 +34948,7 @@ snapshots:
 
   read-package-json@2.1.1:
     dependencies:
-      glob: 7.1.7
+      glob: 7.2.3
       json-parse-better-errors: 1.0.2
       normalize-package-data: 2.5.0
       npm-normalize-package-bin: 1.0.1
@@ -34989,7 +34957,7 @@ snapshots:
 
   read-package-json@3.0.0:
     dependencies:
-      glob: 7.1.7
+      glob: 7.2.3
       json-parse-even-better-errors: 2.3.1
       normalize-package-data: 3.0.0
       npm-normalize-package-bin: 1.0.1
@@ -35626,11 +35594,11 @@ snapshots:
 
   rimraf@2.6.3:
     dependencies:
-      glob: 7.1.7
+      glob: 7.2.3
 
   rimraf@2.7.1:
     dependencies:
-      glob: 7.1.7
+      glob: 7.2.3
 
   rimraf@3.0.2:
     dependencies:
@@ -36121,7 +36089,7 @@ snapshots:
 
   shelljs@0.8.4:
     dependencies:
-      glob: 7.1.7
+      glob: 7.2.3
       interpret: 1.4.0
       rechoir: 0.6.2
 
@@ -36938,7 +36906,7 @@ snapshots:
     dependencies:
       bluebird: 3.7.2
       clor: 5.2.0
-      glob: 7.1.7
+      glob: 7.2.3
       mk-dirs: 1.0.0
       mri: 1.2.0
       tinydate: 1.3.0
@@ -37014,7 +36982,7 @@ snapshots:
   test-exclude@6.0.0:
     dependencies:
       '@istanbuljs/schema': 0.1.2
-      glob: 7.1.7
+      glob: 7.2.3
       minimatch: 3.0.4
 
   text-extensions@1.9.0: {}
@@ -37191,7 +37159,7 @@ snapshots:
   tsec@0.2.1(@bazel/bazelisk@1.19.0)(typescript@5.9.2):
     dependencies:
       '@bazel/bazelisk': 1.19.0
-      glob: 7.1.7
+      glob: 7.2.3
       minimatch: 3.1.2
       typescript: 5.9.2
 
@@ -37465,7 +37433,7 @@ snapshots:
       debug: 4.1.1
       fault: 1.0.4
       figures: 3.1.0
-      glob: 7.1.7
+      glob: 7.2.3
       ignore: 5.3.2
       is-buffer: 2.0.4
       is-empty: 1.2.0

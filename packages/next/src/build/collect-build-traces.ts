@@ -547,18 +547,7 @@ export async function collectBuildTraces({
     const globOrig =
       require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
     const glob = (pattern: string): Promise<string[]> => {
-      return new Promise((resolve, reject) => {
-        globOrig(
-          pattern,
-          { cwd: dir, nodir: true, dot: true },
-          (err, files) => {
-            if (err) {
-              return reject(err)
-            }
-            resolve(files)
-          }
-        )
-      })
+      return globOrig(pattern, { cwd: dir, nodir: true, dot: true })
     }
 
     const { entryNameFilesMap } = buildTraceContext?.chunksTrace || {}

@@ -8,14 +8,7 @@ import type { PageExtensions } from '../build/page-extensions-type'
 const globOrig =
   require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
 const glob = (cwd: string, pattern: string): Promise<string[]> => {
-  return new Promise((resolve, reject) => {
-    globOrig(pattern, { cwd }, (err, files) => {
-      if (err) {
-        return reject(err)
-      }
-      resolve(files)
-    })
-  })
+  return globOrig(pattern, { cwd })
 }
 
 function getRootLayout(isTs: boolean) {
