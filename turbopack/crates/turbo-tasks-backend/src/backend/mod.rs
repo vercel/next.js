@@ -2428,6 +2428,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 new_current_session_self_clean,
             }
             .compute();
+            if result.dirty_count_update - result.current_session_clean_update < 0 {
+                // The task is clean now
+                if let Some(activeness_state) = get_mut!(task, Activeness) {
+                    activeness_state.all_clean_event.notify(usize::MAX);
+                    activeness_state.unset_active_until_clean();
+                    if activeness_state.is_empty() {
+                        task.remove(&CachedDataItemKey::Activeness {});
+                    }
+                }
+            }
             result
                 .aggregated_update(task_id)
                 .and_then(|aggregated_update| {
@@ -2436,15 +2446,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         } else {
             None
         };
-
-        if let Some(activeness_state) = get_mut!(task, Activeness) {
-            // The task is clean now
-            activeness_state.all_clean_event.notify(usize::MAX);
-            activeness_state.unset_active_until_clean();
-            if activeness_state.is_empty() {
-                task.remove(&CachedDataItemKey::Activeness {});
-            }
-        }
 
         #[cfg(feature = "verify_determinism")]
         let reschedule = (dirty_changed || no_output_set) && !task_id.is_transient();
