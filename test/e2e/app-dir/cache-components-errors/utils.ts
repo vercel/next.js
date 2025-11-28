@@ -116,7 +116,7 @@ export function getDeterministicOutput(
           replaceMinifiedName
         )
         .replace(/at \d+ \(/, replaceNumericModuleId)
-        .replace(/digest: '\d+'/, "digest: '<error-digest>'")
+        .replace(/digest: '\d+(@E\d+)?'/, "digest: '<error-digest>'")
 
       lines.push(convertModuleFunctionSequenceExpression(line))
     }

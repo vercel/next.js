@@ -823,7 +823,7 @@ export default abstract class Server<
     }
   }
 
-  public logError(err: Error): void {
+  public logError(err: unknown): void {
     if (this.quiet) return
     Log.error(err)
   }
