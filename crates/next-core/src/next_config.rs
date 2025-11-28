@@ -38,17 +38,6 @@ use crate::{
     },
 };
 
-#[turbo_tasks::value]
-struct NextConfigAndCustomRoutes {
-    config: ResolvedVc<NextConfig>,
-    custom_routes: ResolvedVc<CustomRoutes>,
-}
-
-#[turbo_tasks::value]
-struct CustomRoutes {
-    rewrites: ResolvedVc<Rewrites>,
-}
-
 #[turbo_tasks::value(transparent)]
 pub struct ModularizeImports(
     #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, ModularizeImportPackageConfig>,
@@ -76,7 +65,7 @@ impl Default for CacheKinds {
 }
 
 #[turbo_tasks::value(eq = "manual")]
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct NextConfig {
     // IMPORTANT: all fields should be private and access should be wrapped within a turbo-tasks
@@ -493,26 +482,17 @@ pub struct Redirect {
     pub status: RedirectStatus,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Debug)]
 pub struct Rewrite {
     pub source: String,
     pub destination: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub base_path: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub locale: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub has: Option<Vec<RouteHas>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub missing: Option<Vec<RouteHas>>,
 }
 
-#[turbo_tasks::value(eq = "manual")]
-#[derive(Clone, Debug, Default, PartialEq)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Debug)]
 pub struct Rewrites {
     pub before_files: Vec<Rewrite>,
     pub after_files: Vec<Rewrite>,
@@ -539,7 +519,7 @@ pub struct TypeScriptConfig {
 }
 
 #[turbo_tasks::value(eq = "manual", operation)]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImageConfig {
     pub device_sizes: Vec<u16>,
@@ -676,7 +656,6 @@ pub enum RemotePatternProtocol {
     Debug,
     Default,
     PartialEq,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
@@ -806,7 +785,7 @@ pub struct RuleConfigItem {
     pub condition: Option<ConfigConditionItem>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, TraceRawVcs, NonLocalValue, OperationValue)]
+#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, Serialize, NonLocalValue, OperationValue)]
 #[serde(transparent)]
 pub struct RuleConfigCollection(Vec<RuleConfigCollectionItem>);
 
@@ -845,7 +824,7 @@ pub enum LoaderItem {
 }
 
 #[turbo_tasks::value(operation)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ModuleIds {
     Named,
@@ -856,16 +835,7 @@ pub enum ModuleIds {
 pub struct OptionModuleIds(pub Option<ModuleIds>);
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(untagged)]
 pub enum MdxRsOptions {
@@ -874,7 +844,7 @@ pub enum MdxRsOptions {
 }
 
 #[turbo_tasks::value(shared, operation)]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ReactCompilerCompilationMode {
     #[default]
@@ -884,7 +854,7 @@ pub enum ReactCompilerCompilationMode {
 }
 
 #[turbo_tasks::value(shared, operation)]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReactCompilerPanicThreshold {
     #[default]
@@ -893,9 +863,10 @@ pub enum ReactCompilerPanicThreshold {
     AllErrors,
 }
 
-/// Subset of react compiler options
+/// Subset of react compiler options, we pass these options through to the webpack loader, so it
+/// must be serializable
 #[turbo_tasks::value(shared, operation)]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReactCompilerOptions {
     #[serde(default)]
@@ -930,7 +901,6 @@ pub struct OptionalReactCompilerOptions(Option<ResolvedVc<ReactCompilerOptions>>
     Debug,
     Default,
     PartialEq,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     ValueDebugFormat,
@@ -1274,16 +1244,7 @@ pub enum MiddlewarePrefetchType {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(untagged)]
 pub enum EmotionTransformOptionsOrBoolean {
@@ -1301,16 +1262,7 @@ impl EmotionTransformOptionsOrBoolean {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(untagged)]
 pub enum StyledComponentsTransformOptionsOrBoolean {
@@ -1328,7 +1280,7 @@ impl StyledComponentsTransformOptionsOrBoolean {
 }
 
 #[turbo_tasks::value(eq = "manual")]
-#[derive(Clone, Debug, PartialEq, Default, OperationValue)]
+#[derive(Clone, Debug, PartialEq, Default, OperationValue, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompilerConfig {
     pub react_remove_properties: Option<ReactRemoveProperties>,
@@ -1339,16 +1291,7 @@ pub struct CompilerConfig {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum ReactRemoveProperties {
@@ -1366,16 +1309,7 @@ impl ReactRemoveProperties {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(untagged)]
 pub enum RemoveConsoleConfig {

@@ -35,8 +35,6 @@ use crate::{
     PartialEq,
     Eq,
     Hash,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     TaskInput,
     NonLocalValue,
