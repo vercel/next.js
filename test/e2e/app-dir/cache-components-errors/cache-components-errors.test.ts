@@ -2451,199 +2451,533 @@ describe('Cache Components Errors', () => {
       })
 
       describe('cacheLife with expire < 5 minutes', () => {
-        if (isNextDev) {
-          it('should show a redbox error', async () => {
-            const browser = await next.browser('/use-cache-low-expire')
+        describe('microtasky cache', () => {
+          if (isNextDev) {
+            it('should show a redbox error', async () => {
+              const browser = await next.browser('/use-cache-low-expire/fast')
 
-            await expect(browser).toDisplayCollapsedRedbox(
-              `"Redbox did not open."`
-            )
-          })
-        } else {
-          it('should error the build', async () => {
-            try {
-              await prerender('/use-cache-low-expire')
-            } catch {
-              // we expect the build to fail
-            }
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "description": "Runtime data was accessed outside of <Suspense>
 
-            const output = getPrerenderOutput(
-              next.cliOutput.slice(cliOutputLength),
-              { isMinified: !isDebugPrerender }
-            )
+               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-            if (isTurbopack) {
-              if (isDebugPrerender) {
-                expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-low-expire": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at main (<anonymous>)
-                     at body (<anonymous>)
-                     at html (<anonymous>)
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire" in your browser to investigate the error.
-                 Error occurred prerendering page "/use-cache-low-expire". Read more: https://nextjs.org/docs/messages/prerender-error
+               To fix this:
 
-                 > Export encountered errors on following paths:
-                 	/use-cache-low-expire/page: /use-cache-low-expire"
-                `)
-              } else {
-                expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-low-expire": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at main (<anonymous>)
-                     at body (<anonymous>)
-                     at html (<anonymous>)
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/use-cache-low-expire". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-low-expire/page: /use-cache-low-expire, exiting the build."
-                `)
+               Provide a fallback UI using <Suspense> around this component.
+
+               or
+
+               Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+               In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route",
+                 "environmentLabel": "Server",
+                 "label": "Blocking Route",
+                 "source": "app/use-cache-low-expire/fast/page.tsx (3:16) @ Page
+               > 3 | export default async function Page() {
+                   |                ^",
+                 "stack": [
+                   "Page app/use-cache-low-expire/fast/page.tsx (3:16)",
+                 ],
+               }
+              `)
+            })
+          } else {
+            it('should error the build', async () => {
+              try {
+                await prerender('/use-cache-low-expire/fast')
+              } catch {
+                // we expect the build to fail
               }
-            } else {
-              if (isDebugPrerender) {
-                expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-low-expire": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at <FIXME-library-internal>
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire" in your browser to investigate the error.
-                 Error occurred prerendering page "/use-cache-low-expire". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
-                 	/use-cache-low-expire/page: /use-cache-low-expire"
-                `)
+              const output = getPrerenderOutput(
+                next.cliOutput.slice(cliOutputLength),
+                { isMinified: !isDebugPrerender }
+              )
+
+              if (isTurbopack) {
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: Route "/use-cache-low-expire/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                       at main (<anonymous>)
+                       at body (<anonymous>)
+                       at html (<anonymous>)
+                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/fast" in your browser to investigate the error.
+                   Error occurred prerendering page "/use-cache-low-expire/fast". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                   > Export encountered errors on following paths:
+                   	/use-cache-low-expire/fast/page: /use-cache-low-expire/fast"
+                  `)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: Route "/use-cache-low-expire/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                       at main (<anonymous>)
+                       at body (<anonymous>)
+                       at html (<anonymous>)
+                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/fast" in your browser to investigate the error.
+                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                   Error occurred prerendering page "/use-cache-low-expire/fast". Read more: https://nextjs.org/docs/messages/prerender-error
+                   Export encountered an error on /use-cache-low-expire/fast/page: /use-cache-low-expire/fast, exiting the build."
+                  `)
+                }
               } else {
-                expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-low-expire": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at main (<anonymous>)
-                     at body (<anonymous>)
-                     at html (<anonymous>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/use-cache-low-expire". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-low-expire/page: /use-cache-low-expire, exiting the build."
-                `)
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: Route "/use-cache-low-expire/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                       at <FIXME-library-internal>
+                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/fast" in your browser to investigate the error.
+                   Error occurred prerendering page "/use-cache-low-expire/fast". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                   > Export encountered errors on following paths:
+                   	/use-cache-low-expire/fast/page: /use-cache-low-expire/fast"
+                  `)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: Route "/use-cache-low-expire/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                       at a (<next-dist-dir>)
+                       at b (<next-dist-dir>)
+                       at c (<next-dist-dir>)
+                       at d (<next-dist-dir>)
+                       at e (<next-dist-dir>)
+                       at f (<next-dist-dir>)
+                       at g (<next-dist-dir>)
+                       at h (<next-dist-dir>)
+                       at i (<next-dist-dir>)
+                       at j (<next-dist-dir>)
+                       at k (<next-dist-dir>)
+                       at l (<next-dist-dir>)
+                       at m (<next-dist-dir>)
+                       at n (<next-dist-dir>)
+                       at o (<next-dist-dir>)
+                       at p (<next-dist-dir>)
+                       at q (<next-dist-dir>)
+                       at r (<next-dist-dir>)
+                       at s (<next-dist-dir>)
+                       at t (<next-dist-dir>)
+                       at main (<anonymous>)
+                       at body (<anonymous>)
+                       at html (<anonymous>)
+                       at u (<next-dist-dir>)
+                       at v (<next-dist-dir>)
+                       at w (<next-dist-dir>)
+                       at x (<next-dist-dir>)
+                       at y (<next-dist-dir>)
+                       at z (<next-dist-dir>)
+                       at a (<next-dist-dir>)
+                       at b (<next-dist-dir>)
+                       at c (<next-dist-dir>)
+                       at d (<next-dist-dir>)
+                       at e (<next-dist-dir>)
+                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/fast" in your browser to investigate the error.
+                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                   Error occurred prerendering page "/use-cache-low-expire/fast". Read more: https://nextjs.org/docs/messages/prerender-error
+                   Export encountered an error on /use-cache-low-expire/fast/page: /use-cache-low-expire/fast, exiting the build."
+                  `)
+                }
               }
-            }
-          })
-        }
+            })
+          }
+        })
+        describe('slow cache', () => {
+          if (isNextDev) {
+            it('should show a redbox error', async () => {
+              const browser = await next.browser('/use-cache-low-expire/slow')
+
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "description": "Runtime data was accessed outside of <Suspense>
+
+               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+
+               To fix this:
+
+               Provide a fallback UI using <Suspense> around this component.
+
+               or
+
+               Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+               In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route",
+                 "environmentLabel": "Server",
+                 "label": "Blocking Route",
+                 "source": "app/use-cache-low-expire/slow/page.tsx (3:16) @ Page
+               > 3 | export default async function Page() {
+                   |                ^",
+                 "stack": [
+                   "Page app/use-cache-low-expire/slow/page.tsx (3:16)",
+                 ],
+               }
+              `)
+            })
+          } else {
+            it('should error the build', async () => {
+              try {
+                await prerender('/use-cache-low-expire/slow')
+              } catch {
+                // we expect the build to fail
+              }
+
+              const output = getPrerenderOutput(
+                next.cliOutput.slice(cliOutputLength),
+                { isMinified: !isDebugPrerender }
+              )
+
+              if (isTurbopack) {
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: Route "/use-cache-low-expire/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                       at main (<anonymous>)
+                       at body (<anonymous>)
+                       at html (<anonymous>)
+                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/slow" in your browser to investigate the error.
+                   Error occurred prerendering page "/use-cache-low-expire/slow". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                   > Export encountered errors on following paths:
+                   	/use-cache-low-expire/slow/page: /use-cache-low-expire/slow"
+                  `)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: Route "/use-cache-low-expire/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                       at main (<anonymous>)
+                       at body (<anonymous>)
+                       at html (<anonymous>)
+                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/slow" in your browser to investigate the error.
+                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                   Error occurred prerendering page "/use-cache-low-expire/slow". Read more: https://nextjs.org/docs/messages/prerender-error
+                   Export encountered an error on /use-cache-low-expire/slow/page: /use-cache-low-expire/slow, exiting the build."
+                  `)
+                }
+              } else {
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: Route "/use-cache-low-expire/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                       at <FIXME-library-internal>
+                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/slow" in your browser to investigate the error.
+                   Error occurred prerendering page "/use-cache-low-expire/slow". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                   > Export encountered errors on following paths:
+                   	/use-cache-low-expire/slow/page: /use-cache-low-expire/slow"
+                  `)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: Route "/use-cache-low-expire/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                       at a (<next-dist-dir>)
+                       at b (<next-dist-dir>)
+                       at c (<next-dist-dir>)
+                       at d (<next-dist-dir>)
+                       at e (<next-dist-dir>)
+                       at f (<next-dist-dir>)
+                       at g (<next-dist-dir>)
+                       at h (<next-dist-dir>)
+                       at i (<next-dist-dir>)
+                       at j (<next-dist-dir>)
+                       at k (<next-dist-dir>)
+                       at l (<next-dist-dir>)
+                       at m (<next-dist-dir>)
+                       at n (<next-dist-dir>)
+                       at o (<next-dist-dir>)
+                       at p (<next-dist-dir>)
+                       at q (<next-dist-dir>)
+                       at r (<next-dist-dir>)
+                       at s (<next-dist-dir>)
+                       at t (<next-dist-dir>)
+                       at main (<anonymous>)
+                       at body (<anonymous>)
+                       at html (<anonymous>)
+                       at u (<next-dist-dir>)
+                       at v (<next-dist-dir>)
+                       at w (<next-dist-dir>)
+                       at x (<next-dist-dir>)
+                       at y (<next-dist-dir>)
+                       at z (<next-dist-dir>)
+                       at a (<next-dist-dir>)
+                       at b (<next-dist-dir>)
+                       at c (<next-dist-dir>)
+                       at d (<next-dist-dir>)
+                       at e (<next-dist-dir>)
+                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/slow" in your browser to investigate the error.
+                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                   Error occurred prerendering page "/use-cache-low-expire/slow". Read more: https://nextjs.org/docs/messages/prerender-error
+                   Export encountered an error on /use-cache-low-expire/slow/page: /use-cache-low-expire/slow, exiting the build."
+                  `)
+                }
+              }
+            })
+          }
+        })
       })
 
       describe('cacheLife with revalidate: 0', () => {
-        if (isNextDev) {
-          it('should show a redbox error', async () => {
-            const browser = await next.browser('/use-cache-revalidate-0')
+        describe('microtasky cache', () => {
+          if (isNextDev) {
+            it('should show a redbox error', async () => {
+              const browser = await next.browser('/use-cache-revalidate-0/fast')
 
-            await expect(browser).toDisplayCollapsedRedbox(
-              `"Redbox did not open."`
-            )
-          })
-        } else {
-          it('should error the build', async () => {
-            try {
-              await prerender('/use-cache-revalidate-0')
-            } catch {
-              // we expect the build to fail
-            }
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "description": "Runtime data was accessed outside of <Suspense>
 
-            const output = getPrerenderOutput(
-              next.cliOutput.slice(cliOutputLength),
-              { isMinified: !isDebugPrerender }
-            )
+               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
 
-            if (isTurbopack) {
-              if (isDebugPrerender) {
-                expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-revalidate-0": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at main (<anonymous>)
-                     at body (<anonymous>)
-                     at html (<anonymous>)
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0" in your browser to investigate the error.
-                 Error occurred prerendering page "/use-cache-revalidate-0". Read more: https://nextjs.org/docs/messages/prerender-error
+               To fix this:
 
-                 > Export encountered errors on following paths:
-                 	/use-cache-revalidate-0/page: /use-cache-revalidate-0"
-                `)
-              } else {
-                expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-revalidate-0": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at main (<anonymous>)
-                     at body (<anonymous>)
-                     at html (<anonymous>)
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/use-cache-revalidate-0". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-revalidate-0/page: /use-cache-revalidate-0, exiting the build."
-                `)
+               Provide a fallback UI using <Suspense> around this component.
+
+               or
+
+               Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+               In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route",
+                 "environmentLabel": "Server",
+                 "label": "Blocking Route",
+                 "source": "app/use-cache-revalidate-0/fast/page.tsx (3:16) @ Page
+               > 3 | export default async function Page() {
+                   |                ^",
+                 "stack": [
+                   "Page app/use-cache-revalidate-0/fast/page.tsx (3:16)",
+                 ],
+               }
+              `)
+            })
+          } else {
+            it('should error the build', async () => {
+              try {
+                await prerender('/use-cache-revalidate-0/fast')
+              } catch {
+                // we expect the build to fail
               }
-            } else {
-              if (isDebugPrerender) {
-                expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-revalidate-0": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at <FIXME-library-internal>
-                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0" in your browser to investigate the error.
-                 Error occurred prerendering page "/use-cache-revalidate-0". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                 > Export encountered errors on following paths:
-                 	/use-cache-revalidate-0/page: /use-cache-revalidate-0"
-                `)
+              const output = getPrerenderOutput(
+                next.cliOutput.slice(cliOutputLength),
+                { isMinified: !isDebugPrerender }
+              )
+
+              if (isTurbopack) {
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: Route "/use-cache-revalidate-0/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                       at main (<anonymous>)
+                       at body (<anonymous>)
+                       at html (<anonymous>)
+                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/fast" in your browser to investigate the error.
+                   Error occurred prerendering page "/use-cache-revalidate-0/fast". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                   > Export encountered errors on following paths:
+                   	/use-cache-revalidate-0/fast/page: /use-cache-revalidate-0/fast"
+                  `)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: Route "/use-cache-revalidate-0/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                       at main (<anonymous>)
+                       at body (<anonymous>)
+                       at html (<anonymous>)
+                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/fast" in your browser to investigate the error.
+                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                   Error occurred prerendering page "/use-cache-revalidate-0/fast". Read more: https://nextjs.org/docs/messages/prerender-error
+                   Export encountered an error on /use-cache-revalidate-0/fast/page: /use-cache-revalidate-0/fast, exiting the build."
+                  `)
+                }
               } else {
-                expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-revalidate-0": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at main (<anonymous>)
-                     at body (<anonymous>)
-                     at html (<anonymous>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/use-cache-revalidate-0". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-revalidate-0/page: /use-cache-revalidate-0, exiting the build."
-                `)
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: Route "/use-cache-revalidate-0/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                       at <FIXME-library-internal>
+                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/fast" in your browser to investigate the error.
+                   Error occurred prerendering page "/use-cache-revalidate-0/fast". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                   > Export encountered errors on following paths:
+                   	/use-cache-revalidate-0/fast/page: /use-cache-revalidate-0/fast"
+                  `)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: Route "/use-cache-revalidate-0/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                       at a (<next-dist-dir>)
+                       at b (<next-dist-dir>)
+                       at c (<next-dist-dir>)
+                       at d (<next-dist-dir>)
+                       at e (<next-dist-dir>)
+                       at f (<next-dist-dir>)
+                       at g (<next-dist-dir>)
+                       at h (<next-dist-dir>)
+                       at i (<next-dist-dir>)
+                       at j (<next-dist-dir>)
+                       at k (<next-dist-dir>)
+                       at l (<next-dist-dir>)
+                       at m (<next-dist-dir>)
+                       at n (<next-dist-dir>)
+                       at o (<next-dist-dir>)
+                       at p (<next-dist-dir>)
+                       at q (<next-dist-dir>)
+                       at r (<next-dist-dir>)
+                       at s (<next-dist-dir>)
+                       at t (<next-dist-dir>)
+                       at main (<anonymous>)
+                       at body (<anonymous>)
+                       at html (<anonymous>)
+                       at u (<next-dist-dir>)
+                       at v (<next-dist-dir>)
+                       at w (<next-dist-dir>)
+                       at x (<next-dist-dir>)
+                       at y (<next-dist-dir>)
+                       at z (<next-dist-dir>)
+                       at a (<next-dist-dir>)
+                       at b (<next-dist-dir>)
+                       at c (<next-dist-dir>)
+                       at d (<next-dist-dir>)
+                       at e (<next-dist-dir>)
+                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/fast" in your browser to investigate the error.
+                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                   Error occurred prerendering page "/use-cache-revalidate-0/fast". Read more: https://nextjs.org/docs/messages/prerender-error
+                   Export encountered an error on /use-cache-revalidate-0/fast/page: /use-cache-revalidate-0/fast, exiting the build."
+                  `)
+                }
               }
-            }
-          })
-        }
+            })
+          }
+        })
+        describe('slow cache', () => {
+          if (isNextDev) {
+            it('should show a redbox error', async () => {
+              const browser = await next.browser('/use-cache-revalidate-0/slow')
+
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "description": "Runtime data was accessed outside of <Suspense>
+
+               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+
+               To fix this:
+
+               Provide a fallback UI using <Suspense> around this component.
+
+               or
+
+               Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+               In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route",
+                 "environmentLabel": "Server",
+                 "label": "Blocking Route",
+                 "source": "app/use-cache-revalidate-0/slow/page.tsx (3:16) @ Page
+               > 3 | export default async function Page() {
+                   |                ^",
+                 "stack": [
+                   "Page app/use-cache-revalidate-0/slow/page.tsx (3:16)",
+                 ],
+               }
+              `)
+            })
+          } else {
+            it('should error the build', async () => {
+              try {
+                await prerender('/use-cache-revalidate-0/slow')
+              } catch {
+                // we expect the build to fail
+              }
+
+              const output = getPrerenderOutput(
+                next.cliOutput.slice(cliOutputLength),
+                { isMinified: !isDebugPrerender }
+              )
+
+              if (isTurbopack) {
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: Route "/use-cache-revalidate-0/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                       at main (<anonymous>)
+                       at body (<anonymous>)
+                       at html (<anonymous>)
+                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
+                   Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                   > Export encountered errors on following paths:
+                   	/use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow"
+                  `)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`
+                    "Error: Route "/use-cache-revalidate-0/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                        at main (<anonymous>)
+                        at body (<anonymous>)
+                        at html (<anonymous>)
+                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
+                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                    Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
+                    Export encountered an error on /use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow, exiting the build."
+                  `)
+                }
+              } else {
+                if (isDebugPrerender) {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: Route "/use-cache-revalidate-0/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                       at <FIXME-library-internal>
+                   To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
+                   Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                   > Export encountered errors on following paths:
+                   	/use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow"
+                  `)
+                } else {
+                  expect(output).toMatchInlineSnapshot(`
+                   "Error: Route "/use-cache-revalidate-0/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                       at a (<next-dist-dir>)
+                       at b (<next-dist-dir>)
+                       at c (<next-dist-dir>)
+                       at d (<next-dist-dir>)
+                       at e (<next-dist-dir>)
+                       at f (<next-dist-dir>)
+                       at g (<next-dist-dir>)
+                       at h (<next-dist-dir>)
+                       at i (<next-dist-dir>)
+                       at j (<next-dist-dir>)
+                       at k (<next-dist-dir>)
+                       at l (<next-dist-dir>)
+                       at m (<next-dist-dir>)
+                       at n (<next-dist-dir>)
+                       at o (<next-dist-dir>)
+                       at p (<next-dist-dir>)
+                       at q (<next-dist-dir>)
+                       at r (<next-dist-dir>)
+                       at s (<next-dist-dir>)
+                       at t (<next-dist-dir>)
+                       at main (<anonymous>)
+                       at body (<anonymous>)
+                       at html (<anonymous>)
+                       at u (<next-dist-dir>)
+                       at v (<next-dist-dir>)
+                       at w (<next-dist-dir>)
+                       at x (<next-dist-dir>)
+                       at y (<next-dist-dir>)
+                       at z (<next-dist-dir>)
+                       at a (<next-dist-dir>)
+                       at b (<next-dist-dir>)
+                       at c (<next-dist-dir>)
+                       at d (<next-dist-dir>)
+                       at e (<next-dist-dir>)
+                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
+                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                   Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
+                   Export encountered an error on /use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow, exiting the build."
+                  `)
+                }
+              }
+            })
+          }
+        })
       })
 
       describe('reading fallback params', () => {
