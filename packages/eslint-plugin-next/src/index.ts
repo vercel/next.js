@@ -53,36 +53,30 @@ const coreWebVitalsRules = {
   '@next/next/no-sync-scripts': 'error',
 } satisfies Linter.RulesRecord
 
-const plugin = {
-  meta: {
-    name: '@next/eslint-plugin-next',
-  },
-  rules: {
-    'google-font-display': googleFontDisplay,
-    'google-font-preconnect': googleFontPreconnect,
-    'inline-script-id': inlineScriptId,
-    'next-script-for-ga': nextScriptForGa,
-    'no-assign-module-variable': noAssignModuleVariable,
-    'no-async-client-component': noAsyncClientComponent,
-    'no-before-interactive-script-outside-document':
-      noBeforeInteractiveScriptOutsideDocument,
-    'no-css-tags': noCssTags,
-    'no-document-import-in-page': noDocumentImportInPage,
-    'no-duplicate-head': noDuplicateHead,
-    'no-head-element': noHeadElement,
-    'no-head-import-in-document': noHeadImportInDocument,
-    'no-html-link-for-pages': noHtmlLinkForPages,
-    'no-img-element': noImgElement,
-    'no-page-custom-font': noPageCustomFont,
-    'no-script-component-in-head': noScriptComponentInHead,
-    'no-styled-jsx-in-document': noStyledJsxInDocument,
-    'no-sync-scripts': noSyncScripts,
-    'no-title-in-document-head': noTitleInDocumentHead,
-    'no-typos': noTypos,
-    'no-unwanted-polyfillio': noUnwantedPolyfillio,
-  } satisfies Record<string, Rule.RuleModule>,
-  configs: {} as ESLintPluginConfigs,
-}
+const rules = {
+  'google-font-display': googleFontDisplay,
+  'google-font-preconnect': googleFontPreconnect,
+  'inline-script-id': inlineScriptId,
+  'next-script-for-ga': nextScriptForGa,
+  'no-assign-module-variable': noAssignModuleVariable,
+  'no-async-client-component': noAsyncClientComponent,
+  'no-before-interactive-script-outside-document':
+    noBeforeInteractiveScriptOutsideDocument,
+  'no-css-tags': noCssTags,
+  'no-document-import-in-page': noDocumentImportInPage,
+  'no-duplicate-head': noDuplicateHead,
+  'no-head-element': noHeadElement,
+  'no-head-import-in-document': noHeadImportInDocument,
+  'no-html-link-for-pages': noHtmlLinkForPages,
+  'no-img-element': noImgElement,
+  'no-page-custom-font': noPageCustomFont,
+  'no-script-component-in-head': noScriptComponentInHead,
+  'no-styled-jsx-in-document': noStyledJsxInDocument,
+  'no-sync-scripts': noSyncScripts,
+  'no-title-in-document-head': noTitleInDocumentHead,
+  'no-typos': noTypos,
+  'no-unwanted-polyfillio': noUnwantedPolyfillio,
+} satisfies Record<string, Rule.RuleModule>
 
 type ESLintPluginConfigs = {
   'recommended-legacy': Linter.LegacyConfig
@@ -91,7 +85,16 @@ type ESLintPluginConfigs = {
   'core-web-vitals': Linter.Config
 }
 
-Object.assign(plugin.configs, {
+// Define plugin first with empty configs to be used in configs definition
+const plugin = {
+  meta: {
+    name: '@next/eslint-plugin-next',
+  },
+  rules,
+  configs: {} as ESLintPluginConfigs,
+}
+
+const configs: ESLintPluginConfigs = {
   'recommended-legacy': {
     plugins: ['@next/next'],
     rules: recommendedRules,
@@ -118,7 +121,21 @@ Object.assign(plugin.configs, {
       ...coreWebVitalsRules,
     },
   },
-} satisfies ESLintPluginConfigs)
+}
 
-export default plugin
-export const { rules, configs } = plugin
+// Assign configs to plugin
+Object.assign(plugin.configs, configs)
+
+export = {
+  ...plugin,
+  configs,
+}
+
+// @ts-ignore
+module.exports = plugin
+// @ts-ignore
+module.exports.meta = plugin.meta
+// @ts-ignore
+module.exports.rules = rules
+// @ts-ignore
+module.exports.configs = plugin.configs
