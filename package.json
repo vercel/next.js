@@ -312,6 +312,7 @@
     "overrides": {
       "webpack": "5.98.0",
       "browserslist": "4.28.0",
+      "baseline-browser-mapping": "2.8.32",
       "caniuse-lite": "1.0.30001746",
       "@types/node": "20.17.6",
       "@babel/core": "7.26.10",
