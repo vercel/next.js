@@ -98,7 +98,6 @@ describe('use-cache-segment-configs', () => {
         expect(buildOutput).toMatchInlineSnapshot(`
          "
          // TODO(veil): Fix broken import trace for Webpack loader resource.
-           × Module build failed:
            ╰─▶   × Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
                  │    ,-[1:1]
                  │  1 | export const runtime = 'edge'

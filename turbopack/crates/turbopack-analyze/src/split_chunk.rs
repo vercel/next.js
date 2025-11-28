@@ -47,10 +47,11 @@ pub async fn split_output_asset_into_parts(
     else {
         return self_mapped(asset, content).await;
     };
-    let Some(source_map) = &*generate_source_map.generate_source_map().await? else {
+    let source_map = generate_source_map.generate_source_map().await?;
+    let Some(source_map) = source_map.as_content() else {
         return self_mapped(asset, content).await;
     };
-    let Some(source_map) = SourceMap::new_from_rope(source_map)? else {
+    let Some(source_map) = SourceMap::new_from_rope(source_map.content())? else {
         return unaccounted(asset, content).await;
     };
 

@@ -71,11 +71,11 @@ describe('middleware - development errors', () => {
            "description": "boom",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "middleware.js (3:15) @ default
+           "source": "middleware.js (3:15) @ __rspack_default_export
          > 3 |         throw new Error('boom')
              |               ^",
            "stack": [
-             "default middleware.js (3:15)",
+             "__rspack_default_export middleware.js (3:15)",
            ],
          }
         `)
@@ -234,12 +234,12 @@ describe('middleware - development errors', () => {
            "description": "test is not defined",
            "environmentLabel": null,
            "label": "Runtime ReferenceError",
-           "source": "middleware.js (4:9) @ default
+           "source": "middleware.js (4:9) @ __rspack_default_export
          > 4 |         eval('test')
              |         ^",
            "stack": [
              "<FIXME-file-protocol>",
-             "default middleware.js (4:9)",
+             "__rspack_default_export middleware.js (4:9)",
            ],
          }
         `)
@@ -490,11 +490,10 @@ describe('middleware - development errors', () => {
       } else if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "  × Module build failed:",
+           "description": "  ╰─▶   × Error:   x Expected '{', got '}'",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./middleware.js
-           × Module build failed:
            ╰─▶   × Error:   x Expected '{', got '}'
                  │    ,----
                  │  1 | export default function () }
@@ -576,11 +575,10 @@ describe('middleware - development errors', () => {
       } else if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "  × Module build failed:",
+           "description": "  ╰─▶   × Error:   x Expected '{', got '}'",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./middleware.js
-           × Module build failed:
            ╰─▶   × Error:   x Expected '{', got '}'
                  │    ,----
                  │  1 | export default function () }

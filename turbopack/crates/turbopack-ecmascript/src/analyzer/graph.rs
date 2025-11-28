@@ -31,7 +31,7 @@ use super::{
 use crate::{
     AnalyzeMode, SpecifiedModuleType,
     analyzer::{WellKnownObjectKind, is_unresolved},
-    references::constant_value::parse_single_expr_lit,
+    references::{constant_value::parse_single_expr_lit, for_each_ident_in_pat},
     utils::{AstPathRange, unparen},
 };
 
@@ -307,6 +307,30 @@ impl VarMeta {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum DeclUsage {
+    SideEffects,
+    Bindings(FxHashSet<Id>),
+}
+impl Default for DeclUsage {
+    fn default() -> Self {
+        DeclUsage::Bindings(Default::default())
+    }
+}
+impl DeclUsage {
+    fn add_usage(&mut self, user: &Id) {
+        match self {
+            Self::Bindings(set) => {
+                set.insert(user.clone());
+            }
+            Self::SideEffects => {}
+        }
+    }
+    fn make_side_effects(&mut self) {
+        *self = Self::SideEffects;
+    }
+}
+
 #[derive(Debug)]
 pub struct VarGraph {
     pub values: FxHashMap<Id, VarMeta>,
@@ -315,6 +339,13 @@ pub struct VarGraph {
     pub free_var_ids: FxHashMap<Atom, Id>,
 
     pub effects: Vec<Effect>,
+
+    // ident -> immediate usage (top level decl)
+    pub decl_usages: FxHashMap<Id, DeclUsage>,
+    // import -> immediate usage (top level decl)
+    pub import_usages: FxHashMap<usize, DeclUsage>,
+    // export name -> top level decl
+    pub exports: FxHashMap<Atom, Id>,
 }
 
 impl VarGraph {
@@ -339,14 +370,17 @@ pub fn create_graph(
         values: Default::default(),
         free_var_ids: Default::default(),
         effects: Default::default(),
+        decl_usages: Default::default(),
+        import_usages: Default::default(),
+        exports: Default::default(),
     };
 
     m.visit_with_ast_path(
         &mut Analyzer {
             analyze_mode,
             data: &mut graph,
-            state: analyzer_state::AnalyzerState::new(),
             eval_context,
+            state: Default::default(),
             effects: Default::default(),
             hoisted_effects: Default::default(),
         },
@@ -873,9 +907,9 @@ struct Analyzer<'a> {
     state: analyzer_state::AnalyzerState,
 
     effects: Vec<Effect>,
-    // Effects collected from hoisted declarations. See https://developer.mozilla.org/en-US/docs/Glossary/Hoisting
-    // Tracked separately so we can preserve effects from hoisted declarations even when we don't
-    // collect effects from the declaring context.
+    /// Effects collected from hoisted declarations. See https://developer.mozilla.org/en-US/docs/Glossary/Hoisting
+    /// Tracked separately so we can preserve effects from hoisted declarations even when we don't
+    /// collect effects from the declaring context.
     hoisted_effects: Vec<Effect>,
 
     eval_context: &'a EvalContext,
@@ -956,6 +990,7 @@ mod analyzer_state {
 
     /// Contains fields of `Analyzer` that should only be modified using helper methods. These are
     /// intentionally private to the rest of the `Analyzer` implementation.
+    #[derive(Default)]
     pub struct AnalyzerState {
         pat_value: Option<JsValue>,
         /// Return values of the current function.
@@ -967,17 +1002,14 @@ mod analyzer_state {
         early_return_stack: Vec<EarlyReturn>,
         lexical_stack: Vec<LexicalContext>,
         var_decl_kind: Option<VarDeclKind>,
+
+        cur_top_level_decl_name: Option<Id>,
     }
 
     impl AnalyzerState {
-        pub fn new() -> AnalyzerState {
-            AnalyzerState {
-                pat_value: None,
-                cur_fn_return_values: None,
-                early_return_stack: Default::default(),
-                lexical_stack: Default::default(),
-                var_decl_kind: None,
-            }
+        /// Returns the identifier of the current top level declaration.
+        pub(super) fn cur_top_level_decl_name(&self) -> &Option<Id> {
+            &self.cur_top_level_decl_name
         }
     }
 
@@ -1272,6 +1304,23 @@ mod analyzer_state {
                 }
             }
             always_returns
+        }
+
+        /// Runs `visitor` with the current top level declaration identifier
+        pub(super) fn enter_top_level_decl<T>(
+            &mut self,
+            name: &Ident,
+            visitor: impl FnOnce(&mut Self) -> T,
+        ) -> T {
+            let is_top_level_fn = self.state.cur_top_level_decl_name.is_none();
+            if is_top_level_fn {
+                self.state.cur_top_level_decl_name = Some(name.to_id());
+            }
+            let result = visitor(self);
+            if is_top_level_fn {
+                self.state.cur_top_level_decl_name = None;
+            }
+            result
         }
     }
 }
@@ -1909,9 +1958,12 @@ impl VisitAstPath for Analyzer<'_> {
         decl: &'ast FnDecl,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let fn_value = self.enter_fn(&*decl.function, |this| {
-            decl.visit_children_with_ast_path(this, ast_path);
+        let fn_value = self.enter_top_level_decl(&decl.ident, |this| {
+            this.enter_fn(&*decl.function, |this| {
+                decl.visit_children_with_ast_path(this, ast_path);
+            })
         });
+
         // Take all effects produced by the function and move them to hoisted effects since
         // function declarations are hoisted.
         // This accounts for the fact that even with `if (true) { return f} function f() {} ` `f` is
@@ -2386,6 +2438,17 @@ impl VisitAstPath for Analyzer<'_> {
         if let Some((esm_reference_index, export)) =
             self.eval_context.imports.get_binding(&ident.to_id())
         {
+            let usage = self
+                .data
+                .import_usages
+                .entry(esm_reference_index)
+                .or_default();
+            if let Some(top_level) = self.state.cur_top_level_decl_name() {
+                usage.add_usage(top_level);
+            } else {
+                usage.make_side_effects();
+            }
+
             // Optimization: Look for a MemberExpr to see if we only access a few members from the
             // module, add those specific effects instead of depending on the entire module.
             //
@@ -2431,6 +2494,24 @@ impl VisitAstPath for Analyzer<'_> {
                 ast_path: as_parent_path(ast_path),
                 span: ident.span(),
             })
+        }
+
+        if !is_unresolved(ident, self.eval_context.unresolved_mark) {
+            if let Some(top_level) = self.state.cur_top_level_decl_name() {
+                if !(ident.sym == top_level.0 && ident.ctxt == top_level.1) {
+                    self.data
+                        .decl_usages
+                        .entry(ident.to_id())
+                        .or_default()
+                        .add_usage(top_level);
+                }
+            } else {
+                self.data
+                    .decl_usages
+                    .entry(ident.to_id())
+                    .or_default()
+                    .make_side_effects();
+            }
         }
     }
 
@@ -2727,6 +2808,55 @@ impl VisitAstPath for Analyzer<'_> {
         });
 
         self.effects = prev_effects;
+    }
+
+    fn visit_export_decl<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast ExportDecl,
+        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+    ) {
+        match &node.decl {
+            Decl::Class(node) => {
+                self.data
+                    .exports
+                    .insert(node.ident.sym.clone(), node.ident.to_id());
+            }
+            Decl::Fn(node) => {
+                self.data
+                    .exports
+                    .insert(node.ident.sym.clone(), node.ident.to_id());
+            }
+            Decl::Var(node) => {
+                for VarDeclarator { name, .. } in &node.decls {
+                    for_each_ident_in_pat(name, &mut |name, ctxt| {
+                        self.data.exports.insert(name.clone(), (name.clone(), ctxt));
+                    });
+                }
+            }
+            _ => {}
+        };
+        node.visit_children_with_ast_path(self, ast_path);
+    }
+
+    fn visit_export_named_specifier<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast ExportNamedSpecifier,
+        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+    ) {
+        let export_name = node
+            .exported
+            .as_ref()
+            .unwrap_or(&node.orig)
+            .atom()
+            .into_owned();
+        self.data.exports.insert(
+            export_name,
+            match &node.orig {
+                ModuleExportName::Ident(ident) => ident.to_id(),
+                ModuleExportName::Str(_) => unreachable!("exporting a string should be impossible"),
+            },
+        );
+        node.visit_children_with_ast_path(self, ast_path);
     }
 }
 

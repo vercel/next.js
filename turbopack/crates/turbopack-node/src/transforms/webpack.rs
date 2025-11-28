@@ -38,9 +38,7 @@ use turbopack_core::{
         resolve,
     },
     source::Source,
-    source_map::{
-        GenerateSourceMap, OptionStringifiedSourceMap, utils::resolve_source_map_sources,
-    },
+    source_map::{GenerateSourceMap, utils::resolve_source_map_sources},
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
@@ -176,7 +174,7 @@ impl Asset for WebpackLoadersProcessedAsset {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
-    async fn generate_source_map(self: Vc<Self>) -> Result<Vc<OptionStringifiedSourceMap>> {
+    async fn generate_source_map(self: Vc<Self>) -> Result<Vc<FileContent>> {
         Ok(*self.process().await?.source_map)
     }
 }
@@ -184,7 +182,7 @@ impl GenerateSourceMap for WebpackLoadersProcessedAsset {
 #[turbo_tasks::value]
 struct ProcessWebpackLoadersResult {
     content: ResolvedVc<AssetContent>,
-    source_map: ResolvedVc<OptionStringifiedSourceMap>,
+    source_map: ResolvedVc<FileContent>,
     assets: Vec<ResolvedVc<VirtualSource>>,
 }
 
@@ -222,7 +220,7 @@ impl WebpackLoadersProcessedAsset {
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
-                source_map: ResolvedVc::cell(None),
+                source_map: FileContent::NotFound.resolved_cell(),
             }
             .cell());
         };
@@ -284,7 +282,7 @@ impl WebpackLoadersProcessedAsset {
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
-                source_map: ResolvedVc::cell(None),
+                source_map: FileContent::NotFound.resolved_cell(),
             }
             .cell());
         };
@@ -312,7 +310,11 @@ impl WebpackLoadersProcessedAsset {
         Ok(ProcessWebpackLoadersResult {
             content,
             assets,
-            source_map: ResolvedVc::cell(source_map),
+            source_map: if let Some(source_map) = source_map {
+                FileContent::Content(File::from(source_map)).resolved_cell()
+            } else {
+                FileContent::NotFound.resolved_cell()
+            },
         }
         .cell())
     }

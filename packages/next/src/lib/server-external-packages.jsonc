@@ -1,4 +1,6 @@
 [
+  // alineacms.com generates this package at build time and it should not end up in a cache (much like the @prisma/client package)
+  "@alinea/generated",
   "@appsignal/nodejs",
   "@aws-sdk/client-s3",
   "@aws-sdk/s3-presigned-post",

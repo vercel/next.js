@@ -50,7 +50,6 @@ describe('use-cache-unknown-cache-kind', () => {
         expect(buildOutput).toMatchInlineSnapshot(`
          "
          ./app/page.tsx
-           × Module build failed:
            ╰─▶   × Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
                  │
                  │    ,-[1:1]

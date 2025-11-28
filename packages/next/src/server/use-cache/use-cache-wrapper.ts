@@ -52,7 +52,7 @@ import type { CacheEntry } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
 import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { getDigestForWellKnownError } from '../app-render/create-error-handler'
+import { createReactServerErrorHandler } from '../app-render/create-error-handler'
 import { DYNAMIC_EXPIRE, RUNTIME_PREFETCH_DYNAMIC_STALE } from './constants'
 import { getCacheHandler } from './handlers'
 import { UseCacheTimeoutError } from './use-cache-errors'
@@ -68,9 +68,9 @@ import {
 import type { Params } from '../request/params'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
-import { isReactLargeShellError } from '../app-render/react-large-shell-error'
 import type { CacheLife } from './cache-life'
 import { RenderStage } from '../app-render/staged-rendering'
+import * as Log from '../../build/output/log'
 
 interface PrivateCacheContext {
   readonly kind: 'private'
@@ -596,28 +596,23 @@ async function generateCacheEntryImpl(
   // digests are handled correctly. Error formatting and reporting is not
   // necessary here; the errors are encoded in the stream, and will be reported
   // in the "Server" environment.
-  const handleError = (error: unknown): string | undefined => {
-    const digest = getDigestForWellKnownError(error)
+  const handleError = createReactServerErrorHandler(
+    workStore.dev,
+    workStore.isBuildTimePrerendering ?? false,
+    workStore.reactServerErrorsByDigest,
+    (error) => {
+      // In production, we log the original error here. It gets a digest that
+      // can be used to associate the error with the obfuscated error that might
+      // be logged if the error is caught. In development, we prefer logging the
+      // transported error in the server environment. It's not obfuscated and
+      // also includes the (dev-only) environment name.
+      if (process.env.NODE_ENV === 'production') {
+        Log.error(error)
+      }
 
-    if (digest) {
-      return digest
+      errors.push(error)
     }
-
-    if (isReactLargeShellError(error)) {
-      // TODO: Aggregate
-      console.error(error)
-      return undefined
-    }
-
-    if (process.env.NODE_ENV !== 'development') {
-      // TODO: For now we're also reporting the error here, because in
-      // production, the "Server" environment will only get the obfuscated
-      // error (created by the Flight Client in the cache wrapper).
-      console.error(error)
-    }
-
-    errors.push(error)
-  }
+  )
 
   let stream: ReadableStream<Uint8Array>
 
