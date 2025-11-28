@@ -301,11 +301,11 @@ describe('ReactRefreshRegression', () => {
          "description": "boom",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "pages/index.js (1:36) @ default
+         "source": "pages/index.js (1:36) @ __rspack_default_export
        > 1 | export default function () { throw new Error('boom'); }
            |                                    ^",
          "stack": [
-           "default pages/index.js (1:36)",
+           "__rspack_default_export pages/index.js (1:36)",
          ],
        }
       `)

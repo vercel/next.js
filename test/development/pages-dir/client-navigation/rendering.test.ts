@@ -250,11 +250,11 @@ describe('Client Navigation rendering', () => {
            "description": "This is an expected error",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "pages/error-inside-page.js (2:9) @ default
+           "source": "pages/error-inside-page.js (2:9) @ __rspack_default_export
          > 2 |   throw new Error('This is an expected error')
              |         ^",
            "stack": [
-             "default pages/error-inside-page.js (2:9)",
+             "__rspack_default_export pages/error-inside-page.js (2:9)",
            ],
          }
         `)
