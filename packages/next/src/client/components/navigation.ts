@@ -72,7 +72,11 @@ export function useSearchParams(): ReadonlyURLSearchParams {
   }, [searchParams]) as ReadonlyURLSearchParams
 
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production' && 'use' in React) {
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    'use' in React &&
+    typeof window !== 'undefined'
+  ) {
     const navigationPromises = use(NavigationPromisesContext)
     if (navigationPromises) {
       return use(navigationPromises.searchParams)
