@@ -764,7 +764,10 @@ export async function initialize(opts: {
       const listenerName = (listener as { name?: string }).name
       if (listenerName === targetListenerName) {
         // @ts-expect-error - process is available at runtime, TypeScript may not recognize it in this context
-        process.removeListener(eventName, listener as (...args: unknown[]) => void)
+        process.removeListener(
+          eventName,
+          listener as (...args: unknown[]) => void
+        )
       }
     }
   }
