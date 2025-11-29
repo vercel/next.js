@@ -750,7 +750,7 @@ export async function initialize(opts: {
     }
   }
 
-  // Remove existing listeners with name "bound logError" to prevent memory leaks
+  // Remove existing listeners with the name "bound logError" to prevent memory leaks
   // in serverless environments where initialize() may be called multiple times
   // for the same process (e.g., Firebase Cloud Functions)
   const removeExistingLogErrorListeners = (
