@@ -9101,8 +9101,10 @@ dependencies = [
  "either",
  "indexmap 2.9.0",
  "mime",
+ "ringmap",
  "serde",
  "serde_json",
+ "smallvec",
 ]
 
 [[package]]

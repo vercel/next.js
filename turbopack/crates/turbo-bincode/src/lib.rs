@@ -1,3 +1,4 @@
+use ::smallvec::SmallVec;
 use bincode::{
     BorrowDecode, Decode, Encode,
     de::{BorrowDecoder, Decoder},
@@ -148,6 +149,83 @@ pub mod indexset {
             struct Wrapper(#[bincode(with = "crate::indexset")] IndexSet<String>);
 
             let set1 = Wrapper(IndexSet::from([
+                "value1".to_string(),
+                "value2".to_string(),
+                "value3".to_string(),
+            ]));
+
+            let set2: Wrapper = decode_from_slice(&encode_to_vec(&set1, cfg).unwrap(), cfg)
+                .unwrap()
+                .0;
+
+            assert_eq!(set1.0, set2.0);
+        }
+    }
+}
+
+pub mod ringset {
+    use std::hash::{BuildHasher, Hash};
+
+    use ::ringmap::RingSet;
+
+    use super::*;
+
+    pub fn encode<E, T, S>(set: &RingSet<T, S>, encoder: &mut E) -> Result<(), EncodeError>
+    where
+        E: Encoder,
+        T: Encode,
+    {
+        usize::encode(&set.len(), encoder)?;
+        for item in set {
+            T::encode(item, encoder)?;
+        }
+        Ok(())
+    }
+
+    pub fn decode<Context, D, T, S>(decoder: &mut D) -> Result<RingSet<T, S>, DecodeError>
+    where
+        D: Decoder<Context = Context>,
+        T: Decode<Context> + Eq + Hash,
+        S: BuildHasher + Default,
+    {
+        let len = usize::decode(decoder)?;
+        let mut set = RingSet::with_capacity_and_hasher(len, Default::default());
+        for _i in 0..len {
+            set.insert(T::decode(decoder)?);
+        }
+        Ok(set)
+    }
+
+    pub fn borrow_decode<'de, Context, D, T, S>(
+        decoder: &mut D,
+    ) -> Result<RingSet<T, S>, DecodeError>
+    where
+        D: BorrowDecoder<'de, Context = Context>,
+        T: BorrowDecode<'de, Context> + Eq + Hash,
+        S: BuildHasher + Default,
+    {
+        let len = usize::decode(decoder)?;
+        let mut set = RingSet::with_capacity_and_hasher(len, Default::default());
+        for _i in 0..len {
+            set.insert(T::borrow_decode(decoder)?);
+        }
+        Ok(set)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use bincode::{decode_from_slice, encode_to_vec};
+
+        use super::*;
+
+        #[test]
+        fn test_roundtrip() {
+            let cfg = bincode::config::standard();
+
+            #[derive(Encode, Decode)]
+            struct Wrapper(#[bincode(with = "crate::ringset")] RingSet<String>);
+
+            let set1 = Wrapper(RingSet::from([
                 "value1".to_string(),
                 "value2".to_string(),
                 "value3".to_string(),
@@ -379,5 +457,112 @@ pub mod either {
 
             assert_eq!(either1.0, either2.0);
         }
+    }
+}
+
+pub mod smallvec {
+    use ::smallvec::Array;
+
+    use super::*;
+
+    pub fn encode<E: Encoder, A: Array<Item = impl Encode>>(
+        vec: &SmallVec<A>,
+        encoder: &mut E,
+    ) -> Result<(), EncodeError> {
+        usize::encode(&vec.len(), encoder)?;
+        for item in vec {
+            Encode::encode(item, encoder)?;
+        }
+        Ok(())
+    }
+
+    pub fn decode<Context, D: Decoder<Context = Context>, A: Array<Item = impl Decode<Context>>>(
+        decoder: &mut D,
+    ) -> Result<SmallVec<A>, DecodeError> {
+        let len = usize::decode(decoder)?;
+        let mut vec = SmallVec::with_capacity(len);
+        for _ in 0..len {
+            vec.push(Decode::decode(decoder)?);
+        }
+        Ok(vec)
+    }
+
+    pub fn borrow_decode<
+        'de,
+        Context,
+        D: BorrowDecoder<'de, Context = Context>,
+        A: Array<Item = impl BorrowDecode<'de, Context>>,
+    >(
+        decoder: &mut D,
+    ) -> Result<SmallVec<A>, DecodeError> {
+        let len = usize::decode(decoder)?;
+        let mut vec = SmallVec::with_capacity(len);
+        for _ in 0..len {
+            vec.push(BorrowDecode::borrow_decode(decoder)?);
+        }
+        Ok(vec)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use bincode::{decode_from_slice, encode_to_vec};
+
+        use super::*;
+
+        #[test]
+        fn test_roundtrip() {
+            let cfg = bincode::config::standard();
+
+            #[derive(Encode, Decode)]
+            struct Wrapper(#[bincode(with = "crate::smallvec")] SmallVec<[u32; 4]>);
+
+            let vec1 = Wrapper(SmallVec::from_slice(&[1u32, 2, 3, 4, 5]));
+
+            let vec2: Wrapper = decode_from_slice(&encode_to_vec(&vec1, cfg).unwrap(), cfg)
+                .unwrap()
+                .0;
+
+            assert_eq!(vec1.0, vec2.0);
+        }
+    }
+}
+
+pub mod owned_cow {
+    //! Overrides the default [`BorrowDecode`] implementation to always use the owned representation
+    //! of [`Cow`], so that the resulting [`BorrowDecode`] type is independent of the [`Cow`]'s
+    //! lifetime.
+
+    use std::borrow::Cow;
+
+    use super::*;
+
+    #[allow(clippy::ptr_arg)]
+    pub fn encode<E, T>(cow: &Cow<'_, T>, encoder: &mut E) -> Result<(), EncodeError>
+    where
+        E: Encoder,
+        T: ToOwned + ?Sized,
+        for<'a> &'a T: Encode,
+    {
+        cow.encode(encoder)
+    }
+
+    pub fn decode<'cow, Context, D, T>(decoder: &mut D) -> Result<Cow<'cow, T>, DecodeError>
+    where
+        D: Decoder<Context = Context>,
+        T: ToOwned + ?Sized,
+        <T as ToOwned>::Owned: Decode<Context>,
+    {
+        Decode::decode(decoder)
+    }
+
+    pub fn borrow_decode<'de, 'cow, Context, D, T>(
+        decoder: &mut D,
+    ) -> Result<Cow<'cow, T>, DecodeError>
+    where
+        D: BorrowDecoder<'de, Context = Context>,
+        T: ToOwned + ?Sized,
+        <T as ToOwned>::Owned: Decode<Context>,
+    {
+        Decode::decode(decoder)
     }
 }
