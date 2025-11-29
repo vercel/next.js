@@ -7,6 +7,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
 use petgraph::{
+    Direction,
     graph::{DiGraph, EdgeIndex, NodeIndex},
     visit::{EdgeRef, IntoNeighbors, IntoNodeReferences, NodeIndexable, Reversed},
 };
@@ -412,7 +413,7 @@ impl SingleModuleGraph {
     pub fn has_entry_module(&self, module: ResolvedVc<Box<dyn Module>>) -> bool {
         if let Some(index) = self.modules.get(&module) {
             self.graph
-                .edges_directed(*index, petgraph::Direction::Incoming)
+                .edges_directed(*index, Direction::Incoming)
                 .next()
                 .is_none()
         } else {
@@ -845,7 +846,7 @@ impl ModuleGraph {
 
         let entry = graph_ref.get_entry(module)?;
         let referenced_modules = graph_ref
-            .iter_graphs_neighbors_rev(entry)
+            .iter_graphs_neighbors_rev(entry, Direction::Outgoing)
             .filter(|(edge_idx, _)| {
                 let ty = graph_ref.get_edge(*edge_idx).unwrap();
                 ty.chunking_type.is_inherit_async()
@@ -997,29 +998,36 @@ impl ModuleGraphRef {
             .context("Expected graph node")
     }
 
-    fn should_visit_node(&self, node: &SingleModuleGraphNode) -> bool {
-        if self.skip_visited_module_children {
+    fn should_visit_node(&self, node: &SingleModuleGraphNode, direction: Direction) -> bool {
+        if self.skip_visited_module_children && direction == Direction::Outgoing {
             !matches!(node, SingleModuleGraphNode::VisitedModule { .. })
         } else {
             true
         }
     }
 
+    pub fn enumerate_nodes(
+        &self,
+    ) -> impl Iterator<Item = (NodeIndex, &'_ SingleModuleGraphNode)> + '_ {
+        self.graphs.iter().flat_map(|g| g.enumerate_nodes())
+    }
+
     /// Iterate the edges of a node REVERSED!
     fn iter_graphs_neighbors_rev<'a>(
         &'a self,
         node: GraphNodeIndex,
+        direction: Direction,
     ) -> impl Iterator<Item = (GraphEdgeIndex, GraphNodeIndex)> + 'a {
         let graph = &*self.get_graph(node.graph_idx).graph;
 
-        if cfg!(debug_assertions) {
+        if cfg!(debug_assertions) && direction == Direction::Outgoing {
             let node_weight = graph.node_weight(node.node_idx).unwrap();
             if let SingleModuleGraphNode::VisitedModule { .. } = node_weight {
                 panic!("iter_graphs_neighbors_rev called on VisitedModule node");
             }
         }
 
-        let mut walker = graph.neighbors(node.node_idx).detach();
+        let mut walker = graph.neighbors_directed(node.node_idx, direction).detach();
         std::iter::from_fn(move || {
             while let Some((edge_idx, succ_idx)) = walker.next(graph) {
                 let edge_idx = GraphEdgeIndex::new(node.graph_idx, edge_idx);
@@ -1094,11 +1102,13 @@ impl ModuleGraphRef {
                     }
                     stack.push((Pass::Visit, current));
                     if action == GraphTraversalAction::Continue
-                        && self.should_visit_node(current_node)
+                        && self.should_visit_node(current_node, Direction::Outgoing)
                     {
-                        let current = current_node.target_idx().unwrap_or(current);
+                        let current = current_node
+                            .target_idx(Direction::Outgoing)
+                            .unwrap_or(current);
                         stack.extend(
-                            self.iter_graphs_neighbors_rev(current)
+                            self.iter_graphs_neighbors_rev(current, Direction::Outgoing)
                                 .map(|(_, child)| (Pass::ExpandAndVisit, child)),
                         );
                     }
@@ -1140,16 +1150,16 @@ impl ModuleGraphRef {
         while let Some(node) = queue.pop_front() {
             if visited.insert(node) {
                 let node_weight = self.get_node(node)?;
-                for (edge, succ) in self.iter_graphs_neighbors_rev(node) {
+                for (edge, succ) in self.iter_graphs_neighbors_rev(node, Direction::Outgoing) {
                     let succ_weight = self.get_node(succ)?;
                     let action = visitor(
                         Some((node_weight.module(), self.get_edge(edge)?)),
                         succ_weight.module(),
                     )?;
-                    if !self.should_visit_node(succ_weight) {
+                    if !self.should_visit_node(succ_weight, Direction::Outgoing) {
                         continue;
                     }
-                    let succ = succ_weight.target_idx().unwrap_or(succ);
+                    let succ = succ_weight.target_idx(Direction::Outgoing).unwrap_or(succ);
                     if !visited.contains(&succ) && action == GraphTraversalAction::Continue {
                         queue.push_back(succ);
                     }
@@ -1189,16 +1199,16 @@ impl ModuleGraphRef {
         while let Some(node) = stack.pop() {
             if visited.insert(node) {
                 let node_weight = self.get_node(node)?;
-                for (edge, succ) in self.iter_graphs_neighbors_rev(node) {
+                for (edge, succ) in self.iter_graphs_neighbors_rev(node, Direction::Outgoing) {
                     let succ_weight = self.get_node(succ)?;
                     let action = visitor(
                         Some((node_weight.module(), self.get_edge(edge)?)),
                         succ_weight.module(),
                     );
-                    if !self.should_visit_node(succ_weight) {
+                    if !self.should_visit_node(succ_weight, Direction::Outgoing) {
                         continue;
                     }
-                    let succ = succ_weight.target_idx().unwrap_or(succ);
+                    let succ = succ_weight.target_idx(Direction::Outgoing).unwrap_or(succ);
                     if !visited.contains(&succ) && action == GraphTraversalAction::Continue {
                         stack.push(succ);
                     }
@@ -1259,6 +1269,70 @@ impl ModuleGraphRef {
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         state: &mut S,
+        visit_preorder: impl FnMut(
+            Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData)>,
+            ResolvedVc<Box<dyn Module>>,
+            &mut S,
+        ) -> Result<GraphTraversalAction>,
+        visit_postorder: impl FnMut(
+            Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData)>,
+            ResolvedVc<Box<dyn Module>>,
+            &mut S,
+        ) -> Result<()>,
+    ) -> Result<()> {
+        self.traverse_edges_from_entries_dfs_impl::<S>(
+            entries,
+            state,
+            visit_preorder,
+            visit_postorder,
+            Direction::Outgoing,
+        )
+    }
+
+    /// Traverses all reachable edges in dfs order over the reversed graph. The preorder visitor can
+    /// be used to forward state up the graph, and to skip subgraphs
+    ///
+    /// Target nodes can be revisited (once per incoming edge) in the preorder_visitor, in the post
+    /// order visitor they are visited exactly once with the first edge they were discovered with.
+    /// Edges are traversed in normal order, so should correspond to reference order.
+    ///
+    /// * `entries` - The entry modules to start the traversal from
+    /// * `state` - The state to be passed to the visitors
+    /// * `visit_preorder` - Called before visiting the children of a node.
+    ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
+    ///      &SingleModuleGraphNode, state &S
+    ///    - Can return [GraphTraversalAction]s to control the traversal
+    /// * `visit_postorder` - Called after visiting the parents of a node. Return
+    ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
+    ///      &SingleModuleGraphNode, state &S
+    pub fn traverse_edges_from_entries_dfs_reversed<S>(
+        &self,
+        entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
+        state: &mut S,
+        visit_preorder: impl FnMut(
+            Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData)>,
+            ResolvedVc<Box<dyn Module>>,
+            &mut S,
+        ) -> Result<GraphTraversalAction>,
+        visit_postorder: impl FnMut(
+            Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData)>,
+            ResolvedVc<Box<dyn Module>>,
+            &mut S,
+        ) -> Result<()>,
+    ) -> Result<()> {
+        self.traverse_edges_from_entries_dfs_impl::<S>(
+            entries,
+            state,
+            visit_preorder,
+            visit_postorder,
+            Direction::Incoming,
+        )
+    }
+
+    fn traverse_edges_from_entries_dfs_impl<S>(
+        &self,
+        entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
+        state: &mut S,
         mut visit_preorder: impl FnMut(
             Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData)>,
             ResolvedVc<Box<dyn Module>>,
@@ -1269,7 +1343,15 @@ impl ModuleGraphRef {
             ResolvedVc<Box<dyn Module>>,
             &mut S,
         ) -> Result<()>,
+        direction: Direction,
     ) -> Result<()> {
+        if direction == Direction::Incoming {
+            debug_assert!(
+                self.skip_visited_module_children,
+                "Can only trace reverse edges in a single layer graph. We do not model cross \
+                 graph reverse edges"
+            );
+        }
         let entries = entries.into_iter().collect::<Vec<_>>();
 
         enum Pass {
@@ -1307,10 +1389,10 @@ impl ModuleGraphRef {
                     stack.push((Pass::Visit, parent, current));
                     if action == GraphTraversalAction::Continue
                         && expanded.insert(current)
-                        && self.should_visit_node(current_node)
+                        && self.should_visit_node(current_node, direction)
                     {
-                        let current = current_node.target_idx().unwrap_or(current);
-                        stack.extend(self.iter_graphs_neighbors_rev(current).map(
+                        let current = current_node.target_idx(direction).unwrap_or(current);
+                        stack.extend(self.iter_graphs_neighbors_rev(current, direction).map(
                             |(edge, child)| (Pass::ExpandAndVisit, Some((current, edge)), child),
                         ));
                     }
@@ -1419,11 +1501,11 @@ impl ModuleGraphRef {
         while let Some(NodeWithPriority { node, .. }) = queue.pop() {
             queue_set.remove(&node);
             let node_weight = self.get_node(node)?;
-            let node = node_weight.target_idx().unwrap_or(node);
+            let node = node_weight.target_idx(Direction::Outgoing).unwrap_or(node);
 
             visit_count += 1;
 
-            for (edge, succ) in self.iter_graphs_neighbors_rev(node) {
+            for (edge, succ) in self.iter_graphs_neighbors_rev(node, Direction::Outgoing) {
                 let succ_weight = self.get_node(succ)?;
 
                 let action = visit(
@@ -1432,7 +1514,7 @@ impl ModuleGraphRef {
                     state,
                 )?;
 
-                let succ = succ_weight.target_idx().unwrap_or(succ);
+                let succ = succ_weight.target_idx(Direction::Outgoing).unwrap_or(succ);
                 if action == GraphTraversalAction::Continue && queue_set.insert(succ) {
                     queue.push(NodeWithPriority {
                         node: succ,
@@ -1499,9 +1581,12 @@ impl SingleModuleGraphNode {
             SingleModuleGraphNode::VisitedModule { module, .. } => *module,
         }
     }
-    pub fn target_idx(&self) -> Option<GraphNodeIndex> {
+    pub fn target_idx(&self, direction: Direction) -> Option<GraphNodeIndex> {
         match self {
-            SingleModuleGraphNode::VisitedModule { idx, .. } => Some(*idx),
+            SingleModuleGraphNode::VisitedModule { idx, .. } => match direction {
+                Direction::Outgoing => Some(*idx),
+                Direction::Incoming => None,
+            },
             SingleModuleGraphNode::Module(_) => None,
         }
     }
@@ -1793,7 +1878,7 @@ pub mod tests {
     use anyhow::Result;
     use rustc_hash::FxHashMap;
     use turbo_rcstr::{RcStr, rcstr};
-    use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+    use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
     use turbo_tasks_fs::{FileSystem, FileSystemPath, VirtualFileSystem};
 
@@ -1803,7 +1888,7 @@ pub mod tests {
         module::Module,
         module_graph::{
             GraphEntries, GraphTraversalAction, ModuleGraph, ModuleGraphRef, SingleModuleGraph,
-            chunk_group_info::ChunkGroupEntry,
+            VisitedModules, chunk_group_info::ChunkGroupEntry,
         },
         reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
         resolve::ExportUsage,
@@ -1980,6 +2065,161 @@ pub mod tests {
         )
         .await;
     }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_reverse_edges_through_layered_graph() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+            let root = fs.root().await?;
+
+            // a simple linear graph a -> b ->c
+            // but b->c is in a parent graph and a is in the child
+            let graph = {
+                let mut deps = FxHashMap::default();
+
+                deps.insert(rcstr!("a.js"), vec![rcstr!("b.js"), rcstr!("d.js")]);
+                deps.insert(rcstr!("b.js"), vec![rcstr!("c.js")]);
+                deps
+            };
+            let repo = TestRepo {
+                repo: graph
+                    .iter()
+                    .map(|(k, v)| {
+                        (
+                            root.join(k).unwrap(),
+                            v.iter().map(|f| root.join(f).unwrap()).collect(),
+                        )
+                    })
+                    .collect(),
+            }
+            .cell();
+            let make_module = |name| {
+                Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(name).unwrap(), repo))
+                    .to_resolved()
+            };
+            let a_module = make_module("a.js").await?;
+            let b_module = make_module("b.js").await?;
+
+            let parent_graph = SingleModuleGraph::new_with_entries(
+                GraphEntries::cell(GraphEntries(vec![ChunkGroupEntry::Entry(vec![b_module])])),
+                false,
+            );
+
+            let module_graph = ModuleGraph::from_graphs(vec![
+                parent_graph,
+                SingleModuleGraph::new_with_entries_visited(
+                    GraphEntries::cell(GraphEntries(vec![ChunkGroupEntry::Entry(vec![a_module])])),
+                    VisitedModules::from_graph(parent_graph),
+                    false,
+                ),
+            ])
+            .await?;
+            let child_graph = module_graph.iter_graphs().nth(1).unwrap().read().await?;
+            // test traversing forward from a in the child graph
+            {
+                let mut visited_forward = Vec::new();
+                child_graph.traverse_edges_from_entries_dfs(
+                    vec![a_module],
+                    &mut (),
+                    |_parent, child, _state_| {
+                        visited_forward.push(child);
+                        Ok(GraphTraversalAction::Continue)
+                    },
+                    |_, _, _| Ok(()),
+                )?;
+
+                assert_eq!(
+                    visited_forward
+                        .iter()
+                        .map(|m| m.ident().to_string().owned())
+                        .try_join()
+                        .await?,
+                    vec![
+                        rcstr!("[test]/a.js"),
+                        rcstr!("[test]/b.js"),
+                        rcstr!("[test]/d.js")
+                    ]
+                );
+            }
+
+            // test traversing backwards from 'd' which is only in the child graph
+            {
+                use turbo_tasks::TryFlatJoinIterExt;
+                let d_module = child_graph
+                    .enumerate_nodes()
+                    .map(|(_index, module)| async move {
+                        Ok(match module {
+                            crate::module_graph::SingleModuleGraphNode::Module(module) => {
+                                if module.ident().to_string().owned().await.unwrap()
+                                    == "[test]/d.js"
+                                {
+                                    Some(*module)
+                                } else {
+                                    None
+                                }
+                            }
+                            crate::module_graph::SingleModuleGraphNode::VisitedModule {
+                                ..
+                            } => None,
+                        })
+                    })
+                    .try_flat_join()
+                    .await?
+                    .into_iter()
+                    .next()
+                    .unwrap();
+                let mut visited_reverse = Vec::new();
+                child_graph.traverse_edges_from_entries_dfs_reversed(
+                    vec![d_module],
+                    &mut (),
+                    |_parent, child, _state_| {
+                        visited_reverse.push(child);
+                        Ok(GraphTraversalAction::Continue)
+                    },
+                    |_, _, _| Ok(()),
+                )?;
+                assert_eq!(
+                    visited_reverse
+                        .iter()
+                        .map(|m| m.ident().to_string().owned())
+                        .try_join()
+                        .await?,
+                    vec![rcstr!("[test]/d.js"), rcstr!("[test]/a.js")]
+                );
+            }
+            // test traversing backwards from `b` which is in the parent graph and thus a
+            // VisitedModule in this graph
+            {
+                let mut visited_reverse = Vec::new();
+                child_graph.traverse_edges_from_entries_dfs_reversed(
+                    vec![b_module],
+                    &mut (),
+                    |_parent, child, _state_| {
+                        visited_reverse.push(child);
+                        Ok(GraphTraversalAction::Continue)
+                    },
+                    |_, _, _| Ok(()),
+                )?;
+                assert_eq!(
+                    visited_reverse
+                        .iter()
+                        .map(|m| m.ident().to_string().owned())
+                        .try_join()
+                        .await?,
+                    vec![rcstr!("[test]/b.js"), rcstr!("[test]/a.js")]
+                );
+            }
+
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
     #[turbo_tasks::value(shared)]
     struct TestRepo {
         repo: FxHashMap<FileSystemPath, Vec<FileSystemPath>>,
