@@ -756,15 +756,13 @@ export async function initialize(opts: {
   const removeExistingLogErrorListeners = (
     eventName: 'uncaughtException' | 'unhandledRejection'
   ) => {
-    // @ts-expect-error - process is available at runtime, TypeScript may not recognize it in this context
-    const listeners = process.listeners(eventName)
+    const listeners = (process as NodeJS.EventEmitter).listeners(eventName)
     const targetListenerName = 'bound logError'
     for (const listener of listeners) {
       // Check if listener has the expected name (bound functions have "bound " prefix)
       const listenerName = (listener as { name?: string }).name
       if (listenerName === targetListenerName) {
-        // @ts-expect-error - process is available at runtime, TypeScript may not recognize it in this context
-        process.removeListener(
+        ;(process as NodeJS.EventEmitter).removeListener(
           eventName,
           listener as (...args: unknown[]) => void
         )
@@ -775,9 +773,7 @@ export async function initialize(opts: {
   removeExistingLogErrorListeners('uncaughtException')
   removeExistingLogErrorListeners('unhandledRejection')
 
-  // @ts-expect-error - process is available at runtime, TypeScript may not recognize it in this context
   process.on('uncaughtException', logError.bind(null, 'uncaughtException'))
-  // @ts-expect-error - process is available at runtime, TypeScript may not recognize it in this context
   process.on('unhandledRejection', logError.bind(null, 'unhandledRejection'))
 
   const resolveRoutes = getResolveRoutes(
