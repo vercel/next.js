@@ -18,7 +18,7 @@ import { getEdgePreviewProps } from './get-edge-preview-props'
 import type { NextConfigComplete } from '../config-shared'
 
 export interface WrapOptions {
-  nextConfig: NextConfigComplete
+  cacheLifeProfiles: NextConfigComplete['cacheLife']
 }
 
 /**
@@ -37,7 +37,7 @@ export class EdgeRouteModuleWrapper {
    */
   private constructor(
     private readonly routeModule: AppRouteRouteModule,
-    private readonly nextConfig: NextConfigComplete
+    private readonly cacheLifeProfiles: NextConfigComplete['cacheLife']
   ) {
     // TODO: (wyattjoh) possibly allow the module to define it's own matcher
     this.matcher = new RouteMatcher(routeModule.definition)
@@ -54,7 +54,10 @@ export class EdgeRouteModuleWrapper {
    */
   public static wrap(routeModule: AppRouteRouteModule, options: WrapOptions) {
     // Create the module wrapper.
-    const wrapper = new EdgeRouteModuleWrapper(routeModule, options.nextConfig)
+    const wrapper = new EdgeRouteModuleWrapper(
+      routeModule,
+      options.cacheLifeProfiles
+    )
 
     // Return the wrapping function.
     return (opts: AdapterOptions) => {
@@ -111,7 +114,7 @@ export class EdgeRouteModuleWrapper {
         experimental: {
           authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
         },
-        cacheLifeProfiles: this.nextConfig.cacheLife,
+        cacheLifeProfiles: this.cacheLifeProfiles,
       },
       sharedContext: {
         buildId: '', // TODO: Populate this properly.

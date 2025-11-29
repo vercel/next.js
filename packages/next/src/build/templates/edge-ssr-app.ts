@@ -5,7 +5,6 @@ import { IncrementalCache } from '../../server/lib/incremental-cache'
 import * as pageMod from 'VAR_USERLAND'
 
 import type { RequestData } from '../../server/web/types'
-import type { NextConfigComplete } from '../../server/config-shared'
 import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
 import { createServerModuleMap } from '../../server/app-render/action-utils'
 import { initializeCacheHandlers } from '../../server/use-cache/handlers'
@@ -27,12 +26,12 @@ import { checkIsOnDemandRevalidate } from '../../server/api-utils'
 import { CloseController } from '../../server/web/web-on-close'
 
 declare const incrementalCacheHandler: any
-declare const nextConfig: NextConfigComplete
+declare const cacheMaxMemorySize: number
 // OPTIONAL_IMPORT:incrementalCacheHandler
-// INJECT:nextConfig
+// INJECT:cacheMaxMemorySize
 
 // Initialize the cache handlers interface.
-initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+initializeCacheHandlers(cacheMaxMemorySize)
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
@@ -77,6 +76,7 @@ async function requestHandler(
   const {
     query,
     params,
+    nextConfig,
     buildId,
     buildManifest,
     prerenderManifest,

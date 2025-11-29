@@ -11,7 +11,7 @@ export type EdgeAppRouteLoaderQuery = {
   page: string
   appDirLoader: string
   preferredRegion: string | string[] | undefined
-  nextConfig: string
+  cacheLifeProfiles: string
   middlewareConfig: string
   cacheHandlers: string
 }
@@ -24,7 +24,7 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
       preferredRegion,
       appDirLoader: appDirLoaderBase64 = '',
       middlewareConfig: middlewareConfigBase64 = '',
-      nextConfig: nextConfigBase64,
+      cacheLifeProfiles: cacheLifeProfilesBase64,
       cacheHandlers: cacheHandlersStringified,
     } = this.getOptions()
 
@@ -64,8 +64,8 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
       stringifiedPagePath.length - 1
     )}?${WEBPACK_RESOURCE_QUERIES.edgeSSREntry}`
 
-    const stringifiedConfig = Buffer.from(
-      nextConfigBase64 || '',
+    const stringifiedCacheLifeProfiles = Buffer.from(
+      cacheLifeProfilesBase64 || '',
       'base64'
     ).toString()
 
@@ -76,7 +76,7 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
         VAR_PAGE: page,
       },
       {
-        nextConfig: stringifiedConfig,
+        cacheLifeProfiles: stringifiedCacheLifeProfiles,
       }
     )
   }

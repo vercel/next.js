@@ -136,13 +136,14 @@ async fn wrap_edge_route(
 ) -> Result<Vc<Box<dyn Module>>> {
     let inner = rcstr!("INNER_ROUTE_ENTRY");
 
-    let next_config = &*next_config.await?;
-
     let source = load_next_js_template(
         "edge-app-route.js",
         project_root.clone(),
         &[("VAR_USERLAND", &*inner), ("VAR_PAGE", &page.to_string())],
-        &[("nextConfig", &*serde_json::to_string(next_config)?)],
+        &[(
+            "cacheLifeProfiles",
+            &*serde_json::to_string(&next_config.cache_life().await?)?,
+        )],
         &[],
     )
     .await?;

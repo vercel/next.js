@@ -19,7 +19,7 @@ export type EdgeSSRLoaderQuery = {
   dev: boolean
   isServerComponent: boolean
   page: string
-  stringifiedConfig: string
+  cacheMaxMemorySize: string
   appDirLoader?: string
   pagesType: PAGE_TYPES
   sriEnabled: boolean
@@ -73,7 +73,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       absolute500Path,
       absoluteErrorPath,
       isServerComponent,
-      stringifiedConfig: stringifiedConfigBase64,
+      cacheMaxMemorySize: cacheMaxMemorySizeStringified,
       appDirLoader: appDirLoaderBase64,
       pagesType,
       cacheHandler,
@@ -94,10 +94,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       Buffer.from(middlewareConfigBase64, 'base64').toString()
     )
 
-    const stringifiedConfig = Buffer.from(
-      stringifiedConfigBase64 || '',
-      'base64'
-    ).toString()
     const appDirLoader = Buffer.from(
       appDirLoaderBase64 || '',
       'base64'
@@ -161,7 +157,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           VAR_PAGE: page,
         },
         {
-          nextConfig: stringifiedConfig,
+          cacheMaxMemorySize: cacheMaxMemorySizeStringified,
         },
         {
           incrementalCacheHandler: cacheHandler ?? null,
@@ -178,7 +174,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           VAR_MODULE_GLOBAL_ERROR: errorPath,
         },
         {
-          nextConfig: stringifiedConfig,
+          cacheMaxMemorySize: cacheMaxMemorySizeStringified,
           pageRouteModuleOptions: JSON.stringify(getRouteModuleOptions(page)),
           errorRouteModuleOptions: JSON.stringify(
             getRouteModuleOptions('/_error')

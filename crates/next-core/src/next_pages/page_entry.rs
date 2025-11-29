@@ -223,8 +223,6 @@ async fn wrap_edge_page(
     const INNER_ERROR: &str = "INNER_ERROR";
     const INNER_ERROR_500: &str = "INNER_500";
 
-    let next_config_val = &*next_config.await?;
-
     let source = load_next_js_template(
         "edge-ssr.js",
         project_root.clone(),
@@ -236,9 +234,10 @@ async fn wrap_edge_page(
             ("VAR_MODULE_GLOBAL_ERROR", INNER_ERROR),
         ],
         &[
-            // TODO do we really need to pass the entire next config here?
-            // This is bad for invalidation as any config change will invalidate this
-            ("nextConfig", &*serde_json::to_string(next_config_val)?),
+            (
+                "cacheMaxMemorySize",
+                &*serde_json::to_string(&next_config.cache_max_memory_size().await?)?,
+            ),
             (
                 "pageRouteModuleOptions",
                 &serde_json::to_string(&get_route_module_options(page.clone(), pathname.clone()))?,
