@@ -750,7 +750,31 @@ export async function initialize(opts: {
     }
   }
 
+  // Remove existing listeners with name "bound logError" to prevent memory leaks
+  // in serverless environments where initialize() may be called multiple times
+  // for the same process (e.g., Firebase Cloud Functions)
+  const removeExistingLogErrorListeners = (
+    eventName: 'uncaughtException' | 'unhandledRejection'
+  ) => {
+    // @ts-expect-error - process is available at runtime, TypeScript may not recognize it in this context
+    const listeners = process.listeners(eventName)
+    const targetListenerName = 'bound logError'
+    for (const listener of listeners) {
+      // Check if listener has the expected name (bound functions have "bound " prefix)
+      const listenerName = (listener as { name?: string }).name
+      if (listenerName === targetListenerName) {
+        // @ts-expect-error - process is available at runtime, TypeScript may not recognize it in this context
+        process.removeListener(eventName, listener as (...args: unknown[]) => void)
+      }
+    }
+  }
+
+  removeExistingLogErrorListeners('uncaughtException')
+  removeExistingLogErrorListeners('unhandledRejection')
+
+  // @ts-expect-error - process is available at runtime, TypeScript may not recognize it in this context
   process.on('uncaughtException', logError.bind(null, 'uncaughtException'))
+  // @ts-expect-error - process is available at runtime, TypeScript may not recognize it in this context
   process.on('unhandledRejection', logError.bind(null, 'unhandledRejection'))
 
   const resolveRoutes = getResolveRoutes(
