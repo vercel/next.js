@@ -6,7 +6,7 @@ settings:
 
 overrides:
   webpack: 5.98.0
-  browserslist: 4.26.2
+  browserslist: 4.28.0
   caniuse-lite: 1.0.30001746
   '@types/node': 20.17.6
   '@babel/core': 7.26.10
@@ -235,8 +235,8 @@ importers:
         specifier: 0.0.0-experimental-3fde738-20250918
         version: 0.0.0-experimental-3fde738-20250918
       browserslist:
-        specifier: 4.26.2
-        version: 4.26.2
+        specifier: 4.28.0
+        version: 4.28.0
       buffer:
         specifier: 5.6.0
         version: 5.6.0
@@ -745,7 +745,7 @@ importers:
         version: 9.37.0(jiti@2.5.1)
       eslint-config-next:
         specifier: canary
-        version: 16.0.2-canary.9(eslint-plugin-import-x@4.3.1(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.2))(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.2)
+        version: 16.1.0-canary.6(eslint-plugin-import-x@4.3.1(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.2))(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.2)
       tailwindcss:
         specifier: 4.1.13
         version: 4.1.13
@@ -1417,8 +1417,8 @@ importers:
         specifier: 0.2.0
         version: 0.2.0
       browserslist:
-        specifier: 4.26.2
-        version: 4.26.2
+        specifier: 4.28.0
+        version: 4.28.0
       buffer:
         specifier: 5.6.0
         version: 5.6.0
@@ -4383,8 +4383,8 @@ packages:
   '@next/env@16.0.1':
     resolution: {integrity: sha512-LFvlK0TG2L3fEOX77OC35KowL8D7DlFF45C0OvKMC4hy8c/md1RC4UMNDlUGJqfCoCS2VWrZ4dSE6OjaX5+8mw==}
 
-  '@next/eslint-plugin-next@16.0.2-canary.9':
-    resolution: {integrity: sha512-tD2tHSOf512E9f/+XETez/A1j5cFNs0rCr7eDLjDTAiuxJiH2sQaf8txkIIwsP1z3wMDSOEFy0kyjqEaMVfWyQ==}
+  '@next/eslint-plugin-next@16.1.0-canary.6':
+    resolution: {integrity: sha512-KzlJwpe1UJCZBfJ/Ce2aMfWPfyqsC63rMFsHlvUWzlOp2+x8vyYCB1/fa4wWdiSyoR39pOn1mSVsgZpYUL2Aug==}
 
   '@next/rspack-binding-android-arm-eabi@1.0.1':
     resolution: {integrity: sha512-ZLEy3shsHk8FpJDeoU4gN3a7eVaOagA7AW2BXSVefBAO4hR6j3Kt/T732FUmf9G5328C2vsbMAWskHRHPbhTig==}
@@ -7609,8 +7609,8 @@ packages:
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
 
-  baseline-browser-mapping@2.8.9:
-    resolution: {integrity: sha512-hY/u2lxLrbecMEWSB0IpGzGyDyeoMFQhCvZd2jGFSE5I17Fh01sYUBPCJtkWERw7zrac9+cIghxm/ytJa2X8iA==}
+  baseline-browser-mapping@2.8.32:
+    resolution: {integrity: sha512-OPz5aBThlyLFgxyhdwf/s2+8ab3OvT7AdTNvKHBwpXomIYeXqpUUuT8LrdtxZSsWJ4R4CU1un4XGh5Ez3nlTpw==}
     hasBin: true
 
   batch@0.6.1:
@@ -7732,8 +7732,8 @@ packages:
   browserify-zlib@0.2.0:
     resolution: {integrity: sha512-Z942RysHXmJrhqk88FmKBVq/v5tqmSkDz7p54G/MGyjMnCFFnC79XWNbg+Vta8W6Wb2qtSZTSxIGkJrRpCFEiA==}
 
-  browserslist@4.26.2:
-    resolution: {integrity: sha512-ECFzp6uFOSB+dcZ5BK/IBaGWssbSYBHvuMeMt3MMFyhI0Z8SqGgEkBLARgpRH3hutIgPVsALcMwbDrJqPxQ65A==}
+  browserslist@4.28.0:
+    resolution: {integrity: sha512-tbydkR/CxfMwelN0vwdP/pLkDwyAASZ+VfWm4EOwlB6SWhx1sYnWLqo8N5j0rAzPfzfRaxt0mM/4wPU/Su84RQ==}
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
 
@@ -9456,8 +9456,8 @@ packages:
     engines: {node: '>=0.10.0'}
     hasBin: true
 
-  electron-to-chromium@1.5.228:
-    resolution: {integrity: sha512-nxkiyuqAn4MJ1QbobwqJILiDtu/jk14hEAWaMiJmNPh1Z+jqoFlBFZjdXwLWGeVSeu9hGLg6+2G9yJaW8rBIFA==}
+  electron-to-chromium@1.5.262:
+    resolution: {integrity: sha512-NlAsMteRHek05jRUxUR0a5jpjYq9ykk6+kO0yRaMi5moe7u0fVIOeQ3Y30A8dIiWFBNUoQGi1ljb1i5VtS9WQQ==}
 
   elkjs@0.9.3:
     resolution: {integrity: sha512-f/ZeWvW/BCXbhGEf1Ujp29EASo/lk1FDnETgNKwJrsVvGZhUWCZyg3xLJjAsxfOmt8KjswHmI5EwCQcPMpOYhQ==}
@@ -9699,8 +9699,8 @@ packages:
     engines: {node: '>=6.0'}
     hasBin: true
 
-  eslint-config-next@16.0.2-canary.9:
-    resolution: {integrity: sha512-XysPzo1pUNVJJUpEfHDKJwg3zbFVvZetVohFziDHX6A7l6lpyQBwmODEzDIkWGK0x3uSkvtWyqTolbhQDe7wyA==}
+  eslint-config-next@16.1.0-canary.6:
+    resolution: {integrity: sha512-d1CjIey2sLh5WmnFVVVZJtES1MJs6VKxKhz/0DWZofhGaj6QbmiauQp6CAT7FwqSgikvwJvykL2nbJSrNnuKng==}
     peerDependencies:
       eslint: '>=9.0.0'
       typescript: '>=3.3.1'
@@ -13739,8 +13739,8 @@ packages:
     resolution: {integrity: sha512-RM5oyBy45cLEoHqCeh+MNuFAxO0vTFBLskvQbOKnEE7YTTSN4tbN8QWDIPQ6L+WvKsB/qLEGpYe2ZZ9d4W9OIQ==}
     engines: {node: '>=8'}
 
-  node-releases@2.0.21:
-    resolution: {integrity: sha512-5b0pgg78U3hwXkCM8Z9b2FJdPZlr9Psr9V2gQPESdGHqbntyFJKFW4r5TeWGFzafGY3hzs1JC62VEQMbl1JFkw==}
+  node-releases@2.0.27:
+    resolution: {integrity: sha512-nmh3lCkYZ3grZvqcCH+fjmQ7X+H0OeZgP40OierEaAptX4XofMh5kwNbWh7lBduUzCcV/8kZ+NDLCwm2iorIlA==}
 
   node-version@1.1.3:
     resolution: {integrity: sha512-rEwE51JWn0yN3Wl5BXeGn5d52OGbSXzWiiXRjAQeuyvcGKyvuSILW2rb3G7Xh+nexzLwhTpek6Ehxd6IjvHePg==}
@@ -15384,6 +15384,7 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
+
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.11.0:
@@ -17848,11 +17849,11 @@ packages:
     resolution: {integrity: sha512-1uEe95xksV1O0CYKXo8vQvN1JEbtJp7lb7C5U9HMsIp6IVwntkH/oNUzyVNQSd4S1sYk2FpSSW44FqMc8qee5w==}
     engines: {node: '>=4'}
 
-  update-browserslist-db@1.1.3:
-    resolution: {integrity: sha512-UxhIZQ+QInVdunkDAaiazvvT/+fXL5Osr0JZlJulepYu6Jd7qJtDZjlur0emRlT71EN3ScPoE7gvsuIKKNavKw==}
+  update-browserslist-db@1.1.4:
+    resolution: {integrity: sha512-q0SPT4xyU84saUX+tomz1WLkxUbuaJnR1xWt17M7fJtEJigJeWUNGUqrauFXsHnqev9y9JTRGwk13tFBuKby4A==}
     hasBin: true
     peerDependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
 
   update-check@1.3.2:
     resolution: {integrity: sha512-0iGt63gXrsU4VTw4tIGVVk14H6KLHI7ExNPuSmdDdwUrUAQTBnh1hQcRpnoBWetb3/Ab4YyXK1iDWXP7D0VHTQ==}
@@ -18768,7 +18769,7 @@ snapshots:
     dependencies:
       '@babel/compat-data': 7.26.8
       '@babel/helper-validator-option': 7.25.9
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       lru-cache: 5.1.1
       semver: 6.3.1
 
@@ -21557,7 +21558,7 @@ snapshots:
 
   '@next/env@16.0.1': {}
 
-  '@next/eslint-plugin-next@16.0.2-canary.9':
+  '@next/eslint-plugin-next@16.1.0-canary.6':
     dependencies:
       fast-glob: 3.3.1
 
@@ -24912,7 +24913,7 @@ snapshots:
 
   autoprefixer@10.4.21(postcss@8.4.31):
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       caniuse-lite: 1.0.30001746
       fraction.js: 4.3.7
       normalize-range: 0.1.2
@@ -24922,7 +24923,7 @@ snapshots:
 
   autoprefixer@10.4.21(postcss@8.5.3):
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       caniuse-lite: 1.0.30001746
       fraction.js: 4.3.7
       normalize-range: 0.1.2
@@ -25116,7 +25117,7 @@ snapshots:
 
   base64-js@1.5.1: {}
 
-  baseline-browser-mapping@2.8.9: {}
+  baseline-browser-mapping@2.8.32: {}
 
   batch@0.6.1: {}
 
@@ -25302,13 +25303,13 @@ snapshots:
     dependencies:
       pako: 1.0.11
 
-  browserslist@4.26.2:
+  browserslist@4.28.0:
     dependencies:
-      baseline-browser-mapping: 2.8.9
+      baseline-browser-mapping: 2.8.32
       caniuse-lite: 1.0.30001746
-      electron-to-chromium: 1.5.228
-      node-releases: 2.0.21
-      update-browserslist-db: 1.1.3(browserslist@4.26.2)
+      electron-to-chromium: 1.5.262
+      node-releases: 2.0.27
+      update-browserslist-db: 1.1.4(browserslist@4.28.0)
 
   bser@2.1.1:
     dependencies:
@@ -25479,7 +25480,7 @@ snapshots:
 
   caniuse-api@3.0.0:
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       caniuse-lite: 1.0.30001746
       lodash.memoize: 4.1.2
       lodash.uniq: 4.5.0
@@ -26129,7 +26130,7 @@ snapshots:
 
   core-js-compat@3.41.0:
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
 
   core-js@3.38.1: {}
 
@@ -26496,7 +26497,7 @@ snapshots:
 
   cssnano-preset-default@7.0.6(postcss@8.4.31):
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       css-declaration-sorter: 7.2.0(postcss@8.4.31)
       cssnano-utils: 5.0.0(postcss@8.4.31)
       postcss: 8.4.31
@@ -27256,7 +27257,7 @@ snapshots:
     dependencies:
       jake: 10.8.5
 
-  electron-to-chromium@1.5.228: {}
+  electron-to-chromium@1.5.262: {}
 
   elkjs@0.9.3: {}
 
@@ -27646,9 +27647,9 @@ snapshots:
     optionalDependencies:
       source-map: 0.6.1
 
-  eslint-config-next@16.0.2-canary.9(eslint-plugin-import-x@4.3.1(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.2))(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.2):
+  eslint-config-next@16.1.0-canary.6(eslint-plugin-import-x@4.3.1(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.2))(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.2):
     dependencies:
-      '@next/eslint-plugin-next': 16.0.2-canary.9
+      '@next/eslint-plugin-next': 16.1.0-canary.6
       eslint: 9.37.0(jiti@2.5.1)
       eslint-import-resolver-node: 0.3.9
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import-x@4.3.1(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.2))(eslint-plugin-import@2.32.0(eslint@9.37.0(jiti@2.5.1)))(eslint@9.37.0(jiti@2.5.1))
@@ -33324,7 +33325,7 @@ snapshots:
     dependencies:
       process-on-spawn: 1.1.0
 
-  node-releases@2.0.21: {}
+  node-releases@2.0.27: {}
 
   node-version@1.1.3: {}
 
@@ -34156,7 +34157,7 @@ snapshots:
 
   pixrem@5.0.0:
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       postcss: 7.0.32
       reduce-css-calc: 2.1.7
 
@@ -34242,7 +34243,7 @@ snapshots:
 
   postcss-colormin@4.0.3:
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       color: 3.1.3
       has: 1.0.3
       postcss: 7.0.32
@@ -34250,7 +34251,7 @@ snapshots:
 
   postcss-colormin@7.0.2(postcss@8.4.31):
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       caniuse-api: 3.0.0
       colord: 2.9.3
       postcss: 8.4.31
@@ -34263,7 +34264,7 @@ snapshots:
 
   postcss-convert-values@7.0.4(postcss@8.4.31):
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       postcss: 8.4.31
       postcss-value-parser: 4.2.0
 
@@ -34433,7 +34434,7 @@ snapshots:
 
   postcss-merge-rules@4.0.3:
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       caniuse-api: 3.0.0
       cssnano-util-same-parent: 4.0.1
       postcss: 7.0.32
@@ -34442,7 +34443,7 @@ snapshots:
 
   postcss-merge-rules@7.0.4(postcss@8.4.31):
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       caniuse-api: 3.0.0
       cssnano-utils: 5.0.0(postcss@8.4.31)
       postcss: 8.4.31
@@ -34475,7 +34476,7 @@ snapshots:
   postcss-minify-params@4.0.2:
     dependencies:
       alphanum-sort: 1.0.2
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       cssnano-util-get-arguments: 4.0.0
       postcss: 7.0.32
       postcss-value-parser: 3.3.1
@@ -34483,7 +34484,7 @@ snapshots:
 
   postcss-minify-params@7.0.2(postcss@8.4.31):
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       cssnano-utils: 5.0.0(postcss@8.4.31)
       postcss: 8.4.31
       postcss-value-parser: 4.2.0
@@ -34651,13 +34652,13 @@ snapshots:
 
   postcss-normalize-unicode@4.0.1:
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       postcss: 7.0.32
       postcss-value-parser: 3.3.1
 
   postcss-normalize-unicode@7.0.2(postcss@8.4.31):
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       postcss: 8.4.31
       postcss-value-parser: 4.2.0
 
@@ -34721,7 +34722,7 @@ snapshots:
       '@csstools/postcss-oklab-function': 1.1.0(postcss@8.4.31)
       '@csstools/postcss-progressive-custom-properties': 1.3.0(postcss@8.4.31)
       autoprefixer: 10.4.21(postcss@8.4.31)
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       css-blank-pseudo: 3.0.3(postcss@8.4.31)
       css-has-pseudo: 3.0.4(postcss@8.4.31)
       css-prefers-color-scheme: 6.0.3(postcss@8.4.31)
@@ -34768,14 +34769,14 @@ snapshots:
 
   postcss-reduce-initial@4.0.3:
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       caniuse-api: 3.0.0
       has: 1.0.3
       postcss: 7.0.32
 
   postcss-reduce-initial@7.0.2(postcss@8.4.31):
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       caniuse-api: 3.0.0
       postcss: 8.4.31
 
@@ -37194,13 +37195,13 @@ snapshots:
 
   stylehacks@4.0.3:
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       postcss: 7.0.32
       postcss-selector-parser: 3.1.1
 
   stylehacks@7.0.4(postcss@8.4.31):
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       postcss: 8.4.31
       postcss-selector-parser: 6.1.2
 
@@ -38187,9 +38188,9 @@ snapshots:
 
   upath@2.0.1: {}
 
-  update-browserslist-db@1.1.3(browserslist@4.26.2):
+  update-browserslist-db@1.1.4(browserslist@4.28.0):
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       escalade: 3.2.0
       picocolors: 1.1.1
 
@@ -38765,7 +38766,7 @@ snapshots:
       '@webassemblyjs/wasm-edit': 1.14.1
       '@webassemblyjs/wasm-parser': 1.14.1
       acorn: 8.14.0
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       chrome-trace-event: 1.0.2
       enhanced-resolve: 5.17.1
       es-module-lexer: 1.6.0
@@ -38795,7 +38796,7 @@ snapshots:
       '@webassemblyjs/wasm-edit': 1.14.1
       '@webassemblyjs/wasm-parser': 1.14.1
       acorn: 8.14.0
-      browserslist: 4.26.2
+      browserslist: 4.28.0
       chrome-trace-event: 1.0.2
       enhanced-resolve: 5.17.1
       es-module-lexer: 1.6.0

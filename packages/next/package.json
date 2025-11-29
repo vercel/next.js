@@ -234,7 +234,7 @@
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
     "browserify-zlib": "0.2.0",
-    "browserslist": "4.26.2",
+    "browserslist": "4.28.0",
     "buffer": "5.6.0",
     "busboy": "1.6.0",
     "bytes": "3.1.1",
