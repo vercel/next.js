@@ -613,7 +613,9 @@ function assignDefaultsAndValidate(
           `Specified images.loader property (${images.loader}) cannot be used with images.loaderFile property. Please set images.loader to "custom".`
         )
       }
-      const absolutePath = join(dir, images.loaderFile)
+      const absolutePath = isAbsolute(images.loaderFile)
+        ? images.loaderFile
+        : join(dir, images.loaderFile)
       if (!existsSync(absolutePath)) {
         throw new Error(
           `Specified images.loaderFile does not exist at "${absolutePath}".`

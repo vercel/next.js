@@ -18,6 +18,7 @@ import { defaultOverrides } from '../server/require-hook'
 import { hasExternalOtelApiPackage } from './webpack-config'
 import { NEXT_PROJECT_ROOT } from './next-dir-paths'
 import { shouldUseReactServerCondition } from './utils'
+import { normalizePath } from '../lib/normalize-path'
 
 interface CompilerAliases {
   [alias: string]: string | string[]
@@ -116,9 +117,13 @@ export function createWebpackAliases({
 
     ...(config.images.loaderFile
       ? {
-          'next/dist/shared/lib/image-loader': config.images.loaderFile,
+          'next/dist/shared/lib/image-loader': normalizePath(
+            config.images.loaderFile
+          ),
           ...(isEdgeServer && {
-            'next/dist/esm/shared/lib/image-loader': config.images.loaderFile,
+            'next/dist/esm/shared/lib/image-loader': normalizePath(
+              config.images.loaderFile
+            ),
           }),
         }
       : undefined),
