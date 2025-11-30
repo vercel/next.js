@@ -1060,7 +1060,10 @@ describe('required server files', () => {
   it('should bubble error correctly for gip page', async () => {
     const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('Internal Server Error')
+    const body = await res.text()
+    const $ = cheerio.load(body)
+    expect($('h1').text()).toBe('500')
+    expect($('h2').text()).toBe('Internal Server Error.')
 
     await retry(() => {
       expect(errors.join('\n')).toInclude('gip hit an oops')
@@ -1070,7 +1073,10 @@ describe('required server files', () => {
   it('should bubble error correctly for gssp page', async () => {
     const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('Internal Server Error')
+    const body = await res.text()
+    const $ = cheerio.load(body)
+    expect($('h1').text()).toBe('500')
+    expect($('h2').text()).toBe('Internal Server Error.')
 
     await retry(() => {
       expect(errors.join('\n')).toInclude('gssp hit an oops')
@@ -1080,7 +1086,10 @@ describe('required server files', () => {
   it('should bubble error correctly for gsp page', async () => {
     const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('Internal Server Error')
+    const body = await res.text()
+    const $ = cheerio.load(body)
+    expect($('h1').text()).toBe('500')
+    expect($('h2').text()).toBe('Internal Server Error.')
 
     await retry(() => {
       expect(errors.join('\n')).toInclude('gsp hit an oops')

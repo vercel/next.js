@@ -551,19 +551,31 @@ describe('Required Server Files', () => {
       it('should bubble error correctly for gip page', async () => {
         const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
         expect(res.status).toBe(500)
-        expect(await res.text()).toContain('500 - Internal Server Error.')
+        const body = await res.text()
+        const $ = cheerio.load(body)
+
+        expect($('h1').text()).toBe('500')
+        expect($('h2').text()).toBe('Internal Server Error.')
       })
 
       it('should bubble error correctly for gssp page', async () => {
         const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
         expect(res.status).toBe(500)
-        expect(await res.text()).toContain('500 - Internal Server Error.')
+        const body = await res.text()
+        const $ = cheerio.load(body)
+
+        expect($('h1').text()).toBe('500')
+        expect($('h2').text()).toBe('Internal Server Error.')
       })
 
       it('should bubble error correctly for gsp page', async () => {
         const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
         expect(res.status).toBe(500)
-        expect(await res.text()).toContain('500 - Internal Server Error.')
+        const body = await res.text()
+        const $ = cheerio.load(body)
+
+        expect($('h1').text()).toBe('500')
+        expect($('h2').text()).toBe('Internal Server Error.')
       })
 
       it('should normalize optional values correctly for SSP page', async () => {
