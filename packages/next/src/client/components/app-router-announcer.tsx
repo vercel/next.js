@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { FlightRouterState } from '../../shared/lib/app-router-types'
+import { extractPathFromFlightRouterState } from './router-reducer/compute-changed-path'
 
 const ANNOUNCER_TYPE = 'next-route-announcer'
 const ANNOUNCER_ID = '__next-route-announcer__'
@@ -43,27 +44,51 @@ export function AppRouterAnnouncer({ tree }: { tree: FlightRouterState }) {
 
   const [routeAnnouncement, setRouteAnnouncement] = useState('')
   const previousTitle = useRef<string | undefined>(undefined)
+  const previousH1 = useRef<string | undefined>(undefined)
+  const previousPath = useRef<string | undefined>(undefined)
 
   useEffect(() => {
-    let currentTitle = ''
-    if (document.title) {
-      currentTitle = document.title
-    } else {
-      const pageHeader = document.querySelector('h1')
-      if (pageHeader) {
-        currentTitle = pageHeader.innerText || pageHeader.textContent || ''
+    // Get current values
+    const currentTitle = document.title || ''
+    const pageHeader = document.querySelector('h1')
+    const currentH1 = pageHeader
+      ? pageHeader.innerText || pageHeader.textContent || ''
+      : ''
+    const currentPath = extractPathFromFlightRouterState(tree) || ''
+
+    // Skip announcement on first load because screen readers do that automatically
+    const isFirstLoad =
+      previousTitle.current === undefined &&
+      previousH1.current === undefined &&
+      previousPath.current === undefined
+
+    if (!isFirstLoad) {
+      // Cascade logic: check changes in order title → H1 → path
+      // Announce the first value that changed
+      if (
+        previousTitle.current !== undefined &&
+        previousTitle.current !== currentTitle
+      ) {
+        setRouteAnnouncement(currentTitle)
+      } else if (
+        previousH1.current !== undefined &&
+        previousH1.current !== currentH1 &&
+        currentH1
+      ) {
+        setRouteAnnouncement(currentH1)
+      } else if (
+        previousPath.current !== undefined &&
+        previousPath.current !== currentPath &&
+        currentPath
+      ) {
+        setRouteAnnouncement(currentPath)
       }
     }
 
-    // Only announce the title change, but not for the first load because screen
-    // readers do that automatically.
-    if (
-      previousTitle.current !== undefined &&
-      previousTitle.current !== currentTitle
-    ) {
-      setRouteAnnouncement(currentTitle)
-    }
+    // Update previous values
     previousTitle.current = currentTitle
+    previousH1.current = currentH1
+    previousPath.current = currentPath
   }, [tree])
 
   return portalNode ? createPortal(routeAnnouncement, portalNode) : null
