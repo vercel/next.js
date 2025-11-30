@@ -113,12 +113,12 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
                     },
                 );
 
-                if mangle.is_none() {
-                    program.mutate(hygiene_with_config(hygiene::Config {
-                        top_level_mark,
-                        ..Default::default()
-                    }));
-                }
+                // Always apply hygiene after minification to resolve variable name conflicts
+                // that may occur during function inlining, regardless of mangle settings.
+                program.mutate(hygiene_with_config(hygiene::Config {
+                    top_level_mark,
+                    ..Default::default()
+                }));
 
                 Ok(program.apply(ecma::transforms::base::fixer::fixer(Some(
                     &comments as &dyn Comments,
