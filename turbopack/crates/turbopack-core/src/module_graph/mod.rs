@@ -1763,7 +1763,7 @@ pub mod tests {
     use turbo_rcstr::{RcStr, rcstr};
     use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-    use turbo_tasks_fs::{FileSystem, FileSystemPath, VirtualFileSystem, glob::Glob};
+    use turbo_tasks_fs::{FileSystem, FileSystemPath, VirtualFileSystem};
 
     use crate::{
         asset::{Asset, AssetContent},
