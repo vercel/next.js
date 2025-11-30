@@ -175,7 +175,7 @@
     "alex": "9.1.0",
     "async-sema": "3.0.1",
     "babel-plugin-react-compiler": "0.0.0-experimental-3fde738-20250918",
-    "browserslist": "4.26.2",
+    "browserslist": "4.28.0",
     "buffer": "5.6.0",
     "cheerio": "0.22.0",
     "cookie": "0.4.1",
@@ -311,7 +311,7 @@
   "pnpm": {
     "overrides": {
       "webpack": "5.98.0",
-      "browserslist": "4.26.2",
+      "browserslist": "4.28.0",
       "caniuse-lite": "1.0.30001746",
       "@types/node": "20.17.6",
       "@babel/core": "7.26.10",
