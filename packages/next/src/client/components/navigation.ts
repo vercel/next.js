@@ -112,7 +112,11 @@ export function usePathname(): string {
   const pathname = useContext(PathnameContext) as string
 
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production' && 'use' in React) {
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    'use' in React &&
+    typeof window !== 'undefined'
+  ) {
     const navigationPromises = use(NavigationPromisesContext)
     if (navigationPromises) {
       return use(navigationPromises.pathname)
@@ -180,7 +184,11 @@ export function useParams<T extends Params = Params>(): T {
   const params = useContext(PathParamsContext) as T
 
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production' && 'use' in React) {
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    'use' in React &&
+    typeof window !== 'undefined'
+  ) {
     const navigationPromises = use(NavigationPromisesContext)
     if (navigationPromises) {
       return use(navigationPromises.params) as T
@@ -226,7 +234,11 @@ export function useSelectedLayoutSegments(
   if (!context) return null
 
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production' && 'use' in React) {
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    'use' in React &&
+    typeof window !== 'undefined'
+  ) {
     const navigationPromises = use(NavigationPromisesContext)
     if (navigationPromises) {
       const promise =
@@ -272,7 +284,8 @@ export function useSelectedLayoutSegment(
   if (
     process.env.NODE_ENV !== 'production' &&
     navigationPromises &&
-    'use' in React
+    'use' in React &&
+    typeof window !== 'undefined'
   ) {
     const promise =
       navigationPromises.selectedLayoutSegmentPromises?.get(parallelRouteKey)
