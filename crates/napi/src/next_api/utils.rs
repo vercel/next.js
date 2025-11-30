@@ -7,6 +7,7 @@ use napi::{
     bindgen_prelude::{Buffer, External, ToNapiValue},
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
+use napi_derive::napi;
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use turbo_tasks::{

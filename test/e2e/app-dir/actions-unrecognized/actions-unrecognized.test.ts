@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
 import { createRequestTracker } from 'e2e-utils/request-tracker'
 import { retry } from 'next-test-utils'

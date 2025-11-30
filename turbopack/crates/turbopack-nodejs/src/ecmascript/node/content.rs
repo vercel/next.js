@@ -1,12 +1,12 @@
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{File, rope::RopeBuilder};
+use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{ChunkingContext, MinifyType},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMapAsset},
     version::{Version, VersionedContent},
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
@@ -52,7 +52,7 @@ impl EcmascriptBuildNodeChunkContent {
             .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk))
             .await?;
 
-        let mut code = CodeBuilder::default();
+        let mut code = CodeBuilder::new(true, *this.chunking_context.debug_ids_enabled().await?);
 
         write!(code, "module.exports = [")?;
 
@@ -91,7 +91,7 @@ impl EcmascriptBuildNodeChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.code().generate_source_map()
     }
 }
@@ -101,24 +101,14 @@ impl VersionedContent for EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = self.await?;
-        let code = self.code().await?;
-
-        let rope = if code.has_source_map() {
-            use std::io::Write;
-            let mut rope_builder = RopeBuilder::default();
-            rope_builder.concat(code.source_code());
-            let source_map_path = this.source_map.path().await?;
-            write!(
-                rope_builder,
-                "\n\n//# sourceMappingURL={}",
-                urlencoding::encode(source_map_path.file_name())
-            )?;
-            rope_builder.build()
-        } else {
-            code.source_code().clone()
-        };
-
-        Ok(AssetContent::file(File::from(rope).into()))
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(
+                self.code()
+                    .to_rope_with_magic_comments(|| *this.source_map)
+                    .await?,
+            ))
+            .cell(),
+        ))
     }
 
     #[turbo_tasks::function]

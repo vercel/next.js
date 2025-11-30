@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox, retry } from 'next-test-utils'
+import { waitForNoRedbox, retry } from 'next-test-utils'
 
 describe('cache-components', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -32,10 +32,9 @@ describe('cache-components', () => {
       // we expect this error not to be logged anymore.
       expect(next.cliOutput).toMatch('Error: Route "/server-action-inline"')
 
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     }
   })
-  /* eslint-enable jest/no-standalone-expect */
 
   it('should prerender pages with inline server actions', async () => {
     let $ = await next.render$('/server-action-inline', {})

@@ -6,7 +6,7 @@ import {
 import { RouteKind } from '../../server/route-kind'
 import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { getRequestMeta } from '../../server/request-meta'
+import { addRequestMeta, getRequestMeta } from '../../server/request-meta'
 import { getTracer, type Span, SpanKind } from '../../server/lib/trace/tracer'
 import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
 import { createServerModuleMap } from '../../server/app-render/action-utils'
@@ -85,6 +85,9 @@ export async function handler(
     waitUntil: (prom: Promise<void>) => void
   }
 ) {
+  if (routeModule.isDev) {
+    addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
+  }
   let srcPage = 'VAR_DEFINITION_PAGE'
 
   // turbopack doesn't normalize `/index` in the page name
@@ -115,6 +118,7 @@ export async function handler(
     buildId,
     params,
     nextConfig,
+    parsedUrl,
     isDraftMode,
     prerenderManifest,
     routerServerContext,
@@ -132,12 +136,25 @@ export async function handler(
       prerenderManifest.routes[resolvedPathname]
   )
 
+  const render404 = async () => {
+    // TODO: should route-module itself handle rendering the 404
+    if (routerServerContext?.render404) {
+      await routerServerContext.render404(req, res, parsedUrl, false)
+    } else {
+      res.end('This page could not be found')
+    }
+    return null
+  }
+
   if (isIsr && !isDraftMode) {
     const isPrerendered = Boolean(prerenderManifest.routes[resolvedPathname])
     const prerenderInfo = prerenderManifest.dynamicRoutes[normalizedSrcPage]
 
     if (prerenderInfo) {
       if (prerenderInfo.fallback === false && !isPrerendered) {
+        if (nextConfig.experimental.adapterPath) {
+          return await render404()
+        }
         throw new NoFallbackError()
       }
     }
@@ -187,22 +204,28 @@ export async function handler(
     prerenderManifest,
     renderOpts: {
       experimental: {
-        cacheComponents: Boolean(nextConfig.experimental.cacheComponents),
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
       },
+      cacheComponents: Boolean(nextConfig.cacheComponents),
       supportsDynamicResponse,
       incrementalCache: getRequestMeta(req, 'incrementalCache'),
-      cacheLifeProfiles: nextConfig.experimental?.cacheLife,
+      cacheLifeProfiles: nextConfig.cacheLife,
       waitUntil: ctx.waitUntil,
       onClose: (cb) => {
         res.on('close', cb)
       },
       onAfterTaskError: undefined,
-      onInstrumentationRequestError: (error, _request, errorContext) =>
+      onInstrumentationRequestError: (
+        error,
+        _request,
+        errorContext,
+        silenceLog
+      ) =>
         routeModule.onRequestError(
           req,
           error,
           errorContext,
+          silenceLog,
           routerServerContext
         ),
     },
@@ -261,6 +284,9 @@ export async function handler(
         }
       })
     }
+    const isMinimalMode = Boolean(
+      process.env.MINIMAL_MODE || getRequestMeta(req, 'minimalMode')
+    )
 
     const handleResponse = async (currentSpan?: Span) => {
       const responseGenerator: ResponseGenerator = async ({
@@ -268,7 +294,7 @@ export async function handler(
       }) => {
         try {
           if (
-            !getRequestMeta(req, 'minimalMode') &&
+            !isMinimalMode &&
             isOnDemandRevalidate &&
             revalidateOnlyGenerated &&
             !previousCacheEntry
@@ -349,6 +375,7 @@ export async function handler(
           // if this is a background revalidate we need to report
           // the request error here as it won't be bubbled
           if (previousCacheEntry?.isStale) {
+            const silenceLog = false
             await routeModule.onRequestError(
               req,
               err,
@@ -361,6 +388,7 @@ export async function handler(
                   isOnDemandRevalidate,
                 }),
               },
+              silenceLog,
               routerServerContext
             )
           }
@@ -380,6 +408,7 @@ export async function handler(
         revalidateOnlyGenerated,
         responseGenerator,
         waitUntil: ctx.waitUntil,
+        isMinimalMode,
       })
 
       // we don't create a cacheEntry for ISR
@@ -393,7 +422,7 @@ export async function handler(
         )
       }
 
-      if (!getRequestMeta(req, 'minimalMode')) {
+      if (!isMinimalMode) {
         res.setHeader(
           'x-nextjs-cache',
           isOnDemandRevalidate
@@ -416,7 +445,7 @@ export async function handler(
 
       const headers = fromNodeOutgoingHttpHeaders(cacheEntry.value.headers)
 
-      if (!(getRequestMeta(req, 'minimalMode') && isIsr)) {
+      if (!(isMinimalMode && isIsr)) {
         headers.delete(NEXT_CACHE_TAGS_HEADER)
       }
 
@@ -467,15 +496,22 @@ export async function handler(
     }
   } catch (err) {
     if (!(err instanceof NoFallbackError)) {
-      await routeModule.onRequestError(req, err, {
-        routerKind: 'App Router',
-        routePath: normalizedSrcPage,
-        routeType: 'route',
-        revalidateReason: getRevalidateReason({
-          isStaticGeneration,
-          isOnDemandRevalidate,
-        }),
-      })
+      const silenceLog = false
+      await routeModule.onRequestError(
+        req,
+        err,
+        {
+          routerKind: 'App Router',
+          routePath: normalizedSrcPage,
+          routeType: 'route',
+          revalidateReason: getRevalidateReason({
+            isStaticGeneration,
+            isOnDemandRevalidate,
+          }),
+        },
+        silenceLog,
+        routerServerContext
+      )
     }
 
     // rethrow so that we can handle serving error page

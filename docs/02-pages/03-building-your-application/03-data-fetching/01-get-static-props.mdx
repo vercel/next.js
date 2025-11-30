@@ -51,7 +51,7 @@ You should use `getStaticProps` if:
 - The data required to render the page is available at build time ahead of a user’s request
 - The data comes from a headless CMS
 - The page must be pre-rendered (for SEO) and be very fast — `getStaticProps` generates `HTML` and `JSON` files, both of which can be cached by a CDN for performance
-- The data can be publicly cached (not user-specific). This condition can be bypassed in certain specific situation by using a Middleware to rewrite the path.
+- The data can be publicly cached (not user-specific). This condition can be bypassed in certain specific situation by using a Proxy to rewrite the path.
 
 ## When does getStaticProps run
 
@@ -65,7 +65,7 @@ You should use `getStaticProps` if:
 
 When combined with [Incremental Static Regeneration](/docs/pages/guides/incremental-static-regeneration), `getStaticProps` will run in the background while the stale page is being revalidated, and the fresh page served to the browser.
 
-`getStaticProps` does not have access to the incoming request (such as query parameters or HTTP headers) as it generates static HTML. If you need access to the request for your page, consider using [Middleware](/docs/pages/api-reference/file-conventions/middleware) in addition to `getStaticProps`.
+`getStaticProps` does not have access to the incoming request (such as query parameters or HTTP headers) as it generates static HTML. If you need access to the request for your page, consider using [Proxy](/docs/pages/api-reference/file-conventions/proxy) in addition to `getStaticProps`.
 
 ## Using getStaticProps to fetch data from a CMS
 

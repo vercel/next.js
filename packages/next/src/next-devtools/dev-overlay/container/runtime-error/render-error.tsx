@@ -41,7 +41,6 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
     [eventId: string]: ReadyRuntimeError
   }>({})
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- compiler bug
   const [runtimeErrors, nextError] = useMemo<
     [ReadyRuntimeError[], SupportedErrorEvent | null]
   >(() => {

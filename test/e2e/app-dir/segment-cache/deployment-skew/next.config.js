@@ -7,10 +7,6 @@ if (!BUILD_ID) {
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  experimental: {
-    clientSegmentCache: true,
-  },
-
   distDir: '.next.' + BUILD_ID,
 
   async generateBuildId() {

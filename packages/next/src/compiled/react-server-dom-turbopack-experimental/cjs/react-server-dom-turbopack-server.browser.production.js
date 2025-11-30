@@ -459,7 +459,7 @@ function getChildFormatContext(parentContext, type, props) {
             });
             break;
           case "stylesheet":
-            preload(srcSet, "stylesheet", {
+            preload(srcSet, "style", {
               crossOrigin: props.crossOrigin,
               integrity: props.integrity,
               nonce: props.nonce,
@@ -540,7 +540,6 @@ var REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
-  REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
   REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
@@ -550,7 +549,8 @@ function getIteratorFn(maybeIterable) {
     maybeIterable["@@iterator"];
   return "function" === typeof maybeIterable ? maybeIterable : null;
 }
-var ASYNC_ITERATOR = Symbol.asyncIterator;
+var ASYNC_ITERATOR = Symbol.asyncIterator,
+  REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key");
 function noop() {}
 var SuspenseException = Error(
   "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`."
@@ -852,7 +852,6 @@ function RequestInstance(
   model,
   bundlerConfig,
   onError,
-  onPostpone,
   onAllReady,
   onFatalError,
   identifierPrefix,
@@ -893,7 +892,6 @@ function RequestInstance(
   this.identifierCount = 1;
   this.taintCleanupQueue = cleanupQueue;
   this.onError = void 0 === onError ? defaultErrorHandler : onError;
-  this.onPostpone = void 0 === onPostpone ? noop : onPostpone;
   this.onAllReady = onAllReady;
   this.onFatalError = onFatalError;
   type = createTask(this, model, null, !1, 0, abortSet);
@@ -969,9 +967,17 @@ function serializeReadableStream(request, task, stream) {
           callOnAllReadyIfReady(request);
       else
         try {
-          (streamTask.model = entry.value),
-            request.pendingChunks++,
-            tryStreamTask(request, streamTask),
+          request.pendingChunks++,
+            (streamTask.model = entry.value),
+            isByteStream
+              ? emitTypedArrayChunk(
+                  request,
+                  streamTask.id,
+                  "b",
+                  streamTask.model,
+                  !1
+                )
+              : tryStreamTask(request, streamTask),
             enqueueFlush(request),
             reader.read().then(progress, error);
         } catch (x$8) {
@@ -1005,7 +1011,8 @@ function serializeReadableStream(request, task, stream) {
     } catch (x) {
       supportsBYOB = !1;
     }
-  var reader = stream.getReader(),
+  var isByteStream = supportsBYOB,
+    reader = stream.getReader(),
     streamTask = createTask(
       request,
       task.model,
@@ -1015,7 +1022,7 @@ function serializeReadableStream(request, task, stream) {
       request.abortableTasks
     );
   request.pendingChunks++;
-  task = streamTask.id.toString(16) + ":" + (supportsBYOB ? "r" : "R") + "\n";
+  task = streamTask.id.toString(16) + ":" + (isByteStream ? "r" : "R") + "\n";
   request.completedRegularChunks.push(stringToChunk(task));
   request.cacheController.signal.addEventListener("abort", abortStream);
   reader.read().then(progress, error);
@@ -1185,7 +1192,12 @@ function renderFunctionComponent(request, task, key, Component, props) {
   Component = task.keyPath;
   prevThenableState = task.implicitSlot;
   null !== key
-    ? (task.keyPath = null === Component ? key : Component + "," + key)
+    ? (task.keyPath =
+        key === REACT_OPTIMISTIC_KEY || Component === REACT_OPTIMISTIC_KEY
+          ? REACT_OPTIMISTIC_KEY
+          : null === Component
+            ? key
+            : Component + "," + key)
     : null === Component && (task.implicitSlot = !0);
   request = renderModelDestructive(request, task, emptyRoot, "", props);
   task.keyPath = Component;
@@ -1268,7 +1280,11 @@ function renderElement(request, task, type, key, ref, props) {
   key = task.keyPath;
   null === request
     ? (request = key)
-    : null !== key && (request = key + "," + request);
+    : null !== key &&
+      (request =
+        key === REACT_OPTIMISTIC_KEY || request === REACT_OPTIMISTIC_KEY
+          ? REACT_OPTIMISTIC_KEY
+          : key + "," + request);
   props = [REACT_ELEMENT_TYPE, type, request, props];
   task = task.implicitSlot && null !== request ? [props] : props;
   return task;
@@ -1375,13 +1391,8 @@ function createTask(
             (task.implicitSlot = prevImplicitSlot),
             request.pendingChunks++,
             (prevKeyPath = request.nextChunkId++),
-            "object" === typeof value &&
-            null !== value &&
-            value.$$typeof === REACT_POSTPONE_TYPE
-              ? (logPostpone(request, value.message, task),
-                emitPostponeChunk(request, prevKeyPath))
-              : ((prevImplicitSlot = logRecoverableError(request, value, task)),
-                emitErrorChunk(request, prevKeyPath, prevImplicitSlot)),
+            (prevImplicitSlot = logRecoverableError(request, value, task)),
+            emitErrorChunk(request, prevKeyPath, prevImplicitSlot),
             (JSCompiler_inline_result = parentPropertyName
               ? serializeLazyID(prevKeyPath)
               : serializeByValueID(prevKeyPath));
@@ -1841,16 +1852,6 @@ function renderModelDestructive(
       describeObjectForErrorMessage(parent, parentPropertyName)
   );
 }
-function logPostpone(request, reason) {
-  var prevRequest = currentRequest;
-  currentRequest = null;
-  try {
-    var onPostpone = request.onPostpone;
-    onPostpone(reason);
-  } finally {
-    currentRequest = prevRequest;
-  }
-}
 function logRecoverableError(request, error) {
   var prevRequest = currentRequest;
   currentRequest = null;
@@ -1878,11 +1879,6 @@ function fatalError(request, error) {
   request.cacheController.abort(
     Error("The render was aborted due to a fatal error.", { cause: error })
   );
-}
-function emitPostponeChunk(request, id) {
-  id = id.toString(16) + ":P\n";
-  id = stringToChunk(id);
-  request.completedErrorChunks.push(id);
 }
 function emitErrorChunk(request, id, digest) {
   digest = { digest: digest };
@@ -1970,13 +1966,8 @@ function emitChunk(request, task, value) {
 }
 function erroredTask(request, task, error) {
   task.status = 4;
-  "object" === typeof error &&
-  null !== error &&
-  error.$$typeof === REACT_POSTPONE_TYPE
-    ? (logPostpone(request, error.message, task),
-      emitPostponeChunk(request, task.id))
-    : ((error = logRecoverableError(request, error, task)),
-      emitErrorChunk(request, task.id, error));
+  error = logRecoverableError(request, error, task);
+  emitErrorChunk(request, task.id, error);
   request.abortableTasks.delete(task);
   callOnAllReadyIfReady(request);
 }
@@ -2208,23 +2199,7 @@ function abort(request, reason) {
             scheduleWork(function () {
               return finishHalt(request, abortableTasks);
             });
-        else if (
-          "object" === typeof reason &&
-          null !== reason &&
-          reason.$$typeof === REACT_POSTPONE_TYPE
-        ) {
-          logPostpone(request, reason.message, null);
-          var errorId = request.nextChunkId++;
-          request.fatalError = errorId;
-          request.pendingChunks++;
-          emitPostponeChunk(request, errorId, reason);
-          abortableTasks.forEach(function (task) {
-            return abortTask(task, request, errorId);
-          });
-          scheduleWork(function () {
-            return finishAbort(request, abortableTasks, errorId);
-          });
-        } else {
+        else {
           var error =
               void 0 === reason
                 ? Error(
@@ -2238,15 +2213,15 @@ function abort(request, reason) {
                     )
                   : reason,
             digest = logRecoverableError(request, error, null),
-            errorId$26 = request.nextChunkId++;
-          request.fatalError = errorId$26;
+            errorId = request.nextChunkId++;
+          request.fatalError = errorId;
           request.pendingChunks++;
-          emitErrorChunk(request, errorId$26, digest, error, !1, null);
+          emitErrorChunk(request, errorId, digest, error, !1, null);
           abortableTasks.forEach(function (task) {
-            return abortTask(task, request, errorId$26);
+            return abortTask(task, request, errorId);
           });
           scheduleWork(function () {
-            return finishAbort(request, abortableTasks, errorId$26);
+            return finishAbort(request, abortableTasks, errorId);
           });
         }
       else {
@@ -2254,9 +2229,9 @@ function abort(request, reason) {
         onAllReady();
         flushCompletedChunks(request);
       }
-    } catch (error$27) {
-      logRecoverableError(request, error$27, null),
-        fatalError(request, error$27);
+    } catch (error$26) {
+      logRecoverableError(request, error$26, null),
+        fatalError(request, error$26);
     }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2702,8 +2677,8 @@ function parseReadableStream(response, reference, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$30 = createPendingChunk(response);
-        chunk$30.then(
+        var chunk$29 = createPendingChunk(response);
+        chunk$29.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -2711,10 +2686,10 @@ function parseReadableStream(response, reference, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$30;
+        previousBlockedChunk = chunk$29;
         chunk.then(function () {
-          previousBlockedChunk === chunk$30 && (previousBlockedChunk = null);
-          resolveModelChunk(chunk$30, json, -1);
+          previousBlockedChunk === chunk$29 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$29, json, -1);
         });
       }
     },
@@ -3034,76 +3009,13 @@ exports.decodeReply = function (body, turbopackMap, options) {
   close(body);
   return turbopackMap;
 };
-exports.registerClientReference = function (
-  proxyImplementation,
-  id,
-  exportName
-) {
-  return registerClientReferenceImpl(
-    proxyImplementation,
-    id + "#" + exportName,
-    !1
-  );
-};
-exports.registerServerReference = function (reference, id, exportName) {
-  return Object.defineProperties(reference, {
-    $$typeof: { value: SERVER_REFERENCE_TAG },
-    $$id: {
-      value: null === exportName ? id : id + "#" + exportName,
-      configurable: !0
-    },
-    $$bound: { value: null, configurable: !0 },
-    bind: { value: bind, configurable: !0 }
-  });
-};
-exports.renderToReadableStream = function (model, turbopackMap, options) {
-  var request = new RequestInstance(
-    20,
-    model,
-    turbopackMap,
-    options ? options.onError : void 0,
-    options ? options.onPostpone : void 0,
-    noop,
-    noop,
-    options ? options.identifierPrefix : void 0,
-    options ? options.temporaryReferences : void 0
-  );
-  if (options && options.signal) {
-    var signal = options.signal;
-    if (signal.aborted) abort(request, signal.reason);
-    else {
-      var listener = function () {
-        abort(request, signal.reason);
-        signal.removeEventListener("abort", listener);
-      };
-      signal.addEventListener("abort", listener);
-    }
-  }
-  return new ReadableStream(
-    {
-      type: "bytes",
-      start: function () {
-        startWork(request);
-      },
-      pull: function (controller) {
-        startFlowing(request, controller);
-      },
-      cancel: function (reason) {
-        request.destination = null;
-        abort(request, reason);
-      }
-    },
-    { highWaterMark: 0 }
-  );
-};
-exports.unstable_prerender = function (model, turbopackMap, options) {
+exports.prerender = function (model, turbopackMap, options) {
   return new Promise(function (resolve, reject) {
     var request = new RequestInstance(
       21,
       model,
       turbopackMap,
       options ? options.onError : void 0,
-      options ? options.onPostpone : void 0,
       function () {
         var stream = new ReadableStream(
           {
@@ -3137,4 +3049,65 @@ exports.unstable_prerender = function (model, turbopackMap, options) {
     }
     startWork(request);
   });
+};
+exports.registerClientReference = function (
+  proxyImplementation,
+  id,
+  exportName
+) {
+  return registerClientReferenceImpl(
+    proxyImplementation,
+    id + "#" + exportName,
+    !1
+  );
+};
+exports.registerServerReference = function (reference, id, exportName) {
+  return Object.defineProperties(reference, {
+    $$typeof: { value: SERVER_REFERENCE_TAG },
+    $$id: {
+      value: null === exportName ? id : id + "#" + exportName,
+      configurable: !0
+    },
+    $$bound: { value: null, configurable: !0 },
+    bind: { value: bind, configurable: !0 }
+  });
+};
+exports.renderToReadableStream = function (model, turbopackMap, options) {
+  var request = new RequestInstance(
+    20,
+    model,
+    turbopackMap,
+    options ? options.onError : void 0,
+    noop,
+    noop,
+    options ? options.identifierPrefix : void 0,
+    options ? options.temporaryReferences : void 0
+  );
+  if (options && options.signal) {
+    var signal = options.signal;
+    if (signal.aborted) abort(request, signal.reason);
+    else {
+      var listener = function () {
+        abort(request, signal.reason);
+        signal.removeEventListener("abort", listener);
+      };
+      signal.addEventListener("abort", listener);
+    }
+  }
+  return new ReadableStream(
+    {
+      type: "bytes",
+      start: function () {
+        startWork(request);
+      },
+      pull: function (controller) {
+        startFlowing(request, controller);
+      },
+      cancel: function (reason) {
+        request.destination = null;
+        abort(request, reason);
+      }
+    },
+    { highWaterMark: 0 }
+  );
 };

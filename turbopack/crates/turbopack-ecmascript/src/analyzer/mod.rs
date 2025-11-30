@@ -16,6 +16,7 @@ use num_traits::identities::Zero;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHasher;
 use swc_core::{
+    atoms::Wtf8Atom,
     common::Mark,
     ecma::{
         ast::{Id, Ident, Lit},
@@ -251,7 +252,9 @@ impl From<&'_ str> for ConstantValue {
 impl From<Lit> for ConstantValue {
     fn from(v: Lit) -> Self {
         match v {
-            Lit::Str(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
+            Lit::Str(v) => {
+                ConstantValue::Str(ConstantString::Atom(v.value.to_atom_lossy().into_owned()))
+            }
             Lit::Bool(v) => {
                 if v.value {
                     ConstantValue::True
@@ -285,7 +288,7 @@ impl Display for ConstantValue {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ModuleValue {
-    pub module: Atom,
+    pub module: Wtf8Atom,
     pub annotations: ImportAnnotations,
 }
 
@@ -567,7 +570,7 @@ impl From<String> for JsValue {
 
 impl From<swc_core::ecma::ast::Str> for JsValue {
     fn from(v: swc_core::ecma::ast::Str) -> Self {
-        ConstantValue::Str(v.value.into()).into()
+        ConstantValue::Str(ConstantString::Atom(v.value.to_atom_lossy().into_owned())).into()
     }
 }
 
@@ -787,7 +790,7 @@ impl Display for JsValue {
                 module: name,
                 annotations,
             }) => {
-                write!(f, "Module({name}, {annotations})")
+                write!(f, "Module({}, {annotations})", name.to_string_lossy())
             }
             JsValue::Unknown { .. } => write!(f, "???"),
             JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({obj:?})"),
@@ -1713,7 +1716,7 @@ impl JsValue {
                 module: name,
                 annotations,
             }) => {
-                format!("module<{name}, {annotations}>")
+                format!("module<{}, {annotations}>", name.to_string_lossy())
             }
             JsValue::Unknown {
                 original_value: inner,
@@ -1784,7 +1787,15 @@ impl JsValue {
                         "url",
                         "The Node.js url module: https://nodejs.org/api/url.html",
                     ),
-                    WellKnownObjectKind::ChildProcess | WellKnownObjectKind::ChildProcessDefault => (
+                    WellKnownObjectKind::ModuleModule | WellKnownObjectKind::ModuleModuleDefault => (
+                        "module",
+                        "The Node.js `module` module: https://nodejs.org/api/module.html",
+                    ),
+                    WellKnownObjectKind::WorkerThreadsModule | WellKnownObjectKind::WorkerThreadsModuleDefault => (
+                        "worker_threads",
+                        "The Node.js `worker_threads` module: https://nodejs.org/api/worker_threads.html",
+                    ),
+                    WellKnownObjectKind::ChildProcessModule | WellKnownObjectKind::ChildProcessModuleDefault => (
                         "child_process",
                         "The Node.js child_process module: https://nodejs.org/api/child_process.html",
                     ),
@@ -1792,7 +1803,7 @@ impl JsValue {
                         "os",
                         "The Node.js os module: https://nodejs.org/api/os.html",
                     ),
-                    WellKnownObjectKind::NodeProcess => (
+                    WellKnownObjectKind::NodeProcessModule => (
                         "process",
                         "The Node.js process module: https://nodejs.org/api/process.html",
                     ),
@@ -1886,6 +1897,10 @@ impl JsValue {
                         "url.pathToFileURL".to_string(),
                         "The Node.js url.pathToFileURL method: https://nodejs.org/api/url.html#urlpathtofileurlpath",
                     ),
+                    WellKnownFunctionKind::CreateRequire => (
+                        "module.createRequire".to_string(),
+                        "The Node.js module.createRequire method: https://nodejs.org/api/module.html#modulecreaterequirefilename",
+                    ),
                     WellKnownFunctionKind::ChildProcessSpawnMethod(name) => (
                         format!("child_process.{name}"),
                         "A process spawning method from the Node.js child_process module: https://nodejs.org/api/child_process.html",
@@ -1945,6 +1960,10 @@ impl JsValue {
                     WellKnownFunctionKind::NodeProtobufLoad => (
                       "load/loadSync".to_string(),
                       "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node"
+                    ),
+                    WellKnownFunctionKind::NodeWorkerConstructor => (
+                      "Worker".to_string(),
+                      "The Node.js worker_threads Worker constructor: https://nodejs.org/api/worker_threads.html#worker_threads_class_worker"
                     ),
                     WellKnownFunctionKind::WorkerConstructor => (
                       "Worker".to_string(),
@@ -2101,7 +2120,7 @@ impl JsValue {
                         let first_str: &str = first_str;
                         if var_graph
                             .free_var_ids
-                            .get(&first_str.into())
+                            .get(&Atom::from(first_str))
                             .is_some_and(|id| var_graph.values.contains_key(id))
                         {
                             // `typeof foo...` but `foo` was reassigned
@@ -3456,13 +3475,17 @@ pub enum WellKnownObjectKind {
     FsModulePromises,
     FsExtraModule,
     FsExtraModuleDefault,
+    ModuleModule,
+    ModuleModuleDefault,
     UrlModule,
     UrlModuleDefault,
-    ChildProcess,
-    ChildProcessDefault,
+    WorkerThreadsModule,
+    WorkerThreadsModuleDefault,
+    ChildProcessModule,
+    ChildProcessModuleDefault,
     OsModule,
     OsModuleDefault,
-    NodeProcess,
+    NodeProcessModule,
     NodeProcessArgv,
     NodeProcessEnv,
     NodePreGyp,
@@ -3482,9 +3505,10 @@ impl WellKnownObjectKind {
             Self::PathModule => Some(&["path"]),
             Self::FsModule => Some(&["fs"]),
             Self::UrlModule => Some(&["url"]),
-            Self::ChildProcess => Some(&["child_process"]),
+            Self::ChildProcessModule => Some(&["child_process"]),
             Self::OsModule => Some(&["os"]),
-            Self::NodeProcess => Some(&["process"]),
+            Self::WorkerThreadsModule => Some(&["worker_threads"]),
+            Self::NodeProcessModule => Some(&["process"]),
             Self::NodeProcessArgv => Some(&["process", "argv"]),
             Self::NodeProcessEnv => Some(&["process", "env"]),
             Self::NodeBuffer => Some(&["Buffer"]),
@@ -3596,6 +3620,7 @@ pub enum WellKnownFunctionKind {
     Define,
     FsReadMethod(Atom),
     PathToFileUrl,
+    CreateRequire,
     ChildProcessSpawnMethod(Atom),
     ChildProcessFork,
     OsArch,
@@ -3612,6 +3637,8 @@ pub enum WellKnownFunctionKind {
     NodeResolveFrom,
     NodeProtobufLoad,
     WorkerConstructor,
+    // The worker_threads Worker class
+    NodeWorkerConstructor,
     URLConstructor,
 }
 
@@ -3678,12 +3705,31 @@ pub mod test_utils {
             ) => match &args[0] {
                 JsValue::Constant(ConstantValue::Str(v)) => {
                     JsValue::promise(JsValue::Module(ModuleValue {
-                        module: v.as_atom().into_owned(),
+                        module: v.as_atom().into_owned().into(),
                         annotations: ImportAnnotations::default(),
                     }))
                 }
                 _ => v.into_unknown(true, "import() non constant"),
             },
+            JsValue::Call(
+                _,
+                box JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire),
+                ref args,
+            ) => {
+                if let [
+                    JsValue::Member(
+                        _,
+                        box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
+                        box JsValue::Constant(ConstantValue::Str(prop)),
+                    ),
+                ] = &args[..]
+                    && prop.as_str() == "url"
+                {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
+                } else {
+                    v.into_unknown(true, "createRequire() non constant")
+                }
+            }
             JsValue::Call(
                 _,
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
@@ -3767,7 +3813,7 @@ pub mod test_utils {
                 ),
                 "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
                 "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-                "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
+                "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule),
                 "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
                 "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
                 _ => v.into_unknown(true, "unknown global"),

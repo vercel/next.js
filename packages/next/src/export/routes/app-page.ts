@@ -12,7 +12,6 @@ import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import {
   NEXT_CACHE_TAGS_HEADER,
   NEXT_META_SUFFIX,
-  RSC_PREFETCH_SUFFIX,
   RSC_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SEGMENT_SUFFIX,
@@ -84,7 +83,6 @@ export async function exportAppPage(
       fallbackRouteParams,
       renderOpts,
       undefined,
-      false,
       sharedContext
     )
 
@@ -133,32 +131,19 @@ export async function exportAppPage(
     // properly so long as we don't have unknown route params. When a route doesn't
     // have unknown route params, there will not be any flight data.
     if (!flightData) {
-      // Unless the user has clientParamParsing enabled, we expect that routes
-      // that don't have fallback route params would have flight data. This is
-      // because when clientParamParsing is enabled, the absence of flight data
-      // means that the route has unknown route params.
       if (
         !fallbackRouteParams ||
         fallbackRouteParams.size === 0 ||
-        renderOpts.experimental.clientParamParsing
+        renderOpts.cacheComponents
       ) {
         throw new Error(`Invariant: failed to get page data for ${path}`)
       }
     } else {
-      // If PPR is enabled, we want to emit a prefetch rsc file for the page
+      // If PPR is enabled, we want to emit a segment prefetch files
       // instead of the standard rsc. This is because the standard rsc will
       // contain the dynamic data. We do this if any routes have PPR enabled so
       // that the cache read/write is the same.
-      if (renderOpts.experimental.isRoutePPREnabled) {
-        // If PPR is enabled, we should emit the flight data as the prefetch
-        // payload.
-        // TODO: This will eventually be replaced by the per-segment prefetch
-        // output below.
-        fileWriter.append(
-          htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
-          flightData
-        )
-      } else {
+      if (!renderOpts.experimental.isRoutePPREnabled) {
         // Writing the RSC payload to a file if we don't have PPR enabled.
         fileWriter.append(
           htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
@@ -246,7 +231,7 @@ export async function exportAppPage(
       renderResumeDataCache: renderResumeDataCache
         ? await stringifyResumeDataCache(
             renderResumeDataCache,
-            renderOpts.experimental.cacheComponents
+            renderOpts.cacheComponents
           )
         : undefined,
     }

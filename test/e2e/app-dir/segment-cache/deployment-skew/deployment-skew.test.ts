@@ -1,6 +1,6 @@
 import type * as Playwright from 'playwright'
 import webdriver from 'next-webdriver'
-import { createRouterAct } from '../router-act'
+import { createRouterAct } from 'router-act'
 import { findPort } from 'next-test-utils'
 import { isNextDeploy, isNextDev } from 'e2e-utils'
 import { build, start } from './servers.mjs'

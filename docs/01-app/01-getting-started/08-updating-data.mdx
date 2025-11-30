@@ -14,7 +14,7 @@ You can update data in Next.js using React's [Server Functions](https://react.de
 
 ## What are Server Functions?
 
-A **Server Function** is an asynchronous function that runs on the server. They can be called from client through a network request, which is why they must be asynchronous.
+A **Server Function** is an asynchronous function that runs on the server. They can be called from the client through a network request, which is why they must be asynchronous.
 
 In an `action` or mutation context, they are also called **Server Actions**.
 
@@ -176,7 +176,7 @@ There are two main ways you can invoke a Server Function:
 
 ### Forms
 
-React extends the HTML [`<form>`](https://react.dev/reference/react-dom/components/form) element to allow Server Function to be invoked with the HTML `action` prop.
+React extends the HTML [`<form>`](https://react.dev/reference/react-dom/components/form) element to allow a Server Function to be invoked with the HTML `action` prop.
 
 When invoked in a form, the function automatically receives the [`FormData`](https://developer.mozilla.org/docs/Web/API/FormData/FormData) object. You can extract the data using the native [`FormData` methods](https://developer.mozilla.org/en-US/docs/Web/API/FormData#instance_methods):
 
@@ -327,6 +327,38 @@ export function Button() {
   )
 }
 ```
+
+### Refreshing
+
+After a mutation, you may want to refresh the current page to show the latest data. You can do this by calling [`refresh`](/docs/app/api-reference/functions/refresh) from `next/cache` in a Server Action:
+
+```ts filename="app/lib/actions.ts" switcher
+'use server'
+
+import { refresh } from 'next/cache'
+
+export async function updatePost(formData: FormData) {
+  // Update data
+  // ...
+
+  refresh()
+}
+```
+
+```js filename="app/lib/actions.js" switcher
+'use server'
+
+import { refresh } from 'next/cache'
+
+export async function updatePost(formData) {
+  // Update data
+  // ...
+
+  refresh()
+}
+```
+
+This refreshes the client router, ensuring the UI reflects the latest state. The `refresh()` function does not revalidate tagged data. To revalidate tagged data, use [`updateTag`](/docs/app/api-reference/functions/updateTag) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) instead.
 
 ### Revalidating
 

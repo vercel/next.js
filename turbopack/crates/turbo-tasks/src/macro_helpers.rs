@@ -16,7 +16,7 @@ pub use crate::{
     magic_any::MagicAny,
     manager::{find_cell_by_type, spawn_detached_for_testing},
     native_function::{
-        CollectableFunction, FunctionMeta, NativeFunction, downcast_args_owned, downcast_args_ref,
+        CollectableFunction, NativeFunction, downcast_args_owned, downcast_args_ref,
     },
     value_type::{CollectableTrait, CollectableValueType},
 };
@@ -32,7 +32,7 @@ pub async fn value_debug_format_field(value: ValueDebugFormatString<'_>) -> Stri
     }
 }
 
-pub fn get_non_local_persistence_from_inputs(inputs: &impl TaskInput) -> TaskPersistence {
+pub fn get_persistence_from_inputs(inputs: &impl TaskInput) -> TaskPersistence {
     if inputs.is_transient() {
         TaskPersistence::Transient
     } else {
@@ -40,7 +40,7 @@ pub fn get_non_local_persistence_from_inputs(inputs: &impl TaskInput) -> TaskPer
     }
 }
 
-pub fn get_non_local_persistence_from_inputs_and_this(
+pub fn get_persistence_from_inputs_and_this(
     this: RawVc,
     inputs: &impl TaskInput,
 ) -> TaskPersistence {

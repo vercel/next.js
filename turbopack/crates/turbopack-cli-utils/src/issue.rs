@@ -15,8 +15,8 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{RawVc, TransientInstance, TransientValue, Vc};
 use turbo_tasks_fs::{FileLinesContent, source_context::get_source_context};
 use turbopack_core::issue::{
-    CapturedIssues, IssueReporter, IssueSeverity, PlainIssue, PlainIssueSource, PlainTraceItem,
-    StyledString,
+    CollectibleIssuesExt, IssueReporter, IssueSeverity, PlainIssue, PlainIssueSource,
+    PlainTraceItem, StyledString,
 };
 
 use crate::source_context::format_source_context_lines;
@@ -357,11 +357,10 @@ impl IssueReporter for ConsoleUi {
     #[turbo_tasks::function]
     async fn report_issues(
         &self,
-        issues: TransientInstance<CapturedIssues>,
         source: TransientValue<RawVc>,
         min_failing_severity: IssueSeverity,
     ) -> Result<Vc<bool>> {
-        let issues = &*issues;
+        let issues = source.peek_issues();
         let LogOptions {
             ref current_dir,
             ref project_dir,

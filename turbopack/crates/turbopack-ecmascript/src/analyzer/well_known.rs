@@ -347,7 +347,7 @@ pub fn import(args: Vec<JsValue>) -> JsValue {
     match &args[..] {
         [JsValue::Constant(ConstantValue::Str(v))] => {
             JsValue::promise(JsValue::Module(ModuleValue {
-                module: v.as_atom().into_owned(),
+                module: v.as_atom().into_owned().into(),
                 annotations: ImportAnnotations::default(),
             }))
         }
@@ -603,16 +603,24 @@ async fn well_known_object_member(
         WellKnownObjectKind::FsExtraModule | WellKnownObjectKind::FsExtraModuleDefault => {
             fs_extra_module_member(kind, prop)
         }
+        WellKnownObjectKind::ModuleModule | WellKnownObjectKind::ModuleModuleDefault => {
+            module_module_member(kind, prop)
+        }
         WellKnownObjectKind::UrlModule | WellKnownObjectKind::UrlModuleDefault => {
             url_module_member(kind, prop)
         }
-        WellKnownObjectKind::ChildProcess | WellKnownObjectKind::ChildProcessDefault => {
-            child_process_module_member(kind, prop)
+        WellKnownObjectKind::WorkerThreadsModule
+        | WellKnownObjectKind::WorkerThreadsModuleDefault => {
+            worker_threads_module_member(kind, prop)
         }
+        WellKnownObjectKind::ChildProcessModule
+        | WellKnownObjectKind::ChildProcessModuleDefault => child_process_module_member(kind, prop),
         WellKnownObjectKind::OsModule | WellKnownObjectKind::OsModuleDefault => {
             os_module_member(kind, prop)
         }
-        WellKnownObjectKind::NodeProcess => node_process_member(prop, compile_time_info).await?,
+        WellKnownObjectKind::NodeProcessModule => {
+            node_process_member(prop, compile_time_info).await?
+        }
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(prop),
         WellKnownObjectKind::NodeExpressApp => express(prop),
         WellKnownObjectKind::NodeProtobufLoader => protobuf_loader(prop),
@@ -735,12 +743,31 @@ fn fs_extra_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
     )
 }
 
+fn module_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
+    match (kind, prop.as_str()) {
+        (.., Some("createRequire")) => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire)
+        }
+        (WellKnownObjectKind::ModuleModule, Some("default")) => {
+            JsValue::WellKnownObject(WellKnownObjectKind::ModuleModuleDefault)
+        }
+        _ => JsValue::unknown(
+            JsValue::member(
+                Box::new(JsValue::WellKnownObject(WellKnownObjectKind::ModuleModule)),
+                Box::new(prop),
+            ),
+            true,
+            "unsupported property on Node.js `module` module",
+        ),
+    }
+}
+
 fn url_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
     match (kind, prop.as_str()) {
         (.., Some("pathToFileURL")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl)
         }
-        (WellKnownObjectKind::UrlModuleDefault, Some("default")) => {
+        (WellKnownObjectKind::UrlModule, Some("default")) => {
             JsValue::WellKnownObject(WellKnownObjectKind::UrlModuleDefault)
         }
         _ => JsValue::unknown(
@@ -754,6 +781,27 @@ fn url_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
     }
 }
 
+fn worker_threads_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
+    match (kind, prop.as_str()) {
+        (.., Some("Worker")) => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::NodeWorkerConstructor)
+        }
+        (WellKnownObjectKind::WorkerThreadsModule, Some("default")) => {
+            JsValue::WellKnownObject(WellKnownObjectKind::WorkerThreadsModuleDefault)
+        }
+        _ => JsValue::unknown(
+            JsValue::member(
+                Box::new(JsValue::WellKnownObject(
+                    WellKnownObjectKind::WorkerThreadsModule,
+                )),
+                Box::new(prop),
+            ),
+            true,
+            "unsupported property on Node.js worker_threads module",
+        ),
+    }
+}
+
 fn child_process_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
     let prop_str = prop.as_str();
     match (kind, prop_str) {
@@ -763,13 +811,15 @@ fn child_process_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsVa
             ))
         }
         (.., Some("fork")) => JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessFork),
-        (WellKnownObjectKind::ChildProcess, Some("default")) => {
-            JsValue::WellKnownObject(WellKnownObjectKind::ChildProcessDefault)
+        (WellKnownObjectKind::ChildProcessModule, Some("default")) => {
+            JsValue::WellKnownObject(WellKnownObjectKind::ChildProcessModuleDefault)
         }
 
         _ => JsValue::unknown(
             JsValue::member(
-                Box::new(JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess)),
+                Box::new(JsValue::WellKnownObject(
+                    WellKnownObjectKind::ChildProcessModule,
+                )),
                 Box::new(prop),
             ),
             true,
@@ -821,7 +871,9 @@ async fn node_process_member(
         Some("env") => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessEnv),
         _ => JsValue::unknown(
             JsValue::member(
-                Box::new(JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess)),
+                Box::new(JsValue::WellKnownObject(
+                    WellKnownObjectKind::NodeProcessModule,
+                )),
                 Box::new(prop),
             ),
             true,

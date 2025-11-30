@@ -27,7 +27,9 @@ describe('cache-components', () => {
     const $ = await next.render$('/connection/static-behavior/pass-deeply')
     if (isNextDev) {
       expect($('#layout').text()).toBe('at runtime')
-      expect($('#fallback').length).toBe(0)
+      // In dev, whether or not the fallback appears in the HTML is unreliable
+      // and depends on timing, so we don't assert on its presence
+      // (if we want to assert on it, we should use a browser test)
       expect($('#page').text()).toBe('at runtime')
     } else {
       expect($('#layout').text()).toBe('at buildtime')

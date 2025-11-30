@@ -50,7 +50,7 @@ pub struct ModuleBatchesGraphEdge {
 
 type EntriesList = FxIndexSet<ResolvedVc<Box<dyn Module>>>;
 
-#[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
+#[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct ModuleBatchesGraph {
     graph: TracedDiGraph<ModuleOrBatch, ModuleBatchesGraphEdge>,
 
@@ -295,7 +295,7 @@ impl PreBatches {
                     },
                     |(_, ty)| &ty.chunking_type,
                 );
-                let module = node.module;
+                let module = node;
                 if !ty.is_parallel() {
                     state.items.push(PreBatchItem::NonParallelEdge(
                         ty.without_inherit_async(),
@@ -319,7 +319,7 @@ impl PreBatches {
                 }
             },
             |_, node, state| {
-                let item = PreBatchItem::ParallelModule(node.module);
+                let item = PreBatchItem::ParallelModule(node);
                 state.items.push(item);
                 Ok(())
             },
@@ -350,28 +350,30 @@ pub async fn compute_module_batches(
 
         // Walk the module graph and mark all modules that are boundary modules (referenced from a
         // different chunk group bitmap)
-        module_graph.traverse_all_edges_unordered(|(parent, ty), node| {
-            let std::collections::hash_set::Entry::Vacant(entry) =
-                pre_batches.boundary_modules.entry(node.module)
-            else {
-                // Already a boundary module, can skip check
-                return Ok(());
-            };
-            if ty.chunking_type.is_parallel() {
-                let parent_chunk_groups = chunk_group_info
-                    .module_chunk_groups
-                    .get(&parent.module)
-                    .context("all modules need to have chunk group info")?;
-                let chunk_groups = chunk_group_info
-                    .module_chunk_groups
-                    .get(&node.module)
-                    .context("all modules need to have chunk group info")?;
-                if parent_chunk_groups != chunk_groups {
-                    // This is a boundary module
+        module_graph.traverse_all_edges_unordered(|parent, node| {
+            if let Some((parent, ty)) = parent {
+                let std::collections::hash_set::Entry::Vacant(entry) =
+                    pre_batches.boundary_modules.entry(node)
+                else {
+                    // Already a boundary module, can skip check
+                    return Ok(());
+                };
+                if ty.chunking_type.is_parallel() {
+                    let parent_chunk_groups = chunk_group_info
+                        .module_chunk_groups
+                        .get(&parent)
+                        .context("all modules need to have chunk group info")?;
+                    let chunk_groups = chunk_group_info
+                        .module_chunk_groups
+                        .get(&node)
+                        .context("all modules need to have chunk group info")?;
+                    if parent_chunk_groups != chunk_groups {
+                        // This is a boundary module
+                        entry.insert();
+                    }
+                } else {
                     entry.insert();
                 }
-            } else {
-                entry.insert();
             }
             Ok(())
         })?;
@@ -390,12 +392,13 @@ pub async fn compute_module_batches(
             |cycle| {
                 if cycle
                     .iter()
-                    .any(|node| pre_batches.boundary_modules.contains(&node.module))
+                    .any(|node| pre_batches.boundary_modules.contains(node))
                 {
                     pre_batches
                         .boundary_modules
-                        .extend(cycle.iter().map(|node| node.module));
+                        .extend(cycle.iter().map(|node| **node));
                 }
+                Ok(())
             },
         )?;
 

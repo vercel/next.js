@@ -40,22 +40,13 @@ export function checkIsAppPPREnabled(
  * @see {@link checkIsAppPPREnabled} for checking if the application has PPR enabled.
  */
 export function checkIsRoutePPREnabled(
-  config: ExperimentalPPRConfig | undefined,
-  appConfig: {
-    experimental_ppr?: boolean
-  }
+  config: ExperimentalPPRConfig | undefined
 ): boolean {
   // If the config is undefined, partial prerendering is disabled.
   if (typeof config === 'undefined') return false
 
   // If the config is a boolean, use it directly.
   if (typeof config === 'boolean') return config
-
-  // If the config is a string, it must be 'incremental' to enable partial
-  // prerendering.
-  if (config === 'incremental' && appConfig.experimental_ppr === true) {
-    return true
-  }
 
   return false
 }

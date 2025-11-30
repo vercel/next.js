@@ -23,12 +23,12 @@ use turbopack_core::{
         OptionStyledString, StyledString,
     },
     module::Module,
-    module_graph::export_usage::ModuleExportUsageInfo,
+    module_graph::binding_usage_info::ModuleExportUsageInfo,
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
     resolve::{
-        ExportUsage, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
-        RequestKey,
+        BindingUsage, ExportUsage, ExternalType, ImportUsage, ModulePart, ModuleResolveResult,
+        ModuleResolveResultItem, RequestKey,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
@@ -37,7 +37,7 @@ use turbopack_resolve::ecmascript::esm_resolve;
 
 use super::export::{all_known_export_names, is_export_missing};
 use crate::{
-    ScopeHoistingContext, TreeShakingMode,
+    EcmascriptModuleAsset, ScopeHoistingContext, TreeShakingMode,
     analyzer::imports::ImportAnnotations,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
@@ -268,6 +268,8 @@ impl ReferencedAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<String> {
         let id = asset.chunk_item_id(chunking_context).await?;
+        // There are a number of places in `next` that match on this prefix.
+        // See `packages/next/src/shared/lib/magic-identifier.ts`
         Ok(magic_identifier::mangle(&format!("imported module {id}")))
     }
 }
@@ -317,13 +319,16 @@ impl EsmAssetReferences {
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
+    pub module: ResolvedVc<EcmascriptModuleAsset>,
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     // Request is a string to avoid eagerly parsing into a `Request` VC
     pub request: RcStr,
     pub annotations: ImportAnnotations,
     pub issue_source: IssueSource,
     pub export_name: Option<ModulePart>,
+    pub import_usage: ImportUsage,
     pub import_externals: bool,
+    pub tree_shaking_mode: Option<TreeShakingMode>,
     pub is_pure_import: bool,
 }
 
@@ -339,39 +344,51 @@ impl EsmAssetReference {
 
 impl EsmAssetReference {
     pub fn new(
+        module: ResolvedVc<EcmascriptModuleAsset>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
         issue_source: IssueSource,
         annotations: ImportAnnotations,
         export_name: Option<ModulePart>,
+        import_usage: ImportUsage,
         import_externals: bool,
+        tree_shaking_mode: Option<TreeShakingMode>,
     ) -> Self {
         EsmAssetReference {
+            module,
             origin,
             request,
             issue_source,
             annotations,
             export_name,
+            import_usage,
             import_externals,
+            tree_shaking_mode,
             is_pure_import: false,
         }
     }
 
     pub fn new_pure(
+        module: ResolvedVc<EcmascriptModuleAsset>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
         issue_source: IssueSource,
         annotations: ImportAnnotations,
         export_name: Option<ModulePart>,
+        import_usage: ImportUsage,
         import_externals: bool,
+        tree_shaking_mode: Option<TreeShakingMode>,
     ) -> Self {
         EsmAssetReference {
+            module,
             origin,
             request,
             issue_source,
             annotations,
             export_name,
+            import_usage,
             import_externals,
+            tree_shaking_mode,
             is_pure_import: true,
         }
     }
@@ -389,9 +406,9 @@ impl EsmAssetReference {
 impl ModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let ty = if matches!(self.annotations.module_type(), Some("json")) {
+        let ty = if self.annotations.module_type().is_some_and(|v| v == "json") {
             EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Json)
-        } else if matches!(self.annotations.module_type(), Some("bytes")) {
+        } else if self.annotations.module_type().is_some_and(|v| v == "bytes") {
             EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Bytes)
         } else if let Some(part) = &self.export_name {
             EcmaScriptModulesReferenceSubType::ImportPart(part.clone())
@@ -399,17 +416,15 @@ impl ModuleReference for EsmAssetReference {
             EcmaScriptModulesReferenceSubType::Import
         };
 
-        if let Some(ModulePart::Evaluation) = &self.export_name {
-            let module: ResolvedVc<crate::EcmascriptModuleAsset> =
-                ResolvedVc::try_downcast_type(self.origin)
-                    .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
+        let request = Request::parse(self.request.clone().into());
 
-            let tree_shaking_mode = module.options().await?.tree_shaking_mode;
+        if let Some(TreeShakingMode::ModuleFragments) = self.tree_shaking_mode {
+            if let Some(ModulePart::Evaluation) = &self.export_name {
+                let side_effect_free_packages =
+                    self.module.asset_context().side_effect_free_packages();
 
-            if let Some(TreeShakingMode::ModuleFragments) = tree_shaking_mode {
-                let side_effect_free_packages = module.asset_context().side_effect_free_packages();
-
-                if *module
+                if *self
+                    .module
                     .is_marked_as_side_effect_free(side_effect_free_packages)
                     .await?
                 {
@@ -423,29 +438,23 @@ impl ModuleReference for EsmAssetReference {
                     .cell());
                 }
             }
-        }
-        let request = Request::parse(self.request.clone().into());
 
-        if let Request::Module { module, .. } = &*request.await?
-            && module.is_match(TURBOPACK_PART_IMPORT_SOURCE)
-        {
-            if let Some(part) = &self.export_name {
-                let module: ResolvedVc<crate::EcmascriptModuleAsset> =
-                    ResolvedVc::try_downcast_type(self.origin)
-                        .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
-
-                return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-                    EcmascriptModulePartAsset::select_part(*module, part.clone())
-                        .to_resolved()
-                        .await?,
-                )));
+            if let Request::Module { module, .. } = &*request.await?
+                && module.is_match(TURBOPACK_PART_IMPORT_SOURCE)
+            {
+                if let Some(part) = &self.export_name {
+                    return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
+                        EcmascriptModulePartAsset::select_part(*self.module, part.clone())
+                            .to_resolved()
+                            .await?,
+                    )));
+                }
+                bail!("export_name is required for part import")
             }
-
-            bail!("export_name is required for part import")
         }
 
         let result = esm_resolve(
-            self.get_origin().resolve().await?,
+            self.get_origin(),
             request,
             ty,
             false,
@@ -487,13 +496,18 @@ impl ChunkableModuleReference for EsmAssetReference {
     fn chunking_type(&self) -> Result<Vc<ChunkingTypeOption>> {
         Ok(Vc::cell(
             if let Some(chunking_type) = self.annotations.chunking_type() {
-                match chunking_type {
-                    "parallel" => Some(ChunkingType::Parallel {
+                if chunking_type == "parallel" {
+                    Some(ChunkingType::Parallel {
                         inherit_async: true,
                         hoisted: true,
-                    }),
-                    "none" => None,
-                    _ => return Err(anyhow!("unknown chunking_type: {}", chunking_type)),
+                    })
+                } else if chunking_type == "none" {
+                    None
+                } else {
+                    return Err(anyhow!(
+                        "unknown chunking_type: {}",
+                        chunking_type.to_string_lossy()
+                    ));
                 }
             } else {
                 Some(ChunkingType::Parallel {
@@ -505,12 +519,16 @@ impl ChunkableModuleReference for EsmAssetReference {
     }
 
     #[turbo_tasks::function]
-    fn export_usage(&self) -> Vc<ExportUsage> {
-        match &self.export_name {
-            Some(ModulePart::Export(export_name)) => ExportUsage::named(export_name.clone()),
-            Some(ModulePart::Evaluation) => ExportUsage::evaluation(),
-            _ => ExportUsage::all(),
+    fn binding_usage(&self) -> Vc<BindingUsage> {
+        BindingUsage {
+            import: self.import_usage.clone(),
+            export: match &self.export_name {
+                Some(ModulePart::Export(export_name)) => ExportUsage::Named(export_name.clone()),
+                Some(ModulePart::Evaluation) => ExportUsage::Evaluation,
+                _ => ExportUsage::All,
+            },
         }
+        .cell()
     }
 }
 
@@ -522,8 +540,15 @@ impl EsmAssetReference {
     ) -> Result<CodeGeneration> {
         let this = &*self.await?;
 
+        if *chunking_context
+            .is_reference_unused(Vc::upcast(self))
+            .await?
+        {
+            return Ok(CodeGeneration::empty());
+        }
+
         // only chunked references can be imported
-        if this.annotations.chunking_type() != Some("none") {
+        if this.annotations.chunking_type().is_none_or(|v| v != "none") {
             let import_externals = this.import_externals;
             let referenced_asset = self.get_referenced_asset().await?;
 
@@ -564,7 +589,7 @@ impl EsmAssetReference {
                     }
 
                     if merged_index.is_some()
-                        && matches!(*self.export_usage().await?, ExportUsage::Evaluation)
+                        && matches!(this.export_name, Some(ModulePart::Evaluation))
                     {
                         // No need to import, the module was already executed and is available in
                         // the same scope hoisting group (unless it's a
@@ -779,7 +804,7 @@ impl Issue for InvalidExport {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Bindings.into()
+        IssueStage::Bindings.cell()
     }
 
     #[turbo_tasks::function]
@@ -874,7 +899,7 @@ impl Issue for CircularReExport {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Bindings.into()
+        IssueStage::Bindings.cell()
     }
 
     #[turbo_tasks::function]

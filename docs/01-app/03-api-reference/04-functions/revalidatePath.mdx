@@ -9,7 +9,7 @@ description: API Reference for the revalidatePath function.
 
 `revalidatePath` can be called in Server Functions and Route Handlers.
 
-`revalidatePath` cannot be called in Client Components or Middleware, as it only works in server environments.
+`revalidatePath` cannot be called in Client Components or Proxy, as it only works in server environments.
 
 > **Good to know**:
 >
@@ -49,12 +49,13 @@ export async function GET() {
 }
 ```
 
-## Relationship with `revalidateTag`
+## Relationship with `revalidateTag` and `updateTag`
 
-`revalidatePath` and [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) serve different purposes:
+`revalidatePath`, [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) and [`updateTag`](/docs/app/api-reference/functions/updateTag) serve different purposes:
 
 - **`revalidatePath`**: Invalidates a specific page or layout path
-- **`revalidateTag`**: Invalidates data with specific tags across all pages that use those tags
+- **`revalidateTag`**: Marks data with specific tags as **stale**. Applies across all pages that use those tags
+- **`updateTag`**: Expires data with specific tags. Applies across all pages that use those tags
 
 When you call `revalidatePath`, only the specified path gets fresh data on the next visit. Other pages that use the same data tags will continue to serve cached data until those specific tags are also revalidated:
 
@@ -75,20 +76,22 @@ After calling `revalidatePath('/blog')`:
 - **Page A (/blog)**: Shows fresh data (page re-rendered)
 - **Page B (/dashboard)**: Still shows stale data (cache tag 'posts' not invalidated)
 
+Learn about the difference between [`revalidateTag` and `updateTag`](/docs/app/api-reference/functions/updateTag#differences-from-revalidatetag).
+
 ### Building revalidation utilities
 
-`revalidatePath` and `revalidateTag` are complementary primitives that are often used together in utility functions to ensure comprehensive data consistency across your application:
+`revalidatePath` and `updateTag` are complementary primitives that are often used together in utility functions to ensure comprehensive data consistency across your application:
 
 ```ts
 'use server'
 
-import { revalidatePath, revalidateTag } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 
 export async function updatePost() {
   await updatePostInDatabase()
 
   revalidatePath('/blog') // Refresh the blog page
-  revalidateTag('posts') // Refresh all pages using 'posts' tag
+  updateTag('posts') // Refresh all pages using 'posts' tag
 }
 ```
 

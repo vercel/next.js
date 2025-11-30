@@ -16,6 +16,22 @@ export class NextDeployInstance extends NextInstance {
   private _buildId: string
   private _writtenHostsLine: string | null = null
 
+  protected throwIfUnavailable(): void | never {
+    if (this.isStopping !== null) {
+      throw new Error('Next.js is no longer available.', {
+        cause: this.isStopping,
+      })
+    }
+    if (this.isDestroyed !== null) {
+      throw new Error('Next.js is no longer available.', {
+        cause: this.isDestroyed,
+      })
+    }
+    if (this.childProcess === undefined) {
+      // deploy tests don't have access to the process
+    }
+  }
+
   public get buildId() {
     // get deployment ID via fetch since we can't access
     // build artifacts directly
@@ -99,16 +115,18 @@ export class NextDeployInstance extends NextInstance {
     )
 
     // Add experimental feature flags
-    if (process.env.__NEXT_EXPERIMENTAL_PPR) {
+
+    if (process.env.__NEXT_CACHE_COMPONENTS) {
       additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_PPR=${process.env.__NEXT_EXPERIMENTAL_PPR}`
+        `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_CACHE_COMPONENTS}`
       )
     }
 
-    if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS}`
-      )
+    if (process.env.IS_TURBOPACK_TEST) {
+      additionalEnv.push(`IS_TURBOPACK_TEST=1`)
+    }
+    if (process.env.IS_WEBPACK_TEST) {
+      additionalEnv.push(`IS_WEBPACK_TEST=1`)
     }
 
     const deployRes = await execa(

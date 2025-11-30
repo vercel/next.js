@@ -219,7 +219,7 @@ export abstract class RouteModule<
           headers: [],
           i18n:
             (process.env.__NEXT_I18N_CONFIG as any as I18NConfig) || undefined,
-          skipMiddlewareUrlNormalize: Boolean(
+          skipProxyUrlNormalize: Boolean(
             process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
           ),
         },
@@ -381,12 +381,12 @@ export abstract class RouteModule<
     nextConfig: NextConfigComplete
   ) {
     if (process.env.NEXT_RUNTIME !== 'edge') {
-      const { cacheHandlers } = nextConfig.experimental
+      const { cacheMaxMemorySize, cacheHandlers } = nextConfig
       if (!cacheHandlers) return
 
       // If we've already initialized the cache handlers interface, don't do it
       // again.
-      if (!initializeCacheHandlers()) return
+      if (!initializeCacheHandlers(cacheMaxMemorySize)) return
 
       for (const [kind, handler] of Object.entries(cacheHandlers)) {
         if (!handler) continue
@@ -419,7 +419,8 @@ export abstract class RouteModule<
   public async getIncrementalCache(
     req: IncomingMessage | BaseNextRequest,
     nextConfig: NextConfigComplete,
-    prerenderManifest: DeepReadonly<PrerenderManifest>
+    prerenderManifest: DeepReadonly<PrerenderManifest>,
+    isMinimalMode: boolean
   ): Promise<IncrementalCache> {
     if (process.env.NEXT_RUNTIME === 'edge') {
       return (globalThis as any).__incrementalCache
@@ -449,7 +450,7 @@ export abstract class RouteModule<
       // incremental-cache is request specific
       // although can have shared caches in module scope
       // per-cache handler
-      return new IncrementalCache({
+      const incrementalCache = new IncrementalCache({
         fs: (
           require('../lib/node-fs-methods') as typeof import('../lib/node-fs-methods')
         ).nodeFs,
@@ -457,14 +458,19 @@ export abstract class RouteModule<
         requestHeaders: req.headers,
         allowedRevalidateHeaderKeys:
           nextConfig.experimental.allowedRevalidateHeaderKeys,
-        minimalMode: getRequestMeta(req, 'minimalMode'),
+        minimalMode: isMinimalMode,
         serverDistDir: `${projectDir}/${this.distDir}/server`,
         fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
         maxMemoryCacheSize: nextConfig.cacheMaxMemorySize,
-        flushToDisk: nextConfig.experimental.isrFlushToDisk,
+        flushToDisk: !isMinimalMode && nextConfig.experimental.isrFlushToDisk,
         getPrerenderManifest: () => prerenderManifest,
         CurCacheHandler: CacheHandler,
       })
+
+      // we need to expose this on globalThis as the app-render
+      // workStore grabs the incrementalCache from there
+      ;(globalThis as any).__incrementalCache = incrementalCache
+      return incrementalCache
     }
   }
 
@@ -472,12 +478,15 @@ export abstract class RouteModule<
     req: IncomingMessage | BaseNextRequest,
     err: unknown,
     errorContext: RequestErrorContext,
+    silenceLog: boolean,
     routerServerContext?: RouterServerContext[string]
   ) {
-    if (routerServerContext?.logErrorWithOriginalStack) {
-      routerServerContext.logErrorWithOriginalStack(err, 'app-dir')
-    } else {
-      console.error(err)
+    if (!silenceLog) {
+      if (routerServerContext?.logErrorWithOriginalStack) {
+        routerServerContext.logErrorWithOriginalStack(err, 'app-dir')
+      } else {
+        console.error(err)
+      }
     }
     await this.instrumentationOnRequestError(
       req,
@@ -741,12 +750,29 @@ export abstract class RouteModule<
         params || {},
         true
       )
-      const paramsToInterpolate: ParsedUrlQuery =
-        paramsResult.hasValidParams && params
-          ? params
-          : queryResult.hasValidParams
-            ? query
-            : {}
+
+      let paramsToInterpolate: ParsedUrlQuery
+
+      if (
+        // if both query and params are valid but one
+        // provided more information rely on that one
+        query &&
+        params &&
+        paramsResult.hasValidParams &&
+        queryResult.hasValidParams &&
+        Object.keys(paramsResult.params).length <
+          Object.keys(queryResult.params).length
+      ) {
+        paramsToInterpolate = queryResult.params
+        params = Object.assign(queryResult.params)
+      } else {
+        paramsToInterpolate =
+          paramsResult.hasValidParams && params
+            ? params
+            : queryResult.hasValidParams
+              ? query
+              : {}
+      }
 
       req.url = serverUtils.interpolateDynamicPath(
         req.url || '/',
@@ -873,7 +899,10 @@ export abstract class RouteModule<
 
   public getResponseCache(req: IncomingMessage | BaseNextRequest) {
     if (!this.responseCache) {
-      const minimalMode = getRequestMeta(req, 'minimalMode') ?? false
+      const minimalMode =
+        (Boolean(process.env.MINIMAL_MODE) ||
+          getRequestMeta(req, 'minimalMode')) ??
+        false
       this.responseCache = new ResponseCache(minimalMode)
     }
     return this.responseCache
@@ -891,6 +920,7 @@ export abstract class RouteModule<
     revalidateOnlyGenerated,
     responseGenerator,
     waitUntil,
+    isMinimalMode,
   }: {
     req: IncomingMessage | BaseNextRequest
     nextConfig: NextConfigComplete
@@ -903,6 +933,7 @@ export abstract class RouteModule<
     revalidateOnlyGenerated?: boolean
     responseGenerator: ResponseGenerator
     waitUntil?: (prom: Promise<any>) => void
+    isMinimalMode: boolean
   }) {
     const responseCache = this.getResponseCache(req)
     const cacheEntry = await responseCache.get(cacheKey, responseGenerator, {
@@ -914,7 +945,8 @@ export abstract class RouteModule<
       incrementalCache: await this.getIncrementalCache(
         req,
         nextConfig,
-        prerenderManifest
+        prerenderManifest,
+        isMinimalMode
       ),
       waitUntil,
     })

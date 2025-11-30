@@ -37,9 +37,9 @@ This enables you to build pages that are faster to load and eliminate [layout sh
 
 Depending on your needs, Next.js allows you to choose your data fetching strategy on a page or component-level basis. For example, you could fetch data from your CMS and render blog posts at build time (SSG) for quick load speeds, or fetch data at request time (SSR) when necessary.
 
-### Middleware
+### Proxy
 
-[Next.js Middleware](/docs/app/api-reference/file-conventions/middleware) allows you to run code on the server before a request is completed. For instance, you can avoid a flash of unauthenticated content by redirecting a user to a login page in the middleware for authenticated-only pages. You can also use it for features like A/B testing, experimentation, and [internationalization](/docs/app/guides/internationalization).
+[Next.js Proxy](/docs/app/api-reference/file-conventions/proxy) allows you to run code on the server before a request is completed. For instance, you can avoid a flash of unauthenticated content by redirecting a user to a login page in the proxy for authenticated-only pages. You can also use it for features like A/B testing, experimentation, and [internationalization](/docs/app/guides/internationalization).
 
 ### Built-in Optimizations
 
@@ -455,7 +455,7 @@ Update your `package.json` scripts to use Next.js commands. Also, add `.next` an
 ```json filename="package.json"
 {
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "npx serve@latest ./build"
   }
@@ -526,7 +526,7 @@ const nextConfig: NextConfig = {
 }
 ```
 
-### Custom Webpack / Babel Config
+### Custom Webpack
 
 If you had a custom webpack or Babel configuration in CRA, you can extend Next.js’s config in `next.config.ts`:
 
@@ -543,7 +543,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-> **Note**: This will require disabling Turbopack by removing `--turbopack` from your `dev` script.
+> **Note**: This will require using Webpack by adding `--webpack` to your `dev` script.
 
 ### TypeScript Setup
 
@@ -557,10 +557,16 @@ Next.js automatically sets up TypeScript if you have a `tsconfig.json`. Make sur
 
 ## Bundler Compatibility
 
-Both Create React App and Next.js default to webpack for bundling. Next.js also offers [Turbopack](/docs/app/api-reference/config/next-config-js/turbopack) for faster local development with:
+Create React App uses webpack for bundling. Next.js now defaults to [Turbopack](/docs/app/api-reference/config/next-config-js/turbopack) for faster local development:
 
 ```bash
-next dev --turbopack
+next dev  # Uses Turbopack by default
+```
+
+To use Webpack instead (similar to CRA):
+
+```bash
+next dev --webpack
 ```
 
 You can still provide a [custom webpack configuration](/docs/app/api-reference/config/next-config-js/webpack) if you need to migrate advanced webpack settings from CRA.
@@ -576,6 +582,6 @@ If everything worked, you now have a functioning Next.js application running as 
 - **Optimize images** with the [`<Image>` component](/docs/app/api-reference/components/image)
 - **Optimize fonts** with [`next/font`](/docs/app/api-reference/components/font)
 - **Optimize third-party scripts** with the [`<Script>` component](/docs/app/guides/scripts)
-- **Enable ESLint** with Next.js recommended rules by running `npx next lint` and configuring it to match your project’s needs
+- **Enable ESLint** with Next.js [recommended rules](/docs/app/api-reference/config/eslint#setup-eslint)
 
 > **Note**: Using a static export (`output: 'export'`) [does not currently support](https://github.com/vercel/next.js/issues/54393) the `useParams` hook or other server features. To use all Next.js features, remove `output: 'export'` from your `next.config.ts`.

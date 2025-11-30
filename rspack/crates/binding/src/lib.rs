@@ -5,6 +5,7 @@ mod handle_externals;
 mod next_externals_plugin;
 
 use napi::bindgen_prelude::*;
+use napi_derive::napi;
 use rspack_binding_builder_macros::register_plugin;
 use rspack_core::BoxPlugin;
 use rspack_regex::RspackRegex;
@@ -14,10 +15,6 @@ use crate::{
     config_shared::{EsmExternalsConfig, ExperimentalConfig, NextConfigComplete},
     next_externals_plugin::{NextExternalsPlugin, NextExternalsPluginOptions},
 };
-
-#[macro_use]
-extern crate napi_derive;
-extern crate rspack_binding_builder;
 
 #[derive(Debug)]
 #[napi(object, object_to_js = false)]

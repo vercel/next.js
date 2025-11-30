@@ -1,9 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    cacheComponents: true,
-    globalNotFound: true,
-  },
+  cacheComponents: true,
+  experimental: { globalNotFound: true },
 }
 
 export default nextConfig

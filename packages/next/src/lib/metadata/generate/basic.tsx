@@ -162,7 +162,7 @@ export function PinterestMeta({
 }: {
   pinterest: ResolvedMetadata['pinterest']
 }) {
-  if (!pinterest || !pinterest.richPin) return null
+  if (!pinterest || pinterest.richPin === undefined) return null
 
   const { richPin } = pinterest
 

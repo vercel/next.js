@@ -32,30 +32,41 @@ export function parseBundlerArgs(options: {
     // If we don't support it and someone sets it, we would have inconsistent behavior
     // since some parts of next would read the return value of this function and other
     // parts will read the env variable.
-    setBundlerFlag(Bundler.Turbopack, 'TURBOPACK')
+    setBundlerFlag(Bundler.Turbopack, `TURBOPACK=${process.env.TURBOPACK}`)
   } else if (process.env.IS_TURBOPACK_TEST) {
-    setBundlerFlag(Bundler.Turbopack, 'IS_TURBOPACK_TEST')
+    setBundlerFlag(
+      Bundler.Turbopack,
+      `IS_TURBOPACK_TEST=${process.env.IS_TURBOPACK_TEST}`
+    )
   }
   if (options.webpack) {
     setBundlerFlag(Bundler.Webpack, '--webpack')
   }
 
   if (process.env.IS_WEBPACK_TEST) {
-    setBundlerFlag(Bundler.Webpack, 'IS_WEBPACK_TEST')
+    setBundlerFlag(
+      Bundler.Webpack,
+      `IS_WEBPACK_TEST=${process.env.IS_WEBPACK_TEST}`
+    )
   }
 
   // Mostly this is set via the NextConfig but it can also be set via the command line which is
   // common for testing.
   if (process.env.NEXT_RSPACK) {
-    setBundlerFlag(Bundler.Rspack, 'NEXT_RSPACK')
+    setBundlerFlag(Bundler.Rspack, `NEXT_RSPACK=${process.env.NEXT_RSPACK}`)
   }
-  if (process.env.IS_RSPACK_TEST) {
-    setBundlerFlag(Bundler.Rspack, 'NEXT_TEST_USE_RSPACK')
+  if (process.env.NEXT_TEST_USE_RSPACK) {
+    setBundlerFlag(
+      Bundler.Rspack,
+      `NEXT_TEST_USE_RSPACK=${process.env.NEXT_TEST_USE_RSPACK}`
+    )
   }
 
   if (bundlerFlags.size > 1) {
     console.error(
-      `Multiple bundler flags set: ${Array.from(bundlerFlags.values()).flat().join(', ')}. Configure exactly one bundler.`
+      `Multiple bundler flags set: ${Array.from(bundlerFlags.values()).flat().join(', ')}.
+
+Edit your command or your package.json script to configure only one bundler.`
     )
     process.exit(1)
   }

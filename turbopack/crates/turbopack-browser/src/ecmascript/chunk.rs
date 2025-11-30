@@ -1,14 +1,14 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkingContext, OutputChunk, OutputChunkRuntimeInfo},
     ident::AssetIdent,
     introspect::{Introspectable, IntrospectableChildren},
-    output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
+    source_map::{GenerateSourceMap, SourceMapAsset},
     version::VersionedContent,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunk;
@@ -96,6 +96,35 @@ impl EcmascriptBrowserChunk {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for EcmascriptBrowserChunk {
+    #[turbo_tasks::function]
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let this = self.await?;
+        let chunk_references = this.chunk.references().await?;
+        let include_source_map = *this
+            .chunking_context
+            .reference_chunk_source_maps(Vc::upcast(self))
+            .await?;
+        let ref_assets = chunk_references.assets.await?;
+        let mut assets =
+            Vec::with_capacity(ref_assets.len() + if include_source_map { 1 } else { 0 });
+
+        assets.extend(ref_assets.iter().copied());
+
+        if include_source_map {
+            assets.push(ResolvedVc::upcast(self.source_map().to_resolved().await?));
+        }
+
+        Ok(OutputAssetsWithReferenced {
+            assets: ResolvedVc::cell(assets),
+            referenced_assets: chunk_references.referenced_assets,
+            references: chunk_references.references,
+        }
+        .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl OutputAsset for EcmascriptBrowserChunk {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
@@ -109,26 +138,6 @@ impl OutputAsset for EcmascriptBrowserChunk {
     #[turbo_tasks::function]
     fn size_bytes(self: Vc<Self>) -> Vc<Option<u64>> {
         self.own_content().content().len()
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-        let chunk_references = this.chunk.references().await?;
-        let include_source_map = *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?;
-        let mut references =
-            Vec::with_capacity(chunk_references.len() + if include_source_map { 1 } else { 0 });
-
-        references.extend(chunk_references.iter().copied());
-
-        if include_source_map {
-            references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?));
-        }
-
-        Ok(Vc::cell(references))
     }
 }
 
@@ -148,12 +157,12 @@ impl Asset for EcmascriptBrowserChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.own_content().generate_source_map()
     }
 
     #[turbo_tasks::function]
-    fn by_section(self: Vc<Self>, section: RcStr) -> Vc<OptionStringifiedSourceMap> {
+    fn by_section(self: Vc<Self>, section: RcStr) -> Vc<FileContent> {
         self.own_content().by_section(section)
     }
 }

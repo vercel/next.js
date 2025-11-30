@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{IntoTraitRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, MinifyType},
@@ -10,11 +10,11 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, StyleModule, StyleType},
     module_graph::ModuleGraph,
-    output::OutputAssets,
+    output::{OutputAssetsReference, OutputAssetsWithReferenced},
     reference::{ModuleReference, ModuleReferences},
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
-    source::Source,
+    source::{OptionSource, Source},
     source_map::GenerateSourceMap,
 };
 
@@ -110,7 +110,7 @@ impl ProcessCss for CssModuleAsset {
         let origin_source_map =
             match ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(this.source) {
                 Some(gsm) => gsm.generate_source_map(),
-                None => Vc::cell(None),
+                None => FileContent::NotFound.cell(),
             };
         Ok(finalize_css(
             process_result,
@@ -135,6 +135,11 @@ impl Module for CssModuleAsset {
             ident = ident.with_modifier(import_context.modifier().owned().await?)
         }
         Ok(ident)
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(self.source))
     }
 
     #[turbo_tasks::function]
@@ -209,6 +214,27 @@ struct CssModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for CssModuleChunkItem {
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let mut references = Vec::new();
+        if let ParseCssResult::Ok { url_references, .. } = &*self.module.parse_css().await? {
+            for (_, reference) in url_references.await? {
+                if let ReferencedAsset::Some(asset) = *reference
+                    .get_referenced_asset(*self.chunking_context)
+                    .await?
+                {
+                    references.push(asset);
+                }
+            }
+        }
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
+            references,
+        )))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for CssModuleChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
@@ -228,22 +254,6 @@ impl ChunkItem for CssModuleChunkItem {
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
         Vc::upcast(*self.module)
-    }
-
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
-        let mut references = Vec::new();
-        if let ParseCssResult::Ok { url_references, .. } = &*self.module.parse_css().await? {
-            for (_, reference) in url_references.await? {
-                if let ReferencedAsset::Some(asset) = *reference
-                    .get_referenced_asset(*self.chunking_context)
-                    .await?
-                {
-                    references.push(asset);
-                }
-            }
-        }
-        Ok(Vc::cell(references))
     }
 }
 
@@ -330,16 +340,15 @@ impl CssChunkItem for CssModuleChunkItem {
         if let FinalCssResult::Ok {
             output_code,
             source_map,
-            ..
         } = &*result
         {
             Ok(CssChunkItemContent {
                 inner_code: output_code.to_owned().into(),
                 imports,
                 import_context: self.module.await?.import_context,
-                source_map: source_map.owned().await?,
+                source_map: *source_map,
             }
-            .into())
+            .cell())
         } else {
             Ok(CssChunkItemContent {
                 inner_code: format!(
@@ -349,9 +358,9 @@ impl CssChunkItem for CssModuleChunkItem {
                 .into(),
                 imports: vec![],
                 import_context: None,
-                source_map: None,
+                source_map: FileContent::NotFound.resolved_cell(),
             }
-            .into())
+            .cell())
         }
     }
 }

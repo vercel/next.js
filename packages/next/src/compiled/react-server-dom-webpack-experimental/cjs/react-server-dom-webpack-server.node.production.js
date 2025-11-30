@@ -25,7 +25,6 @@ var async_hooks = require("async_hooks"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
-  REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
   REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
@@ -36,6 +35,7 @@ function getIteratorFn(maybeIterable) {
   return "function" === typeof maybeIterable ? maybeIterable : null;
 }
 var ASYNC_ITERATOR = Symbol.asyncIterator,
+  REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
   scheduleMicrotask = queueMicrotask,
   currentView = null,
   writtenBytes = 0,
@@ -47,13 +47,13 @@ function writeToDestination(destination, view) {
 function writeChunkAndReturn(destination, chunk) {
   if ("string" === typeof chunk) {
     if (0 !== chunk.length)
-      if (2048 < 3 * chunk.length)
+      if (4096 < 3 * chunk.length)
         0 < writtenBytes &&
           (writeToDestination(
             destination,
             currentView.subarray(0, writtenBytes)
           ),
-          (currentView = new Uint8Array(2048)),
+          (currentView = new Uint8Array(4096)),
           (writtenBytes = 0)),
           writeToDestination(destination, chunk);
       else {
@@ -67,25 +67,25 @@ function writeChunkAndReturn(destination, chunk) {
             destination,
             currentView.subarray(0, writtenBytes)
           ),
-          (currentView = new Uint8Array(2048)),
+          (currentView = new Uint8Array(4096)),
           (writtenBytes = textEncoder.encodeInto(
             chunk.slice(read),
             currentView
           ).written));
-        2048 === writtenBytes &&
+        4096 === writtenBytes &&
           (writeToDestination(destination, currentView),
-          (currentView = new Uint8Array(2048)),
+          (currentView = new Uint8Array(4096)),
           (writtenBytes = 0));
       }
   } else
     0 !== chunk.byteLength &&
-      (2048 < chunk.byteLength
+      (4096 < chunk.byteLength
         ? (0 < writtenBytes &&
             (writeToDestination(
               destination,
               currentView.subarray(0, writtenBytes)
             ),
-            (currentView = new Uint8Array(2048)),
+            (currentView = new Uint8Array(4096)),
             (writtenBytes = 0)),
           writeToDestination(destination, chunk))
         : ((target = currentView.length - writtenBytes),
@@ -96,13 +96,13 @@ function writeChunkAndReturn(destination, chunk) {
                 (writtenBytes += target),
                 writeToDestination(destination, currentView),
                 (chunk = chunk.subarray(target))),
-            (currentView = new Uint8Array(2048)),
+            (currentView = new Uint8Array(4096)),
             (writtenBytes = 0)),
           currentView.set(chunk, writtenBytes),
           (writtenBytes += chunk.byteLength),
-          2048 === writtenBytes &&
+          4096 === writtenBytes &&
             (writeToDestination(destination, currentView),
-            (currentView = new Uint8Array(2048)),
+            (currentView = new Uint8Array(4096)),
             (writtenBytes = 0))));
   return destinationHasCapacity;
 }
@@ -497,7 +497,7 @@ function getChildFormatContext(parentContext, type, props) {
             });
             break;
           case "stylesheet":
-            preload(srcSet, "stylesheet", {
+            preload(srcSet, "style", {
               crossOrigin: props.crossOrigin,
               integrity: props.integrity,
               nonce: props.nonce,
@@ -869,7 +869,6 @@ function RequestInstance(
   model,
   bundlerConfig,
   onError,
-  onPostpone,
   onAllReady,
   onFatalError,
   identifierPrefix,
@@ -910,7 +909,6 @@ function RequestInstance(
   this.identifierCount = 1;
   this.taintCleanupQueue = cleanupQueue;
   this.onError = void 0 === onError ? defaultErrorHandler : onError;
-  this.onPostpone = void 0 === onPostpone ? noop : onPostpone;
   this.onAllReady = onAllReady;
   this.onFatalError = onFatalError;
   type = createTask(this, model, null, !1, 0, abortSet);
@@ -991,9 +989,17 @@ function serializeReadableStream(request, task, stream) {
           callOnAllReadyIfReady(request);
       else
         try {
-          (streamTask.model = entry.value),
-            request.pendingChunks++,
-            tryStreamTask(request, streamTask),
+          request.pendingChunks++,
+            (streamTask.model = entry.value),
+            isByteStream
+              ? emitTypedArrayChunk(
+                  request,
+                  streamTask.id,
+                  "b",
+                  streamTask.model,
+                  !1
+                )
+              : tryStreamTask(request, streamTask),
             enqueueFlush(request),
             reader.read().then(progress, error);
         } catch (x$8) {
@@ -1027,7 +1033,8 @@ function serializeReadableStream(request, task, stream) {
     } catch (x) {
       supportsBYOB = !1;
     }
-  var reader = stream.getReader(),
+  var isByteStream = supportsBYOB,
+    reader = stream.getReader(),
     streamTask = createTask(
       request,
       task.model,
@@ -1037,7 +1044,7 @@ function serializeReadableStream(request, task, stream) {
       request.abortableTasks
     );
   request.pendingChunks++;
-  task = streamTask.id.toString(16) + ":" + (supportsBYOB ? "r" : "R") + "\n";
+  task = streamTask.id.toString(16) + ":" + (isByteStream ? "r" : "R") + "\n";
   request.completedRegularChunks.push(task);
   request.cacheController.signal.addEventListener("abort", abortStream);
   reader.read().then(progress, error);
@@ -1206,7 +1213,12 @@ function renderFunctionComponent(request, task, key, Component, props) {
   Component = task.keyPath;
   prevThenableState = task.implicitSlot;
   null !== key
-    ? (task.keyPath = null === Component ? key : Component + "," + key)
+    ? (task.keyPath =
+        key === REACT_OPTIMISTIC_KEY || Component === REACT_OPTIMISTIC_KEY
+          ? REACT_OPTIMISTIC_KEY
+          : null === Component
+            ? key
+            : Component + "," + key)
     : null === Component && (task.implicitSlot = !0);
   request = renderModelDestructive(request, task, emptyRoot, "", props);
   task.keyPath = Component;
@@ -1289,7 +1301,11 @@ function renderElement(request, task, type, key, ref, props) {
   key = task.keyPath;
   null === request
     ? (request = key)
-    : null !== key && (request = key + "," + request);
+    : null !== key &&
+      (request =
+        key === REACT_OPTIMISTIC_KEY || request === REACT_OPTIMISTIC_KEY
+          ? REACT_OPTIMISTIC_KEY
+          : key + "," + request);
   props = [REACT_ELEMENT_TYPE, type, request, props];
   task = task.implicitSlot && null !== request ? [props] : props;
   return task;
@@ -1396,13 +1412,8 @@ function createTask(
             (task.implicitSlot = prevImplicitSlot),
             request.pendingChunks++,
             (prevKeyPath = request.nextChunkId++),
-            "object" === typeof value &&
-            null !== value &&
-            value.$$typeof === REACT_POSTPONE_TYPE
-              ? (logPostpone(request, value.message, task),
-                emitPostponeChunk(request, prevKeyPath))
-              : ((prevImplicitSlot = logRecoverableError(request, value, task)),
-                emitErrorChunk(request, prevKeyPath, prevImplicitSlot)),
+            (prevImplicitSlot = logRecoverableError(request, value, task)),
+            emitErrorChunk(request, prevKeyPath, prevImplicitSlot),
             (JSCompiler_inline_result = parentPropertyName
               ? serializeLazyID(prevKeyPath)
               : serializeByValueID(prevKeyPath));
@@ -1860,15 +1871,6 @@ function renderModelDestructive(
       describeObjectForErrorMessage(parent, parentPropertyName)
   );
 }
-function logPostpone(request, reason) {
-  var prevRequest = currentRequest;
-  currentRequest = null;
-  try {
-    requestStorage.run(void 0, request.onPostpone, reason);
-  } finally {
-    currentRequest = prevRequest;
-  }
-}
 function logRecoverableError(request, error) {
   var prevRequest = currentRequest;
   currentRequest = null;
@@ -1895,10 +1897,6 @@ function fatalError(request, error) {
   request.cacheController.abort(
     Error("The render was aborted due to a fatal error.", { cause: error })
   );
-}
-function emitPostponeChunk(request, id) {
-  id = id.toString(16) + ":P\n";
-  request.completedErrorChunks.push(id);
 }
 function emitErrorChunk(request, id, digest) {
   digest = { digest: digest };
@@ -1978,13 +1976,8 @@ function emitChunk(request, task, value) {
 }
 function erroredTask(request, task, error) {
   task.status = 4;
-  "object" === typeof error &&
-  null !== error &&
-  error.$$typeof === REACT_POSTPONE_TYPE
-    ? (logPostpone(request, error.message, task),
-      emitPostponeChunk(request, task.id))
-    : ((error = logRecoverableError(request, error, task)),
-      emitErrorChunk(request, task.id, error));
+  error = logRecoverableError(request, error, task);
+  emitErrorChunk(request, task.id, error);
   request.abortableTasks.delete(task);
   callOnAllReadyIfReady(request);
 }
@@ -2095,7 +2088,7 @@ function finishHaltedTask(task, request) {
 function flushCompletedChunks(request) {
   var destination = request.destination;
   if (null !== destination) {
-    currentView = new Uint8Array(2048);
+    currentView = new Uint8Array(4096);
     writtenBytes = 0;
     destinationHasCapacity = !0;
     try {
@@ -2240,23 +2233,7 @@ function abort(request, reason) {
             setImmediate(function () {
               return finishHalt(request, abortableTasks);
             });
-        else if (
-          "object" === typeof reason &&
-          null !== reason &&
-          reason.$$typeof === REACT_POSTPONE_TYPE
-        ) {
-          logPostpone(request, reason.message, null);
-          var errorId = request.nextChunkId++;
-          request.fatalError = errorId;
-          request.pendingChunks++;
-          emitPostponeChunk(request, errorId, reason);
-          abortableTasks.forEach(function (task) {
-            return abortTask(task, request, errorId);
-          });
-          setImmediate(function () {
-            return finishAbort(request, abortableTasks, errorId);
-          });
-        } else {
+        else {
           var error =
               void 0 === reason
                 ? Error(
@@ -2270,15 +2247,15 @@ function abort(request, reason) {
                     )
                   : reason,
             digest = logRecoverableError(request, error, null),
-            errorId$26 = request.nextChunkId++;
-          request.fatalError = errorId$26;
+            errorId = request.nextChunkId++;
+          request.fatalError = errorId;
           request.pendingChunks++;
-          emitErrorChunk(request, errorId$26, digest, error, !1, null);
+          emitErrorChunk(request, errorId, digest, error, !1, null);
           abortableTasks.forEach(function (task) {
-            return abortTask(task, request, errorId$26);
+            return abortTask(task, request, errorId);
           });
           setImmediate(function () {
-            return finishAbort(request, abortableTasks, errorId$26);
+            return finishAbort(request, abortableTasks, errorId);
           });
         }
       else {
@@ -2286,9 +2263,9 @@ function abort(request, reason) {
         onAllReady();
         flushCompletedChunks(request);
       }
-    } catch (error$27) {
-      logRecoverableError(request, error$27, null),
-        fatalError(request, error$27);
+    } catch (error$26) {
+      logRecoverableError(request, error$26, null),
+        fatalError(request, error$26);
     }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2736,8 +2713,8 @@ function parseReadableStream(response, reference, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$30 = createPendingChunk(response);
-        chunk$30.then(
+        var chunk$29 = createPendingChunk(response);
+        chunk$29.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -2745,10 +2722,10 @@ function parseReadableStream(response, reference, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$30;
+        previousBlockedChunk = chunk$29;
         chunk.then(function () {
-          previousBlockedChunk === chunk$30 && (previousBlockedChunk = null);
-          resolveModelChunk(chunk$30, json, -1);
+          previousBlockedChunk === chunk$29 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$29, json, -1);
         });
       }
     },
@@ -3169,12 +3146,12 @@ exports.decodeReplyFromBusboy = function (busboyStream, webpackMap, options) {
         "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
       );
     pendingFiles++;
-    var JSCompiler_object_inline_chunks_280 = [];
+    var JSCompiler_object_inline_chunks_277 = [];
     value.on("data", function (chunk) {
-      JSCompiler_object_inline_chunks_280.push(chunk);
+      JSCompiler_object_inline_chunks_277.push(chunk);
     });
     value.on("end", function () {
-      var blob = new Blob(JSCompiler_object_inline_chunks_280, {
+      var blob = new Blob(JSCompiler_object_inline_chunks_277, {
         type: mimeType
       });
       response._formData.append(name, blob, filename);
@@ -3193,6 +3170,86 @@ exports.decodeReplyFromBusboy = function (busboyStream, webpackMap, options) {
     reportGlobalError(response, err);
   });
   return getChunk(response, 0);
+};
+exports.prerender = function (model, webpackMap, options) {
+  return new Promise(function (resolve, reject) {
+    var request = new RequestInstance(
+      21,
+      model,
+      webpackMap,
+      options ? options.onError : void 0,
+      function () {
+        var writable,
+          stream = new ReadableStream(
+            {
+              type: "bytes",
+              start: function (controller) {
+                writable =
+                  createFakeWritableFromReadableStreamController(controller);
+              },
+              pull: function () {
+                startFlowing(request, writable);
+              },
+              cancel: function (reason) {
+                request.destination = null;
+                abort(request, reason);
+              }
+            },
+            { highWaterMark: 0 }
+          );
+        resolve({ prelude: stream });
+      },
+      reject,
+      options ? options.identifierPrefix : void 0,
+      options ? options.temporaryReferences : void 0
+    );
+    if (options && options.signal) {
+      var signal = options.signal;
+      if (signal.aborted) abort(request, signal.reason);
+      else {
+        var listener = function () {
+          abort(request, signal.reason);
+          signal.removeEventListener("abort", listener);
+        };
+        signal.addEventListener("abort", listener);
+      }
+    }
+    startWork(request);
+  });
+};
+exports.prerenderToNodeStream = function (model, webpackMap, options) {
+  return new Promise(function (resolve, reject) {
+    var request = new RequestInstance(
+      21,
+      model,
+      webpackMap,
+      options ? options.onError : void 0,
+      function () {
+        var readable = new stream.Readable({
+            read: function () {
+              startFlowing(request, writable);
+            }
+          }),
+          writable = createFakeWritableFromNodeReadable(readable);
+        resolve({ prelude: readable });
+      },
+      reject,
+      options ? options.identifierPrefix : void 0,
+      options ? options.temporaryReferences : void 0
+    );
+    if (options && options.signal) {
+      var signal = options.signal;
+      if (signal.aborted) abort(request, signal.reason);
+      else {
+        var listener = function () {
+          abort(request, signal.reason);
+          signal.removeEventListener("abort", listener);
+        };
+        signal.addEventListener("abort", listener);
+      }
+    }
+    startWork(request);
+  });
 };
 exports.registerClientReference = function (
   proxyImplementation,
@@ -3222,7 +3279,6 @@ exports.renderToPipeableStream = function (model, webpackMap, options) {
       model,
       webpackMap,
       options ? options.onError : void 0,
-      options ? options.onPostpone : void 0,
       noop,
       noop,
       options ? options.identifierPrefix : void 0,
@@ -3263,7 +3319,6 @@ exports.renderToReadableStream = function (model, webpackMap, options) {
     model,
     webpackMap,
     options ? options.onError : void 0,
-    options ? options.onPostpone : void 0,
     noop,
     noop,
     options ? options.identifierPrefix : void 0,
@@ -3298,86 +3353,4 @@ exports.renderToReadableStream = function (model, webpackMap, options) {
     },
     { highWaterMark: 0 }
   );
-};
-exports.unstable_prerender = function (model, webpackMap, options) {
-  return new Promise(function (resolve, reject) {
-    var request = new RequestInstance(
-      21,
-      model,
-      webpackMap,
-      options ? options.onError : void 0,
-      options ? options.onPostpone : void 0,
-      function () {
-        var writable,
-          stream = new ReadableStream(
-            {
-              type: "bytes",
-              start: function (controller) {
-                writable =
-                  createFakeWritableFromReadableStreamController(controller);
-              },
-              pull: function () {
-                startFlowing(request, writable);
-              },
-              cancel: function (reason) {
-                request.destination = null;
-                abort(request, reason);
-              }
-            },
-            { highWaterMark: 0 }
-          );
-        resolve({ prelude: stream });
-      },
-      reject,
-      options ? options.identifierPrefix : void 0,
-      options ? options.temporaryReferences : void 0
-    );
-    if (options && options.signal) {
-      var signal = options.signal;
-      if (signal.aborted) abort(request, signal.reason);
-      else {
-        var listener = function () {
-          abort(request, signal.reason);
-          signal.removeEventListener("abort", listener);
-        };
-        signal.addEventListener("abort", listener);
-      }
-    }
-    startWork(request);
-  });
-};
-exports.unstable_prerenderToNodeStream = function (model, webpackMap, options) {
-  return new Promise(function (resolve, reject) {
-    var request = new RequestInstance(
-      21,
-      model,
-      webpackMap,
-      options ? options.onError : void 0,
-      options ? options.onPostpone : void 0,
-      function () {
-        var readable = new stream.Readable({
-            read: function () {
-              startFlowing(request, writable);
-            }
-          }),
-          writable = createFakeWritableFromNodeReadable(readable);
-        resolve({ prelude: readable });
-      },
-      reject,
-      options ? options.identifierPrefix : void 0,
-      options ? options.temporaryReferences : void 0
-    );
-    if (options && options.signal) {
-      var signal = options.signal;
-      if (signal.aborted) abort(request, signal.reason);
-      else {
-        var listener = function () {
-          abort(request, signal.reason);
-          signal.removeEventListener("abort", listener);
-        };
-        signal.addEventListener("abort", listener);
-      }
-    }
-    startWork(request);
-  });
 };

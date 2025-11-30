@@ -123,6 +123,7 @@ import {
   RouterServerContextSymbol,
   routerServerGlobal,
 } from './lib/router-utils/router-server-context'
+import { installGlobalBehaviors } from './node-environment-extensions/global-behaviors'
 
 export * from './base-server'
 
@@ -272,6 +273,8 @@ export default class NextNodeServer extends BaseServer<
   constructor(options: Options) {
     // Initialize super class
     super(options)
+
+    installGlobalBehaviors(this.nextConfig)
 
     const isDev = options.dev ?? false
     this.isDev = isDev
@@ -456,12 +459,12 @@ export default class NextNodeServer extends BaseServer<
   }
 
   private async loadCustomCacheHandlers() {
-    const { cacheHandlers } = this.nextConfig.experimental
+    const { cacheMaxMemorySize, cacheHandlers } = this.nextConfig
     if (!cacheHandlers) return
 
     // If we've already initialized the cache handlers interface, don't do it
     // again.
-    if (!initializeCacheHandlers()) return
+    if (!initializeCacheHandlers(cacheMaxMemorySize)) return
 
     for (const [kind, handler] of Object.entries(cacheHandlers)) {
       if (!handler) continue
@@ -708,7 +711,6 @@ export default class NextNodeServer extends BaseServer<
           null,
           renderOpts,
           this.getServerComponentsHmrCache(),
-          false,
           {
             buildId: this.buildId,
           }
@@ -780,7 +782,11 @@ export default class NextNodeServer extends BaseServer<
       const { isAbsolute, href } = paramsResult
 
       const imageUpstream = isAbsolute
-        ? await fetchExternalImage(href)
+        ? await fetchExternalImage(
+            href,
+            this.nextConfig.images.dangerouslyAllowLocalIP,
+            this.nextConfig.images.maximumRedirects
+          )
         : await fetchInternalImage(
             href,
             req.originalRequest,
@@ -893,12 +899,6 @@ export default class NextNodeServer extends BaseServer<
     url?: string
   }): Promise<FindComponentsResult | null> {
     const pagePaths: string[] = [page]
-    if (query.amp) {
-      // try serving a static AMP version first
-      pagePaths.unshift(
-        (isAppPath ? normalizeAppPath(page) : normalizePagePath(page)) + '.amp'
-      )
-    }
 
     if (locale) {
       pagePaths.unshift(
@@ -933,9 +933,7 @@ export default class NextNodeServer extends BaseServer<
           query: {
             ...(!this.renderOpts.isExperimentalCompile &&
             components.getStaticProps
-              ? ({
-                  amp: query.amp,
-                } as NextParsedUrlQuery)
+              ? {}
               : query),
             // For appDir params is excluded.
             ...((isAppPath ? {} : params) || {}),
@@ -1162,13 +1160,19 @@ export default class NextNodeServer extends BaseServer<
           })
           if (handled) return true
         } catch (apiError) {
-          await this.instrumentationOnRequestError(apiError, req, {
-            routePath: match.definition.page,
-            routerKind: 'Pages Router',
-            routeType: 'route',
-            // Edge runtime does not support ISR
-            revalidateReason: undefined,
-          })
+          const silenceLog = false
+          await this.instrumentationOnRequestError(
+            apiError,
+            req,
+            {
+              routePath: match.definition.page,
+              routerKind: 'Pages Router',
+              routeType: 'route',
+              // Edge runtime does not support ISR
+              revalidateReason: undefined,
+            },
+            silenceLog
+          )
           throw apiError
         }
       }
@@ -1654,7 +1658,7 @@ export default class NextNodeServer extends BaseServer<
 
     let url: string
 
-    if (this.nextConfig.skipMiddlewareUrlNormalize) {
+    if (this.nextConfig.skipProxyUrlNormalize) {
       url = getRequestMeta(params.request, 'initURL')!
     } else {
       // For middleware to "fetch" we must always provide an absolute URL
@@ -1738,7 +1742,10 @@ export default class NextNodeServer extends BaseServer<
 
       try {
         result = await adapterFn({
-          handler: middlewareModule.middleware || middlewareModule,
+          handler:
+            middlewareModule.proxy ||
+            middlewareModule.middleware ||
+            middlewareModule,
           request: {
             ...requestData,
             body: hasRequestBody
@@ -1749,7 +1756,7 @@ export default class NextNodeServer extends BaseServer<
         })
       } finally {
         if (hasRequestBody) {
-          requestData.body.finalize()
+          await requestData.body.finalize()
         }
       }
     } else {
@@ -1958,7 +1965,13 @@ export default class NextNodeServer extends BaseServer<
     addRequestMeta(req, 'initProtocol', protocol)
 
     if (!isUpgradeReq) {
-      addRequestMeta(req, 'clonableBody', getCloneableBody(req.originalRequest))
+      const bodySizeLimit = this.nextConfig.experimental
+        ?.proxyClientMaxBodySize as number | undefined
+      addRequestMeta(
+        req,
+        'clonableBody',
+        getCloneableBody(req.originalRequest, bodySizeLimit)
+      )
     }
   }
 
@@ -2116,7 +2129,10 @@ export default class NextNodeServer extends BaseServer<
 
     // For Node.js runtime production logs, in dev it will be overridden by next-dev-server
     if (!this.renderOpts.dev) {
-      this.logError(args[0] as Error)
+      const [err, , , silenceLog] = args
+      if (!silenceLog) {
+        this.logError(err)
+      }
     }
   }
 

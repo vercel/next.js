@@ -73,7 +73,7 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
             .replace("\\\\", "/")
             .into();
 
-        let asset = AssetContent::file(File::from(content).into());
+        let asset = AssetContent::file(FileContent::Content(File::from(content)).cell());
 
         diff(path, asset).await?;
     }
@@ -127,7 +127,7 @@ pub async fn diff(path: FileSystemPath, actual: Vc<AssetContent>) -> Result<()> 
     if actual != expected {
         if let Some(actual) = actual {
             if *UPDATE {
-                let content = File::from(RcStr::from(actual)).into();
+                let content = FileContent::Content(File::from(RcStr::from(actual))).cell();
                 path.write(content).await?;
                 println!("updated contents of {path_str}");
             } else {

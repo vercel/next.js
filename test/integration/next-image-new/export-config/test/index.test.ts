@@ -2,7 +2,7 @@
 
 import { join } from 'path'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   findPort,
   getRedboxHeader,
   killApp,
@@ -35,7 +35,7 @@ describe('next/image with output export config', () => {
         const browser = await webdriver(appPort, '/')
         const msg =
           "Image Optimization using the default loader is not compatible with `{ output: 'export' }`."
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toContain(msg)
         expect(stderr).toContain(msg)
       })

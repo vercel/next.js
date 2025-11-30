@@ -4,7 +4,7 @@ import type { NextConfigComplete } from '../../config-shared'
 import type { RenderServer, initialize } from '../router-server'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
 import type { Redirect } from '../../../types'
-import type { Header, Rewrite } from '../../../lib/load-custom-routes'
+import type { Header } from '../../../lib/load-custom-routes'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { NextUrlWithParsedQuery } from '../../request-meta'
 
@@ -42,12 +42,8 @@ import type { TLSSocket } from 'tls'
 import {
   NEXT_REWRITTEN_PATH_HEADER,
   NEXT_REWRITTEN_QUERY_HEADER,
-  NEXT_ROUTER_STATE_TREE_HEADER,
   RSC_HEADER,
 } from '../../../client/components/app-router-headers'
-import { getSelectedParams } from '../../../client/components/router-reducer/compute-changed-path'
-import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
-import { parseAndValidateFlightRouterState } from '../../app-render/parse-and-validate-flight-router-state'
 
 const debug = setupDebug('next:router-server:resolve-routes')
 
@@ -175,13 +171,16 @@ export function getResolveRoutes(
     addRequestMeta(req, 'initProtocol', protocol)
 
     if (!isUpgradeReq) {
-      addRequestMeta(req, 'clonableBody', getCloneableBody(req))
+      const bodySizeLimit = config.experimental.proxyClientMaxBodySize as
+        | number
+        | undefined
+      addRequestMeta(req, 'clonableBody', getCloneableBody(req, bodySizeLimit))
     }
 
     const maybeAddTrailingSlash = (pathname: string) => {
       if (
         config.trailingSlash &&
-        !config.skipMiddlewareUrlNormalize &&
+        !config.skipProxyUrlNormalize &&
         !pathname.endsWith('/')
       ) {
         return `${pathname}/`
@@ -520,6 +519,13 @@ export function getResolveRoutes(
             addRequestMeta(req, 'invokeOutput', '')
             addRequestMeta(req, 'invokeQuery', {})
             addRequestMeta(req, 'middlewareInvoke', true)
+            if (opts.dev) {
+              addRequestMeta(
+                req,
+                'devRequestTimingMiddlewareStart',
+                process.hrtime.bigint()
+              )
+            }
             debug('invoking middleware', req.url, req.headers)
 
             let middlewareRes: Response | undefined = undefined
@@ -543,6 +549,14 @@ export function getResolveRoutes(
                       controller.close()
                     },
                   })
+                }
+              } finally {
+                if (opts.dev) {
+                  addRequestMeta(
+                    req,
+                    'devRequestTimingMiddlewareEnd',
+                    process.hrtime.bigint()
+                  )
                 }
               }
             } catch (e) {
@@ -771,27 +785,6 @@ export function getResolveRoutes(
         // handle rewrite
         if (route.destination) {
           let rewriteParams = params
-
-          try {
-            // An interception rewrite might reference a dynamic param for a route the user
-            // is currently on, which wouldn't be extractable from the matched route params.
-            // This attempts to extract the dynamic params from the provided router state.
-            if (isInterceptionRouteRewrite(route as Rewrite)) {
-              const stateHeader = req.headers[NEXT_ROUTER_STATE_TREE_HEADER]
-
-              if (stateHeader) {
-                rewriteParams = {
-                  ...getSelectedParams(
-                    parseAndValidateFlightRouterState(stateHeader)
-                  ),
-                  ...params,
-                }
-              }
-            }
-          } catch (err) {
-            // this is a no-op -- we couldn't extract dynamic params from the provided router state,
-            // so we'll just use the params from the route matcher
-          }
 
           const { parsedDestination } = prepareDestination({
             appendParamsToQuery: true,

@@ -205,7 +205,7 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -259,7 +259,7 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -291,25 +291,23 @@ async fn dynamic_sitemap_route_with_generate_source(
                 const paramsPromise = ctx.params
                 const idPromise = paramsPromise.then(params => params?.__metadata_id__)
 
-                if (process.env.NODE_ENV !== 'production') {{
-                    const id = await idPromise
-                    const hasXmlExtension = id ? id.endsWith('.xml') : false
-                    const sitemaps = await generateSitemaps()
-                    let foundId
-                    for (const item of sitemaps) {{
-                        if (item?.id == null) {{
-                            throw new Error('id property is required for every item returned from generateSitemaps')
-                        }}
-                        const baseId = id && hasXmlExtension ? id.slice(0, -4) : undefined
-                        if (item.id.toString() === baseId) {{
-                            foundId = item.id
-                        }}
+                const id = await idPromise
+                const hasXmlExtension = id ? id.endsWith('.xml') : false
+                const sitemaps = await generateSitemaps()
+                let foundId
+                for (const item of sitemaps) {{
+                    if (item?.id == null) {{
+                        throw new Error('id property is required for every item returned from generateSitemaps')
                     }}
-                    if (foundId == null) {{
-                        return new NextResponse('Not Found', {{
-                            status: 404,
-                        }})
+                    const baseId = id && hasXmlExtension ? id.slice(0, -4) : undefined
+                    if (item.id.toString() === baseId) {{
+                        foundId = item.id
                     }}
+                }}
+                if (foundId == null) {{
+                    return new NextResponse('Not Found', {{
+                        status: 404,
+                    }})
                 }}
                 
                 const targetIdPromise = idPromise.then(id => {{
@@ -329,7 +327,6 @@ async fn dynamic_sitemap_route_with_generate_source(
 
             export * from {resource_path}
 
-            export const dynamicParams = false
             export async function generateStaticParams() {{
                 const sitemaps = await generateSitemaps()
                 const params = []
@@ -352,7 +349,7 @@ async fn dynamic_sitemap_route_with_generate_source(
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -403,7 +400,7 @@ async fn dynamic_sitemap_route_without_generate_source(
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -445,24 +442,22 @@ async fn dynamic_image_route_with_metadata_source(
                     const {{ __metadata_id__, ...rest }} = params
                     return rest
                 }})
-                
-                if (process.env.NODE_ENV !== 'production') {{
-                    const restParams = await restParamsPromise
-                    const __metadata_id__ = await idPromise
-                    const imageMetadata = await generateImageMetadata({{ params: restParams }})
-                    const id = imageMetadata.find((item) => {{
-                        if (item?.id == null) {{
-                            throw new Error('id property is required for every item returned from generateImageMetadata')
-                        }}
 
-                        return item.id.toString() === __metadata_id__
-                    }})?.id
-
-                    if (id == null) {{
-                        return new NextResponse('Not Found', {{
-                            status: 404,
-                        }})
+                const restParams = await restParamsPromise
+                const __metadata_id__ = await idPromise
+                const imageMetadata = await generateImageMetadata({{ params: restParams }})
+                const id = imageMetadata.find((item) => {{
+                    if (item?.id == null) {{
+                        throw new Error('id property is required for every item returned from generateImageMetadata')
                     }}
+
+                    return item.id.toString() === __metadata_id__
+                }})?.id
+
+                if (id == null) {{
+                    return new NextResponse('Not Found', {{
+                        status: 404,
+                    }})
                 }}
 
                 return handler({{ params: restParamsPromise, id: idPromise }})
@@ -470,7 +465,6 @@ async fn dynamic_image_route_with_metadata_source(
 
             export * from {resource_path}
 
-            export const dynamicParams = false
             export async function generateStaticParams({{ params }}) {{
                 const imageMetadata = await generateImageMetadata({{ params }})
                 const staticParams = []
@@ -490,7 +484,7 @@ async fn dynamic_image_route_with_metadata_source(
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -524,7 +518,7 @@ async fn dynamic_image_route_without_metadata_source(
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -563,7 +557,7 @@ impl Issue for StaticMetadataFileSizeIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::ProcessModule.into()
+        IssueStage::ProcessModule.cell()
     }
 
     #[turbo_tasks::function]

@@ -1,5 +1,6 @@
 use mdxjs::{Options, compile};
 use napi::bindgen_prelude::*;
+use napi_derive::napi;
 
 pub struct MdxCompileTask {
     pub input: String,

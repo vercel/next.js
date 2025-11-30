@@ -41,7 +41,7 @@ Loading UI components do not accept any parameters.
 
 ### Navigation
 
-- The Fallback UI is [prefetched](/docs/app/getting-started/linking-and-navigating#prefetching), making navigation is immediate unless prefetching hasn't completed.
+- The Fallback UI is [prefetched](/docs/app/getting-started/linking-and-navigating#prefetching), making navigation immediate unless prefetching hasn't completed.
 - Navigation is interruptible, meaning changing routes does not need to wait for the content of the route to fully load before navigating to another route.
 - Shared layouts remain interactive while new route segments load.
 
@@ -85,14 +85,32 @@ In the same folder, `loading.js` will be nested inside `layout.js`. It will auto
 
 ### SEO
 
-- Next.js will wait for data fetching inside [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) to complete before streaming UI to the client. This guarantees the first part of a streamed response includes `<head>` tags.
+- For bots that only scrape static HTML, and cannot execute JavaScript like a full browser, such as Twitterbot, Next.js resolves [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) before streaming UI, and metadata is placed in the `<head>` of the initial HTML.
+- Otherwise, [streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata) may be used. Next.js automatically detects user agents to choose between blocking and streaming behavior.
 - Since streaming is server-rendered, it does not impact SEO. You can use the [Rich Results Test](https://search.google.com/test/rich-results) tool from Google to see how your page appears to Google's web crawlers and view the serialized HTML ([source](https://web.dev/rendering-on-the-web/#seo-considerations)).
 
 ### Status Codes
 
 When streaming, a `200` status code will be returned to signal that the request was successful.
 
-The server can still communicate errors or issues to the client within the streamed content itself, for example, when using [`redirect`](/docs/app/api-reference/functions/redirect) or [`notFound`](/docs/app/api-reference/functions/not-found). Since the response headers have already been sent to the client, the status code of the response cannot be updated. This does not affect SEO.
+The server can still communicate errors or issues to the client within the streamed content itself, for example, when using [`redirect`](/docs/app/api-reference/functions/redirect) or [`notFound`](/docs/app/api-reference/functions/not-found). Because the response headers have already been sent to the client, the status code of the response cannot be updated.
+
+For example, when a 404 page is streamed to the client, Next.js includes a `<meta name="robots" content="noindex">` tag in the streamed HTML. This prevents search engines from indexing that URL even if the HTTP status is 200. See Google’s guidance on the [`robots` meta tag](https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag).
+
+Some crawlers may label these responses as “soft 404s”. In the streaming case, this does not lead to indexation because the page is explicitly marked `noindex` in the HTML.
+
+If you need a 404 status, for compliance or analytics, ensure the resource exists before the response body is streamed, so that the server can set the HTTP status code.
+
+You can run this check in [`proxy`](/docs/app/api-reference/file-conventions/proxy) to rewrite missing slugs to a not-found route, or [produce a 404 response](/docs/app/api-reference/file-conventions/proxy#producing-a-response). Keep proxy checks fast, and avoid fetching full content there.
+
+<details>
+<summary>When is the response body streamed?</summary>
+
+The response body starts streaming when a Suspense fallback renders (for example, a `loading.tsx`) or when a Server Component suspends under a `Suspense` boundary. Place `notFound()` before those boundaries and before any `await` that may suspend.
+
+To start streaming, the response headers must be set. This is why it is not possible to change the status code after streaming started.
+
+</details>
 
 ### Browser limits
 

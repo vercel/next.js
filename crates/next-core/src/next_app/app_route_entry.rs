@@ -40,7 +40,7 @@ pub async fn get_app_route_entry(
     let config = if let Some(original_segment_config) = original_segment_config {
         let mut segment_config = segment_from_source.owned().await?;
         segment_config.apply_parent_config(&*original_segment_config.await?);
-        segment_config.into()
+        segment_config.cell()
     } else {
         segment_from_source
     };
@@ -60,8 +60,8 @@ pub async fn get_app_route_entry(
     let inner = rcstr!("INNER_APP_ROUTE");
 
     let output_type: &str = next_config
+        .output()
         .await?
-        .output
         .as_ref()
         .map(|o| match o {
             OutputType::Standalone => "\"standalone\"",

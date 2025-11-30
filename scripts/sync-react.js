@@ -353,21 +353,24 @@ Or, run this command with no arguments to use the most recently published versio
   )
   const { sha: baseSha, dateString: baseDateString } = baseVersionInfo
 
-  if (syncPagesRouterReact) {
-    for (const fileName of filesReferencingReactPeerDependencyVersion) {
-      const filePath = path.join(cwd, fileName)
-      const previousSource = await fsp.readFile(filePath, 'utf-8')
+  for (const fileName of filesReferencingReactPeerDependencyVersion) {
+    const filePath = path.join(cwd, fileName)
+    const previousSource = await fsp.readFile(filePath, 'utf-8')
+    const previousHighestVersionMatch = previousSource.match(
+      /const nextjsReactPeerVersion = "([^"]+)";/
+    )
+    if (previousHighestVersionMatch === null) {
+      errors.push(
+        new Error(
+          `${fileName}: Is this file still referencing the React peer dependency version?`
+        )
+      )
+    } else {
       const updatedSource = previousSource.replace(
-        /const nextjsReactPeerVersion = "[^"]+";/,
+        previousHighestVersionMatch[0],
         `const nextjsReactPeerVersion = "${highestPagesRouterReactVersion}";`
       )
-      if (activePagesRouterReact === null && updatedSource === previousSource) {
-        errors.push(
-          new Error(
-            `${fileName}: Failed to update ${baseVersionStr} to ${highestPagesRouterReactVersion}. Is this file still referencing the React peer dependency version?`
-          )
-        )
-      } else {
+      if (updatedSource !== previousSource) {
         await fsp.writeFile(filePath, updatedSource)
       }
     }

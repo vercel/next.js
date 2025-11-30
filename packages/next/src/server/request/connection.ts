@@ -14,6 +14,7 @@ import {
   makeDevtoolsIOAwarePromise,
 } from '../dynamic-rendering-utils'
 import { isRequestAPICallableInsideAfter } from './utils'
+import { RenderStage } from '../app-render/staged-rendering'
 
 /**
  * This function allows you to indicate that you require an actual user Request before continuing.
@@ -105,7 +106,14 @@ export function connection(): Promise<void> {
             // Semantically we only need the dev tracking when running in `next dev`
             // but since you would never use next dev with production NODE_ENV we use this
             // as a proxy so we can statically exclude this code from production builds.
-            return makeDevtoolsIOAwarePromise(undefined)
+            if (workUnitStore.asyncApiPromises) {
+              return workUnitStore.asyncApiPromises.connection
+            }
+            return makeDevtoolsIOAwarePromise(
+              undefined,
+              workUnitStore,
+              RenderStage.Dynamic
+            )
           } else {
             return Promise.resolve(undefined)
           }

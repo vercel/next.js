@@ -1,4 +1,7 @@
-import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference-info'
+import {
+  extractInfoFromServerReferenceId,
+  type ServerReferenceInfo,
+} from '../shared/lib/server-reference-info'
 
 // Only contains the properties we're interested in.
 export interface ServerReference {
@@ -25,6 +28,18 @@ export function isUseCacheFunction<T>(
   const { type } = extractInfoFromServerReferenceId(value.$$id)
 
   return type === 'use-cache'
+}
+
+export function getUseCacheFunctionInfo<T>(
+  value: T & Partial<ServerReference>
+): ServerReferenceInfo | null {
+  if (!isServerReference(value)) {
+    return null
+  }
+
+  const info = extractInfoFromServerReferenceId(value.$$id)
+
+  return info.type === 'use-cache' ? info : null
 }
 
 export function isClientReference(mod: any): boolean {

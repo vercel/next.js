@@ -130,7 +130,6 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
   })
 
   useLayoutEffect(() => {
-    // eslint-disable-next-line react-hooks/rules-of-hooks -- eprh bug
     fireInitialConstrainDimensions()
   }, [])
 

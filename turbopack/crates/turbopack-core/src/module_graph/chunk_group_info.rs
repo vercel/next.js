@@ -19,7 +19,7 @@ use turbo_tasks::{
 use crate::{
     chunk::ChunkingType,
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraphRef, RefData, SingleModuleGraphModuleNode},
+    module_graph::{GraphTraversalAction, ModuleGraphRef, RefData},
 };
 
 #[derive(
@@ -412,14 +412,14 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
                 |parent, node| {
                     if let Some((parent, _)) = parent {
                         let parent_depth = *module_depth
-                            .get(&parent.module)
+                            .get(&parent)
                             .context("Module depth not found")?;
-                        module_depth.entry(node.module).or_insert(parent_depth + 1);
+                        module_depth.entry(node).or_insert(parent_depth + 1);
                     } else {
-                        module_depth.insert(node.module, 0);
+                        module_depth.insert(node, 0);
                     };
 
-                    module_chunk_groups.insert(node.module, RoaringBitmapWrapper::default());
+                    module_chunk_groups.insert(node, RoaringBitmapWrapper::default());
 
                     Ok(GraphTraversalAction::Continue)
                 },
@@ -507,8 +507,8 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
                 })
                 .collect::<Result<Vec<_>>>()?,
             &mut module_chunk_groups,
-            |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ RefData)>,
-             node: &'_ SingleModuleGraphModuleNode,
+            |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData, _)>,
+             node: ResolvedVc<Box<dyn Module>>,
              module_chunk_groups: &mut FxHashMap<
                 ResolvedVc<Box<dyn Module>>,
                 RoaringBitmapWrapper,
@@ -518,30 +518,28 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
                     Inherit(ResolvedVc<Box<dyn Module>>),
                     ChunkGroup(It),
                 }
-                let chunk_groups = if let Some((parent, ref_data)) = parent_info {
+                let chunk_groups = if let Some((parent, ref_data, _)) = parent_info {
                     match &ref_data.chunking_type {
-                        ChunkingType::Parallel { .. } => {
-                            ChunkGroupInheritance::Inherit(parent.module)
-                        }
+                        ChunkingType::Parallel { .. } => ChunkGroupInheritance::Inherit(parent),
                         ChunkingType::Async => ChunkGroupInheritance::ChunkGroup(Either::Left(
-                            std::iter::once(ChunkGroupKey::Async(node.module)),
+                            std::iter::once(ChunkGroupKey::Async(node)),
                         )),
                         ChunkingType::Isolated {
                             merge_tag: None, ..
                         } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
-                            ChunkGroupKey::Isolated(node.module),
+                            ChunkGroupKey::Isolated(node),
                         ))),
                         ChunkingType::Shared {
                             merge_tag: None, ..
                         } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
-                            ChunkGroupKey::Shared(node.module),
+                            ChunkGroupKey::Shared(node),
                         ))),
                         ChunkingType::Isolated {
                             merge_tag: Some(merge_tag),
                             ..
                         } => {
                             let parents = module_chunk_groups
-                                .get(&parent.module)
+                                .get(&parent)
                                 .context("Module chunk group not found")?;
                             let chunk_groups =
                                 parents.iter().map(|parent| ChunkGroupKey::IsolatedMerged {
@@ -557,7 +555,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
                             ..
                         } => {
                             let parents = module_chunk_groups
-                                .get(&parent.module)
+                                .get(&parent)
                                 .context("Module chunk group not found")?;
                             let chunk_groups =
                                 parents.iter().map(|parent| ChunkGroupKey::SharedMerged {
@@ -577,7 +575,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
                     ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
                         // TODO remove clone
                         entry_chunk_group_keys
-                            .get(&node.module)
+                            .get(&node)
                             .context("Module chunk group not found")?
                             .clone(),
                     )))
@@ -597,7 +595,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
                                 Entry::Occupied(mut e) => {
                                     let (id, merged_entries) = e.get_mut();
                                     if is_merged {
-                                        merged_entries.insert(node.module);
+                                        merged_entries.insert(node);
                                     }
                                     **id
                                 }
@@ -605,7 +603,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
                                     let chunk_group_id = len as u32;
                                     let mut set = FxIndexSet::default();
                                     if is_merged {
-                                        set.insert(node.module);
+                                        set.insert(node);
                                     }
                                     e.insert((ChunkGroupId(chunk_group_id), set));
                                     chunk_group_id
@@ -618,7 +616,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
 
                         // Assign chunk group to the target node (the entry of the chunk group)
                         let bitset = module_chunk_groups
-                            .get_mut(&node.module)
+                            .get_mut(&node)
                             .context("Module chunk group not found")?;
                         if chunk_groups.is_proper_superset(bitset) {
                             // Add bits from parent, and continue traversal because changed
@@ -634,12 +632,12 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
                         // Inherit chunk groups from parent, merge parent chunk groups into
                         // current
 
-                        if parent == node.module {
+                        if parent == node {
                             // A self-reference
                             GraphTraversalAction::Skip
                         } else {
                             let [Some(parent_chunk_groups), Some(current_chunk_groups)] =
-                                module_chunk_groups.get_disjoint_mut([&parent, &node.module])
+                                module_chunk_groups.get_disjoint_mut([&parent, &node])
                             else {
                                 // All modules are inserted in the previous iteration
                                 // Technically unreachable, but could be reached due to eventual
@@ -673,10 +671,10 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
             |successor, module_chunk_groups| {
                 Ok(TraversalPriority {
                     depth: *module_depth
-                        .get(&successor.module)
+                        .get(&successor)
                         .context("Module depth not found")?,
                     chunk_group_len: module_chunk_groups
-                        .get(&successor.module)
+                        .get(&successor)
                         .context("Module chunk group not found")?
                         .len(),
                 })

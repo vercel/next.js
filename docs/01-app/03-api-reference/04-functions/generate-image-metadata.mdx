@@ -42,7 +42,7 @@ export function generateImageMetadata({ params }) {
 
 ## Returns
 
-The `generateImageMetadata` function should return an `array` of objects containing the image's metadata such as `alt` and `size`. In addition, each item **must** include an `id` value which will be passed to the props of the image generating function.
+The `generateImageMetadata` function should return an `array` of objects containing the image's metadata such as `alt` and `size`. In addition, each item **must** include an `id` value which will be passed as a promise to the props of the image generating function.
 
 | Image Metadata Object | Type                                |
 | --------------------- | ----------------------------------- |
@@ -69,7 +69,8 @@ export function generateImageMetadata() {
   ]
 }
 
-export default function Icon({ id }: { id: string }) {
+export default async function Icon({ id }: { id: Promise<string | number> }) {
+  const iconId = await id
   return new ImageResponse(
     (
       <div
@@ -84,7 +85,7 @@ export default function Icon({ id }: { id: string }) {
           color: '#fafafa',
         }}
       >
-        Icon {id}
+        Icon {iconId}
       </div>
     )
   )
@@ -109,7 +110,8 @@ export function generateImageMetadata() {
   ]
 }
 
-export default function Icon({ id }) {
+export default async function Icon({ id }) {
+  const iconId = await id
   return new ImageResponse(
     (
       <div
@@ -124,10 +126,54 @@ export default function Icon({ id }) {
           color: '#fafafa',
         }}
       >
-        Icon {id}
+        Icon {iconId}
       </div>
     )
   )
+}
+```
+
+## Image generation function props
+
+When using `generateImageMetadata`, the default export image generation function receives the following props:
+
+#### `id`
+
+A promise that resolves to the `id` value from one of the items returned by `generateImageMetadata`. The `id` will be a `string` or `number` depending on what was returned from `generateImageMetadata`.
+
+```tsx filename="icon.tsx" switcher
+export default async function Icon({ id }: { id: Promise<string | number> }) {
+  const iconId = await id
+  // Use iconId to generate the image
+}
+```
+
+```jsx filename="icon.js" switcher
+export default async function Icon({ id }) {
+  const iconId = await id
+  // Use iconId to generate the image
+}
+```
+
+#### `params` (optional)
+
+A promise that resolves to an object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) from the root segment down to the segment the image is colocated in.
+
+```tsx filename="icon.tsx" switcher
+export default async function Icon({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  // Use slug to generate the image
+}
+```
+
+```jsx filename="icon.js" switcher
+export default async function Icon({ params }) {
+  const { slug } = await params
+  // Use slug to generate the image
 }
 ```
 
@@ -160,11 +206,11 @@ export default async function Image({
   params,
   id,
 }: {
-  params: { id: string }
-  id: number
+  params: Promise<{ id: string }>
+  id: Promise<number>
 }) {
   const productId = (await params).id
-  const imageId = id
+  const imageId = await id
   const text = await getCaptionForImage(productId, imageId)
 
   return new ImageResponse(
@@ -200,7 +246,7 @@ export async function generateImageMetadata({ params }) {
 
 export default async function Image({ params, id }) {
   const productId = (await params).id
-  const imageId = id
+  const imageId = await id
   const text = await getCaptionForImage(productId, imageId)
 
   return new ImageResponse(
@@ -221,6 +267,8 @@ export default async function Image({ params, id }) {
 
 ## Version History
 
-| Version   | Changes                             |
-| --------- | ----------------------------------- |
-| `v13.3.0` | `generateImageMetadata` introduced. |
+| Version   | Changes                                                                                             |
+| --------- | --------------------------------------------------------------------------------------------------- |
+| `v16.0.0` | `id` passed to the Image generation function is now a promise that resolves to `string` or `number` |
+| `v16.0.0` | `params` passed to the Image generation function is now a promise that resolves to an object        |
+| `v13.3.0` | `generateImageMetadata` introduced.                                                                 |

@@ -51,6 +51,11 @@ impl Module for EcmascriptModuleLocalsModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     fn references(&self) -> Result<Vc<ModuleReferences>> {
         let result = self.module.analyze();
         Ok(result.local_references())
@@ -65,6 +70,12 @@ impl Module for EcmascriptModuleLocalsModule {
         } else {
             Ok(Vc::cell(false))
         }
+    }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(&self, side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
+        self.module
+            .is_marked_as_side_effect_free(side_effect_free_packages)
     }
 }
 
@@ -100,7 +111,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
     ) -> Result<Vc<EcmascriptModuleContentOptions>> {
         let exports = self.get_exports().to_resolved().await?;
         let original_module = self.await?.module;
-        let parsed = original_module.await?.parse().to_resolved().await?;
+        let parsed = original_module.await?.parse().await?.to_resolved().await?;
 
         let analyze = original_module.analyze();
         let analyze_result = analyze.await?;
@@ -162,12 +173,6 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())
-    }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(&self, side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
-        self.module
-            .is_marked_as_side_effect_free(side_effect_free_packages)
     }
 
     #[turbo_tasks::function]

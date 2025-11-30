@@ -6,7 +6,6 @@ use std::{
     hash::{BuildHasherDefault, Hash},
     pin::Pin,
     sync::Arc,
-    time::Duration,
 };
 
 use anyhow::{Result, anyhow};
@@ -17,16 +16,11 @@ use tracing::Span;
 use turbo_rcstr::RcStr;
 
 use crate::{
-    RawVc, ReadCellOptions, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef, TraitTypeId,
-    TurboTasksPanic, ValueTypeId, VcRead, VcValueTrait, VcValueType,
-    event::EventListener,
-    macro_helpers::NativeFunction,
-    magic_any::MagicAny,
-    manager::{ReadConsistency, TurboTasksBackendApi},
-    raw_vc::CellId,
-    registry,
-    task::shared_reference::TypedSharedReference,
-    task_statistics::TaskStatisticsApi,
+    RawVc, ReadCellOptions, ReadOutputOptions, ReadRef, SharedReference, TaskId, TaskIdSet,
+    TraitRef, TraitTypeId, TurboTasksPanic, ValueTypeId, VcRead, VcValueTrait, VcValueType,
+    event::EventListener, macro_helpers::NativeFunction, magic_any::MagicAny,
+    manager::TurboTasksBackendApi, raw_vc::CellId, registry,
+    task::shared_reference::TypedSharedReference, task_statistics::TaskStatisticsApi,
     triomphe_utils::unchecked_sidecast_triomphe_arc,
 };
 
@@ -433,6 +427,8 @@ pub struct TurboTasksError {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TurboTaskContextError {
     pub task: RcStr,
+    #[cfg(feature = "task_id_details")]
+    pub task_id: Option<TaskId>,
     pub source: Option<TurboTasksExecutionError>,
 }
 
@@ -444,9 +440,11 @@ pub enum TurboTasksExecutionError {
 }
 
 impl TurboTasksExecutionError {
-    pub fn with_task_context(&self, task: impl Display) -> Self {
+    pub fn with_task_context(&self, task: impl Display, _task_id: Option<TaskId>) -> Self {
         TurboTasksExecutionError::TaskContext(Arc::new(TurboTaskContextError {
             task: RcStr::from(task.to_string()),
+            #[cfg(feature = "task_id_details")]
+            task_id: _task_id,
             source: Some(self.clone()),
         }))
     }
@@ -474,6 +472,14 @@ impl Display for TurboTasksExecutionError {
                 write!(f, "{}", error.message)
             }
             TurboTasksExecutionError::TaskContext(context_error) => {
+                #[cfg(feature = "task_id_details")]
+                if let Some(task_id) = context_error.task_id {
+                    return write!(
+                        f,
+                        "Execution of {} ({}) failed",
+                        context_error.task, task_id
+                    );
+                }
                 write!(f, "Execution of {} failed", context_error.task)
             }
         }
@@ -500,6 +506,11 @@ impl From<anyhow::Error> for TurboTasksExecutionError {
         let current: &(dyn std::error::Error + 'static) = err.as_ref();
         current.into()
     }
+}
+
+pub enum VerificationMode {
+    EqualityCheck,
+    Skip,
 }
 
 pub trait Backend: Sync + Send {
@@ -538,18 +549,10 @@ pub trait Backend: Sync + Send {
 
     fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
-    fn task_execution_result(
-        &self,
-        task_id: TaskId,
-        result: Result<RawVc, TurboTasksExecutionError>,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    );
-
     fn task_execution_completed(
         &self,
         task: TaskId,
-        duration: Duration,
-        memory_usage: usize,
+        result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,
         has_invalidator: bool,
@@ -570,7 +573,7 @@ pub trait Backend: Sync + Send {
         &self,
         task: TaskId,
         reader: Option<TaskId>,
-        consistency: ReadConsistency,
+        options: ReadOutputOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>>;
 
@@ -587,7 +590,7 @@ pub trait Backend: Sync + Send {
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
-    fn try_read_own_task_cell_untracked(
+    fn try_read_own_task_cell(
         &self,
         current_task: TaskId,
         index: CellId,
@@ -632,6 +635,7 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         index: CellId,
         content: CellContent,
+        verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 

@@ -33,7 +33,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         ChunkingConfig, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssetExt,
-        EvaluatableAssets, MinifyType, availability_info::AvailabilityInfo,
+        EvaluatableAssets, MinifyType, SourceMapSourceType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
     compile_time_info::{CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment},
@@ -47,10 +47,10 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         ModuleGraph,
+        binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
-        export_usage::compute_export_usage_info,
     },
-    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
@@ -84,11 +84,17 @@ struct SnapshotOptions {
     #[serde(default)]
     tree_shaking_mode: Option<TreeShakingMode>,
     #[serde(default)]
+    remove_unused_imports: bool,
+    #[serde(default)]
     remove_unused_exports: bool,
     #[serde(default)]
     scope_hoisting: bool,
     #[serde(default)]
     production_chunking: bool,
+    #[serde(default)]
+    enable_debug_ids: bool,
+    #[serde(default)]
+    source_map_source_type: SourceMapSourceType,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -115,9 +121,12 @@ impl Default for SnapshotOptions {
             runtime_type: default_runtime_type(),
             environment: Default::default(),
             tree_shaking_mode: None,
+            remove_unused_imports: false,
             remove_unused_exports: false,
             scope_hoisting: false,
             production_chunking: false,
+            enable_debug_ids: false,
+            source_map_source_type: SourceMapSourceType::default(),
         }
     }
 }
@@ -349,6 +358,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     ..Default::default()
                 })),
                 ignore_dynamic_requests: true,
+                enable_exports_info_inlining: true,
                 ..Default::default()
             },
             environment: Some(env),
@@ -367,7 +377,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
             ..Default::default()
         }
-        .into(),
+        .cell(),
         ResolveOptionsContext {
             enable_typescript: true,
             enable_react: true,
@@ -419,20 +429,26 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")
     };
 
-    let module_graph = ModuleGraph::from_modules(
+    let mut module_graph = ModuleGraph::from_modules(
         Vc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
         false,
     );
 
-    let export_usage = if options.remove_unused_exports {
+    let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
         Some(
-            compute_export_usage_info(module_graph.to_resolved().await?)
-                .resolve_strongly_consistent()
-                .await?,
+            compute_binding_usage_info(
+                module_graph.to_resolved().await?,
+                options.remove_unused_imports,
+            )
+            .resolve_strongly_consistent()
+            .await?,
         )
     } else {
         None
     };
+    if options.remove_unused_imports {
+        module_graph = module_graph.without_unused_references(*binding_usage.unwrap());
+    }
 
     let chunk_root_path = project_path.join("output")?;
     let static_root_path = project_path.join("static")?;
@@ -456,18 +472,31 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(export_usage);
+            .export_usage(
+                options
+                    .remove_unused_exports
+                    .then(|| binding_usage.unwrap()),
+            )
+            .unused_references(
+                options
+                    .remove_unused_exports
+                    .then(|| binding_usage.unwrap()),
+            )
+            .debug_ids(options.enable_debug_ids)
+            .source_map_source_type(options.source_map_source_type);
 
             if options.production_chunking {
-                builder = builder.chunking_config(
-                    Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                    ChunkingConfig {
-                        min_chunk_size: 2_000,
-                        max_chunk_count_per_group: 40,
-                        max_merge_chunk_size: 200_000,
-                        ..Default::default()
-                    },
-                )
+                builder = builder
+                    .chunking_config(
+                        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                        ChunkingConfig {
+                            min_chunk_size: 2_000,
+                            max_chunk_count_per_group: 40,
+                            max_merge_chunk_size: 200_000,
+                            ..Default::default()
+                        },
+                    )
+                    .nested_async_availability(true);
             }
             Vc::upcast(builder.build())
         }
@@ -484,18 +513,31 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(export_usage);
+            .export_usage(
+                options
+                    .remove_unused_exports
+                    .then(|| binding_usage.unwrap()),
+            )
+            .unused_references(
+                options
+                    .remove_unused_exports
+                    .then(|| binding_usage.unwrap()),
+            )
+            .debug_ids(options.enable_debug_ids)
+            .source_map_source_type(options.source_map_source_type);
 
             if options.production_chunking {
-                builder = builder.chunking_config(
-                    Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                    ChunkingConfig {
-                        min_chunk_size: 2_000,
-                        max_chunk_count_per_group: 40,
-                        max_merge_chunk_size: 200_000,
-                        ..Default::default()
-                    },
-                )
+                builder = builder
+                    .chunking_config(
+                        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                        ChunkingConfig {
+                            min_chunk_size: 2_000,
+                            max_chunk_count_per_group: 40,
+                            max_merge_chunk_size: 200_000,
+                            ..Default::default()
+                        },
+                    )
+                    .nested_async_availability(true);
             }
             Vc::upcast(builder.build())
         }
@@ -507,7 +549,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             entry_module.ident(),
             ChunkGroup::Entry(entry_modules.into_iter().collect()),
             module_graph,
-            AvailabilityInfo::Root,
+            AvailabilityInfo::root(),
         ),
         Runtime::NodeJs => {
             OutputAssetsWithReferenced {
@@ -524,19 +566,20 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                             module_graph,
                             OutputAssets::empty(),
                             OutputAssets::empty(),
-                            AvailabilityInfo::Root,
+                            AvailabilityInfo::root(),
                         )
                         .await?
                         .asset,
                 ]),
                 referenced_assets: ResolvedVc::cell(vec![]),
+                references: ResolvedVc::cell(vec![]),
             }
             .cell()
         }
     };
 
     let mut seen = FxHashSet::default();
-    let mut queue: VecDeque<_> = chunks.all_assets().await?.iter().copied().collect();
+    let mut queue: VecDeque<_> = chunks.expand_all_assets().await?.iter().copied().collect();
 
     let output_path = project_path.clone();
     while let Some(asset) = queue.pop_front() {
@@ -572,7 +615,7 @@ async fn walk_asset(
         diff(path.clone(), asset.content()).await?;
     }
 
-    queue.extend(asset.references().await?.iter().copied());
+    queue.extend(asset.references().all_assets().await?.iter().copied());
 
     Ok(())
 }

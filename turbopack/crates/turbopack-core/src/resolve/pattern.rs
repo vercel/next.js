@@ -4,7 +4,7 @@ use std::{
     sync::LazyLock,
 };
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -227,18 +227,18 @@ impl Pattern {
         longest_common_suffix(&strings)
     }
 
-    pub fn strip_prefix(&self, prefix: &str) -> Option<Self> {
+    pub fn strip_prefix(&self, prefix: &str) -> Result<Option<Self>> {
         if self.must_match(prefix) {
             let mut pat = self.clone();
-            pat.strip_prefix_len(prefix.len());
-            Some(pat)
+            pat.strip_prefix_len(prefix.len())?;
+            Ok(Some(pat))
         } else {
-            None
+            Ok(None)
         }
     }
 
-    pub fn strip_prefix_len(&mut self, len: usize) {
-        fn strip_prefix_internal(pattern: &mut Pattern, chars_to_strip: &mut usize) {
+    pub fn strip_prefix_len(&mut self, len: usize) -> Result<()> {
+        fn strip_prefix_internal(pattern: &mut Pattern, chars_to_strip: &mut usize) -> Result<()> {
             match pattern {
                 Pattern::Constant(c) => {
                     let c_len = c.len();
@@ -252,38 +252,45 @@ impl Pattern {
                 Pattern::Concatenation(list) => {
                     for c in list {
                         if *chars_to_strip > 0 {
-                            strip_prefix_internal(c, chars_to_strip);
+                            strip_prefix_internal(c, chars_to_strip)?;
                         }
                     }
                 }
                 Pattern::Alternatives(_) => {
-                    panic!("for strip_prefix a Pattern must be normalized");
+                    bail!("strip_prefix pattern must be normalized");
                 }
                 Pattern::Dynamic | Pattern::DynamicNoSlash => {
-                    panic!("strip_prefix prefix is too long");
+                    bail!("strip_prefix prefix is too long");
                 }
             }
+            Ok(())
         }
 
         match &mut *self {
             c @ Pattern::Constant(_) | c @ Pattern::Concatenation(_) => {
                 let mut len_local = len;
-                strip_prefix_internal(c, &mut len_local);
+                strip_prefix_internal(c, &mut len_local)?;
             }
             Pattern::Alternatives(list) => {
                 for c in list {
                     let mut len_local = len;
-                    strip_prefix_internal(c, &mut len_local);
+                    strip_prefix_internal(c, &mut len_local)?;
                 }
             }
             Pattern::Dynamic | Pattern::DynamicNoSlash => {
                 if len > 0 {
-                    panic!("strip_prefix prefix is too long");
+                    bail!(
+                        "strip_prefix prefix ({}) is too long: {}",
+                        len,
+                        self.describe_as_string()
+                    );
                 }
             }
         };
 
-        self.normalize()
+        self.normalize();
+
+        Ok(())
     }
 
     pub fn strip_suffix_len(&mut self, len: usize) {
@@ -1554,9 +1561,9 @@ pub async fn read_matches(
                     if last_segment.is_empty() {
                         // This means we don't have a last segment, so we just have a directory
                         let joined = if force_in_lookup_dir {
-                            lookup_dir.try_join_inside(parent_path)?
+                            lookup_dir.try_join_inside(parent_path)
                         } else {
-                            lookup_dir.try_join(parent_path)?
+                            lookup_dir.try_join(parent_path)
                         };
                         let Some(fs_path) = joined else {
                             continue;
@@ -1572,9 +1579,9 @@ pub async fn read_matches(
                         Entry::Occupied(e) => Some(e.into_mut()),
                         Entry::Vacant(e) => {
                             let path_option = if force_in_lookup_dir {
-                                lookup_dir.try_join_inside(parent_path)?
+                                lookup_dir.try_join_inside(parent_path)
                             } else {
-                                lookup_dir.try_join(parent_path)?
+                                lookup_dir.try_join(parent_path)
                             };
                             if let Some(path) = path_option {
                                 Some(e.insert((path.raw_read_dir().await?, path)))
@@ -1628,9 +1635,9 @@ pub async fn read_matches(
                     let subpath = &str[..=str.rfind('/').unwrap()];
                     if handled.insert(subpath) {
                         let joined = if force_in_lookup_dir {
-                            lookup_dir.try_join_inside(subpath)?
+                            lookup_dir.try_join_inside(subpath)
                         } else {
-                            lookup_dir.try_join(subpath)?
+                            lookup_dir.try_join(subpath)
                         };
                         let Some(fs_path) = joined else {
                             continue;
@@ -2164,7 +2171,7 @@ mod tests {
     #[test]
     fn strip_prefix() {
         fn strip(mut pat: Pattern, n: usize) -> Pattern {
-            pat.strip_prefix_len(n);
+            pat.strip_prefix_len(n).unwrap();
             pat
         }
 

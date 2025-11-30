@@ -81,7 +81,7 @@ static NODE_RESOLVE_OPTIONS: LazyLock<ResolveOptionsWithDependencyType> =
             main_fields: Some(vec!["main".to_string()]),
             condition_names: Some(vec!["node".to_string(), "require".to_string()]),
             tsconfig: None,
-            modules: None,
+            modules: Some(vec!["node_modules".to_string()]),
             fallback: Some(Alias::OverwriteToNoAlias),
             fully_specified: Some(false),
             exports_fields: Some(vec![vec!["exports".to_string()]]),

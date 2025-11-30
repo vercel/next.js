@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   getRedboxDescription,
   getRedboxSource,
   openRedbox,
@@ -68,7 +68,7 @@ describe('use-cache-close-over-function', () => {
       const outputIndex = next.cliOutput.length
       const browser = await next.browser('/server')
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
 
       const errorDescription = await getRedboxDescription(browser)
       const errorSource = await getRedboxSource(browser)
@@ -99,7 +99,7 @@ describe('use-cache-close-over-function', () => {
               '\n  [function fn]' +
               '\n   ^^^^^^^^^^^' +
               '\n    at createCachedFn (app/server/page.tsx:6:3)' +
-              '\n    at __TURBOPACK__module__evaluation__ (app/server/page.tsx:12:24)'
+              '\n    at module evaluation (app/server/page.tsx:12:24)'
           : '' +
               'Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.' +
               '\n  [function fn]' +
