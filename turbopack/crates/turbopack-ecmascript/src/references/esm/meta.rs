@@ -8,9 +8,9 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::rcstr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
+use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
     code_gen::{CodeGen, CodeGeneration},
@@ -26,25 +26,26 @@ use crate::{
 /// in the file. But we must only initialize the binding a single time.
 ///
 /// This singleton behavior must be enforced by the caller!
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash,
+)]
 pub struct ImportMetaBinding {
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
 }
 
 impl ImportMetaBinding {
-    pub fn new(path: ResolvedVc<FileSystemPath>) -> Self {
+    pub fn new(path: FileSystemPath) -> Self {
         ImportMetaBinding { path }
     }
 
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let rel_path = chunking_context
             .root_path()
             .await?
-            .get_relative_path_to(&*self.path.await?);
+            .get_relative_path_to(&self.path);
         let path = rel_path.map_or_else(
             || {
                 quote!(
@@ -86,7 +87,9 @@ impl From<ImportMetaBinding> for CodeGen {
 ///
 /// There can be many references to import.meta, and they appear at any nesting
 /// in the file. But all references refer to the same mutable object.
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+)]
 pub struct ImportMetaRef {
     ast_path: AstPath,
 }
@@ -98,10 +101,9 @@ impl ImportMetaRef {
 
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let visitor = create_visitor!(self.ast_path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.ast_path, visit_mut_expr, |expr: &mut Expr| {
             *expr = Expr::Ident(meta_ident());
         });
 

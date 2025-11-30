@@ -94,18 +94,13 @@ export default nextConfig
 
 ## Disable static analysis
 
-Typechecking and linting may require a lot of memory, especially in large projects.
+Typechecking may require a lot of memory, especially in large projects.
 However, most projects have a dedicated CI runner that already handles these tasks.
-When the build produces out-of-memory issues during the "Linting and checking validity of types" step, you can disable these task during builds:
+When the build produces out-of-memory issues during the "Running TypeScript" step, you can disable this task during builds:
 
 ```js filename="next.config.mjs"
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors.
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     // !! WARN !!
     // Dangerously allow production builds to successfully complete even if
@@ -119,9 +114,8 @@ export default nextConfig
 ```
 
 - [Ignoring TypeScript Errors](/docs/app/api-reference/config/typescript#disabling-typescript-errors-in-production)
-- [ESLint in Next.js config](/docs/pages/api-reference/config/next-config-js/eslint)
 
-Keep in mind that this may produce faulty deploys due to type errors or linting issues.
+Keep in mind that this may produce faulty deploys due to type errors.
 We strongly recommend only promoting builds to production after static analysis has completed.
 If you deploy to Vercel, you can check out the [guide for staging deployments](https://vercel.com/docs/deployments/managing-deployments#staging-and-promoting-a-production-deployment) to learn how to promote builds to production after custom tasks have succeeded.
 
@@ -130,6 +124,10 @@ If you deploy to Vercel, you can check out the [guide for staging deployments](h
 Generating source maps consumes extra memory during the build process.
 
 You can disable source map generation by adding `productionBrowserSourceMaps: false` and `experimental.serverSourceMaps: false` to your Next.js configuration.
+
+When using the `cacheComponents` feature, Next.js will use source maps by default during the prerender phase of `next build`.
+If you consistently encounter memory issues during that phase (after "Generating static pages"),
+you can try disabling source maps in that phase by adding `enablePrerenderSourceMaps: false` to your Next.js configuration.
 
 > **Good to know**: Some plugins may turn on source maps and may require custom configuration to disable.
 

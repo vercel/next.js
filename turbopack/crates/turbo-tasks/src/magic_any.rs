@@ -1,130 +1,43 @@
-use core::fmt;
-use std::{
-    any::{Any, TypeId},
-    fmt::Debug,
-    hash::{Hash, Hasher},
-    ops::DerefMut,
-    sync::Arc,
-};
+use std::{any::Any, fmt::Debug, hash::Hash};
 
 use serde::{Deserialize, Serialize, de::DeserializeSeed};
+use turbo_dyn_eq_hash::{
+    DynEq, DynHash, impl_eq_for_dyn, impl_hash_for_dyn, impl_partial_eq_for_dyn,
+};
 
-use crate::trace::{TraceRawVcs, TraceRawVcsContext};
+use crate::trace::TraceRawVcs;
 
-pub trait MagicAny: mopa::Any + Send + Sync {
-    fn magic_any_arc(self: Arc<Self>) -> Arc<dyn Any + Sync + Send>;
-
-    fn magic_debug(&self, f: &mut fmt::Formatter) -> fmt::Result;
-
-    fn magic_eq(&self, other: &dyn MagicAny) -> bool;
-
-    fn magic_hash(&self, hasher: &mut dyn Hasher);
-
-    fn magic_trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext);
-
+pub trait MagicAny: Debug + DynEq + DynHash + TraceRawVcs + Send + Sync + 'static {
     #[cfg(debug_assertions)]
     fn magic_type_name(&self) -> &'static str;
 }
 
-#[allow(clippy::transmute_ptr_to_ref)] // can't fix as it's in the macro
-mod clippy {
-    use mopa::mopafy;
-
-    use super::MagicAny;
-
-    mopafy!(MagicAny);
-}
-
-impl<T: Debug + Eq + Hash + Send + Sync + TraceRawVcs + 'static> MagicAny for T {
-    fn magic_any_arc(self: Arc<Self>) -> Arc<dyn Any + Sync + Send> {
-        self
-    }
-
-    fn magic_debug(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut d = f.debug_tuple("MagicAny");
-        d.field(&TypeId::of::<Self>());
-
-        #[cfg(debug_assertions)]
-        d.field(&std::any::type_name::<Self>());
-
-        d.field(&(self as &Self));
-        d.finish()
-    }
-
-    fn magic_eq(&self, other: &dyn MagicAny) -> bool {
-        match other.downcast_ref::<Self>() {
-            None => false,
-            Some(other) => self == other,
-        }
-    }
-
-    fn magic_hash(&self, hasher: &mut dyn Hasher) {
-        Hash::hash(&(TypeId::of::<Self>(), self), &mut HasherMut(hasher))
-    }
-
-    fn magic_trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        self.trace_raw_vcs(trace_context);
-    }
-
+impl<T> MagicAny for T
+where
+    T: Debug + Eq + Hash + Send + Sync + TraceRawVcs + 'static,
+{
     #[cfg(debug_assertions)]
     fn magic_type_name(&self) -> &'static str {
         std::any::type_name::<T>()
     }
 }
 
-impl fmt::Debug for dyn MagicAny {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.magic_debug(f)
-    }
-}
-
-impl PartialEq for dyn MagicAny {
-    fn eq(&self, other: &Self) -> bool {
-        self.magic_eq(other)
-    }
-}
-
-impl Eq for dyn MagicAny {}
-
-impl Hash for dyn MagicAny {
-    fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.magic_hash(hasher)
-    }
-}
-
-pub struct HasherMut<H: ?Sized>(pub H);
-
-impl<H: DerefMut + ?Sized> Hasher for HasherMut<H>
-where
-    H::Target: Hasher,
-{
-    fn finish(&self) -> u64 {
-        self.0.finish()
-    }
-
-    fn write(&mut self, bytes: &[u8]) {
-        self.0.write(bytes)
-    }
-}
-
-impl TraceRawVcs for dyn MagicAny {
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        self.magic_trace_raw_vcs(trace_context)
-    }
-}
+impl_partial_eq_for_dyn!(dyn MagicAny);
+impl_eq_for_dyn!(dyn MagicAny);
+impl_hash_for_dyn!(dyn MagicAny);
 
 impl dyn MagicAny {
     pub fn as_serialize<T: Debug + Eq + Hash + Serialize + Send + Sync + TraceRawVcs + 'static>(
         &self,
     ) -> &dyn erased_serde::Serialize {
-        if let Some(r) = self.downcast_ref::<T>() {
+        if let Some(r) = (self as &dyn Any).downcast_ref::<T>() {
             r
         } else {
             #[cfg(debug_assertions)]
             panic!(
                 "MagicAny::as_serializable broken: got {} but expected {}",
                 self.magic_type_name(),
-                std::any::type_name::<T>()
+                std::any::type_name::<T>(),
             );
             #[cfg(not(debug_assertions))]
             panic!("MagicAny::as_serializable bug");

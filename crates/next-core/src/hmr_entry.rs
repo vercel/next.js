@@ -13,8 +13,10 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
     resolve::ModuleResolveResult,
+    source::OptionSource,
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -28,12 +30,13 @@ use turbopack_ecmascript::{
 /// Each entry point in the HMR system has an ident with a different nested asset.
 /// This produces the 'base' ident for the HMR entry point, which is then modified
 #[turbo_tasks::function]
-fn hmr_entry_point_base_ident() -> Vc<AssetIdent> {
-    AssetIdent::from_path(
+async fn hmr_entry_point_base_ident() -> Result<Vc<AssetIdent>> {
+    Ok(AssetIdent::from_path(
         VirtualFileSystem::new_with_name(rcstr!("hmr-entry"))
             .root()
-            .join(rcstr!("hmr-entry.js")),
-    )
+            .await?
+            .join("hmr-entry.js")?,
+    ))
 }
 
 #[turbo_tasks::value(shared)]
@@ -61,12 +64,22 @@ impl Module for HmrEntryModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![ResolvedVc::upcast(
             HmrEntryModuleReference::new(Vc::upcast(*self.module))
                 .to_resolved()
                 .await?,
         )]))
+    }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
+        Vc::cell(false)
     }
 }
 
@@ -102,11 +115,6 @@ impl EcmascriptChunkPlaceable for HmrEntryModule {
     #[turbo_tasks::function]
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
         EcmascriptExports::None.cell()
-    }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(false)
     }
 }
 
@@ -154,10 +162,13 @@ struct HmrEntryChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for HmrEntryChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for HmrEntryChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(*self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -191,7 +202,6 @@ impl EcmascriptChunkItem for HmrEntryChunkItem {
             inner_code: code.build(),
             options: EcmascriptChunkItemOptions {
                 strict: true,
-                module: true,
                 ..Default::default()
             },
             ..Default::default()

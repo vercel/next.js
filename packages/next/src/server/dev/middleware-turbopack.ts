@@ -1,25 +1,28 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import {
   getOriginalCodeFrame,
+  ignoreListAnonymousStackFramesIfSandwiched,
+  type IgnorableStackFrame,
   type OriginalStackFrameResponse,
   type OriginalStackFramesRequest,
   type OriginalStackFramesResponse,
+  type StackFrame,
 } from '../../next-devtools/server/shared'
 import { middlewareResponse } from '../../next-devtools/server/middleware-response'
-import fs, { constants as FS } from 'fs/promises'
 import path from 'path'
-import url from 'url'
-import { launchEditor } from '../../next-devtools/server/launch-editor'
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import { openFileInEditor } from '../../next-devtools/server/launch-editor'
 import {
   SourceMapConsumer,
-  type BasicSourceMapConsumer,
   type NullableMappedPosition,
 } from 'next/dist/compiled/source-map08'
 import type { Project, TurbopackStackFrame } from '../../build/swc/types'
-import { getSourceMapFromFile } from './get-source-map-from-file'
-import { findSourceMap, type SourceMapPayload } from 'node:module'
-import { pathToFileURL } from 'node:url'
+import {
+  type ModernSourceMapPayload,
+  devirtualizeReactServerURL,
+  findApplicableSourceMapPayload,
+} from '../lib/source-maps'
+import { findSourceMap, type SourceMap } from 'node:module'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
 
 function shouldIgnorePath(modulePath: string): boolean {
@@ -31,9 +34,10 @@ function shouldIgnorePath(modulePath: string): boolean {
   )
 }
 
-type IgnorableStackFrame = StackFrame & { ignored: boolean }
-
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
+/**
+ * @returns 1-based lines and 1-based columns
+ */
 async function batchedTraceSource(
   project: Project,
   frame: TurbopackStackFrame
@@ -51,8 +55,8 @@ async function batchedTraceSource(
     return {
       frame: {
         file,
-        lineNumber: frame.line ?? 0,
-        column: frame.column ?? 0,
+        line1: frame.line ?? null,
+        column1: frame.column ?? null,
         methodName: frame.methodName ?? '<unknown>',
         ignored: true,
         arguments: [],
@@ -68,8 +72,8 @@ async function batchedTraceSource(
     return {
       frame: {
         file,
-        lineNumber: frame.line ?? 0,
-        column: frame.column ?? 0,
+        line1: frame.line ?? null,
+        column1: frame.column ?? null,
         methodName: frame.methodName ?? '<unknown>',
         ignored: shouldIgnorePath(file),
         arguments: [],
@@ -101,10 +105,10 @@ async function batchedTraceSource(
   }
 
   // TODO: get ignoredList from turbopack source map
-  const ignorableFrame = {
+  const ignorableFrame: IgnorableStackFrame = {
     file: sourceFrame.file,
-    lineNumber: sourceFrame.line ?? 0,
-    column: sourceFrame.column ?? 0,
+    line1: sourceFrame.line ?? null,
+    column1: sourceFrame.column ?? null,
     methodName:
       // We ignore the sourcemapped name since it won't be the correct name.
       // The callsite will point to the column of the variable name instead of the
@@ -120,13 +124,13 @@ async function batchedTraceSource(
     source,
   }
 }
+
 function parseFile(fileParam: string | null): string | undefined {
   if (!fileParam) {
     return undefined
   }
 
-  // rsc://React/Server/file://<filename>?42 => file://<filename>
-  return fileParam.replace(/^rsc:\/\/React\/[^/]+\//, '').replace(/\?\d+$/, '')
+  return devirtualizeReactServerURL(fileParam)
 }
 
 function createStackFrames(
@@ -145,10 +149,10 @@ function createStackFrames(
       return {
         file,
         methodName: frame.methodName ?? '<unknown>',
-        line: frame.lineNumber ?? 0,
-        column: frame.column ?? 0,
+        line: frame.line1 ?? undefined,
+        column: frame.column1 ?? undefined,
         isServer,
-      } satisfies TurbopackStackFrame
+      }
     })
     .filter((f): f is TurbopackStackFrame => f !== undefined)
 }
@@ -165,75 +169,19 @@ function createStackFrame(
   return {
     file,
     methodName: searchParams.get('methodName') ?? '<unknown>',
-    line: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
-    column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
+    line: parseInt(searchParams.get('line1') ?? '0', 10) || undefined,
+    column: parseInt(searchParams.get('column1') ?? '0', 10) || undefined,
     isServer: searchParams.get('isServer') === 'true',
-  } satisfies TurbopackStackFrame
-}
-
-/**
- * https://tc39.es/source-map/#index-map
- */
-interface IndexSourceMapSection {
-  offset: {
-    line: number
-    column: number
-  }
-  map: ModernRawSourceMap
-}
-
-// TODO(veil): Upstream types
-interface IndexSourceMap {
-  version: number
-  file: string
-  sections: IndexSourceMapSection[]
-}
-
-interface ModernRawSourceMap extends SourceMapPayload {
-  ignoreList?: number[]
-}
-
-type ModernSourceMapPayload = ModernRawSourceMap | IndexSourceMap
-
-/**
- * Finds the sourcemap payload applicable to a given frame.
- * Equal to the input unless an Index Source Map is used.
- */
-function findApplicableSourceMapPayload(
-  frame: TurbopackStackFrame,
-  payload: ModernSourceMapPayload
-): ModernRawSourceMap | undefined {
-  if ('sections' in payload) {
-    const frameLine = frame.line ?? 0
-    const frameColumn = frame.column ?? 0
-    // Sections must not overlap and must be sorted: https://tc39.es/source-map/#section-object
-    // Therefore the last section that has an offset less than or equal to the frame is the applicable one.
-    // TODO(veil): Binary search
-    let section: IndexSourceMapSection | undefined = payload.sections[0]
-    for (
-      let i = 0;
-      i < payload.sections.length &&
-      payload.sections[i].offset.line <= frameLine &&
-      payload.sections[i].offset.column <= frameColumn;
-      i++
-    ) {
-      section = payload.sections[i]
-    }
-
-    return section === undefined ? undefined : section.map
-  } else {
-    return payload
   }
 }
 
 /**
- * @returns 1-based lines and 0-based columns
+ * @returns 1-based lines and 1-based columns
  */
 async function nativeTraceSource(
   frame: TurbopackStackFrame
 ): Promise<{ frame: IgnorableStackFrame; source: string | null } | undefined> {
-  const sourceURL = // TODO(veil): Why are the frames sent encoded?
-    decodeURIComponent(frame.file)
+  const sourceURL = frame.file
   let sourceMapPayload: ModernSourceMapPayload | undefined
   try {
     sourceMapPayload = findSourceMap(sourceURL)?.payload
@@ -245,7 +193,7 @@ async function nativeTraceSource(
   }
 
   if (sourceMapPayload !== undefined) {
-    let consumer: BasicSourceMapConsumer
+    let consumer: SourceMapConsumer
     try {
       consumer = await new SourceMapConsumer(sourceMapPayload)
     } catch (cause) {
@@ -283,7 +231,8 @@ async function nativeTraceSource(
     if (traced !== null) {
       const { originalPosition, sourceContent } = traced
       const applicableSourceMap = findApplicableSourceMapPayload(
-        frame,
+        (frame.line ?? 1) - 1,
+        (frame.column ?? 1) - 1,
         sourceMapPayload
       )
 
@@ -315,9 +264,10 @@ async function nativeTraceSource(
           frame.methodName
             ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
             ?.replace('__webpack_exports__.', '') || '<unknown>',
-        column: (originalPosition.column ?? 0) + 1,
         file: originalPosition.source,
-        lineNumber: originalPosition.line ?? 0,
+        line1: originalPosition.line,
+        column1:
+          originalPosition.column === null ? null : originalPosition.column + 1,
         // TODO: c&p from async createOriginalStackFrame but why not frame.arguments?
         arguments: [],
         ignored,
@@ -354,24 +304,32 @@ async function createOriginalStackFrame(
   ) {
     normalizedStackFrameLocation = path.relative(
       projectPath,
-      url.fileURLToPath(normalizedStackFrameLocation)
+      fileURLToPath(normalizedStackFrameLocation)
     )
   }
 
   return {
     originalStackFrame: {
       arguments: traced.frame.arguments,
-      column: traced.frame.column,
       file: normalizedStackFrameLocation,
+      line1: traced.frame.line1,
+      column1: traced.frame.column1,
       ignored: traced.frame.ignored,
-      lineNumber: traced.frame.lineNumber,
       methodName: traced.frame.methodName,
     },
     originalCodeFrame: getOriginalCodeFrame(traced.frame, traced.source),
   }
 }
 
-export function getOverlayMiddleware(project: Project, projectPath: string) {
+export function getOverlayMiddleware({
+  project,
+  projectPath,
+  isSrcDir,
+}: {
+  project: Project
+  projectPath: string
+  isSrcDir: boolean
+}) {
   return async function (
     req: IncomingMessage,
     res: ServerResponse,
@@ -394,50 +352,50 @@ export function getOverlayMiddleware(project: Project, projectPath: string) {
       })
 
       const request = JSON.parse(body) as OriginalStackFramesRequest
-      const stackFrames = createStackFrames(request)
-      const result: OriginalStackFramesResponse = await Promise.all(
-        stackFrames.map(async (frame) => {
-          try {
-            const stackFrame = await createOriginalStackFrame(
-              project,
-              projectPath,
-              frame
-            )
-            if (stackFrame === null) {
-              return {
-                status: 'rejected',
-                reason: 'Failed to create original stack frame',
-              }
-            }
-            return { status: 'fulfilled', value: stackFrame }
-          } catch (error) {
-            return {
-              status: 'rejected',
-              reason: inspect(error, { colors: false }),
-            }
-          }
-        })
-      )
+      const result = await getOriginalStackFrames({
+        project,
+        projectPath,
+        frames: request.frames,
+        isServer: request.isServer,
+        isEdgeServer: request.isEdgeServer,
+        isAppDirectory: request.isAppDirectory,
+      })
+
+      ignoreListAnonymousStackFramesIfSandwiched(result)
 
       return middlewareResponse.json(res, result)
     } else if (pathname === '/__nextjs_launch-editor') {
-      const frame = createStackFrame(searchParams)
+      const isAppRelativePath = searchParams.get('isAppRelativePath') === '1'
 
-      if (!frame) return middlewareResponse.badRequest(res)
-
-      const fileExists = await fs.access(frame.file, FS.F_OK).then(
-        () => true,
-        () => false
-      )
-      if (!fileExists) return middlewareResponse.notFound(res)
-
-      try {
-        launchEditor(frame.file, frame.line ?? 1, frame.column ?? 1)
-      } catch (err) {
-        console.log('Failed to launch editor:', err)
-        return middlewareResponse.internalServerError(res)
+      let openEditorResult
+      if (isAppRelativePath) {
+        const relativeFilePath = searchParams.get('file') || ''
+        const appPath = path.join(
+          'app',
+          isSrcDir ? 'src' : '',
+          relativeFilePath
+        )
+        openEditorResult = await openFileInEditor(appPath, 1, 1, projectPath)
+      } else {
+        const frame = createStackFrame(searchParams)
+        if (!frame) return middlewareResponse.badRequest(res)
+        openEditorResult = await openFileInEditor(
+          frame.file,
+          frame.line ?? 1,
+          frame.column ?? 1,
+          projectPath
+        )
       }
 
+      if (openEditorResult.error) {
+        return middlewareResponse.internalServerError(
+          res,
+          openEditorResult.error
+        )
+      }
+      if (!openEditorResult.found) {
+        return middlewareResponse.notFound(res)
+      }
       return middlewareResponse.noContent(res)
     }
 
@@ -463,46 +421,100 @@ export function getSourceMapMiddleware(project: Project) {
       return middlewareResponse.badRequest(res)
     }
 
-    // TODO(veil): Always try the native version first.
-    // Externals could also be files that aren't bundled via Webpack.
-    if (
-      filename.startsWith('webpack://') ||
-      filename.startsWith('webpack-internal:///')
-    ) {
-      const sourceMap = findSourceMap(filename)
+    let nativeSourceMap: SourceMap | undefined
+    try {
+      nativeSourceMap = findSourceMap(filename)
+    } catch (cause) {
+      return middlewareResponse.internalServerError(
+        res,
+        new Error(
+          `${filename}: Invalid source map. Only conformant source maps can be used to find the original code.`,
+          { cause }
+        )
+      )
+    }
 
-      if (sourceMap) {
-        return middlewareResponse.json(res, sourceMap.payload)
-      }
-
-      return middlewareResponse.noContent(res)
+    if (nativeSourceMap !== undefined) {
+      const sourceMapPayload = nativeSourceMap.payload
+      return middlewareResponse.json(res, sourceMapPayload)
     }
 
     try {
       // Turbopack chunk filenames might be URL-encoded.
       filename = decodeURI(filename)
+    } catch {
+      return middlewareResponse.badRequest(res)
+    }
 
-      if (path.isAbsolute(filename)) {
-        filename = url.pathToFileURL(filename).href
-      }
+    if (path.isAbsolute(filename)) {
+      filename = pathToFileURL(filename).href
+    }
 
+    try {
       const sourceMapString = await project.getSourceMap(filename)
 
       if (sourceMapString) {
         return middlewareResponse.jsonString(res, sourceMapString)
       }
-
-      if (filename.startsWith('file:')) {
-        const sourceMap = await getSourceMapFromFile(filename)
-
-        if (sourceMap) {
-          return middlewareResponse.json(res, sourceMap)
-        }
-      }
-    } catch (error) {
-      console.error('Failed to get source map:', error)
+    } catch (cause) {
+      return middlewareResponse.internalServerError(
+        res,
+        new Error(
+          `Failed to get source map for '${filename}'. This is a bug in Next.js`,
+          {
+            cause,
+          }
+        )
+      )
     }
 
     middlewareResponse.noContent(res)
   }
+}
+
+export async function getOriginalStackFrames({
+  project,
+  projectPath,
+  frames,
+  isServer,
+  isEdgeServer,
+  isAppDirectory,
+}: {
+  project: Project
+  projectPath: string
+  frames: readonly StackFrame[]
+  isServer: boolean
+  isEdgeServer: boolean
+  isAppDirectory: boolean
+}): Promise<OriginalStackFramesResponse> {
+  const stackFrames = createStackFrames({
+    frames,
+    isServer,
+    isEdgeServer,
+    isAppDirectory,
+  })
+
+  return Promise.all(
+    stackFrames.map(async (frame) => {
+      try {
+        const stackFrame = await createOriginalStackFrame(
+          project,
+          projectPath,
+          frame
+        )
+        if (stackFrame === null) {
+          return {
+            status: 'rejected',
+            reason: 'Failed to create original stack frame',
+          }
+        }
+        return { status: 'fulfilled', value: stackFrame }
+      } catch (error) {
+        return {
+          status: 'rejected',
+          reason: inspect(error, { colors: false }),
+        }
+      }
+    })
+  )
 }

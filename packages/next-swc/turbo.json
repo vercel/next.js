@@ -28,6 +28,19 @@
       "env": ["CI"],
       "outputs": ["native/*.node"]
     },
+    "build-native-release-with-assertions": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ],
+      "env": ["CI"],
+      "outputs": ["native/*.node"]
+    },
     "build-native-no-plugin": {
       "inputs": [
         "../../.cargo/**",

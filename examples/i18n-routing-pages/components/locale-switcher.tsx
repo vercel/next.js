@@ -17,12 +17,7 @@ export default function LocaleSwitcher() {
           const { pathname, query, asPath } = router;
           return (
             <li key={locale}>
-              <Link
-                href={{ pathname, query }}
-                as={asPath}
-                locale={locale}
-                legacyBehavior
-              >
+              <Link href={{ pathname, query }} as={asPath} locale={locale}>
                 {locale}
               </Link>
             </li>

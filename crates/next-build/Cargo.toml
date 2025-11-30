@@ -17,5 +17,3 @@ next-core = { workspace = true }
 turbopack-core = { workspace = true }
 turbo-rcstr = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

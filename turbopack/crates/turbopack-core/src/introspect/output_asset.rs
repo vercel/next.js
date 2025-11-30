@@ -6,7 +6,10 @@ use super::{
     Introspectable, IntrospectableChildren,
     utils::{children_from_output_assets, content_to_details},
 };
-use crate::{asset::Asset, output::OutputAsset};
+use crate::{
+    asset::Asset,
+    output::{OutputAsset, OutputAssetsReference},
+};
 
 #[turbo_tasks::value]
 pub struct IntrospectableOutputAsset(ResolvedVc<Box<dyn OutputAsset>>);
@@ -14,9 +17,7 @@ pub struct IntrospectableOutputAsset(ResolvedVc<Box<dyn OutputAsset>>);
 #[turbo_tasks::value_impl]
 impl IntrospectableOutputAsset {
     #[turbo_tasks::function]
-    pub async fn new(
-        asset: ResolvedVc<Box<dyn OutputAsset>>,
-    ) -> Result<Vc<Box<dyn Introspectable>>> {
+    pub fn new(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<Vc<Box<dyn Introspectable>>> {
         Ok(
             *ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(asset).unwrap_or_else(|| {
                 ResolvedVc::upcast(IntrospectableOutputAsset(asset).resolved_cell())

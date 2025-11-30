@@ -44,7 +44,7 @@ impl ProcessEnv for EnvMap {
 #[turbo_tasks::value_trait]
 pub trait ProcessEnv {
     // TODO SECURITY: From security perspective it's not good that we read *all* env
-    // vars into the cache. This might store secrects into the persistent cache
+    // vars into the cache. This might store secrects into the filesystem cache
     // which we want to avoid.
     // Instead we should use only `read_prefix` to read all env vars with a specific
     // prefix.
@@ -88,8 +88,3 @@ async fn to_uppercase_map(map: Vc<EnvMap>) -> Result<Vc<EnvMap>> {
 }
 
 pub static GLOBAL_ENV_LOCK: Mutex<()> = Mutex::new(());
-
-pub fn register() {
-    turbo_tasks::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}

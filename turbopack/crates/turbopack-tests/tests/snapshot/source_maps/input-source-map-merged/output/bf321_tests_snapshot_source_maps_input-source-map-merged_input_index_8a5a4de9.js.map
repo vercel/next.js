@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/input-source-map-merged/input/sourcemapped.ts","turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/input-source-map-merged/input/index.js"],"sourcesContent":["// Compile with pnpm tsc turbopack/crates/turbopack-tests/tests/snapshot/source_maps/input-source-map-merged/input/sourcemapped.ts --sourceMap --inlineSources --target esnext\n// tsc compile errors can be ignored\ntype Fn<T> = () => T\nexport function runExternalSourceMapped<T>(fn: Fn<T>): T {\n  return fn()\n}\n","import { runExternalSourceMapped } from './sourcemapped.js'\n\nrunExternalSourceMapped()\n"],"names":[],"mappings":";;;;;AAGM,SAAU,uBAAuB,CAAI,EAAS;IAClD,OAAO,EAAE,EAAE,CAAA;;;ACFb"}}]
+}

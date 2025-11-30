@@ -16,7 +16,6 @@ use crate::EcmascriptAnalyzable;
 /// the final runtime code, while keeping source map information.
 #[turbo_tasks::value]
 pub struct StaticEcmascriptCode {
-    asset_context: ResolvedVc<Box<dyn AssetContext>>,
     asset: ResolvedVc<Box<dyn EcmascriptAnalyzable>>,
     generate_source_map: bool,
 }
@@ -27,12 +26,12 @@ impl StaticEcmascriptCode {
     #[turbo_tasks::function]
     pub async fn new(
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-        asset_path: ResolvedVc<FileSystemPath>,
+        asset_path: FileSystemPath,
         generate_source_map: bool,
     ) -> Result<Vc<Self>> {
         let module = asset_context
             .process(
-                Vc::upcast(FileSource::new(*asset_path)),
+                Vc::upcast(FileSource::new(asset_path.clone())),
                 ReferenceType::Runtime,
             )
             .module()
@@ -42,7 +41,6 @@ impl StaticEcmascriptCode {
             bail!("asset is not an Ecmascript module")
         };
         Ok(Self::cell(StaticEcmascriptCode {
-            asset_context,
             asset,
             generate_source_map,
         }))

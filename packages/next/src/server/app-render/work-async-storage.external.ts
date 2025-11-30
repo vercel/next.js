@@ -1,7 +1,6 @@
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { FetchMetrics } from '../base-http'
-import type { FallbackRouteParams } from '../request/fallback-params'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { AfterContext } from '../after/after-context'
@@ -10,6 +9,7 @@ import type { CacheLife } from '../use-cache/cache-life'
 // Share the instance module in the next-shared layer
 import { workAsyncStorageInstance } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
 import type { LazyResult } from '../lib/lazy-result'
+import type { DigestedError } from './create-error-handler'
 
 export interface WorkStore {
   readonly isStaticGeneration: boolean
@@ -25,18 +25,19 @@ export interface WorkStore {
    */
   readonly route: string
 
-  /**
-   * The set of unknown route parameters. Accessing these will be tracked as
-   * a dynamic access.
-   */
-  readonly fallbackRouteParams: FallbackRouteParams | null
-
   readonly incrementalCache?: IncrementalCache
   readonly cacheLifeProfiles?: { [profile: string]: CacheLife }
 
   readonly isOnDemandRevalidate?: boolean
   readonly isBuildTimePrerendering?: boolean
-  readonly isRevalidate?: boolean
+
+  /**
+   * This is true when:
+   * - source maps are generated
+   * - source maps are applied
+   * - minification is disabled
+   */
+  readonly hasReadableErrorStacks?: boolean
 
   forceDynamic?: boolean
   fetchCache?: AppSegmentConfig['fetchCache']
@@ -66,7 +67,10 @@ export interface WorkStore {
    * Tags that were revalidated during the current request. They need to be sent
    * to cache handlers to propagate their revalidation.
    */
-  pendingRevalidatedTags?: string[]
+  pendingRevalidatedTags?: Array<{
+    tag: string
+    profile?: string | { stale?: number; revalidate?: number; expire?: number }
+  }>
 
   /**
    * Tags that were previously revalidated (e.g. by a redirecting server action)
@@ -83,12 +87,11 @@ export interface WorkStore {
   readonly refreshTagsByCacheKind: Map<string, LazyResult<void>>
 
   fetchMetrics?: FetchMetrics
+  shouldTrackFetchMetrics: boolean
 
   isDraftMode?: boolean
   isUnstableNoStore?: boolean
   isPrefetchRequest?: boolean
-
-  requestEndedState?: { ended?: boolean }
 
   buildId: string
 
@@ -96,8 +99,9 @@ export interface WorkStore {
     Record<string, { files: string[] }>
   >
   readonly assetPrefix?: string
+  readonly nonce?: string
 
-  dynamicIOEnabled: boolean
+  cacheComponentsEnabled: boolean
   dev: boolean
 
   /**
@@ -111,6 +115,8 @@ export interface WorkStore {
     fn: (...args: TArgs) => R,
     ...args: TArgs
   ) => R
+
+  reactServerErrorsByDigest: Map<string, DigestedError>
 }
 
 export type WorkAsyncStorage = AsyncLocalStorage<WorkStore>

@@ -1,9 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use swc_core::{
-    common::comments::NoopComments,
-    ecma::{ast::Program, atoms::Atom},
-};
+use swc_core::{atoms::Wtf8Atom, common::comments::NoopComments, ecma::ast::Program};
 use turbo_tasks::{ValueDefault, Vc};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
@@ -71,7 +68,7 @@ impl StyledComponentsTransformer {
         if !top_level_import_paths.is_empty() {
             options.top_level_import_paths = top_level_import_paths
                 .iter()
-                .map(|s| Atom::from(s.clone()))
+                .map(|s| Wtf8Atom::from(s.clone()))
                 .collect();
         }
         let meaningless_file_names = &config.meaningless_file_names;

@@ -17,7 +17,11 @@ use turbopack_core::{
 };
 
 use super::esm::base::ReferencedAsset;
-use crate::code_gen::{CodeGeneration, CodeGenerationHoistedStmt};
+use crate::{
+    ScopeHoistingContext,
+    code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
+    utils::AstSyntaxContext,
+};
 
 /// Information needed for generating the async module wrapper for
 /// [EcmascriptChunkItem](crate::chunk::EcmascriptChunkItem)s.
@@ -76,13 +80,15 @@ impl OptionAsyncModule {
     }
 }
 
+/// The identifiers (and their corresponding syntax context) of all async modules referenced by the
+/// current module.
 #[turbo_tasks::value(transparent)]
-struct AsyncModuleIdents(FxIndexSet<String>);
+struct AsyncModuleIdents(FxIndexSet<(String, AstSyntaxContext)>);
 
 async fn get_inherit_async_referenced_asset(
-    r: Vc<Box<dyn ModuleReference>>,
+    r: ResolvedVc<Box<dyn ModuleReference>>,
 ) -> Result<Option<ReadRef<ReferencedAsset>>> {
-    let Some(r) = Vc::try_resolve_downcast::<Box<dyn ChunkableModuleReference>>(r).await? else {
+    let Some(r) = ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(r) else {
         return Ok(None);
     };
     let Some(ty) = &*r.chunking_type().await? else {
@@ -117,13 +123,17 @@ impl AsyncModule {
             .await?
             .iter()
             .map(|r| async {
-                let Some(referenced_asset) = get_inherit_async_referenced_asset(**r).await? else {
+                let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await? else {
                     return Ok(None);
                 };
                 Ok(match &*referenced_asset {
                     ReferencedAsset::External(_, ExternalType::EcmaScriptModule) => {
                         if self.import_externals {
-                            referenced_asset.get_ident(chunking_context).await?
+                            referenced_asset
+                                .get_ident(chunking_context, None, ScopeHoistingContext::None)
+                                .await?
+                                .map(|i| i.into_module_namespace_ident().unwrap())
+                                .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))
                         } else {
                             None
                         }
@@ -133,7 +143,11 @@ impl AsyncModule {
                             .referenced_async_modules
                             .contains(&ResolvedVc::upcast(*placeable))
                         {
-                            referenced_asset.get_ident(chunking_context).await?
+                            referenced_asset
+                                .get_ident(chunking_context, None, ScopeHoistingContext::None)
+                                .await?
+                                .map(|i| i.into_module_namespace_ident().unwrap())
+                                .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))
                         } else {
                             None
                         }
@@ -160,8 +174,7 @@ impl AsyncModule {
                     .await?
                     .iter()
                     .map(|r| async {
-                        let Some(referenced_asset) =
-                            get_inherit_async_referenced_asset(**r).await?
+                        let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await?
                         else {
                             return Ok(false);
                         };
@@ -208,9 +221,7 @@ impl AsyncModule {
             if !async_idents.is_empty() {
                 let idents = async_idents
                     .iter()
-                    .map(|ident: &String| {
-                        Ident::new(ident.clone().into(), DUMMY_SP, Default::default())
-                    })
+                    .map(|(ident, ctxt)| Ident::new(ident.clone().into(), DUMMY_SP, **ctxt))
                     .collect::<Vec<_>>();
 
                 return Ok(CodeGeneration::hoisted_stmts([

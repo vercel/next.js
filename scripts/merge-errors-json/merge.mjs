@@ -44,12 +44,22 @@ function main() {
     writeJsonSync(currentPath, merged)
 
     const addedCount = Object.keys(merged).length - Object.keys(current).length
-    console.log(
+    console.error(
       `merge-errors-json: added ${addedCount === 1 ? '1 new message' : `${addedCount} new messages`} to errors.json`
     )
     process.exit(0)
   } catch (error) {
     console.error('merge-errors-json: merge failed:', error.message)
+    console.error()
+    console.error(
+      [
+        'if this error persists, you can disable the merge driver by running',
+        '',
+        '  scripts/merge-errors-json/uninstall',
+        '',
+        'or by manually removing the `[merge "errors-json"]` section from your .git/config.',
+      ].join('\n')
+    )
     process.exit(1)
   }
 }

@@ -201,6 +201,9 @@ class UrlNode {
   }
 }
 
+/**
+ * @deprecated Use `sortSortableRoutes` or `sortPages` instead.
+ */
 export function getSortedRoutes(
   normalizedPages: ReadonlyArray<string>
 ): string[] {
@@ -223,6 +226,9 @@ export function getSortedRoutes(
   return root.smoosh()
 }
 
+/**
+ * @deprecated Use `sortSortableRouteObjects` or `sortPageObjects` instead.
+ */
 export function getSortedRouteObjects<T>(
   objects: T[],
   getter: (obj: T) => string

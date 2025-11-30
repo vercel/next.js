@@ -10,11 +10,7 @@ use turbopack_core::{
     raw_module::RawModule,
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
-    resolve::{
-        ModuleResolveResult,
-        origin::{ResolveOrigin, ResolveOriginExt},
-        parse::Request,
-    },
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
     source::Source,
 };
 // TODO remove this
@@ -46,6 +42,11 @@ impl Module for TsConfigModuleAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident()
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
     }
 
     #[turbo_tasks::function]
@@ -133,12 +134,10 @@ impl Module for TsConfigModuleAsset {
                 types
             } else {
                 let mut all_types = Vec::new();
-                let mut current = self.source.ident().path().parent().resolve().await?;
+                let mut current = self.source.ident().path().await?.parent();
                 loop {
-                    if let DirectoryContent::Entries(entries) = &*current
-                        .join(rcstr!("node_modules/@types"))
-                        .read_dir()
-                        .await?
+                    if let DirectoryContent::Entries(entries) =
+                        &*current.join("node_modules/@types")?.read_dir().await?
                     {
                         all_types.extend(entries.iter().filter_map(|(name, _)| {
                             if name.starts_with('.') {
@@ -148,7 +147,7 @@ impl Module for TsConfigModuleAsset {
                             }
                         }));
                     }
-                    let parent = current.parent().resolve().await?;
+                    let parent = current.parent();
                     if parent == current {
                         break;
                     }
@@ -161,7 +160,7 @@ impl Module for TsConfigModuleAsset {
                     TsConfigTypesReference::new(
                         *self.origin,
                         Request::module(
-                            name,
+                            name.into(),
                             RcStr::default().into(),
                             RcStr::default(),
                             RcStr::default(),
@@ -206,7 +205,13 @@ impl CompilerReference {
 impl ModuleReference for CompilerReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        cjs_resolve(*self.origin, *self.request, None, false)
+        cjs_resolve(
+            *self.origin,
+            *self.request,
+            CommonJsReferenceSubType::Undefined,
+            None,
+            false,
+        )
     }
 }
 
@@ -239,9 +244,7 @@ impl ModuleReference for TsExtendsReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-            RawModule::new(*ResolvedVc::upcast(self.config))
-                .to_resolved()
-                .await?,
+            RawModule::new(*self.config).to_resolved().await?,
         )))
     }
 }
@@ -282,7 +285,13 @@ impl TsNodeRequireReference {
 impl ModuleReference for TsNodeRequireReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        cjs_resolve(*self.origin, *self.request, None, false)
+        cjs_resolve(
+            *self.origin,
+            *self.request,
+            CommonJsReferenceSubType::Undefined,
+            None,
+            false,
+        )
     }
 }
 

@@ -1,6 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { fetchViaHTTP, shouldRunTurboDevTest } from 'next-test-utils'
+import { fetchViaHTTP } from 'next-test-utils'
 
 describe('Edge compiler module exports preference', () => {
   let next: NextInstance
@@ -44,7 +44,7 @@ describe('Edge compiler module exports preference', () => {
       packageJson: {
         scripts: {
           build: 'next build',
-          dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
+          dev: 'next dev',
           start: 'next start',
         },
       },

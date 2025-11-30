@@ -6,11 +6,13 @@ export function getClientStyleLoader({
   isAppDir,
   isDevelopment,
   assetPrefix,
+  experimentalInlineCss,
 }: {
   hasAppDir: boolean
   isAppDir?: boolean
   isDevelopment: boolean
   assetPrefix: string
+  experimentalInlineCss?: boolean
 }): webpack.RuleSetUseItem {
   const isRspack = Boolean(process.env.NEXT_RSPACK)
   const shouldEnableApp = typeof isAppDir === 'boolean' ? isAppDir : hasAppDir
@@ -52,7 +54,7 @@ export function getClientStyleLoader({
   return {
     loader: MiniCssExtractPlugin.loader,
     options: {
-      publicPath: `${assetPrefix}/_next/`,
+      publicPath: experimentalInlineCss ? '/' : `${assetPrefix}/_next/`,
       esModule: false,
     },
   }

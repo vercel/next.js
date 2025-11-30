@@ -10,7 +10,7 @@ use turbo_tasks::{
 
 use super::{GetContentSourceContent, GetContentSourceContents};
 
-/// The type of the route. THis will decide about the remaining segements of the
+/// The type of the route. This will decide about the remaining segments of the
 /// route after the base.
 #[derive(
     TaskInput, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
@@ -260,7 +260,7 @@ impl RouteTree {
     }
 
     /// Gets the [`GetContentSourceContent`]s for the given path.
-    // TODO(WEB-1252) It's unneccesary to compute all [`GetContentSourceContent`]s at once, we could
+    // TODO(WEB-1252) It's unnecessary to compute all [`GetContentSourceContent`]s at once, we could
     // return some lazy iterator to make it more efficient.
     #[turbo_tasks::function]
     pub async fn get(self: Vc<Self>, path: RcStr) -> Result<Vc<GetContentSourceContents>> {

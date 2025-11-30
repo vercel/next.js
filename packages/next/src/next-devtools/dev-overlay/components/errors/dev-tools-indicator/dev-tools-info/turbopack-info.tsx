@@ -1,17 +1,9 @@
-import { DevToolsInfo, type DevToolsInfoPropsCore } from './dev-tools-info'
 import { CopyButton } from '../../../copy-button'
-import type { HTMLProps } from 'react'
 
-export function TurbopackInfo(
-  props: DevToolsInfoPropsCore & HTMLProps<HTMLDivElement>
-) {
+export function TurbopackInfoBody(props: React.ComponentProps<'div'>) {
   return (
-    <DevToolsInfo
-      title="Turbopack"
-      learnMoreLink="https://nextjs.org/docs/app/api-reference/turbopack"
-      {...props}
-    >
-      <article className="dev-tools-info-article">
+    <>
+      <article className="dev-tools-info-article" {...props}>
         <p className="dev-tools-info-paragraph">
           Turbopack is an incremental bundler optimized for JavaScript and
           TypeScript, written in Rust, and built into Next.js. Turbopack can be
@@ -96,7 +88,7 @@ export function TurbopackInfo(
           </pre>
         </div>
       </div>
-    </DevToolsInfo>
+    </>
   )
 }
 

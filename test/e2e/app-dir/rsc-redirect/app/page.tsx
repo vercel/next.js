@@ -5,7 +5,7 @@ export default function Page() {
   return (
     <div>
       <h1>Home</h1>
-      <Link href="/origin">Go to Origin</Link>
+      <Link href="/old-about">Go to (Old) About Page</Link>
     </div>
   )
 }

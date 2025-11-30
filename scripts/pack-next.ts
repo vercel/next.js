@@ -2,6 +2,7 @@
 
 import fs from 'node:fs/promises'
 import yargs from 'yargs'
+import { hideBin } from 'yargs/helpers'
 import { default as patchPackageJson } from './pack-utils/patch-package-json.js'
 import buildNative from './build-native.js'
 
@@ -31,7 +32,8 @@ interface CliOptions {
   _: string[]
 }
 
-const cliOptions = yargs(process.argv.slice(2))
+const cliOptions = yargs(hideBin(process.argv))
+  .scriptName('pack-next')
   .command('$0')
   .option('js-build', {
     type: 'boolean',

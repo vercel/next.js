@@ -4,6 +4,15 @@ module.exports =
     if (!enabled) {
       return nextConfig
     }
+    if (process.env.TURBOPACK) {
+      console.warn(
+        'The Next Bundle Analyzer is not compatible with Turbopack builds yet, no report will be generated.\n\n' +
+          'To run this analysis pass the `--webpack` flag to `next build`'
+      )
+      return nextConfig
+    }
+
+    const extension = analyzerMode === 'json' ? '.json' : '.html'
 
     return Object.assign({}, nextConfig, {
       webpack(config, options) {
@@ -14,10 +23,10 @@ module.exports =
             logLevel,
             openAnalyzer,
             reportFilename: !options.nextRuntime
-              ? `./analyze/client.html`
+              ? `./analyze/client${extension}`
               : `../${options.nextRuntime === 'nodejs' ? '../' : ''}analyze/${
                   options.nextRuntime
-                }.html`,
+                }${extension}`,
           })
         )
 

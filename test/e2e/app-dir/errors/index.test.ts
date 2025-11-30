@@ -18,20 +18,7 @@ describe('app-dir - errors', () => {
       const browser = await next.browser('/client-component', {
         beforePageLoad: (page) => {
           page.on('pageerror', (error: unknown) => {
-            if (
-              error !== null &&
-              typeof error === 'object' &&
-              'message' in error &&
-              typeof error.message === 'string' &&
-              error.message.includes(
-                "Cannot read properties of null (reading 'removeChild')"
-              )
-            ) {
-              // unactionable and just noise until we fix https://github.com/facebook/react/pull/33531
-              // TODO: Don't ignore this error once the underlying issue is fixed.
-            } else {
-              pageErrors.push(error)
-            }
+            pageErrors.push(error)
           })
         },
       })
@@ -40,7 +27,7 @@ describe('app-dir - errors', () => {
       if (isNextDev) {
         // TODO: investigate desired behavior here as it is currently
         // minimized by default
-        // await assertHasRedbox(browser)
+        // await waitForRedbox(browser)
         // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
       } else {
         expect(
@@ -57,20 +44,7 @@ describe('app-dir - errors', () => {
       const browser = await next.browser('/server-component', {
         beforePageLoad: (page) => {
           page.on('pageerror', (error: unknown) => {
-            if (
-              error !== null &&
-              typeof error === 'object' &&
-              'message' in error &&
-              typeof error.message === 'string' &&
-              error.message.includes(
-                "Cannot read properties of null (reading 'removeChild')"
-              )
-            ) {
-              // unactionable and just noise until we fix https://github.com/facebook/react/pull/33531
-              // TODO: Don't ignore this error once the underlying issue is fixed.
-            } else {
-              pageErrors.push(error)
-            }
+            pageErrors.push(error)
           })
         },
       })
@@ -89,7 +63,7 @@ describe('app-dir - errors', () => {
 
       if (isNextDev) {
         // TODO-APP: ensure error overlay is shown for errors that happened before/during hydration
-        // await assertHasRedbox(browser)
+        // await waitForRedbox(browser)
         // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
       }
 
@@ -136,8 +110,8 @@ describe('app-dir - errors', () => {
       expect(stripAnsi(next.cliOutput)).toEqual(
         expect.stringMatching(
           isNextDev
-            ? /Error: An undefined error was thrown.*digest: '\d+'/s
-            : /Error: undefined.*digest: '\d+'/s
+            ? /Error: An undefined error was thrown.*digest: '\d+@E\d+'/s
+            : /Error: undefined.*digest: '\d+@E\d+'/s
         )
       )
     })
@@ -159,8 +133,8 @@ describe('app-dir - errors', () => {
       expect(stripAnsi(next.cliOutput)).toEqual(
         expect.stringMatching(
           isNextDev
-            ? /Error: A null error was thrown.*digest: '\d+'/s
-            : /Error: null.*digest: '\d+'/s
+            ? /Error: A null error was thrown.*digest: '\d+@E\d+'/s
+            : /Error: null.*digest: '\d+@E\d+'/s
         )
       )
     })
@@ -193,20 +167,7 @@ describe('app-dir - errors', () => {
       const browser = await next.browser('/global-error-boundary/client', {
         beforePageLoad: (page) => {
           page.on('pageerror', (error: unknown) => {
-            if (
-              error !== null &&
-              typeof error === 'object' &&
-              'message' in error &&
-              typeof error.message === 'string' &&
-              error.message.includes(
-                "Cannot read properties of null (reading 'removeChild')"
-              )
-            ) {
-              // unactionable and just noise until we fix https://github.com/facebook/react/pull/33531
-              // TODO: Don't ignore this error once the underlying issue is fixed.
-            } else {
-              pageErrors.push(error)
-            }
+            pageErrors.push(error)
           })
         },
       })
@@ -246,20 +207,7 @@ describe('app-dir - errors', () => {
       const browser = await next.browser('/global-error-boundary/server', {
         beforePageLoad: (page) => {
           page.on('pageerror', (error: unknown) => {
-            if (
-              error !== null &&
-              typeof error === 'object' &&
-              'message' in error &&
-              typeof error.message === 'string' &&
-              error.message.includes(
-                "Cannot read properties of null (reading 'removeChild')"
-              )
-            ) {
-              // unactionable and just noise until we fix https://github.com/facebook/react/pull/33531
-              // TODO: Don't ignore this error once the underlying issue is fixed.
-            } else {
-              pageErrors.push(error)
-            }
+            pageErrors.push(error)
           })
         },
       })
@@ -332,20 +280,7 @@ describe('app-dir - errors', () => {
         await next.browser('/ssr-error-client-component', {
           beforePageLoad: (page) => {
             page.on('pageerror', (error: unknown) => {
-              if (
-                error !== null &&
-                typeof error === 'object' &&
-                'message' in error &&
-                typeof error.message === 'string' &&
-                error.message.includes(
-                  "Cannot read properties of null (reading 'removeChild')"
-                )
-              ) {
-                // unactionable and just noise until we fix https://github.com/facebook/react/pull/33531
-                // TODO: Don't ignore this error once the underlying issue is fixed.
-              } else {
-                pageErrors.push(error)
-              }
+              pageErrors.push(error)
             })
           },
         })

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
-use turbo_tasks_fs::glob::Glob;
+use turbo_tasks_fs::{FileContent, glob::Glob};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset},
@@ -74,6 +74,11 @@ impl Module for SideEffectsModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let mut references = vec![];
 
@@ -107,13 +112,25 @@ impl Module for SideEffectsModule {
 
         Ok(Vc::cell(references))
     }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
+        Vc::cell(true)
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl Asset for SideEffectsModule {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        unreachable!("SideEffectsModule has no content")
+        AssetContent::File(
+            FileContent::Content(
+                "// This is a proxy module for reexportings a module with additional side effects."
+                    .into(),
+            )
+            .resolved_cell(),
+        )
+        .cell()
     }
 }
 
@@ -122,11 +139,6 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         self.resolved_as.get_exports()
-    }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(true)
     }
 }
 

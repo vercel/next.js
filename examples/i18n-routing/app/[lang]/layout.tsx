@@ -1,4 +1,4 @@
-import { i18n, type Locale } from "../../i18n-config";
+import { i18n, type Locale } from "@/i18n-config";
 
 export const metadata = {
   title: "i18n within app router - Vercel Examples",

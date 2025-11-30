@@ -2,20 +2,19 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned};
 use syn::{
-    FnArg, ItemTrait, Pat, TraitItem, TraitItemFn, parse_macro_input, parse_quote, spanned::Spanned,
-};
-use turbo_tasks_macros_shared::{
-    ValueTraitArguments, get_trait_default_impl_function_id_ident,
-    get_trait_default_impl_function_ident, get_trait_type_id_ident, get_trait_type_ident,
-    get_trait_type_vtable_registry, is_self_used,
+    FnArg, ItemTrait, Pat, Receiver, TraitItem, TraitItemFn, parse_macro_input, parse_quote,
+    spanned::Spanned,
 };
 
 use crate::{
     func::{
         DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
-        split_function_attributes,
+        get_receiver_style, split_function_attributes,
     },
-    function_macro::is_immutable,
+    global_name::global_name,
+    ident::{get_trait_default_impl_function_ident, get_trait_type_ident},
+    self_filter::is_self_used,
+    value_trait_arguments::ValueTraitArguments,
 };
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
@@ -69,8 +68,6 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     let supertraits = supertraits.iter().collect::<Vec<_>>();
 
     let trait_type_ident = get_trait_type_ident(trait_ident);
-    let trait_type_id_ident = get_trait_type_id_ident(trait_ident);
-    let trait_type_vtable_registry = get_trait_type_vtable_registry(trait_ident);
     let mut dynamic_trait_fns = Vec::new();
     let mut trait_methods: Vec<TokenStream2> = Vec::new();
     let mut native_functions = Vec::new();
@@ -98,15 +95,29 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         let (func_args, attrs) = split_function_attributes(attrs);
         let func_args = match func_args {
             Ok(None) => {
-                // There is no turbo_tasks::function annotation, preserve this item
+                // There is no turbo_tasks::function annotation, preserve this item as is in the
+                // trait
                 items.push(item.clone());
                 // But we still need to add a forwarding implementation to the
                 // impl for `turbo_tasks::Dynamic<Box<dyn T>>`
                 // This will have the same signature, but simply forward the call
                 let mut args = Vec::new();
+                let mut is_vc_receiver = false;
                 for arg in &sig.inputs {
                     let ident = match arg {
-                        FnArg::Receiver(_) => {
+                        FnArg::Receiver(Receiver { ty, .. }) => {
+                            match get_receiver_style(ty, &DefinitionContext::ValueTrait) {
+                                crate::func::ReceiverStyle::Reference => {
+                                    is_vc_receiver = false;
+                                }
+                                crate::func::ReceiverStyle::Vc => {
+                                    is_vc_receiver = true;
+                                }
+                                crate::func::ReceiverStyle::Error => {}
+                            }
+                            // We allow either `&self` or `self: Vc<Self>`
+                            // we cannot really validate Vc<Self> so instead we simply assume that
+                            // any type that isn't a reference is Vc<Self>
                             continue;
                         }
                         FnArg::Typed(pat) => match &*pat.pat {
@@ -124,8 +135,17 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     };
                     args.push(ident);
                 }
+                if is_vc_receiver {
+                    item.span()
+                        .unwrap()
+                        .error(
+                            "`self: Vc<Self>` is only supported on trait items with a \
+                             `turbo-tasks::function` annotation",
+                        )
+                        .emit();
+                }
                 // Add a dummy implementation that derefences the box and delegates to the
-                // actual implementation.
+                // actual implementation.  We need to conditionally add an await if it is async
                 dynamic_trait_fns.push(if sig.asyncness.is_some() {
                     quote! {
                         #sig {
@@ -156,10 +176,12 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 .emit();
         }
 
+        let is_self_used = default.as_ref().map(is_self_used).unwrap_or(false);
         let Some(turbo_fn) = TurboFn::new(
             sig,
             DefinitionContext::ValueTrait,
             FunctionArguments::default(),
+            is_self_used,
         ) else {
             return quote! {
                 // An error occurred while parsing the function signature.
@@ -168,50 +190,36 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         };
 
         let turbo_signature = turbo_fn.signature();
-        let arg_types = turbo_fn.exposed_input_types();
-        let dynamic_block = turbo_fn.dynamic_block(&trait_type_id_ident);
+        let dynamic_block = turbo_fn.dynamic_block(&trait_type_ident);
         dynamic_trait_fns.push(quote! {
             #turbo_signature #dynamic_block
         });
 
         let default = if let Some(default) = default {
-            let is_self_used = is_self_used(default);
             let inline_function_ident = turbo_fn.inline_ident();
             let inline_extension_trait_ident =
                 Ident::new(&format!("{trait_ident}_{ident}_inline"), ident.span());
-            let (inline_signature, inline_block) =
-                turbo_fn.inline_signature_and_block(default, is_self_used);
+            let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(default);
             let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
+            let function_path_string = format!("{trait_ident}::{ident}");
             let native_function = NativeFn {
-                function_path_string: format!("{trait_ident}::{ident}"),
+                function_global_name: global_name(&function_path_string),
+                function_path_string,
                 function_path: parse_quote! {
                     <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#inline_function_ident
                 },
                 is_method: turbo_fn.is_method(),
                 is_self_used,
                 filter_trait_call_args: turbo_fn.filter_trait_call_args(),
-                // `local` is currently unsupported here because:
-                // - The `#[turbo_tasks::function]` macro needs to be present for us to read this
-                //   argument. (This could be fixed)
-                // - This only makes sense when a default implementation is present.
-                local: false,
-                invalidator: func_args.invalidator.is_some(),
-                immutable: is_immutable(sig) && func_args.invalidator.is_none(),
             };
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);
             let native_function_ty = native_function.ty();
             let native_function_def = native_function.definition();
 
-            let native_function_id_ident =
-                get_trait_default_impl_function_id_ident(trait_ident, ident);
-            let native_function_id_ty = native_function.id_ty();
-            let native_function_id_def =
-                native_function.id_definition(&native_function_ident.clone().into());
-
             trait_methods.push(quote! {
-                trait_type.register_default_trait_method::<(#(#arg_types,)*)>(stringify!(#ident).into(), *#native_function_id_ident);
+                (stringify!(#ident), Some(&#native_function_ident)),
             });
 
             native_functions.push(quote! {
@@ -231,20 +239,20 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     #inline_signature #inline_block
                 }
 
-                #[doc(hidden)]
-                pub(crate) static #native_function_ident:
+                static #native_function_ident:
                     turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
                         turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
-                #[doc(hidden)]
-                pub(crate) static #native_function_id_ident:
-                    turbo_tasks::macro_helpers::Lazy<#native_function_id_ty> =
-                        turbo_tasks::macro_helpers::Lazy::new(|| #native_function_id_def);
+
+                // Register the function for deserialization
+                turbo_tasks::macro_helpers::inventory_submit! {
+                    turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
+                }
             });
 
-            Some(turbo_fn.static_block(&native_function_id_ident))
+            Some(turbo_fn.static_block(&native_function_ident))
         } else {
             trait_methods.push(quote! {
-                trait_type.register_trait_method::<(#(#arg_types,)*)>(stringify!(#ident).into());
+                (stringify!(#ident), None),
             });
             None
         };
@@ -261,6 +269,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {
             unsafe impl turbo_tasks::Dynamic<Box<dyn turbo_tasks::debug::ValueDebug>> for Box<dyn #trait_ident> {}
             unsafe impl turbo_tasks::Upcast<Box<dyn turbo_tasks::debug::ValueDebug>> for Box<dyn #trait_ident> {}
+            unsafe impl turbo_tasks::UpcastStrict<Box<dyn turbo_tasks::debug::ValueDebug>> for Box<dyn #trait_ident> {}
         }
     } else {
         quote! {}
@@ -280,6 +289,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         extended_supertraits.push(quote!(turbo_tasks::debug::ValueDebug));
     }
 
+    let trait_name = global_name(quote! {stringify!(#trait_ident)});
     let expanded = quote! {
         #[must_use]
         #(#attrs)*
@@ -290,37 +300,40 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
         #(#native_functions)*
 
-        #[doc(hidden)]
-        pub(crate) static #trait_type_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::TraitType> =
+        static #trait_type_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::TraitType> =
             turbo_tasks::macro_helpers::Lazy::new(|| {
-                let mut trait_type = turbo_tasks::TraitType::new(stringify!(#trait_ident).to_string());;
-                #(#trait_methods)*
-                trait_type
+                turbo_tasks::TraitType::new(
+                    stringify!(#trait_ident),
+                    #trait_name,
+                    vec![#(#trait_methods)*])
             });
-        #[doc(hidden)]
-        static #trait_type_id_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::TraitTypeId> =
-            turbo_tasks::macro_helpers::Lazy::new(|| {
-                turbo_tasks::registry::get_trait_type_id(&#trait_type_ident)
-            });
-        #[doc(hidden)]
-        static #trait_type_vtable_registry: turbo_tasks::macro_helpers::Lazy<turbo_tasks::macro_helpers::VTableRegistry<dyn # trait_ident>> =
-            turbo_tasks::macro_helpers::Lazy::new(turbo_tasks::macro_helpers::VTableRegistry::new);
+
+        // Register the trait for deserialization
+        turbo_tasks::macro_helpers::inventory_submit! {
+            turbo_tasks::macro_helpers::CollectableTrait(&#trait_type_ident)
+        }
 
         impl turbo_tasks::VcValueTrait for Box<dyn #trait_ident> {
             type ValueTrait = dyn #trait_ident;
 
             fn get_trait_type_id() -> turbo_tasks::TraitTypeId {
-                *#trait_type_id_ident
+                static ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::TraitTypeId> =
+                    turbo_tasks::macro_helpers::Lazy::new(|| {
+                        turbo_tasks::registry::get_trait_type_id(&#trait_type_ident)
+                    });
+
+                *ident
             }
 
             fn get_impl_vtables() -> &'static turbo_tasks::macro_helpers::VTableRegistry<Self::ValueTrait> {
-                &*#trait_type_vtable_registry
+                static registry: turbo_tasks::macro_helpers::Lazy<turbo_tasks::macro_helpers::VTableRegistry<dyn # trait_ident>> =
+                    turbo_tasks::macro_helpers::Lazy::new(|| turbo_tasks::macro_helpers::VTableRegistry::new(turbo_tasks::registry::get_trait_type_id(&#trait_type_ident)));
+
+                &*registry
             }
         }
 
         unsafe impl turbo_tasks::Dynamic<Box<dyn #trait_ident>> for Box<dyn #trait_ident> {}
-        // TODO(alexkirsz) It would be great to have the following identity. However, I run into an ICE when I attempt this,
-        // so tabling it for now.
         unsafe impl turbo_tasks::Upcast<Box<dyn #trait_ident>> for Box<dyn #trait_ident> {}
 
         impl<T> #trait_ident for T
@@ -333,6 +346,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         #(
             unsafe impl turbo_tasks::Dynamic<Box<dyn #supertraits>> for Box<dyn #trait_ident> {}
             unsafe impl turbo_tasks::Upcast<Box<dyn #supertraits>> for Box<dyn #trait_ident> {}
+            unsafe impl turbo_tasks::UpcastStrict<Box<dyn #supertraits>> for Box<dyn #trait_ident> {
+            }
         )*
 
         #value_debug_impl

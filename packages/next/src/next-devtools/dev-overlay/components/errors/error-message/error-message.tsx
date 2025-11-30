@@ -1,31 +1,38 @@
 import { useState, useRef, useLayoutEffect } from 'react'
+import type { ErrorType } from '../error-type-label/error-type-label'
 
 export type ErrorMessageType = React.ReactNode
 
 type ErrorMessageProps = {
   errorMessage: ErrorMessageType
+  errorType: ErrorType
 }
 
-export function ErrorMessage({ errorMessage }: ErrorMessageProps) {
+export function ErrorMessage({ errorMessage, errorType }: ErrorMessageProps) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const [shouldTruncate, setShouldTruncate] = useState(false)
-  const messageRef = useRef<HTMLParagraphElement>(null)
+  const [isTooTall, setIsTooTall] = useState(false)
+  const messageRef = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
     if (messageRef.current) {
-      setShouldTruncate(messageRef.current.scrollHeight > 200)
+      setIsTooTall(messageRef.current.scrollHeight > 200)
     }
   }, [errorMessage])
 
+  // The "Blocking Route" error message is specifically formatted to look nice
+  // in the overlay (rather than just passed through from the console), so we
+  // intentionally don't truncate it and rely on the scroll overflow instead.
+  const shouldTruncate = isTooTall && errorType !== 'Blocking Route'
+
   return (
     <div className="nextjs__container_errors_wrapper">
-      <p
+      <div
         ref={messageRef}
         id="nextjs__container_errors_desc"
         className={`nextjs__container_errors_desc ${shouldTruncate && !isExpanded ? 'truncated' : ''}`}
       >
         {errorMessage}
-      </p>
+      </div>
       {shouldTruncate && !isExpanded && (
         <>
           <div className="nextjs__container_errors_gradient_overlay" />

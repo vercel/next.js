@@ -1,6 +1,6 @@
 use std::{fmt::Write, sync::Arc};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use indoc::formatdoc;
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
@@ -12,13 +12,17 @@ use turbopack_core::{
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     context::{AssetContext, ProcessResult},
     ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{
+        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
+        OptionStyledString, StyledString,
+    },
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
-    source::Source,
+    source::{OptionSource, Source},
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -37,6 +41,7 @@ use crate::{
 
 #[turbo_tasks::value]
 #[derive(Clone)]
+/// A CSS Module asset, as in `.module.css`. For a global CSS module, see [`CssModuleAsset`].
 pub struct ModuleCssAsset {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
@@ -68,6 +73,11 @@ impl Module for ModuleCssAsset {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         // The inner reference must come last so it is loaded as the last in the
         // resulting css. @import or composes references must be loaded first so
@@ -84,7 +94,7 @@ impl Module for ModuleCssAsset {
             .copied()
             .chain(
                 match *self
-                    .inner(ReferenceType::Css(CssReferenceSubType::Internal))
+                    .inner(ReferenceType::Css(CssReferenceSubType::Inner))
                     .try_into_module()
                     .await?
                 {
@@ -106,8 +116,8 @@ impl Module for ModuleCssAsset {
 #[turbo_tasks::value_impl]
 impl Asset for ModuleCssAsset {
     #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("CSS module asset has no contents")
+    fn content(&self) -> Vc<AssetContent> {
+        self.source.content()
     }
 }
 
@@ -284,6 +294,9 @@ struct ModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for ModuleChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
@@ -292,7 +305,7 @@ impl ChunkItem for ModuleChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(*self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -329,7 +342,8 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                         let Some(resolved_module) = &*resolved_module else {
                             CssModuleComposesIssue {
                                 severity: IssueSeverity::Error,
-                                source: self.module.ident().to_resolved().await?,
+                                // TODO(PACK-4879): this should include detailed location information
+                                source: IssueSource::from_source_only(self.module.await?.source),
                                 message: formatdoc! {
                                     r#"
                                         Module {from} referenced in `composes: ... from {from};` can't be resolved.
@@ -345,7 +359,8 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                         else {
                             CssModuleComposesIssue {
                                 severity: IssueSeverity::Error,
-                                    source: self.module.ident().to_resolved().await?,
+                                // TODO(PACK-4879): this should include detailed location information
+                                source: IssueSource::from_source_only(self.module.await?.source),
                                 message: formatdoc! {
                                     r#"
                                         Module {from} referenced in `composes: ... from {from};` is not a CSS module.
@@ -362,9 +377,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                         let placeable: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>> =
                             ResolvedVc::upcast(css_module);
 
-                        let module_id = placeable
-                            .chunk_item_id(Vc::upcast(*self.chunking_context))
-                            .await?;
+                        let module_id = placeable.chunk_item_id(*self.chunking_context).await?;
                         let module_id = StringifyJs(&*module_id);
                         let original_name = StringifyJs(&original_name);
                         exported_class_names
@@ -423,14 +436,14 @@ fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope>
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = generate_js_source_map(sm, mappings, None, true)?;
+    let map = generate_js_source_map(&*sm, mappings, None, true, true)?;
     Ok(map)
 }
 
 #[turbo_tasks::value(shared)]
 struct CssModuleComposesIssue {
     severity: IssueSeverity,
-    source: ResolvedVc<AssetIdent>,
+    source: IssueSource,
     message: RcStr,
 }
 
@@ -442,8 +455,10 @@ impl Issue for CssModuleComposesIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("An issue occurred while resolving a CSS module `composes:` rule".into())
-            .cell()
+        StyledString::Text(rcstr!(
+            "An issue occurred while resolving a CSS module `composes:` rule"
+        ))
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -453,7 +468,7 @@ impl Issue for CssModuleComposesIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.path()
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
@@ -461,5 +476,10 @@ impl Issue for CssModuleComposesIssue {
         Vc::cell(Some(
             StyledString::Text(self.message.clone()).resolved_cell(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
     }
 }

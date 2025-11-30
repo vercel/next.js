@@ -12,21 +12,21 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ReadConsistency, TurboTasks, UpdateInfo, Vc, util::FormatDuration};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
-use turbopack::{emit_with_completion, register};
+use turbopack::emit_assets_into_dir;
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
+    ident::Layer,
     rebase::RebasedAsset,
+    reference::all_assets_from_entry,
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    register();
-
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions::default(),
         noop_backing_storage(),
@@ -36,14 +36,14 @@ async fn main() -> Result<()> {
     let task = tt.spawn_root_task(|| {
         Box::pin(async {
             let root: RcStr = current_dir().unwrap().to_str().unwrap().into();
-            let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.into(), root, vec![]);
+            let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.into(), root);
             disk_fs.await?.start_watching(None).await?;
 
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);
-            let input = fs.root().join(rcstr!("demo"));
-            let output = fs.root().join(rcstr!("out"));
-            let entry = fs.root().join(rcstr!("demo/index.js"));
+            let input = fs.root().await?.join("demo")?;
+            let output = fs.root().await?.join("out")?;
+            let entry = fs.root().await?.join("demo/index.js")?;
 
             let source = FileSource::new(entry);
             let module_asset_context = turbopack::ModuleAssetContext::new(
@@ -55,12 +55,12 @@ async fn main() -> Result<()> {
                 ResolveOptionsContext {
                     enable_typescript: true,
                     enable_react: true,
-                    enable_node_modules: Some(fs.root().to_resolved().await?),
+                    enable_node_modules: Some(fs.root().owned().await?),
                     custom_conditions: vec![rcstr!("development")],
                     ..Default::default()
                 }
                 .cell(),
-                rcstr!("default"),
+                Layer::new(rcstr!("default")),
             );
             let module = module_asset_context
                 .process(
@@ -68,8 +68,9 @@ async fn main() -> Result<()> {
                     turbopack_core::reference_type::ReferenceType::Undefined,
                 )
                 .module();
-            let rebased = RebasedAsset::new(module, input, output);
-            emit_with_completion(Vc::upcast(rebased), output).await?;
+            let rebased = RebasedAsset::new(module, input, output.clone());
+            let assets = all_assets_from_entry(Vc::upcast(rebased));
+            emit_assets_into_dir(assets, output).await?;
 
             anyhow::Ok::<Vc<()>>(Default::default())
         })

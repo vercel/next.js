@@ -40,8 +40,8 @@ import {
 } from '../build/turborepo-access-trace'
 import type { Params } from '../server/request/params'
 import {
-  getFallbackRouteParams,
-  type FallbackRouteParams,
+  createOpaqueFallbackRouteParams,
+  type OpaqueFallbackRouteParams,
 } from '../server/request/fallback-params'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import type { AppRouteRouteModule } from '../server/route-modules/app-route/module.compiled'
@@ -50,10 +50,7 @@ import type { PagesRenderContext, PagesSharedContext } from '../server/render'
 import type { AppSharedContext } from '../server/app-render/app-render'
 import { MultiFileWriter } from '../lib/multi-file-writer'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
-
-const envConfig =
-  require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
-
+import { installGlobalBehaviors } from '../server/node-environment-extensions/global-behaviors'
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
 }
@@ -75,13 +72,11 @@ async function exportPageImpl(
     distDir,
     pagesDataDir,
     buildExport = false,
-    serverRuntimeConfig,
     subFolders = false,
     optimizeCss,
     disableOptimizedLoading,
     debugOutput = false,
     enableExperimentalReact,
-    ampValidatorPath,
     trailingSlash,
     sriEnabled,
     renderOpts: commonRenderOpts,
@@ -112,15 +107,15 @@ async function exportPageImpl(
     _isRoutePPREnabled: isRoutePPREnabled,
 
     // Configure the rendering of the page to allow that an empty static shell
-    // is generated while rendering using PPR and Dynamic IO.
+    // is generated while rendering using PPR and Cache Components.
     _allowEmptyStaticShell: allowEmptyStaticShell = false,
 
     // Pull the original query out.
     query: originalQuery = {},
   } = exportPath
 
-  const fallbackRouteParams: FallbackRouteParams | null =
-    getFallbackRouteParams(_fallbackRouteParams)
+  const fallbackRouteParams: OpaqueFallbackRouteParams | null =
+    createOpaqueFallbackRouteParams(_fallbackRouteParams)
 
   let query = { ...originalQuery }
   const pathname = normalizeAppPath(page)
@@ -128,8 +123,6 @@ async function exportPageImpl(
   const outDir = isAppDir ? join(distDir, 'server/app') : commonOutDir
 
   const filePath = normalizePagePath(path)
-  const ampPath = `${filePath}.amp`
-  let renderAmpPath = ampPath
 
   let updatedPath = exportPath._ssgPath || path
   let locale = exportPath._locale || commonRenderOpts.locale
@@ -140,10 +133,6 @@ async function exportPageImpl(
     if (localePathResult.detectedLocale) {
       updatedPath = localePathResult.pathname
       locale = localePathResult.detectedLocale
-
-      if (locale === commonRenderOpts.defaultLocale) {
-        renderAmpPath = `${normalizePagePath(updatedPath)}.amp`
-      }
     }
   }
 
@@ -196,11 +185,6 @@ async function exportPageImpl(
     addRequestMeta(req, 'isLocaleDomain', true)
   }
 
-  envConfig.setConfig({
-    serverRuntimeConfig,
-    publicRuntimeConfig: commonRenderOpts.runtimeConfig,
-  })
-
   const getHtmlFilename = (p: string) =>
     subFolders ? `${p}${sep}index.html` : `${p}.html`
 
@@ -240,6 +224,7 @@ async function exportPageImpl(
     isAppPath: isAppDir,
     isDev: false,
     sriEnabled,
+    needsManifestsForLegacyReasons: true,
   })
 
   // Handle App Routes.
@@ -254,6 +239,7 @@ async function exportPageImpl(
       commonRenderOpts.cacheLifeProfiles,
       htmlFilepath,
       fileWriter,
+      commonRenderOpts.cacheComponents,
       commonRenderOpts.experimental,
       buildId
     )
@@ -262,7 +248,6 @@ async function exportPageImpl(
   const renderOpts: WorkerRenderOpts = {
     ...components,
     ...commonRenderOpts,
-    ampPath: renderAmpPath,
     params,
     optimizeCss,
     disableOptimizedLoading,
@@ -279,10 +264,6 @@ async function exportPageImpl(
       isRoutePPREnabled,
     },
     renderResumeDataCache,
-  }
-
-  if (hasNextSupport) {
-    renderOpts.isRevalidate = true
   }
 
   // Handle App Pages
@@ -327,10 +308,6 @@ async function exportPageImpl(
     params,
     htmlFilepath,
     htmlFilename,
-    ampPath,
-    subFolders,
-    outDir,
-    ampValidatorPath,
     pagesDataDir,
     buildExport,
     isDynamic,
@@ -361,7 +338,9 @@ export async function exportPages(
     renderResumeDataCachesByPage = {},
   } = input
 
-  if (nextConfig.experimental.enablePrerenderSourceMaps) {
+  installGlobalBehaviors(nextConfig)
+
+  if (nextConfig.enablePrerenderSourceMaps) {
     try {
       // Same as `next dev`
       // Limiting the stack trace to a useful amount of frames is handled by ignore-listing.
@@ -381,7 +360,7 @@ export async function exportPages(
     // skip writing to disk in minimal mode for now, pending some
     // changes to better support it
     flushToDisk: !hasNextSupport,
-    cacheHandlers: nextConfig.experimental.cacheHandlers,
+    cacheHandlers: nextConfig.cacheHandlers,
   })
 
   renderOpts.incrementalCache = incrementalCache
@@ -416,10 +395,7 @@ export async function exportPages(
             outDir,
             pagesDataDir,
             renderOpts,
-            ampValidatorPath:
-              nextConfig.experimental.amp?.validator || undefined,
             trailingSlash: nextConfig.trailingSlash,
-            serverRuntimeConfig: nextConfig.serverRuntimeConfig,
             subFolders: nextConfig.trailingSlash && !options.buildExport,
             buildExport: options.buildExport,
             optimizeCss: nextConfig.experimental.optimizeCss,

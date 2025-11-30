@@ -90,7 +90,7 @@ impl BaseLoaderTreeBuilder {
     pub async fn create_module_tuple_code(
         &mut self,
         module_type: AppDirModuleType,
-        path: ResolvedVc<FileSystemPath>,
+        path: FileSystemPath,
     ) -> Result<String> {
         let name = module_type.name();
         let i = self.unique_number();
@@ -99,7 +99,7 @@ impl BaseLoaderTreeBuilder {
         self.imports.push(
             formatdoc!(
                 r#"
-                import * as {} from "MODULE_{}";
+                const {} = () => require("MODULE_{}");
                 "#,
                 identifier,
                 i
@@ -108,7 +108,7 @@ impl BaseLoaderTreeBuilder {
         );
 
         let module = self
-            .process_source(Vc::upcast(FileSource::new(*path)))
+            .process_source(Vc::upcast(FileSource::new(path.clone())))
             .to_resolved()
             .await?;
 
@@ -118,7 +118,7 @@ impl BaseLoaderTreeBuilder {
         let module_path = module.ident().path().to_string().await?;
 
         Ok(format!(
-            "[() => {identifier}, {path}]",
+            "[{identifier}, {path}]",
             path = StringifyJs(&module_path),
         ))
     }

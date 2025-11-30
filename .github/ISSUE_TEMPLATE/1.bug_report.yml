@@ -85,7 +85,7 @@ body:
         - 'create-next-app'
         - 'CSS'
         - 'Draft Mode'
-        - 'dynamicIO'
+        - 'cacheComponents'
         - 'Dynamic Routes'
         - 'Error Handling'
         - 'Error Overlay'

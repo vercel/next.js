@@ -1,6 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use napi::bindgen_prelude::*;
+use napi_derive::napi;
 use next_custom_transforms::react_compiler;
 use swc_core::{
     common::{GLOBALS, SourceMap},
@@ -23,7 +24,7 @@ impl Task for CheckTask {
         GLOBALS.set(&Default::default(), || {
             //
             let cm = Arc::new(SourceMap::default());
-            let Ok(fm) = cm.load_file(&self.filename.clone()) else {
+            let Ok(fm) = cm.load_file(&self.filename) else {
                 return Ok(false);
             };
             let mut errors = vec![];

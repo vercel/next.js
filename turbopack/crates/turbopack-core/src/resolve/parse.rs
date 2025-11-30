@@ -23,7 +23,7 @@ pub enum Request {
         fragment: RcStr,
     },
     Module {
-        module: RcStr,
+        module: Pattern,
         path: Pattern,
         query: RcStr,
         fragment: RcStr,
@@ -100,8 +100,10 @@ static MODULE_PATH: LazyLock<Regex> =
 impl Request {
     /// Turns the request into a string.
     ///
-    /// Note that this is only returns something for the most basic and
-    /// fully constant patterns.
+    /// This is not only used for printing the request to the user, but also for matching inner
+    /// assets.
+    ///
+    /// Note that this is only returns something for the most basic and fully constant patterns.
     pub fn request(&self) -> Option<RcStr> {
         Some(match self {
             Request::Raw {
@@ -113,7 +115,7 @@ impl Request {
                 ..
             } => path.clone(),
             Request::Module {
-                module,
+                module: Pattern::Constant(module),
                 path: Pattern::Constant(path),
                 ..
             } => format!("{module}{path}").into(),
@@ -146,7 +148,7 @@ impl Request {
     /// recursively. Most users should call [Self::parse] instead.
     fn parse_ref(request: Pattern) -> Self {
         match request {
-            Pattern::Dynamic => Request::Dynamic,
+            Pattern::Dynamic | Pattern::DynamicNoSlash => Request::Dynamic,
             Pattern::Constant(r) => Request::parse_constant_pattern(r),
             Pattern::Concatenation(list) => Request::parse_concatenation_pattern(list),
             Pattern::Alternatives(_) => panic!(
@@ -236,7 +238,7 @@ impl Request {
             let (path, query, fragment) = split_off_query_fragment(path.as_str());
 
             return Request::Module {
-                module: module.as_str().into(),
+                module: RcStr::from(module.as_str()).into(),
                 path,
                 query,
                 fragment,
@@ -263,7 +265,17 @@ impl Request {
                 Request::Relative { path, .. } => {
                     path.push(item);
                 }
-                Request::Module { path, .. } => {
+                Request::Module { module, path, .. } => {
+                    if path.is_empty() && matches!(item, Pattern::Dynamic) {
+                        // TODO ideally this would be more general (i.e. support also
+                        // `module-part<dynamic>more-module/subpath`) and not just handle
+                        // Pattern::Dynamic, but this covers the common case of
+                        // `require('@img/sharp-' + arch + '/sharp.node')`
+
+                        // Insert dynamic between module and path (by adding it to both of them,
+                        // because both could happen).
+                        module.push(Pattern::DynamicNoSlash);
+                    }
                     path.push(item);
                 }
                 Request::ServerRelative { path, .. } => {
@@ -358,7 +370,7 @@ impl Request {
     }
 
     #[turbo_tasks::function]
-    pub fn module(module: RcStr, path: Pattern, query: RcStr, fragment: RcStr) -> Vc<Self> {
+    pub fn module(module: Pattern, path: Pattern, query: RcStr, fragment: RcStr) -> Vc<Self> {
         Self::cell(Request::Module {
             module,
             path,
@@ -385,7 +397,8 @@ impl Request {
                 query: _,
                 fragment: _,
             } => {
-                let mut pat = Pattern::Constant(format!("./{module}").into());
+                let mut pat = module.clone();
+                pat.push_front(rcstr!("./").into());
                 pat.push(path.clone());
                 // TODO add query
                 Self::parse(pat)
@@ -692,7 +705,7 @@ impl Request {
             Request::Relative { path, .. } => path.clone(),
             Request::Module { module, path, .. } => {
                 let mut path = path.clone();
-                path.push_front(Pattern::Constant(module.clone()));
+                path.push_front(module.clone());
                 path.normalize();
                 path
             }
@@ -740,9 +753,9 @@ impl ValueToString for Request {
                 ..
             } => {
                 if *force_in_lookup_dir {
-                    format!("in-lookup-dir {path}").into()
+                    format!("in-lookup-dir {}", path.describe_as_string()).into()
                 } else {
-                    format!("{path}").into()
+                    path.describe_as_string().into()
                 }
             }
             Request::Relative {
@@ -751,22 +764,33 @@ impl ValueToString for Request {
                 ..
             } => {
                 if *force_in_lookup_dir {
-                    format!("relative-in-lookup-dir {path}").into()
+                    format!("relative-in-lookup-dir {}", path.describe_as_string()).into()
                 } else {
-                    format!("relative {path}").into()
+                    format!("relative {}", path.describe_as_string()).into()
                 }
             }
             Request::Module { module, path, .. } => {
                 if path.could_match_others("") {
-                    format!("module \"{module}\" with subpath {path}").into()
+                    format!(
+                        "module {} with subpath {}",
+                        module.describe_as_string(),
+                        path.describe_as_string()
+                    )
+                    .into()
                 } else {
-                    format!("module \"{module}\"").into()
+                    format!("module \"{}\"", module.describe_as_string()).into()
                 }
             }
-            Request::ServerRelative { path, .. } => format!("server relative {path}").into(),
-            Request::Windows { path, .. } => format!("windows {path}").into(),
+            Request::ServerRelative { path, .. } => {
+                format!("server relative {}", path.describe_as_string()).into()
+            }
+            Request::Windows { path, .. } => {
+                format!("windows {}", path.describe_as_string()).into()
+            }
             Request::Empty => rcstr!("empty"),
-            Request::PackageInternal { path } => format!("package internal {path}").into(),
+            Request::PackageInternal { path } => {
+                format!("package internal {}", path.describe_as_string()).into()
+            }
             Request::DataUri {
                 media_type,
                 encoding,
@@ -781,7 +805,7 @@ impl ValueToString for Request {
                 remainder,
                 ..
             } => format!("uri \"{protocol}\" \"{remainder}\"").into(),
-            Request::Unknown { path } => format!("unknown {path}").into(),
+            Request::Unknown { path } => format!("unknown {}", path.describe_as_string()).into(),
             Request::Dynamic => rcstr!("dynamic"),
             Request::Alternatives { requests } => {
                 let vec = requests.iter().map(|i| i.to_string()).try_join().await?;
@@ -810,6 +834,124 @@ pub async fn stringify_data_uri(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_module() {
+        assert_eq!(
+            Request::Module {
+                module: rcstr!("foo").into(),
+                path: rcstr!("").into(),
+                query: rcstr!(""),
+                fragment: rcstr!(""),
+            },
+            Request::parse_ref(rcstr!("foo").into())
+        );
+        assert_eq!(
+            Request::Module {
+                module: rcstr!("@org/foo").into(),
+                path: rcstr!("").into(),
+                query: rcstr!(""),
+                fragment: rcstr!(""),
+            },
+            Request::parse_ref(rcstr!("@org/foo").into())
+        );
+
+        assert_eq!(
+            Request::Module {
+                module: Pattern::Concatenation(vec![
+                    Pattern::Constant(rcstr!("foo-")),
+                    Pattern::DynamicNoSlash,
+                ]),
+                path: Pattern::Dynamic,
+                query: rcstr!(""),
+                fragment: rcstr!(""),
+            },
+            Request::parse_ref(Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("foo-")),
+                Pattern::Dynamic,
+            ]))
+        );
+
+        assert_eq!(
+            Request::Module {
+                module: Pattern::Concatenation(vec![
+                    Pattern::Constant(rcstr!("foo-")),
+                    Pattern::DynamicNoSlash,
+                ]),
+                path: Pattern::Concatenation(vec![
+                    Pattern::Dynamic,
+                    Pattern::Constant(rcstr!("/file")),
+                ]),
+                query: rcstr!(""),
+                fragment: rcstr!(""),
+            },
+            Request::parse_ref(Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("foo-")),
+                Pattern::Dynamic,
+                Pattern::Constant(rcstr!("/file")),
+            ]))
+        );
+        assert_eq!(
+            Request::Module {
+                module: Pattern::Concatenation(vec![
+                    Pattern::Constant(rcstr!("foo-")),
+                    Pattern::DynamicNoSlash,
+                ]),
+                path: Pattern::Concatenation(vec![
+                    Pattern::Dynamic,
+                    Pattern::Constant(rcstr!("/file")),
+                    Pattern::Dynamic,
+                    Pattern::Constant(rcstr!("sub")),
+                ]),
+                query: rcstr!(""),
+                fragment: rcstr!(""),
+            },
+            Request::parse_ref(Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("foo-")),
+                Pattern::Dynamic,
+                Pattern::Constant(rcstr!("/file")),
+                Pattern::Dynamic,
+                Pattern::Constant(rcstr!("sub")),
+            ]))
+        );
+
+        // TODO see parse_concatenation_pattern
+        // assert_eq!(
+        //     Request::Alternatives {
+        //         requests: vec![
+        //             Request::Module {
+        //                 module: Pattern::Concatenation(vec![
+        //                     Pattern::Constant(rcstr!("prefix")),
+        //                     Pattern::Dynamic,
+        //                     Pattern::Constant(rcstr!("suffix")),
+        //                 ]),
+        //                 path: rcstr!("subpath").into(),
+        //                 query: rcstr!(""),
+        //                 fragment: rcstr!(""),
+        //             }
+        //             .resolved_cell(),
+        //             Request::Module {
+        //                 module: Pattern::Concatenation(vec![
+        //                     Pattern::Constant(rcstr!("prefix")),
+        //                     Pattern::Dynamic,
+        //                 ]),
+        //                 path: Pattern::Concatenation(vec![
+        //                     Pattern::Dynamic,
+        //                     Pattern::Constant(rcstr!("suffix/subpath")),
+        //                 ]),
+        //                 query: rcstr!(""),
+        //                 fragment: rcstr!(""),
+        //             }
+        //             .resolved_cell()
+        //         ]
+        //     },
+        //     Request::parse_ref(Pattern::Concatenation(vec![
+        //         Pattern::Constant(rcstr!("prefix")),
+        //         Pattern::Dynamic,
+        //         Pattern::Constant(rcstr!("suffix/subpath")),
+        //     ]))
+        // );
+    }
 
     #[test]
     fn test_split_query_fragment() {

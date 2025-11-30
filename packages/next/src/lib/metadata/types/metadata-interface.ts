@@ -95,7 +95,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * When relative URLs (for Open Graph images, alternates, etc.) are used, they are composed with this base.
    * If not provided, Next.js will populate a default value based on environment variables.
    */
-  metadataBase?: null | URL | undefined
+  metadataBase?: null | string | URL | undefined
 
   /**
    * The document title.
@@ -564,13 +564,13 @@ interface Metadata extends DeprecatedMetadataFields {
 }
 
 /**
- * ResolvedMetadata represents the fully processed metadata after defaults are applied
- * and relative URLs are composed with `metadataBase`.
+ * ResolvedMetadataWithURLs represents the fully processed metadata after
+ * defaults are applied and relative URLs are composed with `metadataBase`.
  */
-interface ResolvedMetadata extends DeprecatedMetadataFields {
+interface ResolvedMetadataWithURLs extends DeprecatedMetadataFields {
   // origin and base path for absolute urls for various metadata links such as
   // opengraph-image
-  metadataBase: null | URL
+  metadataBase: string | null | URL
 
   // The Document title and template if defined
   title: null | AbsoluteTemplateString
@@ -663,6 +663,18 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
         [name: string]: string | number | Array<string | number>
       } & DeprecatedMetadataFields)
 }
+
+export type WithStringifiedURLs<T> = T extends URL
+  ? string
+  : T extends object
+    ? { [K in keyof T]: WithStringifiedURLs<T[K]> }
+    : T
+
+/**
+ * ResolvedMetadata represents the fully processed metadata after defaults are
+ * applied and relative URLs are composed with `metadataBase`.
+ */
+type ResolvedMetadata = WithStringifiedURLs<ResolvedMetadataWithURLs>
 
 type RobotsFile = {
   // Apply rules for all
@@ -773,16 +785,17 @@ interface Viewport extends ViewportLayout {
   colorScheme?: null | ColorSchemeEnum | undefined
 }
 
-type ResolvingViewport = Promise<Viewport>
-
 interface ResolvedViewport extends ViewportLayout {
   themeColor: null | ThemeColorDescriptor[]
   colorScheme: null | ColorSchemeEnum
 }
 
+type ResolvingViewport = Promise<ResolvedViewport>
+
 export type {
   Metadata,
   ResolvedMetadata,
+  ResolvedMetadataWithURLs,
   ResolvingMetadata,
   MetadataRoute,
   Viewport,

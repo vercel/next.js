@@ -2,9 +2,9 @@ use std::fmt::Write;
 
 use anyhow::Result;
 use indoc::{formatdoc, writedoc};
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
-use turbo_tasks_fs::File;
+use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{asset::AssetContent, source::Source, virtual_source::VirtualSource};
 use turbopack_ecmascript::utils::StringifyJs;
 
@@ -56,8 +56,8 @@ pub(crate) async fn instantiating_loader_source(
     let code: RcStr = code.into();
 
     Ok(Vc::upcast(VirtualSource::new(
-        source.ident().path().append(rcstr!("_.loader.mjs")),
-        AssetContent::file(File::from(code).into()),
+        source.ident().path().await?.append("_.loader.mjs")?,
+        AssetContent::file(FileContent::Content(File::from(code)).cell()),
     )))
 }
 
@@ -80,7 +80,7 @@ pub(crate) async fn compiling_loader_source(
     .into();
 
     Ok(Vc::upcast(VirtualSource::new(
-        source.ident().path().append(rcstr!("_.loader.mjs")),
-        AssetContent::file(File::from(code).into()),
+        source.ident().path().await?.append("_.loader.mjs")?,
+        AssetContent::file(FileContent::Content(File::from(code)).cell()),
     )))
 }

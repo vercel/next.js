@@ -6,20 +6,21 @@ mod invalidate;
 mod prepare_new_children;
 mod update_cell;
 mod update_collectible;
-mod update_output;
 
 use std::{
     fmt::{Debug, Formatter},
-    mem::{take, transmute},
+    mem::transmute,
+    sync::{Arc, atomic::Ordering},
 };
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
+use turbo_tasks::{FxIndexMap, KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
 
 use crate::{
     backend::{
         OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
-        storage::{SpecificTaskDataCategory, StorageWriteGuard},
+        TurboTasksBackendJob,
+        storage::{SpecificTaskDataCategory, StorageWriteGuard, iter_many},
     },
     backing_storage::BackingStorage,
     data::{
@@ -45,56 +46,34 @@ enum TransactionState<'a, 'tx, B: BackingStorage> {
     Owned(Option<B::ReadTransaction<'tx>>),
 }
 
-impl<'a, 'tx1, B: BackingStorage> TransactionState<'a, 'tx1, B> {
-    fn borrow<'l, 'tx2>(&'l self) -> TransactionState<'l, 'tx2, B>
-    where
-        'a: 'l,
-        'tx1: 'a + 'tx2,
-        'tx2: 'l,
-    {
-        match self {
-            TransactionState::None => TransactionState::None,
-            TransactionState::Borrowed(tx) => {
-                TransactionState::Borrowed(tx.map(B::lower_read_transaction))
-            }
-            TransactionState::Owned(tx) => {
-                TransactionState::Borrowed(tx.as_ref().map(B::lower_read_transaction))
-            }
-        }
-    }
-}
-
 pub trait ExecuteContext<'e>: Sized {
+    type TaskGuardImpl: TaskGuard + 'e;
+    fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'l, Self>
+    where
+        'e: 'l;
     fn session_id(&self) -> SessionId;
-    fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> impl TaskGuard + 'e;
+    fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl;
     fn is_once_task(&self, task_id: TaskId) -> bool;
     fn task_pair(
         &mut self,
         task_id1: TaskId,
         task_id2: TaskId,
         category: TaskDataCategory,
-    ) -> (impl TaskGuard + 'e, impl TaskGuard + 'e);
-    fn schedule(&self, task_id: TaskId);
+    ) -> (Self::TaskGuardImpl, Self::TaskGuardImpl);
+    fn schedule(&mut self, task_id: TaskId);
+    fn schedule_task(&self, task: Self::TaskGuardImpl);
     fn operation_suspend_point<T>(&mut self, op: &T)
     where
         T: Clone + Into<AnyOperation>;
     fn suspending_requested(&self) -> bool;
-    type Backend;
-    fn run_operation(
-        &mut self,
-        parent_op_ref: &mut impl Operation,
-        run: impl FnOnce(&mut ExecuteContextImpl<'_, '_, Self::Backend>),
-    );
     fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static;
     fn get_task_description(&self, task_id: TaskId) -> String;
-    fn should_track_children(&self) -> bool;
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
 }
 
-pub struct ParentRef<'a> {
-    op: &'a AnyOperation,
-    parent: &'a Option<ParentRef<'a>>,
+pub trait ChildExecuteContext<'e>: Send + Sized {
+    fn create(self) -> impl ExecuteContext<'e>;
 }
 
 pub struct ExecuteContextImpl<'e, 'tx, B: BackingStorage>
@@ -102,11 +81,12 @@ where
     Self: 'e,
     'tx: 'e,
 {
-    parent: Option<ParentRef<'e>>,
     backend: &'e TurboTasksBackendInner<B>,
     turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     _operation_guard: Option<OperationGuard<'e, B>>,
     transaction: TransactionState<'e, 'tx, B>,
+    #[cfg(debug_assertions)]
+    active_task_locks: Arc<std::sync::atomic::AtomicU8>,
 }
 
 impl<'e, 'tx, B: BackingStorage> ExecuteContextImpl<'e, 'tx, B>
@@ -121,8 +101,9 @@ where
             backend,
             turbo_tasks,
             _operation_guard: Some(backend.start_operation()),
-            parent: None,
             transaction: TransactionState::None,
+            #[cfg(debug_assertions)]
+            active_task_locks: Arc::new(std::sync::atomic::AtomicU8::new(0)),
         }
     }
 
@@ -135,27 +116,9 @@ where
             backend,
             turbo_tasks,
             _operation_guard: Some(backend.start_operation()),
-            parent: None,
             transaction: TransactionState::Borrowed(transaction),
-        }
-    }
-
-    fn transaction<'l>(&'l mut self) -> Option<&'l B::ReadTransaction<'l>>
-    where
-        'e: 'l,
-    {
-        if matches!(self.transaction, TransactionState::None) {
-            let tx = self.backend.backing_storage.start_read_transaction();
-            let tx = tx.map(|tx| {
-                // Safety: self is actually valid for 'a, so it's safe to transmute 'l to 'a
-                unsafe { transmute::<B::ReadTransaction<'_>, B::ReadTransaction<'tx>>(tx) }
-            });
-            self.transaction = TransactionState::Owned(tx);
-        }
-        match &self.transaction {
-            TransactionState::None => unreachable!(),
-            TransactionState::Borrowed(tx) => tx.map(B::lower_read_transaction),
-            TransactionState::Owned(tx) => tx.as_ref().map(B::lower_read_transaction),
+            #[cfg(debug_assertions)]
+            active_task_locks: Arc::new(std::sync::atomic::AtomicU8::new(0)),
         }
     }
 
@@ -164,11 +127,30 @@ where
         task_id: TaskId,
         category: TaskDataCategory,
     ) -> Vec<CachedDataItem> {
-        // Safety: `transaction` is a valid transaction from `self.backend.backing_storage`.
+        if matches!(self.transaction, TransactionState::None) {
+            let check_backing_storage = self.backend.should_restore()
+                && self.backend.local_is_partial.load(Ordering::Acquire);
+            if !check_backing_storage {
+                // If we don't need to restore, we can just return an empty vector
+                return Vec::new();
+            }
+            let tx = self.backend.backing_storage.start_read_transaction();
+            let tx = tx.map(|tx| {
+                // Safety: self is actually valid for 'a, so it's safe to transmute 'l to 'a
+                unsafe { transmute::<B::ReadTransaction<'_>, B::ReadTransaction<'tx>>(tx) }
+            });
+            self.transaction = TransactionState::Owned(tx);
+        }
+        let tx = match &self.transaction {
+            TransactionState::None => unreachable!(),
+            TransactionState::Borrowed(tx) => *tx,
+            TransactionState::Owned(tx) => tx.as_ref(),
+        };
+        // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
         let result = unsafe {
             self.backend
                 .backing_storage
-                .lookup_data(self.transaction(), task_id, category)
+                .lookup_data(tx, task_id, category)
         };
         match result {
             Ok(data) => data,
@@ -187,11 +169,31 @@ impl<'e, 'tx, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, '
 where
     'tx: 'e,
 {
+    type TaskGuardImpl = TaskGuardImpl<'e, B>;
+
+    fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'tx, 'l, B>
+    where
+        'e: 'l,
+    {
+        ChildExecuteContextImpl {
+            backend: self.backend,
+            turbo_tasks: self.turbo_tasks,
+        }
+    }
+
     fn session_id(&self) -> SessionId {
         self.backend.session_id()
     }
 
-    fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> impl TaskGuard + 'e {
+    fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl {
+        #[cfg(debug_assertions)]
+        if self.active_task_locks.fetch_add(1, Ordering::AcqRel) != 0 {
+            panic!(
+                "Concurrent task lock acquisition detected. This is not allowed and indicates a \
+                 bug. It can lead to deadlocks."
+            );
+        }
+
         let mut task = self.backend.storage.access_mut(task_id);
         if !task.state().is_restored(category) {
             if task_id.is_transient() {
@@ -220,6 +222,8 @@ where
             backend: self.backend,
             #[cfg(debug_assertions)]
             category,
+            #[cfg(debug_assertions)]
+            active_task_locks: self.active_task_locks.clone(),
         }
     }
 
@@ -239,7 +243,15 @@ where
         task_id1: TaskId,
         task_id2: TaskId,
         category: TaskDataCategory,
-    ) -> (impl TaskGuard + 'e, impl TaskGuard + 'e) {
+    ) -> (Self::TaskGuardImpl, Self::TaskGuardImpl) {
+        #[cfg(debug_assertions)]
+        if self.active_task_locks.fetch_add(2, Ordering::AcqRel) != 0 {
+            panic!(
+                "Concurrent task lock acquisition detected. This is not allowed and indicates a \
+                 bug. It can lead to deadlocks."
+            );
+        }
+
         let (mut task1, mut task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
         let is_restored1 = task1.state().is_restored(category);
         let is_restored2 = task2.state().is_restored(category);
@@ -276,6 +288,8 @@ where
                 backend: self.backend,
                 #[cfg(debug_assertions)]
                 category,
+                #[cfg(debug_assertions)]
+                active_task_locks: self.active_task_locks.clone(),
             },
             TaskGuardImpl {
                 task: task2,
@@ -283,72 +297,34 @@ where
                 backend: self.backend,
                 #[cfg(debug_assertions)]
                 category,
+                #[cfg(debug_assertions)]
+                active_task_locks: self.active_task_locks.clone(),
             },
         )
     }
 
-    fn schedule(&self, task_id: TaskId) {
-        self.turbo_tasks.schedule(task_id);
+    fn schedule(&mut self, task_id: TaskId) {
+        let task = self.task(task_id, TaskDataCategory::All);
+        self.schedule_task(task);
+    }
+
+    fn schedule_task(&self, mut task: Self::TaskGuardImpl) {
+        if let Some(tasks_to_prefetch) = task.prefetch() {
+            self.turbo_tasks
+                .schedule_backend_background_job(TurboTasksBackendJob::Prefetch {
+                    data: Arc::new(tasks_to_prefetch),
+                    range: None,
+                });
+        }
+        self.turbo_tasks.schedule(task.id());
     }
 
     fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&mut self, op: &T) {
-        if self.parent.is_some() {
-            self.backend.operation_suspend_point(|| {
-                let mut nested = Vec::new();
-                nested.push(op.clone().into());
-                let mut cur = self.parent.as_ref();
-                while let Some(ParentRef { op, parent }) = cur {
-                    nested.push((*op).clone());
-                    cur = parent.as_ref();
-                }
-                AnyOperation::Nested(nested)
-            });
-        } else {
-            self.backend.operation_suspend_point(|| op.clone().into());
-        }
+        self.backend.operation_suspend_point(|| op.clone().into());
     }
 
     fn suspending_requested(&self) -> bool {
         self.backend.suspending_requested()
-    }
-
-    type Backend = B;
-
-    fn run_operation(
-        &mut self,
-        parent_op_ref: &mut impl Operation,
-        run: impl FnOnce(&mut ExecuteContextImpl<'_, '_, B>),
-    ) {
-        let parent_op = take(parent_op_ref);
-        let parent_op: AnyOperation = parent_op.into();
-        let this = &*self;
-        fn run_with_inner_ctx<'a, B: BackingStorage>(
-            backend: &'a TurboTasksBackendInner<B>,
-            turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-            parent: ParentRef<'a>,
-            transaction: TransactionState<'a, '_, B>,
-            run: impl FnOnce(&mut ExecuteContextImpl<'_, '_, B>),
-        ) {
-            let mut inner_ctx: ExecuteContextImpl<'_, '_, B> = ExecuteContextImpl {
-                backend,
-                turbo_tasks,
-                _operation_guard: None,
-                parent: Some(parent),
-                transaction,
-            };
-            run(&mut inner_ctx);
-        }
-        run_with_inner_ctx(
-            self.backend,
-            self.turbo_tasks,
-            ParentRef {
-                op: &parent_op,
-                parent: &this.parent,
-            },
-            self.transaction.borrow(),
-            run,
-        );
-        *parent_op_ref = parent_op.try_into().unwrap();
     }
 
     fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static {
@@ -357,10 +333,6 @@ where
 
     fn get_task_description(&self, task_id: TaskId) -> String {
         self.backend.get_task_description(task_id)
-    }
-
-    fn should_track_children(&self) -> bool {
-        self.backend.should_track_children()
     }
 
     fn should_track_dependencies(&self) -> bool {
@@ -372,11 +344,46 @@ where
     }
 }
 
+struct ChildExecuteContextImpl<'e, B: BackingStorage> {
+    backend: &'e TurboTasksBackendInner<B>,
+    turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+}
+
+impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<'e, B> {
+    fn create(self) -> impl ExecuteContext<'e> {
+        ExecuteContextImpl {
+            backend: self.backend,
+            turbo_tasks: self.turbo_tasks,
+            _operation_guard: None,
+            transaction: TransactionState::None,
+            #[cfg(debug_assertions)]
+            active_task_locks: Arc::new(std::sync::atomic::AtomicU8::new(0)),
+        }
+    }
+}
+
 pub trait TaskGuard: Debug {
     fn id(&self) -> TaskId;
+    /// Adds a new item to the task if the key is not already present.
+    /// Returns `true` if the item was added.
+    /// Returns `false` if an item with the same key was already present.
     #[must_use]
     fn add(&mut self, item: CachedDataItem) -> bool;
+    /// Adds a new item to the task. The key must not be already present.
+    /// Might panic if the key is already present.
     fn add_new(&mut self, item: CachedDataItem);
+    /// Extends the task with items from the iterator.
+    /// Overwrites existing keys.
+    /// Returns `true` if all items were new and added.
+    /// Returns `false` if any item had a key that was already present.
+    fn extend(
+        &mut self,
+        ty: CachedDataItemType,
+        items: impl Iterator<Item = CachedDataItem>,
+    ) -> bool;
+    /// Extends the task with items from the iterator.
+    /// Might panic if any item has a key that is already present.
+    fn extend_new(&mut self, ty: CachedDataItemType, items: impl Iterator<Item = CachedDataItem>);
     fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue>;
     fn update(
         &mut self,
@@ -406,22 +413,32 @@ pub trait TaskGuard: Debug {
     where
         F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
     fn invalidate_serialization(&mut self);
+    fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>>;
     fn is_immutable(&self) -> bool;
-    fn mark_as_immutable(&mut self);
 }
 
-struct TaskGuardImpl<'a, B: BackingStorage> {
+pub struct TaskGuardImpl<'a, B: BackingStorage> {
     task_id: TaskId,
     task: StorageWriteGuard<'a>,
     backend: &'a TurboTasksBackendInner<B>,
     #[cfg(debug_assertions)]
     category: TaskDataCategory,
+    #[cfg(debug_assertions)]
+    active_task_locks: Arc<std::sync::atomic::AtomicU8>,
+}
+
+#[cfg(debug_assertions)]
+impl<B: BackingStorage> Drop for TaskGuardImpl<'_, B> {
+    fn drop(&mut self) {
+        self.active_task_locks.fetch_sub(1, Ordering::AcqRel);
+    }
 }
 
 impl<B: BackingStorage> TaskGuardImpl<'_, B> {
     /// Verify that the task guard restored the correct category
     /// before accessing the data.
     #[inline]
+    #[track_caller]
     fn check_access(&self, category: TaskDataCategory) {
         {
             match category {
@@ -474,6 +491,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task_id
     }
 
+    #[track_caller]
     fn add(&mut self, item: CachedDataItem) -> bool {
         let category = item.category();
         self.check_access(category);
@@ -486,12 +504,52 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.add(item)
     }
 
+    #[track_caller]
     fn add_new(&mut self, item: CachedDataItem) {
-        self.check_access(item.category());
-        let added = self.add(item);
+        let category = item.category();
+        self.check_access(category);
+        if !self.task_id.is_transient() && item.is_persistent() {
+            self.task.track_modification(category.into_specific());
+        }
+        let added = self.task.add(item);
         assert!(added, "Item already exists");
     }
 
+    #[track_caller]
+    fn extend(
+        &mut self,
+        ty: CachedDataItemType,
+        items: impl Iterator<Item = CachedDataItem>,
+    ) -> bool {
+        let category = ty.category();
+        self.check_access(category);
+        if !self.task_id.is_transient() && ty.is_persistent() {
+            let mut items = items.peekable();
+            // Check if the iterator is empty
+            if items.peek().is_none() {
+                return true;
+            }
+            // TODO this is not optimal as we always track a modification even if nothing is changed
+            self.task.track_modification(category.into_specific());
+            self.task.extend(ty, items)
+        } else {
+            self.task.extend(ty, items)
+        }
+    }
+
+    #[track_caller]
+    fn extend_new(&mut self, ty: CachedDataItemType, items: impl Iterator<Item = CachedDataItem>) {
+        let category = ty.category();
+        self.check_access(category);
+        if !self.task_id.is_transient() && ty.is_persistent() {
+            self.task.track_modification(category.into_specific());
+        }
+
+        let added = self.task.extend(ty, items);
+        assert!(added, "At least one item already exists");
+    }
+
+    #[track_caller]
     fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
         let category = item.category();
         self.check_access(category);
@@ -501,6 +559,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.insert(item)
     }
 
+    #[track_caller]
     fn update(
         &mut self,
         key: CachedDataItemKey,
@@ -514,6 +573,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.update(key, update);
     }
 
+    #[track_caller]
     fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
         let category = key.category();
         self.check_access(category);
@@ -528,6 +588,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.get(key)
     }
 
+    #[track_caller]
     fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
         let category = key.category();
         self.check_access(category);
@@ -537,6 +598,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.get_mut(key)
     }
 
+    #[track_caller]
     fn get_mut_or_insert_with(
         &mut self,
         key: CachedDataItemKey,
@@ -550,11 +612,13 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.get_mut_or_insert_with(key, insert)
     }
 
+    #[track_caller]
     fn has_key(&self, key: &CachedDataItemKey) -> bool {
         self.check_access(key.category());
         self.task.contains_key(key)
     }
 
+    #[track_caller]
     fn count(&self, ty: CachedDataItemType) -> usize {
         self.check_access(ty.category());
         self.task.count(ty)
@@ -572,6 +636,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.shrink_to_fit(ty)
     }
 
+    #[track_caller]
     fn extract_if<'l, F>(
         &'l mut self,
         ty: CachedDataItemType,
@@ -596,11 +661,22 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         }
     }
 
-    fn is_immutable(&self) -> bool {
-        self.task.state().is_immutable()
+    fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>> {
+        if !self.task.state().prefetched() {
+            self.task.state_mut().set_prefetched(true);
+            let map = iter_many!(self, OutputDependency { target } => (target, false))
+                .chain(iter_many!(self, CellDependency { target } => (target.task, true)))
+                .chain(iter_many!(self, CollectiblesDependency { target } => (target.task, true)))
+                .collect::<FxIndexMap<_, _>>();
+            if map.len() > 16 {
+                return Some(map);
+            }
+        }
+        None
     }
-    fn mark_as_immutable(&mut self) {
-        self.task.state_mut().set_is_immutable(true);
+
+    fn is_immutable(&self) -> bool {
+        self.task.contains_key(&CachedDataItemKey::Immutable {})
     }
 }
 
@@ -631,7 +707,7 @@ macro_rules! impl_operation {
 pub enum AnyOperation {
     ConnectChild(connect_child::ConnectChildOperation),
     Invalidate(invalidate::InvalidateOperation),
-    UpdateOutput(update_output::UpdateOutputOperation),
+    UpdateCell(update_cell::UpdateCellOperation),
     CleanupOldEdges(cleanup_old_edges::CleanupOldEdgesOperation),
     AggregationUpdate(aggregation_update::AggregationUpdateQueue),
     Nested(Vec<AnyOperation>),
@@ -642,7 +718,7 @@ impl AnyOperation {
         match self {
             AnyOperation::ConnectChild(op) => op.execute(ctx),
             AnyOperation::Invalidate(op) => op.execute(ctx),
-            AnyOperation::UpdateOutput(op) => op.execute(ctx),
+            AnyOperation::UpdateCell(op) => op.execute(ctx),
             AnyOperation::CleanupOldEdges(op) => op.execute(ctx),
             AnyOperation::AggregationUpdate(op) => op.execute(ctx),
             AnyOperation::Nested(ops) => {
@@ -656,7 +732,7 @@ impl AnyOperation {
 
 impl_operation!(ConnectChild connect_child::ConnectChildOperation);
 impl_operation!(Invalidate invalidate::InvalidateOperation);
-impl_operation!(UpdateOutput update_output::UpdateOutputOperation);
+impl_operation!(UpdateCell update_cell::UpdateCellOperation);
 impl_operation!(CleanupOldEdges cleanup_old_edges::CleanupOldEdgesOperation);
 impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 
@@ -669,7 +745,7 @@ pub use self::{
     },
     cleanup_old_edges::OutdatedEdge,
     connect_children::connect_children,
+    invalidate::make_task_dirty_internal,
     prepare_new_children::prepare_new_children,
-    update_cell::UpdateCellOperation,
     update_collectible::UpdateCollectibleOperation,
 };

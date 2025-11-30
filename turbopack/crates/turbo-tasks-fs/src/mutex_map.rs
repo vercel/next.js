@@ -30,7 +30,7 @@ impl<'a, K: Eq + Hash + Clone> MutexMap<K> {
                             event.listen()
                         }
                         None => {
-                            let event = Event::new(|| "MutexMap".to_string());
+                            let event = Event::new(|| || "MutexMap".to_string());
                             let listener = event.listen();
                             *state = Some((event, 0));
                             listener

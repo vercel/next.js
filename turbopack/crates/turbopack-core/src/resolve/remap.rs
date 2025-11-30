@@ -1,10 +1,10 @@
-use std::{collections::BTreeMap, fmt::Display, ops::Deref};
+use std::{borrow::Cow, collections::BTreeMap, fmt::Display, ops::Deref};
 
 use anyhow::{Result, bail};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::FxIndexMap;
 
 use super::{
@@ -12,6 +12,7 @@ use super::{
     options::ConditionValue,
     pattern::Pattern,
 };
+use crate::resolve::alias_map::AliasKey;
 
 /// A small helper type to differentiate parsing exports and imports fields.
 #[derive(Copy, Clone)]
@@ -69,44 +70,44 @@ pub enum ReplacedSubpathValue {
 
 impl AliasTemplate for SubpathValue {
     type Output<'a>
-        = Result<ReplacedSubpathValue>
+        = ReplacedSubpathValue
     where
         Self: 'a;
 
-    fn convert(&self) -> Result<ReplacedSubpathValue> {
-        Ok(match self {
+    fn convert(&self) -> ReplacedSubpathValue {
+        match self {
             SubpathValue::Alternatives(list) => ReplacedSubpathValue::Alternatives(
                 list.iter()
                     .map(|value: &SubpathValue| value.convert())
-                    .collect::<Result<Vec<_>>>()?,
+                    .collect::<Vec<_>>(),
             ),
             SubpathValue::Conditional(list) => ReplacedSubpathValue::Conditional(
                 list.iter()
-                    .map(|(condition, value)| Ok((condition.clone(), value.convert()?)))
-                    .collect::<Result<Vec<_>>>()?,
+                    .map(|(condition, value)| (condition.clone(), value.convert()))
+                    .collect::<Vec<_>>(),
             ),
             SubpathValue::Result(value) => ReplacedSubpathValue::Result(value.clone().into()),
             SubpathValue::Excluded => ReplacedSubpathValue::Excluded,
-        })
+        }
     }
 
-    fn replace(&self, capture: &Pattern) -> Result<ReplacedSubpathValue> {
-        Ok(match self {
+    fn replace(&self, capture: &Pattern) -> ReplacedSubpathValue {
+        match self {
             SubpathValue::Alternatives(list) => ReplacedSubpathValue::Alternatives(
                 list.iter()
                     .map(|value: &SubpathValue| value.replace(capture))
-                    .collect::<Result<Vec<_>>>()?,
+                    .collect::<Vec<_>>(),
             ),
             SubpathValue::Conditional(list) => ReplacedSubpathValue::Conditional(
                 list.iter()
-                    .map(|(condition, value)| Ok((condition.clone(), value.replace(capture)?)))
-                    .collect::<Result<Vec<_>>>()?,
+                    .map(|(condition, value)| (condition.clone(), value.replace(capture)))
+                    .collect::<Vec<_>>(),
             ),
             SubpathValue::Result(value) => {
                 ReplacedSubpathValue::Result(capture.spread_into_star(value))
             }
             SubpathValue::Excluded => ReplacedSubpathValue::Excluded,
-        })
+        }
     }
 }
 
@@ -230,22 +231,35 @@ impl SubpathValue {
     }
 }
 
+pub struct ReplacedSubpathValueResult<'a, 'b> {
+    pub result_path: Pattern,
+    pub conditions: Vec<(RcStr, bool)>,
+    pub map_prefix: Cow<'a, str>,
+    pub map_key: &'b AliasKey,
+}
+
 impl ReplacedSubpathValue {
+    // TODO
+    #[allow(clippy::type_complexity)]
     /// Walks the [ReplacedSubpathValue] and adds results to the `target`
     /// vector. It uses the `conditions` to skip or enter conditional
     /// results. The state of conditions is stored within
     /// `condition_overrides`, which is also exposed to the consumer.
-    pub fn add_results<'a>(
-        &'a self,
+    pub fn add_results<'a, 'b>(
+        self,
+        prefix: Cow<'a, str>,
+        key: &'b AliasKey,
         conditions: &BTreeMap<RcStr, ConditionValue>,
         unspecified_condition: &ConditionValue,
-        condition_overrides: &mut FxHashMap<&'a str, ConditionValue>,
-        target: &mut Vec<(&'a Pattern, Vec<(&'a str, bool)>)>,
+        condition_overrides: &mut FxHashMap<RcStr, ConditionValue>,
+        target: &mut Vec<ReplacedSubpathValueResult<'a, 'b>>,
     ) -> bool {
         match self {
             ReplacedSubpathValue::Alternatives(list) => {
                 for value in list {
                     if value.add_results(
+                        prefix.clone(),
+                        key,
                         conditions,
                         unspecified_condition,
                         condition_overrides,
@@ -263,12 +277,14 @@ impl ReplacedSubpathValue {
                     } else {
                         condition_overrides
                             .get(condition.as_str())
-                            .or_else(|| conditions.get(condition))
+                            .or_else(|| conditions.get(&condition))
                             .unwrap_or(unspecified_condition)
                     };
                     match condition_value {
                         ConditionValue::Set => {
                             if value.add_results(
+                                prefix.clone(),
+                                key,
                                 conditions,
                                 unspecified_condition,
                                 condition_overrides,
@@ -279,8 +295,10 @@ impl ReplacedSubpathValue {
                         }
                         ConditionValue::Unset => {}
                         ConditionValue::Unknown => {
-                            condition_overrides.insert(condition, ConditionValue::Set);
+                            condition_overrides.insert(condition.clone(), ConditionValue::Set);
                             if value.add_results(
+                                prefix.clone(),
+                                key,
                                 conditions,
                                 unspecified_condition,
                                 condition_overrides,
@@ -296,17 +314,19 @@ impl ReplacedSubpathValue {
                 false
             }
             ReplacedSubpathValue::Result(r) => {
-                target.push((
-                    r,
-                    condition_overrides
+                target.push(ReplacedSubpathValueResult {
+                    result_path: r,
+                    conditions: condition_overrides
                         .iter()
                         .filter_map(|(k, v)| match v {
-                            ConditionValue::Set => Some((*k, true)),
-                            ConditionValue::Unset => Some((*k, false)),
+                            ConditionValue::Set => Some((k.clone(), true)),
+                            ConditionValue::Unset => Some((k.clone(), false)),
                             ConditionValue::Unknown => None,
                         })
                         .collect(),
-                ));
+                    map_prefix: prefix,
+                    map_key: key,
+                });
                 true
             }
             ReplacedSubpathValue::Excluded => true,
@@ -380,7 +400,7 @@ impl TryFrom<&Value> for ExportsField {
 
                 if !conditions.is_empty() {
                     map.insert(
-                        AliasPattern::Exact(".".into()),
+                        AliasPattern::Exact(rcstr!(".")),
                         SubpathValue::Conditional(
                             conditions
                                 .into_iter()
@@ -400,7 +420,7 @@ impl TryFrom<&Value> for ExportsField {
             Value::String(string) => {
                 let mut map = AliasMap::new();
                 map.insert(
-                    AliasPattern::exact("."),
+                    AliasPattern::Exact(rcstr!(".")),
                     SubpathValue::Result(string.as_str().into()),
                 );
                 map
@@ -408,7 +428,7 @@ impl TryFrom<&Value> for ExportsField {
             Value::Array(array) => {
                 let mut map = AliasMap::new();
                 map.insert(
-                    AliasPattern::exact("."),
+                    AliasPattern::Exact(rcstr!(".")),
                     // This allows for more complex patterns than the spec allows, since we accept
                     // the following:
                     // [{ "node": "./node.js", "default": "./index.js" }, "./index.js"]
@@ -487,7 +507,7 @@ fn is_folder_shorthand(key: &str) -> bool {
 /// we do the expansion here.
 fn expand_folder_shorthand(key: &str, value: &mut SubpathValue) -> Result<AliasPattern> {
     // Transform folder patterns into wildcard patterns.
-    let pattern = AliasPattern::wildcard(key, "");
+    let pattern = AliasPattern::wildcard(key, rcstr!(""));
 
     // Transform templates into wildcard patterns as well.
     for result in value.results_mut() {

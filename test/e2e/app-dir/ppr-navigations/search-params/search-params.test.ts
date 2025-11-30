@@ -1,6 +1,7 @@
 import { createNext } from 'e2e-utils'
 
-describe('search-params', () => {
+// TODO(NAR-423): Migrate to Cache Components.
+describe.skip('search-params', () => {
   if ((global as any).isNextDev) {
     test('ppr is disabled in dev', () => {})
     return

@@ -1,6 +1,7 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use swc_core::{
+    atoms::{atom, Wtf8Atom},
     common::{util::take::Take, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
@@ -46,7 +47,7 @@ struct State {
     imports: FxHashMap<Id, ImportRecord>,
 
     /// `(module_specifier, property): (identifier)`
-    replaced: FxHashMap<(Atom, Atom), Id>,
+    replaced: FxHashMap<(Wtf8Atom, Atom), Id>,
 
     extra_stmts: Vec<Stmt>,
 
@@ -60,11 +61,11 @@ struct State {
 
 #[derive(Debug)]
 struct ImportRecord {
-    module_specifier: Atom,
+    module_specifier: Wtf8Atom,
 }
 
 impl CjsOptimizer {
-    fn should_rewrite(&self, module_specifier: &Atom) -> Option<&FxHashMap<Atom, Atom>> {
+    fn should_rewrite(&self, module_specifier: &Wtf8Atom) -> Option<&FxHashMap<Atom, Atom>> {
         self.packages.get(module_specifier).map(|v| &v.transforms)
     }
 }
@@ -113,7 +114,7 @@ impl VisitMut for CjsOptimizer {
                                             obj: Box::new(Expr::Call(CallExpr {
                                                 span: DUMMY_SP,
                                                 callee: Ident::new(
-                                                    "require".into(),
+                                                    atom!("require"),
                                                     DUMMY_SP,
                                                     self.unresolved_ctxt,
                                                 )

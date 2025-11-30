@@ -34,7 +34,7 @@ static BOLD_WEIGHT: f64 = 700.0;
 
 #[turbo_tasks::function]
 pub(super) async fn get_font_fallbacks(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     options_vc: Vc<NextFontLocalOptions>,
 ) -> Result<Vc<FontFallbackResult>> {
     let options = &*options_vc.await?;
@@ -90,16 +90,13 @@ pub(super) async fn get_font_fallbacks(
 }
 
 async fn get_font_adjustment(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     options: Vc<NextFontLocalOptions>,
     fallback_font: &DefaultFallbackFont,
 ) -> Result<FontResult<FontAdjustment>> {
     let options = &*options.await?;
     let main_descriptor = pick_font_for_fallback_generation(&options.fonts)?;
-    let font_file = &*lookup_path
-        .join(main_descriptor.path.clone())
-        .read()
-        .await?;
+    let font_file = &*lookup_path.join(&main_descriptor.path)?.read().await?;
     let font_file_rope = match font_file {
         FileContent::NotFound => {
             return Ok(FontResult::FontFileNotFound(FontFileNotFound(

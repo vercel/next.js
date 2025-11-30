@@ -1,6 +1,5 @@
 import type { ServerResponse } from 'http'
 import type { NextConfigComplete } from '../config-shared'
-import type { NextUrlWithParsedQuery } from '../request-meta'
 
 import { randomUUID } from 'crypto'
 import * as fs from 'fs'
@@ -11,9 +10,9 @@ import { getStorageDirectory } from '../cache-dir'
 let workspaceUUID: string | null = null
 
 export function isChromeDevtoolsWorkspaceUrl(
-  url: NextUrlWithParsedQuery
+  pathname: string | undefined
 ): boolean {
-  return url.pathname === '/.well-known/appspecific/com.chrome.devtools.json'
+  return pathname === '/.well-known/appspecific/com.chrome.devtools.json'
 }
 
 export async function handleChromeDevtoolsWorkspaceRequest(

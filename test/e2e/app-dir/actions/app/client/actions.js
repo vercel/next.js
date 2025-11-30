@@ -15,7 +15,7 @@ export async function inc(value) {
 }
 
 export async function slowInc(value) {
-  await new Promise((resolve) => setTimeout(resolve, 10000))
+  await new Promise((resolve) => setTimeout(resolve, 2000))
   return value + 1
 }
 

@@ -133,20 +133,35 @@ function useCopyModern(content: string) {
 const useCopy =
   typeof React.useActionState === 'function' ? useCopyModern : useCopyLegacy
 
-export function CopyButton({
-  actionLabel,
-  successLabel,
-  content,
-  icon,
-  disabled,
-  ...props
-}: React.HTMLProps<HTMLButtonElement> & {
+type CopyButtonProps = React.HTMLProps<HTMLButtonElement> & {
   actionLabel: string
   successLabel: string
-  content: string
   icon?: React.ReactNode
-}) {
-  const [copyState, copy, reset, isPending] = useCopy(content)
+}
+
+export function CopyButton(
+  props: CopyButtonProps & { content?: string; getContent?: () => string }
+) {
+  const {
+    content,
+    getContent,
+    actionLabel,
+    successLabel,
+    icon,
+    disabled,
+    ...rest
+  } = props
+  const getContentString = (): string => {
+    if (content) {
+      return content
+    }
+    if (getContent) {
+      return getContent()
+    }
+    return ''
+  }
+  const contentString = getContentString()
+  const [copyState, copy, reset, isPending] = useCopy(contentString)
 
   const error = copyState.state === 'error' ? copyState.error : null
   React.useEffect(() => {
@@ -186,7 +201,7 @@ export function CopyButton({
 
   return (
     <button
-      {...props}
+      {...rest}
       type="button"
       title={label}
       aria-label={label}

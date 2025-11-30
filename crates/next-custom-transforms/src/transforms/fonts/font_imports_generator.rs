@@ -1,9 +1,9 @@
 use serde_json::Value;
 use swc_core::{
+    atoms::Wtf8Atom,
     common::{errors::HANDLER, Spanned, DUMMY_SP},
     ecma::{
         ast::*,
-        atoms::Atom,
         visit::{noop_visit_type, Visit},
     },
 };
@@ -66,9 +66,10 @@ impl FontImportsGenerator<'_> {
 
                         return Some(ImportDecl {
                             src: Box::new(Str {
-                                value: Atom::from(format!(
+                                value: Wtf8Atom::from(format!(
                                     "{}/target.css?{}",
-                                    font_function.loader, query_json
+                                    font_function.loader.to_string_lossy(),
+                                    query_json
                                 )),
                                 raw: None,
                                 span: DUMMY_SP,
@@ -152,14 +153,14 @@ impl Visit for FontImportsGenerator<'_> {
         match item {
             ModuleItem::Stmt(Stmt::Decl(Decl::Var(var_decl))) => {
                 if self.check_var_decl(var_decl).is_some() {
-                    self.state.removeable_module_items.insert(var_decl.span.lo);
+                    self.state.removable_module_items.insert(var_decl.span.lo);
                 }
             }
             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
                 if let Decl::Var(var_decl) = &export_decl.decl {
                     if let Some(ident) = self.check_var_decl(var_decl) {
                         self.state
-                            .removeable_module_items
+                            .removable_module_items
                             .insert(export_decl.span.lo);
 
                         self.state.font_exports.push(ModuleItem::ModuleDecl(
@@ -223,7 +224,7 @@ fn object_lit_to_json(object_lit: &ObjectLit) -> Value {
 
 fn expr_to_json(expr: &Expr) -> Result<Value, ()> {
     match expr {
-        Expr::Lit(Lit::Str(str)) => Ok(Value::String(String::from(&*str.value))),
+        Expr::Lit(Lit::Str(str)) => Ok(Value::String(str.value.to_string_lossy().into_owned())),
         Expr::Lit(Lit::Bool(Bool { value, .. })) => Ok(Value::Bool(*value)),
         Expr::Lit(Lit::Num(Number { value, .. })) => {
             Ok(Value::Number(serde_json::Number::from_f64(*value).unwrap()))

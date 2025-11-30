@@ -10,7 +10,7 @@ async function updateCookieAndRedirect() {
 export default async function Page() {
   return (
     <>
-      <p id="value">{(await cookies()).get('testCookie')?.value ?? null}</p>
+      <p id="value">{(await cookies()).get('testCookie')?.value ?? '<null>'}</p>
       <form action={updateCookieAndRedirect}>
         <button id="update-cookie" type="submit">
           Update Cookie
