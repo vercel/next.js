@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env_modern/input/Tokenizer.js"],"sourcesContent":["export function char() {\n  return 0\n}\n"],"names":[],"mappings":";;;;AAAO,SAAS;IACd,OAAO;AACT"}},
+    {"offset": {"line": 15, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env_modern/input/Parser.js"],"sourcesContent":["import { char } from './Tokenizer.js'\n\nexport function comment() {\n  console.log(char())\n}\n"],"names":[],"mappings":";;;;AAAA;;AAEO,SAAS;IACd,QAAQ,GAAG,CAAC,IAAA,6NAAI;AAClB"}},
+    {"offset": {"line": 28, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env_modern/input/index.js"],"sourcesContent":["import { comment } from './Parser.js'\n\nconsole.log(comment())\n"],"names":[],"mappings":";AAAA;;AAEA,QAAQ,GAAG,CAAC,IAAA,6NAAO"}}]
+}
