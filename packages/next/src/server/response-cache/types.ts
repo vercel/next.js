@@ -228,11 +228,6 @@ export interface GetIncrementalResponseCacheContext {
    * True if this is a fallback request.
    */
   isFallback: boolean
-
-  /**
-   * True if stale data is allowed to be returned.
-   */
-  allowStale?: boolean
 }
 
 export interface SetIncrementalFetchCacheContext {
@@ -288,5 +283,9 @@ export interface IncrementalCache extends IncrementalResponseCache {
     key: string,
     data: Exclude<IncrementalCacheValue, CachedFetchValue> | null,
     ctx: SetIncrementalResponseCacheContext
+  ): Promise<void>
+  revalidateTag(
+    tags: string | string[],
+    durations?: { expire?: number }
   ): Promise<void>
 }

@@ -30,7 +30,9 @@ import {
   writeRouteTypesManifest,
   writeValidatorFile,
 } from '../server/lib/router-utils/route-types-utils'
+import { writeCacheLifeTypes } from '../server/lib/router-utils/cache-life-type-utils'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
+import { installBindings } from '../build/swc/install-bindings'
 
 export type NextTypegenOptions = {
   dir?: string
@@ -48,6 +50,7 @@ const nextTypegen = async (
   }
 
   const nextConfig = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir)
+  await installBindings(nextConfig.experimental?.useWasmBinary)
   const distDir = join(baseDir, nextConfig.distDir)
   const { pagesDir, appDir } = findPagesDir(baseDir)
 
@@ -60,6 +63,7 @@ const nextTypegen = async (
     disableStaticImages: nextConfig.images.disableStaticImages,
     hasAppDir: !!appDir,
     hasPagesDir: !!pagesDir,
+    isolatedDevBuild: nextConfig.experimental.isolatedDevBuild,
   })
 
   console.log('Generating route types...')
@@ -166,7 +170,11 @@ const nextTypegen = async (
 
   await writeValidatorFile(routeTypesManifest, validatorFilePath)
 
-  console.log('✓ Route types generated successfully')
+  // Generate cache-life types if cacheLife config exists
+  const cacheLifeFilePath = join(distDir, 'types', 'cache-life.d.ts')
+  writeCacheLifeTypes(nextConfig.cacheLife, cacheLifeFilePath)
+
+  console.log('✓ Types generated successfully')
 }
 
 export { nextTypegen }

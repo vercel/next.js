@@ -196,9 +196,16 @@ function getSourcemappedFrameIfPossible(
     }
     sourceMapPayload = maybeSourceMapPayload
     try {
+      // Pass the source map URL as the second parameter so that the consumer
+      // can resolve relative paths in the source map's `sources` array.
+      // This is a guess!  Turbopack places .map files as siblings to the chunks so this is sufficient to compute
+      // relative paths but is actually wrong (the chunk and sourcemap have different content hashes).
+      // We are using the node API to read the sourcemap and it doesn't give us access to the URI.
+      const sourceMapURL = sourceURL + '.map'
       sourceMapConsumer = new SyncSourceMapConsumer(
-        // @ts-expect-error -- Module.SourceMap['version'] is number but SyncSourceMapConsumer wants a string
-        sourceMapPayload
+        sourceMapPayload,
+        // @ts-expect-error: our typings don't include this parameter but it is here.
+        sourceMapURL
       )
     } catch (cause) {
       // We should not log an actual error instance here because that will re-enter
@@ -320,8 +327,7 @@ function parseAndSourceMap(
   error: Error,
   inspectOptions: util.InspectOptions
 ): string {
-  // TODO(veil): Expose as CLI arg or config option. Useful for local debugging.
-  const showIgnoreListed = false
+  const showIgnoreListed = process.env.__NEXT_SHOW_IGNORE_LISTED === 'true'
   // We overwrote Error.prepareStackTrace earlier so error.stack is not sourcemapped.
   let unparsedStack = String(error.stack)
   // We could just read it from `error.stack`.
@@ -471,7 +477,6 @@ export function patchErrorInspectNodeJS(
   errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
 
   // @ts-expect-error -- TODO upstream types
-  // eslint-disable-next-line no-extend-native -- We're not extending but overriding.
   errorConstructor.prototype[inspectSymbol] = function (
     depth: number,
     inspectOptions: util.InspectOptions,
@@ -512,7 +517,6 @@ export function patchErrorInspectEdgeLite(
   errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
 
   // @ts-expect-error -- TODO upstream types
-  // eslint-disable-next-line no-extend-native -- We're not extending but overriding.
   errorConstructor.prototype[inspectSymbol] = function ({
     format,
   }: {

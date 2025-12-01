@@ -19,7 +19,9 @@ pub enum ConstantConditionValue {
     Nullish,
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash,
+)]
 pub struct ConstantConditionCodeGen {
     value: ConstantConditionValue,
     path: AstPath,

@@ -4,13 +4,13 @@
 
 use anyhow::Result;
 use turbo_tasks::{State, Vc};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn hidden_mutate() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let input = create_input().resolve().await?;
         input.await?.state.set(1);
         let changing_value = compute(input);

@@ -219,7 +219,7 @@ export class GracefullyDegradingErrorBoundary extends Component<
   ErrorBoundaryProps,
   ErrorBoundaryState
 > {
-  private contentRef: React.RefObject<HTMLDivElement>
+  private contentRef: React.RefObject<HTMLDivElement | null>
 
   constructor(props: ErrorBoundaryProps) {
     super(props)

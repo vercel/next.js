@@ -297,9 +297,6 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       externalsMap,
       externalHandler,
     ],
-    experiments: {
-      layers: true,
-    },
     ...rest,
   }
 }

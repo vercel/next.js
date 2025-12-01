@@ -17,7 +17,7 @@ harness = false
 workspace = true
 
 [dependencies]
-anyhow = { workspace = true, features = ["backtrace"] }
+anyhow = { workspace = true }
 chromiumoxide = { workspace = true, features = [
   "tokio-runtime",
 ], default-features = false }

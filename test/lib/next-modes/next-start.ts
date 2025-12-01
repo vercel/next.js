@@ -4,6 +4,7 @@ import { NextInstance } from './base'
 import spawn from 'cross-spawn'
 import { Span } from 'next/dist/trace'
 import stripAnsi from 'strip-ansi'
+import { quote as shellQuote } from 'shell-quote'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
@@ -64,7 +65,7 @@ export class NextStartInstance extends NextInstance {
 
     if (!options.skipBuild) {
       const buildArgs = this.getBuildArgs()
-      console.log('running', buildArgs.join(' '))
+      console.log('running', shellQuote(buildArgs))
       await new Promise<void>((resolve, reject) => {
         try {
           this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
@@ -80,7 +81,10 @@ export class NextStartInstance extends NextInstance {
             else resolve()
           })
         } catch (err) {
-          require('console').error(`Failed to run ${buildArgs.join(' ')}`, err)
+          require('console').error(
+            `Failed to run ${shellQuote(buildArgs)}`,
+            err
+          )
           setTimeout(() => process.exit(1), 0)
         }
       })
@@ -99,20 +103,22 @@ export class NextStartInstance extends NextInstance {
       ).trim()
     }
 
-    console.log('running', startArgs.join(' '))
+    console.log('running', shellQuote(startArgs))
     await new Promise<void>((resolve, reject) => {
       try {
         this.childProcess = spawn(startArgs[0], startArgs.slice(1), spawnOpts)
         this.handleStdio(this.childProcess)
 
         this.childProcess.on('close', (code, signal) => {
-          if (this.isStopping) return
+          this.childProcess = undefined
           if (code || signal) {
-            require('console').error(
-              `next start exited unexpectedly with code/signal ${
-                code || signal
-              }`
-            )
+            let message = `next start exited unexpectedly with code/signal ${
+              code || signal
+            }`
+            if (!this.isStopping) {
+              require('console').error(message)
+            }
+            reject(new Error(message))
           }
         })
 
@@ -141,7 +147,7 @@ export class NextStartInstance extends NextInstance {
         }
         this.on('stdout', readyCb)
       } catch (err) {
-        require('console').error(`Failed to run ${startArgs.join(' ')}`, err)
+        require('console').error(`Failed to run ${shellQuote(startArgs)}`, err)
         setTimeout(() => process.exit(1), 0)
       }
     })
@@ -207,7 +213,7 @@ export class NextStartInstance extends NextInstance {
       const spawnOpts = this.getSpawnOpts(options.env)
       const buildArgs = this.getBuildArgs(options.args)
 
-      console.log('running', buildArgs.join(' '))
+      console.log('running', shellQuote(buildArgs))
 
       this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
       this.handleStdio(this.childProcess)

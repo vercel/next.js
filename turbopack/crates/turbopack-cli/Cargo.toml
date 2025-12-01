@@ -37,7 +37,7 @@ custom_allocator = ["turbo-tasks-malloc/custom_allocator"]
 workspace = true
 
 [dependencies]
-anyhow = { workspace = true, features = ["backtrace"] }
+anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 console-subscriber = { workspace = true, optional = true }
 dunce = { workspace = true }
@@ -53,6 +53,7 @@ turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-env = { workspace = true }
+turbo-unix-path = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
 turbopack = { workspace = true }

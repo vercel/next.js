@@ -1,0 +1,49 @@
+export function a() {
+  return `This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+This is some big library. This is some big library. This is some big library. This is some big library. This is some big library. This is some big library.
+`
+}

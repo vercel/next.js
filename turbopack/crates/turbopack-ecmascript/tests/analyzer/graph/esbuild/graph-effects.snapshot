@@ -73,7 +73,6 @@
             ),
         ],
         span: 2687..2706,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -170,7 +169,6 @@
             ),
         ],
         span: 2725..2739,
-        in_try: false,
     },
     FreeVar {
         var: "__filename",
@@ -257,7 +255,6 @@
             ),
         ],
         span: 2740..2750,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -450,7 +447,6 @@
             ),
         ],
         span: 2775..2789,
-        in_try: false,
     },
     FreeVar {
         var: "__dirname",
@@ -537,7 +533,6 @@
             ),
         ],
         span: 2790..2799,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -800,7 +795,6 @@
                             ),
                         ],
                         span: 2832..2837,
-                        in_try: false,
                     },
                     FreeVar {
                         var: "__filename",
@@ -885,7 +879,6 @@
                             ),
                         ],
                         span: 3047..3057,
-                        in_try: false,
                     },
                     Call {
                         func: FreeVar(
@@ -1076,7 +1069,6 @@
             ),
         ],
         span: 2676..3489,
-        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -1192,7 +1184,6 @@
                             ),
                         ],
                         span: 3526..3536,
-                        in_try: false,
                     },
                     FreeVar {
                         var: "__dirname",
@@ -1291,7 +1282,6 @@
                             ),
                         ],
                         span: 3537..3546,
-                        in_try: false,
                     },
                     MemberCall {
                         obj: Variable(
@@ -1739,7 +1729,6 @@
             ),
         ],
         span: 3492..3578,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1831,7 +1820,6 @@
             ),
         ],
         span: 3671..3682,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -1937,7 +1925,6 @@
             ),
         ],
         span: 12..19,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -2024,7 +2011,6 @@
             ),
         ],
         span: 41..48,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -2111,7 +2097,6 @@
             ),
         ],
         span: 67..74,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -2223,7 +2208,6 @@
             ),
         ],
         span: 1005..1021,
-        in_try: false,
     },
     FreeVar {
         var: "process",
@@ -2286,7 +2270,6 @@
             ),
         ],
         span: 1005..1012,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -2364,7 +2347,6 @@
             ),
         ],
         span: 1025..1032,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -2513,7 +2495,6 @@
             ),
         ],
         span: 1038..1051,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -2656,7 +2637,6 @@
             ),
         ],
         span: 1112..1145,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -2734,7 +2714,6 @@
             ),
         ],
         span: 1239..1273,
-        in_try: false,
     },
     FreeVar {
         var: "Error",
@@ -2801,7 +2780,6 @@
             ),
         ],
         span: 1329..1334,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -2960,7 +2938,6 @@
             ),
         ],
         span: 1444..1463,
-        in_try: false,
     },
     Conditional {
         condition: FreeVar(
@@ -3022,7 +2999,6 @@
                             ),
                         ],
                         span: 1478..1497,
-                        in_try: false,
                     },
                     Unreachable {
                         start_ast_path: [
@@ -3239,7 +3215,6 @@
                             ),
                         ],
                         span: 1602..1617,
-                        in_try: true,
                     },
                     FreeVar {
                         var: "require",
@@ -3312,7 +3287,6 @@
                             ),
                         ],
                         span: 1602..1609,
-                        in_try: true,
                     },
                     MemberCall {
                         obj: FreeVar(
@@ -3478,7 +3452,6 @@
                             ),
                         ],
                         span: 1670..1687,
-                        in_try: false,
                     },
                     Call {
                         func: FreeVar(
@@ -3639,7 +3612,6 @@
                             ),
                         ],
                         span: 1712..1725,
-                        in_try: false,
                     },
                     FreeVar {
                         var: "fs",
@@ -3715,7 +3687,6 @@
                             ),
                         ],
                         span: 1712..1714,
-                        in_try: false,
                     },
                     MemberCall {
                         obj: FreeVar(
@@ -3922,7 +3893,6 @@
                                             ),
                                         ],
                                         span: 1758..1773,
-                                        in_try: true,
                                     },
                                     FreeVar {
                                         var: "require",
@@ -4017,7 +3987,6 @@
                                             ),
                                         ],
                                         span: 1758..1765,
-                                        in_try: true,
                                     },
                                     MemberCall {
                                         obj: FreeVar(
@@ -4206,7 +4175,6 @@
                                             ),
                                         ],
                                         span: 1814..1819,
-                                        in_try: false,
                                     },
                                     Call {
                                         func: FreeVar(
@@ -4423,7 +4391,6 @@
                             ),
                         ],
                         span: 1707..2154,
-                        in_try: false,
                     },
                     FreeVar {
                         var: "require",
@@ -4484,7 +4451,6 @@
                             ),
                         ],
                         span: 2196..2203,
-                        in_try: true,
                     },
                     Call {
                         func: FreeVar(
@@ -4644,7 +4610,6 @@
                                             ),
                                         ],
                                         span: 2299..2311,
-                                        in_try: false,
                                     },
                                     Member {
                                         obj: FreeVar(
@@ -4736,7 +4701,6 @@
                                             ),
                                         ],
                                         span: 2312..2327,
-                                        in_try: false,
                                     },
                                     FreeVar {
                                         var: "require",
@@ -4825,7 +4789,6 @@
                                             ),
                                         ],
                                         span: 2312..2319,
-                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: FreeVar(
@@ -5106,7 +5069,6 @@
                                             ),
                                         ],
                                         span: 2367..2376,
-                                        in_try: false,
                                     },
                                     Member {
                                         obj: Variable(
@@ -5209,7 +5171,6 @@
                                             ),
                                         ],
                                         span: 2422..2435,
-                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -5530,7 +5491,6 @@
                                             ),
                                         ],
                                         span: 2463..2476,
-                                        in_try: false,
                                     },
                                     FreeVar {
                                         var: "fs",
@@ -5606,7 +5566,6 @@
                                             ),
                                         ],
                                         span: 2463..2465,
-                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: FreeVar(
@@ -5802,7 +5761,6 @@
                                                             ),
                                                         ],
                                                         span: 2501..2516,
-                                                        in_try: false,
                                                     },
                                                     FreeVar {
                                                         var: "fs",
@@ -5886,7 +5844,6 @@
                                                             ),
                                                         ],
                                                         span: 2501..2503,
-                                                        in_try: false,
                                                     },
                                                     MemberCall {
                                                         obj: FreeVar(
@@ -6070,7 +6027,6 @@
                                                             ),
                                                         ],
                                                         span: 2548..2560,
-                                                        in_try: false,
                                                     },
                                                     FreeVar {
                                                         var: "fs",
@@ -6154,7 +6110,6 @@
                                                             ),
                                                         ],
                                                         span: 2548..2550,
-                                                        in_try: false,
                                                     },
                                                     MemberCall {
                                                         obj: FreeVar(
@@ -6354,7 +6309,6 @@
                                             ),
                                         ],
                                         span: 2458..2587,
-                                        in_try: false,
                                     },
                                     Unreachable {
                                         start_ast_path: [
@@ -6542,7 +6496,6 @@
                             ),
                         ],
                         span: 2256..2617,
-                        in_try: false,
                     },
                 ],
                 range: StartAfter(
@@ -6613,6 +6566,5 @@
             ),
         ],
         span: 1440..1502,
-        in_try: false,
     },
 ]

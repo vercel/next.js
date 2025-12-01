@@ -10,29 +10,21 @@ declare const __webpack_require__: any
 // I am keeping the process check explicit so this can be statically optimized
 if (process.env.NEXT_DEPLOYMENT_ID) {
   const suffix = getDeploymentIdQueryOrEmptyString()
-  // eslint-disable-next-line no-undef
   const getChunkScriptFilename = __webpack_require__.u
-  // eslint-disable-next-line no-undef
   __webpack_require__.u = (...args: any[]) =>
     // We encode the chunk filename because our static server matches against and encoded
     // filename path.
     encodeURIPath(getChunkScriptFilename(...args)) + suffix
 
-  // eslint-disable-next-line no-undef
   const getChunkCssFilename = __webpack_require__.k
-  // eslint-disable-next-line no-undef
   __webpack_require__.k = (...args: any[]) =>
     getChunkCssFilename(...args) + suffix
 
-  // eslint-disable-next-line no-undef
   const getMiniCssFilename = __webpack_require__.miniCssF
-  // eslint-disable-next-line no-undef
   __webpack_require__.miniCssF = (...args: any[]) =>
     getMiniCssFilename(...args) + suffix
 } else {
-  // eslint-disable-next-line no-undef
   const getChunkScriptFilename = __webpack_require__.u
-  // eslint-disable-next-line no-undef
   __webpack_require__.u = (...args: any[]) =>
     // We encode the chunk filename because our static server matches against and encoded
     // filename path.

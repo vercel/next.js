@@ -29,7 +29,6 @@
             ),
         ],
         span: 11..17,
-        in_try: false,
     },
     Member {
         obj: FreeVar(
@@ -79,7 +78,6 @@
             ),
         ],
         span: 30..41,
-        in_try: false,
     },
     FreeVar {
         var: "Object",
@@ -126,7 +124,6 @@
             ),
         ],
         span: 30..36,
-        in_try: false,
     },
     MemberCall {
         obj: FreeVar(
@@ -231,7 +228,6 @@
             ),
         ],
         span: 56..62,
-        in_try: false,
     },
     FreeVar {
         var: "Object",
@@ -274,7 +270,6 @@
             ),
         ],
         span: 63..69,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(

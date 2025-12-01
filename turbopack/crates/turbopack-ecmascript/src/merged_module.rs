@@ -9,6 +9,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::ModuleReferences,
 };
 
@@ -77,6 +78,11 @@ impl Module for MergedEcmascriptModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         panic!("references() should not be called");
     }
@@ -112,6 +118,9 @@ struct MergedEcmascriptModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for MergedEcmascriptModuleChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for MergedEcmascriptModuleChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
@@ -120,7 +129,7 @@ impl ChunkItem for MergedEcmascriptModuleChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -147,19 +156,15 @@ impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
     async fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let module = self.module.await?;
         let modules = &module.modules;
         let entry_points = &module.entry_points;
         let options = modules
             .iter()
-            .map(|(m, _)| {
-                let Some(m) = ResolvedVc::try_downcast::<Box<dyn EcmascriptAnalyzable>>(*m) else {
-                    anyhow::bail!("Expected EcmascriptAnalyzable in scope hoisting group");
-                };
-                Ok(m.module_content_options(*self.chunking_context, async_module_info))
-            })
-            .collect::<Result<Vec<_>>>()?;
+            .map(|(m, _)| m.module_content_options(*self.chunking_context, async_module_info))
+            .collect::<Vec<_>>();
 
         let content = EcmascriptModuleContent::new_merged(
             modules.clone(),

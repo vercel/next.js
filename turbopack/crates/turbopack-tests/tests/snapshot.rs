@@ -11,7 +11,7 @@ use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ReadConsistency, ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects};
+use turbo_tasks::{ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -20,10 +20,12 @@ use turbo_tasks_fs::{
 use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
-    ecmascript::{EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType},
+    ecmascript::{
+        AnalyzeMode, EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType,
+    },
     module_options::{
         EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
-        ModuleRuleEffect, RuleCondition,
+        ModuleRuleEffect, RuleCondition, TypescriptTransformOptions,
     },
 };
 use turbopack_browser::BrowserChunkingContext;
@@ -31,7 +33,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         ChunkingConfig, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssetExt,
-        EvaluatableAssets, MinifyType, availability_info::AvailabilityInfo,
+        EvaluatableAssets, MinifyType, SourceMapSourceType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
     compile_time_info::{CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment},
@@ -41,14 +43,14 @@ use turbopack_core::{
     file_source::FileSource,
     free_var_references,
     ident::Layer,
-    issue::IssueDescriptionExt,
+    issue::CollectibleIssuesExt,
     module::Module,
     module_graph::{
         ModuleGraph,
+        binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
-        export_usage::compute_export_usage_info,
     },
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
@@ -82,11 +84,17 @@ struct SnapshotOptions {
     #[serde(default)]
     tree_shaking_mode: Option<TreeShakingMode>,
     #[serde(default)]
+    remove_unused_imports: bool,
+    #[serde(default)]
     remove_unused_exports: bool,
     #[serde(default)]
     scope_hoisting: bool,
     #[serde(default)]
     production_chunking: bool,
+    #[serde(default)]
+    enable_debug_ids: bool,
+    #[serde(default)]
+    source_map_source_type: SourceMapSourceType,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -113,9 +121,12 @@ impl Default for SnapshotOptions {
             runtime_type: default_runtime_type(),
             environment: Default::default(),
             tree_shaking_mode: None,
+            remove_unused_imports: false,
             remove_unused_exports: false,
             scope_hoisting: false,
             production_chunking: false,
+            enable_debug_ids: false,
+            source_map_source_type: SourceMapSourceType::default(),
         }
     }
 }
@@ -189,7 +200,7 @@ fn test(resource: PathBuf) {
     run(resource).unwrap();
 }
 
-#[tokio::main(flavor = "current_thread")]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn run(resource: PathBuf) -> Result<()> {
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
@@ -201,15 +212,14 @@ async fn run(resource: PathBuf) -> Result<()> {
         },
         noop_backing_storage(),
     ));
-    let task = tt.spawn_once_task(async move {
+    tt.run_once(async move {
         let emit_op = run_inner_operation(resource.to_str().unwrap().into());
         emit_op.read_strongly_consistent().await?;
         apply_effects(emit_op).await?;
 
-        Ok(Vc::<()>::default())
-    });
-    tt.wait_task_completion(task, ReadConsistency::Strong)
-        .await?;
+        Ok(())
+    })
+    .await?;
 
     Ok(())
 }
@@ -218,9 +228,8 @@ async fn run(resource: PathBuf) -> Result<()> {
 async fn run_inner_operation(resource: RcStr) -> Result<()> {
     let out_op = run_test_operation(resource);
     let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
-    let captured_issues = out_op.peek_issues_with_path().await?;
 
-    let plain_issues = captured_issues.get_plain_issues().await?;
+    let plain_issues = out_op.peek_issues().get_plain_issues().await?;
 
     snapshot_issues(plain_issues, out_vc.join("issues")?, &REPO_ROOT)
         .await
@@ -257,33 +266,28 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let entry_asset = project_path.join(&options.entry)?;
 
-    let env = match options.environment {
+    let env = Environment::new(match options.environment {
         SnapshotEnvironment::Browser => {
-            let environment=// TODO: load more from options.json
-            BrowserEnvironment {
-                dom: true,
-                web_worker: false,
-                service_worker: false,
-                browserslist_query: options.browserslist.into(),
-            }
-            .resolved_cell();
-
-            Environment::new(ExecutionEnvironment::Browser(environment), *environment)
-                .to_resolved()
-                .await?
+            ExecutionEnvironment::Browser(
+                // TODO: load more from options.json
+                BrowserEnvironment {
+                    dom: true,
+                    web_worker: false,
+                    service_worker: false,
+                    browserslist_query: options.browserslist.into(),
+                }
+                .resolved_cell(),
+            )
         }
         SnapshotEnvironment::NodeJs => {
-            Environment::new(
-                ExecutionEnvironment::NodeJsBuildTime(
-                    // TODO: load more from options.json
-                    NodeJsEnvironment::default().resolved_cell(),
-                ),
-                BrowserEnvironment::default().cell(),
+            ExecutionEnvironment::NodeJsBuildTime(
+                // TODO: load more from options.json
+                NodeJsEnvironment::default().resolved_cell(),
             )
-            .to_resolved()
-            .await?
         }
-    };
+    })
+    .to_resolved()
+    .await?;
 
     let mut defines = compile_time_defines!(
         process.turbopack = true,
@@ -346,11 +350,15 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         compile_time_info,
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
+                enable_typescript_transform: Some(
+                    TypescriptTransformOptions::default().resolved_cell(),
+                ),
                 enable_jsx: Some(JsxTransformOptions::resolved_cell(JsxTransformOptions {
                     development: true,
                     ..Default::default()
                 })),
                 ignore_dynamic_requests: true,
+                enable_exports_info_inlining: true,
                 ..Default::default()
             },
             environment: Some(env),
@@ -359,15 +367,17 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ModuleOptionsContext {
                     environment: Some(env),
                     tree_shaking_mode: options.tree_shaking_mode,
+                    analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
                     ..Default::default()
                 }
                 .resolved_cell(),
             )],
             module_rules: vec![module_rules],
             tree_shaking_mode: options.tree_shaking_mode,
+            analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
             ..Default::default()
         }
-        .into(),
+        .cell(),
         ResolveOptionsContext {
             enable_typescript: true,
             enable_react: true,
@@ -404,7 +414,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     {
         let evaluatable_assets = runtime_entries
             .unwrap_or_else(EvaluatableAssets::empty)
-            .with_entry(Vc::upcast(ecmascript));
+            .with_entry(ecmascript);
         (
             evaluatable_assets,
             evaluatable_assets
@@ -419,20 +429,26 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")
     };
 
-    let module_graph = ModuleGraph::from_modules(
+    let mut module_graph = ModuleGraph::from_modules(
         Vc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
         false,
     );
 
-    let export_usage = if options.remove_unused_exports {
+    let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
         Some(
-            compute_export_usage_info(module_graph.to_resolved().await?)
-                .resolve_strongly_consistent()
-                .await?,
+            compute_binding_usage_info(
+                module_graph.to_resolved().await?,
+                options.remove_unused_imports,
+            )
+            .resolve_strongly_consistent()
+            .await?,
         )
     } else {
         None
     };
+    if options.remove_unused_imports {
+        module_graph = module_graph.without_unused_references(*binding_usage.unwrap());
+    }
 
     let chunk_root_path = project_path.join("output")?;
     let static_root_path = project_path.join("static")?;
@@ -456,18 +472,31 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(export_usage);
+            .export_usage(
+                options
+                    .remove_unused_exports
+                    .then(|| binding_usage.unwrap()),
+            )
+            .unused_references(
+                options
+                    .remove_unused_exports
+                    .then(|| binding_usage.unwrap()),
+            )
+            .debug_ids(options.enable_debug_ids)
+            .source_map_source_type(options.source_map_source_type);
 
             if options.production_chunking {
-                builder = builder.chunking_config(
-                    Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                    ChunkingConfig {
-                        min_chunk_size: 2_000,
-                        max_chunk_count_per_group: 40,
-                        max_merge_chunk_size: 200_000,
-                        ..Default::default()
-                    },
-                )
+                builder = builder
+                    .chunking_config(
+                        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                        ChunkingConfig {
+                            min_chunk_size: 2_000,
+                            max_chunk_count_per_group: 40,
+                            max_merge_chunk_size: 200_000,
+                            ..Default::default()
+                        },
+                    )
+                    .nested_async_availability(true);
             }
             Vc::upcast(builder.build())
         }
@@ -484,18 +513,31 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(export_usage);
+            .export_usage(
+                options
+                    .remove_unused_exports
+                    .then(|| binding_usage.unwrap()),
+            )
+            .unused_references(
+                options
+                    .remove_unused_exports
+                    .then(|| binding_usage.unwrap()),
+            )
+            .debug_ids(options.enable_debug_ids)
+            .source_map_source_type(options.source_map_source_type);
 
             if options.production_chunking {
-                builder = builder.chunking_config(
-                    Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                    ChunkingConfig {
-                        min_chunk_size: 2_000,
-                        max_chunk_count_per_group: 40,
-                        max_merge_chunk_size: 200_000,
-                        ..Default::default()
-                    },
-                )
+                builder = builder
+                    .chunking_config(
+                        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                        ChunkingConfig {
+                            min_chunk_size: 2_000,
+                            max_chunk_count_per_group: 40,
+                            max_merge_chunk_size: 200_000,
+                            ..Default::default()
+                        },
+                    )
+                    .nested_async_availability(true);
             }
             Vc::upcast(builder.build())
         }
@@ -507,31 +549,37 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             entry_module.ident(),
             ChunkGroup::Entry(entry_modules.into_iter().collect()),
             module_graph,
-            AvailabilityInfo::Root,
+            AvailabilityInfo::root(),
         ),
         Runtime::NodeJs => {
-            Vc::cell(vec![
-                Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
-                    .await?
-                    .unwrap()
-                    .entry_chunk_group(
-                        // `expected` expects a completely flat output directory.
-                        chunk_root_path
-                            .join(entry_module.ident().path().await?.file_stem().unwrap())?
-                            .with_extension("entry.js"),
-                        evaluatable_assets,
-                        module_graph,
-                        OutputAssets::empty(),
-                        AvailabilityInfo::Root,
-                    )
-                    .await?
-                    .asset,
-            ])
+            OutputAssetsWithReferenced {
+                assets: ResolvedVc::cell(vec![
+                    Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
+                        .await?
+                        .unwrap()
+                        .entry_chunk_group(
+                            // `expected` expects a completely flat output directory.
+                            chunk_root_path
+                                .join(entry_module.ident().path().await?.file_stem().unwrap())?
+                                .with_extension("entry.js"),
+                            evaluatable_assets,
+                            module_graph,
+                            OutputAssets::empty(),
+                            OutputAssets::empty(),
+                            AvailabilityInfo::root(),
+                        )
+                        .await?
+                        .asset,
+                ]),
+                referenced_assets: ResolvedVc::cell(vec![]),
+                references: ResolvedVc::cell(vec![]),
+            }
+            .cell()
         }
     };
 
     let mut seen = FxHashSet::default();
-    let mut queue: VecDeque<_> = chunks.await?.iter().copied().collect();
+    let mut queue: VecDeque<_> = chunks.expand_all_assets().await?.iter().copied().collect();
 
     let output_path = project_path.clone();
     while let Some(asset) = queue.pop_front() {
@@ -567,7 +615,7 @@ async fn walk_asset(
         diff(path.clone(), asset.content()).await?;
     }
 
-    queue.extend(asset.references().await?.iter().copied());
+    queue.extend(asset.references().all_assets().await?.iter().copied());
 
     Ok(())
 }

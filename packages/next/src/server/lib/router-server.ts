@@ -305,7 +305,6 @@ export async function initialize(opts: {
           await initResult?.requestHandler(req, res)
         } catch (err) {
           if (err instanceof NoFallbackError) {
-            // eslint-disable-next-line
             await handleRequest(handleIndex + 1)
             return
           }
@@ -576,7 +575,8 @@ export async function initialize(opts: {
         )
       }
 
-      if (opts.dev && isChromeDevtoolsWorkspaceUrl(parsedUrl)) {
+      // We want the original pathname without any basePath or proxy rewrites.
+      if (opts.dev && isChromeDevtoolsWorkspaceUrl(req.url)) {
         await handleChromeDevtoolsWorkspaceRequest(res, opts, config)
         return
       }
@@ -723,7 +723,15 @@ export async function initialize(opts: {
     logErrorWithOriginalStack: opts.dev
       ? handlers.server.logErrorWithOriginalStack.bind(handlers.server)
       : (err: unknown) => !opts.quiet && Log.error(err),
+    setCacheStatus: config.cacheComponents
+      ? devBundlerService?.setCacheStatus.bind(devBundlerService)
+      : undefined,
     setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
+    setReactDebugChannel: config.experimental.reactDebugChannel
+      ? devBundlerService?.setReactDebugChannel.bind(devBundlerService)
+      : undefined,
+    sendErrorsToBrowser:
+      devBundlerService?.sendErrorsToBrowser.bind(devBundlerService),
   }
 
   const logError = async (
@@ -798,13 +806,22 @@ export async function initialize(opts: {
             req,
             socket,
             head,
-            (client) => {
-              client.send(
-                JSON.stringify({
-                  type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST,
-                  data: devBundlerService?.appIsrManifest || {},
-                } satisfies AppIsrManifestMessage)
-              )
+            (client, { isLegacyClient }) => {
+              if (isLegacyClient) {
+                // Only send the ISR manifest to legacy clients, i.e. Pages
+                // Router clients, or App Router clients that have Cache
+                // Components disabled. The ISR manifest is only used to inform
+                // the static indicator, which currently does not provide useful
+                // information if Cache Components is enabled due to its binary
+                // nature (i.e. it does not support showing info for partially
+                // static pages).
+                client.send(
+                  JSON.stringify({
+                    type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST,
+                    data: devBundlerService?.appIsrManifest || {},
+                  } satisfies AppIsrManifestMessage)
+                )
+              }
             }
           )
         }

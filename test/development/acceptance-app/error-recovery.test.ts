@@ -6,11 +6,10 @@ import path from 'path'
 import { outdent } from 'outdent'
 
 describe('Error recovery app', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
-  const isRspack = !!process.env.NEXT_RSPACK
 
   test('can recover from a syntax error without losing state', async () => {
     await using sandbox = await createSandbox(next)
@@ -115,7 +114,7 @@ describe('Error recovery app', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
 
     await check(
       () => session.evaluate(() => document.querySelector('p').textContent),
@@ -384,7 +383,7 @@ describe('Error recovery app', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(await session.hasErrorToast()).toBe(false)
 
     expect(
@@ -395,7 +394,7 @@ describe('Error recovery app', () => {
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(await session.hasErrorToast()).toBe(false)
   })
 
@@ -472,7 +471,7 @@ describe('Error recovery app', () => {
 
     // TODO-APP: re-enable when error recovery doesn't reload the page.
     // expect(didNotReload).toBe(true)
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Hello')
@@ -520,7 +519,7 @@ describe('Error recovery app', () => {
     )
 
     if (isTurbopack) {
-      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
+      // TODO(veil): Possibly https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
          "description": "oops",
@@ -531,8 +530,6 @@ describe('Error recovery app', () => {
            |         ^",
          "stack": [
            "Child child.js (3:9)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
            "Index index.js (6:7)",
            "<FIXME-file-protocol>",
          ],
@@ -568,7 +565,7 @@ describe('Error recovery app', () => {
 
     // TODO-APP: re-enable when error recovery doesn't reload the page.
     // expect(didNotReload).toBe(true)
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Hello')
@@ -824,7 +821,7 @@ describe('Error recovery app', () => {
 
     // We get an error because Foo didn't import React. Fair.
     if (isTurbopack) {
-      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
+      // TODO(veil): Possibly https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
          "description": "React is not defined",
@@ -835,8 +832,6 @@ describe('Error recovery app', () => {
            |   ^",
          "stack": [
            "Foo Foo.js (3:3)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
            "FunctionDefault index.js (4:10)",
            "<FIXME-file-protocol>",
          ],
@@ -872,7 +867,7 @@ describe('Error recovery app', () => {
     )
 
     // Expected: this fixes the problem
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554137262
@@ -1086,7 +1081,6 @@ describe('Error recovery app', () => {
     )
     if (isTurbopack) {
       // TODO(veil): Location of Page should be app/page.js
-      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
          "description": "nooo",
@@ -1097,8 +1091,6 @@ describe('Error recovery app', () => {
            |           ^",
          "stack": [
            "ClassDefault.render index.js (5:11)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
            "Page index.js (10:16)",
          ],
        }

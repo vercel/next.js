@@ -3,6 +3,8 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 import type { Params } from '../../server/request/params'
+import { LayoutRouterContext } from '../../shared/lib/app-router-context.shared-runtime'
+import { use } from 'react'
 
 /**
  * When the Page is a client component we send the params to this client wrapper
@@ -15,15 +17,26 @@ import type { Params } from '../../server/request/params'
 export function ClientSegmentRoot({
   Component,
   slots,
-  params,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  promise,
+  serverProvidedParams,
 }: {
   Component: React.ComponentType<any>
   slots: { [key: string]: React.ReactNode }
-  params: Params
-  promise?: Promise<any>
+  serverProvidedParams: null | {
+    params: Params
+    promises: Array<Promise<any>> | null
+  }
 }) {
+  let params: Params
+  if (serverProvidedParams !== null) {
+    params = serverProvidedParams.params
+  } else {
+    // When Cache Components is enabled, the server does not pass the params
+    // as props; they are parsed on the client and passed via context.
+    const layoutRouterContext = use(LayoutRouterContext)
+    params =
+      layoutRouterContext !== null ? layoutRouterContext.parentParams : {}
+  }
+
   if (typeof window === 'undefined') {
     const { workAsyncStorage } =
       require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')

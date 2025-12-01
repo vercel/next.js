@@ -302,7 +302,7 @@ fn format_radix(mut x: u32, radix: u32) -> String {
 /// /(post)/sitemap -> /sitemap
 fn get_metadata_route_suffix(page: &str) -> Option<String> {
     // skip sitemap
-    if page.ends_with("/sitemap") {
+    if page.ends_with("/sitemap") || page.ends_with("/sitemap.xml") {
         return None;
     }
 

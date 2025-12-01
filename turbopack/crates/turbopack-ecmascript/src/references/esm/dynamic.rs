@@ -121,7 +121,9 @@ impl IntoCodeGenReference for EsmAsyncAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+)]
 pub struct EsmAsyncAssetReferenceCodeGen {
     path: AstPath,
     reference: ResolvedVc<EsmAsyncAssetReference>,
@@ -137,7 +139,7 @@ impl EsmAsyncAssetReferenceCodeGen {
         let pm = PatternMapping::resolve_request(
             *reference.request,
             *reference.origin,
-            Vc::upcast(chunking_context),
+            chunking_context,
             self.reference.resolve_reference(),
             if matches!(
                 *chunking_context.environment().chunk_loading().await?,

@@ -1,10 +1,10 @@
 use anyhow::Result;
 use rustc_hash::FxHashSet;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
 
 use crate::{
     module::{Module, Modules},
-    module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraph},
+    module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraphWithBindingUsage},
 };
 
 #[turbo_tasks::value(transparent)]
@@ -37,74 +37,73 @@ impl AsyncModulesInfo {
 
 #[turbo_tasks::function(operation)]
 pub async fn compute_async_module_info(
-    graph: ResolvedVc<ModuleGraph>,
+    graphs: ResolvedVc<ModuleGraph>,
 ) -> Result<Vc<AsyncModulesInfo>> {
     // Layout segment optimization, we can individually compute the async modules for each graph.
     let mut result: Vc<AsyncModulesInfo> = Vc::cell(Default::default());
-    for g in &graph.await?.graphs {
-        result = compute_async_module_info_single(**g, result);
+    let graphs = graphs.await?;
+    for graph in graphs.iter_graphs() {
+        result = compute_async_module_info_single(graph, result);
     }
     Ok(result)
 }
 
 #[turbo_tasks::function]
 async fn compute_async_module_info_single(
-    graph: Vc<SingleModuleGraph>,
+    graph: SingleModuleGraphWithBindingUsage,
     parent_async_modules: Vc<AsyncModulesInfo>,
 ) -> Result<Vc<AsyncModulesInfo>> {
     let parent_async_modules = parent_async_modules.await?;
-    let graph = graph.await?;
+    let graph = graph.read().await?;
 
     let self_async_modules = graph
-        .iter_nodes()
-        .map(async |node| Ok((node.module, *node.module.is_self_async().await?)))
-        .try_join()
-        .await?
-        .into_iter()
-        .flat_map(|(k, v)| v.then_some(k))
-        .chain(parent_async_modules.iter().copied())
-        .collect::<FxHashSet<_>>();
+        .enumerate_nodes()
+        .map(async |(_, node)| {
+            Ok(match node {
+                super::SingleModuleGraphNode::Module(node) => {
+                    node.is_self_async().await?.then_some(*node)
+                }
+                super::SingleModuleGraphNode::VisitedModule { idx: _, module } => {
+                    // If a module is async in the parent then we need to mark reverse dependencies
+                    // async in this graph as well.
+                    parent_async_modules.contains(module).then_some(*module)
+                }
+            })
+        })
+        .try_flat_join()
+        .await?;
 
     // To determine which modules are async, we need to propagate the self-async flag to all
-    // importers, which is done using a postorder traversal of the graph.
-    //
-    // This however doesn't cover cycles of async modules, which are handled by determining all
-    // strongly-connected components, and then marking all the whole SCC as async if one of the
-    // modules in the SCC is async.
+    // importers, which is done using a reverse traversal over the graph
+    // Because we walk edges in the reverse direction we can trivially handle things like cycles
+    // without actually computing them.
+    let mut async_modules = FxHashSet::default();
+    async_modules.extend(self_async_modules.iter());
 
-    let mut async_modules = self_async_modules;
-    graph.traverse_edges_from_entries_dfs(
-        graph.entry_modules(),
+    graph.traverse_edges_from_entries_dfs_reversed(
+        self_async_modules,
         &mut (),
-        |_, _, _| Ok(GraphTraversalAction::Continue),
-        |parent_info, module, _| {
-            let Some((parent_module, ref_data)) = parent_info else {
-                // An entry module
-                return Ok(());
-            };
-            let module = module.module();
-            let parent_module = parent_module.module;
-
-            if ref_data.chunking_type.is_inherit_async() && async_modules.contains(&module) {
-                async_modules.insert(parent_module);
-            }
-            Ok(())
+        // child is the previously visited module which must be async
+        // parent is a new module that depends on it
+        |child, parent, _state| {
+            Ok(if let Some((_, edge)) = child {
+                if edge.chunking_type.is_inherit_async() {
+                    async_modules.insert(parent);
+                    GraphTraversalAction::Continue
+                } else {
+                    // Wrong edge type to follow
+                    GraphTraversalAction::Exclude
+                }
+            } else {
+                // These are our entry points, just continue
+                GraphTraversalAction::Continue
+            })
         },
+        |_, _, _| Ok(()),
     )?;
 
-    graph.traverse_cycles(
-        |ref_data| ref_data.chunking_type.is_inherit_async(),
-        |cycle| {
-            if cycle
-                .iter()
-                .any(|node| async_modules.contains(&node.module))
-            {
-                for &node in cycle {
-                    async_modules.insert(node.module);
-                }
-            }
-        },
-    );
+    // Accumulate the parent modules at the end. Not all parent async modules were in this graph
+    async_modules.extend(parent_async_modules);
 
     Ok(Vc::cell(async_modules))
 }

@@ -1,20 +1,20 @@
 use anyhow::Result;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{IntoTraitRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, MinifyType},
     context::AssetContext,
     environment::Environment,
     ident::AssetIdent,
-    module::{Module, OptionStyleType, StyleType},
+    module::{Module, StyleModule, StyleType},
     module_graph::ModuleGraph,
-    output::OutputAssets,
+    output::{OutputAssetsReference, OutputAssetsWithReferenced},
     reference::{ModuleReference, ModuleReferences},
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
-    source::Source,
+    source::{OptionSource, Source},
     source_map::GenerateSourceMap,
 };
 
@@ -110,7 +110,7 @@ impl ProcessCss for CssModuleAsset {
         let origin_source_map =
             match ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(this.source) {
                 Some(gsm) => gsm.generate_source_map(),
-                None => Vc::cell(None),
+                None => FileContent::NotFound.cell(),
             };
         Ok(finalize_css(
             process_result,
@@ -138,6 +138,11 @@ impl Module for CssModuleAsset {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let result = self.parse_css().await?;
         // TODO: include CSS source map
@@ -148,14 +153,16 @@ impl Module for CssModuleAsset {
             ParseCssResult::NotFound => Ok(ModuleReferences::empty()),
         }
     }
+}
 
+#[turbo_tasks::value_impl]
+impl StyleModule for CssModuleAsset {
     #[turbo_tasks::function]
-    fn style_type(&self) -> Vc<OptionStyleType> {
-        let style_type = match self.ty {
-            CssModuleAssetType::Default => StyleType::GlobalStyle,
-            CssModuleAssetType::Module => StyleType::IsolatedStyle,
-        };
-        Vc::cell(Some(style_type))
+    fn style_type(&self) -> Vc<StyleType> {
+        match self.ty {
+            CssModuleAssetType::Default => StyleType::GlobalStyle.cell(),
+            CssModuleAssetType::Module => StyleType::IsolatedStyle.cell(),
+        }
     }
 }
 
@@ -207,29 +214,9 @@ struct CssModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkItem for CssModuleChunkItem {
+impl OutputAssetsReference for CssModuleChunkItem {
     #[turbo_tasks::function]
-    fn asset_ident(&self) -> Vc<AssetIdent> {
-        self.module.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(*self.chunking_context)
-    }
-
-    #[turbo_tasks::function]
-    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
-        Vc::upcast(Vc::<CssChunkType>::default())
-    }
-
-    #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(*self.module)
-    }
-
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
+    async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
         let mut references = Vec::new();
         if let ParseCssResult::Ok { url_references, .. } = &*self.module.parse_css().await? {
             for (_, reference) in url_references.await? {
@@ -241,7 +228,32 @@ impl ChunkItem for CssModuleChunkItem {
                 }
             }
         }
-        Ok(Vc::cell(references))
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
+            references,
+        )))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkItem for CssModuleChunkItem {
+    #[turbo_tasks::function]
+    fn asset_ident(&self) -> Vc<AssetIdent> {
+        self.module.ident()
+    }
+
+    #[turbo_tasks::function]
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        *self.chunking_context
+    }
+
+    #[turbo_tasks::function]
+    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
+        Vc::upcast(Vc::<CssChunkType>::default())
+    }
+
+    #[turbo_tasks::function]
+    fn module(&self) -> Vc<Box<dyn Module>> {
+        Vc::upcast(*self.module)
     }
 }
 
@@ -328,16 +340,15 @@ impl CssChunkItem for CssModuleChunkItem {
         if let FinalCssResult::Ok {
             output_code,
             source_map,
-            ..
         } = &*result
         {
             Ok(CssChunkItemContent {
                 inner_code: output_code.to_owned().into(),
                 imports,
                 import_context: self.module.await?.import_context,
-                source_map: source_map.owned().await?,
+                source_map: *source_map,
             }
-            .into())
+            .cell())
         } else {
             Ok(CssChunkItemContent {
                 inner_code: format!(
@@ -347,9 +358,9 @@ impl CssChunkItem for CssModuleChunkItem {
                 .into(),
                 imports: vec![],
                 import_context: None,
-                source_map: None,
+                source_map: FileContent::NotFound.resolved_cell(),
             }
-            .into())
+            .cell())
         }
     }
 }

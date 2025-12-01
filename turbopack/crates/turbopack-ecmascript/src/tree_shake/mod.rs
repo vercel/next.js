@@ -20,7 +20,9 @@ use self::graph::{DepGraph, ItemData, ItemId, ItemIdGroupKind, Mode, SplitModule
 pub(crate) use self::graph::{
     PartId, create_turbopack_part_id_assert, find_turbopack_part_id_in_asserts,
 };
-use crate::{EcmascriptModuleAsset, analyzer::graph::EvalContext, parse::ParseResult};
+use crate::{
+    EcmascriptModuleAsset, EcmascriptParsable, analyzer::graph::EvalContext, parse::ParseResult,
+};
 
 pub mod asset;
 pub mod chunk_item;
@@ -469,16 +471,9 @@ impl PartialEq for SplitResult {
 }
 
 #[turbo_tasks::function]
-pub(super) fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<SplitResult>> {
-    Ok(split(asset.source().ident(), asset.source(), asset.parse()))
-}
-
-#[turbo_tasks::function]
-pub(super) async fn split(
-    ident: ResolvedVc<AssetIdent>,
-    source: ResolvedVc<Box<dyn Source>>,
-    parsed: ResolvedVc<ParseResult>,
-) -> Result<Vc<SplitResult>> {
+pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<SplitResult>> {
+    let parsed: ResolvedVc<ParseResult> = asset.failsafe_parse().to_resolved().await?;
+    let ident = asset.source().ident().to_resolved().await?;
     // Do not split already split module
     if !ident.await?.parts.is_empty() {
         return Ok(SplitResult::Failed {
@@ -498,6 +493,7 @@ pub(super) async fn split(
     }
 
     let parse_result = parsed.await?;
+    let source = asset.source().to_resolved().await?;
 
     match &*parse_result {
         ParseResult::Ok {

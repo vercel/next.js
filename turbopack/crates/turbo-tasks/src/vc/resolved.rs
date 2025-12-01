@@ -12,7 +12,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    RawVc, Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
+    RawVc, Upcast, UpcastStrict, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::Vc,
@@ -199,12 +199,42 @@ where
     #[inline(always)]
     pub fn upcast<K>(this: Self) -> ResolvedVc<K>
     where
+        T: UpcastStrict<K>,
+        K: VcValueTrait + ?Sized,
+    {
+        Self::upcast_non_strict(this)
+    }
+
+    /// Upcasts the given `ResolvedVc<T>` to a `ResolvedVc<Box<dyn K>>`.
+    ///
+    /// This has a loose type constraint which would allow upcasting to the same type, prefer using
+    /// [`ResolvedVc::upcast`] when possible. See also: [`Vc::upcast_non_strict`].  This is
+    /// useful for extension traits and other more generic usecases.
+    #[inline(always)]
+    pub fn upcast_non_strict<K>(this: Self) -> ResolvedVc<K>
+    where
         T: Upcast<K>,
         K: VcValueTrait + ?Sized,
     {
         ResolvedVc {
-            node: Vc::upcast(this.node),
+            node: Vc::upcast_non_strict(this.node),
         }
+    }
+
+    /// Upcasts the given `Vec<ResolvedVc<T>>` to a `Vec<ResolvedVc<K>>`.
+    ///
+    /// See also: [`Vc::upcast`].
+    #[inline(always)]
+    pub fn upcast_vec<K>(vec: Vec<Self>) -> Vec<ResolvedVc<K>>
+    where
+        T: UpcastStrict<K>,
+        K: VcValueTrait + ?Sized,
+    {
+        debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<ResolvedVc<K>>());
+        debug_assert!(size_of::<Vec<ResolvedVc<T>>>() == size_of::<Vec<ResolvedVc<K>>>());
+        let (ptr, len, capacity) = vec.into_raw_parts();
+        // Safety: The memory layout of `ResolvedVc<T>` and `ResolvedVc<K>` is the same.
+        unsafe { Vec::from_raw_parts(ptr as *mut ResolvedVc<K>, len, capacity) }
     }
 
     /// Cheaply converts a Vec of resolved Vcs to a Vec of Vcs.
@@ -229,13 +259,22 @@ where
     /// Returns `None` if the underlying value type does not implement `K`.
     ///
     /// **Note:** if the trait `T` is required to implement `K`, use [`ResolvedVc::upcast`] instead.
-    /// This provides stronger guarantees, removing the need for a [`Result`] return type.
+    /// That method provides stronger guarantees, removing the need for a [`Option`] return type.
     ///
     /// See also: [`Vc::try_resolve_sidecast`].
     pub fn try_sidecast<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: VcValueTrait + ?Sized,
     {
+        // Runtime assertion to catch K == T cases with a clear error message
+        // This will be optimized away in release builds but helps during development
+        // We use trait type IDs since T and K might be trait objects (?Sized)
+        debug_assert!(
+            <K as VcValueTrait>::get_trait_type_id() != <T as VcValueTrait>::get_trait_type_id(),
+            "Attempted to cast a type {} to itself, which is pointless. Use the value directly \
+             instead.",
+            crate::registry::get_trait(<T as VcValueTrait>::get_trait_type_id()).global_name
+        );
         // `RawVc::TaskCell` already contains all the type information needed to check this
         // sidecast, so we don't need to read the underlying cell!
         let raw_vc = this.node.node;
@@ -257,7 +296,7 @@ where
     /// See also: [`Vc::try_resolve_downcast`].
     pub fn try_downcast<K>(this: Self) -> Option<ResolvedVc<K>>
     where
-        K: Upcast<T> + VcValueTrait + ?Sized,
+        K: UpcastStrict<T> + VcValueTrait + ?Sized,
     {
         // this is just a more type-safe version of a sidecast
         Self::try_sidecast(this)
@@ -270,7 +309,7 @@ where
     /// See also: [`Vc::try_resolve_downcast_type`].
     pub fn try_downcast_type<K>(this: Self) -> Option<ResolvedVc<K>>
     where
-        K: Upcast<T> + VcValueType,
+        K: UpcastStrict<T> + VcValueType,
     {
         let raw_vc = this.node.node;
         raw_vc
@@ -310,7 +349,7 @@ where
 
 impl<T> ValueDebugFormat for ResolvedVc<T>
 where
-    T: Upcast<Box<dyn ValueDebug>> + Send + Sync + ?Sized,
+    T: UpcastStrict<Box<dyn ValueDebug>> + Send + Sync + ?Sized,
 {
     fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
         self.node.value_debug_format(depth)

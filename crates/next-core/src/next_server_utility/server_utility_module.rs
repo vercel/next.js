@@ -1,17 +1,19 @@
 use std::collections::BTreeMap;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::ModuleReferences,
+    source::OptionSource,
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -53,6 +55,11 @@ impl Module for NextServerUtilityModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![ResolvedVc::upcast(
             NextServerUtilityModuleReference::new(Vc::upcast(*self.module))
@@ -65,8 +72,12 @@ impl Module for NextServerUtilityModule {
 #[turbo_tasks::value_impl]
 impl Asset for NextServerUtilityModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("Next.js server utility module has no content")
+    fn content(&self) -> Vc<AssetContent> {
+        AssetContent::File(
+            FileContent::Content("// This is a marker module for Next.js server utilities.".into())
+                .resolved_cell(),
+        )
+        .cell()
     }
 }
 
@@ -125,15 +136,15 @@ struct NextServerComponentChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for NextServerComponentChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for NextServerComponentChunkItem {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let inner = self.inner.await?;
 
-        let module_id = inner
-            .module
-            .chunk_item_id(Vc::upcast(*self.chunking_context))
-            .await?;
+        let module_id = inner.module.chunk_item_id(*self.chunking_context).await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 "{TURBOPACK_EXPORT_NAMESPACE}({TURBOPACK_IMPORT}({}));",

@@ -4,7 +4,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
-use turbo_tasks_testing::{Registration, register, run_without_cache_check};
+use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
 
 static REGISTRATION: Registration = register!();
 
@@ -20,7 +20,7 @@ Adder::add_method (read cell of type turbo-tasks@turbo_tasks::primitives::u64)
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trace_transient() {
-    let result = run_without_cache_check(&REGISTRATION, async {
+    let result = run_once_without_cache_check(&REGISTRATION, async {
         read_incorrect_task_input_operation(IncorrectTaskInput(
             Adder::new(Vc::cell(()))
                 .add_method(Vc::cell(2), Vc::cell(3))
@@ -50,6 +50,7 @@ impl Adder {
 
     #[turbo_tasks::function]
     async fn add_method(&self, arg1: ResolvedVc<u16>, arg2: ResolvedVc<u32>) -> Result<Vc<u64>> {
+        let _ = self; // Make sure unused argument filtering doesn't remove the arg
         Ok(Vc::cell(u64::from(*arg1.await?) + u64::from(*arg2.await?)))
     }
 }

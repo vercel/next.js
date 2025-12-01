@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use napi::bindgen_prelude::*;
+use napi_derive::napi;
 use next_build::{
     BuildOptions as NextBuildOptions,
     build_options::{BuildContext, DefineEnv},

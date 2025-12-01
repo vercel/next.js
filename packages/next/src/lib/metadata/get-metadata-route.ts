@@ -31,7 +31,7 @@ function getMetadataRouteSuffix(page: string) {
   // e.g. /parent/opengraph-image -> /parent
   const parentPathname = path.dirname(page)
   // Only apply suffix to metadata routes except for sitemaps
-  if (page.endsWith('/sitemap')) {
+  if (page.endsWith('/sitemap') || page.endsWith('/sitemap.xml')) {
     return ''
   }
 

@@ -2,20 +2,18 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use anyhow::Result;
 use async_trait::async_trait;
-use rustc_hash::FxHashMap;
 use swc_core::{
     atoms::{Atom, atom},
     base::SwcComments,
     common::{Mark, SourceMap, comments::Comments},
     ecma::{
         ast::{ExprStmt, ModuleItem, Pass, Program, Stmt},
-        preset_env::{self, Targets},
+        preset_env::{self, Feature, FeatureOrModule, Targets},
         transforms::{
             base::{
                 assumptions::Assumptions,
                 helpers::{HELPERS, HelperData, Helpers},
             },
-            optimization::inline_globals,
             react::react,
         },
         utils::IsDirective,
@@ -44,9 +42,6 @@ pub enum EcmascriptInputTransform {
         // swc.jsc.transform.react.runtime,
         runtime: ResolvedVc<Option<RcStr>>,
     },
-    GlobalTypeofs {
-        window_value: RcStr,
-    },
     // These options are subset of swc_core::ecma::transforms::typescript::Config, but
     // it doesn't derive `Copy` so repeating values in here
     TypeScript {
@@ -74,13 +69,7 @@ pub trait CustomTransformer: Debug {
 
 /// A wrapper around a TransformPlugin instance, allowing it to operate with
 /// the turbo_task caching requirements.
-#[turbo_tasks::value(
-    transparent,
-    serialization = "none",
-    eq = "manual",
-    into = "new",
-    cell = "new"
-)]
+#[turbo_tasks::value(transparent, serialization = "none", eq = "manual", cell = "new")]
 #[derive(Debug)]
 pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
 
@@ -139,22 +128,6 @@ impl EcmascriptInputTransform {
         } = ctx;
 
         Ok(match self {
-            EcmascriptInputTransform::GlobalTypeofs { window_value } => {
-                let mut typeofs: FxHashMap<Atom, Atom> = Default::default();
-                typeofs.insert(Atom::from("window"), Atom::from(&**window_value));
-
-                apply_transform(
-                    program,
-                    helpers,
-                    inline_globals(
-                        unresolved_mark,
-                        Default::default(),
-                        Default::default(),
-                        Default::default(),
-                        Arc::new(typeofs),
-                    ),
-                )
-            }
             EcmascriptInputTransform::React {
                 development,
                 refresh,
@@ -212,7 +185,7 @@ impl EcmascriptInputTransform {
                     debug_assert_eq!(TURBOPACK_REFRESH.full, "__turbopack_context__.k");
                     debug_assert_eq!(TURBOPACK_MODULE.full, "__turbopack_context__.m");
                     let stmt = quote!(
-                        // AMP / No-JS mode does not inject these helpers
+                        // No-JS mode does not inject these helpers
                         "if (typeof globalThis.$RefreshHelpers$ === 'object' && \
                          globalThis.$RefreshHelpers !== null) { \
                          __turbopack_context__.k.registerExports(__turbopack_context__.m, \
@@ -237,6 +210,13 @@ impl EcmascriptInputTransform {
                     swc_core::ecma::preset_env::Config {
                         targets: Some(Targets::Versions(*versions)),
                         mode: None, // Don't insert core-js polyfills
+                        // Disable some ancient ES3 transforms, ReservedWords breaks resolving of
+                        // some idents references
+                        exclude: vec![
+                            FeatureOrModule::Feature(Feature::ReservedWords),
+                            FeatureOrModule::Feature(Feature::MemberExpressionLiterals),
+                            FeatureOrModule::Feature(Feature::PropertyLiterals),
+                        ],
                         ..Default::default()
                     },
                 );

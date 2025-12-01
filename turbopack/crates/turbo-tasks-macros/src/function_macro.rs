@@ -1,11 +1,12 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{ItemFn, parse_macro_input, parse_quote};
-use turbo_tasks_macros_shared::{get_native_function_ident, is_self_used};
 
 use crate::{
     func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes},
     global_name::global_name,
+    ident::get_native_function_ident,
+    self_filter::is_self_used,
 };
 
 /// This macro generates the virtual function that powers turbo tasks.
@@ -40,10 +41,9 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
     let args = syn::parse::<FunctionArguments>(args)
         .inspect_err(|err| errors.push(err.to_compile_error()))
         .unwrap_or_default();
-    let local = args.local.is_some();
     let is_self_used = args.operation.is_some() || is_self_used(&block);
 
-    let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args) else {
+    let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args, is_self_used) else {
         return quote! {
             // An error occurred while parsing the function signature.
         }
@@ -53,8 +53,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
     let ident = &sig.ident;
 
     let inline_function_ident = turbo_fn.inline_ident();
-    let (inline_signature, inline_block) =
-        turbo_fn.inline_signature_and_block(&block, is_self_used);
+    let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(&block);
     let inline_attrs = filter_inline_attributes(&attrs[..]);
     let function_path_string = ident.to_string();
 
@@ -65,7 +64,6 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         is_method: turbo_fn.is_method(),
         is_self_used,
         filter_trait_call_args: None, // not a trait method
-        local,
     };
     let native_function_ident = get_native_function_ident(ident);
     let native_function_ty = native_fn.ty();

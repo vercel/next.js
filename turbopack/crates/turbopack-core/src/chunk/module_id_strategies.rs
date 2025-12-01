@@ -4,10 +4,7 @@ use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use super::ModuleId;
-use crate::{
-    ident::AssetIdent,
-    issue::{IssueExt, StyledString, module::ModuleIssue},
-};
+use crate::ident::AssetIdent;
 
 #[turbo_tasks::value_trait]
 pub trait ModuleIdStrategy {
@@ -54,32 +51,17 @@ impl ModuleIdStrategy for GlobalModuleIdStrategy {
         }
 
         let ident_string = ident.to_string().await?;
-        if !ident_string.ends_with("[app-client] (ecmascript, next/dynamic entry)") {
+        if ident_string.ends_with("[app-client] (ecmascript, next/dynamic entry)") {
             // TODO: This shouldn't happen, but is a temporary workaround to ignore next/dynamic
             // imports of a server component from another server component.
-            // TODO(PACK-4879): should this be a debug_assert! a panic!? a bail!?
-
-            ModuleIssue {
-                ident,
-                title: StyledString::Text(
-                    format!("ModuleId not found for ident: {ident_string:?}").into(),
-                )
-                .resolved_cell(),
-                description: StyledString::Text(
-                    format!("ModuleId not found for ident: {ident_string:?}").into(),
-                )
-                .resolved_cell(),
-                source: None,
-            }
-            .resolved_cell()
-            .emit();
+            return Ok(ModuleId::String(
+                hash_xxh3_hash64(ident.to_string().await?)
+                    .to_string()
+                    .into(),
+            )
+            .cell());
         }
 
-        Ok(ModuleId::String(
-            hash_xxh3_hash64(ident.to_string().await?)
-                .to_string()
-                .into(),
-        )
-        .cell())
+        bail!("ModuleId not found for ident: {ident_string:?}");
     }
 }

@@ -1,8 +1,9 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { createAtomicTimerGroup } from './app-render-scheduling'
 
 /**
  * This is a utility function to make scheduling sequential tasks that run back to back easier.
- * We schedule on the same queue (setImmediate) at the same time to ensure no other events can sneak in between.
+ * We schedule on the same queue (setTimeout) at the same time to ensure no other events can sneak in between.
  */
 export function prerenderAndAbortInSequentialTasks<R>(
   prerender: () => Promise<R>,
@@ -14,8 +15,10 @@ export function prerenderAndAbortInSequentialTasks<R>(
     )
   } else {
     return new Promise((resolve, reject) => {
+      const scheduleTimeout = createAtomicTimerGroup()
+
       let pendingResult: Promise<R>
-      setImmediate(() => {
+      scheduleTimeout(() => {
         try {
           pendingResult = prerender()
           pendingResult.catch(() => {})
@@ -23,7 +26,8 @@ export function prerenderAndAbortInSequentialTasks<R>(
           reject(err)
         }
       })
-      setImmediate(() => {
+
+      scheduleTimeout(() => {
         abort()
         resolve(pendingResult)
       })
@@ -46,8 +50,10 @@ export function prerenderAndAbortInSequentialTasksWithStages<R>(
     )
   } else {
     return new Promise((resolve, reject) => {
+      const scheduleTimeout = createAtomicTimerGroup()
+
       let pendingResult: Promise<R>
-      setImmediate(() => {
+      scheduleTimeout(() => {
         try {
           pendingResult = prerender()
           pendingResult.catch(() => {})
@@ -55,10 +61,12 @@ export function prerenderAndAbortInSequentialTasksWithStages<R>(
           reject(err)
         }
       })
-      setImmediate(() => {
+
+      scheduleTimeout(() => {
         advanceStage()
       })
-      setImmediate(() => {
+
+      scheduleTimeout(() => {
         abort()
         resolve(pendingResult)
       })

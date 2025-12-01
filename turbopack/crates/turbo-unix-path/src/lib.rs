@@ -34,6 +34,7 @@ pub fn unix_to_sys(path: &str) -> Cow<'_, str> {
 /// Paths are concatenated with /.
 ///
 /// see also [normalize_path] for normalization.
+/// Returns `None` if the joined path would leave the filesystem root.
 pub fn join_path(fs_path: &str, join: &str) -> Option<String> {
     // Paths that we join are written as source code (eg, `join_path(fs_path, "foo/bar.js")`) and
     // it's expected that they will never contain a backslash.

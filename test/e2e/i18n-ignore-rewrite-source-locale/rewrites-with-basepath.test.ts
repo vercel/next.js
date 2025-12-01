@@ -44,7 +44,9 @@ describe('i18n-ignore-rewrite-source-locale with basepath', () => {
       'get _next/static/ files by skipping locale in rewrite, locale: %s',
       async (locale) => {
         const chunks = (
-          await fs.readdir(path.join(next.testDir, '.next', 'static', 'chunks'))
+          await fs.readdir(
+            path.join(next.testDir, next.distDir, 'static', 'chunks')
+          )
         ).filter((f) => f.endsWith('.js'))
 
         await Promise.all(

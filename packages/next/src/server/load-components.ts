@@ -181,7 +181,7 @@ async function loadComponentsImpl<N = any>({
     // attempting to load.
     const manifestLoadAttempts = isDev ? 3 : 1
 
-    let reactLoadableManifestPath
+    let reactLoadableManifestPath: string
     if (!process.env.TURBOPACK) {
       reactLoadableManifestPath = join(
         /* turbopackIgnore: true */ distDir,

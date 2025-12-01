@@ -19,7 +19,7 @@ import { getOnline } from './helpers/is-online'
 import { isWriteable } from './helpers/is-writeable'
 import { runTypegen } from './helpers/typegen'
 
-import type { TemplateMode, TemplateType } from './templates'
+import type { Bundler, TemplateMode, TemplateType } from './templates'
 import { getTemplateFile, installTemplate } from './templates'
 
 export class DownloadError extends Error {}
@@ -39,9 +39,9 @@ export async function createApp({
   skipInstall,
   empty,
   api,
-  turbopack,
-  rspack,
+  bundler,
   disableGit,
+  reactCompiler,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -57,9 +57,9 @@ export async function createApp({
   skipInstall: boolean
   empty: boolean
   api?: boolean
-  turbopack: boolean
-  rspack: boolean
+  bundler: Bundler
   disableGit?: boolean
+  reactCompiler: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
@@ -250,8 +250,8 @@ export async function createApp({
       srcDir,
       importAlias,
       skipInstall,
-      turbopack,
-      rspack,
+      bundler,
+      reactCompiler,
     })
   }
 

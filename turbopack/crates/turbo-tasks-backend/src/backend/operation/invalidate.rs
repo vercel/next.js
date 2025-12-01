@@ -224,6 +224,7 @@ pub fn make_task_dirty_internal(
         #[cfg(feature = "trace_task_dirty")]
         let _span = tracing::trace_span!(
             "make task stale",
+            task_id = display(task_id),
             name = ctx.get_task_description(task_id),
             cause = %TaskDirtyCauseInContext::new(&cause, ctx)
         )
@@ -244,6 +245,7 @@ pub fn make_task_dirty_internal(
             #[cfg(feature = "trace_task_dirty")]
             let _span = tracing::trace_span!(
                 "task already dirty",
+                task_id = display(task_id),
                 name = ctx.get_task_description(task_id),
                 cause = %TaskDirtyCauseInContext::new(&cause, ctx)
             )
@@ -275,12 +277,13 @@ pub fn make_task_dirty_internal(
     #[cfg(feature = "trace_task_dirty")]
     let _span = tracing::trace_span!(
         "make task dirty",
+        task_id = display(task_id),
         name = ctx.get_task_description(task_id),
         cause = %TaskDirtyCauseInContext::new(&cause, ctx)
     )
     .entered();
 
-    let should_schedule = if ctx.should_track_children() {
+    let should_schedule = {
         let aggregated_update = dirty_container.update_with_dirty_state(&DirtyState {
             clean_in_session: None,
         });
@@ -291,8 +294,6 @@ pub fn make_task_dirty_internal(
             ));
         }
         !ctx.should_track_activeness() || task.has_key(&CachedDataItemKey::Activeness {})
-    } else {
-        true
     };
 
     if should_schedule {

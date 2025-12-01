@@ -56,7 +56,8 @@ describe('Edge Compiler can import asset assets', () => {
     it('extracts all the assets from the bundle', async () => {
       const manifestPath = path.join(
         next.testDir,
-        '.next/server/middleware-manifest.json'
+        next.distDir,
+        'server/middleware-manifest.json'
       )
       const manifest = await readJson(manifestPath)
       const orderedAssets = manifest.functions['/api/edge'].assets.sort(

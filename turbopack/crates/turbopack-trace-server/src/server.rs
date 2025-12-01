@@ -73,15 +73,6 @@ pub enum ClientToServerMessage {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct SpanViewEvent {
-    pub start: Timestamp,
-    pub duration: Timestamp,
-    pub name: String,
-    pub id: Option<SpanId>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
 pub struct Filter {
     pub op: Op,
     pub value: u64,

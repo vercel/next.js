@@ -24,10 +24,6 @@ impl UpdateCollectibleOperation {
         mut count: i32,
         mut ctx: impl ExecuteContext,
     ) {
-        if !ctx.should_track_children() {
-            // Collectibles are not supported without children tracking
-            return;
-        }
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         if count < 0 {
             // Ensure it's an root node

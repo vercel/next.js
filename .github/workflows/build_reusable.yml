@@ -92,21 +92,25 @@ env:
 
   TURBO_TEAM: 'vercel'
   TURBO_CACHE: 'remote:rw'
-  TURBO_API: ${{ secrets.HOSTED_TURBO_API }}
-  TURBO_TOKEN: ${{ secrets.HOSTED_TURBO_TOKEN }}
+
   NEXT_TELEMETRY_DISABLED: 1
   # allow not skipping install-native postinstall script if we don't have a binary available already
   NEXT_SKIP_NATIVE_POSTINSTALL: ${{ inputs.skipNativeInstall == 'yes' && '1' || '' }}
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
   NEXT_JUNIT_TEST_REPORT: 'true'
   DD_ENV: 'ci'
-  TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+  # Vercel KV Store for test timings
+  KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+  KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
   NEXT_TEST_JOB: 1
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   NEXT_TEST_PREFER_OFFLINE: 1
   NEXT_CI_RUNNER: ${{ inputs.runs_on_labels }}
   NEXT_TEST_PROXY_ADDRESS: ${{ inputs.overrideProxyAddress || '' }}
+
+  # defaults to 256, but we run a lot of tests in parallel, so the limit should be lower
+  NEXT_TURBOPACK_IO_CONCURRENCY: 64
 
 jobs:
   build:
@@ -227,7 +231,7 @@ jobs:
 
       - name: Install node-file-trace test dependencies
         if: ${{ inputs.needsNextest == 'yes' }}
-        working-directory: turbopack/crates/turbopack/tests/node-file-trace
+        working-directory: turbopack/crates/turbopack-tracing/tests/node-file-trace
         run: pnpm install -r --side-effects-cache false
 
       - run: ANALYZE=1 pnpm build

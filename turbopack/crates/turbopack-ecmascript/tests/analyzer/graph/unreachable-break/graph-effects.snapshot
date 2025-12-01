@@ -53,7 +53,6 @@
             ),
         ],
         span: 191..199,
-        in_try: false,
     },
     Call {
         func: Member(
@@ -167,47 +166,6 @@
             ),
         ],
     },
-    Unreachable {
-        start_ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    1,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            BlockStmt(
-                Stmts(
-                    1,
-                ),
-            ),
-            Stmt(
-                While,
-            ),
-            WhileStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-        ],
-    },
     ImportedBinding {
         esm_reference_index: 7,
         export: Some(
@@ -262,7 +220,6 @@
             ),
         ],
         span: 286..299,
-        in_try: false,
     },
     Call {
         func: Member(
@@ -395,7 +352,6 @@
             ),
         ],
         span: 350..363,
-        in_try: false,
     },
     Call {
         func: Member(
@@ -523,47 +479,6 @@
             ),
         ],
     },
-    Unreachable {
-        start_ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    2,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            BlockStmt(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                While,
-            ),
-            WhileStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-        ],
-    },
     ImportedBinding {
         esm_reference_index: 2,
         export: Some(
@@ -618,7 +533,6 @@
             ),
         ],
         span: 403..411,
-        in_try: false,
     },
     Call {
         func: Member(
@@ -751,7 +665,6 @@
             ),
         ],
         span: 484..492,
-        in_try: false,
     },
     Call {
         func: Member(
@@ -879,47 +792,6 @@
             ),
         ],
     },
-    Unreachable {
-        start_ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    3,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            BlockStmt(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                While,
-            ),
-            WhileStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-        ],
-    },
     ImportedBinding {
         esm_reference_index: 4,
         export: Some(
@@ -974,7 +846,6 @@
             ),
         ],
         span: 532..540,
-        in_try: false,
     },
     Call {
         func: Member(

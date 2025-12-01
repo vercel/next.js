@@ -105,6 +105,7 @@ async function loadWasm(
   await Promise.all(
     wasm.map(async (binding) => {
       const module = await WebAssembly.compile(
+        // @ts-expect-error - Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'BufferSource'.
         await fs.readFile(binding.filePath)
       )
       modules[binding.name] = module

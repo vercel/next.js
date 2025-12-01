@@ -11,11 +11,9 @@ use turbopack_core::{
         module_id_strategies::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
-    environment::{
-        BrowserEnvironment, EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion,
-    },
+    environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
     free_var_references,
-    module_graph::export_usage::OptionExportUsageInfo,
+    module_graph::binding_usage_info::OptionBindingUsageInfo,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_node::execution_context::ExecutionContext;
@@ -62,23 +60,11 @@ pub async fn get_edge_compile_time_info(
     project_path: FileSystemPath,
     define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
-    css_browserslist_query: RcStr,
 ) -> Result<Vc<CompileTimeInfo>> {
-    let css_environment = BrowserEnvironment {
-        dom: false,
-        web_worker: false,
-        service_worker: false,
-        browserslist_query: css_browserslist_query,
-    }
-    .resolved_cell();
-
     CompileTimeInfo::builder(
-        Environment::new(
-            ExecutionEnvironment::EdgeWorker(
-                EdgeWorkerEnvironment { node_version }.resolved_cell(),
-            ),
-            *css_environment,
-        )
+        Environment::new(ExecutionEnvironment::EdgeWorker(
+            EdgeWorkerEnvironment { node_version }.resolved_cell(),
+        ))
         .to_resolved()
         .await?,
     )
@@ -138,7 +124,6 @@ pub async fn get_edge_resolve_options_context(
         ty,
         ServerContextType::AppRSC { .. }
             | ServerContextType::AppRoute { .. }
-            | ServerContextType::PagesData { .. }
             | ServerContextType::Middleware { .. }
             | ServerContextType::Instrumentation { .. }
     ) {
@@ -168,6 +153,10 @@ pub async fn get_edge_resolve_options_context(
         custom_conditions.push(rcstr!("react-server"));
     };
 
+    // Edge runtime is disabled for projects with Cache Components enabled except for Middleware
+    // but Middleware doesn't have all Next.js APIs so we omit the "next-js" condition for all edge
+    // entrypoints
+
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().owned().await?),
         enable_edge_node_externals: true,
@@ -192,6 +181,9 @@ pub async fn get_edge_resolve_options_context(
             .typescript_tsconfig_path()
             .await?
             .as_ref()
+            // Fall back to tsconfig only for resolving. This is because we don't want Turbopack to
+            // resolve tsconfig.json relative to the file being compiled.
+            .or(Some(&RcStr::from("tsconfig.json")))
             .map(|p| project_path.join(p))
             .transpose()?,
         rules: vec![(
@@ -211,18 +203,21 @@ pub struct EdgeChunkingContextOptions {
     pub output_root_to_root_path: Vc<RcStr>,
     pub environment: Vc<Environment>,
     pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
-    pub export_usage: Vc<OptionExportUsageInfo>,
+    pub export_usage: Vc<OptionBindingUsageInfo>,
+    pub unused_references: Vc<OptionBindingUsageInfo>,
     pub turbo_minify: Vc<bool>,
-    pub turbo_source_maps: Vc<bool>,
+    pub turbo_source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub nested_async_chunking: Vc<bool>,
+    pub client_root: FileSystemPath,
+    pub asset_prefix: RcStr,
 }
 
+/// Like `get_edge_chunking_context` but all assets are emitted as client assets (so `/_next`)
 #[turbo_tasks::function]
 pub async fn get_edge_chunking_context_with_client_assets(
     options: EdgeChunkingContextOptions,
-    client_root: FileSystemPath,
-    asset_prefix: ResolvedVc<Option<RcStr>>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let EdgeChunkingContextOptions {
         mode,
@@ -232,10 +227,14 @@ pub async fn get_edge_chunking_context_with_client_assets(
         environment,
         module_id_strategy,
         export_usage,
+        unused_references,
         turbo_minify,
         turbo_source_maps,
         no_mangling,
         scope_hoisting,
+        nested_async_chunking,
+        client_root,
+        asset_prefix,
     } = options;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
@@ -249,7 +248,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
-    .asset_base_path(asset_prefix.owned().await?)
+    .asset_base_path(Some(asset_prefix))
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
             // React needs deterministic function names to work correctly.
@@ -258,13 +257,11 @@ pub async fn get_edge_chunking_context_with_client_assets(
     } else {
         MinifyType::NoMinify
     })
-    .source_maps(if *turbo_source_maps.await? {
-        SourceMapsType::Full
-    } else {
-        SourceMapsType::None
-    })
+    .source_maps(*turbo_source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
-    .export_usage(*export_usage.await?);
+    .export_usage(*export_usage.await?)
+    .unused_references(*unused_references.await?)
+    .nested_async_availability(*nested_async_chunking.await?);
 
     if !next_mode.is_development() {
         builder = builder
@@ -288,6 +285,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     Ok(Vc::upcast(builder.build()))
 }
 
+// By default, assets are server assets, but the StructuredImageModuleType ones are on the client
 #[turbo_tasks::function]
 pub async fn get_edge_chunking_context(
     options: EdgeChunkingContextOptions,
@@ -300,10 +298,14 @@ pub async fn get_edge_chunking_context(
         environment,
         module_id_strategy,
         export_usage,
+        unused_references,
         turbo_minify,
         turbo_source_maps,
         no_mangling,
         scope_hoisting,
+        nested_async_chunking,
+        client_root,
+        asset_prefix,
     } = options;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
@@ -317,6 +319,9 @@ pub async fn get_edge_chunking_context(
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
+    .client_roots_override(rcstr!("client"), client_root.clone())
+    .asset_root_path_override(rcstr!("client"), client_root.join("static/media")?)
+    .asset_base_path_override(rcstr!("client"), asset_prefix)
     // Since one can't read files in edge directly, any asset need to be fetched
     // instead. This special blob url is handled by the custom fetch
     // implementation in the edge sandbox. It will respond with the
@@ -329,13 +334,11 @@ pub async fn get_edge_chunking_context(
     } else {
         MinifyType::NoMinify
     })
-    .source_maps(if *turbo_source_maps.await? {
-        SourceMapsType::Full
-    } else {
-        SourceMapsType::None
-    })
+    .source_maps(*turbo_source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
-    .export_usage(*export_usage.await?);
+    .export_usage(*export_usage.await?)
+    .unused_references(*unused_references.await?)
+    .nested_async_availability(*nested_async_chunking.await?);
 
     if !next_mode.is_development() {
         builder = builder

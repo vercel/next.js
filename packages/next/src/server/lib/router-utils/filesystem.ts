@@ -22,7 +22,10 @@ import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import { escapeStringRegexp } from '../../../shared/lib/escape-regexp'
 import { getPathMatch } from '../../../shared/lib/router/utils/path-match'
-import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
+import {
+  getNamedRouteRegex,
+  getRouteRegex,
+} from '../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
@@ -40,8 +43,8 @@ import {
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
-import { PrefetchRSCPathnameNormalizer } from '../../normalizers/request/prefetch-rsc'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
+import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 
 export type FsOutput = {
   type:
@@ -127,6 +130,15 @@ export async function setupFsCheck(opts: {
 
   const appFiles = new Set<string>()
   const pageFiles = new Set<string>()
+  // Map normalized path to the file path. This is essential
+  // for parallel and group routes as their original path
+  // cannot be restored from the request path.
+  // Example:
+  // [normalized-path] -> [file-path]
+  // /icon-<hash>.png -> .../app/@parallel/icon.png
+  // /icon-<hash>.png -> .../app/(group)/icon.png
+  // /icon.png -> .../app/icon.png
+  const staticMetadataFiles = new Map<string, string>()
   let dynamicRoutes: FilesystemDynamicRoute[] = []
 
   let middlewareMatcher:
@@ -255,10 +267,14 @@ export async function setupFsCheck(opts: {
 
     for (const route of routesManifest.dataRoutes) {
       if (isDynamicRoute(route.page)) {
-        const routeRegex = getRouteRegex(route.page)
+        const routeRegex = getNamedRouteRegex(route.page, {
+          prefixRouteKeys: true,
+        })
         dynamicRoutes.push({
           ...route,
           regex: routeRegex.re.toString(),
+          namedRegex: routeRegex.namedRegex,
+          routeKeys: routeRegex.routeKeys,
           match: getRouteMatcher({
             // TODO: fix this in the manifest itself, must also be fixed in
             // upstream builder that relies on this
@@ -408,9 +424,6 @@ export async function setupFsCheck(opts: {
     // Because we can't know if the app directory is enabled or not at this
     // stage, we assume that it is.
     rsc: new RSCPathnameNormalizer(),
-    prefetchRSC: opts.config.experimental.ppr
-      ? new PrefetchRSCPathnameNormalizer()
-      : undefined,
   }
 
   return {
@@ -423,6 +436,7 @@ export async function setupFsCheck(opts: {
 
     appFiles,
     pageFiles,
+    staticMetadataFiles,
     dynamicRoutes,
     nextDataRoutes,
 
@@ -465,9 +479,7 @@ export async function setupFsCheck(opts: {
       // Simulate minimal mode requests by normalizing RSC and postponed
       // requests.
       if (opts.minimalMode) {
-        if (normalizers.prefetchRSC?.match(itemPath)) {
-          itemPath = normalizers.prefetchRSC.normalize(itemPath, true)
-        } else if (normalizers.rsc.match(itemPath)) {
+        if (normalizers.rsc.match(itemPath)) {
           itemPath = normalizers.rsc.normalize(itemPath, true)
         }
       }
@@ -486,6 +498,18 @@ export async function setupFsCheck(opts: {
         return {
           itemPath,
           type: 'nextImage',
+        }
+      }
+
+      if (opts.dev && isMetadataRouteFile(itemPath, [], false)) {
+        const fsPath = staticMetadataFiles.get(itemPath)
+        if (fsPath) {
+          return {
+            // "nextStaticFolder" sets Cache-Control "no-store" on dev.
+            type: 'nextStaticFolder',
+            fsPath,
+            itemPath: fsPath,
+          }
         }
       }
 

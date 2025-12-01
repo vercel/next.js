@@ -1,6 +1,7 @@
 use std::{cell::RefCell, fs, path::PathBuf, sync::Arc};
 
 use napi::bindgen_prelude::*;
+use napi_derive::napi;
 use swc_core::{
     base::{
         config::{IsModule, ParseOptions},
@@ -16,10 +17,12 @@ use swc_core::{
         utils::{ExprCtx, find_pat_ids},
         visit::{Visit, VisitMutWith, VisitWith},
     },
-    node::MapErr,
 };
 
-use crate::next_api::utils::{NapiIssueSourceRange, NapiSourcePos};
+use crate::{
+    next_api::utils::{NapiIssueSourceRange, NapiSourcePos},
+    util::MapErr,
+};
 
 struct Finder {
     pub named_exports: Vec<Atom>,
@@ -46,9 +49,9 @@ impl Visit for Finder {
 
     fn visit_export_named_specifier(&mut self, node: &swc_core::ecma::ast::ExportNamedSpecifier) {
         let named_export = if let Some(exported) = &node.exported {
-            exported.atom().clone()
+            exported.atom().into_owned()
         } else {
-            node.orig.atom().clone()
+            node.orig.atom().into_owned()
         };
         self.named_exports.push(named_export);
     }
@@ -57,7 +60,7 @@ impl Visit for Finder {
         &mut self,
         node: &swc_core::ecma::ast::ExportNamespaceSpecifier,
     ) {
-        self.named_exports.push(node.name.atom().clone());
+        self.named_exports.push(node.name.atom().into_owned());
     }
 }
 

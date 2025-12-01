@@ -499,8 +499,6 @@ pub struct InProgressStateInner {
     /// Early marking as completed. This is set before the output is available and will ignore full
     /// task completion of the task for strongly consistent reads.
     pub marked_as_completed: bool,
-    /// Task execution has completed and the output is available.
-    pub done: bool,
     /// Event that is triggered when the task output is available (completed flag set).
     /// This is used to wait for completion when reading the task output before it's available.
     pub done_event: Event,
