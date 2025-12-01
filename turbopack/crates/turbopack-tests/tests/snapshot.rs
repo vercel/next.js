@@ -291,7 +291,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let mut defines = compile_time_defines!(
         process.turbopack = true,
-        process.env.TURBOPACK = true,
+        process.env.TURBOPACK = "1",
         process.env.NODE_ENV = "development",
         DEFINED_VALUE = "value",
         DEFINED_TRUE = true,

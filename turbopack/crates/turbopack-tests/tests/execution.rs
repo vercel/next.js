@@ -359,7 +359,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .defines(
             compile_time_defines!(
                 process.turbopack = true,
-                process.env.TURBOPACK = true,
+                process.env.TURBOPACK = "1",
                 process.env.NODE_ENV = "production",
             )
             .resolved_cell(),

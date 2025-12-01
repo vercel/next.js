@@ -419,7 +419,7 @@ pub async fn get_tracing_compile_time_info() -> Result<Vc<CompileTimeInfo>> {
     */
     .defines(
         compile_time_defines!(
-            process.env.TURBOPACK = true,
+            process.env.TURBOPACK = "1",
             // process.env.NODE_ENV = "production",
         )
         .resolved_cell(),
