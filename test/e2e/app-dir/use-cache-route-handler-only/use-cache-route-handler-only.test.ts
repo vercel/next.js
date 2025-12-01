@@ -5,6 +5,7 @@ import { nextTestSetup } from 'e2e-utils'
 describe('use-cache-route-handler-only', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
 
   it('should cache results in node route handlers', async () => {
