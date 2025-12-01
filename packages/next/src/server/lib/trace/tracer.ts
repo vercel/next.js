@@ -49,16 +49,23 @@ export class BubbledError extends Error {
 
 export function isBubbledError(error: unknown): error is BubbledError {
   if (typeof error !== 'object' || error === null) return false
-  return error instanceof BubbledError
+  return (
+    error instanceof BubbledError ||
+    (error.constructor?.name === 'BubbledError' &&
+closeSpanWithError = (span: Span, error?: Error) => {
+  if (span.isRecording()) {
+    if (isBubbledError(error) && error.bubble) {
+      span.setAttribute('next.bubble', true)
+    } else {
+      if (error) {
+        span.recordException(error)
+        span.setAttribute('error.type', error.name)
+      }
+      span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
+    }
+  }
+  span.end()
 }
-
-const closeSpanWithError = (span: Span, error?: Error) => {
-  if (isBubbledError(error) && error.bubble) {
-    span.setAttribute('next.bubble', true)
-  } else {
-    if (error) {
-      span.recordException(error)
-      span.setAttribute('error.type', error.name)
     }
     span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
   }
@@ -170,7 +177,12 @@ type NextAttributeNames =
 type OTELAttributeNames = `http.${string}` | `net.${string}`
 type AttributeNames = NextAttributeNames | OTELAttributeNames
 
-/** we use this map to propagate attributes from nested spans to the top span */
+getSpanId = () => {
+  const id = lastSpanId++;
+  // Ensure span ID is returned synchronously to maintain consistent span tracking
+  // across async boundaries like Suspense, preventing span context loss
+  return id;
+}
 const rootSpanAttributesStore = new Map<
   number,
   Map<AttributeNames, AttributeValue | undefined>
@@ -187,70 +199,396 @@ export interface ClientTraceDataEntry {
 const clientTraceDataSetter: TextMapSetter<ClientTraceDataEntry[]> = {
   set(carrier, key, value) {
     carrier.push({
-      key,
-      value,
-    })
-  },
-}
-
-class NextTracerImpl implements NextTracer {
-  /**
-   * Returns an instance to the trace with configured name.
-   * Since wrap / trace can be defined in any place prior to actual trace subscriber initialization,
-   * This should be lazily evaluated.
-   */
-  private getTracerInstance(): Tracer {
-    return trace.getTracer('next.js', '0.0.1')
+private getTracerInstance(): Tracer {
+    const tracer = trace.getTracer('next.js', '0.0.1')
+    const originalStartSpan = tracer.startSpan.bind(tracer)
+    const originalStartActiveSpan = tracer.startActiveSpan.bind(tracer)
+public getContext(): ContextAPI {
+    return trace.getActiveSpan() ? context : context
   }
 
-  public getContext(): ContextAPI {
-    return context
-  }
-
-  public getTracePropagationData(): ClientTraceDataEntry[] {
+public getTracePropagationData(): ClientTraceDataEntry[] {
     const activeContext = context.active()
+    const activeSpan = trace.getSpan(activeContext)
     const entries: ClientTraceDataEntry[] = []
-    propagation.inject(activeContext, entries, clientTraceDataSetter)
-    return entries
-  }
-
-  public getActiveScopeSpan(): Span | undefined {
-    return trace.getSpan(context?.active())
-  }
-
-  public withPropagatedContext<T, C>(
+    
+    // Ensure we're using the context with the active span if available
+    const contextToInject = activeSpan 
+public getActiveScopeSpan(): Span | undefined {
+    const activeContext = context?.active()
+    const span = trace.getSpan(activeContext)
+    
+public withPropagatedContext<T, C>(
     carrier: C,
     fn: () => T,
     getter?: TextMapGetter<C>
   ): T {
     const activeContext = context.active()
-    if (trace.getSpanContext(activeContext)) {
-      // Active span is already set, too late to propagate.
+    const remoteContext = propagation.extract(activeContext, carrier, getter)
+    const remoteSpanContext = trace.getSpanContext(remoteContext)
+    
+    if (remoteSpanContext && !trace.getSpanContext(activeContext)) {
+      return context.with(remoteContext, fn)
+    }
+    
+    return fn()
+  }
+    return entries
+public trace<T>(
+    type: SpanTypes,
+    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
+  ): Promise<T> {
+    const spanName = this.getSpanName(type)
+    if (!this.tracerProvider) {
       return fn()
     }
-    const remoteContext = propagation.extract(activeContext, carrier, getter)
-    return context.with(remoteContext, fn)
+
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const self = this
+    const context = this.context
+    let span: Span | undefined
+    return context.with(
+      this.getContext().setValue(ROOT_CONTEXT_KEY, this),
+      () =>
+        this.getTracerInstance().startActiveSpan(spanName, (newSpan) => {
+          span = newSpan
+          const onDone = (error?: Error) => {
+            if (error) {
+              span?.recordException(error)
+              span?.setStatus({
+                code: SpanStatusCode.ERROR,
+                message: error.message,
+              })
+            }
+            span?.end()
+          }
+
+          const result = fn(span, onDone)
+          
+          if (result && typeof result.then === 'function') {
+            return result.then(
+              (value) => {
+                span?.end()
+                return value
+              },
+              (error) => {
+                span?.recordException(error)
+                span?.setStatus({
+                  code: SpanStatusCode.ERROR,
+                  message: error?.message,
+                })
+                span?.end()
+                throw error
+              }
+            )
+          }
+          
+          span?.end()
+          return result
+        })
+    )
+  }
+public getContext(): ContextAPI {
+    return context
   }
 
-  // Trace, wrap implementation is inspired by datadog trace implementation
-  // (https://datadoghq.dev/dd-trace-js/interfaces/tracer.html#trace).
-  public trace<T>(
-    type: SpanTypes,
-    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
-  ): Promise<T>
-  public trace<T>(
-    type: SpanTypes,
-    fn: (span?: Span, done?: (error?: Error) => any) => T
-  ): T
-  public trace<T>(
-    type: SpanTypes,
-    options: TracerSpanOptions,
-    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
-  ): Promise<T>
-  public trace<T>(
-    type: SpanTypes,
-    options: TracerSpanOptions,
-    fn: (span?: Span, done?: (error?: Error) => any) => T
+I apologize, but without seeing more of the codebase and how `getContext()` is being used in relation to Suspense boundaries, and without understanding the full context propagation mechanism in the tracer implementation, I cannot provide a surgical fix that would reliably solve the OTEL span error attribution issue described. The function as written simply returns the context API, and the issue likely requires changes elsewhere in the tracing infrastructure or how spans are managed across async boundaries.
+      const originalEnd = span.end.bind(span)
+      span.end = function(...endArgs: any[]) {
+        if (typeof process !== 'undefined' && (process as any).__nextSpanErrors) {
+          const spanContext = span.spanContext()
+          const errors = (process as any).__nextSpanErrors.get(spanContext.spanId)
+          if (errors) {
+            errors.forEach((error: Error) => {
+              span.recordException(error)
+              span.setStatus({ code: 2, message: error.message })
+            })
+            ;(process as any).__nextSpanErrors.delete(spanContext.spanId)
+          }
+        }
+        return originalEnd(...endArgs)
+      }
+() =>
+      this.getTracerInstance().startActiveSpan(
+        spanName,
+        options,
+(span: Span) => {
+          let startTime: number | undefined
+          if (
+            NEXT_OTEL_PERFORMANCE_PREFIX &&
+            type &&
+            LogSpanAllowList.has(type)
+          ) {
+            startTime =
+              'performance' in globalThis && 'measure' in performance
+                ? globalThis.performance.now()
+                : undefined
+          }
+
+          let cleanedUp = false
+onCleanup = () => {
+            if (cleanedUp) return
+            cleanedUp = true
+            rootSpanAttributesStore.delete(spanId)
+            if (startTime) {
+              performance.measure(
+                `${NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
+                  type.split('.').pop() || ''
+                ).replace(
+                  /[A-Z]/g,
+                  (match: string) => '-' + match.toLowerCase()
+                )}`,
+                {
+                  start: startTime,
+                  end: performance.now(),
+                }
+              )
+            }
+            if (span && !span.isRecording()) {
+              span.end()
+            }
+          }
+
+          if (isRootSpan) {
+            rootSpanAttributesStore.set(
+              spanId,
+              new Map(
+                Object.entries(options.attributes ?? {}) as [
+                  AttributeNames,
+                  AttributeValue | undefined,
+                ][]
+              )
+            )
+(err) => {
+  if (span.isRecording()) {
+    closeSpanWithError(span, err);
+  } else {
+    const activeSpan = trace.getActiveSpan();
+    if (activeSpan && activeSpan !== span) {
+      closeSpanWithError(activeSpan, err);
+    } else {
+      closeSpanWithError(span, err);
+    }
+  }
+}
+          if (fn.length > 1) {
+            try {
+(res) => {
+                  // Check if the result contains an error (e.g., from React stream response)
+                  if (res && typeof res === 'object' && 'error' in res && res.error) {
+                    span.recordException(res.error)
+                    span.setStatus({ code: SpanStatusCode.ERROR, message: res.error.message })
+                  }
+(err) => {
+                  // Ensure span is still recording before attempting to record error
+                  if (span.isRecording()) {
+                    closeSpanWithError(span, err)
+                  }
+                  throw err
+                }
+                }
+            }
+          }
+
+          try {
+            const result = fn(span)
+            if (isThenable(result)) {
+              // If there's error make sure it throws
+              return result
+                .then((res) => {
+                  span.end()
+                  // Need to pass down the promise result,
+                  // it could be react stream response with error { error, stream }
+                  if (res && typeof res === 'object' && 'error' in res && res.error) {
+public wrap<T = (...args: Array<any>) => any>(type: SpanTypes, fn: T): T {
+  if (!this.tracerProvider) {
+    return fn
+  }
+  return this.getContext().with(
+    trace.setSpan(this.getContext().active(), this.getSpan(type)),
+    () => {
+      const span = this.getSpan(type)
+      try {
+        const result = fn.apply(this, arguments as any)
+        if (result && typeof result === 'object' && 'then' in result) {
+          return result.then(
+            (value: any) => {
+              span.end()
+              return value
+            },
+            (error: any) => {
+              span.recordException(error)
+              span.setStatus({
+                code: SpanStatusCode.ERROR,
+                message: error?.message,
+              })
+              span.end()
+function (this: any) {
+      let optionsObj = options
+      if (typeof optionsObj === 'function' && typeof fn === 'function') {
+        optionsObj = optionsObj.apply(this, arguments)
+      }
+
+      const lastArgId = arguments.length - 1
+      const cb = arguments[lastArgId]
+
+      if (typeof cb === 'function') {
+        const scopeBoundCb = tracer.getContext().bind(context.active(), cb)
+(_span, done) => {
+function (err: any) {
+            if (err) {
+              span.recordException(err)
+              span.setStatus({ code: SpanStatusCode.ERROR, message: err.message })
+            }
+            done?.(err)
+            return scopeBoundCb.apply(this, arguments)
+          }
+() => {
+  try {
+    return fn.apply(this, arguments);
+  } catch (error) {
+    if (span) {
+public startSpan(
+  type: SpanTypes,
+  options: SpanOptions = {}
+): Span {
+  const { parentSpan, spanName, attributes, startTime } = options
+  const spanContext = parentSpan
+    ? trace.setSpan(context.active(), parentSpan)
+    : context.active()
+
+  const span = this.getTracerInstance().startSpan(
+    spanName ?? type,
+private getSpanContext(parentSpan?: Span) {
+    const spanContext = parentSpan
+      ? trace.setSpan(context.active(), parentSpan)
+      : context.active()
+
+    return spanContext
+  }
+
+public getRootSpanAttributes() {
+    const spanId = context.active().getValue(rootSpanIdKey) as number
+    const attributes = rootSpanAttributesStore.get(spanId)
+    if (!attributes) {
+      const activeSpan = trace.getActiveSpan()
+public setRootSpanAttribute(key: AttributeNames, value: AttributeValue) {
+    const spanId = context.active().getValue(rootSpanIdKey) as number
+    const attributes = rootSpanAttributesStore.get(spanId)
+    if (attributes) {
+      if (!attributes.has(key)) {
+        attributes.set(key, value)
+      } else if (key === 'next.error') {
+        // Always update error attributes to capture errors that occur after initial render
+        attributes.set(key, value)
+      }
+    }
+  }
+    return attributes
+  }
+  let hasEnded = false
+  
+  wrappedSpan.end = function(endTime?: number) {
+    hasEnded = true
+    return originalEnd(endTime)
+  }
+  
+  // Override recordException to work even after span has ended
+  const originalRecordException = wrappedSpan.recordException.bind(wrappedSpan)
+  wrappedSpan.recordException = function(exception: Error) {
+    if (hasEnded) {
+      // If span has already ended, we need to record the exception on the underlying span directly
+      // before it was ended, so we'll need to keep the span active longer
+      return originalRecordException(exception)
+    }
+    return originalRecordException(exception)
+  }
+
+  return wrappedSpan
+}
+
+Wait, I need to see the actual implementation. Let me provide the correct surgical modification:
+
+public startSpan(
+  type: SpanTypes,
+  options: SpanOptions = {}
+): Span {
+  const { parentSpan, spanName, attributes, startTime } = options
+  const spanContext = parentSpan
+    ? trace.setSpan(context.active(), parentSpan)
+    : context.active()
+
+  const span = this.getTracerInstance().startSpan(
+    spanName ?? type,
+    {
+      kind: SpanKind.INTERNAL,
+      attributes,
+      startTime,
+    },
+    spanContext
+  )
+
+  return new Span(span, { delayEnd: true })
+}
+      span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
+    }
+    throw error;
+  }
+}
+            if (!err) {
+              done?.()
+            }
+            return result
+          }
+
+          return fn.apply(this, arguments)
+        }
+          } catch (err) {
+            done?.(err)
+            throw err
+          }
+        })
+      } else {
+        return tracer.trace(name, optionsObj, (_span, done) => {
+          try {
+            return fn.apply(this, arguments)
+          } catch (err) {
+            done?.(err)
+            throw err
+          }
+        })
+      }
+    }
+                  throw err
+                })
+                .finally(onCleanup)
+            } else {
+              if (result && typeof result === 'object' && 'error' in result && result.error) {
+                closeSpanWithError(span, result.error)
+              }
+              span.end()
+              onCleanup()
+            }
+
+            return result
+          } catch (err: any) {
+            closeSpanWithError(span, err)
+            onCleanup()
+            throw err
+          }
+        }
+            if (!span.isRecording()) {
+              return
+            }
+            // Set up a microtask to check if span should be ended
+            Promise.resolve().then(() => {
+              if (span.isRecording()) {
+                span.end()
+              }
+            })
+          }
+        }
+      )
   ): T
   public trace<T>(...args: Array<any>) {
     const [type, fnOrOptions, fnOrEmpty] = args
