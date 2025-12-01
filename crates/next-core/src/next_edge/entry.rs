@@ -1,16 +1,13 @@
 use anyhow::Result;
-use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
-use turbo_tasks_fs::{File, FileContent, FileSystemPath};
-use turbopack_core::{
-    asset::AssetContent, context::AssetContext, module::Module, reference_type::ReferenceType,
-    virtual_source::VirtualSource,
-};
-use turbopack_ecmascript::utils::StringifyJs;
+use turbo_tasks_fs::FileSystemPath;
+use turbopack_core::{context::AssetContext, module::Module, reference_type::ReferenceType};
+
+use crate::util::load_next_js_template;
 
 #[turbo_tasks::function]
-pub fn wrap_edge_entry(
+pub async fn wrap_edge_entry(
     asset_context: Vc<Box<dyn AssetContext>>,
     project_root: FileSystemPath,
     entry: ResolvedVc<Box<dyn Module>>,
@@ -24,31 +21,18 @@ pub fn wrap_edge_entry(
     // (e.g. edge functions/middleware, this is what the Edge Runtime does).
     // Catch promise to prevent UnhandledPromiseRejectionWarning, this will be propagated through
     // the awaited export(s) anyway.
-    let source = formatdoc!(
-        r#"
-            self._ENTRIES ||= {{}};
-            const modProm = import('MODULE');
-            modProm.catch(() => {{}});
-            self._ENTRIES[{}] = new Proxy(modProm, {{
-                get(modProm, name) {{
-                    if (name === "then") {{
-                        return (res, rej) => modProm.then(res, rej);
-                    }}
-                    let result = (...args) => modProm.then((mod) => (0, mod[name])(...args));
-                    result.then = (res, rej) => modProm.then((mod) => mod[name]).then(res, rej);
-                    return result;
-                }},
-            }});
-        "#,
-        StringifyJs(&format_args!("middleware_{pathname}"))
-    );
-    let file = File::from(source);
-
-    // TODO(alexkirsz) Figure out how to name this virtual asset.
-    let virtual_source = VirtualSource::new(
-        project_root.join("edge-wrapper.js")?,
-        AssetContent::file(FileContent::Content(file).cell()),
-    );
+    //
+    // The actual wrapper lives in the Next.js templates directory as `edge-wrapper.js`.
+    // We use the template expansion helper so this code is kept in sync with other
+    // Next.js runtime templates.
+    let template_source = load_next_js_template(
+        "edge-wrapper.js",
+        project_root,
+        &[("VAR_ENTRY_NAME", &format!("middleware_{pathname}"))],
+        &[],
+        &[],
+    )
+    .await?;
 
     let inner_assets = fxindexmap! {
         rcstr!("MODULE") => entry
@@ -56,7 +40,7 @@ pub fn wrap_edge_entry(
 
     Ok(asset_context
         .process(
-            Vc::upcast(virtual_source),
+            template_source,
             ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module())
