@@ -1,4 +1,5 @@
 import lodash from 'lodash'
-import pkg from 'lodash/package.json'
+import lodashPkg from 'lodash/package.json'
+import globalPkg from '@storybook/global/package.json'
 
-export default [lodash.VERSION, pkg.version]
+export default [lodash.VERSION, lodashPkg.version, globalPkg.version]
