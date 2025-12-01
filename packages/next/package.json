@@ -101,6 +101,7 @@
     "@next/env": "16.1.0-canary.9",
     "@swc/helpers": "0.5.15",
     "caniuse-lite": "^1.0.30001579",
+    "baseline-browser-mapping": "^2.8.3",
     "postcss": "8.4.31",
     "styled-jsx": "5.1.6"
   },

@@ -1081,6 +1081,9 @@ importers:
       '@swc/helpers':
         specifier: 0.5.15
         version: 0.5.15
+      baseline-browser-mapping:
+        specifier: ^2.8.3
+        version: 2.8.32
       caniuse-lite:
         specifier: 1.0.30001746
         version: 1.0.30001746
