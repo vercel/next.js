@@ -1380,7 +1380,10 @@ impl AppEndpoint {
                         "server/app{manifest_path_prefix}/webpack-stats.json",
                     ))?,
                     AssetContent::file(
-                        File::from(serde_json::to_string_pretty(&webpack_stats)?).into(),
+                        FileContent::Content(File::from(serde_json::to_string_pretty(
+                            &webpack_stats,
+                        )?))
+                        .cell(),
                     ),
                 )
                 .to_resolved()
@@ -1909,7 +1912,10 @@ async fn create_app_paths_manifest(
         VirtualOutputAsset::new(
             path,
             AssetContent::file(
-                File::from(serde_json::to_string_pretty(&app_paths_manifest)?).into(),
+                FileContent::Content(File::from(serde_json::to_string_pretty(
+                    &app_paths_manifest,
+                )?))
+                .cell(),
             ),
         )
         .to_resolved()

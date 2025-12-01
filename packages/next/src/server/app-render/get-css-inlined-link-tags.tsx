@@ -1,14 +1,10 @@
-import type {
-  ClientReferenceManifest,
-  CssResource,
-} from '../../build/webpack/plugins/flight-manifest-plugin'
-import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import type { CssResource } from '../../build/webpack/plugins/flight-manifest-plugin'
+import { getClientReferenceManifest } from './manifests-singleton'
 
 /**
  * Get external stylesheet link hrefs based on server CSS manifest.
  */
 export function getLinkAndScriptTags(
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   filePath: string,
   injectedCSS: Set<string>,
   injectedScripts: Set<string>,
@@ -17,14 +13,12 @@ export function getLinkAndScriptTags(
   const filePathWithoutExt = filePath.replace(/\.[^.]+$/, '')
   const cssChunks = new Set<CssResource>()
   const jsChunks = new Set<string>()
+  const { entryCSSFiles, entryJSFiles } = getClientReferenceManifest()
+  const cssFiles = entryCSSFiles[filePathWithoutExt]
+  const jsFiles = entryJSFiles?.[filePathWithoutExt]
 
-  const entryCSSFiles =
-    clientReferenceManifest.entryCSSFiles[filePathWithoutExt]
-  const entryJSFiles =
-    clientReferenceManifest.entryJSFiles?.[filePathWithoutExt] ?? []
-
-  if (entryCSSFiles) {
-    for (const css of entryCSSFiles) {
+  if (cssFiles) {
+    for (const css of cssFiles) {
       if (!injectedCSS.has(css.path)) {
         if (collectNewImports) {
           injectedCSS.add(css.path)
@@ -34,8 +28,8 @@ export function getLinkAndScriptTags(
     }
   }
 
-  if (entryJSFiles) {
-    for (const file of entryJSFiles) {
+  if (jsFiles) {
+    for (const file of jsFiles) {
       if (!injectedScripts.has(file)) {
         if (collectNewImports) {
           injectedScripts.add(file)

@@ -1160,13 +1160,19 @@ export default class NextNodeServer extends BaseServer<
           })
           if (handled) return true
         } catch (apiError) {
-          await this.instrumentationOnRequestError(apiError, req, {
-            routePath: match.definition.page,
-            routerKind: 'Pages Router',
-            routeType: 'route',
-            // Edge runtime does not support ISR
-            revalidateReason: undefined,
-          })
+          const silenceLog = false
+          await this.instrumentationOnRequestError(
+            apiError,
+            req,
+            {
+              routePath: match.definition.page,
+              routerKind: 'Pages Router',
+              routeType: 'route',
+              // Edge runtime does not support ISR
+              revalidateReason: undefined,
+            },
+            silenceLog
+          )
           throw apiError
         }
       }
@@ -2123,7 +2129,10 @@ export default class NextNodeServer extends BaseServer<
 
     // For Node.js runtime production logs, in dev it will be overridden by next-dev-server
     if (!this.renderOpts.dev) {
-      this.logError(args[0] as Error)
+      const [err, , , silenceLog] = args
+      if (!silenceLog) {
+        this.logError(err)
+      }
     }
   }
 

@@ -10,6 +10,8 @@ export class NextStartInstance extends NextInstance {
   private _buildId: string
   private _cliOutput: string = ''
 
+  private _prerenderFinishedTimeMS: number | null = null
+
   public get buildId() {
     return this._buildId
   }
@@ -80,6 +82,16 @@ export class NextStartInstance extends NextInstance {
               )
             else resolve()
           })
+          const prerenderedCallback = (msg: string) => {
+            const colorStrippedMsg = stripAnsi(msg)
+            // This stage happens after all prerenders have finished.
+            const prerenderFinishedPattern = /Finalizing page optimization/
+            if (prerenderFinishedPattern.test(colorStrippedMsg)) {
+              this._prerenderFinishedTimeMS = performance.now()
+              this.off('stdout', prerenderedCallback)
+            }
+          }
+          this.on('stdout', prerenderedCallback)
         } catch (err) {
           require('console').error(
             `Failed to run ${shellQuote(buildArgs)}`,
@@ -226,5 +238,27 @@ export class NextStartInstance extends NextInstance {
         })
       })
     })
+  }
+
+  public async waitForMinPrerenderAge(minAgeMS: number): Promise<void> {
+    if (this._prerenderFinishedTimeMS === null) {
+      throw new Error(
+        'Could not determine when prerender finished. ' +
+          `Cannot guarantee a minimum prerender age of ${minAgeMS}ms.`
+      )
+    }
+
+    const prerenderAge = performance.now() - this._prerenderFinishedTimeMS
+    const minWaitTime = minAgeMS - prerenderAge
+    if (minWaitTime > 0) {
+      console.log(
+        'Need to wait %dms to guarantee prerender age of %dms',
+        minWaitTime,
+        minAgeMS
+      )
+      await new Promise((resolve) => {
+        setTimeout(resolve, minWaitTime)
+      })
+    }
   }
 }
