@@ -852,11 +852,10 @@ function bindingToApi(
     // Avoid mutating the existing `nextConfig` object. NOTE: This is only a shallow clone.
     let nextConfigSerializable: Record<string, any> = { ...nextConfig }
 
-    nextConfigSerializable.generateBuildId =
-      await nextConfigSerializable.generateBuildId?.()
-
-    // TODO: these functions takes arguments, have to be supported in a different way
+    // These values are never read by Turbopack and are potentially non-serializable.
     nextConfigSerializable.exportPathMap = {}
+    nextConfigSerializable.generateBuildId =
+      nextConfigSerializable.generateBuildId && {}
     nextConfigSerializable.webpack = nextConfigSerializable.webpack && {}
 
     if (nextConfigSerializable.modularizeImports) {
