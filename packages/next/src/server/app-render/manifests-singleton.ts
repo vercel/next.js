@@ -3,7 +3,6 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import { createServerModuleMap, type ServerModuleMap } from './action-utils'
 import { workAsyncStorage } from './work-async-storage.external'
 
@@ -36,7 +35,6 @@ type ClientReferenceManifestMappingProp =
 const globalThisWithManifests = globalThis as GlobalThisWithManifests
 
 function createProxiedClientReferenceManifest(
-  baseManifest: DeepReadonly<ClientReferenceManifest>,
   clientReferenceManifestsPerRoute: Map<
     string,
     DeepReadonly<ClientReferenceManifest>
@@ -114,7 +112,7 @@ function createProxiedClientReferenceManifest(
   return new Proxy(
     {},
     {
-      get(_, prop, receiver) {
+      get(_, prop) {
         const workStore = workAsyncStorage.getStore()
 
         switch (prop) {
@@ -154,7 +152,9 @@ function createProxiedClientReferenceManifest(
             return proxy
           }
           default: {
-            return ReflectAdapter.get(baseManifest, prop, receiver)
+            throw new InvariantError(
+              `This is a proxied client reference manifest. The property "${String(prop)}" is not handled.`
+            )
           }
         }
       },
@@ -191,7 +191,6 @@ export function setManifestsSingleton({
     >([[normalizeAppPath(page), clientReferenceManifest]])
 
     const proxiedClientReferenceManifest = createProxiedClientReferenceManifest(
-      clientReferenceManifest,
       clientReferenceManifestsPerRoute
     )
 
