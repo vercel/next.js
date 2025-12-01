@@ -95,7 +95,7 @@ pub async fn get_sass_loader_rules(
     // Add node_modules directory to includePaths if not already present
     // This ensures that SCSS imports from node_modules can be resolved correctly
     let node_modules_path = project_path.join("node_modules")?;
-    let node_modules_path_str = node_modules_path.to_string().await?;
+    let node_modules_path_str = RcStr::from(node_modules_path.path.as_str());
 
     // Check if node_modules path is already in includePaths
     let node_modules_already_included = include_paths_vec.iter().any(|path| {
@@ -105,7 +105,7 @@ pub async fn get_sass_loader_rules(
     });
 
     if !node_modules_already_included {
-        include_paths_vec.push(serde_json::Value::String(node_modules_path_str));
+        include_paths_vec.push(serde_json::Value::String(node_modules_path_str.to_string()));
         sass_options_cloned.insert(
             "includePaths".to_string(),
             serde_json::Value::Array(include_paths_vec),
