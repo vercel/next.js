@@ -682,7 +682,14 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
   const collectedDeclarations: [string, string][] = []
-  const page = name.replace(/^app/, '')
+
+  // Use the page from loaderOptions directly instead of deriving it from name.
+  // The name (bundlePath) may have been normalized with normalizePagePath()
+  // which is designed for Pages Router and incorrectly duplicates /index paths
+  // (e.g., /index/page -> /index/index/page). The page parameter contains the
+  // correct unnormalized value.
+  const page = loaderOptions.page
+
   const middlewareConfig: ProxyConfig = JSON.parse(
     Buffer.from(middlewareConfigBase64, 'base64').toString()
   )
