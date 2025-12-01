@@ -9,9 +9,7 @@
 //! - Function calls (unless marked with `/*#__PURE__*/` or otherwise known to be pure)
 //! - Constructor calls (unless marked with `/*#__PURE__*/`or otherwise known to be pure )
 //! - Assignments to variables or properties
-//!     - TODO: Unless the variable is defined in the same scope.
 //! - Property mutations
-//!     - TODO: Unless the object being mutated is defined in the same scope
 //! - Update expressions (`++`, `--`)
 //! - Delete expressions
 //!
