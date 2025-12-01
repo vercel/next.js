@@ -1,9 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 // Explicitly don't mix route handlers with pages in this test app, to make sure
 // that this also works in isolation.
 describe('use-cache-route-handler-only', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -18,14 +19,20 @@ describe('use-cache-route-handler-only', () => {
     const response1 = await next.fetch('/node')
     const { date1: date1a } = await response1.json()
 
-    // Revalidate the prerendered response.
-    await next.fetch('/revalidate', { method: 'POST' })
+    const attemptOnce: typeof retry = async (fn) => fn()
+    const retryIfDeployed = isNextDeploy ? retry : attemptOnce
 
-    // Fetch the response again. This should trigger a blocking revalidation.
-    const response2 = await next.fetch('/node')
-    expect(response2.status).toBe(200)
+    // Revalidation on Vercel isn't instant.
+    await retryIfDeployed(async () => {
+      // Revalidate the prerendered response.
+      await next.fetch('/revalidate', { method: 'POST' })
 
-    const { date1: date1b } = await response2.json()
-    expect(date1a).not.toBe(date1b)
+      // Fetch the response again. This should trigger a blocking revalidation.
+      const response2 = await next.fetch('/node')
+      expect(response2.status).toBe(200)
+
+      const { date1: date1b } = await response2.json()
+      expect(date1a).not.toBe(date1b)
+    })
   })
 })
