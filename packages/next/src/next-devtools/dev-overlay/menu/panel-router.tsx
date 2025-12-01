@@ -95,7 +95,7 @@ const MenuPanel = () => {
                   rel="noreferrer noopener"
                   className="turbopack-upgrade-link"
                 >
-                  {process.env.__NEXT_BUNDLER || 'Webpack'}
+                  {process.env.__NEXT_BUNDLER || 'Turbopack'}
                 </a>
               ),
             },
