@@ -9,7 +9,9 @@
 //! - Function calls (unless marked with `/*#__PURE__*/` or otherwise known to be pure)
 //! - Constructor calls (unless marked with `/*#__PURE__*/`or otherwise known to be pure )
 //! - Assignments to variables or properties
+//!     - TODO: Unless the variable is defined in the same scope.
 //! - Property mutations
+//!     - TODO: Unless the object being mutated is defined in the same scope
 //! - Update expressions (`++`, `--`)
 //! - Delete expressions
 //!
@@ -160,6 +162,10 @@ static KNOWN_PURE_CONSTRUCTORS: phf::Set<&'static str> = phf_set! {
     "Symbol",
     "Boolean",
 };
+
+// For prototype methods we are not saying that these functions are always side effect free but
+// rather that we can safely reason about their side effects when called on literal expressions.
+// We do however assume that these functions are not monkey patched.
 
 // For prototype methods we are not saying that these functions are always side effect free but
 // rather that we can safely reason about their side effects when called on literal expressions.
