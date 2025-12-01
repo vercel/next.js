@@ -41,7 +41,6 @@ import type { __ApiPreviewProps } from '../server/api-utils'
 import {
   isMiddlewareFile,
   isMiddlewareFilename,
-  isProxyFile,
   isInstrumentationHookFile,
   isInstrumentationHookFilename,
 } from './utils'
@@ -767,11 +766,6 @@ export function runDependingOnPageType<T>(params: {
   ) {
     params.onServer()
     params.onEdgeServer()
-    return
-  }
-
-  if (isProxyFile(params.page)) {
-    params.onServer()
     return
   }
 
