@@ -1199,7 +1199,17 @@ export async function handleAction({
       }
 
       // For an MPA action, the redirect doesn't need a body, just a Location header.
-      res.setHeader('Location', redirectUrl)
+      const appRelativeRedirectUrl = getAppRelativeRedirectUrl(
+        ctx.renderOpts.basePath,
+        host,
+        redirectUrl,
+        requestStore.url.pathname
+      )
+
+      res.setHeader(
+        'Location',
+        appRelativeRedirectUrl?.toString() ?? redirectUrl
+      )
       return {
         type: 'done',
         result: RenderResult.EMPTY,
