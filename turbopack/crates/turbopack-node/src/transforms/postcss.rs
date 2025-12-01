@@ -103,6 +103,7 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
 #[turbo_tasks::value]
 pub struct PostCssTransform {
     evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
+    config_tracing_context: ResolvedVc<Box<dyn AssetContext>>,
     execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
     source_maps: bool,
@@ -113,12 +114,14 @@ impl PostCssTransform {
     #[turbo_tasks::function]
     pub fn new(
         evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
+        config_tracing_context: ResolvedVc<Box<dyn AssetContext>>,
         execution_context: ResolvedVc<ExecutionContext>,
         config_location: PostCssConfigLocation,
         source_maps: bool,
     ) -> Vc<Self> {
         PostCssTransform {
             evaluate_context,
+            config_tracing_context,
             execution_context,
             config_location,
             source_maps,
@@ -134,6 +137,7 @@ impl SourceTransform for PostCssTransform {
         Vc::upcast(
             PostCssTransformedAsset {
                 evaluate_context: self.evaluate_context,
+                config_tracing_context: self.config_tracing_context,
                 execution_context: self.execution_context,
                 config_location: self.config_location,
                 source,
@@ -147,6 +151,7 @@ impl SourceTransform for PostCssTransform {
 #[turbo_tasks::value]
 struct PostCssTransformedAsset {
     evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
+    config_tracing_context: ResolvedVc<Box<dyn AssetContext>>,
     execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
     source: ResolvedVc<Box<dyn Source>>,
@@ -483,7 +488,7 @@ impl PostCssTransformedAsset {
         let source_map = self.source_map;
 
         // This invalidates the transform when the config changes.
-        let config_changed = config_changed(*evaluate_context, config_path.clone())
+        let config_changed = config_changed(*self.config_tracing_context, config_path.clone())
             .to_resolved()
             .await?;
 
