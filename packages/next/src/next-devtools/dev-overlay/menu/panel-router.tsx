@@ -6,7 +6,6 @@ import {
   RouteInfoBody,
 } from '../components/errors/dev-tools-indicator/dev-tools-info/route-info'
 import { PageSegmentTree } from '../components/overview/segment-explorer'
-import { TurbopackInfoBody } from '../components/errors/dev-tools-indicator/dev-tools-info/turbopack-info'
 import { DevToolsHeader } from '../components/errors/dev-tools-indicator/dev-tools-info/dev-tools-header'
 import { useDelayedRender } from '../hooks/use-delayed-render'
 import {
@@ -82,15 +81,23 @@ const MenuPanel = () => {
         !!process.env.TURBOPACK
           ? {
               title: 'Turbopack is enabled.',
-              label: 'Turbopack',
-              value: 'Enabled',
+              label: 'Bundler',
+              value: 'Turbopack',
             }
           : {
               title:
                 'Learn about Turbopack and how to enable it in your application.',
-              label: 'Try Turbopack',
-              value: <ChevronRight />,
-              onClick: () => setPanel('turbo-info'),
+              label: 'Bundler',
+              value: (
+                <a
+                  href="https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="turbopack-upgrade-link"
+                >
+                  {process.env.__NEXT_BUNDLER || 'Turbopack'}
+                </a>
+              ),
             },
         !!process.env.__NEXT_CACHE_COMPONENTS && {
           title: 'Cache Components is enabled.',
@@ -236,24 +243,6 @@ export const PanelRouter = () => {
           </DynamicPanel>
         </PanelRoute>
       )}
-
-      <PanelRoute name="turbo-info">
-        <DynamicPanel
-          sharePanelSizeGlobally={false}
-          sizeConfig={{
-            kind: 'fixed',
-            height: 470 / state.scale,
-            width: 400 / state.scale,
-          }}
-          closeOnClickOutside
-          header={<DevToolsHeader title="Try Turbopack" />}
-        >
-          <div className="panel-content">
-            <TurbopackInfoBody />
-            <InfoFooter href="https://nextjs.org/docs/app/api-reference/turbopack" />
-          </div>
-        </DynamicPanel>
-      </PanelRoute>
     </>
   )
 }
