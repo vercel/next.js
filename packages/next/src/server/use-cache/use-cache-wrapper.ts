@@ -691,9 +691,23 @@ async function generateCacheEntryImpl(
         stream = prelude
       }
       break
+    case 'request':
+      // If we're filling caches for a staged render, make sure that
+      // it takes at least a task, so we'll always notice a cache miss between stages.
+      //
+      // TODO(restart-on-cache-miss): This is suboptimal.
+      // Ideally we wouldn't need to restart for microtasky caches,
+      // but the current logic for omitting short-lived caches only works correctly
+      // if we do a second render, so that's the best we can do until we refactor that.
+      if (
+        process.env.NODE_ENV === 'development' &&
+        outerWorkUnitStore.cacheSignal
+      ) {
+        await new Promise((resolve) => setTimeout(resolve))
+      }
+    // fallthrough
     case 'prerender-ppr':
     case 'prerender-legacy':
-    case 'request':
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':

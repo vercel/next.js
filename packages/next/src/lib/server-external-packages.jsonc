@@ -24,6 +24,8 @@
   // Native Node.js addons
   "@swc/core",
   "@xenova/transformers",
+  // Builds on top of @prisma/client so dynamically loads the version.
+  "@zenstackhq/runtime",
   "argon2",
   "autoprefixer",
   "aws-crt",
