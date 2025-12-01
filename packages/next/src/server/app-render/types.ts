@@ -4,7 +4,6 @@ import type {
   ExperimentalConfig,
   NextConfigComplete,
 } from '../../server/config-shared'
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
@@ -94,7 +93,6 @@ export interface RenderOptsPartial {
   cacheComponents: boolean
   trailingSlash: boolean
   images: ImageConfigComplete
-  clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   supportsDynamicResponse: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
