@@ -1895,18 +1895,17 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             Decl::Var(var) => {
                                 let mut has_export_needing_wrapper = false;
 
-                                // Validate exports and check for cache runtime wrappers. Disallow
-                                // exporting literals, objects, and arrays directly (destructuring
-                                // patterns are allowed since we can't statically know if the
-                                // destructured value is a function).
                                 for decl in &var.decls {
                                     if let Pat::Ident(_) = &decl.name {
                                         if let Some(init) = &decl.init {
-                                            match &**init {
-                                                Expr::Lit(_) | Expr::Object(_) | Expr::Array(_) => {
-                                                    disallowed_export_span = *span;
-                                                }
-                                                _ => {}
+                                            // Disallow exporting literals. Admittedly, this is
+                                            // pretty arbitrary. We don't disallow exporting object
+                                            // and array literals, as that would be too restrictive,
+                                            // especially for page and layout files with
+                                            // 'use cache', that may want to export metadata or
+                                            // viewport objects.
+                                            if let Expr::Lit(_) = &**init {
+                                                disallowed_export_span = *span;
                                             }
                                         }
                                     }
