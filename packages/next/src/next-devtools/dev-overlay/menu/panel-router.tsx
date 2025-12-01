@@ -7,6 +7,7 @@ import {
 } from '../components/errors/dev-tools-indicator/dev-tools-info/route-info'
 import { PageSegmentTree } from '../components/overview/segment-explorer'
 import { TurbopackInfoBody } from '../components/errors/dev-tools-indicator/dev-tools-info/turbopack-info'
+import { OpenGraphPreviewBody } from '../components/errors/dev-tools-indicator/dev-tools-info/opengraph-preview'
 import { DevToolsHeader } from '../components/errors/dev-tools-indicator/dev-tools-info/dev-tools-header'
 import { useDelayedRender } from '../hooks/use-delayed-render'
 import {
@@ -103,6 +104,14 @@ const MenuPanel = () => {
           onClick: () => setPanel('segment-explorer'),
           attributes: {
             'data-segment-explorer': true,
+          },
+        },
+        {
+          label: 'OpenGraph Preview',
+          value: <ChevronRight />,
+          onClick: () => setPanel('opengraph-preview'),
+          attributes: {
+            'data-opengraph-preview': true,
           },
         },
         {
@@ -252,6 +261,28 @@ export const PanelRouter = () => {
             <TurbopackInfoBody />
             <InfoFooter href="https://nextjs.org/docs/app/api-reference/turbopack" />
           </div>
+        </DynamicPanel>
+      </PanelRoute>
+
+      <PanelRoute name="opengraph-preview">
+        <DynamicPanel
+          sharePanelSizeGlobally={false}
+          sharePanelPositionGlobally={false}
+          draggable
+          sizeConfig={{
+            kind: 'resizable',
+            maxHeight: '90vh',
+            maxWidth: '90vw',
+            minHeight: 400 / state.scale,
+            minWidth: 400 / state.scale,
+            initialSize: {
+              height: 600 / state.scale,
+              width: 450 / state.scale,
+            },
+          }}
+          header={<DevToolsHeader title="OpenGraph Preview" />}
+        >
+          <OpenGraphPreviewBody />
         </DynamicPanel>
       </PanelRoute>
     </>
