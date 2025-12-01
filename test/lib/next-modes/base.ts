@@ -904,4 +904,9 @@ export class NextInstance {
       return this.cliOutput.slice(length)
     }
   }
+
+  public async waitForMinPrerenderAge(minAgeMS: number): Promise<void> {
+    // For tests we usually have a low revalidate time.
+    // We assume the prerender is old enough by default for those small revalidation times.
+  }
 }

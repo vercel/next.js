@@ -18,9 +18,10 @@ describe('app-dir-prevent-304-caching', () => {
 
   // https://github.com/vercel/next.js/issues/56580
   it('should not cache 304 status', async () => {
-    // Fresh call
-    const rFresh = await fetchViaHTTP(next.url, '/')
-    expect(rFresh.status).toBe(200)
+    // Ensure the first request hits a stale page triggering background revalidation.
+    await next.waitForMinPrerenderAge(1000 + 50)
+    const rStale = await fetchViaHTTP(next.url, '/')
+    expect(rStale.status).toBe(200)
 
     await waitFor(500)
 
@@ -31,7 +32,7 @@ describe('app-dir-prevent-304-caching', () => {
       {},
       {
         headers: {
-          'If-None-Match': rFresh.headers.get('etag'),
+          'If-None-Match': rStale.headers.get('etag'),
         },
       }
     )
