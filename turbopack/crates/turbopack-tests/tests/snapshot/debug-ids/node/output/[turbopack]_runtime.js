@@ -628,14 +628,16 @@ function loadRuntimeChunkPath(sourcePath, chunkPath) {
         const chunkModules = require(resolved);
         installCompressedModuleFactories(chunkModules, 0, moduleFactories);
         loadedChunks.add(chunkPath);
-    } catch (e) {
+    } catch (cause) {
         let errorMessage = `Failed to load chunk ${chunkPath}`;
         if (sourcePath) {
             errorMessage += ` from runtime for chunk ${sourcePath}`;
         }
-        throw new Error(errorMessage, {
-            cause: e
+        const error = new Error(errorMessage, {
+            cause
         });
+        error.name = 'ChunkLoadError';
+        throw error;
     }
 }
 function loadChunkAsync(chunkData) {
@@ -655,12 +657,14 @@ function loadChunkAsync(chunkData) {
             const chunkModules = require(resolved);
             installCompressedModuleFactories(chunkModules, 0, moduleFactories);
             entry = loadedChunk;
-        } catch (e) {
+        } catch (cause) {
             const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`;
+            const error = new Error(errorMessage, {
+                cause
+            });
+            error.name = 'ChunkLoadError';
             // Cache the failure promise, future requests will also get this same rejection
-            entry = Promise.reject(new Error(errorMessage, {
-                cause: e
-            }));
+            entry = Promise.reject(error);
         }
         chunkCache.set(chunkPath, entry);
     }

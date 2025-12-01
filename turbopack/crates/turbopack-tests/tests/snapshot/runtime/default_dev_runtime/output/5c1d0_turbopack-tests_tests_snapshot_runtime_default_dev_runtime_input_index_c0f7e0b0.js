@@ -617,7 +617,7 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkUrl) {
     let entry = instrumentedBackendLoadChunks.get(thenable);
     if (entry === undefined) {
         const resolve = instrumentedBackendLoadChunks.set.bind(instrumentedBackendLoadChunks, thenable, loadedChunk);
-        entry = thenable.then(resolve).catch((error)=>{
+        entry = thenable.then(resolve).catch((cause)=>{
             let loadReason;
             switch(sourceType){
                 case 0:
@@ -632,9 +632,11 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkUrl) {
                 default:
                     invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
             }
-            throw new Error(`Failed to load chunk ${chunkUrl} ${loadReason}${error ? `: ${error}` : ''}`, error ? {
-                cause: error
+            let error = new Error(`Failed to load chunk ${chunkUrl} ${loadReason}${cause ? `: ${cause}` : ''}`, cause ? {
+                cause
             } : undefined);
+            error.name = 'ChunkLoadError';
+            throw error;
         });
         instrumentedBackendLoadChunks.set(thenable, entry);
     }
