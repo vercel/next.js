@@ -170,9 +170,9 @@ export function getCookieLocale(
   try {
     const cookies = cookieHeader.split(';').reduce(
       (acc, cookie) => {
-        const [key, value] = cookie.trim().split('=')
-        if (key && value) {
-          acc[key] = decodeURIComponent(value)
+        const [key, ...valueParts] = cookie.trim().split('=')
+        if (key && valueParts.length > 0) {
+          acc[key] = decodeURIComponent(valueParts.join('='))
         }
         return acc
       },
