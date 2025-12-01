@@ -80,13 +80,45 @@ pub async fn get_sass_loader_rules(
     let additional_data = sass_options
         .get("prependData")
         .or(sass_options.get("additionalData"));
+
+    // Ensure includePaths is set for proper SCSS import resolution, especially on Windows
+    // This helps resolve imports like Bootstrap's @import "variables-dark" which looks
+    // for files in the same directory and includePaths
+    let mut sass_options_cloned = sass_options.clone();
+    let include_paths = sass_options_cloned
+        .get("includePaths")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.clone());
+
+    let mut include_paths_vec = include_paths.unwrap_or_default();
+
+    // Add node_modules directory to includePaths if not already present
+    // This ensures that SCSS imports from node_modules can be resolved correctly
+    let node_modules_path = project_path.join("node_modules")?;
+    let node_modules_path_str = node_modules_path.to_string().await?;
+
+    // Check if node_modules path is already in includePaths
+    let node_modules_already_included = include_paths_vec.iter().any(|path| {
+        path.as_str()
+            .map(|s| s == node_modules_path_str.as_str())
+            .unwrap_or(false)
+    });
+
+    if !node_modules_already_included {
+        include_paths_vec.push(serde_json::Value::String(node_modules_path_str));
+        sass_options_cloned.insert(
+            "includePaths".to_string(),
+            serde_json::Value::Array(include_paths_vec),
+        );
+    }
+
     let sass_loader = WebpackLoaderItem {
         loader: rcstr!("next/dist/compiled/sass-loader"),
         options: take(
             serde_json::json!({
-                "implementation": sass_options.get("implementation"),
+                "implementation": sass_options_cloned.get("implementation"),
                 "sourceMap": true,
-                "sassOptions": sass_options,
+                "sassOptions": sass_options_cloned,
                 "additionalData": additional_data
             })
             .as_object_mut()
