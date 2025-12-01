@@ -33,7 +33,9 @@ use turbo_tasks::{
     debug::ValueDebugFormat, fxindexmap, mark_root, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem, invalidation};
+use turbo_tasks_fs::{
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, VirtualFileSystem, invalidation,
+};
 use turbo_unix_path::{join_path, unix_to_sys};
 use turbopack::{
     ModuleAssetContext, evaluate_context::node_build_environment,
@@ -59,8 +61,10 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        binding_usage_info::{
+            BindingUsageInfo, OptionBindingUsageInfo, compute_binding_usage_info,
+        },
         chunk_group_info::ChunkGroupEntry,
-        export_usage::{OptionExportUsageInfo, compute_export_usage_info},
     },
     output::{
         ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
@@ -68,7 +72,6 @@ use turbopack_core::{
     },
     reference::all_assets_from_entries,
     resolve::{FindContextFileResult, find_context_file},
-    source_map::OptionStringifiedSourceMap,
     version::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
@@ -83,7 +86,10 @@ use crate::{
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
     pages::PagesProject,
-    route::{Endpoint, EndpointGroup, EndpointGroupKey, EndpointGroups, Endpoints, Route},
+    route::{
+        Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
+        Route,
+    },
     versioned_content_map::VersionedContentMap,
 };
 
@@ -547,17 +553,17 @@ impl ProjectContainer {
     }
 
     /// Gets a source map for a particular `file_path`. If `dev` mode is disabled, this will always
-    /// return [`OptionStringifiedSourceMap::none`].
+    /// return [`FileContent::NotFound`].
     #[turbo_tasks::function]
     pub fn get_source_map(
         &self,
         file_path: FileSystemPath,
         section: Option<RcStr>,
-    ) -> Vc<OptionStringifiedSourceMap> {
+    ) -> Vc<FileContent> {
         if let Some(map) = self.versioned_content_map {
             map.get_source_map(file_path, section)
         } else {
-            OptionStringifiedSourceMap::none()
+            FileContent::NotFound.cell()
         }
     }
 }
@@ -936,9 +942,18 @@ impl Project {
                         endpoint_groups.push((
                             EndpointGroupKey::Route(key.clone()),
                             EndpointGroup {
-                                primary: vec![*html_endpoint],
+                                primary: vec![EndpointGroupEntry {
+                                    endpoint: *html_endpoint,
+                                    sub_name: None,
+                                }],
                                 // This only exists in development mode for HMR
-                                additional: data_endpoint.iter().copied().collect(),
+                                additional: data_endpoint
+                                    .iter()
+                                    .map(|endpoint| EndpointGroupEntry {
+                                        endpoint: *endpoint,
+                                        sub_name: None,
+                                    })
+                                    .collect(),
                             },
                         ));
                         add_pages_entries = true;
@@ -957,7 +972,13 @@ impl Project {
                     endpoint_groups.push((
                         EndpointGroupKey::Route(key.clone()),
                         EndpointGroup {
-                            primary: page_routes.iter().map(|r| r.html_endpoint).collect(),
+                            primary: page_routes
+                                .iter()
+                                .map(|r| EndpointGroupEntry {
+                                    endpoint: r.html_endpoint,
+                                    sub_name: Some(r.original_name.clone()),
+                                })
+                                .collect(),
                             additional: Vec::new(),
                         },
                     ));
@@ -999,11 +1020,11 @@ impl Project {
     pub async fn get_all_endpoints(self: Vc<Self>, app_dir_only: bool) -> Result<Vc<Endpoints>> {
         let mut endpoints = Vec::new();
         for (_key, group) in self.get_all_endpoint_groups(app_dir_only).await?.iter() {
-            for &endpoint in group.primary.iter() {
-                endpoints.push(endpoint);
+            for entry in group.primary.iter() {
+                endpoints.push(entry.endpoint);
             }
-            for &endpoint in group.additional.iter() {
-                endpoints.push(endpoint);
+            for entry in group.additional.iter() {
+                endpoints.push(entry.endpoint);
             }
         }
 
@@ -1147,6 +1168,7 @@ impl Project {
             environment: self.client_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
+            unused_references: self.unused_references(),
             minify: self.next_config().turbo_minify(self.next_mode()),
             source_maps: self.next_config().client_source_maps(self.next_mode()),
             no_mangling: self.no_mangling(),
@@ -1172,6 +1194,7 @@ impl Project {
             environment: self.server_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
+            unused_references: self.unused_references(),
             minify: self.next_config().turbo_minify(self.next_mode()),
             source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
@@ -1203,6 +1226,7 @@ impl Project {
             environment: self.edge_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
+            unused_references: self.unused_references(),
             turbo_minify: self.next_config().turbo_minify(self.next_mode()),
             turbo_source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
@@ -1907,20 +1931,50 @@ impl Project {
         }
     }
 
+    /// Compute the used exports and unused imports for each module.
+    #[turbo_tasks::function]
+    async fn binding_usage_info(self: Vc<Self>) -> Result<Vc<BindingUsageInfo>> {
+        let remove_unused_imports = *self
+            .next_config()
+            .turbopack_remove_unused_imports(self.next_mode())
+            .await?;
+
+        let module_graphs = self.whole_app_module_graphs().await?;
+        Ok(*compute_binding_usage_info(
+            module_graphs.full_with_unused_references,
+            remove_unused_imports,
+        )
+        // As a performance optimization, we resolve strongly consistently
+        .resolve_strongly_consistent()
+        .await?)
+    }
+
     /// Compute the used exports for each module.
     #[turbo_tasks::function]
-    pub async fn export_usage(self: Vc<Self>) -> Result<Vc<OptionExportUsageInfo>> {
+    pub async fn export_usage(self: Vc<Self>) -> Result<Vc<OptionBindingUsageInfo>> {
         if *self
             .next_config()
             .turbopack_remove_unused_exports(self.next_mode())
             .await?
         {
-            let module_graphs = self.whole_app_module_graphs().await?;
             Ok(Vc::cell(Some(
-                compute_export_usage_info(module_graphs.full)
-                    // As a performance optimization, we resolve strongly consistently
-                    .resolve_strongly_consistent()
-                    .await?,
+                self.binding_usage_info().to_resolved().await?,
+            )))
+        } else {
+            Ok(Vc::cell(None))
+        }
+    }
+
+    /// Compute the unused references that were removed (inner graph tree shaking).
+    #[turbo_tasks::function]
+    pub async fn unused_references(self: Vc<Self>) -> Result<Vc<OptionBindingUsageInfo>> {
+        if *self
+            .next_config()
+            .turbopack_remove_unused_imports(self.next_mode())
+            .await?
+        {
+            Ok(Vc::cell(Some(
+                self.binding_usage_info().to_resolved().await?,
             )))
         } else {
             Ok(Vc::cell(None))
@@ -1945,12 +1999,31 @@ async fn whole_app_module_graph_operation(
 ) -> Result<Vc<BaseAndFullModuleGraph>> {
     mark_root();
 
-    let should_trace = project.next_mode().await?.is_production();
+    let next_mode = project.next_mode();
+    let should_trace = next_mode.await?.is_production();
     let base_single_module_graph =
         SingleModuleGraph::new_with_entries(project.get_all_entries(), should_trace);
     let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
 
     let base = ModuleGraph::from_single_graph(base_single_module_graph);
+
+    let turbopack_remove_unused_imports = *project
+        .next_config()
+        .turbopack_remove_unused_imports(next_mode)
+        .await?;
+
+    let base = if turbopack_remove_unused_imports {
+        // TODO suboptimal that we do compute_binding_usage_info twice (once for the base graph
+        // and later for the full graph)
+        base.without_unused_references(
+            *compute_binding_usage_info(base.to_resolved().await?, true)
+                .resolve_strongly_consistent()
+                .await?,
+        )
+    } else {
+        base
+    };
+
     let additional_entries = project.get_all_additional_entries(base);
 
     let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
@@ -1959,17 +2032,40 @@ async fn whole_app_module_graph_operation(
         should_trace,
     );
 
-    let full = ModuleGraph::from_graphs(vec![base_single_module_graph, additional_module_graph]);
+    let full_with_unused_references =
+        ModuleGraph::from_graphs(vec![base_single_module_graph, additional_module_graph])
+            .to_resolved()
+            .await?;
+
+    let full = if turbopack_remove_unused_imports {
+        full_with_unused_references
+            .without_unused_references(
+                *compute_binding_usage_info(full_with_unused_references, true)
+                    .resolve_strongly_consistent()
+                    .await?,
+            )
+            .to_resolved()
+            .await?
+    } else {
+        full_with_unused_references
+    };
+
     Ok(BaseAndFullModuleGraph {
         base: base.to_resolved().await?,
-        full: full.to_resolved().await?,
+        full_with_unused_references,
+        full,
     }
     .cell())
 }
 
 #[turbo_tasks::value(shared)]
 pub struct BaseAndFullModuleGraph {
+    /// The base module graph generated from the entry points.
     pub base: ResolvedVc<ModuleGraph>,
+    /// The base graph plus any modules that were generated from additional entries (for which the
+    /// base graph is needed).
+    pub full_with_unused_references: ResolvedVc<ModuleGraph>,
+    /// `full_with_unused_references` but with unused references removed.
     pub full: ResolvedVc<ModuleGraph>,
 }
 

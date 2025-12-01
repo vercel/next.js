@@ -180,11 +180,17 @@ async function requestHandler(
       },
       onAfterTaskError: () => {},
 
-      onInstrumentationRequestError: (error, _request, errorContext) =>
+      onInstrumentationRequestError: (
+        error,
+        _request,
+        errorContext,
+        silenceLog
+      ) =>
         pageRouteModule.onRequestError(
           baseReq,
           error,
           errorContext,
+          silenceLog,
           routerServerContext
         ),
       dev: pageRouteModule.isDev,
@@ -319,12 +325,18 @@ async function requestHandler(
 
       return renderResultToResponse(result)
     } catch (err) {
-      await pageRouteModule.onRequestError(baseReq, err, {
-        routerKind: 'App Router',
-        routePath: normalizedSrcPage,
-        routeType: 'render',
-        revalidateReason: undefined,
-      })
+      const silenceLog = false
+      await pageRouteModule.onRequestError(
+        baseReq,
+        err,
+        {
+          routerKind: 'App Router',
+          routePath: normalizedSrcPage,
+          routeType: 'render',
+          revalidateReason: undefined,
+        },
+        silenceLog
+      )
       // rethrow so that we can handle serving error page
       throw err
     }
