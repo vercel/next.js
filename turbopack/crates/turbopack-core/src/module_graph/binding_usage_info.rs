@@ -9,7 +9,10 @@ use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{
     module::Module,
-    module_graph::{GraphEdgeIndex, GraphTraversalAction, ModuleGraph},
+    module_graph::{
+        GraphEdgeIndex, GraphTraversalAction, ModuleGraph,
+        side_effect_module_info::compute_side_effect_free_module_info,
+    },
     reference::ModuleReference,
     resolve::{ExportUsage, ImportUsage},
 };
@@ -121,6 +124,7 @@ pub async fn compute_binding_usage_info(
                  without_unused_references"
             );
         }
+        let side_effect_free_modules = compute_side_effect_free_module_info(*graph).await?;
 
         let graph = graph.read_graphs().await?;
 
@@ -147,6 +151,7 @@ pub async fn compute_binding_usage_info(
                                 .iter()
                                 .all(|e| !source_used_exports.is_export_used(e))
                             {
+                                // all exports are unused
                                 #[cfg(debug_assertions)]
                                 debug_unused_references_name.insert((
                                     parent,
@@ -170,15 +175,28 @@ pub async fn compute_binding_usage_info(
                             }
                         }
                         ImportUsage::SideEffects => {
-                            #[cfg(debug_assertions)]
-                            debug_unused_references_name.remove(&(
-                                parent,
-                                ref_data.binding_usage.export.clone(),
-                                target,
-                            ));
-                            unused_references_edges.remove(&edge);
-                            unused_references.remove(&ref_data.reference);
-                            // Continue, has to always be included
+                            if side_effect_free_modules.contains(&target) {
+                                #[cfg(debug_assertions)]
+                                debug_unused_references_name.insert((
+                                    parent,
+                                    ref_data.binding_usage.export.clone(),
+                                    target,
+                                ));
+                                unused_references_edges.insert(edge);
+                                unused_references.insert(ref_data.reference);
+
+                                return Ok(GraphTraversalAction::Skip);
+                            } else {
+                                #[cfg(debug_assertions)]
+                                debug_unused_references_name.remove(&(
+                                    parent,
+                                    ref_data.binding_usage.export.clone(),
+                                    target,
+                                ));
+                                unused_references_edges.remove(&edge);
+                                unused_references.remove(&ref_data.reference);
+                                // Continue, has to always be included
+                            }
                         }
                     }
                 }
