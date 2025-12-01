@@ -1,17 +1,17 @@
 use std::{cell::RefCell, mem::take, rc::Rc};
 
-use easy_error::{Error, bail};
+use easy_error::{bail, Error};
 use rustc_hash::FxHashSet;
 use swc_core::{
-    atoms::{Atom, atom},
+    atoms::{atom, Atom},
     common::{
-        DUMMY_SP,
         errors::HANDLER,
         pass::{Repeat, Repeated},
+        DUMMY_SP,
     },
     ecma::{
         ast::*,
-        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
+        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
     },
 };
 
