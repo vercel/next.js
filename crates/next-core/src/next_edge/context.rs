@@ -13,7 +13,7 @@ use turbopack_core::{
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
     free_var_references,
-    module_graph::export_usage::OptionExportUsageInfo,
+    module_graph::binding_usage_info::OptionBindingUsageInfo,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_node::execution_context::ExecutionContext;
@@ -203,7 +203,8 @@ pub struct EdgeChunkingContextOptions {
     pub output_root_to_root_path: Vc<RcStr>,
     pub environment: Vc<Environment>,
     pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
-    pub export_usage: Vc<OptionExportUsageInfo>,
+    pub export_usage: Vc<OptionBindingUsageInfo>,
+    pub unused_references: Vc<OptionBindingUsageInfo>,
     pub turbo_minify: Vc<bool>,
     pub turbo_source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
@@ -226,6 +227,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         environment,
         module_id_strategy,
         export_usage,
+        unused_references,
         turbo_minify,
         turbo_source_maps,
         no_mangling,
@@ -258,6 +260,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .source_maps(*turbo_source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
+    .unused_references(*unused_references.await?)
     .nested_async_availability(*nested_async_chunking.await?);
 
     if !next_mode.is_development() {
@@ -295,6 +298,7 @@ pub async fn get_edge_chunking_context(
         environment,
         module_id_strategy,
         export_usage,
+        unused_references,
         turbo_minify,
         turbo_source_maps,
         no_mangling,
@@ -333,6 +337,7 @@ pub async fn get_edge_chunking_context(
     .source_maps(*turbo_source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
+    .unused_references(*unused_references.await?)
     .nested_async_availability(*nested_async_chunking.await?);
 
     if !next_mode.is_development() {

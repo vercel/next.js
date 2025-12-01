@@ -400,7 +400,7 @@ function assignDefaultsAndValidate(
 
   if (isStableBuild()) {
     // Prevents usage of certain experimental features outside of canary
-    if (result.experimental?.turbopackFileSystemCacheForBuild) {
+    if (result.experimental.turbopackFileSystemCacheForBuild) {
       throw new CanaryOnlyConfigError({
         feature: 'experimental.turbopackFileSystemCacheForBuild',
       })
@@ -1356,7 +1356,7 @@ function assignDefaultsAndValidate(
   ;(result as NextConfigComplete).distDirRoot = result.distDir
   if (
     phase === PHASE_DEVELOPMENT_SERVER &&
-    result.experimental?.isolatedDevBuild
+    result.experimental.isolatedDevBuild
   ) {
     result.distDir = join(result.distDir, 'dev')
   }

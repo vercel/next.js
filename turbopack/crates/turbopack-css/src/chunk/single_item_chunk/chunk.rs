@@ -3,7 +3,7 @@ use std::fmt::Write;
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkItem, ChunkingContext, MinifyType},
@@ -11,7 +11,7 @@ use turbopack_core::{
     ident::AssetIdent,
     introspect::Introspectable,
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
+    source_map::GenerateSourceMap,
 };
 
 use super::source_map::SingleItemCssChunkSourceMapAsset;
@@ -66,7 +66,14 @@ impl SingleItemCssChunk {
         let content = this.item.content().await?;
         let close = write_import_context(&mut code, content.import_context).await?;
 
-        code.push_source(&content.inner_code, content.source_map.clone());
+        code.push_source(
+            &content.inner_code,
+            content
+                .source_map
+                .await?
+                .as_content()
+                .map(|f| f.content().clone()),
+        );
         write!(code, "{close}")?;
 
         let c = code.build().cell();
@@ -153,14 +160,16 @@ impl Asset for SingleItemCssChunk {
             code.source_code().clone()
         };
 
-        Ok(AssetContent::file(File::from(rope).into()))
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(rope)).cell(),
+        ))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SingleItemCssChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.code().generate_source_map()
     }
 }
