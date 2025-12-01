@@ -1,7 +1,7 @@
 use std::{fmt::Display, str::FromStr};
 
 use anyhow::{Result, anyhow, bail};
-use next_taskless::expand_next_js_template;
+use next_taskless::{expand_next_js_template, expand_next_js_template_no_imports};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
@@ -251,6 +251,41 @@ pub async fn load_next_js_template(
     let package_root = get_next_package(project_path).await?;
 
     let content = expand_next_js_template(
+        &content,
+        &template_path.path,
+        &package_root.path,
+        replacements.iter().copied(),
+        injections.iter().copied(),
+        imports.iter().copied(),
+    )?;
+
+    let file = File::from(content);
+    let source = VirtualSource::new(
+        template_path,
+        AssetContent::file(FileContent::Content(file).cell()),
+    );
+
+    Ok(Vc::upcast(source))
+}
+
+/// Loads a next.js template but does **not** require that any relative imports are present
+/// or rewritten. This is intended for small internal templates that do not have their own
+/// imports but still use template variables/injections.
+pub async fn load_next_js_template_no_imports(
+    template_path: &str,
+    project_path: FileSystemPath,
+    replacements: &[(&str, &str)],
+    injections: &[(&str, &str)],
+    imports: &[(&str, Option<&str>)],
+) -> Result<Vc<Box<dyn Source>>> {
+    let template_path = virtual_next_js_template_path(project_path.clone(), template_path).await?;
+
+    let content = file_content_rope(template_path.read()).await?;
+    let content = content.to_str()?;
+
+    let package_root = get_next_package(project_path).await?;
+
+    let content = expand_next_js_template_no_imports(
         &content,
         &template_path.path,
         &package_root.path,
