@@ -34,7 +34,8 @@ use turbopack_node::{
 use turbopack_wasm::source::WebAssemblySourceType;
 
 use crate::{
-    evaluate_context::node_evaluate_asset_context, resolve_options_context::ResolveOptionsContext,
+    evaluate_context::{config_tracing_module_context, node_evaluate_asset_context},
+    resolve_options_context::ResolveOptionsContext,
 };
 
 #[turbo_tasks::function]
@@ -695,6 +696,7 @@ impl ModuleOptions {
                                     Layer::new(rcstr!("postcss")),
                                     true,
                                 ),
+                                config_tracing_module_context(*execution_context),
                                 *execution_context,
                                 options.config_location,
                                 matches!(css_source_maps, SourceMapsType::Full),

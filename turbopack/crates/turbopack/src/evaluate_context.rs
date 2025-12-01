@@ -17,7 +17,7 @@ use turbopack_node::execution_context::ExecutionContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
-    ModuleAssetContext,
+    ModuleAssetContext, externals_tracing_module_context,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
     transition::TransitionOptions,
 };
@@ -27,6 +27,14 @@ pub fn node_build_environment() -> Vc<Environment> {
     Environment::new(ExecutionEnvironment::NodeJsBuildTime(
         NodeJsEnvironment::default().resolved_cell(),
     ))
+}
+
+async fn node_env_value(env: Vc<Box<dyn ProcessEnv>>) -> Result<RcStr> {
+    if let Some(node_env) = &*env.read(rcstr!("NODE_ENV")).await? {
+        Ok(node_env.clone())
+    } else {
+        Ok(rcstr!("development"))
+    }
 }
 
 #[turbo_tasks::function]
@@ -51,12 +59,7 @@ pub async fn node_evaluate_asset_context(
         .resolved_cell(),
     );
     let import_map = import_map.resolved_cell();
-    let node_env: RcStr =
-        if let Some(node_env) = &*execution_context.env().read(rcstr!("NODE_ENV")).await? {
-            node_env.clone()
-        } else {
-            rcstr!("development")
-        };
+    let node_env = node_env_value(execution_context.env()).await?;
 
     // base context used for node_modules (and context for app code will be derived
     // from this)
@@ -113,5 +116,26 @@ pub async fn node_evaluate_asset_context(
         .cell(),
         resolve_options_context,
         layer,
+    )))
+}
+
+#[turbo_tasks::function]
+pub async fn config_tracing_module_context(
+    execution_context: Vc<ExecutionContext>,
+) -> Result<Vc<Box<dyn AssetContext>>> {
+    let node_env = node_env_value(execution_context.env()).await?;
+
+    Ok(Vc::upcast(externals_tracing_module_context(
+        CompileTimeInfo::builder(node_build_environment().to_resolved().await?)
+            .defines(
+                compile_time_defines!(
+                    process.turbopack = true,
+                    process.env.NODE_ENV = node_env.into_owned(),
+                    process.env.TURBOPACK = true
+                )
+                .resolved_cell(),
+            )
+            .cell()
+            .await?,
     )))
 }
