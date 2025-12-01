@@ -3,7 +3,6 @@ import type {
   DocumentType,
   NextComponentType,
 } from '../shared/lib/utils'
-import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type {
   PageConfig,
   GetStaticPaths,
@@ -32,8 +31,6 @@ export type LoadComponentsReturnType = {
   buildManifest: BuildManifest
   subresourceIntegrityManifest?: Record<string, string>
   reactLoadableManifest: ReactLoadableManifest
-  clientReferenceManifest?: ClientReferenceManifest
-  serverActionsManifest?: any
   Document: DocumentType
   App: AppType
   getStaticProps?: GetStaticProps

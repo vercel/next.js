@@ -2,7 +2,17 @@ import type { ActionManifest } from '../../build/webpack/plugins/flight-client-e
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
+import { getServerActionsManifest } from './manifests-singleton'
 import { workAsyncStorage } from './work-async-storage.external'
+
+export interface ServerModuleMap {
+  readonly [name: string]: {
+    readonly id: string | number
+    readonly name: string
+    readonly chunks: Readonly<Array<string>> // currently not used
+    readonly async?: boolean
+  }
+}
 
 // This function creates a Flight-acceptable server module map proxy from our
 // Server Reference Manifest similar to our client module map.
@@ -12,7 +22,7 @@ export function createServerModuleMap({
   serverActionsManifest,
 }: {
   serverActionsManifest: ActionManifest
-}) {
+}): ServerModuleMap {
   return new Proxy(
     {},
     {
@@ -61,11 +71,8 @@ export function createServerModuleMap({
  * Checks if the requested action has a worker for the current page.
  * If not, it returns the first worker that has a handler for the action.
  */
-export function selectWorkerForForwarding(
-  actionId: string,
-  pageName: string,
-  serverActionsManifest: ActionManifest
-) {
+export function selectWorkerForForwarding(actionId: string, pageName: string) {
+  const serverActionsManifest = getServerActionsManifest()
   const workers =
     serverActionsManifest[
       process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'

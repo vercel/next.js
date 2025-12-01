@@ -252,7 +252,6 @@ export async function walkTreeWithFlightRouterState({
   )
   if (layoutPath) {
     getLinkAndScriptTags(
-      ctx.clientReferenceManifest,
       layoutPath,
       injectedCSSWithCurrentLayout,
       injectedJSWithCurrentLayout,

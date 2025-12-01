@@ -226,9 +226,9 @@ declare module 'react-server-dom-webpack/server.node' {
   export type TemporaryReferenceSet = WeakMap<any, string>
 
   export type ImportManifestEntry = {
-    id: string
+    id: string | number
     // chunks is a double indexed array of chunkId / chunkFilename pairs
-    chunks: Array<string>
+    chunks: ReadonlyArray<string>
     name: string
     async?: boolean
   }
@@ -279,7 +279,7 @@ declare module 'react-server-dom-webpack/static' {
     webpackMap: {
       readonly [id: string]: {
         readonly id: string | number
-        readonly chunks: readonly string[]
+        readonly chunks: ReadonlyArray<string>
         readonly name: string
         readonly async?: boolean
       }

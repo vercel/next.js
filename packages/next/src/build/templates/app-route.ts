@@ -8,8 +8,7 @@ import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { addRequestMeta, getRequestMeta } from '../../server/request-meta'
 import { getTracer, type Span, SpanKind } from '../../server/lib/trace/tracer'
-import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
-import { createServerModuleMap } from '../../server/app-render/action-utils'
+import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import {
@@ -185,13 +184,10 @@ export async function handler(
   // set the reference manifests to our global store so Server Action's
   // encryption util can access to them at the top level of the page module.
   if (serverActionsManifest && clientReferenceManifest) {
-    setReferenceManifestsSingleton({
+    setManifestsSingleton({
       page: srcPage,
       clientReferenceManifest,
       serverActionsManifest,
-      serverModuleMap: createServerModuleMap({
-        serverActionsManifest,
-      }),
     })
   }
 

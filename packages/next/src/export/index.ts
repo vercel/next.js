@@ -385,11 +385,6 @@ async function exportAppImpl(
       join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
     ),
     images: nextConfig.images,
-    ...(enabledDirectories.app
-      ? {
-          serverActionsManifest,
-        }
-      : {}),
     deploymentId: nextConfig.deploymentId,
     htmlLimitedBots: nextConfig.htmlLimitedBots.source,
     experimental: {
