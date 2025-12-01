@@ -1,6 +1,6 @@
 use std::collections::hash_map::Entry;
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
@@ -140,7 +140,9 @@ pub async fn compute_binding_usage_info(
                     // If the current edge is an unused import, skip it
                     match &ref_data.binding_usage.import {
                         ImportUsage::Exports(exports) => {
-                            let source_used_exports = used_exports.get(&parent).unwrap();
+                            let source_used_exports = used_exports
+                                .get(&parent)
+                                .context("parent module must have usage info")?;
                             if exports
                                 .iter()
                                 .all(|e| !source_used_exports.is_export_used(e))
