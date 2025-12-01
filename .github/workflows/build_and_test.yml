@@ -775,7 +775,6 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      # Should this be using turbopack? a variation?
       afterBuild: |
         export NEXT_TEST_MODE=dev
         export IS_WEBPACK_TEST=1
@@ -787,6 +786,35 @@ jobs:
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts \
           test/development/app-dir/segment-explorer/segment-explorer.test.ts
       stepName: 'test-dev-windows'
+      runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
+    secrets: inherit
+
+  test-turbopack-dev-windows:
+    name: test turbopack dev windows
+    needs:
+      [
+        'optimize-ci',
+        'changes',
+        'build-native-windows',
+        'build-native',
+        'build-next',
+      ]
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: |
+        export NEXT_TEST_MODE=dev
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_DEV=1
+
+        node run-tests.js \
+          test/e2e/app-dir/app/index.test.ts \
+          test/e2e/app-dir/app-edge/app-edge.test.ts \
+          test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts \
+          test/development/app-dir/segment-explorer/segment-explorer.test.ts
+      stepName: 'test-turbopack-dev-windows'
       runs_on_labels: '["windows","self-hosted","x64"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
@@ -821,6 +849,36 @@ jobs:
       buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
+  test-turbopack-integration-windows:
+    name: test turbopack integration windows
+    needs:
+      [
+        'optimize-ci',
+        'changes',
+        'build-native-windows',
+        'build-native',
+        'build-next',
+      ]
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 20.9.0
+      afterBuild: |
+        export IS_TURBOPACK_TEST=1
+
+        node run-tests.js \
+          --concurrency 4 \
+          test/production/pages-dir/production/test/index.test.ts \
+          test/integration/css-client-nav/test/index.test.ts \
+          test/integration/rewrites-has-condition/test/index.test.ts \
+          test/integration/create-next-app/index.test.ts \
+          test/integration/create-next-app/package-manager/pnpm.test.ts
+      stepName: 'test-turbopack-integration-windows'
+      runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
+    secrets: inherit
+
   test-prod-windows:
     name: test prod windows
     needs:
@@ -847,6 +905,36 @@ jobs:
           test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts \
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts
       stepName: 'test-prod-windows'
+      runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
+    secrets: inherit
+
+  test-turbopack-prod-windows:
+    name: test turbopack prod windows
+    needs:
+      [
+        'optimize-ci',
+        'changes',
+        'build-native-windows',
+        'build-native',
+        'build-next',
+      ]
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: |
+        export NEXT_TEST_MODE=start
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_BUILD=1
+
+        node run-tests.js --type production \
+          test/e2e/app-dir/app/index.test.ts \
+          test/e2e/app-dir/app-edge/app-edge.test.ts \
+          test/e2e/app-dir/metadata-edge/index.test.ts \
+          test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts \
+          test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts
+      stepName: 'test-turbopack-prod-windows'
       runs_on_labels: '["windows","self-hosted","x64"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
@@ -1053,8 +1141,11 @@ jobs:
         'test-turbopack-production-integration',
         'test-unit-windows',
         'test-dev-windows',
+        'test-turbopack-dev-windows',
         'test-integration-windows',
+        'test-turbopack-integration-windows',
         'test-prod-windows',
+        'test-turbopack-prod-windows',
       ]
 
     if: always()
