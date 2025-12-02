@@ -19,8 +19,9 @@ function parseUrlForPages(urlprefix: string, directory: string) {
     if (ext.test(dirent.name)) {
       if (index.test(dirent.name)) {
         res.push(`${urlprefix}${dirent.name.replace(index, '')}`)
+      } else {
+        res.push(`${urlprefix}${dirent.name.replace(ext, '')}`)
       }
-      res.push(`${urlprefix}${dirent.name.replace(ext, '')}`)
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
@@ -51,7 +52,7 @@ function parseUrlForAppDir(urlprefix: string, directory: string) {
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(`${urlprefix}${dirent.name}/`, dirPath))
+        res.push(...parseUrlForAppDir(`${urlprefix}${dirent.name}/`, dirPath))
       }
     }
   })
@@ -201,17 +202,17 @@ function isGroupSegment(segment: string) {
  * Falls back to default extensions if config is not found or invalid
  */
 const getPageExtensions = (() => {
-  let cached: string[] | null = null
+  const cache = new Map<string, string[]>()
 
-  const fn = (): string[] => {
-    if (cached) return cached
+  const fn = (cwd: string = process.cwd()): string[] => {
+    if (cache.has(cwd)) return cache.get(cwd)!
 
     const fallback = ['tsx', 'ts', 'jsx', 'js']
     const configFiles = ['next.config.js', 'next.config.mjs', 'next.config.ts']
 
     for (const configFile of configFiles) {
       try {
-        const configPath = path.resolve(process.cwd(), configFile)
+        const configPath = path.resolve(cwd, configFile)
 
         // Check if file exists before requiring
         if (!fs.existsSync(configPath)) {
@@ -242,10 +243,11 @@ const getPageExtensions = (() => {
           Array.isArray(config.pageExtensions) &&
           config.pageExtensions.length > 0
         ) {
-          cached = config.pageExtensions.map((ext: string) =>
+          const result = config.pageExtensions.map((ext: string) =>
             ext.replace(/^\./, '')
           )
-          return cached
+          cache.set(cwd, result)
+          return result
         }
       } catch (error) {
         // Silently continue to next config file
@@ -254,13 +256,13 @@ const getPageExtensions = (() => {
     }
 
     // No valid config found, use defaults
-    cached = fallback
-    return cached
+    cache.set(cwd, fallback)
+    return fallback
   }
 
   // Exposed reset function for testing purposes
   fn.reset = () => {
-    cached = null
+    cache.clear()
   }
 
   return fn
@@ -270,35 +272,36 @@ const getPageExtensions = (() => {
  * Get regex patterns for matching page files based on configured extensions
  */
 const getRegexPatterns = (() => {
-  let cached: {
+  const cache = new Map<string, {
     ext: RegExp
     index: RegExp
     page: RegExp
     layout: RegExp
-  } | null = null
+  }>()
 
-  const fn = () => {
-    if (cached) return cached
+  const fn = (cwd: string = process.cwd()) => {
+    if (cache.has(cwd)) return cache.get(cwd)!
 
-    const extensions = getPageExtensions()
+    const extensions = getPageExtensions(cwd)
     const escaped = extensions.map((ext) =>
       ext.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     )
     const group = escaped.join('|')
 
-    cached = {
+    const result = {
       ext: new RegExp(`\\.(${group})$`),
       index: new RegExp(`^index\\.(${group})$`),
       page: new RegExp(`^page\\.(${group})$`),
       layout: new RegExp(`^layout\\.(${group})$`),
     }
 
-    return cached
+    cache.set(cwd, result)
+    return result
   }
 
   // Exposed reset function for testing purposes
   fn.reset = () => {
-    cached = null
+    cache.clear()
   }
 
   return fn
