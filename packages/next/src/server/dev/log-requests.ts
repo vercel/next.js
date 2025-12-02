@@ -116,12 +116,14 @@ function logIncomingRequests(
     }
     // Insert as the first item to be rendered in the list
     times.unshift(['compile', frameworkTime])
-    times.push(['render', requestEndTime - devRequestTimingInternalsEnd])
-  }
 
-  if (devGenerateStaticParamsDuration) {
-    // Pages Router getStaticPaths are technically "generate params" as well.
-    times.push(['generate-params', devGenerateStaticParamsDuration])
+    // Insert after compile, before render based on the execution order.
+    if (devGenerateStaticParamsDuration) {
+      // Pages Router getStaticPaths are technically "generate params" as well.
+      times.push(['generate-params', devGenerateStaticParamsDuration])
+    }
+
+    times.push(['render', requestEndTime - devRequestTimingInternalsEnd])
   }
 
   return writeLine(

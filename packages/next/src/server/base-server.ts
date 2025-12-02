@@ -2248,7 +2248,7 @@ export default abstract class Server<
       isDynamicRoute(pathname) &&
       (components.getStaticPaths || isAppPath)
     ) {
-      let getStaticPathsStart
+      let getStaticPathsStart: bigint | undefined
       if (opts.dev) {
         getStaticPathsStart = process.hrtime.bigint()
       }
