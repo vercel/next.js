@@ -5,6 +5,7 @@ use std::{
 };
 
 use auto_hash_map::{AutoMap, AutoSet};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use tracing::Span;
 
@@ -96,6 +97,21 @@ pub fn any_as_serialize<T: Any + Serialize + Send + Sync + 'static>(
         "any_as_serialize::<{}> called with invalid type",
         type_name::<T>()
     );
+}
+
+// TODO: use this in https://github.com/vercel/next.js/pull/86338
+#[allow(dead_code)]
+pub trait ManualEncodeWrapper: Encode {
+    type Value;
+    // this uses RPIT to avoid some lifetime problems
+    fn new<'a>(value: &'a Self::Value) -> impl Encode + 'a;
+}
+
+// TODO: use this in https://github.com/vercel/next.js/pull/86338
+#[allow(dead_code)]
+pub trait ManualDecodeWrapper: Decode<()> {
+    type Value;
+    fn inner(self) -> Self::Value;
 }
 
 impl ValueType {

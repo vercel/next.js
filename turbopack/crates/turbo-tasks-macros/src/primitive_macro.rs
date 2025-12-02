@@ -8,9 +8,11 @@ use crate::{
 };
 
 pub fn primitive(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as PrimitiveInput);
+    let PrimitiveInput {
+        ty,
+        bincode_wrappers: _,
+    } = parse_macro_input!(input as PrimitiveInput);
 
-    let ty = input.ty;
     let Some(ident) = get_type_ident(&ty) else {
         return quote! {
             // An error occurred while parsing the ident.
@@ -34,7 +36,13 @@ pub fn primitive(input: TokenStream) -> TokenStream {
             }
         }
     };
-    let name = global_name(quote! {stringify!(#ty) });
+
+    let name = global_name(quote!(stringify!(#ty)));
+    // TODO: https://github.com/vercel/next.js/pull/86338 -- switch to bincode, use bincode wrapper
+    let new_value_type = quote! {
+        turbo_tasks::ValueType::new_with_any_serialization::<#ty>(#name);
+    };
+
     let value_type_and_register = value_type_and_register(
         &ident,
         quote! { #ty },
@@ -45,10 +53,8 @@ pub fn primitive(input: TokenStream) -> TokenStream {
         quote! {
             turbo_tasks::VcCellCompareMode<#ty>
         },
-        quote! {
-            turbo_tasks::ValueType::new_with_any_serialization::<#ty>(#name)
-        },
-        quote! { true },
+        new_value_type,
+        /* has_serialization */ quote! { true },
     );
 
     let value_default_impl = quote! {

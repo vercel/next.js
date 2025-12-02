@@ -48,6 +48,7 @@ tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 triomphe = { workspace = true, features = ["unsize", "unstable"] }
+turbo-bincode = { workspace = true }
 turbo-dyn-eq-hash = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks-hash = { workspace = true }
