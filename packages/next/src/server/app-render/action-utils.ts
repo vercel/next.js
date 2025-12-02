@@ -1,4 +1,3 @@
-import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
@@ -18,17 +17,13 @@ export interface ServerModuleMap {
 // Server Reference Manifest similar to our client module map.
 // This is because our manifest contains a lot of internal Next.js data that
 // are relevant to the runtime, workers, etc. that React doesn't need to know.
-export function createServerModuleMap({
-  serverActionsManifest,
-}: {
-  serverActionsManifest: ActionManifest
-}): ServerModuleMap {
+export function createServerModuleMap(): ServerModuleMap {
   return new Proxy(
     {},
     {
       get: (_, id: string) => {
         const workers =
-          serverActionsManifest[
+          getServerActionsManifest()[
             process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
           ]?.[id]?.workers
 

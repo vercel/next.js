@@ -180,10 +180,6 @@ export function setManifestsSingleton({
     )
 
     existingSingleton.serverActionsManifest = serverActionsManifest
-
-    existingSingleton.serverModuleMap = createServerModuleMap({
-      serverActionsManifest,
-    })
   } else {
     const clientReferenceManifestsPerRoute = new Map<
       string,
@@ -194,15 +190,11 @@ export function setManifestsSingleton({
       clientReferenceManifestsPerRoute
     )
 
-    const serverModuleMap = createServerModuleMap({
-      serverActionsManifest,
-    })
-
     globalThisWithManifests[MANIFESTS_SINGLETON] = {
       clientReferenceManifestsPerRoute,
       proxiedClientReferenceManifest,
       serverActionsManifest,
-      serverModuleMap,
+      serverModuleMap: createServerModuleMap(),
     }
   }
 }
