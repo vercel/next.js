@@ -4,12 +4,12 @@ use anyhow::Result;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use tokio::io::AsyncReadExt;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     output::{OutputAsset, OutputAssetsReference},
     source::Source,
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
+    source_map::GenerateSourceMap,
 };
 
 use crate::parse::generate_js_source_map;
@@ -62,9 +62,9 @@ impl SingleFileEcmascriptOutput {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SingleFileEcmascriptOutput {
     #[turbo_tasks::function]
-    pub async fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
+    pub async fn generate_source_map(&self) -> Result<Vc<FileContent>> {
         let FileContent::Content(file) = &*self.source.content().file_content().await? else {
-            return Ok(Vc::cell(None));
+            return Ok(FileContent::NotFound.cell());
         };
 
         let file_source = {
@@ -94,6 +94,6 @@ impl GenerateSourceMap for SingleFileEcmascriptOutput {
         );
 
         let map = generate_js_source_map(&*sm, mappings, None::<&Rope>, true, true)?;
-        Ok(Vc::cell(Some(map)))
+        Ok(FileContent::Content(File::from(map)).cell())
     }
 }

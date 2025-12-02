@@ -7,11 +7,11 @@ use turbo_tasks::{
     FxIndexSet, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State, TryFlatJoinIterExt,
     TryJoinIterExt, ValueDefault, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
     output::{ExpandedOutputAssets, OptionOutputAsset, OutputAsset},
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
+    source_map::GenerateSourceMap,
     version::OptionVersionedContent,
 };
 
@@ -180,9 +180,9 @@ impl VersionedContentMap {
         self: Vc<Self>,
         path: FileSystemPath,
         section: Option<RcStr>,
-    ) -> Result<Vc<OptionStringifiedSourceMap>> {
+    ) -> Result<Vc<FileContent>> {
         let Some(asset) = &*self.get_asset(path.clone()).await? else {
-            return Ok(Vc::cell(None));
+            return Ok(FileContent::NotFound.cell());
         };
 
         if let Some(generate_source_map) =

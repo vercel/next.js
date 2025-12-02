@@ -3,7 +3,7 @@ import path from 'path'
 import { existsSync, promises as fs, rmSync, readFileSync } from 'fs'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
-import { FileRef, isNextDeploy } from '../e2e-utils'
+import { FileRef, isNextDeploy, PatchedFileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/dist/trace'
@@ -30,7 +30,10 @@ export type PackageJson = {
   [key: string]: unknown
 }
 
-type ResolvedFileConfig = FileRef | { [filename: string]: string | FileRef }
+type ResolvedFileConfig =
+  | FileRef
+  | PatchedFileRef
+  | { [filename: string]: string | FileRef | PatchedFileRef }
 type FilesConfig = ResolvedFileConfig | string
 export interface NextInstanceOpts {
   files: FilesConfig
@@ -155,7 +158,7 @@ export class NextInstance {
         if (typeof item === 'string') {
           await fs.mkdir(path.dirname(outputFilename), { recursive: true })
           await fs.writeFile(outputFilename, item)
-        } else {
+        } else if (item instanceof FileRef) {
           try {
             const existingStat = await fs.lstat(outputFilename)
             if (existingStat.isFile() || existingStat.isSymbolicLink()) {
@@ -166,6 +169,20 @@ export class NextInstance {
           }
 
           await fs.cp(item.fsPath, outputFilename, { recursive: true })
+        } else if (item instanceof PatchedFileRef) {
+          try {
+            const existingStat = await fs.lstat(outputFilename)
+            if (existingStat.isFile() || existingStat.isSymbolicLink()) {
+              await fs.unlink(outputFilename)
+            }
+          } catch {
+            // file might not exist or can't be unliked. carry on
+          }
+
+          await fs.writeFile(
+            outputFilename,
+            item.cb(await fs.readFile(item.fsPath, 'utf8'))
+          )
         }
       }
     }
@@ -886,5 +903,10 @@ export class NextInstance {
     return () => {
       return this.cliOutput.slice(length)
     }
+  }
+
+  public async waitForMinPrerenderAge(minAgeMS: number): Promise<void> {
+    // For tests we usually have a low revalidate time.
+    // We assume the prerender is old enough by default for those small revalidation times.
   }
 }

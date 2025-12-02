@@ -478,12 +478,15 @@ export abstract class RouteModule<
     req: IncomingMessage | BaseNextRequest,
     err: unknown,
     errorContext: RequestErrorContext,
+    silenceLog: boolean,
     routerServerContext?: RouterServerContext[string]
   ) {
-    if (routerServerContext?.logErrorWithOriginalStack) {
-      routerServerContext.logErrorWithOriginalStack(err, 'app-dir')
-    } else {
-      console.error(err)
+    if (!silenceLog) {
+      if (routerServerContext?.logErrorWithOriginalStack) {
+        routerServerContext.logErrorWithOriginalStack(err, 'app-dir')
+      } else {
+        console.error(err)
+      }
     }
     await this.instrumentationOnRequestError(
       req,

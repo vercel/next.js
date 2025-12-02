@@ -29,8 +29,7 @@ import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
 import { evalManifest, loadManifest } from './load-manifest.external'
 import { wait } from '../lib/wait'
-import { setReferenceManifestsSingleton } from './app-render/encryption-utils'
-import { createServerModuleMap } from './app-render/action-utils'
+import { setManifestsSingleton } from './app-render/manifests-singleton'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { isStaticMetadataRoute } from '../lib/metadata/is-metadata-route'
@@ -66,8 +65,6 @@ export type LoadComponentsReturnType<NextModule = any> = {
   subresourceIntegrityManifest?: DeepReadonly<Record<string, string>>
   reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
   dynamicCssManifest?: DeepReadonly<DynamicCssManifest>
-  clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
-  serverActionsManifest?: any
   Document: DocumentType
   App: AppType
   getStaticProps?: GetStaticProps
@@ -279,13 +276,10 @@ async function loadComponentsImpl<N = any>({
     // manifests to our global store so Server Action's encryption util can access
     // to them at the top level of the page module.
     if (serverActionsManifest && clientReferenceManifest) {
-      setReferenceManifestsSingleton({
+      setManifestsSingleton({
         page,
         clientReferenceManifest,
         serverActionsManifest,
-        serverModuleMap: createServerModuleMap({
-          serverActionsManifest,
-        }),
       })
     }
 
@@ -311,8 +305,6 @@ async function loadComponentsImpl<N = any>({
       getServerSideProps,
       getStaticProps,
       getStaticPaths,
-      clientReferenceManifest,
-      serverActionsManifest,
       isAppPath,
       page,
       routeModule,

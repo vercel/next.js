@@ -507,7 +507,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
                 })
                 .collect::<Result<Vec<_>>>()?,
             &mut module_chunk_groups,
-            |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData)>,
+            |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData, _)>,
              node: ResolvedVc<Box<dyn Module>>,
              module_chunk_groups: &mut FxHashMap<
                 ResolvedVc<Box<dyn Module>>,
@@ -518,7 +518,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
                     Inherit(ResolvedVc<Box<dyn Module>>),
                     ChunkGroup(It),
                 }
-                let chunk_groups = if let Some((parent, ref_data)) = parent_info {
+                let chunk_groups = if let Some((parent, ref_data, _)) = parent_info {
                     match &ref_data.chunking_type {
                         ChunkingType::Parallel { .. } => ChunkGroupInheritance::Inherit(parent),
                         ChunkingType::Async => ChunkGroupInheritance::ChunkGroup(Either::Left(

@@ -49,7 +49,7 @@ import { warn } from '../../build/output/log'
 import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { fromNodeOutgoingHttpHeaders } from '../web/utils'
-import { selectWorkerForForwarding } from './action-utils'
+import { selectWorkerForForwarding, type ServerModuleMap } from './action-utils'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { synchronizeMutableCookies } from '../async-storage/request-store'
@@ -59,6 +59,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import { executeRevalidates } from '../revalidation-utils'
 import { getRequestMeta } from '../request-meta'
 import { setCacheBustingSearchParam } from '../../client/components/router-reducer/set-cache-busting-search-param'
+import { getServerModuleMap } from './manifests-singleton'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -472,15 +473,6 @@ export function parseHostHeader(
       : undefined
 }
 
-type ServerModuleMap = Record<
-  string,
-  {
-    id: string
-    chunks: string[]
-    name: string
-  }
->
-
 type ServerActionsConfig = {
   bodySizeLimit?: SizeLimit
   allowedOrigins?: string[]
@@ -503,7 +495,6 @@ export async function handleAction({
   req,
   res,
   ComponentMod,
-  serverModuleMap,
   generateFlight,
   workStore,
   requestStore,
@@ -514,7 +505,6 @@ export async function handleAction({
   req: BaseNextRequest
   res: BaseNextResponse
   ComponentMod: AppPageModule
-  serverModuleMap: ServerModuleMap
   generateFlight: GenerateFlight
   workStore: WorkStore
   requestStore: RequestStore
@@ -523,7 +513,8 @@ export async function handleAction({
   metadata: AppPageRenderResultMetadata
 }): Promise<HandleActionResult> {
   const contentType = req.headers['content-type']
-  const { serverActionsManifest, page } = ctx.renderOpts
+  const { page } = ctx.renderOpts
+  const serverModuleMap = getServerModuleMap()
 
   const {
     actionId,
@@ -640,11 +631,7 @@ export async function handleAction({
   const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
 
   if (actionId) {
-    const forwardedWorker = selectWorkerForForwarding(
-      actionId,
-      page,
-      serverActionsManifest
-    )
+    const forwardedWorker = selectWorkerForForwarding(actionId, page)
 
     // If forwardedWorker is truthy, it means there isn't a worker for the action
     // in the current handler, so we forward the request to a worker that has the action.
@@ -685,7 +672,7 @@ export async function handleAction({
       { isAction: true },
       async (): Promise<HandleActionResult> => {
         // We only use these for fetch actions -- MPA actions handle them inside `decodeAction`.
-        let actionModId: string | undefined
+        let actionModId: string | number | undefined
         let boundActionArguments: unknown[] = []
 
         if (
@@ -1214,7 +1201,7 @@ async function executeActionAndPrepareForRender<
 function getActionModIdOrError(
   actionId: string | null,
   serverModuleMap: ServerModuleMap
-): string {
+): string | number {
   // if we're missing the action ID header, we can't do any further processing
   if (!actionId) {
     throw new InvariantError("Missing 'next-action' header.")

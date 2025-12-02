@@ -6,14 +6,16 @@ use anyhow::Result;
 use serde_json::json;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{File, FileSystem, FileSystemPath, VirtualFileSystem, rope::Rope};
+use turbo_tasks_fs::{
+    File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem, rope::Rope,
+};
 use turbo_tasks_testing::{Registration, register, run_once};
 use turbopack_analyze::split_chunk::{ChunkPart, ChunkPartRange, split_output_asset_into_parts};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     code_builder::{Code, CodeBuilder},
     output::{OutputAsset, OutputAssetsReference},
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
+    source_map::GenerateSourceMap,
 };
 
 static REGISTRATION: Registration = register!(turbo_tasks_fetch::register);
@@ -122,7 +124,7 @@ impl Asset for TestAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         Ok(AssetContent::file(
-            File::from(self.code.await?.source_code().clone()).into(),
+            FileContent::Content(File::from(self.code.await?.source_code().clone())).cell(),
         ))
     }
 }
@@ -130,7 +132,7 @@ impl Asset for TestAsset {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for TestAsset {
     #[turbo_tasks::function]
-    pub fn generate_source_map(&self) -> Vc<OptionStringifiedSourceMap> {
+    pub fn generate_source_map(&self) -> Vc<FileContent> {
         self.code.generate_source_map()
     }
 }

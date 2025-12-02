@@ -22,7 +22,6 @@ export async function createComponentStylesAndScripts({
     componentMod: { createElement },
   } = ctx
   const { styles: entryCssFiles, scripts: jsHrefs } = getLinkAndScriptTags(
-    ctx.clientReferenceManifest,
     filePath,
     injectedCSS,
     injectedJS

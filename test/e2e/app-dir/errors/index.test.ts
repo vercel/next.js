@@ -110,8 +110,8 @@ describe('app-dir - errors', () => {
       expect(stripAnsi(next.cliOutput)).toEqual(
         expect.stringMatching(
           isNextDev
-            ? /Error: An undefined error was thrown.*digest: '\d+'/s
-            : /Error: undefined.*digest: '\d+'/s
+            ? /Error: An undefined error was thrown.*digest: '\d+@E\d+'/s
+            : /Error: undefined.*digest: '\d+@E\d+'/s
         )
       )
     })
@@ -133,8 +133,8 @@ describe('app-dir - errors', () => {
       expect(stripAnsi(next.cliOutput)).toEqual(
         expect.stringMatching(
           isNextDev
-            ? /Error: A null error was thrown.*digest: '\d+'/s
-            : /Error: null.*digest: '\d+'/s
+            ? /Error: A null error was thrown.*digest: '\d+@E\d+'/s
+            : /Error: null.*digest: '\d+@E\d+'/s
         )
       )
     })
