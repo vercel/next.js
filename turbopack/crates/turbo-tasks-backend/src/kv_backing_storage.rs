@@ -317,7 +317,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             > + Send
             + Sync,
     {
-        let _span = tracing::trace_span!("save snapshot", session_id = ?session_id, operations = operations.len());
+        let _span = tracing::info_span!("save snapshot", session_id = ?session_id, operations = operations.len()).entered();
         let mut batch = self.inner.database.write_batch()?;
 
         // Start organizing the updates in parallel
