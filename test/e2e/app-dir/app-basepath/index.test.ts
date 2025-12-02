@@ -75,16 +75,29 @@ describe('app dir - basepath', () => {
       let rscRequests = []
       const browser = await next.browser(path, {
         beforePageLoad(page) {
-          page.on('request', (request) => {
-            return request.allHeaders().then((headers) => {
+          page.on('request', async (request) => {
+            let headers: { [key: string]: string }
+            try {
+              headers = await request.allHeaders()
+            } catch (e) {
               if (
-                headers['rsc'] === '1' &&
-                // Prefetches also include `rsc`
-                headers['next-router-prefetch'] !== '1'
+                e.message.includes(
+                  'Target page, context or browser has been closed'
+                )
               ) {
-                rscRequests.push(request.url())
+                // Ignore errors caused by closed browser during test teardown
+                return
               }
-            })
+              throw e
+            }
+
+            if (
+              headers['rsc'] === '1' &&
+              // Prefetches also include `rsc`
+              headers['next-router-prefetch'] !== '1'
+            ) {
+              rscRequests.push(request.url())
+            }
           })
         },
       })
