@@ -5,6 +5,9 @@ export default async function Page() {
 
   cacheLife({ expire: 299 }) // 1 second below the threshold of 5 minutes
 
+  // This cache takes >1 task to fill, so it'll always show up as a cache miss in dev
+  await new Promise((resolve) => setTimeout(resolve, 5))
+
   return (
     <>
       <p>

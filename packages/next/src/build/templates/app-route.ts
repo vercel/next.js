@@ -8,8 +8,7 @@ import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { addRequestMeta, getRequestMeta } from '../../server/request-meta'
 import { getTracer, type Span, SpanKind } from '../../server/lib/trace/tracer'
-import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
-import { createServerModuleMap } from '../../server/app-render/action-utils'
+import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import {
@@ -185,13 +184,10 @@ export async function handler(
   // set the reference manifests to our global store so Server Action's
   // encryption util can access to them at the top level of the page module.
   if (serverActionsManifest && clientReferenceManifest) {
-    setReferenceManifestsSingleton({
+    setManifestsSingleton({
       page: srcPage,
       clientReferenceManifest,
       serverActionsManifest,
-      serverModuleMap: createServerModuleMap({
-        serverActionsManifest,
-      }),
     })
   }
 
@@ -215,11 +211,17 @@ export async function handler(
         res.on('close', cb)
       },
       onAfterTaskError: undefined,
-      onInstrumentationRequestError: (error, _request, errorContext) =>
+      onInstrumentationRequestError: (
+        error,
+        _request,
+        errorContext,
+        silenceLog
+      ) =>
         routeModule.onRequestError(
           req,
           error,
           errorContext,
+          silenceLog,
           routerServerContext
         ),
     },
@@ -369,6 +371,7 @@ export async function handler(
           // if this is a background revalidate we need to report
           // the request error here as it won't be bubbled
           if (previousCacheEntry?.isStale) {
+            const silenceLog = false
             await routeModule.onRequestError(
               req,
               err,
@@ -381,6 +384,7 @@ export async function handler(
                   isOnDemandRevalidate,
                 }),
               },
+              silenceLog,
               routerServerContext
             )
           }
@@ -488,15 +492,22 @@ export async function handler(
     }
   } catch (err) {
     if (!(err instanceof NoFallbackError)) {
-      await routeModule.onRequestError(req, err, {
-        routerKind: 'App Router',
-        routePath: normalizedSrcPage,
-        routeType: 'route',
-        revalidateReason: getRevalidateReason({
-          isStaticGeneration,
-          isOnDemandRevalidate,
-        }),
-      })
+      const silenceLog = false
+      await routeModule.onRequestError(
+        req,
+        err,
+        {
+          routerKind: 'App Router',
+          routePath: normalizedSrcPage,
+          routeType: 'route',
+          revalidateReason: getRevalidateReason({
+            isStaticGeneration,
+            isOnDemandRevalidate,
+          }),
+        },
+        silenceLog,
+        routerServerContext
+      )
     }
 
     // rethrow so that we can handle serving error page

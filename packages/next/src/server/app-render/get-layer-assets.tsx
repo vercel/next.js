@@ -26,7 +26,6 @@ export function getLayerAssets({
   } = ctx
   const { styles: styleTags, scripts: scriptTags } = layoutOrPagePath
     ? getLinkAndScriptTags(
-        ctx.clientReferenceManifest,
         layoutOrPagePath,
         injectedCSSWithCurrentLayout,
         injectedJSWithCurrentLayout,

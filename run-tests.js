@@ -542,8 +542,7 @@ ${ENDGROUP}`)
           ? {}
           : {
               IS_RETRY: isRetry ? 'true' : undefined,
-              TRACE_PLAYWRIGHT:
-                process.env.NEXT_TEST_MODE === 'deploy' ? undefined : 'true',
+              TRACE_PLAYWRIGHT: 'true',
               CIRCLECI: '',
               GITHUB_ACTIONS: '',
               CONTINUOUS_INTEGRATION: '',
