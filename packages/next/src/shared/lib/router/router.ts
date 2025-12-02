@@ -43,6 +43,7 @@ import { interpolateAs } from './utils/interpolate-as'
 import { disableSmoothScrollDuringRouteTransition } from './utils/disable-smooth-scroll'
 import type { Params } from '../../../server/request/params'
 import { MATCHED_PATH_HEADER } from '../../../lib/constants'
+import { deploymentId } from '../deployment-id'
 
 let resolveRewrites: typeof import('./utils/resolve-rewrites').default
 if (process.env.__NEXT_HAS_REWRITES) {
@@ -503,9 +504,7 @@ function fetchNextData({
         {} as HeadersInit,
         isPrefetch ? { purpose: 'prefetch' } : {},
         isPrefetch && hasMiddleware ? { 'x-middleware-prefetch': '1' } : {},
-        process.env.NEXT_DEPLOYMENT_ID
-          ? { 'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID }
-          : {}
+        deploymentId ? { 'x-deployment-id': deploymentId } : {}
       ),
       method: params?.method ?? 'GET',
     })
