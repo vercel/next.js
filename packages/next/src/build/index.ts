@@ -591,9 +591,15 @@ async function writeFunctionsConfigManifest(
   distDir: string,
   manifest: FunctionsConfigManifest
 ): Promise<void> {
+  let sortedManifest: FunctionsConfigManifest = {
+    version: manifest.version,
+    functions: Object.fromEntries(
+      Object.entries(manifest.functions).sort(([a], [b]) => a.localeCompare(b))
+    ),
+  }
   await writeManifest(
     path.join(distDir, SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
-    manifest
+    sortedManifest
   )
 }
 
