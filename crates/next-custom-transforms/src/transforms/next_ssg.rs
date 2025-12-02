@@ -144,9 +144,11 @@ impl VisitMut for Analyzer<'_> {
                 return;
             }
 
-            if let Pat::Ident(id) = &d.decls[0].name {
-                if !SSG_EXPORTS.contains(&&*id.id.sym) {
-                    self.add_ref(id.to_id());
+            for decl in &d.decls {
+                if let Pat::Ident(id) = &decl.name {
+                    if !SSG_EXPORTS.contains(&&*id.id.sym) {
+                        self.add_ref(id.to_id());
+                    }
                 }
             }
         }
