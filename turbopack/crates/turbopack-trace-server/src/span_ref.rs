@@ -475,7 +475,7 @@ impl<'a> SpanRef<'a> {
                             .and_modify(|_, v| v.push(span.index()))
                             .or_insert_with(|| (format!("{name}={value}"), vec![span.index()]));
                     }
-                    if !span.is_complete() && !span.time_data().ignore_self_time {
+                    if !span.is_complete() && span.span.name != "thread" {
                         let name = "incomplete_span";
                         index
                             .raw_entry_mut()
