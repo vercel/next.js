@@ -37,8 +37,8 @@ export class ResourceMonitor {
 
     const checks = Array.from(this.services.entries()).map(
       async ([name, check]) => {
+        const start = performance.now();
         try {
-          const start = performance.now();
           const result = await check();
           const latency = Math.round(performance.now() - start);
 
@@ -56,9 +56,10 @@ export class ResourceMonitor {
             overallStatus = "degraded";
           }
         } catch (error) {
+          const latency = Math.round(performance.now() - start);
           results[name] = {
             status: "unhealthy",
-            latency: 0,
+            latency,
             message: error instanceof Error ? error.message : "Unknown error",
           };
           overallStatus = "unhealthy";
