@@ -75,16 +75,21 @@ describe('app dir - basepath', () => {
       let rscRequests = []
       const browser = await next.browser(path, {
         beforePageLoad(page) {
-          page.on('request', (request) => {
-            return request.allHeaders().then((headers) => {
-              if (
-                headers['rsc'] === '1' &&
-                // Prefetches also include `rsc`
-                headers['next-router-prefetch'] !== '1'
-              ) {
-                rscRequests.push(request.url())
-              }
-            })
+          page.on('request', async (request) => {
+            if (!request.isNavigationRequest()) {
+              // Ignore non-navigation requests, this also prevents us from calling allHeaders on
+              // in-flight requests after the browser was already closed.
+              return
+            }
+
+            let headers = await request.allHeaders()
+            if (
+              headers['rsc'] === '1' &&
+              // Prefetches also include `rsc`
+              headers['next-router-prefetch'] !== '1'
+            ) {
+              rscRequests.push(request.url())
+            }
           })
         },
       })
