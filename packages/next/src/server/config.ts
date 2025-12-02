@@ -38,10 +38,6 @@ import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
-import {
-  CanaryOnlyConfigError,
-  isStableBuild,
-} from '../shared/lib/errors/canary-only-config-error'
 import { interopDefault } from '../lib/interop-default'
 import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
@@ -396,15 +392,6 @@ function assignDefaultsAndValidate(
         `Custom Sass functions are only available with webpack. ` +
         `Please remove the "functions" property from your sassOptions in ${configFileName}.`
     )
-  }
-
-  if (isStableBuild()) {
-    // Prevents usage of certain experimental features outside of canary
-    if (result.experimental.turbopackFileSystemCacheForBuild) {
-      throw new CanaryOnlyConfigError({
-        feature: 'experimental.turbopackFileSystemCacheForBuild',
-      })
-    }
   }
 
   if (result.experimental.ppr) {
