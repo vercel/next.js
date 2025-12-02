@@ -369,11 +369,11 @@ pub enum CachedDataItem {
 
 impl CachedDataItem {
     pub fn cell_data(
-        serializable_cell_content: bool,
+        is_serializable_cell_content: bool,
         cell: CellId,
         value: TypedSharedReference,
     ) -> Self {
-        if serializable_cell_content {
+        if is_serializable_cell_content {
             CachedDataItem::CellData { cell, value }
         } else {
             CachedDataItem::TransientCellData {
@@ -507,8 +507,8 @@ impl CachedDataItem {
 }
 
 impl CachedDataItemKey {
-    pub fn cell_data(serializable_cell_content: bool, cell: CellId) -> Self {
-        if serializable_cell_content {
+    pub fn cell_data(is_serializable_cell_content: bool, cell: CellId) -> Self {
+        if is_serializable_cell_content {
             CachedDataItemKey::CellData { cell }
         } else {
             CachedDataItemKey::TransientCellData { cell }

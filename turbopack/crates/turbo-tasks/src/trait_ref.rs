@@ -158,7 +158,7 @@ where
 
     fn into_trait_ref(self) -> Self::Future {
         self.node
-            .into_read_with_unknown_serializable_cell_content()
+            .into_read_with_unknown_is_serializable_cell_content()
             .into()
     }
 }

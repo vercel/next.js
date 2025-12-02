@@ -634,7 +634,7 @@ pub trait Backend: Sync + Send {
         &self,
         task: TaskId,
         index: CellId,
-        serializable_cell_content: bool,
+        is_serializable_cell_content: bool,
         content: CellContent,
         verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,

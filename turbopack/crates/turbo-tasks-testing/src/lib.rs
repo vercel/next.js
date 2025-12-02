@@ -265,7 +265,7 @@ impl TurboTasksApi for VcStorage {
         &self,
         task: TaskId,
         index: CellId,
-        _serializable_cell_content: bool,
+        _is_serializable_cell_content: bool,
         content: CellContent,
         _verification_mode: VerificationMode,
     ) {

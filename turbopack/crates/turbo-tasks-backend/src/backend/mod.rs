@@ -818,7 +818,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         let ReadCellOptions {
-            serializable_cell_content,
+            is_serializable_cell_content,
             tracking,
             final_read_hint,
         } = options;
@@ -839,9 +839,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
 
         let content = if final_read_hint {
-            task.remove_cell_data(serializable_cell_content, cell)
+            task.remove_cell_data(is_serializable_cell_content, cell)
         } else {
-            task.get_cell_data(serializable_cell_content, cell)
+            task.get_cell_data(is_serializable_cell_content, cell)
         };
         if let Some(content) = content {
             if tracking.should_track(false) {
@@ -2611,7 +2611,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) -> Result<TypedCellContent> {
         let mut ctx = self.execute_context(turbo_tasks);
         let task = ctx.task(task_id, TaskDataCategory::Data);
-        if let Some(content) = task.get_cell_data(options.serializable_cell_content, cell) {
+        if let Some(content) = task.get_cell_data(options.is_serializable_cell_content, cell) {
             debug_assert!(content.type_id == cell.type_id, "Cell type ID mismatch");
             Ok(CellContent(Some(content.reference)).into_typed(cell.type_id))
         } else {
@@ -2754,7 +2754,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         task_id: TaskId,
         cell: CellId,
-        serializable_cell_content: bool,
+        is_serializable_cell_content: bool,
         content: CellContent,
         verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
@@ -2763,7 +2763,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             task_id,
             cell,
             content,
-            serializable_cell_content,
+            is_serializable_cell_content,
             verification_mode,
             self.execute_context(turbo_tasks),
         );
@@ -3351,7 +3351,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         &self,
         task_id: TaskId,
         cell: CellId,
-        serializable_cell_content: bool,
+        is_serializable_cell_content: bool,
         content: CellContent,
         verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
@@ -3359,7 +3359,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         self.0.update_task_cell(
             task_id,
             cell,
-            serializable_cell_content,
+            is_serializable_cell_content,
             content,
             verification_mode,
             turbo_tasks,
