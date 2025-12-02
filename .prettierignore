@@ -73,6 +73,7 @@ test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx
 /turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/tsx/lib.tsx
 
 /apps/docs/.source/*
+/apps/*/next-env.d.ts
 
 # Symlink files
 readme.md
