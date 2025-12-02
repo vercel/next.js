@@ -42,12 +42,12 @@ import {
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
 
-import type { ClientReferenceManifestForRsc } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 import {
-  getClientReferenceManifestForRsc,
+  getClientReferenceManifest,
   getServerModuleMap,
-} from '../app-render/encryption-utils'
+} from '../app-render/manifests-singleton'
 import type { CacheEntry } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
 import { decryptActionBoundArgs } from '../app-render/encryption'
@@ -134,7 +134,7 @@ const findSourceMapURL =
 function generateCacheEntry(
   workStore: WorkStore,
   cacheContext: CacheContext,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
@@ -158,7 +158,7 @@ function generateCacheEntry(
 function generateCacheEntryWithRestoredWorkStore(
   workStore: WorkStore,
   cacheContext: CacheContext,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
@@ -281,7 +281,7 @@ function assertDefaultCacheLife(
 function generateCacheEntryWithCacheContext(
   workStore: WorkStore,
   cacheContext: CacheContext,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
@@ -521,7 +521,7 @@ async function generateCacheEntryImpl(
   workStore: WorkStore,
   cacheContext: CacheContext,
   innerCacheStore: UseCacheStore,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
@@ -978,7 +978,7 @@ export async function cache(
 
   // Get the clientReferenceManifest while we're still in the outer Context.
   // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
-  const clientReferenceManifest = getClientReferenceManifestForRsc()
+  const clientReferenceManifest = getClientReferenceManifest()
 
   // Because the Action ID is not yet unique per implementation of that Action we can't
   // safely reuse the results across builds yet. In the meantime we add the buildId to the
