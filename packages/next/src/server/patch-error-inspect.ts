@@ -160,10 +160,14 @@ function getSourcemappedFrameIfPossible(
   let sourceMapPayload: ModernSourceMapPayload
   if (sourceMapCacheEntry === undefined) {
     let sourceURL = frame.file
-    // e.g. "/APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js"
+    // e.g. "/Users/foo/APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js"
+    // or "C:\Users\foo\APP\.next\server\chunks\ssr\[root-of-the-server]__2934a0._.js"
     // will be keyed by Node.js as "file:///APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js".
     // This is likely caused by `callsite.toString()` in `Error.prepareStackTrace converting file URLs to paths.
-    if (sourceURL.startsWith('/')) {
+    //
+    // But frame.file might also be "webpack-internal:///(rsc)/./app/bad-sourcemap/page.js" or
+    // "<anonymous>" or "node:internal/process/task_queues" here
+    if (path.isAbsolute(frame.file)) {
       sourceURL = url.pathToFileURL(frame.file).toString()
     }
     let maybeSourceMapPayload: ModernSourceMapPayload | undefined
