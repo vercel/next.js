@@ -302,6 +302,12 @@ pub struct IntoChunks<T> {
     chunk_size: usize,
 }
 
+impl<T> IntoChunks<T> {
+    pub fn len(&self) -> usize {
+        (self.data.len() - self.index + self.chunk_size - 1) / self.chunk_size
+    }
+}
+
 impl<T> Iterator for IntoChunks<T> {
     type Item = Chunk<T>;
 
@@ -385,6 +391,18 @@ impl<T> Drop for Chunk<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_into_chunks_len() {
+        assert_eq!(into_chunks::<i32>(vec![], 2).len(), 0);
+        assert_eq!(into_chunks(vec![1], 2).len(), 1);
+        assert_eq!(into_chunks(vec![1, 2], 2).len(), 1);
+        assert_eq!(into_chunks(vec![1, 2, 3], 2).len(), 2);
+        assert_eq!(into_chunks(vec![1, 2, 3, 4], 2).len(), 2);
+        assert_eq!(into_chunks(vec![1, 2, 3, 4, 5], 2).len(), 3);
+        assert_eq!(into_chunks(vec![1, 2, 3, 4, 5, 6], 2).len(), 3);
+        assert_eq!(into_chunks(vec![1, 2, 3, 4, 5, 6, 7], 2).len(), 4);
+    }
 
     #[test]
     fn test_chunk_iterator() {
