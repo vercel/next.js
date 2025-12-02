@@ -76,13 +76,21 @@ describe('app dir - basepath', () => {
       const browser = await next.browser(path, {
         beforePageLoad(page) {
           page.on('request', async (request) => {
-            if (!request.url().includes('_rsc')) {
-              // Filter out most requests earlier, to prevents calling `allHeaders()` on in-flight
-              // static resources requests after the browser was already closed.
-              return
+            let headers: { [key: string]: string }
+            try {
+              headers = await request.allHeaders()
+            } catch (e) {
+              if (
+                e.message.includes(
+                  'Target page, context or browser has been closed'
+                )
+              ) {
+                // Ignore errors caused by closed browser during test teardown
+                return
+              }
+              throw e
             }
 
-            let headers = await request.allHeaders()
             if (
               headers['rsc'] === '1' &&
               // Prefetches also include `rsc`
