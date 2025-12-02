@@ -591,7 +591,6 @@ async function writeFunctionsConfigManifest(
   distDir: string,
   manifest: FunctionsConfigManifest
 ): Promise<void> {
-  // manifest.functions =
   let sortedManifest: FunctionsConfigManifest = {
     version: manifest.version,
     functions: Object.fromEntries(
