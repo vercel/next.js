@@ -69,7 +69,7 @@ describe('app dir - basepath', () => {
     })
   })
 
-  it.each(['/base/refresh?foo=bar'])(
+  it.each(['/base/refresh', '/base/refresh?foo=bar'])(
     `should only make a single RSC call to the current page (%s)`,
     async (path) => {
       let rscRequests = []
