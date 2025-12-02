@@ -76,9 +76,9 @@ describe('app dir - basepath', () => {
       const browser = await next.browser(path, {
         beforePageLoad(page) {
           page.on('request', async (request) => {
-            if (!request.isNavigationRequest()) {
-              // Ignore non-navigation requests, this also prevents us from calling allHeaders on
-              // in-flight requests after the browser was already closed.
+            if (!request.url().includes('_rsc')) {
+              // Filter out most requests earlier, to prevents calling `allHeaders()` on in-flight
+              // static resources requests after the browser was already closed.
               return
             }
 
