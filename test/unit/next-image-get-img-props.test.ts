@@ -1,6 +1,17 @@
 /* eslint-env jest */
 import { getImageProps } from 'next/image'
 
+let deploymentId
+
+jest.mock('next/dist/shared/lib/deployment-id.js', () => {
+  return {
+    __esModule: true,
+    getDeploymentId() {
+      return deploymentId
+    },
+  }
+})
+
 describe('getImageProps()', () => {
   let warningMessages: string[]
   const originalConsoleWarn = console.warn
@@ -9,6 +20,7 @@ describe('getImageProps()', () => {
     console.warn = (m: string) => {
       warningMessages.push(m)
     }
+    deploymentId = undefined
   })
 
   afterEach(() => {
@@ -611,38 +623,34 @@ describe('getImageProps()', () => {
     ])
   })
   it('should add query string for imported local image when NEXT_DEPLOYMENT_ID defined', async () => {
-    try {
-      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
-      const { props } = getImageProps({
-        alt: 'a nice desc',
-        src: '/_next/static/media/test.abc123.png',
-        width: 100,
-        height: 200,
-      })
-      expect(warningMessages).toStrictEqual([])
-      expect(Object.entries(props)).toStrictEqual([
-        ['alt', 'a nice desc'],
-        ['loading', 'lazy'],
-        ['width', 100],
-        ['height', 200],
-        ['decoding', 'async'],
-        ['style', { color: 'transparent' }],
-        [
-          'srcSet',
-          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=128&q=75&dpl=dpl_123 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123 2x',
-        ],
-        [
-          'src',
-          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123',
-        ],
-      ])
-    } finally {
-      delete process.env.NEXT_DEPLOYMENT_ID
-    }
+    deploymentId = 'dpl_123'
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: '/_next/static/media/test.abc123.png',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=128&q=75&dpl=dpl_123 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123 2x',
+      ],
+      [
+        'src',
+        '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123',
+      ],
+    ])
   })
   it('should add query string for imported local image from microfrontend when NEXT_DEPLOYMENT_ID defined', async () => {
     try {
-      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      deploymentId = 'dpl_123'
       const { props } = getImageProps({
         alt: 'a nice desc',
         src: '/microfrontend/_next/static/media/test.abc123.png', // simulating microfrontend path
@@ -667,12 +675,12 @@ describe('getImageProps()', () => {
         ],
       ])
     } finally {
-      delete process.env.NEXT_DEPLOYMENT_ID
+      deploymentId = undefined
     }
   })
   it('should add query string for relative local image when NEXT_DEPLOYMENT_ID defined', async () => {
     try {
-      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      deploymentId = 'dpl_123'
       const { props } = getImageProps({
         alt: 'a nice desc',
         src: '/test.png',
@@ -694,42 +702,38 @@ describe('getImageProps()', () => {
         ['src', '/_next/image?url=%2Ftest.png&w=256&q=75&dpl=dpl_123'],
       ])
     } finally {
-      delete process.env.NEXT_DEPLOYMENT_ID
+      deploymentId = undefined
     }
   })
   it('should not add query string for absolute remote image when NEXT_DEPLOYMENT_ID defined', async () => {
-    try {
-      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
-      const { props } = getImageProps({
-        alt: 'a nice desc',
-        src: 'http://example.com/test.png',
-        width: 100,
-        height: 200,
-      })
-      expect(warningMessages).toStrictEqual([])
-      expect(Object.entries(props)).toStrictEqual([
-        ['alt', 'a nice desc'],
-        ['loading', 'lazy'],
-        ['width', 100],
-        ['height', 200],
-        ['decoding', 'async'],
-        ['style', { color: 'transparent' }],
-        [
-          'srcSet',
-          '/_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=128&q=75 1x, /_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=256&q=75 2x',
-        ],
-        [
-          'src',
-          '/_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=256&q=75',
-        ],
-      ])
-    } finally {
-      delete process.env.NEXT_DEPLOYMENT_ID
-    }
+    deploymentId = 'dpl_123'
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: 'http://example.com/test.png',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=128&q=75 1x, /_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=256&q=75 2x',
+      ],
+      [
+        'src',
+        '/_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=256&q=75',
+      ],
+    ])
   })
   it('should add query string with question mark for unoptimized relative svg when NEXT_DEPLOYMENT_ID defined', async () => {
     try {
-      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      deploymentId = 'dpl_123'
       const { props } = getImageProps({
         alt: 'a nice desc',
         src: '/test.svg',
@@ -747,12 +751,12 @@ describe('getImageProps()', () => {
         ['src', '/test.svg?dpl=dpl_123'],
       ])
     } finally {
-      delete process.env.NEXT_DEPLOYMENT_ID
+      deploymentId = undefined
     }
   })
   it('should add query string with ampersand for unoptimized relative svg when NEXT_DEPLOYMENT_ID defined', async () => {
     try {
-      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      deploymentId = 'dpl_123'
       const { props } = getImageProps({
         alt: 'a nice desc',
         src: '/test.svg?v=1',
@@ -770,12 +774,12 @@ describe('getImageProps()', () => {
         ['src', '/test.svg?v=1&dpl=dpl_123'],
       ])
     } finally {
-      delete process.env.NEXT_DEPLOYMENT_ID
+      deploymentId = undefined
     }
   })
   it('should not add query string for unoptimized absolute remote svg when NEXT_DEPLOYMENT_ID defined', async () => {
     try {
-      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      deploymentId = 'dpl_123'
       const { props } = getImageProps({
         alt: 'a nice desc',
         src: 'http://example.com/test.svg',
@@ -793,12 +797,12 @@ describe('getImageProps()', () => {
         ['src', 'http://example.com/test.svg'],
       ])
     } finally {
-      delete process.env.NEXT_DEPLOYMENT_ID
+      deploymentId = undefined
     }
   })
   it('should not add query string for unoptimized with no protocol when NEXT_DEPLOYMENT_ID defined', async () => {
     try {
-      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      deploymentId = 'dpl_123'
       const { props } = getImageProps({
         alt: 'a nice desc',
         src: '//example.com/test.png',
@@ -817,7 +821,7 @@ describe('getImageProps()', () => {
         ['src', '//example.com/test.png'],
       ])
     } finally {
-      delete process.env.NEXT_DEPLOYMENT_ID
+      deploymentId = undefined
     }
   })
 })
