@@ -10,7 +10,7 @@ use crate::{
     server::ViewRect,
     span_bottom_up_ref::SpanBottomUpRef,
     span_graph_ref::{SpanGraphEventRef, SpanGraphRef},
-    span_ref::SpanRef,
+    span_ref::{SpanEventRef, SpanRef},
     store::{SpanId, Store},
     timestamp::Timestamp,
     u64_empty_string,
@@ -73,6 +73,17 @@ impl ValueMode {
                 span.total_persistent_allocations(),
                 span.corrected_total_time(),
             ),
+        }
+    }
+
+    fn value_from_event(&self, event: &SpanEventRef<'_>) -> u64 {
+        match self {
+            ValueMode::Duration => *event.corrected_self_time(),
+            ValueMode::Cpu => *event.total_time(),
+            _ => match event {
+                SpanEventRef::Child { span } => self.value_from_span(span),
+                SpanEventRef::SelfTime { .. } => 0,
+            },
         }
     }
 
@@ -651,24 +662,31 @@ impl Viewer {
                         }
                     } else if !selected_view_mode.aggregate_children() {
                         let spans = if selected_view_mode.sort_children() {
-                            Either::Left(span.children().sorted_by_cached_key(|child| {
-                                Reverse(value_mode.value_from_span(child))
+                            Either::Left(span.events().sorted_by_cached_key(|child| {
+                                Reverse(value_mode.value_from_event(child))
                             }))
                         } else {
-                            Either::Right(span.children().sorted_by_key(|child| child.start()))
+                            Either::Right(span.events().sorted_by_key(|child| child.start()))
                         };
                         for child in spans {
-                            let filtered = get_filter_mode(child.id());
-                            add_child_item(
-                                &mut children,
-                                &mut current,
-                                view_rect,
-                                child_line_index,
-                                view_mode,
-                                value_mode,
-                                QueueItem::Span(child),
-                                filtered,
-                            );
+                            match child {
+                                SpanEventRef::SelfTime { .. } => {
+                                    current += value_mode.value_from_event(&child);
+                                }
+                                SpanEventRef::Child { span: child } => {
+                                    let filtered = get_filter_mode(child.id());
+                                    add_child_item(
+                                        &mut children,
+                                        &mut current,
+                                        view_rect,
+                                        child_line_index,
+                                        view_mode,
+                                        value_mode,
+                                        QueueItem::Span(child),
+                                        filtered,
+                                    );
+                                }
+                            }
                         }
                     } else {
                         let events = if selected_view_mode.sort_children() {
