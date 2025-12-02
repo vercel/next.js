@@ -55,7 +55,6 @@ thread_local = { workspace = true }
 turbo-persistence = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
-turbo-tasks-testing = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
@@ -64,6 +63,7 @@ regex = { workspace = true }
 tempfile = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 rstest = { workspace = true }
+turbo-tasks-testing = { workspace = true }
 
 
 [[bench]]
