@@ -427,11 +427,15 @@ export interface ExperimentalConfig {
 
   /**
    * Enable filesystem cache for the turbopack dev server.
+   *
+   * Defaults to `true`.
    */
   turbopackFileSystemCacheForDev?: boolean
 
   /**
    * Enable filesystem cache for the turbopack build.
+   *
+   * Defaults to `false`.
    */
   turbopackFileSystemCacheForBuild?: boolean
 
@@ -449,6 +453,11 @@ export interface ExperimentalConfig {
    * Enable tree shaking for the turbopack dev server and build.
    */
   turbopackTreeShaking?: boolean
+
+  /**
+   * Enable removing unused imports for turbopack dev server and build.
+   */
+  turbopackRemoveUnusedImports?: boolean
 
   /**
    * Enable removing unused exports for turbopack dev server and build.
@@ -1548,6 +1557,8 @@ export const defaultConfig = Object.freeze({
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
     mcpServer: true,
+    turbopackFileSystemCacheForDev: true,
+    turbopackFileSystemCacheForBuild: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

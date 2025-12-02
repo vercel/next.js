@@ -158,7 +158,8 @@ export async function verifyTypeScriptSetup({
         distDir,
         resolvedTsConfigPath,
         cacheDir,
-        hasAppDir
+        hasAppDir,
+        isolatedDevBuild
       )
     }
     return { result, version: typescriptVersion }

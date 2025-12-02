@@ -571,21 +571,29 @@
       "cache-components-dev-warmup - with runtime prefetch configs initial load cached data resolves in the correct phase cached data + private cache",
       "cache-components-dev-warmup - with runtime prefetch configs initial load cached data resolves in the correct phase cached data + short-lived cached data",
       "cache-components-dev-warmup - with runtime prefetch configs initial load request APIs resolve in the correct phase",
+      "cache-components-dev-warmup - with runtime prefetch configs initial load sync IO in the runtime phase",
+      "cache-components-dev-warmup - with runtime prefetch configs initial load sync IO in the static phase",
       "cache-components-dev-warmup - with runtime prefetch configs navigation cached data resolves in the correct phase cache reads that reveal more components with more caches",
       "cache-components-dev-warmup - with runtime prefetch configs navigation cached data resolves in the correct phase cached data + cached fetch",
       "cache-components-dev-warmup - with runtime prefetch configs navigation cached data resolves in the correct phase cached data + private cache",
       "cache-components-dev-warmup - with runtime prefetch configs navigation cached data resolves in the correct phase cached data + short-lived cached data",
       "cache-components-dev-warmup - with runtime prefetch configs navigation request APIs resolve in the correct phase",
+      "cache-components-dev-warmup - with runtime prefetch configs navigation sync IO in the runtime phase",
+      "cache-components-dev-warmup - with runtime prefetch configs navigation sync IO in the static phase",
       "cache-components-dev-warmup - without runtime prefetch configs initial load cached data resolves in the correct phase cache reads that reveal more components with more caches",
       "cache-components-dev-warmup - without runtime prefetch configs initial load cached data resolves in the correct phase cached data + cached fetch",
       "cache-components-dev-warmup - without runtime prefetch configs initial load cached data resolves in the correct phase cached data + private cache",
       "cache-components-dev-warmup - without runtime prefetch configs initial load cached data resolves in the correct phase cached data + short-lived cached data",
       "cache-components-dev-warmup - without runtime prefetch configs initial load request APIs resolve in the correct phase",
+      "cache-components-dev-warmup - without runtime prefetch configs initial load sync IO in the runtime phase",
+      "cache-components-dev-warmup - without runtime prefetch configs initial load sync IO in the static phase",
       "cache-components-dev-warmup - without runtime prefetch configs navigation cached data resolves in the correct phase cache reads that reveal more components with more caches",
       "cache-components-dev-warmup - without runtime prefetch configs navigation cached data resolves in the correct phase cached data + cached fetch",
       "cache-components-dev-warmup - without runtime prefetch configs navigation cached data resolves in the correct phase cached data + private cache",
       "cache-components-dev-warmup - without runtime prefetch configs navigation cached data resolves in the correct phase cached data + short-lived cached data",
-      "cache-components-dev-warmup - without runtime prefetch configs navigation request APIs resolve in the correct phase"
+      "cache-components-dev-warmup - without runtime prefetch configs navigation request APIs resolve in the correct phase",
+      "cache-components-dev-warmup - without runtime prefetch configs navigation sync IO in the runtime phase",
+      "cache-components-dev-warmup - without runtime prefetch configs navigation sync IO in the static phase"
     ],
     "failed": [],
     "pending": [],
@@ -2439,6 +2447,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/stale-dev-types/stale-dev-types.test.ts": {
+    "passed": [
+      "stale-dev-types should not fail build when .next/dev has stale types from deleted routes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/start-no-build/start-no-build.test.ts": {
     "passed": [
       "next start without next build should show error when there is no production build"
@@ -2542,6 +2559,74 @@
   "test/e2e/api-resolver-query-writeable/api-resolver-query-writeable.test.ts": {
     "passed": [
       "api-resolver-query-writeable should allow req.query to be writable and reflect changes made in the API handler"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir-export/test/config.test.ts": {
+    "passed": ["app dir - with output export skipped in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir-export/test/dev-custom-dist-dir.test.ts": {
+    "passed": [
+      "app dir - with output export and custom distDir in dev should render properly in dev"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir-export/test/dynamic-missing-gsp.test.ts": {
+    "passed": [
+      "app dir - with output export - dynamic missing gsp should error when client component has generateStaticParams should work",
+      "app dir - with output export - dynamic missing gsp should error when dynamic route is missing generateStaticParams should work",
+      "app dir - with output export - dynamic missing gsp should error when dynamic route is set to true should work"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir-export/test/dynamicapiroute.test.ts": {
+    "passed": [
+      "app dir - with output export - dynamic api route should work in prod with dynamicApiRoute 'error' should work",
+      "app dir - with output export - dynamic api route should work in prod with dynamicApiRoute 'force-dynamic' should work",
+      "app dir - with output export - dynamic api route should work in prod with dynamicApiRoute 'force-static' should work",
+      "app dir - with output export - dynamic api route should work in prod with dynamicApiRoute undefined should work"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir-export/test/dynamicpage.test.ts": {
+    "passed": [
+      "app dir - with output export - dynamic api route should work in prod with dynamicPage 'error' should work",
+      "app dir - with output export - dynamic api route should work in prod with dynamicPage 'force-dynamic' should work",
+      "app dir - with output export - dynamic api route should work in prod with dynamicPage 'force-static' should work",
+      "app dir - with output export - dynamic api route should work in prod with dynamicPage undefined should work"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir-export/test/start.test.ts": {
+    "passed": ["app dir - with output export (next start) skipped in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir-export/test/trailing-slash.test.ts": {
+    "passed": [
+      "app dir - with output export - trailing slash should work in prod with trailingSlash 'false' should work",
+      "app dir - with output export - trailing slash should work in prod with trailingSlash 'true' should work"
     ],
     "failed": [],
     "pending": [],
@@ -4174,12 +4259,16 @@
       "Cache Components Errors Dev Error Attribution with Sync IO Guarded RSC with unguarded Client sync IO should show a collapsed redbox error",
       "Cache Components Errors Dev Error Attribution with Sync IO Unguarded RSC with guarded Client sync IO should show a collapsed redbox error",
       "Cache Components Errors Dev Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should show a collapsed redbox error",
-      "Cache Components Errors Dev Inside `use cache` cacheLife with expire < 5 minutes should show a redbox error",
-      "Cache Components Errors Dev Inside `use cache` cacheLife with revalidate: 0 should show a redbox error",
+      "Cache Components Errors Dev Inside `use cache` cacheLife with expire < 5 minutes microtasky cache should show a redbox error",
+      "Cache Components Errors Dev Inside `use cache` cacheLife with expire < 5 minutes slow cache should show a redbox error",
+      "Cache Components Errors Dev Inside `use cache` cacheLife with revalidate: 0 microtasky cache should show a redbox error",
+      "Cache Components Errors Dev Inside `use cache` cacheLife with revalidate: 0 slow cache should show a redbox error",
+      "Cache Components Errors Dev Inside `use cache` catching an error at runtime should show a collapsed redbox error",
       "Cache Components Errors Dev Inside `use cache` cookies should show a redbox error",
       "Cache Components Errors Dev Inside `use cache` draftMode should show a redbox error",
       "Cache Components Errors Dev Inside `use cache` headers should show a redbox error",
       "Cache Components Errors Dev Inside `use cache` reading fallback params should show a redbox error",
+      "Cache Components Errors Dev Inside `use cache` throwing an error at runtime should show a redbox error",
       "Cache Components Errors Dev Static Route should not show a collapsed redbox error",
       "Cache Components Errors Dev Sync Dynamic Platform With Fallback - Math.random() should show a collapsed redbox error",
       "Cache Components Errors Dev Sync Dynamic Platform Without Fallback - Math.random() should show a collapsed redbox error",
@@ -8875,6 +8964,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/force-stale/force-stale.test.ts": {
+    "passed": ["force stale prefetching is disabled in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts": {
     "passed": [
       "segment cache memory pressure disabled in development / deployment"
@@ -9081,7 +9177,6 @@
       "shallow-routing pushState should support setting a different pathname reflected on usePathname",
       "shallow-routing pushState should support setting a different searchParam reflected on useSearchParams",
       "shallow-routing pushState should support setting a different url using a string",
-      "shallow-routing pushState should support setting data",
       "shallow-routing pushState should work when given a null state value",
       "shallow-routing replaceState should support setting a different pathname reflected on usePathname",
       "shallow-routing replaceState should support setting a different searchParam reflected on useSearchParams",
@@ -9091,7 +9186,7 @@
       "shallow-routing replaceState should work when given an undefined state value",
       "shallow-routing should work when given an undefined state value"
     ],
-    "failed": [],
+    "failed": ["shallow-routing pushState should support setting data"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9268,7 +9363,6 @@
   "test/e2e/app-dir/typed-routes/typed-routes.test.ts": {
     "passed": [
       "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
-      "typed-routes should exit typegen successfully",
       "typed-routes should generate RouteContext type for route handlers",
       "typed-routes should generate route types correctly",
       "typed-routes should update route types file when routes change"
@@ -9385,13 +9479,14 @@
   },
   "test/e2e/app-dir/use-cache-hanging-inputs/use-cache-hanging-inputs.test.ts": {
     "passed": [
+      "use-cache-hanging-inputs when an error is thrown should show an error overlay with only one error"
+    ],
+    "failed": [],
+    "pending": [
       "use-cache-hanging-inputs when a \"use cache\" function is closing over an uncached promise should show an error toast after a timeout",
-      "use-cache-hanging-inputs when an error is thrown should show an error overlay with only one error",
       "use-cache-hanging-inputs when an uncached promise is used inside of \"use cache\" should show an error toast after a timeout",
       "use-cache-hanging-inputs when an uncached promise is used inside of a nested \"use cache\" should show an error toast after a timeout"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10255,6 +10350,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/externals-transitive/externals-transitive.test.ts": {
+    "passed": [
+      "externals-transitive uses the right version of transitive externals"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/favicon-short-circuit/favicon-short-circuit.test.ts": {
     "passed": [
       "favicon-short-circuit should short circuit the favicon in development"
@@ -10271,6 +10375,32 @@
     "failed": [],
     "pending": [
       "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/filesystem-cache/filesystem-cache.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "filesystem-caching with cache disabled should allow to change files while stopped (Pages change)",
+      "filesystem-caching with cache disabled should allow to change files while stopped (RCC change)",
+      "filesystem-caching with cache disabled should allow to change files while stopped (RSC change)",
+      "filesystem-caching with cache disabled should allow to change files while stopped (RSC change, RCC change, Pages change, rename app page, loader change, next config change, env var change)",
+      "filesystem-caching with cache disabled should allow to change files while stopped (env var change)",
+      "filesystem-caching with cache disabled should allow to change files while stopped (loader change)",
+      "filesystem-caching with cache disabled should allow to change files while stopped (next config change)",
+      "filesystem-caching with cache disabled should allow to change files while stopped (rename app page)",
+      "filesystem-caching with cache disabled should cache or not cache loaders",
+      "filesystem-caching with cache enabled should allow to change files while stopped (Pages change)",
+      "filesystem-caching with cache enabled should allow to change files while stopped (RCC change)",
+      "filesystem-caching with cache enabled should allow to change files while stopped (RSC change)",
+      "filesystem-caching with cache enabled should allow to change files while stopped (RSC change, RCC change, Pages change, rename app page, loader change, next config change, env var change)",
+      "filesystem-caching with cache enabled should allow to change files while stopped (env var change)",
+      "filesystem-caching with cache enabled should allow to change files while stopped (loader change)",
+      "filesystem-caching with cache enabled should allow to change files while stopped (next config change)",
+      "filesystem-caching with cache enabled should allow to change files while stopped (rename app page)",
+      "filesystem-caching with cache enabled should cache or not cache loaders"
     ],
     "flakey": [],
     "runtimeError": false
@@ -11331,6 +11461,7 @@
       "Middleware Rewrite should clear query parameters",
       "Middleware Rewrite should correctly rewriting to a different dynamic path",
       "Middleware Rewrite should handle catch-all rewrite correctly",
+      "Middleware Rewrite should handle middleware rewrite with body and headers correctly",
       "Middleware Rewrite should handle middleware rewrite with body correctly",
       "Middleware Rewrite should handle next.config.js rewrite with body correctly",
       "Middleware Rewrite should handle shallow navigation correctly (dynamic page)",
@@ -13040,125 +13171,6 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/app-dir-export/test/config.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "app dir - with output export (next dev / next build) production mode should correctly emit exported assets to config.distDir",
-      "app dir - with output export (next dev / next build) production mode should error when running next export",
-      "app dir - with output export (next dev / next build) production mode should throw when exportPathMap configured"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/app-dir-export/test/dev-custom-dist-dir.test.ts": {
-    "passed": [
-      "app dir - with output export and custom distDir (next dev) should render properly"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/app-dir-export/test/dynamic-missing-gsp-dev.test.ts": {
-    "passed": [
-      "app dir - with output export - dynamic missing gsp dev development mode should error when client component has generateStaticParams",
-      "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is missing generateStaticParams",
-      "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is set to true"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/app-dir-export/test/dynamic-missing-gsp-prod.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "app dir - with output export - dynamic missing gsp prod production mode should error when client component has generateStaticParams",
-      "app dir - with output export - dynamic missing gsp prod production mode should error when dynamic route is missing generateStaticParams"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/app-dir-export/test/dynamicapiroute-dev.test.ts": {
-    "passed": [
-      "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'error'",
-      "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'force-dynamic'",
-      "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'force-static'",
-      "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute undefined"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/app-dir-export/test/dynamicapiroute-prod.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicApiRoute 'error'",
-      "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicApiRoute 'force-dynamic'",
-      "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicApiRoute 'force-static'",
-      "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicApiRoute undefined"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/app-dir-export/test/dynamicpage-dev.test.ts": {
-    "passed": [
-      "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'error'",
-      "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'force-dynamic'",
-      "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'force-static'",
-      "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage undefined"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/app-dir-export/test/dynamicpage-prod.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage 'error'",
-      "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage 'force-dynamic'",
-      "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage 'force-static'",
-      "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage undefined"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/app-dir-export/test/start.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "app dir - with output export (next start) production mode should error during next start with output export",
-      "app dir - with output export (next start) production mode should warn during next start with output standalone"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/app-dir-export/test/trailing-slash-dev.test.ts": {
-    "passed": [
-      "app dir - with output export - trailing slash dev development mode should work in dev with trailingSlash 'false'",
-      "app dir - with output export - trailing slash dev development mode should work in dev with trailingSlash 'true'"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/app-dir-export/test/trailing-slash-start.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "app dir - with output export - trailing slash prod production mode should work in prod with trailingSlash 'false'",
-      "app dir - with output export - trailing slash prod production mode should work in prod with trailingSlash 'true'"
-    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -21322,38 +21334,6 @@
       "404 handling pages/404 production mode production mode next start should handle slashes in router push correctly",
       "404 handling pages/404 production mode production mode next start should have no error from encoded slashes in router push",
       "404 handling pages/404 production mode production mode next start should normalize repeated slashes in redirects correctly"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/required-server-files-ssr-404/test/index.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com",
-      "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com/hello",
-      "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com/hello/world",
-      "Required Server Files production mode should bubble error correctly for gip page",
-      "Required Server Files production mode should bubble error correctly for gsp page",
-      "Required Server Files production mode should bubble error correctly for gssp page",
-      "Required Server Files production mode should handle 404s properly",
-      "Required Server Files production mode should match the index page correctly",
-      "Required Server Files production mode should match the root dynamic page correctly",
-      "Required Server Files production mode should normalize catch-all rewrite query values correctly",
-      "Required Server Files production mode should normalize optional values correctly for API page",
-      "Required Server Files production mode should normalize optional values correctly for SSG page",
-      "Required Server Files production mode should normalize optional values correctly for SSP page",
-      "Required Server Files production mode should not apply trailingSlash redirect",
-      "Required Server Files production mode should output required-server-files manifest correctly",
-      "Required Server Files production mode should render SSR page correctly",
-      "Required Server Files production mode should render SSR page correctly with x-matched-path",
-      "Required Server Files production mode should render dynamic SSR page correctly",
-      "Required Server Files production mode should render dynamic SSR page correctly with x-matched-path",
-      "Required Server Files production mode should render fallback optional catch-all route correctly with x-matched-path and routes-matches",
-      "Required Server Files production mode should render fallback page correctly",
-      "Required Server Files production mode should render fallback page correctly with x-matched-path and routes-matches",
-      "Required Server Files production mode should return data correctly with x-matched-path",
-      "Required Server Files production mode should return data correctly with x-matched-path for optional catch-all route"
     ],
     "flakey": [],
     "runtimeError": false

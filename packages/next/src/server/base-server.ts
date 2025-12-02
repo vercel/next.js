@@ -823,7 +823,7 @@ export default abstract class Server<
     }
   }
 
-  public logError(err: Error): void {
+  public logError(err: unknown): void {
     if (this.quiet) return
     Log.error(err)
   }
@@ -2249,6 +2249,11 @@ export default abstract class Server<
       isDynamicRoute(pathname) &&
       (components.getStaticPaths || isAppPath)
     ) {
+      let getStaticPathsStart: bigint | undefined
+      if (opts.dev) {
+        getStaticPathsStart = process.hrtime.bigint()
+      }
+
       const pathsResults = await this.getStaticPaths({
         pathname,
         urlPathname,
@@ -2256,6 +2261,15 @@ export default abstract class Server<
         page: components.page,
         isAppPath,
       })
+
+      if (opts.dev && getStaticPathsStart && pathsResults.staticPaths?.length) {
+        addRequestMeta(
+          req,
+          'devGenerateStaticParamsDuration',
+          process.hrtime.bigint() - getStaticPathsStart
+        )
+      }
+
       if (isAppPath && this.nextConfig.cacheComponents) {
         if (pathsResults.prerenderedRoutes?.length) {
           let smallestFallbackRouteParams = null

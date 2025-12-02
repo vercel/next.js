@@ -138,6 +138,7 @@ pub enum ReplacedImportMapping {
         name_override: Option<RcStr>,
         ty: ExternalType,
         traced: ExternalTraced,
+        target: Option<FileSystemPath>,
     },
     PrimaryAlternativeExternal {
         name: Option<RcStr>,
@@ -198,6 +199,8 @@ impl AliasTemplate for Vc<ImportMapping> {
                     name_override: name.clone(),
                     ty: *ty,
                     traced: *traced,
+                    // TODO
+                    target: None,
                 },
                 ImportMapping::PrimaryAlternativeExternal {
                     name,
@@ -246,12 +249,14 @@ impl AliasTemplate for Vc<ImportMapping> {
                                 .cloned(),
                             ty: *ty,
                             traced: *traced,
+                            target: None,
                         }
                     } else {
                         ReplacedImportMapping::External {
                             name_override: None,
                             ty: *ty,
                             traced: *traced,
+                            target: None,
                         }
                     }
                 }
@@ -410,6 +415,7 @@ pub enum ImportMapResult {
         name: RcStr,
         ty: ExternalType,
         traced: ExternalTraced,
+        target: Option<FileSystemPath>,
     },
     AliasExternal {
         name: RcStr,
@@ -433,6 +439,7 @@ async fn import_mapping_to_result(
             name_override,
             ty,
             traced,
+            target,
         } => ImportMapResult::External {
             name: if let Some(name) = name_override {
                 name.clone()
@@ -446,6 +453,7 @@ async fn import_mapping_to_result(
             },
             ty: *ty,
             traced: *traced,
+            target: target.clone(),
         },
         ReplacedImportMapping::PrimaryAlternativeExternal {
             name,
