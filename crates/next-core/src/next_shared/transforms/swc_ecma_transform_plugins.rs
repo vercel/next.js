@@ -70,7 +70,6 @@ pub async fn get_swc_ecma_transform_rule_impl(
     use anyhow::bail;
     use turbo_tasks::TryFlatJoinIterExt;
     use turbo_tasks_fs::FileContent;
-    use turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext};
     use turbopack_core::{
         asset::Asset,
         reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -78,6 +77,9 @@ pub async fn get_swc_ecma_transform_rule_impl(
     };
     use turbopack_ecmascript_plugins::transform::swc_ecma_transform_plugins::{
         SwcEcmaTransformPluginsTransformer, SwcPluginModule,
+    };
+    use turbopack_resolve::{
+        resolve::resolve_options, resolve_options_context::ResolveOptionsContext,
     };
 
     use crate::next_shared::transforms::{EcmascriptTransformStage, get_ecma_transform_rule};

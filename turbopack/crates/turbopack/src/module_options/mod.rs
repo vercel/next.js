@@ -31,12 +31,10 @@ use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::{postcss::PostCssTransform, webpack::WebpackLoaders},
 };
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 use turbopack_wasm::source::WebAssemblySourceType;
 
-use crate::{
-    evaluate_context::{config_tracing_module_context, node_evaluate_asset_context},
-    resolve_options_context::ResolveOptionsContext,
-};
+use crate::evaluate_context::{config_tracing_module_context, node_evaluate_asset_context};
 
 #[turbo_tasks::function]
 fn package_import_map_from_import_mapping(

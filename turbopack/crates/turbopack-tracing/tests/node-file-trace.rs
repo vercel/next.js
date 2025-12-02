@@ -33,9 +33,7 @@ use turbo_tasks::{
 use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
-    ModuleAssetContext,
-    ecmascript::AnalyzeMode,
-    emit_assets_into_dir_operation,
+    ModuleAssetContext, emit_assets_into_dir_operation,
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext,
         TypescriptTransformOptions,
@@ -52,6 +50,7 @@ use turbopack_core::{
     reference::all_assets_from_entry,
     reference_type::ReferenceType,
 };
+use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 #[global_allocator]

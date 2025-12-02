@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
-use turbopack::css::chunk::CssChunkPlaceable;
 use turbopack_core::{module::Module, module_graph::SingleModuleGraph};
+use turbopack_css::chunk::CssChunkPlaceable;
 
 #[derive(
     Copy, Clone, Serialize, Deserialize, Eq, PartialEq, TraceRawVcs, ValueDebugFormat, NonLocalValue,

@@ -13,13 +13,6 @@ pub mod module_options;
 pub mod transition;
 
 use anyhow::{Result, bail};
-use css::{CssModuleAsset, ModuleCssAsset};
-use ecmascript::{
-    EcmascriptModuleAsset, EcmascriptModuleAssetType, TreeShakingMode,
-    chunk::EcmascriptChunkPlaceable,
-    references::{FollowExportsResult, follow_reexports},
-    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
-};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
@@ -28,7 +21,6 @@ use turbo_tasks_fs::{
     FileSystemPath,
     glob::{Glob, GlobOptions},
 };
-pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
     chunk::SourceMapsType,
@@ -51,26 +43,34 @@ use turbopack_core::{
     },
     source::Source,
 };
-pub use turbopack_css as css;
-pub use turbopack_ecmascript as ecmascript;
+use turbopack_css::{CssModuleAsset, ModuleCssAsset};
 use turbopack_ecmascript::{
-    AnalyzeMode,
+    AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, TreeShakingMode,
+    chunk::EcmascriptChunkPlaceable,
     inlined_bytes_module::InlinedBytesJsModule,
-    references::external_module::{
-        CachedExternalModule, CachedExternalTracingMode, CachedExternalType,
+    references::{
+        FollowExportsResult,
+        external_module::{CachedExternalModule, CachedExternalTracingMode, CachedExternalType},
+        follow_reexports,
     },
-    side_effect_optimization::locals::module::EcmascriptModuleLocalsModule,
+    side_effect_optimization::{
+        facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
+    },
     tree_shake::asset::EcmascriptModulePartAsset,
 };
 use turbopack_json::JsonModuleAsset;
-pub use turbopack_resolve::{resolve::resolve_options, resolve_options_context};
-use turbopack_resolve::{resolve_options_context::ResolveOptionsContext, typescript::type_resolve};
+use turbopack_resolve::{
+    resolve::resolve_options, resolve_options_context::ResolveOptionsContext,
+    typescript::type_resolve,
+};
 use turbopack_static::{css::StaticUrlCssModule, ecma::StaticUrlJsModule};
 use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySource};
 
-use self::transition::{Transition, TransitionOptions};
-use crate::module_options::{
-    CssOptionsContext, CustomModuleType, EcmascriptOptionsContext, TypescriptTransformOptions,
+use crate::{
+    module_options::{
+        CssOptionsContext, CustomModuleType, EcmascriptOptionsContext, TypescriptTransformOptions,
+    },
+    transition::{Transition, TransitionOptions},
 };
 
 async fn apply_module_type(

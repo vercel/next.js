@@ -10,10 +10,10 @@ use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::TraceRawVcs,
 };
-use turbopack::css::chunk::CssChunkPlaceable;
 use turbopack_core::{
     chunk::ChunkingType, module::Module, reference::primary_chunkable_referenced_modules,
 };
+use turbopack_css::chunk::CssChunkPlaceable;
 
 use crate::{
     next_client_reference::{

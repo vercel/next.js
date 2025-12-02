@@ -45,7 +45,6 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
     ModuleAssetContext,
     module_options::{ModuleOptionsContext, RuleCondition, transition_rule::TransitionRule},
-    resolve_options_context::ResolveOptionsContext,
     transition::{FullContextTransition, Transition, TransitionOptions},
 };
 use turbopack_core::{
@@ -73,6 +72,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     resolve::cjs_resolve, single_file_ecmascript_output::SingleFileEcmascriptOutput,
 };
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
     dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},

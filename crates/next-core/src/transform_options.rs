@@ -2,11 +2,8 @@ use anyhow::Result;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{self, FileJsonContent, FileSystemPath};
-use turbopack::{
-    module_options::{
-        DecoratorsKind, DecoratorsOptions, JsxTransformOptions, TypescriptTransformOptions,
-    },
-    resolve_options_context::ResolveOptionsContext,
+use turbopack::module_options::{
+    DecoratorsKind, DecoratorsOptions, JsxTransformOptions, TypescriptTransformOptions,
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
 use turbopack_core::{
@@ -15,6 +12,7 @@ use turbopack_core::{
     source::Source,
 };
 use turbopack_ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig};
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{mode::NextMode, next_config::NextConfig};
 

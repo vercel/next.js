@@ -34,6 +34,8 @@ turbo-tasks-backend = { workspace = true }
 turbo-unix-path = { workspace = true }
 turbopack-browser = { workspace = true, features = ["test"] }
 turbopack-core = { workspace = true }
+turbopack-css = { workspace = true }
+turbopack-ecmascript = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, features = [
   "transform_emotion",
 ] }
