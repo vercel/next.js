@@ -56,7 +56,7 @@ import {
   omitUnusedArgs,
 } from '../../../../shared/lib/server-reference-info'
 import { revalidateEntireCache } from '../../segment-cache/cache'
-import { deploymentId } from '../../../../shared/lib/deployment-id'
+import { getDeploymentId } from '../../../../shared/lib/deployment-id'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -111,6 +111,7 @@ async function fetchServerAction(
     ),
   }
 
+  const deploymentId = getDeploymentId()
   if (deploymentId) {
     headers['x-deployment-id'] = deploymentId
   }

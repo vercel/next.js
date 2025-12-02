@@ -2,13 +2,13 @@ declare const __webpack_require__: any
 declare let __webpack_public_path__: string
 
 import {
-  deploymentId,
+  getDeploymentId,
   getDeploymentIdQueryOrEmptyString,
 } from '../shared/lib/deployment-id'
 
 // If we have a deployment ID, we need to append it to the webpack chunk names
 // I am keeping the process check explicit so this can be statically optimized
-if (deploymentId) {
+if (getDeploymentId()) {
   const suffix = getDeploymentIdQueryOrEmptyString()
   const getChunkScriptFilename = __webpack_require__.u
   __webpack_require__.u = (...args: any[]) =>

@@ -43,7 +43,7 @@ import { interpolateAs } from './utils/interpolate-as'
 import { disableSmoothScrollDuringRouteTransition } from './utils/disable-smooth-scroll'
 import type { Params } from '../../../server/request/params'
 import { MATCHED_PATH_HEADER } from '../../../lib/constants'
-import { deploymentId } from '../deployment-id'
+import { getDeploymentId } from '../deployment-id'
 
 let resolveRewrites: typeof import('./utils/resolve-rewrites').default
 if (process.env.__NEXT_HAS_REWRITES) {
@@ -498,6 +498,7 @@ function fetchNextData({
   unstable_skipClientCache,
 }: FetchNextDataParams): Promise<FetchDataOutput> {
   const { href: cacheKey } = new URL(dataHref, window.location.href)
+  const deploymentId = getDeploymentId()
   const getData = (params?: { method?: 'HEAD' | 'GET' }) =>
     fetchRetry(dataHref, isServerRender ? 3 : 1, {
       headers: Object.assign(

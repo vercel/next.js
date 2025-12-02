@@ -1,6 +1,6 @@
 import type { ImageLoaderPropsWithConfig } from './image-config'
 import { findClosestQuality } from './find-closest-quality'
-import { deploymentId } from './deployment-id'
+import { getDeploymentId } from './deployment-id'
 
 function defaultLoader({
   config,
@@ -95,6 +95,7 @@ function defaultLoader({
 
   const q = findClosestQuality(quality, config)
 
+  let deploymentId = getDeploymentId()
   return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${q}${
     src.startsWith('/_next/static/media/') && deploymentId
       ? `&dpl=${deploymentId}`
