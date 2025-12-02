@@ -40,13 +40,16 @@ describe('getPageExtensions()', () => {
   })
 
   it('falls back to default when pageExtensions is not an array', () => {
-    jest.doMock(
-      path.resolve(process.cwd(), 'next.config.js'),
-      () => ({ pageExtensions: 'invalid' }),
-      { virtual: true }
-    )
-
     jest.isolateModules(() => {
+      const fs = require('fs')
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true)
+
+      jest.doMock(
+        path.resolve(process.cwd(), 'next.config.js'),
+        () => ({ pageExtensions: 'invalid' }),
+        { virtual: true }
+      )
+
       const getPageExtensions =
         require('../../../../packages/eslint-plugin-next/src/utils/url').getPageExtensions
 
@@ -73,13 +76,16 @@ describe('getPageExtensions()', () => {
   })
 
   it('returns default when pageExtensions is empty array', () => {
-    jest.doMock(
-      path.resolve(process.cwd(), 'next.config.js'),
-      () => ({ pageExtensions: [] }),
-      { virtual: true }
-    )
-
     jest.isolateModules(() => {
+      const fs = require('fs')
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true)
+
+      jest.doMock(
+        path.resolve(process.cwd(), 'next.config.js'),
+        () => ({ pageExtensions: [] }),
+        { virtual: true }
+      )
+
       const getPageExtensions =
         require('../../../../packages/eslint-plugin-next/src/utils/url').getPageExtensions
 
