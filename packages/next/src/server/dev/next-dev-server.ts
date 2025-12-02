@@ -519,7 +519,8 @@ export default class DevServer extends Server {
               requestEnd,
               getRequestMeta(req, 'devRequestTimingMiddlewareStart'),
               getRequestMeta(req, 'devRequestTimingMiddlewareEnd'),
-              getRequestMeta(req, 'devRequestTimingInternalsEnd')
+              getRequestMeta(req, 'devRequestTimingInternalsEnd'),
+              getRequestMeta(req, 'devGenerateStaticParamsDuration')
             )
           })
         }

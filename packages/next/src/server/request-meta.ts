@@ -270,6 +270,11 @@ export interface RequestMeta {
   devRequestTimingMiddlewareStart?: bigint
   devRequestTimingMiddlewareEnd?: bigint
   devRequestTimingInternalsEnd?: bigint
+
+  /**
+   * DEV only: The duration of getStaticPaths/generateStaticParams in process.hrtime.bigint()
+   */
+  devGenerateStaticParamsDuration?: bigint
 }
 
 /**

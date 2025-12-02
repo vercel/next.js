@@ -15,8 +15,6 @@ import { CALL_STACK_FRAME_STYLES } from '../components/call-stack-frame/call-sta
 import { css } from '../utils/css'
 import { EDITOR_LINK_STYLES } from '../components/terminal/editor-link'
 import { ENVIRONMENT_NAME_LABEL_STYLES } from '../components/errors/environment-name-label/environment-name-label'
-import { DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/turbopack-info'
-import { DEV_TOOLS_INFO_ROUTE_INFO_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/route-info'
 import { DEV_TOOLS_INFO_USER_PREFERENCES_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/user-preferences'
 import { FADER_STYLES } from '../components/fader'
 import { CALL_STACK_STYLES } from '../components/call-stack/call-stack'
@@ -43,8 +41,6 @@ export function ComponentStyles() {
         ${containerErrorStyles}
         ${containerRuntimeErrorStyles}
         ${versionStaleness}
-        ${DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES}
-        ${DEV_TOOLS_INFO_ROUTE_INFO_STYLES}
         ${DEV_TOOLS_INFO_USER_PREFERENCES_STYLES}
         ${FADER_STYLES}
         ${SHORTCUT_RECORDER_STYLES}

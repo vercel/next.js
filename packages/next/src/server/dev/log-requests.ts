@@ -47,7 +47,8 @@ export function logRequests(
   requestEndTime: bigint,
   devRequestTimingMiddlewareStart: bigint | undefined,
   devRequestTimingMiddlewareEnd: bigint | undefined,
-  devRequestTimingInternalsEnd: bigint | undefined
+  devRequestTimingInternalsEnd: bigint | undefined,
+  devGenerateStaticParamsDuration: bigint | undefined
 ): void {
   if (!ignoreLoggingIncomingRequests(request, loggingConfig)) {
     logIncomingRequests(
@@ -57,7 +58,8 @@ export function logRequests(
       response.statusCode,
       devRequestTimingMiddlewareStart,
       devRequestTimingMiddlewareEnd,
-      devRequestTimingInternalsEnd
+      devRequestTimingInternalsEnd,
+      devGenerateStaticParamsDuration
     )
   }
 
@@ -75,7 +77,8 @@ function logIncomingRequests(
   statusCode: number,
   devRequestTimingMiddlewareStart: bigint | undefined,
   devRequestTimingMiddlewareEnd: bigint | undefined,
-  devRequestTimingInternalsEnd: bigint | undefined
+  devRequestTimingInternalsEnd: bigint | undefined,
+  devGenerateStaticParamsDuration: bigint | undefined
 ): void {
   const isRSC = getRequestMeta(request, 'isRSCRequest')
   const url = isRSC ? stripNextRscUnionQuery(request.url) : request.url
@@ -113,6 +116,13 @@ function logIncomingRequests(
     }
     // Insert as the first item to be rendered in the list
     times.unshift(['compile', frameworkTime])
+
+    // Insert after compile, before render based on the execution order.
+    if (devGenerateStaticParamsDuration) {
+      // Pages Router getStaticPaths are technically "generate params" as well.
+      times.push(['generate-params', devGenerateStaticParamsDuration])
+    }
+
     times.push(['render', requestEndTime - devRequestTimingInternalsEnd])
   }
 
