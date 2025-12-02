@@ -817,6 +817,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/hmr-iframe/hmr-iframe.test.ts": {
+    "passed": [],
+    "failed": [
+      "hmr-iframe should do HMR when rendering two server component changes at the same time"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/hmr-intercept-routes/hmr-intercept-routes.test.ts": {
     "passed": [],
     "failed": [],
@@ -1813,11 +1822,12 @@
       "client-dev-overlay should be able to minimize the fullscreen overlay",
       "client-dev-overlay should be possible to hide the minimized overlay when there are no errors",
       "client-dev-overlay should have a role of \"dialog\" if the page is focused",
-      "client-dev-overlay should keep the error indicator visible when there are errors",
+      "client-dev-overlay should keep the error indicator visible when there are errors"
+    ],
+    "failed": [
       "client-dev-overlay should nudge to use Turbopack unless Turbopack is disabled",
       "client-dev-overlay with Cache Components should show Cache Components as enabled in the devtools menu"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
