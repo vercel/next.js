@@ -499,7 +499,7 @@ impl PostCssTransformedAsset {
             .to_resolved()
             .await?;
 
-        let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false)
+        let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false, false)
             .to_resolved()
             .await?;
 

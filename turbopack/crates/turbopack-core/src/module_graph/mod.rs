@@ -240,6 +240,7 @@ impl SingleModuleGraph {
         entries: &GraphEntriesT,
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         let emit_spans = tracing::enabled!(Level::INFO);
         let root_edges = entries
@@ -263,6 +264,7 @@ impl SingleModuleGraph {
                     visited_modules,
                     emit_spans,
                     include_traced,
+                    include_binding_usage,
                 },
             )
             .await
@@ -783,16 +785,26 @@ impl ModuleGraph {
     pub fn from_entry_module(
         module: ResolvedVc<Box<dyn Module>>,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Vc<Self> {
         Self::from_single_graph(SingleModuleGraph::new_with_entries(
             Vc::cell(vec![ChunkGroupEntry::Entry(vec![module])]),
             include_traced,
+            include_binding_usage,
         ))
     }
 
     #[turbo_tasks::function]
-    pub fn from_modules(modules: Vc<GraphEntries>, include_traced: bool) -> Vc<Self> {
-        Self::from_single_graph(SingleModuleGraph::new_with_entries(modules, include_traced))
+    pub fn from_modules(
+        modules: Vc<GraphEntries>,
+        include_traced: bool,
+        include_binding_usage: bool,
+    ) -> Vc<Self> {
+        Self::from_single_graph(SingleModuleGraph::new_with_entries(
+            modules,
+            include_traced,
+            include_binding_usage,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -1534,8 +1546,15 @@ impl SingleModuleGraph {
     pub async fn new_with_entries(
         entries: Vc<GraphEntries>,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(&*entries.await?, &Default::default(), include_traced).await
+        SingleModuleGraph::new_inner(
+            &*entries.await?,
+            &Default::default(),
+            include_traced,
+            include_binding_usage,
+        )
+        .await
     }
 
     #[turbo_tasks::function]
@@ -1543,11 +1562,13 @@ impl SingleModuleGraph {
         entries: Vc<GraphEntries>,
         visited_modules: Vc<VisitedModules>,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             &*entries.await?,
             &visited_modules.await?.modules,
             include_traced,
+            include_binding_usage,
         )
         .await
     }
@@ -1558,9 +1579,15 @@ impl SingleModuleGraph {
         entries: GraphEntriesT,
         visited_modules: Vc<VisitedModules>,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(&entries, &visited_modules.await?.modules, include_traced)
-            .await
+        SingleModuleGraph::new_inner(
+            &entries,
+            &visited_modules.await?.modules,
+            include_traced,
+            include_binding_usage,
+        )
+        .await
     }
 }
 
@@ -1689,6 +1716,9 @@ struct SingleModuleGraphBuilder<'a> {
 
     /// Whether to walk ChunkingType::Traced references
     include_traced: bool,
+
+    /// Whether to read ChunkableModuleReference::binding_usage()
+    include_binding_usage: bool,
 }
 impl
     Visit<(
@@ -1753,10 +1783,15 @@ impl
         let visited_modules = self.visited_modules;
         let emit_spans = self.emit_spans;
         let include_traced = self.include_traced;
+        let include_binding_usage = self.include_binding_usage;
         async move {
             Ok(match (module, chunkable_ref_target) {
                 (Some(module), None) => {
-                    let refs_cell = primary_chunkable_referenced_modules(*module, include_traced);
+                    let refs_cell = primary_chunkable_referenced_modules(
+                        *module,
+                        include_traced,
+                        include_binding_usage,
+                    );
                     let refs = match refs_cell.await {
                         Ok(refs) => refs,
                         Err(e) => {
@@ -2107,6 +2142,7 @@ pub mod tests {
             let parent_graph = SingleModuleGraph::new_with_entries(
                 GraphEntries::cell(GraphEntries(vec![ChunkGroupEntry::Entry(vec![b_module])])),
                 false,
+                false,
             );
 
             let module_graph = ModuleGraph::from_graphs(vec![
@@ -2114,6 +2150,7 @@ pub mod tests {
                 SingleModuleGraph::new_with_entries_visited(
                     GraphEntries::cell(GraphEntries(vec![ChunkGroupEntry::Entry(vec![a_module])])),
                     VisitedModules::from_graph(parent_graph),
+                    false,
                     false,
                 ),
             ])
@@ -2339,6 +2376,7 @@ pub mod tests {
                 GraphEntries::cell(GraphEntries(vec![ChunkGroupEntry::Entry(
                     entry_modules.clone(),
                 )])),
+                false,
                 false,
             );
 

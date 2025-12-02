@@ -81,6 +81,7 @@ pub struct ServerEntries {
 pub async fn find_server_entries(
     entry: ResolvedVc<Box<dyn Module>>,
     include_traced: bool,
+    include_binding_usage: bool,
 ) -> Result<Vc<ServerEntries>> {
     async move {
         let emit_spans = tracing::enabled!(Level::INFO);
@@ -97,8 +98,9 @@ pub async fn find_server_entries(
                     },
                 )],
                 FindServerEntries {
-                    include_traced,
                     emit_spans,
+                    include_traced,
+                    include_binding_usage,
                 },
             )
             .await
@@ -130,9 +132,11 @@ pub async fn find_server_entries(
 }
 
 struct FindServerEntries {
+    emit_spans: bool,
     /// Whether to walk ChunkingType::Traced references
     include_traced: bool,
-    emit_spans: bool,
+    /// Whether to read the binding usage information from modules
+    include_binding_usage: bool,
 }
 
 #[derive(
@@ -173,6 +177,7 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
 
     fn edges(&mut self, node: &FindServerEntriesNode) -> Self::EdgesFuture {
         let include_traced = self.include_traced;
+        let include_binding_usage = self.include_binding_usage;
         let parent_module = match node {
             // This should never occur since we always skip visiting these
             // nodes' edges.
@@ -185,10 +190,15 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
         };
         let emit_spans = self.emit_spans;
         async move {
-            // Pass include_traced to reuse the same cached `primary_chunkable_referenced_modules`
-            // task result, but the traced references will be filtered out again afterwards.
-            let referenced_modules =
-                primary_chunkable_referenced_modules(parent_module, include_traced).await?;
+            // Pass include_traced and include_binding_usage to reuse the same cached
+            // `primary_chunkable_referenced_modules` task result, but the traced references will be
+            // filtered out again afterwards.
+            let referenced_modules = primary_chunkable_referenced_modules(
+                parent_module,
+                include_traced,
+                include_binding_usage,
+            )
+            .await?;
 
             let referenced_modules = referenced_modules
                 .iter()

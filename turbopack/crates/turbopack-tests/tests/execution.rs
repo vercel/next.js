@@ -476,7 +476,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 
     let entries = get_evaluate_entries(jest_entry_asset, asset_context, None);
 
-    let mut module_graph = ModuleGraph::from_modules(entries.graph_entries(), false);
+    let mut module_graph = ModuleGraph::from_modules(entries.graph_entries(), false, true);
 
     let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
         Some(

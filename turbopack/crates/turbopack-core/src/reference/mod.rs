@@ -314,6 +314,7 @@ pub struct ModulesWithRefData(Vec<(ResolvedVc<Box<dyn ModuleReference>>, Resolve
 pub async fn primary_chunkable_referenced_modules(
     module: ResolvedVc<Box<dyn Module>>,
     include_traced: bool,
+    include_binding_usage: bool,
 ) -> Result<Vc<ModulesWithRefData>> {
     let modules = module
         .references()
@@ -333,7 +334,11 @@ pub async fn primary_chunkable_referenced_modules(
                     .await?
                     .primary_modules_ref()
                     .await?;
-                let binding_usage = reference.binding_usage().owned().await?;
+                let binding_usage = if include_binding_usage {
+                    reference.binding_usage().owned().await?
+                } else {
+                    BindingUsage::default()
+                };
 
                 return Ok(Some((
                     ResolvedVc::upcast(reference),

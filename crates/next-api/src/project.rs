@@ -1065,7 +1065,8 @@ impl Project {
         entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
-            ModuleGraph::from_entry_module(*entry, self.next_mode().await?.is_production())
+            let is_production = self.next_mode().await?.is_production();
+            ModuleGraph::from_entry_module(*entry, is_production, is_production)
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -1077,6 +1078,7 @@ impl Project {
         evaluatable_assets: Vc<EvaluatableAssets>,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
+            let is_production = self.next_mode().await?.is_production();
             let entries = evaluatable_assets
                 .await?
                 .iter()
@@ -1085,7 +1087,8 @@ impl Project {
                 .collect();
             ModuleGraph::from_modules(
                 Vc::cell(vec![ChunkGroupEntry::Entry(entries)]),
-                self.next_mode().await?.is_production(),
+                is_production,
+                is_production,
             )
         } else {
             *self.whole_app_module_graphs().await?.full
@@ -2000,9 +2003,14 @@ async fn whole_app_module_graph_operation(
     mark_root();
 
     let next_mode = project.next_mode();
-    let should_trace = next_mode.await?.is_production();
-    let base_single_module_graph =
-        SingleModuleGraph::new_with_entries(project.get_all_entries(), should_trace);
+    let next_mode_ref = next_mode.await?;
+    let should_trace = next_mode_ref.is_production();
+    let should_read_binding_usage = next_mode_ref.is_production();
+    let base_single_module_graph = SingleModuleGraph::new_with_entries(
+        project.get_all_entries(),
+        should_trace,
+        should_read_binding_usage,
+    );
     let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
 
     let base = ModuleGraph::from_single_graph(base_single_module_graph);
@@ -2030,6 +2038,7 @@ async fn whole_app_module_graph_operation(
         additional_entries,
         base_visited_modules,
         should_trace,
+        should_read_binding_usage,
     );
 
     let full_with_unused_references =

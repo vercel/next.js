@@ -756,7 +756,7 @@ async fn get_mock_stylesheet(
         .module();
 
     let entries = get_evaluate_entries(mocked_response_asset, asset_context, None);
-    let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false);
+    let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false, false);
 
     let root = mock_fs.root().owned().await?;
     let val = evaluate(
