@@ -392,7 +392,9 @@ function processMessage(message: HmrMessageSentToBrowser) {
     case HMR_MESSAGE_SENT_TO_BROWSER.DEVTOOLS_CONFIG:
       dispatcher.onDevToolsConfig(message.data)
       break
+    case HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR:
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK:
+    case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER:
       // Only relevant for app router.
       break
     case HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:

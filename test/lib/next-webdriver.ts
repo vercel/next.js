@@ -71,6 +71,10 @@ export interface WebdriverOptions {
    */
   beforePageLoad?: (page: Page) => void | Promise<void>
   /**
+   * @see {@link https://playwright.dev/docs/api/class-page#page-set-extra-http-headers Playwright.Page.setExtraHTTPHeaders}
+   */
+  extraHTTPHeaders?: Record<string, string>
+  /**
    * browser locale
    */
   locale?: string
@@ -114,6 +118,7 @@ export default async function webdriver(
     retryWaitHydration,
     disableCache,
     beforePageLoad,
+    extraHTTPHeaders,
     locale,
     disableJavaScript,
     ignoreHTTPSErrors,
@@ -152,6 +157,7 @@ export default async function webdriver(
     disableCache,
     cpuThrottleRate,
     beforePageLoad,
+    extraHTTPHeaders,
     pushErrorAsConsoleLog,
     waitUntil,
   })

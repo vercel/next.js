@@ -166,7 +166,11 @@ fn cleanup_db_inner(base_path: &Path) -> io::Result<()> {
     for entry in contents {
         let entry = entry?;
         if entry.file_name() != INVALIDATION_MARKER {
-            fs::remove_dir_all(entry.path())?;
+            if entry.file_type()?.is_dir() {
+                fs::remove_dir_all(entry.path())?;
+            } else {
+                fs::remove_file(entry.path())?;
+            }
         }
     }
 

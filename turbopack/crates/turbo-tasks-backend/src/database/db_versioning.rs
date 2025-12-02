@@ -51,7 +51,7 @@ pub fn handle_db_versioning(
     let disabled_versioning = env::var("TURBO_ENGINE_DISABLE_VERSIONING").ok().is_some();
     let version = if disabled_versioning {
         println!(
-            "WARNING: Persistent Caching versioning is disabled. Manual removal of the persistent \
+            "WARNING: File System Cache versioning is disabled. Manual removal of the filesystem \
              caching database might be required."
         );
         Some("unversioned")
@@ -59,13 +59,13 @@ pub fn handle_db_versioning(
         Some(version_info.describe)
     } else if ignore_dirty {
         println!(
-            "WARNING: The git repository is dirty, but Persistent Caching is still enabled. \
-             Manual removal of the filesystem cache database might be required."
+            "WARNING: The git repository is dirty, but File System Cache is still enabled. Manual \
+             removal of the filesystem cache database might be required."
         );
         Some(version_info.describe)
     } else {
         println!(
-            "WARNING: The git repository is dirty: Persistent Caching is disabled. Use \
+            "WARNING: The git repository is dirty: File System Cache is disabled. Use \
              TURBO_ENGINE_IGNORE_DIRTY=1 to ignore dirtiness of the repository."
         );
         None

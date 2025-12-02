@@ -172,7 +172,7 @@ export const experimentalSchema = {
   staleTimes: z
     .object({
       dynamic: z.number().optional(),
-      static: z.number().optional(),
+      static: z.number().gte(30).optional(),
     })
     .optional(),
   cacheLife: z
@@ -192,9 +192,6 @@ export const experimentalSchema = {
   memoryBasedWorkersCount: z.boolean().optional(),
   craCompat: z.boolean().optional(),
   caseSensitiveRoutes: z.boolean().optional(),
-  clientSegmentCache: z
-    .union([z.boolean(), z.literal('client-only')])
-    .optional(),
   clientParamParsingOrigins: z.array(z.string()).optional(),
   dynamicOnHover: z.boolean().optional(),
   disableOptimizedLoading: z.boolean().optional(),
@@ -249,7 +246,6 @@ export const experimentalSchema = {
   rootParams: z.boolean().optional(),
   isolatedDevBuild: z.boolean().optional(),
   mcpServer: z.boolean().optional(),
-  routerBFCache: z.boolean().optional(),
   removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
   validateRSCRequestHeaders: z.boolean().optional(),
   scrollRestoration: z.boolean().optional(),
@@ -293,6 +289,7 @@ export const experimentalSchema = {
       }),
     ])
     .optional(),
+  transitionIndicator: z.boolean().optional(),
   typedRoutes: z.boolean().optional(),
   webpackBuildWorker: z.boolean().optional(),
   webpackMemoryOptimizations: z.boolean().optional(),
@@ -301,9 +298,13 @@ export const experimentalSchema = {
   turbopackFileSystemCacheForDev: z.boolean().optional(),
   turbopackFileSystemCacheForBuild: z.boolean().optional(),
   turbopackSourceMaps: z.boolean().optional(),
+  turbopackInputSourceMaps: z.boolean().optional(),
   turbopackTreeShaking: z.boolean().optional(),
+  turbopackRemoveUnusedImports: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),
+  turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
+  turbopackServerSideNestedAsyncChunking: z.boolean().optional(),
   turbopackImportTypeBytes: z.boolean().optional(),
   turbopackUseSystemTlsCerts: z.boolean().optional(),
   turbopackUseBuiltinBabel: z.boolean().optional(),
@@ -313,7 +314,6 @@ export const experimentalSchema = {
   optimizeServerReact: z.boolean().optional(),
   clientTraceMetadata: z.array(z.string()).optional(),
   serverMinification: z.boolean().optional(),
-  enablePrerenderSourceMaps: z.boolean().optional(),
   serverSourceMaps: z.boolean().optional(),
   useWasmBinary: z.boolean().optional(),
   useLightningcss: z.boolean().optional(),
@@ -355,7 +355,18 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
     bundlePagesRouterDependencies: z.boolean().optional(),
+    cacheComponents: z.boolean().optional(),
     cacheHandler: z.string().min(1).optional(),
+    cacheHandlers: z.record(z.string(), z.string().optional()).optional(),
+    cacheLife: z
+      .record(
+        z.object({
+          stale: z.number().optional(),
+          revalidate: z.number().optional(),
+          expire: z.number().optional(),
+        })
+      )
+      .optional(),
     cacheMaxMemorySize: z.number().optional(),
     cleanDistDir: z.boolean().optional(),
     compiler: z
@@ -468,6 +479,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     distDir: z.string().min(1).optional(),
     env: z.record(z.string(), z.union([z.string(), z.undefined()])).optional(),
+    enablePrerenderSourceMaps: z.boolean().optional(),
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z.strictObject(experimentalSchema).optional(),
     exportPathMap: z

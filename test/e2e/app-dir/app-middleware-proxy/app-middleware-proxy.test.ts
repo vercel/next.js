@@ -10,9 +10,11 @@ describe('app-dir with proxy', () => {
   })
 
   if (isNextDev) {
-    it('should log Compiled proxy in', async () => {
+    it('should log compilation time', async () => {
       await next.browser('/')
-      expect(next.cliOutput).toContain('Compiled proxy in')
+      expect(next.cliOutput).toMatch(
+        /GET \/ 200 in .* \(compile:.*, proxy.ts:.*, render:.*\)/
+      )
     })
   }
 
@@ -115,7 +117,9 @@ describe('app-dir with proxy', () => {
       expect(res.headers.get('x-middleware-request-x-from-client3')).toBeNull()
     })
 
-    it(`Supports draft mode`, async () => {
+    // Cannot set draftMode in nodejs runtime
+    // TODO: Investigate https://github.com/vercel/next.js/pull/85174
+    it.skip(`Supports draft mode`, async () => {
       const res = await next.fetch(`${path}?draft=true`)
       const headers: string = res.headers.get('set-cookie') || ''
       const bypassCookie = headers

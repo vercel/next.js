@@ -22,7 +22,7 @@ use shrink_to_fit::ShrinkToFit;
 
 pub use self::{
     cast::{VcCast, VcValueTraitCast, VcValueTypeCast},
-    cell_mode::{VcCellMode, VcCellNewMode, VcCellSharedMode},
+    cell_mode::{VcCellCompareMode, VcCellMode, VcCellNewMode},
     default::ValueDefault,
     local::NonLocalValue,
     operation::{OperationValue, OperationVc},

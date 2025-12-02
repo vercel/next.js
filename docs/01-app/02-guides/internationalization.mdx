@@ -18,7 +18,7 @@ It’s recommended to use the user’s language preferences in the browser to se
 
 For example, using the following libraries, you can look at an incoming `Request` to determine which locale to select, based on the `Headers`, locales you plan to support, and the default locale.
 
-```js filename="middleware.js"
+```js filename="proxy.js"
 import { match } from '@formatjs/intl-localematcher'
 import Negotiator from 'negotiator'
 
@@ -30,9 +30,9 @@ let defaultLocale = 'en-US'
 match(languages, locales, defaultLocale) // -> 'en-US'
 ```
 
-Routing can be internationalized by either the sub-path (`/fr/products`) or domain (`my-site.fr/products`). With this information, you can now redirect the user based on the locale inside [Middleware](/docs/app/api-reference/file-conventions/middleware).
+Routing can be internationalized by either the sub-path (`/fr/products`) or domain (`my-site.fr/products`). With this information, you can now redirect the user based on the locale inside [Proxy](/docs/app/api-reference/file-conventions/proxy).
 
-```js filename="middleware.js"
+```js filename="proxy.js"
 import { NextResponse } from "next/server";
 
 let locales = ['en-US', 'nl-NL', 'nl']
@@ -40,7 +40,7 @@ let locales = ['en-US', 'nl-NL', 'nl']
 // Get the preferred locale, similar to the above or using a library
 function getLocale(request) { ... }
 
-export function middleware(request) {
+export function proxy(request) {
   // Check if there is any supported locale in the pathname
   const { pathname } = request.nextUrl
   const pathnameHasLocale = locales.some(

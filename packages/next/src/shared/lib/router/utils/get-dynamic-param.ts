@@ -5,7 +5,8 @@ import type { Params } from '../../../../server/request/params'
 import type { DynamicParamTypesShort } from '../../app-router-types'
 import { InvariantError } from '../../invariant-error'
 import { parseLoaderTree } from './parse-loader-tree'
-import { getSegmentParam } from './get-segment-param'
+import { parseAppRoute, parseAppRouteSegment } from '../routes/app'
+import { resolveParamValue } from './resolve-param-value'
 
 /**
  * Gets the value of a param from the params object. This correctly handles the
@@ -43,7 +44,7 @@ export function interpolateParallelRouteParams(
   params: Params,
   pagePath: string,
   fallbackRouteParams: OpaqueFallbackRouteParams | null
-) {
+): Params {
   const interpolated = structuredClone(params)
 
   // Stack-based traversal with depth tracking
@@ -51,73 +52,54 @@ export function interpolateParallelRouteParams(
     { tree: loaderTree, depth: 0 },
   ]
 
-  // Derive value from pagePath based on depth and parameter type
-  const pathSegments = pagePath.split('/').slice(1) // Remove first empty string
+  // Parse the route from the provided page path.
+  const route = parseAppRoute(pagePath, true)
 
   while (stack.length > 0) {
     const { tree, depth } = stack.pop()!
     const { segment, parallelRoutes } = parseLoaderTree(tree)
 
-    // Check if current segment contains a parameter
-    const segmentParam = getSegmentParam(segment)
+    const appSegment = parseAppRouteSegment(segment)
+
     if (
-      segmentParam &&
-      !interpolated.hasOwnProperty(segmentParam.param) &&
+      appSegment?.type === 'dynamic' &&
+      !interpolated.hasOwnProperty(appSegment.param.paramName) &&
       // If the param is in the fallback route params, we don't need to
       // interpolate it because it's already marked as being unknown.
-      !fallbackRouteParams?.has(segmentParam.param)
+      !fallbackRouteParams?.has(appSegment.param.paramName)
     ) {
-      switch (segmentParam.type) {
-        case 'catchall':
-        case 'optional-catchall':
-        case 'catchall-intercepted':
-          // For catchall parameters, take all remaining segments from this depth
-          const remainingSegments = pathSegments.slice(depth)
+      const { paramName, paramType } = appSegment.param
 
-          // Process each segment to handle any dynamic params
-          const processedSegments = remainingSegments
-            .flatMap((pathSegment) => {
-              const param = getSegmentParam(pathSegment)
-              // If the segment matches a param, return the param value otherwise,
-              // it's a static segment, so just return that. We don't use the
-              // `getParamValue` function here because we don't want the values to
-              // be encoded, that's handled on get by the `getDynamicParam`
-              // function.
-              return param ? interpolated[param.param] : pathSegment
-            })
-            .filter((s) => s !== undefined)
+      const paramValue = resolveParamValue(
+        paramName,
+        paramType,
+        depth,
+        route,
+        interpolated
+      )
 
-          if (processedSegments.length > 0) {
-            interpolated[segmentParam.param] = processedSegments
-          }
-          break
-        case 'dynamic':
-        case 'dynamic-intercepted':
-          // For regular dynamic parameters, take the segment at this depth
-          if (depth < pathSegments.length) {
-            const pathSegment = pathSegments[depth]
-            const param = getSegmentParam(pathSegment)
-
-            interpolated[segmentParam.param] = param
-              ? interpolated[param.param]
-              : pathSegment
-          }
-          break
-        default:
-          segmentParam.type satisfies never
+      if (paramValue !== undefined) {
+        interpolated[paramName] = paramValue
+      } else if (paramType !== 'optional-catchall') {
+        throw new InvariantError(
+          `Could not resolve param value for segment: ${paramName}`
+        )
       }
     }
 
     // Calculate next depth - increment if this is not a route group and not empty
     let nextDepth = depth
-    const isRouteGroup = segment.startsWith('(') && segment.endsWith(')')
-    if (!isRouteGroup && segment !== '') {
+    if (
+      appSegment &&
+      appSegment.type !== 'route-group' &&
+      appSegment.type !== 'parallel-route'
+    ) {
       nextDepth++
     }
 
     // Add all parallel routes to the stack for processing
-    for (const route of Object.values(parallelRoutes)) {
-      stack.push({ tree: route, depth: nextDepth })
+    for (const parallelRoute of Object.values(parallelRoutes)) {
+      stack.push({ tree: parallelRoute, depth: nextDepth })
     }
   }
 

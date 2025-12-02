@@ -2,6 +2,7 @@ use std::{borrow::Cow, io::Write, ops::Deref, sync::Arc};
 
 use anyhow::Result;
 use bytes_str::BytesStr;
+use either::Either;
 use once_cell::sync::Lazy;
 use ref_cast::RefCast;
 use regex::Regex;
@@ -28,28 +29,17 @@ pub use source_map_asset::SourceMapAsset;
 /// Represents an empty value in a u32 variable in the sourcemap crate.
 static SOURCEMAP_CRATE_NONE_U32: u32 = !0;
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionStringifiedSourceMap(Option<Rope>);
-
-#[turbo_tasks::value_impl]
-impl OptionStringifiedSourceMap {
-    #[turbo_tasks::function]
-    pub fn none() -> Vc<Self> {
-        Vc::cell(None)
-    }
-}
-
 /// Allows callers to generate source maps.
 #[turbo_tasks::value_trait]
 pub trait GenerateSourceMap {
     /// Generates a usable source map, capable of both tracing and stringifying.
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap>;
+    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent>;
 
     /// Returns an individual section of the larger source map, if found.
     #[turbo_tasks::function]
-    fn by_section(self: Vc<Self>, _section: RcStr) -> Vc<OptionStringifiedSourceMap> {
-        Vc::cell(None)
+    fn by_section(self: Vc<Self>, _section: RcStr) -> Vc<FileContent> {
+        FileContent::NotFound.cell()
     }
 }
 
@@ -93,9 +83,6 @@ impl OptionSourceMap {
         ResolvedVc::cell(None)
     }
 }
-#[turbo_tasks::value(transparent)]
-#[derive(Clone, Debug)]
-pub struct Tokens(Vec<Token>);
 
 /// A token represents a mapping in a source map.
 ///
@@ -151,6 +138,32 @@ impl Token {
         match self {
             Self::Original(t) => t.generated_column,
             Self::Synthetic(t) => t.generated_column,
+        }
+    }
+
+    pub fn with_offset(&self, line_offset: u32, column_offset: u32) -> Self {
+        match self {
+            Self::Original(t) => Self::Original(OriginalToken {
+                generated_line: t.generated_line + line_offset,
+                generated_column: if t.generated_line == 0 {
+                    t.generated_column + column_offset
+                } else {
+                    t.generated_column
+                },
+                original_file: t.original_file.clone(),
+                original_line: t.original_line,
+                original_column: t.original_column,
+                name: t.name.clone(),
+            }),
+            Self::Synthetic(t) => Self::Synthetic(SyntheticToken {
+                generated_line: t.generated_line + line_offset,
+                generated_column: if t.generated_line == 0 {
+                    t.generated_column + column_offset
+                } else {
+                    t.generated_column
+                },
+                guessed_original_file: t.guessed_original_file.clone(),
+            }),
         }
     }
 }
@@ -236,13 +249,12 @@ impl SourceMap {
     /// This function should be used sparingly to reduce memory usage, only in cold code paths
     /// (issue resolving, etc).
     #[turbo_tasks::function]
-    pub async fn new_from_rope_cached(
-        content: Vc<OptionStringifiedSourceMap>,
-    ) -> Result<Vc<OptionSourceMap>> {
-        let Some(content) = &*content.await? else {
+    pub async fn new_from_rope_cached(content: Vc<FileContent>) -> Result<Vc<OptionSourceMap>> {
+        let content = content.await?;
+        let Some(content) = content.as_content() else {
             return Ok(OptionSourceMap::none());
         };
-        Ok(Vc::cell(SourceMap::new_from_rope(content)?))
+        Ok(Vc::cell(SourceMap::new_from_rope(content.content())?))
     }
 }
 
@@ -365,7 +377,7 @@ impl SourceMap {
             origin: FileSystemPath,
         ) -> Result<(BytesStr, BytesStr)> {
             Ok(
-                if let Some(path) = origin.parent().try_join(&source_request)? {
+                if let Some(path) = origin.parent().try_join(&source_request) {
                     let path_str = path.value_to_string().await?;
                     let source = format!("{SOURCE_URL_PROTOCOL}///{path_str}");
                     let source_content = if let Some(source_content) = source_content {
@@ -554,11 +566,67 @@ impl SourceMap {
     }
 }
 
+impl SourceMap {
+    pub fn tokens(&self) -> impl Iterator<Item = Token> + '_ {
+        let map = &self.map;
+
+        fn regular_map_to_tokens(
+            map: &RegularMap,
+            offset_line: u32,
+            offset_column: u32,
+        ) -> impl Iterator<Item = Token> + '_ {
+            map.tokens()
+                .map(move |t| Token::from(t).with_offset(offset_line, offset_column))
+        }
+
+        fn index_map_to_tokens(
+            map: &SourceMapIndex,
+            offset_line: u32,
+            offset_column: u32,
+        ) -> impl Iterator<Item = Token> + '_ {
+            map.sections().flat_map(move |section| {
+                let (line, col) = section.get_offset();
+                let offset_line = offset_line + line;
+                let offset_column = if line == 0 { offset_column + col } else { col };
+                if let Some(source_map) = section.get_sourcemap() {
+                    Either::Left(Box::new(decoded_map_to_tokens(
+                        source_map,
+                        offset_line,
+                        offset_column,
+                    )) as Box<dyn Iterator<Item = Token>>)
+                } else {
+                    Either::Right(std::iter::empty())
+                }
+            })
+        }
+
+        fn decoded_map_to_tokens(
+            map: &DecodedMap,
+            offset_line: u32,
+            offset_column: u32,
+        ) -> impl Iterator<Item = Token> + '_ {
+            match map {
+                DecodedMap::Regular(map) => {
+                    Either::Left(regular_map_to_tokens(map, offset_line, offset_column))
+                }
+                DecodedMap::Index(map) => {
+                    Either::Right(index_map_to_tokens(map, offset_line, offset_column))
+                }
+                DecodedMap::Hermes(_) => {
+                    todo!("hermes source maps are not implemented");
+                }
+            }
+        }
+
+        decoded_map_to_tokens(&map.0, 0, 0)
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMap {
     #[turbo_tasks::function]
-    fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
-        Ok(Vc::cell(Some(self.to_rope()?)))
+    fn generate_source_map(&self) -> Result<Vc<FileContent>> {
+        Ok(FileContent::Content(File::from(self.to_rope()?)).cell())
     }
 }
 

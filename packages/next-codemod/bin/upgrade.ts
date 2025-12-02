@@ -188,7 +188,10 @@ export async function runUpgrade(
         `react@${targetNextPackageJson.peerDependencies['react']}`
       )
 
-  if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
+  if (
+    compareVersions(targetNextVersion, '15.0.0-canary') >= 0 &&
+    compareVersions(targetNextVersion, '16.0.0-canary') < 0
+  ) {
     await suggestTurbopack(appPackageJson, targetNextVersion)
   }
 
@@ -200,7 +203,7 @@ export async function runUpgrade(
 
   let shouldRunReactCodemods = false
   let shouldRunReactTypesCodemods = false
-  let execCommand = 'npx'
+  let execCommand = 'npx --yes'
   // The following React codemods are for React 19
   if (
     !shouldStayOnReact18 &&
@@ -210,13 +213,7 @@ export async function runUpgrade(
     shouldRunReactCodemods = await suggestReactCodemods()
     shouldRunReactTypesCodemods = await suggestReactTypesCodemods()
 
-    const execCommandMap = {
-      yarn: 'yarn dlx',
-      pnpm: 'pnpx',
-      bun: 'bunx',
-      npm: 'npx',
-    }
-    execCommand = execCommandMap[packageManager]
+    execCommand = getNpxCommand(packageManager)
   }
 
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
@@ -736,4 +733,20 @@ function warnDependenciesOutOfRange(
       })
     })
   }
+}
+
+function getNpxCommand(pkgManager: PackageManager) {
+  let command = 'npx --yes'
+  if (pkgManager === 'pnpm') {
+    command = 'pnpm --silent dlx'
+  } else if (pkgManager === 'yarn') {
+    try {
+      execSync('yarn dlx --help', { stdio: 'ignore', cwd })
+      command = 'yarn --quiet dlx'
+    } catch {}
+  } else if (pkgManager === 'bun') {
+    command = 'bunx'
+  }
+
+  return command
 }

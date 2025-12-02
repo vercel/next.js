@@ -41,7 +41,7 @@ interface Options {
 type ModuleId = string | number /*| null*/
 
 // double indexed chunkId, filename
-export type ManifestChunks = Array<string>
+export type ManifestChunks = ReadonlyArray<string>
 
 const pluginState = getProxiedPluginState({
   ssrModules: {} as { [ssrModuleId: string]: ModuleInfo },

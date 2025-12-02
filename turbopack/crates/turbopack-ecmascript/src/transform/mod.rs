@@ -8,7 +8,7 @@ use swc_core::{
     common::{Mark, SourceMap, comments::Comments},
     ecma::{
         ast::{ExprStmt, ModuleItem, Pass, Program, Stmt},
-        preset_env::{self, Targets},
+        preset_env::{self, Feature, FeatureOrModule, Targets},
         transforms::{
             base::{
                 assumptions::Assumptions,
@@ -69,13 +69,7 @@ pub trait CustomTransformer: Debug {
 
 /// A wrapper around a TransformPlugin instance, allowing it to operate with
 /// the turbo_task caching requirements.
-#[turbo_tasks::value(
-    transparent,
-    serialization = "none",
-    eq = "manual",
-    into = "new",
-    cell = "new"
-)]
+#[turbo_tasks::value(transparent, serialization = "none", eq = "manual", cell = "new")]
 #[derive(Debug)]
 pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
 
@@ -216,6 +210,13 @@ impl EcmascriptInputTransform {
                     swc_core::ecma::preset_env::Config {
                         targets: Some(Targets::Versions(*versions)),
                         mode: None, // Don't insert core-js polyfills
+                        // Disable some ancient ES3 transforms, ReservedWords breaks resolving of
+                        // some idents references
+                        exclude: vec![
+                            FeatureOrModule::Feature(Feature::ReservedWords),
+                            FeatureOrModule::Feature(Feature::MemberExpressionLiterals),
+                            FeatureOrModule::Feature(Feature::PropertyLiterals),
+                        ],
                         ..Default::default()
                     },
                 );

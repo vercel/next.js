@@ -19,6 +19,7 @@ import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import type { StagedRenderingController } from './staged-rendering'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -67,10 +68,22 @@ export interface RequestStore extends CommonWorkUnitStore {
 
   // DEV-only
   usedDynamic?: boolean
-  prerenderPhase?: boolean
   devFallbackParams?: OpaqueFallbackRouteParams | null
+  stagedRendering?: StagedRenderingController | null
+  asyncApiPromises?: DevAsyncApiPromises
   cacheSignal?: CacheSignal | null
   prerenderResumeDataCache?: PrerenderResumeDataCache | null
+}
+
+type DevAsyncApiPromises = {
+  cookies: Promise<ReadonlyRequestCookies>
+  mutableCookies: Promise<ReadonlyRequestCookies>
+  headers: Promise<ReadonlyHeaders>
+
+  sharedParamsParent: Promise<string>
+  sharedSearchParamsParent: Promise<string>
+
+  connection: Promise<undefined>
 }
 
 /**
@@ -194,11 +207,6 @@ interface PrerenderStoreModernCommon
    * subsequent dynamic render.
    */
   readonly hmrRefreshHash: string | undefined
-
-  /**
-   * Only available in dev mode.
-   */
-  readonly captureOwnerStack: undefined | (() => string | null)
 }
 
 interface StaticPrerenderStoreCommon {

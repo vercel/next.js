@@ -23,6 +23,22 @@ import type { RoutesUsingEdgeRuntime } from './utils'
 
 const debug = debugOriginal('next:build:build-traces')
 
+export const makeIgnoreFn = (root: string, ignores: string[]) => {
+  // pre compile the ignore globs
+  const isMatch = picomatch(ignores, {
+    contains: true,
+    dot: true,
+  })
+
+  return (pathname: string) => {
+    if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
+      return true
+    }
+
+    return isMatch(pathname)
+  }
+}
+
 function shouldIgnore(
   file: string,
   serverIgnoreFn: (file: string) => boolean,
@@ -124,8 +140,7 @@ export async function collectBuildTraces({
         })
       )
 
-      const { cacheHandler } = config
-      const { cacheHandlers } = config.experimental
+      const { cacheHandler, cacheHandlers } = config
 
       // ensure we trace any dependencies needed for custom
       // incremental cache handler
@@ -199,22 +214,6 @@ export async function collectBuildTraces({
         }
       }
 
-      const makeIgnoreFn = (ignores: string[]) => {
-        // pre compile the ignore globs
-        const isMatch = picomatch(ignores, {
-          contains: true,
-          dot: true,
-        })
-
-        return (pathname: string) => {
-          if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
-            return true
-          }
-
-          return isMatch(pathname)
-        }
-      }
-
       const sharedIgnores = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
         ...(isStandalone ? [] : ['**/next/dist/compiled/jest-worker/**/*']),
@@ -235,7 +234,7 @@ export async function collectBuildTraces({
         ...additionalIgnores,
       ]
 
-      const sharedIgnoresFn = makeIgnoreFn(sharedIgnores)
+      const sharedIgnoresFn = makeIgnoreFn(root, sharedIgnores)
 
       const serverIgnores = [
         ...sharedIgnores,
@@ -247,7 +246,7 @@ export async function collectBuildTraces({
           ? ['**/node_modules/sharp/**/*', '**/@img/sharp-libvips*/**/*']
           : []),
       ].filter(nonNullable)
-      const serverIgnoreFn = makeIgnoreFn(serverIgnores)
+      const serverIgnoreFn = makeIgnoreFn(root, serverIgnores)
 
       const minimalServerIgnores = [
         ...serverIgnores,
@@ -255,7 +254,7 @@ export async function collectBuildTraces({
         '**/next/dist/server/web/sandbox/**/*',
         '**/next/dist/server/post-process.js',
       ]
-      const minimalServerIgnoreFn = makeIgnoreFn(minimalServerIgnores)
+      const minimalServerIgnoreFn = makeIgnoreFn(root, minimalServerIgnores)
 
       const routesIgnores = [
         ...sharedIgnores,
@@ -266,7 +265,7 @@ export async function collectBuildTraces({
         '**/next/dist/server/post-process.js',
       ].filter(nonNullable)
 
-      const routeIgnoreFn = makeIgnoreFn(routesIgnores)
+      const routeIgnoreFn = makeIgnoreFn(root, routesIgnores)
 
       const serverTracedFiles = new Set<string>()
       const minimalServerTracedFiles = new Set<string>()

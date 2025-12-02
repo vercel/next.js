@@ -38,7 +38,7 @@ declare const user500RouteModuleOptions: any
 // INJECT:user500RouteModuleOptions
 
 // Initialize the cache handlers interface.
-initializeCacheHandlers()
+initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
 
 // expose this for the route-module
 ;(globalThis as any).nextConfig = nextConfig
@@ -301,12 +301,18 @@ async function requestHandler(
         throw err
       }
 
-      await errRouteModule.onRequestError(baseReq, err, {
-        routerKind: 'Pages Router',
-        routePath: srcPage,
-        routeType: 'render',
-        revalidateReason: undefined,
-      })
+      const silenceLog = false
+      await errRouteModule.onRequestError(
+        baseReq,
+        err,
+        {
+          routerKind: 'Pages Router',
+          routePath: srcPage,
+          routeType: 'render',
+          revalidateReason: undefined,
+        },
+        silenceLog
+      )
 
       const errResult = await errRouteModule.render(
         // @ts-expect-error we don't type this for edge

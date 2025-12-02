@@ -154,7 +154,9 @@ export function normalizeDynamicRouteParams(
           value.length === 1 &&
           // fallback optional catch-all SSG pages have
           // [[...paramName]] for the root path on Vercel
-          (value[0] === 'index' || value[0] === `[[...${key}]]`)))
+          (value[0] === 'index' || value[0] === `[[...${key}]]`)) ||
+        value === 'index' ||
+        value === `[[...${key}]]`)
     ) {
       value = undefined
       delete query[key]

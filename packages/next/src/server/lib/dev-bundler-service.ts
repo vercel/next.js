@@ -4,8 +4,11 @@ import type { WorkerRequestHandler } from './types'
 
 import { LRUCache } from './lru-cache'
 import { createRequestResponseMocks } from './mock-request'
-import { HMR_MESSAGE_SENT_TO_BROWSER } from '../dev/hot-reloader-types'
-import type { ReactDebugChannelForBrowser } from '../dev/debug-channel'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  type HmrMessageSentToBrowser,
+  type NextJsHotReloaderInterface,
+} from '../dev/hot-reloader-types'
 
 /**
  * The DevBundlerService provides an interface to perform tasks with the
@@ -13,6 +16,10 @@ import type { ReactDebugChannelForBrowser } from '../dev/debug-channel'
  */
 export class DevBundlerService {
   public appIsrManifestInner: InstanceType<typeof LRUCache<boolean>>
+  public close: NextJsHotReloaderInterface['close']
+  public setCacheStatus: NextJsHotReloaderInterface['setCacheStatus']
+  public setReactDebugChannel: NextJsHotReloaderInterface['setReactDebugChannel']
+  public sendErrorsToBrowser: NextJsHotReloaderInterface['sendErrorsToBrowser']
 
   constructor(
     private readonly bundler: DevBundler,
@@ -25,6 +32,14 @@ export class DevBundlerService {
         return 16
       }
     )
+
+    const { hotReloader } = bundler
+
+    this.close = hotReloader.close.bind(hotReloader)
+    this.setCacheStatus = hotReloader.setCacheStatus.bind(hotReloader)
+    this.setReactDebugChannel =
+      hotReloader.setReactDebugChannel.bind(hotReloader)
+    this.sendErrorsToBrowser = hotReloader.sendErrorsToBrowser.bind(hotReloader)
   }
 
   public ensurePage: typeof this.bundler.hotReloader.ensurePage = async (
@@ -114,19 +129,7 @@ export class DevBundlerService {
     })
   }
 
-  public setReactDebugChannel(
-    debugChannel: ReactDebugChannelForBrowser,
-    htmlRequestId: string,
-    requestId: string
-  ): void {
-    this.bundler.hotReloader.setReactDebugChannel(
-      debugChannel,
-      htmlRequestId,
-      requestId
-    )
-  }
-
-  public close() {
-    this.bundler.hotReloader.close()
+  public sendHmrMessage(message: HmrMessageSentToBrowser) {
+    this.bundler.hotReloader.send(message)
   }
 }

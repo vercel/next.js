@@ -22,6 +22,7 @@ use turbo_tasks_backend::{
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
+use turbo_unix_path::join_path;
 use turbopack::evaluate_context::node_build_environment;
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
@@ -265,15 +266,22 @@ async fn source(
         .into();
 
     let output_fs = output_fs(project_dir);
-    let fs: Vc<Box<dyn FileSystem>> = project_fs(root_dir, /* watch= */ true);
+    const OUTPUT_DIR: &str = ".turbopack/build";
+    let fs: Vc<Box<dyn FileSystem>> = project_fs(
+        root_dir,
+        /* watch= */ true,
+        join_path(project_relative.as_str(), OUTPUT_DIR)
+            .unwrap()
+            .into(),
+    );
     let root_path = fs.root().owned().await?;
     let project_path = root_path.join(&project_relative)?;
 
     let env = load_env(root_path.clone());
-    let build_output_root = output_fs.root().await?.join(".turbopack/build")?;
+    let build_output_root = output_fs.root().await?.join(OUTPUT_DIR)?;
 
     let build_output_root_to_root_path = project_path
-        .join(".turbopack/build")?
+        .join(OUTPUT_DIR)?
         .get_relative_path_to(&root_path)
         .context("Project path is in root path")?;
     let build_output_root_to_root_path = build_output_root_to_root_path;

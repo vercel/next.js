@@ -49,7 +49,6 @@ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
-  REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
   REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
@@ -59,7 +58,8 @@ function getIteratorFn(maybeIterable) {
     maybeIterable["@@iterator"];
   return "function" === typeof maybeIterable ? maybeIterable : null;
 }
-var hasOwnProperty = Object.prototype.hasOwnProperty,
+var REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
+  hasOwnProperty = Object.prototype.hasOwnProperty,
   assign = Object.assign;
 function ReactElement(type, key, props) {
   var refProp = props.ref;
@@ -93,7 +93,9 @@ function escape(key) {
 var userProvidedKeyEscapeRegex = /\/+/g;
 function getElementKey(element, index) {
   return "object" === typeof element && null !== element && null != element.key
-    ? escape("" + element.key)
+    ? element.key === REACT_OPTIMISTIC_KEY
+      ? index.toString(36)
+      : escape("" + element.key)
     : index.toString(36);
 }
 function resolveThenable(thenable) {
@@ -410,7 +412,12 @@ exports.cloneElement = function (element, config, children) {
   var props = assign({}, element.props),
     key = element.key;
   if (null != config)
-    for (propName in (void 0 !== config.key && (key = "" + config.key), config))
+    for (propName in (void 0 !== config.key &&
+      (key =
+        config.key === REACT_OPTIMISTIC_KEY
+          ? REACT_OPTIMISTIC_KEY
+          : "" + config.key),
+    config))
       !hasOwnProperty.call(config, propName) ||
         "key" === propName ||
         "__self" === propName ||
@@ -431,7 +438,12 @@ exports.createElement = function (type, config, children) {
     props = {},
     key = null;
   if (null != config)
-    for (propName in (void 0 !== config.key && (key = "" + config.key), config))
+    for (propName in (void 0 !== config.key &&
+      (key =
+        config.key === REACT_OPTIMISTIC_KEY
+          ? REACT_OPTIMISTIC_KEY
+          : "" + config.key),
+    config))
       hasOwnProperty.call(config, propName) &&
         "key" !== propName &&
         "__self" !== propName &&
@@ -515,6 +527,7 @@ exports.memo = function (type, compare) {
     compare: void 0 === compare ? null : compare
   };
 };
+exports.optimisticKey = REACT_OPTIMISTIC_KEY;
 exports.startTransition = function (scope) {
   var prevTransition = ReactSharedInternals.T,
     currentTransition = {};
@@ -545,11 +558,6 @@ exports.unstable_getCacheForType = function (resourceType) {
   var dispatcher = ReactSharedInternals.A;
   return dispatcher ? dispatcher.getCacheForType(resourceType) : resourceType();
 };
-exports.unstable_postpone = function (reason) {
-  reason = Error(reason);
-  reason.$$typeof = REACT_POSTPONE_TYPE;
-  throw reason;
-};
 exports.use = function (usable) {
   return ReactSharedInternals.H.use(usable);
 };
@@ -563,4 +571,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.3.0-experimental-56e84692-20251014";
+exports.version = "19.3.0-experimental-fd524fe0-20251121";

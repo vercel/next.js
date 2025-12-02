@@ -38,11 +38,18 @@ import {
 } from '../../../components/app-router-instance'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
 import { getOrCreateDebugChannelReadableWriterPair } from '../../debug-channel'
+// TODO: Explicitly import from client.browser (doesn't work with Webpack).
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { createFromReadableStream as createFromReadableStreamBrowser } from 'react-server-dom-webpack/client'
+import { findSourceMapURL } from '../../../app-find-source-map-url'
 
 export interface StaticIndicatorState {
   pathname: string | null
   appIsrManifest: Record<string, boolean> | null
 }
+
+const createFromReadableStream =
+  createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
@@ -498,6 +505,33 @@ export function processMessage(
         url: window.location.href,
       }
       sendMessage(JSON.stringify(response))
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR: {
+      dispatcher.onCacheIndicator(message.state)
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER: {
+      createFromReadableStream<Error[]>(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(message.serializedErrors)
+            controller.close()
+          },
+        }),
+        { findSourceMapURL }
+      ).then(
+        (errors) => {
+          for (const error of errors) {
+            console.error(error)
+          }
+        },
+        (err) => {
+          console.error(
+            new Error('Failed to deserialize errors.', { cause: err })
+          )
+        }
+      )
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:

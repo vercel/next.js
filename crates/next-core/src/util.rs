@@ -1,13 +1,12 @@
 use std::{fmt::Display, str::FromStr};
 
-use anyhow::{Result, bail};
+use anyhow::{Result, anyhow, bail};
 use next_taskless::expand_next_js_template;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{
-    self, File, FileContent, FileSystem, FileSystemPath, json::parse_json_rope_with_source_context,
-    rope::Rope,
+    self, File, FileContent, FileJsonContent, FileSystem, FileSystemPath, rope::Rope,
 };
 use turbopack::module_options::RuleCondition;
 use turbopack_core::{
@@ -20,7 +19,7 @@ use turbopack_core::{
 
 use crate::{
     embed_js::next_js_fs, next_config::NextConfig, next_import_map::get_next_package,
-    next_manifests::MiddlewareMatcher, next_shared::webpack_rules::WebpackLoaderBuiltinCondition,
+    next_manifests::ProxyMatcher, next_shared::webpack_rules::WebpackLoaderBuiltinCondition,
 };
 
 const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
@@ -118,7 +117,7 @@ pub async fn get_transpiled_packages(
 ) -> Result<Vc<Vec<RcStr>>> {
     let mut transpile_packages: Vec<RcStr> = next_config.transpile_packages().owned().await?;
 
-    let default_transpiled_packages: Vec<RcStr> = load_next_js_templateon(
+    let default_transpiled_packages: Vec<RcStr> = load_next_js_json_file(
         project_path,
         rcstr!("dist/lib/default-transpiled-packages.json"),
     )
@@ -232,7 +231,7 @@ impl NextRuntime {
 #[derive(PartialEq, Eq, Clone, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub enum MiddlewareMatcherKind {
     Str(String),
-    Matcher(MiddlewareMatcher),
+    Matcher(ProxyMatcher),
 }
 
 /// Loads a next.js template, replaces `replacements` and `injections` and makes
@@ -261,8 +260,10 @@ pub async fn load_next_js_template(
     )?;
 
     let file = File::from(content);
-
-    let source = VirtualSource::new(template_path, AssetContent::file(file.into()));
+    let source = VirtualSource::new(
+        template_path,
+        AssetContent::file(FileContent::Content(file).cell()),
+    );
 
     Ok(Vc::upcast(source))
 }
@@ -288,24 +289,44 @@ async fn virtual_next_js_template_path(
         .join(&format!("{NEXT_TEMPLATE_PATH}/{file}"))
 }
 
-pub async fn load_next_js_templateon<T: DeserializeOwned>(
+pub async fn load_next_js_json_file<T: DeserializeOwned>(
     project_path: FileSystemPath,
-    path: RcStr,
+    sub_path: RcStr,
 ) -> Result<T> {
-    let file_path = get_next_package(project_path.clone()).await?.join(&path)?;
+    let file_path = get_next_package(project_path.clone())
+        .await?
+        .join(&sub_path)?;
 
     let content = &*file_path.read().await?;
 
-    let FileContent::Content(file) = content else {
-        bail!(
-            "Expected file content at {}",
+    match content.parse_json_ref() {
+        FileJsonContent::Unparsable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
+        FileJsonContent::NotFound => Err(anyhow!(
+            "File not found: {:?}",
             file_path.value_to_string().await?
-        );
-    };
+        )),
+        FileJsonContent::Content(value) => Ok(serde_json::from_value(value)?),
+    }
+}
 
-    let result: T = parse_json_rope_with_source_context(file.content())?;
+pub async fn load_next_js_jsonc_file<T: DeserializeOwned>(
+    project_path: FileSystemPath,
+    sub_path: RcStr,
+) -> Result<T> {
+    let file_path = get_next_package(project_path.clone())
+        .await?
+        .join(&sub_path)?;
 
-    Ok(result)
+    let content = &*file_path.read().await?;
+
+    match content.parse_json_with_comments_ref() {
+        FileJsonContent::Unparsable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
+        FileJsonContent::NotFound => Err(anyhow!(
+            "File not found: {:?}",
+            file_path.value_to_string().await?
+        )),
+        FileJsonContent::Content(value) => Ok(serde_json::from_value(value)?),
+    }
 }
 
 pub fn styles_rule_condition() -> RuleCondition {

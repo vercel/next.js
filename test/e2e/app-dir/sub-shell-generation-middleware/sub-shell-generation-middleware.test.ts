@@ -13,7 +13,7 @@ describe('middleware-static-rewrite', () => {
     return
   }
 
-  if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true') {
+  if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
     // Here we're validating that the correct fallback shell was used for
     // rendering.
     it('should use the correct fallback route', async () => {
@@ -126,7 +126,7 @@ describe('middleware-static-rewrite', () => {
       const url = new URL('/my-team', 'http://localhost')
       const rsc = computeCacheBustingSearchParam(
         '1',
-        '/_tree',
+        '/_head',
         undefined,
         undefined
       )
@@ -138,7 +138,7 @@ describe('middleware-static-rewrite', () => {
           Cookie: 'overview-param=grid',
           RSC: '1',
           'Next-Router-Prefetch': '1',
-          'Next-Router-Segment-Prefetch': '/_tree',
+          'Next-Router-Segment-Prefetch': '/_head',
         },
       })
 
@@ -174,7 +174,7 @@ describe('middleware-static-rewrite', () => {
             Cookie: 'overview-param=grid',
             RSC: '1',
             'Next-Router-Prefetch': '1',
-            'Next-Router-Segment-Prefetch': '/_tree',
+            'Next-Router-Segment-Prefetch': '/_head',
           },
         })
 

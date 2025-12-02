@@ -33,14 +33,13 @@ jobs:
         id: docs-change
         run: |
           echo "DOCS_ONLY<<EOF" >> $GITHUB_OUTPUT;
-          echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'false')" >> $GITHUB_OUTPUT;
+          echo "$(node scripts/run-for-change.mjs --not --type docs --exec echo 'false')" >> $GITHUB_OUTPUT;
           echo 'EOF' >> $GITHUB_OUTPUT
 
       - name: check for release
         id: is-release
         run: |
-          RELEASE_CHECK=$(node ./scripts/check-is-release.js 2> /dev/null || :)
-          if [[ $RELEASE_CHECK == "new-release" || $RELEASE_CHECK == v* ]];
+          if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) == v* ]];
             then
               echo "IS_RELEASE=true" >> $GITHUB_OUTPUT
             else
@@ -195,7 +194,7 @@ jobs:
   devlow-bench:
     name: Run devlow benchmarks
     needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && github.event_name != 'pull_request' }}
 
     strategy:
       fail-fast: false
@@ -240,7 +239,7 @@ jobs:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
@@ -323,7 +322,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+        group: [1/10, 2/10, 3/10, 4/10, 5/10, 6/10, 7/10, 8/10, 9/10, 10/10]
         # Empty value uses default
         # TODO: Run with React 18.
         # Integration tests use the installed React version in next/package.json.
@@ -681,12 +680,12 @@ jobs:
 
     secrets: inherit
 
-  test-new-tests-deploy-experimental:
-    name: Test new tests when deployed (experimental)
+  test-new-tests-deploy-cache-components:
+    name: Test new tests when deployed (cache components)
     needs:
       [
         'optimize-ci',
-        'test-experimental-prod',
+        'test-cache-components-prod',
         'test-new-tests-dev',
         'test-new-tests-start',
       ]
@@ -702,15 +701,15 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
-        export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
+        export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_E2E_TEST_TIMEOUT=240000
         export GH_PR_NUMBER=${{ github.event.pull_request && github.event.pull_request.number || '' }}
         node scripts/test-new-tests.mjs \
           --mode deploy \
           --group ${{ matrix.group }}
-      stepName: 'test-new-tests-deploy-experimental-${{matrix.group}}'
+      stepName: 'test-new-tests-deploy-cache-components-${{matrix.group}}'
 
     secrets: inherit
 
@@ -725,7 +724,7 @@ jobs:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+        group: [1/10, 2/10, 3/10, 4/10, 5/10, 6/10, 7/10, 8/10, 9/10, 10/10]
         # Empty value uses default
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
@@ -764,6 +763,7 @@ jobs:
         node run-tests.js \
           test/e2e/app-dir/app/index.test.ts \
           test/e2e/app-dir/app-edge/app-edge.test.ts \
+          test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts \
           test/development/app-dir/segment-explorer/segment-explorer.test.ts
       stepName: 'test-dev-windows'
       runs_on_labels: '["windows","self-hosted","x64"]'
@@ -790,8 +790,8 @@ jobs:
         node run-tests.js \
           --concurrency 4 \
           test/production/pages-dir/production/test/index.test.ts \
-          test/integration/css-client-nav/test/index.test.js \
-          test/integration/rewrites-has-condition/test/index.test.js \
+          test/integration/css-client-nav/test/index.test.ts \
+          test/integration/rewrites-has-condition/test/index.test.ts \
           test/integration/create-next-app/index.test.ts \
           test/integration/create-next-app/package-manager/pnpm.test.ts
       stepName: 'test-integration-windows'
@@ -821,7 +821,8 @@ jobs:
           test/e2e/app-dir/app/index.test.ts \
           test/e2e/app-dir/app-edge/app-edge.test.ts \
           test/e2e/app-dir/metadata-edge/index.test.ts \
-          test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts
+          test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts \
+          test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts
       stepName: 'test-prod-windows'
       runs_on_labels: '["windows","self-hosted","x64"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
@@ -838,7 +839,7 @@ jobs:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+        group: [1/10, 2/10, 3/10, 4/10, 5/10, 6/10, 7/10, 8/10, 9/10, 10/10]
         # Empty value uses default
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
@@ -909,10 +910,12 @@ jobs:
         export IS_WEBPACK_TEST=1
 
         BROWSER_NAME=firefox node run-tests.js \
-          test/production/pages-dir/production/test/index.test.ts
+          test/production/pages-dir/production/test/index.test.ts \
+          test/production/chunk-load-failure/chunk-load-failure.test.ts
 
         NEXT_TEST_MODE=start BROWSER_NAME=safari node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
+          test/production/chunk-load-failure/chunk-load-failure.test.ts \
           test/e2e/basepath/basepath.test.ts \
           test/e2e/basepath/error-pages.test.ts
 
@@ -921,10 +924,9 @@ jobs:
       stepName: 'test-firefox-safari'
     secrets: inherit
 
-  # TODO: Disable these when no more experiments are tested
   # Manifest generated via: https://gist.github.com/wyattjoh/2ceaebd82a5bcff4819600fd60126431
-  test-experimental-integration:
-    name: test experimental integration
+  test-cache-components-integration:
+    name: test cache components integration
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
@@ -932,20 +934,19 @@ jobs:
     with:
       nodeVersion: 20.9.0
       afterBuild: |
-        export __NEXT_EXPERIMENTAL_PPR=true # for compatibility with the existing tests
-        export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
+        export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export IS_WEBPACK_TEST=1
 
         node run-tests.js \
           --timings \
           --type integration
-      stepName: 'test-experimental-integration'
+      stepName: 'test-cache-components-integration'
     secrets: inherit
 
-  test-experimental-dev:
-    name: test experimental dev
+  test-cache-components-dev:
+    name: test cache components dev
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
@@ -956,10 +957,9 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
-        export __NEXT_EXPERIMENTAL_PPR=true # for compatibility with the existing tests
-        export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
+        export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=dev
         export IS_WEBPACK_TEST=1
 
@@ -967,11 +967,11 @@ jobs:
           --timings \
           -g ${{ matrix.group }} \
           --type development
-      stepName: 'test-experimental-dev-${{ matrix.group }}'
+      stepName: 'test-cache-components-dev-${{ matrix.group }}'
     secrets: inherit
 
-  test-experimental-prod:
-    name: test experimental prod
+  test-cache-components-prod:
+    name: test cache components prod
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
@@ -982,10 +982,9 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
-        export __NEXT_EXPERIMENTAL_PPR=true # for compatibility with the existing tests
-        export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
+        export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=start
         export IS_WEBPACK_TEST=1
 
@@ -993,7 +992,7 @@ jobs:
           --timings \
           -g ${{ matrix.group }} \
           --type production
-      stepName: 'test-experimental-prod-${{ matrix.group }}'
+      stepName: 'test-cache-components-prod-${{ matrix.group }}'
     secrets: inherit
 
   tests-pass:
@@ -1011,9 +1010,9 @@ jobs:
         'test-prod',
         'test-integration',
         'test-firefox-safari',
-        'test-experimental-dev',
-        'test-experimental-prod',
-        'test-experimental-integration',
+        'test-cache-components-dev',
+        'test-cache-components-prod',
+        'test-cache-components-integration',
         'test-cargo-unit',
         'rust-check',
         'rustdoc-check',
@@ -1023,7 +1022,7 @@ jobs:
         'test-new-tests-dev',
         'test-new-tests-start',
         'test-new-tests-deploy',
-        'test-new-tests-deploy-experimental',
+        'test-new-tests-deploy-cache-components',
         'test-turbopack-production',
         'test-turbopack-production-integration',
         'test-unit-windows',

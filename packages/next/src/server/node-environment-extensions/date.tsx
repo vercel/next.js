@@ -52,6 +52,6 @@ try {
   Date = createDate(Date)
 } catch {
   console.error(
-    'Failed to install `Date` class extension. When using `experimental.cacheComponents`, APIs that read the current time will not correctly trigger dynamic behavior.'
+    'Failed to install `Date` class extension. When using `cacheComponents`, APIs that read the current time will not correctly trigger dynamic behavior.'
   )
 }

@@ -35,7 +35,7 @@ Now, when editing files, the custom plugin will be enabled. When running `next b
 
 The TypeScript plugin can help with:
 
-- Warning if the invalid values for [segment config options](/docs/app/api-reference/file-conventions/route-segment-config) are passed.
+- Warning if invalid values for [segment config options](/docs/app/api-reference/file-conventions/route-segment-config) are passed.
 - Showing available options and in-context documentation.
 - Ensuring the `'use client'` directive is used correctly.
 - Ensuring client hooks (like `useState`) are only used in Client Components.
@@ -125,7 +125,7 @@ NODE_OPTIONS=--experimental-transform-types next <command>
 
 #### For CommonJS Projects (Default)
 
-Although `next.config.ts` supports native ESM syntax on CommonJS projects, Node.js will still assume `next.config.ts` is a CommonJS file by default, resulting in Node.js reparsing the file as ESM when module syntax is detected. Therefore, we recommend using the `next.config.mts` file for CommonJS projects to explicitly indicate it's an ESM module:
+Although `next.config.ts` supports native ESM syntax in CommonJS projects, Node.js will still assume `next.config.ts` is a CommonJS file by default, resulting in Node.js reparsing the file as ESM when module syntax is detected. Therefore, we recommend using the `next.config.mts` file for CommonJS projects to explicitly indicate it's an ESM module:
 
 ```ts filename="next.config.mts"
 import type { NextConfig } from 'next'
@@ -155,7 +155,7 @@ Works in both the Pages and App Router for the `href` prop in `next/link`. In th
 
 Literal `href` strings are validated, while non-literal `href`s may require a cast with `as Route`.
 
-To opt-into this feature, `typedRoutes` need to be enabled and the project needs to be using TypeScript.
+To opt-into this feature, `typedRoutes` needs to be enabled and the project needs to be using TypeScript.
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -226,13 +226,13 @@ export default function Example() {
 }
 ```
 
-The same applies for redirecting routes defined by middleware:
+The same applies for redirecting routes defined by proxy:
 
-```ts filename="middleware.ts"
+```ts filename="proxy.ts"
 import { NextRequest, NextResponse } from 'next/server'
 
-export function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname === '/middleware-redirect') {
+export function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname === '/proxy-redirect') {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
@@ -244,7 +244,7 @@ export function middleware(request: NextRequest) {
 import type { Route } from 'next'
 
 export default function Page() {
-  return <Link href={'/middleware-redirect' as Route}>Link Text</Link>
+  return <Link href={'/proxy-redirect' as Route}>Link Text</Link>
 }
 ```
 
@@ -460,7 +460,7 @@ This keeps your editor strict via `tsconfig.json` while allowing the production 
 >
 > - IDEs typically read `tsconfig.json` for diagnostics and IntelliSense, so you can still see IDE warnings while production builds use the alternate config. Mirror critical options if you want parity in the editor.
 > - In development, only `tsconfig.json` is watched for changes. If you edit a different file name via `typescript.tsconfigPath`, restart the dev server to apply changes.
-> - The configured file is used in `next dev`, `next build`, `next lint`, and `next typegen`.
+> - The configured file is used in `next dev`, `next build`, and `next typegen`.
 
 ### Disabling TypeScript errors in production
 

@@ -29,6 +29,7 @@ import {
 } from '../response-cache'
 import { cloneResponse } from './clone-response'
 import type { IncrementalCache } from './incremental-cache'
+import { RenderStage } from '../app-render/staged-rendering'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -219,25 +220,26 @@ async function createCachedDynamicResponse(
     .finally(handleUnlock)
 
   const pendingRevalidateKey = `cache-set-${cacheKey}`
-  workStore.pendingRevalidates ??= {}
+  const pendingRevalidates = (workStore.pendingRevalidates ??= {})
 
-  if (pendingRevalidateKey in workStore.pendingRevalidates) {
-    // there is already a pending revalidate entry that we need to await to
-    // avoid race conditions
-    await workStore.pendingRevalidates[pendingRevalidateKey]
+  let pendingRevalidatePromise = Promise.resolve()
+  if (pendingRevalidateKey in pendingRevalidates) {
+    // There is already a pending revalidate entry that we need to await to
+    // avoid race conditions.
+    pendingRevalidatePromise = pendingRevalidates[pendingRevalidateKey]
   }
 
-  workStore.pendingRevalidates[pendingRevalidateKey] = cacheSetPromise.finally(
-    () => {
+  pendingRevalidates[pendingRevalidateKey] = pendingRevalidatePromise
+    .then(() => cacheSetPromise)
+    .finally(() => {
       // If the pending revalidate is not present in the store, then we have
       // nothing to delete.
-      if (!workStore.pendingRevalidates?.[pendingRevalidateKey]) {
+      if (!pendingRevalidates?.[pendingRevalidateKey]) {
         return
       }
 
-      delete workStore.pendingRevalidates[pendingRevalidateKey]
-    }
-  )
+      delete pendingRevalidates[pendingRevalidateKey]
+    })
 
   return cloned2
 }
@@ -287,14 +289,6 @@ export function createPatchedFetcher(
     if (cacheSignal) {
       cacheSignal.beginRead()
     }
-
-    const isStagedRenderingInDev = !!(
-      process.env.NODE_ENV === 'development' &&
-      process.env.__NEXT_CACHE_COMPONENTS &&
-      workUnitStore &&
-      // eslint-disable-next-line no-restricted-syntax
-      workUnitStore.type === 'request'
-    )
 
     const result = getTracer().trace(
       isInternal ? NextNodeServerSpan.internalFetch : AppRenderSpan.fetch,
@@ -563,14 +557,15 @@ export function createPatchedFetcher(
             case 'request':
               if (
                 process.env.NODE_ENV === 'development' &&
-                isStagedRenderingInDev
+                workUnitStore.stagedRendering
               ) {
                 if (cacheSignal) {
                   cacheSignal.endRead()
                   cacheSignal = null
                 }
-                // TODO(restart-on-cache-miss): block dynamic when filling caches
-                await getTimeoutBoundary()
+                await workUnitStore.stagedRendering.waitForStage(
+                  RenderStage.Dynamic
+                )
               }
               break
             case 'prerender-ppr':
@@ -688,14 +683,15 @@ export function createPatchedFetcher(
                 case 'request':
                   if (
                     process.env.NODE_ENV === 'development' &&
-                    isStagedRenderingInDev
+                    workUnitStore.stagedRendering
                   ) {
                     if (cacheSignal) {
                       cacheSignal.endRead()
                       cacheSignal = null
                     }
-                    // TODO(restart-on-cache-miss): block dynamic when filling caches
-                    await getTimeoutBoundary()
+                    await workUnitStore.stagedRendering.waitForStage(
+                      RenderStage.Dynamic
+                    )
                   }
                   break
                 case 'prerender-ppr':
@@ -874,7 +870,7 @@ export function createPatchedFetcher(
                   case 'request':
                     if (
                       process.env.NODE_ENV === 'development' &&
-                      isStagedRenderingInDev &&
+                      workUnitStore.stagedRendering &&
                       workUnitStore.cacheSignal
                     ) {
                       // We're filling caches for a staged render,
@@ -963,9 +959,11 @@ export function createPatchedFetcher(
                 case 'request':
                   if (
                     process.env.NODE_ENV === 'development' &&
-                    isStagedRenderingInDev
+                    workUnitStore.stagedRendering
                   ) {
-                    await getTimeoutBoundary()
+                    await workUnitStore.stagedRendering.waitForStage(
+                      RenderStage.Dynamic
+                    )
                   }
                   break
                 case 'prerender-ppr':
@@ -1051,7 +1049,13 @@ export function createPatchedFetcher(
         }
 
         if (
-          (workStore.isStaticGeneration || isStagedRenderingInDev) &&
+          (workStore.isStaticGeneration ||
+            (process.env.NODE_ENV === 'development' &&
+              process.env.__NEXT_CACHE_COMPONENTS &&
+              workUnitStore &&
+              // eslint-disable-next-line no-restricted-syntax
+              workUnitStore.type === 'request' &&
+              workUnitStore.stagedRendering)) &&
           init &&
           typeof init === 'object'
         ) {
@@ -1079,14 +1083,15 @@ export function createPatchedFetcher(
                 case 'request':
                   if (
                     process.env.NODE_ENV === 'development' &&
-                    isStagedRenderingInDev
+                    workUnitStore.stagedRendering
                   ) {
                     if (cacheSignal) {
                       cacheSignal.endRead()
                       cacheSignal = null
                     }
-                    // TODO(restart-on-cache-miss): block dynamic when filling caches
-                    await getTimeoutBoundary()
+                    await workUnitStore.stagedRendering.waitForStage(
+                      RenderStage.Dynamic
+                    )
                   }
                   break
                 case 'prerender-ppr':
@@ -1128,10 +1133,11 @@ export function createPatchedFetcher(
                   case 'request':
                     if (
                       process.env.NODE_ENV === 'development' &&
-                      isStagedRenderingInDev
+                      workUnitStore.stagedRendering
                     ) {
-                      // TODO(restart-on-cache-miss): block dynamic when filling caches
-                      await getTimeoutBoundary()
+                      await workUnitStore.stagedRendering.waitForStage(
+                        RenderStage.Dynamic
+                      )
                     }
                     break
                   case 'cache':

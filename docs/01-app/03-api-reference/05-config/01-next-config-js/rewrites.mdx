@@ -90,7 +90,7 @@ The order Next.js routes are checked is:
 
 1. [headers](/docs/app/api-reference/config/next-config-js/headers) are checked/applied
 2. [redirects](/docs/app/api-reference/config/next-config-js/redirects) are checked/applied
-3. [middleware](/docs/app/api-reference/file-conventions/middleware)
+3. [proxy](/docs/app/api-reference/file-conventions/proxy)
 4. `beforeFiles` rewrites are checked/applied
 5. static files from the [public directory](/docs/app/api-reference/file-conventions/public-folder), `_next/static` files, and non-dynamic pages are checked/served
 6. `afterFiles` rewrites are checked/applied, if one of these rewrites is matched we check dynamic routes/static files after each match
@@ -163,7 +163,7 @@ module.exports = {
 
 ## Path Matching
 
-Path matches are allowed, for example `/blog/:slug` will match `/blog/hello-world` (no nested paths):
+Path matches are allowed, for example `/blog/:slug` will match `/blog/first-post` (no nested paths):
 
 ```js filename="next.config.js"
 module.exports = {
@@ -177,6 +177,12 @@ module.exports = {
   },
 }
 ```
+
+The pattern `/blog/:slug` matches `/blog/first-post` and `/blog/post-1` but not `/blog/a/b` (no nested paths). Patterns are anchored to the start: `/blog/:slug` will not match `/archive/blog/first-post`.
+
+You can use modifiers on parameters: `*` (zero or more), `+` (one or more), `?` (zero or one). For example, `/blog/:slug*` matches `/blog`, `/blog/a`, and `/blog/a/b/c`.
+
+Read more details on [path-to-regexp](https://github.com/pillarjs/path-to-regexp) documentation.
 
 ### Wildcard Path Matching
 

@@ -205,7 +205,7 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -259,7 +259,7 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -349,7 +349,7 @@ async fn dynamic_sitemap_route_with_generate_source(
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -400,7 +400,7 @@ async fn dynamic_sitemap_route_without_generate_source(
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -484,7 +484,7 @@ async fn dynamic_image_route_with_metadata_source(
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -518,7 +518,7 @@ async fn dynamic_image_route_without_metadata_source(
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -557,7 +557,7 @@ impl Issue for StaticMetadataFileSizeIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::ProcessModule.into()
+        IssueStage::ProcessModule.cell()
     }
 
     #[turbo_tasks::function]

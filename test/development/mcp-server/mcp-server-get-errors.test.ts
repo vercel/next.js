@@ -323,7 +323,6 @@ describe('mcp-server get_errors tool', () => {
       'next.config.js',
       `module.exports = {
   experimental: {
-    mcpServer: true,
     invalidTestProperty: 'this should cause a validation warning',
   },
 }`

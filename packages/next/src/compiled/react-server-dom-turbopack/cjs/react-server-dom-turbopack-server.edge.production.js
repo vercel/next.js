@@ -20,9 +20,8 @@ var ReactDOM = require("react-dom"),
   REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
-  REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel");
-Symbol.for("react.postpone");
-var REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
+  REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
+  REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
   if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
@@ -31,7 +30,8 @@ function getIteratorFn(maybeIterable) {
     maybeIterable["@@iterator"];
   return "function" === typeof maybeIterable ? maybeIterable : null;
 }
-var ASYNC_ITERATOR = Symbol.asyncIterator;
+var ASYNC_ITERATOR = Symbol.asyncIterator,
+  REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key");
 function handleErrorInNextTick(error) {
   setTimeout(function () {
     throw error;
@@ -50,12 +50,12 @@ var LocalPromise = Promise,
   writtenBytes = 0;
 function writeChunkAndReturn(destination, chunk) {
   if (0 !== chunk.byteLength)
-    if (2048 < chunk.byteLength)
+    if (4096 < chunk.byteLength)
       0 < writtenBytes &&
         (destination.enqueue(
           new Uint8Array(currentView.buffer, 0, writtenBytes)
         ),
-        (currentView = new Uint8Array(2048)),
+        (currentView = new Uint8Array(4096)),
         (writtenBytes = 0)),
         destination.enqueue(chunk);
     else {
@@ -66,7 +66,7 @@ function writeChunkAndReturn(destination, chunk) {
           : (currentView.set(chunk.subarray(0, allowableBytes), writtenBytes),
             destination.enqueue(currentView),
             (chunk = chunk.subarray(allowableBytes))),
-        (currentView = new Uint8Array(2048)),
+        (currentView = new Uint8Array(4096)),
         (writtenBytes = 0));
       currentView.set(chunk, writtenBytes);
       writtenBytes += chunk.byteLength;
@@ -821,7 +821,6 @@ function RequestInstance(
   model,
   bundlerConfig,
   onError,
-  onPostpone,
   onAllReady,
   onFatalError,
   identifierPrefix,
@@ -860,7 +859,6 @@ function RequestInstance(
   this.identifierCount = 1;
   this.taintCleanupQueue = [];
   this.onError = void 0 === onError ? defaultErrorHandler : onError;
-  this.onPostpone = void 0 === onPostpone ? noop : onPostpone;
   this.onAllReady = onAllReady;
   this.onFatalError = onFatalError;
   type = createTask(this, model, null, !1, 0, abortSet);
@@ -944,9 +942,17 @@ function serializeReadableStream(request, task, stream) {
           callOnAllReadyIfReady(request);
       else
         try {
-          (streamTask.model = entry.value),
-            request.pendingChunks++,
-            tryStreamTask(request, streamTask),
+          request.pendingChunks++,
+            (streamTask.model = entry.value),
+            isByteStream
+              ? emitTypedArrayChunk(
+                  request,
+                  streamTask.id,
+                  "b",
+                  streamTask.model,
+                  !1
+                )
+              : tryStreamTask(request, streamTask),
             enqueueFlush(request),
             reader.read().then(progress, error);
         } catch (x$8) {
@@ -980,7 +986,8 @@ function serializeReadableStream(request, task, stream) {
     } catch (x) {
       supportsBYOB = !1;
     }
-  var reader = stream.getReader(),
+  var isByteStream = supportsBYOB,
+    reader = stream.getReader(),
     streamTask = createTask(
       request,
       task.model,
@@ -990,7 +997,7 @@ function serializeReadableStream(request, task, stream) {
       request.abortableTasks
     );
   request.pendingChunks++;
-  task = streamTask.id.toString(16) + ":" + (supportsBYOB ? "r" : "R") + "\n";
+  task = streamTask.id.toString(16) + ":" + (isByteStream ? "r" : "R") + "\n";
   request.completedRegularChunks.push(stringToChunk(task));
   request.cacheController.signal.addEventListener("abort", abortStream);
   reader.read().then(progress, error);
@@ -1160,7 +1167,12 @@ function renderFunctionComponent(request, task, key, Component, props) {
   Component = task.keyPath;
   prevThenableState = task.implicitSlot;
   null !== key
-    ? (task.keyPath = null === Component ? key : Component + "," + key)
+    ? (task.keyPath =
+        key === REACT_OPTIMISTIC_KEY || Component === REACT_OPTIMISTIC_KEY
+          ? REACT_OPTIMISTIC_KEY
+          : null === Component
+            ? key
+            : Component + "," + key)
     : null === Component && (task.implicitSlot = !0);
   request = renderModelDestructive(request, task, emptyRoot, "", props);
   task.keyPath = Component;
@@ -1243,7 +1255,11 @@ function renderElement(request, task, type, key, ref, props) {
   key = task.keyPath;
   null === request
     ? (request = key)
-    : null !== key && (request = key + "," + request);
+    : null !== key &&
+      (request =
+        key === REACT_OPTIMISTIC_KEY || request === REACT_OPTIMISTIC_KEY
+          ? REACT_OPTIMISTIC_KEY
+          : key + "," + request);
   props = [REACT_ELEMENT_TYPE, type, request, props];
   task = task.implicitSlot && null !== request ? [props] : props;
   return task;
@@ -1842,12 +1858,11 @@ function emitModelChunk(request, id, json) {
 }
 function emitTypedArrayChunk(request, id, tag, typedArray, debug) {
   debug ? request.pendingDebugChunks++ : request.pendingChunks++;
-  debug = new Uint8Array(
+  typedArray = new Uint8Array(
     typedArray.buffer,
     typedArray.byteOffset,
     typedArray.byteLength
   );
-  typedArray = 2048 < typedArray.byteLength ? debug.slice() : debug;
   debug = typedArray.byteLength;
   id = id.toString(16) + ":" + tag + debug.toString(16) + ",";
   id = stringToChunk(id);
@@ -2011,7 +2026,7 @@ function finishHaltedTask(task, request) {
 function flushCompletedChunks(request) {
   var destination = request.destination;
   if (null !== destination) {
-    currentView = new Uint8Array(2048);
+    currentView = new Uint8Array(4096);
     writtenBytes = 0;
     try {
       for (
@@ -2990,7 +3005,6 @@ exports.prerender = function (model, turbopackMap, options) {
       model,
       turbopackMap,
       options ? options.onError : void 0,
-      options ? options.onPostpone : void 0,
       function () {
         var stream = new ReadableStream(
           {
@@ -3053,7 +3067,6 @@ exports.renderToReadableStream = function (model, turbopackMap, options) {
     model,
     turbopackMap,
     options ? options.onError : void 0,
-    options ? options.onPostpone : void 0,
     noop,
     noop,
     options ? options.identifierPrefix : void 0,

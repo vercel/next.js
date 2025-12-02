@@ -2,7 +2,6 @@ use std::{
     hash::Hash,
     ops::{Deref, DerefMut},
     sync::{Arc, atomic::AtomicBool},
-    thread::available_parallelism,
 };
 
 use bitfield::bitfield;
@@ -318,6 +317,36 @@ macro_rules! generate_inner_storage_internal {
         $crate::generate_inner_storage_internal!(update: $self, $key, $update: $($config)+)
     };
 
+    // fn extend
+    (extend: $self:ident, $ty:ident, $items:ident: $tag:ident $key_field:ident => $field:ident,) => {
+        if let CachedDataItemType::$tag = $ty {
+            return $self.$field.extend($items.map(|item| {
+                let pair = turbo_tasks::KeyValuePair::into_key_and_value(item);
+                if let (CachedDataItemKey::$tag { $key_field }, CachedDataItemValue::$tag { value }) = pair {
+                    ($key_field, value)
+                } else {
+                    unreachable!()
+                }
+            }));
+        }
+    };
+    (extend: $self:ident, $ty:ident, $items:ident: $tag:ident => $field:ident,) => {
+        if let CachedDataItemType::$tag = $ty {
+            return $self.$field.extend($items.map(|item| {
+                let pair = turbo_tasks::KeyValuePair::into_key_and_value(item);
+                if let (_, CachedDataItemValue::$tag { value }) = pair {
+                    ((), value)
+                } else {
+                    unreachable!()
+                }
+            }));
+        }
+    };
+    (extend: $self:ident, $ty:ident, $items:ident: $tag:ident $($key_field:ident)? => $field:ident, $($config:tt)+) => {
+        $crate::generate_inner_storage_internal!(extend: $self, $ty, $items: $tag $($key_field)? => $field,);
+        $crate::generate_inner_storage_internal!(extend: $self, $ty, $items: $($config)+)
+    };
+
     // fn get_mut_or_insert_with
     (get_mut_or_insert_with: $self:ident, $key:ident, $insert_with:ident: $tag:ident $key_field:ident => $field:ident,) => {
         if let CachedDataItemKey::$tag { $key_field } = $key {
@@ -425,6 +454,12 @@ macro_rules! generate_inner_storage {
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(CachedDataItem: self, item, value, none, add(value): $($config)*);
                 self.dynamic.add(item)
+            }
+
+            pub fn extend(&mut self, ty: CachedDataItemType, items: impl Iterator<Item = CachedDataItem>) -> bool {
+                use crate::data_storage::Storage;
+                $crate::generate_inner_storage_internal!(extend: self, ty, items: $($config)*);
+                self.dynamic.extend(ty, items)
             }
 
             pub fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
@@ -616,17 +651,13 @@ pub struct Storage {
 }
 
 impl Storage {
-    pub fn new(small_preallocation: bool) -> Self {
+    pub fn new(shard_amount: usize, small_preallocation: bool) -> Self {
         let map_capacity: usize = if small_preallocation {
             1024
         } else {
             1024 * 1024
         };
         let modified_capacity: usize = if small_preallocation { 0 } else { 1024 };
-        let shard_factor: usize = if small_preallocation { 4 } else { 64 };
-
-        let shard_amount =
-            (available_parallelism().map_or(4, |v| v.get()) * shard_factor).next_power_of_two();
 
         Self {
             snapshot_mode: AtomicBool::new(false),

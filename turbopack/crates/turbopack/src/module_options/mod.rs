@@ -34,7 +34,8 @@ use turbopack_node::{
 use turbopack_wasm::source::WebAssemblySourceType;
 
 use crate::{
-    evaluate_context::node_evaluate_asset_context, resolve_options_context::ResolveOptionsContext,
+    evaluate_context::{config_tracing_module_context, node_evaluate_asset_context},
+    resolve_options_context::ResolveOptionsContext,
 };
 
 #[turbo_tasks::function]
@@ -208,7 +209,9 @@ impl ModuleOptions {
                     import_externals,
                     esm_url_rewrite_behavior,
                     enable_typeof_window_inlining,
+                    enable_exports_info_inlining,
                     source_maps: ecmascript_source_maps,
+                    inline_helpers,
                     ..
                 },
             enable_mdx,
@@ -282,6 +285,8 @@ impl ModuleOptions {
             keep_last_successful_parse,
             analyze_mode,
             enable_typeof_window_inlining,
+            enable_exports_info_inlining,
+            inline_helpers,
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
@@ -434,15 +439,29 @@ impl ModuleOptions {
                     RuleCondition::ResourcePathEndsWith(".webp".to_string()),
                     RuleCondition::ResourcePathEndsWith(".woff2".to_string()),
                 ]),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs)],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
+                    tag: None,
+                })],
             ),
             ModuleRule::new(
                 RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::Undefined)),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs)],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
+                    tag: None,
+                })],
+            ),
+            ModuleRule::new(
+                RuleCondition::ReferenceType(ReferenceType::Url(
+                    UrlReferenceSubType::EcmaScriptNewUrl,
+                )),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
+                    tag: None,
+                })],
             ),
             ModuleRule::new(
                 RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlCss)],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlCss {
+                    tag: None,
+                })],
             ),
         ];
 
@@ -677,6 +696,7 @@ impl ModuleOptions {
                                     Layer::new(rcstr!("postcss")),
                                     true,
                                 ),
+                                config_tracing_module_context(*execution_context),
                                 *execution_context,
                                 options.config_location,
                                 matches!(css_source_maps, SourceMapsType::Full),

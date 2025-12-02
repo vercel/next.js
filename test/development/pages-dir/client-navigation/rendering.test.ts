@@ -11,13 +11,12 @@ import url from 'url'
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('Client Navigation rendering', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { isTurbopack, next, isRspack } = nextTestSetup({
     files: path.join(__dirname, 'fixture'),
     env: {
       TEST_STRICT_NEXT_HEAD: String(true),
     },
   })
-  const isRspack = !!process.env.NEXT_RSPACK
 
   function render(
     pathname: Parameters<typeof renderViaHTTP>[1],
@@ -274,11 +273,11 @@ describe('Client Navigation rendering', () => {
            "description": "aa is not defined",
            "environmentLabel": null,
            "label": "Runtime ReferenceError",
-           "source": "pages/error-in-the-global-scope.js (1:1) @ {module evaluation}
+           "source": "pages/error-in-the-global-scope.js (1:1) @ module evaluation
          > 1 | aa = 10 //eslint-disable-line
              | ^",
            "stack": [
-             "{module evaluation} pages/error-in-the-global-scope.js (1:1)",
+             "module evaluation pages/error-in-the-global-scope.js (1:1)",
              "<FIXME-next-dist-dir>",
            ],
          }

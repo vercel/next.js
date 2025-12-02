@@ -4,7 +4,9 @@ import * as CommentJson from 'next/dist/compiled/comment-json'
 import semver from 'next/dist/compiled/semver'
 import os from 'os'
 import type { CompilerOptions } from 'typescript'
+import { getTypeDefinitionGlobPatterns } from './type-paths'
 import * as Log from '../../build/output/log'
+import { defaultConfig } from '../../server/config-shared'
 
 type DesiredCompilerOptionsShape = {
   [K in keyof CompilerOptions]:
@@ -267,26 +269,17 @@ export async function writeConfigurationDefaults(
     }
   }
 
-  const nextAppTypes: string[] = [`${distDir}/types/**/*.ts`]
+  const resolvedIsolatedDevBuild =
+    isolatedDevBuild === undefined
+      ? defaultConfig.experimental.isolatedDevBuild
+      : isolatedDevBuild
 
-  // When isolatedDevBuild is enabled, Next.js uses different distDir paths:
-  // - Development: "{distDir}/dev"
-  // - Production: "{distDir}"
-  // To prevent tsconfig updates when switching between dev/build modes,
-  // we proactively include both type paths regardless of current environment.
-  if (isolatedDevBuild !== false) {
-    nextAppTypes.push(
-      process.env.NODE_ENV === 'development'
-        ? // In dev, distDir is "{distDir}/dev", which is already in the array above, but we also need "{distDir}/types".
-          // Here we remove "/dev" at the end of distDir for consistency.
-          `${distDir.replace(/\/dev$/, '')}/types/**/*.ts`
-        : // In build, distDir is "{distDir}", which is already in the array above, but we also need "{distDir}/dev/types".
-          // Here we add "/dev" at the end of distDir for consistency.
-          `${distDir}/dev/types/**/*.ts`
-    )
-    // Sort the array to ensure consistent order.
-    nextAppTypes.sort((a, b) => a.length - b.length)
-  }
+  // Get type definition glob patterns using shared utility to ensure consistency
+  // with other TypeScript infrastructure (e.g., runTypeCheck.ts)
+  const nextAppTypes = getTypeDefinitionGlobPatterns(
+    distDir,
+    resolvedIsolatedDevBuild
+  )
 
   if (!('include' in userTsConfig)) {
     userTsConfig.include = hasAppDir

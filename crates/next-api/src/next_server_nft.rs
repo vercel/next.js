@@ -10,13 +10,15 @@ use turbo_tasks::{
     NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, File, FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    DirectoryContent, DirectoryEntry, File, FileContent, FileSystemPath, glob::Glob,
+};
 use turbopack::externals_tracing_module_context;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     context::AssetContext,
     file_source::FileSource,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request},
     traced_asset::TracedAsset,
@@ -75,6 +77,9 @@ impl ServerNftJsonAsset {
         ServerNftJsonAsset { project, ty }.cell()
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for ServerNftJsonAsset {}
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for ServerNftJsonAsset {
@@ -158,7 +163,9 @@ impl Asset for ServerNftJsonAsset {
           "files": server_output_assets
         });
 
-        Ok(AssetContent::file(File::from(json.to_string()).into()))
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(json.to_string())).cell(),
+        ))
     }
 }
 
@@ -187,7 +194,7 @@ impl ServerNftJsonAsset {
         let cache_handlers = self
             .project
             .next_config()
-            .experimental_cache_handlers(project_path.clone())
+            .cache_handlers(project_path.clone())
             .await?;
 
         // These are used by packages/next/src/server/require-hook.ts

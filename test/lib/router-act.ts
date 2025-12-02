@@ -57,8 +57,67 @@ type ActConfig =
   | null
 
 export function createRouterAct(
-  page: Playwright.Page
+  page: Playwright.Page,
+  options?: {
+    /**
+     * Status codes that are allowed to be returned by the server. If not
+     * provided, all error status codes are disallowed (400+).
+     */
+    allowErrorStatusCodes?: number[]
+  }
 ): <T>(scope: () => Promise<T> | T, config?: ActConfig) => Promise<T> {
+  /**
+   * Helper function to wait for requestIdleCallback with retry logic.
+   * Retries up to 3 times if "Execution context was destroyed" error occurs.
+   */
+  async function waitForIdleCallback(): Promise<void> {
+    const maxRetries = 3
+    const retryDelayMs = 100
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        await page.evaluate(
+          () =>
+            new Promise<void>((res) =>
+              requestIdleCallback(() => res(), {
+                // Add a timeout option to prevents the callback from being
+                // backgrounded indefinitely. Not sure why this happens but
+                // without it, the callback will never fire.
+                //
+                // Note that this does not delay the callback from firing.
+                // It should still fire pretty much "immediately". It's just a
+                // safeguard in case the idle callback queue is not fired within
+                // a reasonable amount of time. It really shouldn't
+                // be necessary.
+                //
+                // TODO: I'm getting increasingly frustrated by how flaky
+                // Playwright's APIs are. At this point I'm convinced we should
+                // rewrite the whole router-act module to an equivalent
+                // implementation that runs directly in the browser, by
+                // injecting a script into the page. Since we only use it for
+                // our own contrived e2e test apps, we can just import the
+                // script into each test app that needs it.
+                timeout: 100,
+              })
+            )
+        )
+        return
+      } catch (err) {
+        const isLastAttempt = attempt === maxRetries - 1
+        const isExecutionContextError =
+          err instanceof Error &&
+          err.message.includes('Execution context was destroyed')
+
+        if (isExecutionContextError && !isLastAttempt) {
+          await new Promise((resolve) => setTimeout(resolve, retryDelayMs))
+          continue
+        }
+
+        throw err
+      }
+    }
+  }
+
   /**
    * Test utility for requests initiated by the Next.js Router, such as
    * prefetches and navigations. Calls the given async function then intercepts
@@ -79,6 +138,8 @@ export function createRouterAct(
     let expectedResponses: Array<ExpectedResponseConfig> | null
     let forbiddenResponses: Array<ExpectedResponseConfig> | null = null
     let shouldBlockAll = false
+    const allowStatuses = options?.allowErrorStatusCodes ?? null
+
     if (config === undefined || config === null) {
       // Default. Expect at least one request, but don't assert on the response.
       expectedResponses = []
@@ -230,7 +291,7 @@ export function createRouterAct(
     }
     currentBatch = batch
     await page.route('**/*', routeHandler)
-    await page.on('framedetached', hardNavigationHandler)
+    page.on('framedetached', hardNavigationHandler)
     try {
       // Call the user-provided scope function
       const returnValue = await scope()
@@ -258,9 +319,7 @@ export function createRouterAct(
       // We use requestIdleCallback to schedule the task because that's
       // guaranteed to fire after any IntersectionObserver events, which the
       // router uses to track the visibility of links.
-      await page.evaluate(
-        () => new Promise<void>((res) => requestIdleCallback(() => res()))
-      )
+      await waitForIdleCallback()
 
       // Checking whether a request needs to be intercepted is an async
       // operation, so we need to wait for all the checks to complete before
@@ -272,7 +331,32 @@ export function createRouterAct(
       const remaining = new Set<PendingRSCRequest>()
       let actualResponses: Array<ExpectedResponseConfig> = []
       let alreadyMatched = new Map<string, string>()
-      while (batch.pendingRequests.size > 0) {
+
+      // Track when the queue was last empty to implement a settling period
+      let queueEmptyStartTime: number | null = null
+      const SETTLING_PERIOD_MS = 500 // Wait 500ms after queue empties
+
+      while (
+        batch.pendingRequests.size > 0 ||
+        queueEmptyStartTime === null ||
+        Date.now() - queueEmptyStartTime < SETTLING_PERIOD_MS
+      ) {
+        if (batch.pendingRequests.size > 0) {
+          // Queue has requests, reset settling timer
+          queueEmptyStartTime = null
+        } else if (queueEmptyStartTime === null) {
+          // Queue just became empty, start settling timer
+          queueEmptyStartTime = Date.now()
+        }
+
+        if (batch.pendingRequests.size === 0) {
+          // Queue is empty during settling period, wait a bit and check again
+          await new Promise((resolve) => setTimeout(resolve, 50))
+          await waitForIdleCallback()
+          await waitForPendingRequestChecks()
+          continue
+        }
+
         const pending = batch.pendingRequests
         batch.pendingRequests = new Set()
         for (const item of pending) {
@@ -298,7 +382,11 @@ ${fulfilled.body}
 
               throw error
             }
-            if (fulfilled.status >= 400) {
+            if (
+              fulfilled.status >= 400 &&
+              (allowStatuses === null ||
+                !allowStatuses.includes(fulfilled.status))
+            ) {
               error.message = `
 Received a response with an error status code.
 
@@ -400,7 +488,11 @@ ${fulfilled.body}
               })
               const browserResponse = await request.response()
               if (browserResponse !== null) {
-                await browserResponse.finished()
+                // For error responses (>= 400), the browser may not consume the body
+                // in the same way, so we skip waiting for finished() to avoid hanging
+                if (fulfilled.status < 400) {
+                  await browserResponse.finished()
+                }
               }
             }
           }
@@ -417,7 +509,7 @@ ${fulfilled.body}
             // a strategy to make that work. In the meantime, attempting to
             // write a test that blocks a redirect will result in an error
             // (see error above).
-            await new Promise<void>((resolve) => {
+            await new Promise<void>((resolve, reject) => {
               page.once('request', (req) => {
                 const handleResponse = (res: Playwright.Response) => {
                   if (res.url() === req.url()) {
@@ -426,8 +518,10 @@ ${fulfilled.body}
                       route: null,
                       result: (async () => {
                         return {
-                          text: await res.text(),
-                          body: await res.body(),
+                          // For redirects, body may not be available, so catch
+                          // the error and return an empty string.
+                          text: await res.text().catch(() => ''),
+                          body: await res.body().catch(() => Buffer.from('')),
                           headers: res.headers(),
                           status: res.status(),
                         }
@@ -435,10 +529,20 @@ ${fulfilled.body}
                       didProcess: false,
                     })
                     page.off('response', handleResponse)
+                    page.off('requestfailed', handleFailure)
                     resolve()
                   }
                 }
+                const handleFailure = (failedReq: Playwright.Request) => {
+                  if (failedReq.url() === req.url()) {
+                    page.off('response', handleResponse)
+                    page.off('requestfailed', handleFailure)
+                    error.message = `Request failed: ${failedReq.failure()?.errorText || 'Unknown error'}\n\nURL: ${req.url()}`
+                    reject(error)
+                  }
+                }
                 page.on('response', handleResponse)
+                page.on('requestfailed', handleFailure)
               })
             })
           }
@@ -450,9 +554,7 @@ ${fulfilled.body}
         // network throttled, the next request is issued either directly within
         // the task of the previous request's completion event, or in the
         // microtask queue of that event.
-        await page.evaluate(
-          () => new Promise<void>((res) => requestIdleCallback(() => res()))
-        )
+        await waitForIdleCallback()
 
         await waitForPendingRequestChecks()
       }
@@ -503,7 +605,7 @@ ${fulfilled.body}
       // Clean up
       currentBatch = prevBatch
       await page.unroute('**/*', routeHandler)
-      await page.off('framedetached', hardNavigationHandler)
+      page.off('framedetached', hardNavigationHandler)
     }
   }
 

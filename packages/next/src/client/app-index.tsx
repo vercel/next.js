@@ -1,9 +1,12 @@
 import './app-globals'
 import ReactDOMClient from 'react-dom/client'
-import React, { use } from 'react'
+import React from 'react'
 // TODO: Explicitly import from client.browser
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { createFromReadableStream as createFromReadableStreamBrowser } from 'react-server-dom-webpack/client'
+import {
+  createFromReadableStream as createFromReadableStreamBrowser,
+  createFromFetch as createFromFetchBrowser,
+} from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
 import {
@@ -22,11 +25,14 @@ import { createInitialRouterState } from './components/router-reducer/create-ini
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
 import type { StaticIndicatorState } from './dev/hot-reloader/app/hot-reloader-app'
+import { createInitialRSCPayloadFromFallbackPrerender } from './flight-data-helpers'
 
 /// <reference types="react-dom/experimental" />
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
+const createFromFetch =
+  createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
 
 const appElement: HTMLElement | Document = document
 
@@ -149,7 +155,13 @@ if (document.readyState === 'loading') {
 }
 
 const nextServerDataLoadingGlobal = (self.__next_f = self.__next_f || [])
+
+// Consume all buffered chunks and clear the global data array right after to release memory.
+// Otherwise it will be retained indefinitely.
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
+nextServerDataLoadingGlobal.length = 0
+
+// Patch its push method so subsequent chunks are handled (but not actually pushed to the array).
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
 const readable = new ReadableStream({
@@ -157,6 +169,10 @@ const readable = new ReadableStream({
     nextServerDataRegisterWriter(controller)
   },
 })
+if (process.env.NODE_ENV !== 'production') {
+  // @ts-expect-error
+  readable.name = 'hydration'
+}
 
 let debugChannel:
   | { readable?: ReadableStream; writable?: WritableStream }
@@ -173,23 +189,47 @@ if (
   debugChannel = createDebugChannel(undefined)
 }
 
-const initialServerResponse = createFromReadableStream<InitialRSCPayload>(
-  readable,
-  { callServer, findSourceMapURL, debugChannel }
-)
+const clientResumeFetch: Promise<Response> | undefined =
+  // @ts-expect-error
+  window.__NEXT_CLIENT_RESUME
+
+let initialServerResponse: Promise<InitialRSCPayload>
+if (clientResumeFetch) {
+  initialServerResponse = Promise.resolve(
+    createFromFetch<InitialRSCPayload>(clientResumeFetch, {
+      callServer,
+      findSourceMapURL,
+      debugChannel,
+    })
+  ).then(async (fallbackInitialRSCPayload) =>
+    createInitialRSCPayloadFromFallbackPrerender(
+      await clientResumeFetch,
+      fallbackInitialRSCPayload
+    )
+  )
+} else {
+  initialServerResponse = createFromReadableStream<InitialRSCPayload>(
+    readable,
+    {
+      callServer,
+      findSourceMapURL,
+      debugChannel,
+      startTime: 0,
+    }
+  )
+}
 
 function ServerRoot({
-  pendingActionQueue,
+  initialRSCPayload,
+  actionQueue,
   webSocket,
   staticIndicatorState,
 }: {
-  pendingActionQueue: Promise<AppRouterActionQueue>
+  initialRSCPayload: InitialRSCPayload
+  actionQueue: AppRouterActionQueue
   webSocket: WebSocket | undefined
   staticIndicatorState: StaticIndicatorState | undefined
 }): React.ReactNode {
-  const initialRSCPayload = use(initialServerResponse)
-  const actionQueue = use<AppRouterActionQueue>(pendingActionQueue)
-
   const router = (
     <AppRouter
       actionQueue={actionQueue}
@@ -229,14 +269,17 @@ function Root({ children }: React.PropsWithChildren<{}>) {
   return children
 }
 
-function onDefaultTransitionIndicator() {
-  // TODO: Compose default with user-configureable (e.g. nprogress)
-  // TODO: Use React's default once we figure out hanging indicators: https://codesandbox.io/p/sandbox/charming-moon-hktkp6?file=%2Fsrc%2Findex.js%3A106%2C30
+const enableTransitionIndicator = process.env.__NEXT_TRANSITION_INDICATOR
+
+function noDefaultTransitionIndicator() {
   return () => {}
 }
 
 const reactRootOptions: ReactDOMClient.RootOptions = {
-  onDefaultTransitionIndicator: onDefaultTransitionIndicator,
+  onDefaultTransitionIndicator: enableTransitionIndicator
+    ? // TODO: Compose default with user-configureable (e.g. nprogress)
+      undefined
+    : noDefaultTransitionIndicator,
   onRecoverableError,
   onCaughtError,
   onUncaughtError,
@@ -249,7 +292,7 @@ export type ClientInstrumentationHooks = {
   ) => void
 }
 
-export function hydrate(
+export async function hydrate(
   instrumentationHooks: ClientInstrumentationHooks | null,
   assetPrefix: string
 ) {
@@ -263,40 +306,22 @@ export function hydrate(
     staticIndicatorState = { pathname: null, appIsrManifest: null }
     webSocket = createWebSocket(assetPrefix, staticIndicatorState)
   }
+  const initialRSCPayload = await initialServerResponse
+  // setAppBuildId should be called only once, during JS initialization
+  // and before any components have hydrated.
+  setAppBuildId(initialRSCPayload.b)
 
-  // React overrides `.then` and doesn't return a new promise chain,
-  // so we wrap the action queue in a promise to ensure that its value
-  // is defined when the promise resolves.
-  // https://github.com/facebook/react/blob/163365a07872337e04826c4f501565d43dbd2fd4/packages/react-client/src/ReactFlightClient.js#L189-L190
-  const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
-    (resolve, reject) => {
-      initialServerResponse.then(
-        (initialRSCPayload) => {
-          // setAppBuildId should be called only once, during JS initialization
-          // and before any components have hydrated.
-          setAppBuildId(initialRSCPayload.b)
-
-          const initialTimestamp = Date.now()
-
-          resolve(
-            createMutableActionQueue(
-              createInitialRouterState({
-                navigatedAt: initialTimestamp,
-                initialFlightData: initialRSCPayload.f,
-                initialCanonicalUrlParts: initialRSCPayload.c,
-                initialParallelRoutes: new Map(),
-                location: window.location,
-                couldBeIntercepted: initialRSCPayload.i,
-                postponed: initialRSCPayload.s,
-                prerendered: initialRSCPayload.S,
-              }),
-              instrumentationHooks
-            )
-          )
-        },
-        (err: Error) => reject(err)
-      )
-    }
+  const initialTimestamp = Date.now()
+  const actionQueue: AppRouterActionQueue = createMutableActionQueue(
+    createInitialRouterState({
+      navigatedAt: initialTimestamp,
+      initialFlightData: initialRSCPayload.f,
+      initialCanonicalUrlParts: initialRSCPayload.c,
+      initialRenderedSearch: initialRSCPayload.q,
+      initialParallelRoutes: new Map(),
+      location: window.location,
+    }),
+    instrumentationHooks
   )
 
   const reactEl = (
@@ -304,7 +329,8 @@ export function hydrate(
       <HeadManagerContext.Provider value={{ appDir: true }}>
         <Root>
           <ServerRoot
-            pendingActionQueue={pendingActionQueue}
+            initialRSCPayload={initialRSCPayload}
+            actionQueue={actionQueue}
             webSocket={webSocket}
             staticIndicatorState={staticIndicatorState}
           />

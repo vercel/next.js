@@ -304,7 +304,7 @@ struct BabelPluginReactCompilerResolutionIssue {
 impl Issue for BabelPluginReactCompilerResolutionIssue {
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.into()
+        IssueStage::Transform.cell()
     }
 
     fn severity(&self) -> IssueSeverity {

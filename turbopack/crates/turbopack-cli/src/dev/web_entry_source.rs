@@ -6,14 +6,16 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::{BrowserChunkingContext, react_refresh::assert_can_resolve_react_refresh};
 use turbopack_cli_utils::runtime_entry::{RuntimeEntries, RuntimeEntry};
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset, SourceMapsType},
+    chunk::{
+        ChunkableModule, ChunkingContext, EvaluatableAsset, SourceMapSourceType, SourceMapsType,
+    },
     environment::Environment,
     file_source::FileSource,
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
-        origin::{PlainResolveOrigin, ResolveOriginExt},
+        origin::{PlainResolveOrigin, ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
 };
@@ -51,8 +53,9 @@ pub async fn get_client_chunking_context(
             RuntimeType::Development,
         )
         .hot_module_replacement()
-        .use_file_source_map_uris()
+        .source_map_source_type(SourceMapSourceType::AbsoluteFileUri)
         .dynamic_chunk_content_loading(true)
+        .nested_async_availability(true)
         .build(),
     ))
 }
@@ -136,7 +139,7 @@ pub async fn create_web_entry_source(
         .map(|request| async move {
             let ty = ReferenceType::Entry(EntryReferenceSubType::Web);
             Ok(origin
-                .resolve_asset(request, origin.resolve_options(ty.clone()).await?, ty)
+                .resolve_asset(request, origin.resolve_options(ty.clone()), ty)
                 .await?
                 .resolve()
                 .await?

@@ -4,12 +4,7 @@ import {
   type ConsoleStore,
 } from '../app-render/console-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
-
-type GetCacheSignal = () => AbortSignal | null
-const cacheSignals: Array<GetCacheSignal> = []
-export function registerGetCacheSignal(getSignal: GetCacheSignal): void {
-  cacheSignals.push(getSignal)
-}
+import { getServerReact, getClientReact } from '../runtime-reacts.external'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- we may use later and want parity with the HIDDEN_STYLE value
 const DIMMED_STYLE = 'dimmed'
@@ -191,33 +186,32 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
       // the server React cacheSignal implementation. Any particular console call will be in one, the other, or neither
       // scope and these signals return null if you are out of scope so this can be called from a single global patch
       // and still work properly.
-      for (let i = 0; i < cacheSignals.length; i++) {
-        const signal = cacheSignals[i]() // try to get a signal from registered functions
-        if (signal) {
-          // We are in a React Server render and can consult the React cache signal to determine if logs
-          // are now dimmable.
-          if (signal.aborted) {
-            if (currentAbortedLogsStyle === HIDDEN_STYLE) {
-              return
-            }
-            return applyWithDimming.call(
-              this,
-              consoleStore,
-              originalMethod,
-              methodName,
-              args
-            )
-          } else if (consoleStore?.dim === true) {
-            return applyWithDimming.call(
-              this,
-              consoleStore,
-              originalMethod,
-              methodName,
-              args
-            )
-          } else {
-            return originalMethod.apply(this, args)
+      const signal =
+        getClientReact()?.cacheSignal() ?? getServerReact()?.cacheSignal()
+      if (signal) {
+        // We are in a React Server render and can consult the React cache signal to determine if logs
+        // are now dimmable.
+        if (signal.aborted) {
+          if (currentAbortedLogsStyle === HIDDEN_STYLE) {
+            return
           }
+          return applyWithDimming.call(
+            this,
+            consoleStore,
+            originalMethod,
+            methodName,
+            args
+          )
+        } else if (consoleStore?.dim === true) {
+          return applyWithDimming.call(
+            this,
+            consoleStore,
+            originalMethod,
+            methodName,
+            args
+          )
+        } else {
+          return originalMethod.apply(this, args)
         }
       }
 

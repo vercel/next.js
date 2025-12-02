@@ -63,6 +63,7 @@ swc_core = { workspace = true, features = [
   "common_sourcemap",
   "ecma_ast_shrink",
   "ecma_codegen",
+  "ecma_helpers_inline",
   "ecma_lints",
   "ecma_minifier",
   "ecma_parser",

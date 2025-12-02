@@ -144,6 +144,9 @@ export class IncrementalCache implements IncrementalCacheType {
 
       if (globalCacheHandler?.FetchCache) {
         CurCacheHandler = globalCacheHandler.FetchCache
+        if (IncrementalCache.debug) {
+          console.log('IncrementalCache: using global FetchCache cache handler')
+        }
       } else {
         if (fs && serverDistDir) {
           if (IncrementalCache.debug) {

@@ -10,8 +10,7 @@ import {
 // TODO: We should decide on an established pattern for gating test assertions
 // on experimental flags. For example, as a first step we could all the common
 // gates like this one into a single module.
-const isPPREnabledByDefault =
-  process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+const isPPREnabledByDefault = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -461,7 +460,7 @@ describe('app dir - rsc basics', () => {
   // TODO: (PPR) remove once PPR is stable
   // TODO(new-dev-overlay): remove once new dev overlay is stable
   const bundledReactVersionPattern =
-    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+    process.env.__NEXT_CACHE_COMPONENTS === 'true'
       ? '-experimental-'
       : '-canary-'
 

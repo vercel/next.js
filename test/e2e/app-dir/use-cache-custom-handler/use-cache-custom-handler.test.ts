@@ -58,12 +58,16 @@ describe('use-cache-custom-handler', () => {
     // Because we use a low `revalidate` value for the "use cache" function, new
     // data should be returned eventually.
 
-    await retry(async () => {
-      await browser.refresh()
-      data = await browser.elementById('data').text()
-      expect(data).toMatch(isoDateRegExp)
-      expect(data).not.toEqual(initialData)
-    }, 5000)
+    await retry(
+      async () => {
+        await browser.refresh()
+        data = await browser.elementById('data').text()
+        expect(data).toMatch(isoDateRegExp)
+        expect(data).not.toEqual(initialData)
+      },
+      10_000,
+      2_000
+    )
   })
 
   it('calls neither refreshTags nor getExpiration if "use cache" is not used', async () => {

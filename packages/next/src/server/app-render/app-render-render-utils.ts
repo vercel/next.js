@@ -1,4 +1,5 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { createAtomicTimerGroup } from './app-render-scheduling'
 
 /**
  * This is a utility function to make scheduling sequential tasks that run back to back easier.
@@ -14,18 +15,21 @@ export function scheduleInSequentialTasks<R>(
     )
   } else {
     return new Promise((resolve, reject) => {
+      const scheduleTimeout = createAtomicTimerGroup()
+
       let pendingResult: R | Promise<R>
-      setTimeout(() => {
+      scheduleTimeout(() => {
         try {
           pendingResult = render()
         } catch (err) {
           reject(err)
         }
-      }, 0)
-      setTimeout(() => {
+      })
+
+      scheduleTimeout(() => {
         followup()
         resolve(pendingResult)
-      }, 0)
+      })
     })
   }
 }
@@ -35,34 +39,60 @@ export function scheduleInSequentialTasks<R>(
  * We schedule on the same queue (setTimeout) at the same time to ensure no other events can sneak in between.
  * The function that runs in the second task gets access to the first tasks's result.
  */
-export function pipelineInSequentialTasks<A, B>(
-  render: () => A,
-  followup: (a: A) => B | Promise<B>
-): Promise<B> {
+export function pipelineInSequentialTasks<A, B, C>(
+  one: () => A,
+  two: (a: A) => B,
+  three: (b: B) => C
+): Promise<C> {
   if (process.env.NEXT_RUNTIME === 'edge') {
     throw new InvariantError(
       '`pipelineInSequentialTasks` should not be called in edge runtime.'
     )
   } else {
     return new Promise((resolve, reject) => {
-      let renderResult: A | undefined = undefined
-      setTimeout(() => {
+      const scheduleTimeout = createAtomicTimerGroup()
+
+      let oneResult: A
+      scheduleTimeout(() => {
         try {
-          renderResult = render()
+          oneResult = one()
         } catch (err) {
-          clearTimeout(followupId)
+          clearTimeout(twoId)
+          clearTimeout(threeId)
+          clearTimeout(fourId)
           reject(err)
         }
-      }, 0)
-      const followupId = setTimeout(() => {
-        // if `render` threw, then the `followup` timeout would've been cleared,
-        // so if we got here, we're guaranteed to have a `renderResult`.
+      })
+
+      let twoResult: B
+      const twoId = scheduleTimeout(() => {
+        // if `one` threw, then this timeout would've been cleared,
+        // so if we got here, we're guaranteed to have a value.
         try {
-          resolve(followup(renderResult!))
+          twoResult = two(oneResult!)
         } catch (err) {
+          clearTimeout(threeId)
+          clearTimeout(fourId)
           reject(err)
         }
-      }, 0)
+      })
+
+      let threeResult: C
+      const threeId = scheduleTimeout(() => {
+        // if `two` threw, then this timeout would've been cleared,
+        // so if we got here, we're guaranteed to have a value.
+        try {
+          threeResult = three(twoResult!)
+        } catch (err) {
+          clearTimeout(fourId)
+          reject(err)
+        }
+      })
+
+      // We wait a task before resolving/rejecting
+      const fourId = scheduleTimeout(() => {
+        resolve(threeResult)
+      })
     })
   }
 }

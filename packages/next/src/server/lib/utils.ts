@@ -11,7 +11,9 @@ export function printAndExit(message: string, code = 1) {
   return process.exit(code)
 }
 
-const parseNodeArgs = (args: string[]) => {
+export type NodeOptions = Record<string, string | boolean | undefined>
+
+const parseNodeArgs = (args: string[]): NodeOptions => {
   const { values, tokens } = parseArgs({ args, strict: false, tokens: true })
 
   // For the `NODE_OPTIONS`, we support arguments with values without the `=`
@@ -127,7 +129,7 @@ export const getNodeOptionsArgs = () => {
 /**
  * The debug address is in the form of `[host:]port`. The host is optional.
  */
-type DebugAddress = {
+export interface DebugAddress {
   host: string | undefined
   port: number
 }
@@ -147,17 +149,9 @@ export const formatDebugAddress = ({ host, port }: DebugAddress): string => {
  *
  * @returns An object with the host and port of the debug address.
  */
-export const getParsedDebugAddress = (): DebugAddress => {
-  const args = getNodeOptionsArgs()
-  if (args.length === 0) return { host: undefined, port: 9229 }
-
-  const parsed = parseNodeArgs(args)
-
-  // We expect to find the debug port in one of these options. The first one
-  // found will be used.
-  const address =
-    parsed.inspect ?? parsed['inspect-brk'] ?? parsed['inspect_brk']
-
+export const getParsedDebugAddress = (
+  address: string | boolean | undefined
+): DebugAddress => {
   if (!address || typeof address !== 'string') {
     return { host: undefined, port: 9229 }
   }
@@ -170,15 +164,6 @@ export const getParsedDebugAddress = (): DebugAddress => {
 
   return { host: undefined, port: parseInt(address, 10) }
 }
-
-/**
- * Get the debug address from the `NODE_OPTIONS` environment variable and format
- * it into a string.
- *
- * @returns A string with the formatted debug address.
- */
-export const getFormattedDebugAddress = () =>
-  formatDebugAddress(getParsedDebugAddress())
 
 /**
  * Stringify the arguments to be used in a command line. It will ignore any
@@ -210,6 +195,16 @@ export function formatNodeOptions(
     })
     .filter((arg) => arg !== null)
     .join(' ')
+}
+
+export function getParsedNodeOptions(): Record<
+  string,
+  string | boolean | undefined
+> {
+  const args = [...process.execArgv, ...getNodeOptionsArgs()]
+  if (args.length === 0) return {}
+
+  return parseNodeArgs(args)
 }
 
 /**
@@ -266,14 +261,13 @@ export type NodeInspectType = 'inspect' | 'inspect-brk' | undefined
 /**
  * Get the debug type from the `NODE_OPTIONS` environment variable.
  */
-export function getNodeDebugType(): NodeInspectType {
-  const args = [...process.execArgv, ...getNodeOptionsArgs()]
-  if (args.length === 0) return
-
-  const parsed = parseNodeArgs(args)
-
-  if (parsed.inspect) return 'inspect'
-  if (parsed['inspect-brk'] || parsed['inspect_brk']) return 'inspect-brk'
+export function getNodeDebugType(nodeOptions: NodeOptions): NodeInspectType {
+  if (nodeOptions.inspect) {
+    return 'inspect'
+  }
+  if (nodeOptions['inspect-brk'] || nodeOptions['inspect_brk']) {
+    return 'inspect-brk'
+  }
 }
 
 /**

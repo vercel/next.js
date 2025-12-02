@@ -24,12 +24,11 @@ import {
   encodeReply,
 } from 'react-server-dom-webpack/client'
 
-import {
-  PrefetchKind,
-  type ReadonlyReducerState,
-  type ReducerState,
-  type ServerActionAction,
-  type ServerActionMutable,
+import type {
+  ReadonlyReducerState,
+  ReducerState,
+  ServerActionAction,
+  ServerActionMutable,
 } from '../router-reducer-types'
 import { assignLocation } from '../../../assign-location'
 import { createHrefFromUrl } from '../create-href-from-url'
@@ -50,14 +49,13 @@ import {
 } from '../../../flight-data-helpers'
 import { getRedirectError } from '../../redirect'
 import { RedirectType } from '../../redirect-error'
-import { createSeededPrefetchCacheEntry } from '../prefetch-cache-utils'
 import { removeBasePath } from '../../../remove-base-path'
 import { hasBasePath } from '../../../has-base-path'
 import {
   extractInfoFromServerReferenceId,
   omitUnusedArgs,
 } from '../../../../shared/lib/server-reference-info'
-import { revalidateEntireCache } from '../../segment-cache'
+import { revalidateEntireCache } from '../../segment-cache/cache'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -275,7 +273,6 @@ export function serverActionReducer(
       actionFlightData: flightData,
       redirectLocation,
       redirectType,
-      isPrerender,
       revalidatedParts,
     }) => {
       let redirectHref: string | undefined
@@ -378,11 +375,11 @@ export function serverActionReducer(
 
         // The server sent back RSC data for the server action, so we need to apply it to the cache.
         if (cacheNodeSeedData !== null) {
-          const rsc = cacheNodeSeedData[1]
+          const rsc = cacheNodeSeedData[0]
           const cache: CacheNode = createEmptyCacheNode()
           cache.rsc = rsc
           cache.prefetchRsc = null
-          cache.loading = cacheNodeSeedData[3]
+          cache.loading = cacheNodeSeedData[2]
           fillLazyItemsTillLeafWithHead(
             navigatedAt,
             cache,
@@ -390,16 +387,11 @@ export function serverActionReducer(
             undefined,
             treePatch,
             cacheNodeSeedData,
-            head,
-            undefined
+            head
           )
 
           mutable.cache = cache
-          if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
-            revalidateEntireCache(state.nextUrl, newTree)
-          } else {
-            mutable.prefetchCache = new Map()
-          }
+          revalidateEntireCache(state.nextUrl, newTree)
           if (actionRevalidated) {
             await refreshInactiveParallelSegments({
               navigatedAt,
@@ -417,51 +409,25 @@ export function serverActionReducer(
       }
 
       if (redirectLocation && redirectHref) {
-        if (!process.env.__NEXT_CLIENT_SEGMENT_CACHE && !actionRevalidated) {
-          // Because the RedirectBoundary will trigger a navigation, we need to seed the prefetch cache
-          // with the FlightData that we got from the server action for the target page, so that it's
-          // available when the page is navigated to and doesn't need to be re-fetched.
-          // We only do this if the server action didn't revalidate any data, as in that case the
-          // client cache will be cleared and the data will be re-fetched anyway.
-          // NOTE: We don't do this in the Segment Cache implementation.
-          // Dynamic data should never be placed into the cache, unless it's
-          // "converted" to static data using <Link prefetch={true}>. What we
-          // do instead is re-prefetch links and forms whenever the cache is
-          // invalidated.
-          createSeededPrefetchCacheEntry({
-            url: redirectLocation,
-            data: {
-              flightData,
-              canonicalUrl: undefined,
-              couldBeIntercepted: false,
-              prerendered: false,
-              postponed: false,
-              // TODO: We should be able to set this if the server action
-              // returned a fully static response.
-              staleTime: -1,
-            },
-            tree: state.tree,
-            prefetchCache: state.prefetchCache,
-            nextUrl: state.nextUrl,
-            kind: isPrerender ? PrefetchKind.FULL : PrefetchKind.AUTO,
-          })
-          mutable.prefetchCache = state.prefetchCache
-        }
-
         // If the action triggered a redirect, the action promise will be rejected with
         // a redirect so that it's handled by RedirectBoundary as we won't have a valid
         // action result to resolve the promise with. This will effectively reset the state of
         // the component that called the action as the error boundary will remount the tree.
         // The status code doesn't matter here as the action handler will have already sent
         // a response with the correct status code.
-        reject(
-          getRedirectError(
-            hasBasePath(redirectHref)
-              ? removeBasePath(redirectHref)
-              : redirectHref,
-            redirectType || RedirectType.push
-          )
+        const redirectError = getRedirectError(
+          hasBasePath(redirectHref)
+            ? removeBasePath(redirectHref)
+            : redirectHref,
+          redirectType || RedirectType.push
         )
+        // We mark the error as handled because we don't want the redirect to be tried later by
+        // the RedirectBoundary, in case the user goes back and `Activity` triggers the redirect
+        // again, as it's run within an effect.
+        // We don't actually need the RedirectBoundary to do a router.push because we already
+        // have all the necessary RSC data to render the new page within a single roundtrip.
+        ;(redirectError as any).handled = true
+        reject(redirectError)
       } else {
         resolve(actionResult)
       }

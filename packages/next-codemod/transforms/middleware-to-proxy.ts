@@ -63,6 +63,10 @@ export default function transformer(file: FileInfo) {
   if (isMiddlewareFile) {
     const middlewareChanges = transformMiddlewareFunction(root, j)
     hasChanges = hasChanges || middlewareChanges.hasChanges
+
+    // Remove runtime segment config
+    const runtimeChanges = removeRuntimeConfig(root, j)
+    hasChanges = hasChanges || runtimeChanges
   }
 
   if (isNextConfig) {
@@ -794,4 +798,143 @@ function extractObjectsFromCallExpression(
       }
     })
   }
+}
+
+function removeRuntimeConfig(root: Collection<any>, j: API['j']): boolean {
+  let hasChanges = false
+
+  // Remove export const runtime = 'string'
+  const directRuntimeExports = root.find(j.ExportNamedDeclaration, {
+    declaration: {
+      type: 'VariableDeclaration',
+      declarations: [
+        {
+          id: { name: 'runtime' },
+        },
+      ],
+    },
+  })
+
+  if (directRuntimeExports.size() > 0) {
+    directRuntimeExports.remove()
+    hasChanges = true
+  }
+
+  // Remove const runtime = 'string' declarations
+  const runtimeVariableDeclarations = root
+    .find(j.VariableDeclaration)
+    .filter((path) =>
+      path.node.declarations.some((decl) => {
+        if (j.VariableDeclarator.check(decl) && j.Identifier.check(decl.id)) {
+          return decl.id.name === 'runtime'
+        }
+        return false
+      })
+    )
+
+  if (runtimeVariableDeclarations.size() > 0) {
+    runtimeVariableDeclarations.forEach((path) => {
+      const originalDeclarations = path.node.declarations
+      const filteredDeclarations = originalDeclarations.filter((decl) => {
+        if (j.VariableDeclarator.check(decl) && j.Identifier.check(decl.id)) {
+          return decl.id.name !== 'runtime'
+        }
+        return true
+      })
+
+      // If we filtered out some declarations, update the node
+      if (filteredDeclarations.length !== originalDeclarations.length) {
+        // Remove the entire declaration only if no declarators left
+        if (filteredDeclarations.length === 0) {
+          j(path).remove()
+        } else {
+          path.node.declarations = filteredDeclarations
+        }
+      }
+    })
+    hasChanges = true
+  }
+
+  // Handle export { runtime } and export { runtime, other }
+  const namedExports = root
+    .find(j.ExportNamedDeclaration)
+    .filter((path) => path.node.specifiers && path.node.specifiers.length > 0)
+
+  namedExports.forEach((path) => {
+    const specifiers = path.node.specifiers
+    if (!specifiers) return
+
+    const filteredSpecifiers = specifiers.filter((spec) => {
+      if (j.ExportSpecifier.check(spec) && j.Identifier.check(spec.local)) {
+        return spec.local.name !== 'runtime'
+      }
+      return true
+    })
+
+    // If we removed any specifiers
+    if (filteredSpecifiers.length !== specifiers.length) {
+      hasChanges = true
+
+      // If no specifiers left, remove the entire export statement
+      if (filteredSpecifiers.length === 0) {
+        j(path).remove()
+      } else {
+        // Update the specifiers array
+        path.node.specifiers = filteredSpecifiers
+      }
+    }
+  })
+
+  // Handle runtime property in config objects
+  const configExports = root.find(j.ExportNamedDeclaration, {
+    declaration: {
+      type: 'VariableDeclaration',
+      declarations: [
+        {
+          id: { name: 'config' },
+        },
+      ],
+    },
+  })
+
+  configExports.forEach((path) => {
+    const declaration = path.node.declaration
+    if (j.VariableDeclaration.check(declaration)) {
+      declaration.declarations.forEach((decl) => {
+        if (
+          j.VariableDeclarator.check(decl) &&
+          j.Identifier.check(decl.id) &&
+          decl.id.name === 'config' &&
+          j.ObjectExpression.check(decl.init)
+        ) {
+          const objExpr = decl.init
+          const initialLength = objExpr.properties.length
+
+          // Filter out runtime property
+          objExpr.properties = objExpr.properties.filter((prop) => {
+            if (
+              isStaticProperty(prop) &&
+              prop.key &&
+              prop.key.type === 'Identifier'
+            ) {
+              return prop.key.name !== 'runtime'
+            }
+            return true
+          })
+
+          // If we removed any properties
+          if (objExpr.properties.length !== initialLength) {
+            hasChanges = true
+
+            // If no properties left, remove the entire config export
+            if (objExpr.properties.length === 0) {
+              j(path).remove()
+            }
+          }
+        }
+      })
+    }
+  })
+
+  return hasChanges
 }

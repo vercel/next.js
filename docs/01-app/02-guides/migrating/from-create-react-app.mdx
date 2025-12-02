@@ -37,9 +37,9 @@ This enables you to build pages that are faster to load and eliminate [layout sh
 
 Depending on your needs, Next.js allows you to choose your data fetching strategy on a page or component-level basis. For example, you could fetch data from your CMS and render blog posts at build time (SSG) for quick load speeds, or fetch data at request time (SSR) when necessary.
 
-### Middleware
+### Proxy
 
-[Next.js Middleware](/docs/app/api-reference/file-conventions/middleware) allows you to run code on the server before a request is completed. For instance, you can avoid a flash of unauthenticated content by redirecting a user to a login page in the middleware for authenticated-only pages. You can also use it for features like A/B testing, experimentation, and [internationalization](/docs/app/guides/internationalization).
+[Next.js Proxy](/docs/app/api-reference/file-conventions/proxy) allows you to run code on the server before a request is completed. For instance, you can avoid a flash of unauthenticated content by redirecting a user to a login page in the proxy for authenticated-only pages. You can also use it for features like A/B testing, experimentation, and [internationalization](/docs/app/guides/internationalization).
 
 ### Built-in Optimizations
 
@@ -582,6 +582,6 @@ If everything worked, you now have a functioning Next.js application running as 
 - **Optimize images** with the [`<Image>` component](/docs/app/api-reference/components/image)
 - **Optimize fonts** with [`next/font`](/docs/app/api-reference/components/font)
 - **Optimize third-party scripts** with the [`<Script>` component](/docs/app/guides/scripts)
-- **Enable ESLint** with Next.js recommended rules by running `npx next lint` and configuring it to match your project’s needs
+- **Enable ESLint** with Next.js [recommended rules](/docs/app/api-reference/config/eslint#setup-eslint)
 
 > **Note**: Using a static export (`output: 'export'`) [does not currently support](https://github.com/vercel/next.js/issues/54393) the `useParams` hook or other server features. To use all Next.js features, remove `output: 'export'` from your `next.config.ts`.

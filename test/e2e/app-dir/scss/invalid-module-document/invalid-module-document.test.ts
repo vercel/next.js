@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { isNextStart, nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
+import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 
 // Importing module CSS in _document is allowed in Turbopack
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
@@ -36,7 +36,7 @@ import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
       it('should show a build error', async () => {
         const browser = await next.browser('/')
 
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         const errorSource = await getRedboxSource(browser)
 
         if (isRspack) {

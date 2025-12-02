@@ -150,7 +150,9 @@ impl IntoCodeGenReference for CjsRequireAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+)]
 pub struct CjsRequireAssetReferenceCodeGen {
     reference: ResolvedVc<CjsRequireAssetReference>,
     path: AstPath,
@@ -274,7 +276,9 @@ impl IntoCodeGenReference for CjsRequireResolveAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+)]
 pub struct CjsRequireResolveAssetReferenceCodeGen {
     reference: ResolvedVc<CjsRequireResolveAssetReference>,
     path: AstPath,
@@ -334,7 +338,9 @@ impl CjsRequireResolveAssetReferenceCodeGen {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash,
+)]
 pub struct CjsRequireCacheAccess {
     pub path: AstPath,
 }

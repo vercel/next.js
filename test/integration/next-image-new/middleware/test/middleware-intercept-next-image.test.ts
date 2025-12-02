@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { check, findPort, killApp, launchApp } from 'next-test-utils'
+import { findPort, killApp, launchApp, retry } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 const appDir = join(__dirname, '../')
@@ -33,7 +33,9 @@ describe('Image is intercepted by Middleware', () => {
 
         await browser.waitForIdleNetwork()
 
-        await check(() => output, /compiled \//i)
+        await retry(async () => {
+          expect(output).toContain('GET /')
+        })
 
         expect(output).toContain(`x-_next-image: /small.jpg`)
       })

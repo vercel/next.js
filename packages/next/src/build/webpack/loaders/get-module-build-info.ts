@@ -1,6 +1,6 @@
 import type {
   ProxyConfig,
-  MiddlewareMatcher,
+  ProxyMatcher,
   RSCModuleType,
 } from '../../analysis/get-page-static-info'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
@@ -47,7 +47,7 @@ export interface RouteMeta {
 
 export interface EdgeMiddlewareMeta {
   page: string
-  matchers?: MiddlewareMatcher[]
+  matchers?: ProxyMatcher[]
 }
 
 export interface EdgeSSRMeta {

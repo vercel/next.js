@@ -34,12 +34,6 @@ export declare class ExternalObject<T> {
     [K: symbol]: T
   }
 }
-export interface TransformOutput {
-  code: string
-  map?: string
-  output?: string
-  diagnostics: Array<string>
-}
 export declare function lockfileTryAcquireSync(
   path: string
 ): { __napiType: 'Lockfile' } | null
@@ -58,6 +52,12 @@ export declare function mdxCompile(
   signal?: AbortSignal | undefined | null
 ): Promise<unknown>
 export declare function mdxCompileSync(value: string, option: Buffer): string
+export interface TransformOutput {
+  code: string
+  map?: string
+  output?: string
+  diagnostics: Array<string>
+}
 export declare function minify(
   input: Buffer,
   opts: Buffer,
@@ -123,8 +123,8 @@ export interface NapiProjectOptions {
    */
   projectPath: RcStr
   /**
-   * A path where to emit the build outputs, relative to [`Project::project_path`], always Unix
-   * path. Corresponds to next.config.js's `distDir`.
+   * A path where tracing output will be written to and/or cache is read/written.
+   * Usually equal to the `distDir` in next.config.js.
    * E.g. `.next`
    */
   distDir: RcStr
@@ -155,6 +155,8 @@ export interface NapiProjectOptions {
    * debugging/profiling purposes.
    */
   noMangling: boolean
+  /** Whether to write the route hashes manifest. */
+  writeRoutesHashesManifest: boolean
   /** The version of Node.js that is available/currently running. */
   currentNodeJsVersion: RcStr
 }
@@ -172,12 +174,6 @@ export interface NapiPartialProjectOptions {
    * E.g. `apps/my-app`
    */
   projectPath?: RcStr
-  /**
-   * A path where to emit the build outputs, relative to [`Project::project_path`], always a
-   * Unix path. Corresponds to next.config.js's `distDir`.
-   * E.g. `.next`
-   */
-  distDir?: RcStr | undefined | null
   /** Filesystem watcher options. */
   watch?: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
@@ -199,6 +195,8 @@ export interface NapiPartialProjectOptions {
   previewProps?: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
   browserslistQuery?: RcStr
+  /** Whether to write the route hashes manifest. */
+  writeRoutesHashesManifest?: boolean
   /**
    * When the code is minified, this opts out of the default mangling of
    * local names for variables, functions etc., which can be useful for
@@ -297,6 +295,9 @@ export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+export declare function projectEntrypoints(project: {
+  __napiType: 'Project'
+}): Promise<TurbopackResult>
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
@@ -373,6 +374,10 @@ export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
   filePath: RcStr
 ): string | null
+export declare function projectWriteAnalyzeData(
+  project: { __napiType: 'Project' },
+  appDirOnly: boolean
+): Promise<TurbopackResult>
 /**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *

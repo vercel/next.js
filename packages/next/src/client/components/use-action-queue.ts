@@ -1,5 +1,5 @@
 import type { Dispatch } from 'react'
-import React, { use } from 'react'
+import React, { use, useMemo } from 'react'
 import { isThenable } from '../../shared/lib/is-thenable'
 import type { AppRouterActionQueue } from './app-router-instance'
 import type {
@@ -21,6 +21,12 @@ export function dispatchAppRouterAction(action: ReducerActions) {
   }
   dispatch(action)
 }
+
+const __DEV__ = process.env.NODE_ENV !== 'production'
+const promisesWithDebugInfo: WeakMap<
+  Promise<AppRouterState>,
+  Promise<AppRouterState> & { _debugInfo?: Array<unknown> }
+> = __DEV__ ? new WeakMap() : (null as any)
 
 export function useActionQueue(
   actionQueue: AppRouterActionQueue
@@ -50,5 +56,39 @@ export function useActionQueue(
       actionQueue.dispatch(action, setState)
   }
 
-  return isThenable(state) ? use(state) : state
+  // When navigating to a non-prefetched route, then App Router state will be
+  // blocked until the server responds. We need to transfer the `_debugInfo`
+  // from the underlying Flight response onto the top-level promise that is
+  // passed to React (via `use`) so that the latency is accurately represented
+  // in the React DevTools.
+  const stateWithDebugInfo = useMemo(() => {
+    if (!__DEV__) {
+      return state
+    }
+
+    if (isThenable(state)) {
+      // useMemo can't be used to cache a Promise since the memoized value is thrown
+      // away when we suspend. So we use a WeakMap to cache the Promise with debug info.
+      let promiseWithDebugInfo = promisesWithDebugInfo.get(state)
+      if (promiseWithDebugInfo === undefined) {
+        const debugInfo: Array<unknown> = []
+        promiseWithDebugInfo = Promise.resolve(state).then((asyncState) => {
+          if (asyncState.debugInfo !== null) {
+            debugInfo.push(...asyncState.debugInfo)
+          }
+          return asyncState
+        }) as Promise<AppRouterState> & { _debugInfo?: Array<unknown> }
+        promiseWithDebugInfo._debugInfo = debugInfo
+
+        promisesWithDebugInfo.set(state, promiseWithDebugInfo)
+      }
+
+      return promiseWithDebugInfo
+    }
+    return state
+  }, [state])
+
+  return isThenable(stateWithDebugInfo)
+    ? use(stateWithDebugInfo)
+    : stateWithDebugInfo
 }

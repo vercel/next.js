@@ -20,8 +20,9 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     resolve::ModulePart,
-    source::Source,
+    source::{OptionSource, Source},
     source_map::GenerateSourceMap,
 };
 use turbopack_ecmascript::{
@@ -91,6 +92,19 @@ impl Module for RawEcmascriptModule {
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident().with_modifier(rcstr!("raw"))
     }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(
+        self: Vc<Self>,
+        _side_effect_free_packages: Vc<Glob>,
+    ) -> Vc<bool> {
+        Vc::cell(false)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -125,11 +139,6 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::CommonJs.cell()
     }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(&self, _side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(false)
-    }
 }
 
 #[turbo_tasks::value]
@@ -137,6 +146,9 @@ struct RawEcmascriptChunkItem {
     module: ResolvedVc<RawEcmascriptModule>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for RawEcmascriptChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for RawEcmascriptChunkItem {
@@ -260,7 +272,8 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
             )
             .await?
             {
-                source_map.generate_source_map().owned().await?
+                let source_map = source_map.generate_source_map().await?;
+                source_map.as_content().map(|f| f.content().clone())
             } else {
                 None
             };
@@ -309,7 +322,7 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
                 },
                 ..Default::default()
             }
-            .into())
+            .cell())
         }
         .instrument(span)
         .await

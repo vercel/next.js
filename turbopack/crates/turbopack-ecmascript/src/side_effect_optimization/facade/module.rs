@@ -153,6 +153,11 @@ impl Module for EcmascriptModuleFacadeModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let (part_references, esm_references) = self.await?.specific_references().await?;
         let references = part_references
@@ -174,6 +179,22 @@ impl Module for EcmascriptModuleFacadeModule {
             .resolve()
             .await?;
         Ok(is_self_async)
+    }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(
+        &self,
+        side_effect_free_packages: Vc<Glob>,
+    ) -> Result<Vc<bool>> {
+        Ok(match self.part {
+            ModulePart::Facade => self
+                .module
+                .is_marked_as_side_effect_free(side_effect_free_packages),
+            ModulePart::RenamedExport { .. } | ModulePart::RenamedNamespace { .. } => {
+                Vc::cell(true)
+            }
+            _ => bail!("Unexpected ModulePart for EcmascriptModuleFacadeModule"),
+        })
     }
 }
 
@@ -333,22 +354,6 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())
-    }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
-        &self,
-        side_effect_free_packages: Vc<Glob>,
-    ) -> Result<Vc<bool>> {
-        Ok(match self.part {
-            ModulePart::Facade => self
-                .module
-                .is_marked_as_side_effect_free(side_effect_free_packages),
-            ModulePart::RenamedExport { .. } | ModulePart::RenamedNamespace { .. } => {
-                Vc::cell(true)
-            }
-            _ => bail!("Unexpected ModulePart for EcmascriptModuleFacadeModule"),
-        })
     }
 
     #[turbo_tasks::function]

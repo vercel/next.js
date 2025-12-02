@@ -126,7 +126,6 @@ const AppSegmentConfigSchema = z.object({
 
   /**
    * How this segment should be prefetched.
-   * (only applicable when `clientSegmentCache` is enabled)
    */
   unstable_prefetch: PrefetchSchema.optional(),
 
@@ -134,13 +133,6 @@ const AppSegmentConfigSchema = z.object({
    * The preferred region for the page.
    */
   preferredRegion: z.union([z.string(), z.array(z.string())]).optional(),
-
-  /**
-   * Whether the page supports partial prerendering. When true, the page will be
-   * served using partial prerendering. This setting will only take affect if
-   * it's enabled via the `experimental.ppr = "incremental"` option.
-   */
-  experimental_ppr: z.boolean().optional(),
 
   /**
    * The runtime to use for the page.
@@ -231,7 +223,6 @@ export type AppSegmentConfig = {
 
   /**
    * How this segment should be prefetched.
-   * (only applicable when `clientSegmentCache` is enabled)
    */
   unstable_prefetch?: Prefetch
 
@@ -239,13 +230,6 @@ export type AppSegmentConfig = {
    * The preferred region for the page.
    */
   preferredRegion?: string | string[]
-
-  /**
-   * Whether the page supports partial prerendering. When true, the page will be
-   * served using partial prerendering. This setting will only take affect if
-   * it's enabled via the `experimental.ppr = "incremental"` option.
-   */
-  experimental_ppr?: boolean
 
   /**
    * The runtime to use for the page.

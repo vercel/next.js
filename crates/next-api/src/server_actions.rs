@@ -20,7 +20,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Vc};
-use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
+use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
@@ -30,10 +30,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
-    module_graph::{
-        ModuleGraph, SingleModuleGraph, SingleModuleGraphModuleNode,
-        async_module_info::AsyncModulesInfo,
-    },
+    module_graph::{ModuleGraph, SingleModuleGraph, async_module_info::AsyncModulesInfo},
     output::OutputAsset,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
@@ -130,7 +127,7 @@ pub(crate) async fn build_server_actions_loader(
     let file = File::from(contents.build());
     let source = VirtualSource::new_with_ident(
         AssetIdent::from_path(path).with_modifier(rcstr!("server actions loader")),
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
     let import_map = import_map.into_iter().map(|(k, v)| (v, k)).collect();
     let module = asset_context
@@ -212,7 +209,9 @@ async fn build_manifest(
     Ok(ResolvedVc::upcast(
         VirtualOutputAsset::new(
             manifest_path,
-            AssetContent::file(File::from(serde_json::to_string_pretty(&manifest)?).into()),
+            AssetContent::file(
+                FileContent::Content(File::from(serde_json::to_string_pretty(&manifest)?)).cell(),
+            ),
         )
         .to_resolved()
         .await?,
@@ -372,14 +371,14 @@ fn all_export_names(program: &Program) -> Vec<Atom> {
                                             .as_ref()
                                             .unwrap_or(&named.orig)
                                             .atom()
-                                            .clone(),
+                                            .into_owned(),
                                     );
                                 }
                                 ExportSpecifier::Default(_) => {
                                     exports.push(atom!("default"));
                                 }
                                 ExportSpecifier::Namespace(e) => {
-                                    exports.push(e.name.atom().clone());
+                                    exports.push(e.name.atom().into_owned());
                                 }
                             }
                         }
@@ -454,24 +453,21 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
     let actions = graph
         .await?
         .iter_nodes()
-        .map(|node| {
-            async move {
-                let SingleModuleGraphModuleNode { module } = node;
-                // TODO: compare module contexts instead?
-                let layer = match module.ident().await?.layer.as_ref() {
-                    Some(layer) if layer.name() == "app-rsc" || layer.name() == "app-edge-rsc" => {
-                        ActionLayer::Rsc
-                    }
-                    Some(layer) if layer.name() == "app-client" => ActionLayer::ActionBrowser,
-                    // TODO really ignore SSR?
-                    _ => return Ok(None),
-                };
-                // TODO the old implementation did parse_actions(to_rsc_context(module))
-                // is that really necessary?
-                Ok(parse_actions(**module)
-                    .await?
-                    .map(|action_map| (*module, (layer, action_map))))
-            }
+        .map(async |module| {
+            // TODO: compare module contexts instead?
+            let layer = match module.ident().await?.layer.as_ref() {
+                Some(layer) if layer.name() == "app-rsc" || layer.name() == "app-edge-rsc" => {
+                    ActionLayer::Rsc
+                }
+                Some(layer) if layer.name() == "app-client" => ActionLayer::ActionBrowser,
+                // TODO really ignore SSR?
+                _ => return Ok(None),
+            };
+            // TODO the old implementation did parse_actions(to_rsc_context(module))
+            // is that really necessary?
+            Ok(parse_actions(*module)
+                .await?
+                .map(|action_map| (module, (layer, action_map))))
         })
         .try_flat_join()
         .await?;

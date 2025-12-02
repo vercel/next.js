@@ -25,7 +25,7 @@ describe('custom-cache-control', () => {
       isNextDev ? 'no-store, must-revalidate' : 's-maxage=31'
     )
   })
-  ;(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS ? it.skip : it)(
+  ;(process.env.__NEXT_CACHE_COMPONENTS ? it.skip : it)(
     'should have default cache-control for app-ssg another',
     async () => {
       const res = await next.fetch('/app-ssg/another')

@@ -6,7 +6,6 @@ use turbo_tasks::{
     Completion, Completions, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, Vc,
     fxindexmap, trace::TraceRawVcs,
 };
-use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_fs::{
     File, FileContent, FileSystemEntryType, FileSystemPath, json::parse_json_with_source_context,
 };
@@ -16,10 +15,11 @@ use turbopack_core::{
     context::{AssetContext, ProcessResult},
     file_source::FileSource,
     ident::AssetIdent,
+    module_graph::ModuleGraph,
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{FindContextFileResult, find_context_file_or_package_key, options::ImportMapping},
     source::Source,
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
+    source_map::GenerateSourceMap,
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
@@ -30,7 +30,7 @@ use super::{
     webpack::WebpackLoaderContext,
 };
 use crate::{
-    embed_js::embed_file_path, execution_context::ExecutionContext,
+    embed_js::embed_file_path, evaluate::get_evaluate_entries, execution_context::ExecutionContext,
     transforms::webpack::evaluate_webpack_loader,
 };
 
@@ -103,6 +103,7 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
 #[turbo_tasks::value]
 pub struct PostCssTransform {
     evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
+    config_tracing_context: ResolvedVc<Box<dyn AssetContext>>,
     execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
     source_maps: bool,
@@ -113,12 +114,14 @@ impl PostCssTransform {
     #[turbo_tasks::function]
     pub fn new(
         evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
+        config_tracing_context: ResolvedVc<Box<dyn AssetContext>>,
         execution_context: ResolvedVc<ExecutionContext>,
         config_location: PostCssConfigLocation,
         source_maps: bool,
     ) -> Vc<Self> {
         PostCssTransform {
             evaluate_context,
+            config_tracing_context,
             execution_context,
             config_location,
             source_maps,
@@ -134,6 +137,7 @@ impl SourceTransform for PostCssTransform {
         Vc::upcast(
             PostCssTransformedAsset {
                 evaluate_context: self.evaluate_context,
+                config_tracing_context: self.config_tracing_context,
                 execution_context: self.execution_context,
                 config_location: self.config_location,
                 source,
@@ -147,6 +151,7 @@ impl SourceTransform for PostCssTransform {
 #[turbo_tasks::value]
 struct PostCssTransformedAsset {
     evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
+    config_tracing_context: ResolvedVc<Box<dyn AssetContext>>,
     execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
     source: ResolvedVc<Box<dyn Source>>,
@@ -298,7 +303,9 @@ impl Asset for JsonSource {
                     }
                     None => &*json,
                 };
-                Ok(AssetContent::file(File::from(value.to_string()).into()))
+                Ok(AssetContent::file(
+                    FileContent::Content(File::from(value.to_string())).cell(),
+                ))
             }
             FileSystemEntryType::NotFound => {
                 Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())
@@ -364,7 +371,7 @@ pub(crate) async fn config_loader_source(
 
     Ok(Vc::upcast(VirtualSource::new(
         postcss_config_path.append("_.loader.mjs")?,
-        AssetContent::file(File::from(code).into()),
+        AssetContent::file(FileContent::Content(File::from(code)).cell()),
     )))
 }
 
@@ -424,11 +431,11 @@ async fn find_config_in_location(
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for PostCssTransformedAsset {
     #[turbo_tasks::function]
-    async fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
+    async fn generate_source_map(&self) -> Result<Vc<FileContent>> {
         let source = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*self.source).await?;
         match source {
             Some(source) => Ok(source.generate_source_map()),
-            None => Ok(Vc::cell(None)),
+            None => Ok(FileContent::NotFound.cell()),
         }
     }
 }
@@ -481,15 +488,21 @@ impl PostCssTransformedAsset {
         let source_map = self.source_map;
 
         // This invalidates the transform when the config changes.
-        let config_changed = config_changed(*evaluate_context, config_path.clone())
+        let config_changed = config_changed(*self.config_tracing_context, config_path.clone())
             .to_resolved()
             .await?;
 
         let postcss_executor =
-            postcss_executor(*evaluate_context, project_path.clone(), config_path)
-                .module()
-                .to_resolved()
-                .await?;
+            postcss_executor(*evaluate_context, project_path.clone(), config_path).module();
+
+        let entries = get_evaluate_entries(postcss_executor, *evaluate_context, None)
+            .to_resolved()
+            .await?;
+
+        let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false)
+            .to_resolved()
+            .await?;
+
         let css_fs_path = self.source.ident().path();
 
         // We need to get a path relative to the project because the postcss loader
@@ -503,12 +516,12 @@ impl PostCssTransformedAsset {
             };
 
         let config_value = evaluate_webpack_loader(WebpackLoaderContext {
-            module_asset: postcss_executor,
+            entries,
             cwd: project_path.clone(),
             env: *env,
             context_source_for_issue: self.source,
-            asset_context: evaluate_context,
             chunking_context: *chunking_context,
+            module_graph,
             resolve_options_context: None,
             args: vec![
                 ResolvedVc::cell(content.into()),
@@ -519,7 +532,7 @@ impl PostCssTransformedAsset {
         })
         .await?;
 
-        let SingleValue::Single(val) = config_value.try_into_single().await? else {
+        let Some(val) = &*config_value else {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessPostCssResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
@@ -527,7 +540,7 @@ impl PostCssTransformedAsset {
             }
             .cell());
         };
-        let processed_css: PostCssProcessingResult = parse_json_with_source_context(val.to_str()?)
+        let processed_css: PostCssProcessingResult = parse_json_with_source_context(val)
             .context("Unable to deserializate response from PostCSS transform operation")?;
 
         // TODO handle SourceMap

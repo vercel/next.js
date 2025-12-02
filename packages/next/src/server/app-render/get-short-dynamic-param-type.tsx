@@ -8,8 +8,14 @@ export const dynamicParamTypes: Record<
   DynamicParamTypesShort
 > = {
   catchall: 'c',
-  'catchall-intercepted': 'ci',
+  'catchall-intercepted-(..)(..)': 'ci(..)(..)',
+  'catchall-intercepted-(.)': 'ci(.)',
+  'catchall-intercepted-(..)': 'ci(..)',
+  'catchall-intercepted-(...)': 'ci(...)',
   'optional-catchall': 'oc',
   dynamic: 'd',
-  'dynamic-intercepted': 'di',
+  'dynamic-intercepted-(..)(..)': 'di(..)(..)',
+  'dynamic-intercepted-(.)': 'di(.)',
+  'dynamic-intercepted-(..)': 'di(..)',
+  'dynamic-intercepted-(...)': 'di(...)',
 }

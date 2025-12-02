@@ -51,10 +51,7 @@ module.exports = (res) => ({
     }
 
     // If this is for a prefetch or segment request, then mark it as a miss.
-    if (
-      meta.url.endsWith('.prefetch.rsc') ||
-      meta.url.endsWith('.segment.rsc')
-    ) {
+    if (meta.url.endsWith('.segment.rsc')) {
       res.setHeader('x-nextjs-cache-entry-handler', 'MISS_2')
       return false
     }

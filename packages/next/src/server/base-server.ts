@@ -40,7 +40,7 @@ import type {
   IncomingMessage,
   ServerResponse as HTTPServerResponse,
 } from 'http'
-import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import type { ProxyMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
 import type { PathnameNormalizer } from './normalizers/request/pathname-normalizer'
 import type { InstrumentationModule } from './instrumentation/types'
@@ -121,7 +121,6 @@ import {
   isAppPageRouteModule,
   isAppRouteRouteModule,
 } from './route-modules/checks'
-import { PrefetchRSCPathnameNormalizer } from './normalizers/request/prefetch-rsc'
 import { NextDataPathnameNormalizer } from './normalizers/request/next-data'
 import { getIsPossibleServerAction } from './lib/server-action-request-meta'
 import { isInterceptionRouteAppPath } from '../shared/lib/router/utils/interception-routes'
@@ -157,7 +156,7 @@ export type FindComponentsResult = {
 export interface MiddlewareRoutingItem {
   page: string
   match: MiddlewareRouteMatch
-  matchers?: MiddlewareMatcher[]
+  matchers?: ProxyMatcher[]
 }
 
 export type RouteHandler<
@@ -415,13 +414,11 @@ export default abstract class Server<
 
   protected readonly normalizers: {
     readonly rsc: RSCPathnameNormalizer | undefined
-    readonly prefetchRSC: PrefetchRSCPathnameNormalizer | undefined
     readonly segmentPrefetchRSC: SegmentPrefixRSCPathnameNormalizer | undefined
     readonly data: NextDataPathnameNormalizer | undefined
   }
 
   private readonly isAppPPREnabled: boolean
-  private readonly isAppSegmentPrefetchEnabled: boolean
 
   /**
    * This is used to persist cache scopes across
@@ -489,10 +486,6 @@ export default abstract class Server<
       this.enabledDirectories.app &&
       checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
 
-    this.isAppSegmentPrefetchEnabled =
-      this.enabledDirectories.app &&
-      this.nextConfig.experimental.clientSegmentCache === true
-
     this.normalizers = {
       // We should normalize the pathname from the RSC prefix only in minimal
       // mode as otherwise that route is not exposed external to the server as
@@ -501,14 +494,9 @@ export default abstract class Server<
         this.enabledDirectories.app && this.minimalMode
           ? new RSCPathnameNormalizer()
           : undefined,
-      prefetchRSC:
-        this.isAppPPREnabled && this.minimalMode
-          ? new PrefetchRSCPathnameNormalizer()
-          : undefined,
-      segmentPrefetchRSC:
-        this.isAppSegmentPrefetchEnabled && this.minimalMode
-          ? new SegmentPrefixRSCPathnameNormalizer()
-          : undefined,
+      segmentPrefetchRSC: this.minimalMode
+        ? new SegmentPrefixRSCPathnameNormalizer()
+        : undefined,
       data: this.enabledDirectories.pages
         ? new NextDataPathnameNormalizer(this.buildId)
         : undefined,
@@ -535,7 +523,7 @@ export default abstract class Server<
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
       serverComponents: this.enabledDirectories.app,
-      cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
+      cacheLifeProfiles: this.nextConfig.cacheLife,
       enableTainting: this.nextConfig.experimental.taint,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
@@ -545,15 +533,11 @@ export default abstract class Server<
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       // `htmlLimitedBots` is passed to server as serialized config in string format
       htmlLimitedBots: this.nextConfig.htmlLimitedBots,
+      cacheComponents: this.nextConfig.cacheComponents ?? false,
       experimental: {
         expireTime: this.nextConfig.expireTime,
         staleTimes: this.nextConfig.experimental.staleTimes,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
-        cacheComponents: this.nextConfig.experimental.cacheComponents ?? false,
-        clientSegmentCache:
-          this.nextConfig.experimental.clientSegmentCache === 'client-only'
-            ? 'client-only'
-            : Boolean(this.nextConfig.experimental.clientSegmentCache),
         clientParamParsingOrigins:
           this.nextConfig.experimental.clientParamParsingOrigins,
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
@@ -610,17 +594,6 @@ export default abstract class Server<
       addRequestMeta(req, 'isRSCRequest', true)
       addRequestMeta(req, 'isPrefetchRSCRequest', true)
       addRequestMeta(req, 'segmentPrefetchRSCRequest', segmentPath)
-    } else if (this.normalizers.prefetchRSC?.match(parsedUrl.pathname)) {
-      parsedUrl.pathname = this.normalizers.prefetchRSC.normalize(
-        parsedUrl.pathname,
-        true
-      )
-
-      // Mark the request as a router prefetch request.
-      req.headers[RSC_HEADER] = '1'
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
-      addRequestMeta(req, 'isRSCRequest', true)
-      addRequestMeta(req, 'isPrefetchRSCRequest', true)
     } else if (this.normalizers.rsc?.match(parsedUrl.pathname)) {
       parsedUrl.pathname = this.normalizers.rsc.normalize(
         parsedUrl.pathname,
@@ -850,7 +823,7 @@ export default abstract class Server<
     }
   }
 
-  public logError(err: Error): void {
+  public logError(err: unknown): void {
     if (this.quiet) return
     Log.error(err)
   }
@@ -1594,12 +1567,6 @@ export default abstract class Server<
       normalizers.push(this.normalizers.segmentPrefetchRSC)
     }
 
-    // We have to put the prefetch normalizer before the RSC normalizer
-    // because the RSC normalizer will match the prefetch RSC routes too.
-    if (this.normalizers.prefetchRSC) {
-      normalizers.push(this.normalizers.prefetchRSC)
-    }
-
     if (this.normalizers.rsc) {
       normalizers.push(this.normalizers.rsc)
     }
@@ -2015,7 +1982,11 @@ export default abstract class Server<
     if (
       !this.minimalMode &&
       this.nextConfig.experimental.validateRSCRequestHeaders &&
-      isRSCRequest
+      isRSCRequest &&
+      // In the event that we're serving a NoFallbackError, the headers will
+      // already be stripped so this comparison will always fail, resulting in
+      // a redirect loop.
+      !is404Page
     ) {
       const headers = req.headers
 
@@ -2277,6 +2248,11 @@ export default abstract class Server<
       isDynamicRoute(pathname) &&
       (components.getStaticPaths || isAppPath)
     ) {
+      let getStaticPathsStart: bigint | undefined
+      if (opts.dev) {
+        getStaticPathsStart = process.hrtime.bigint()
+      }
+
       const pathsResults = await this.getStaticPaths({
         pathname,
         urlPathname,
@@ -2284,7 +2260,16 @@ export default abstract class Server<
         page: components.page,
         isAppPath,
       })
-      if (isAppPath && this.nextConfig.experimental.cacheComponents) {
+
+      if (opts.dev && getStaticPathsStart && pathsResults.staticPaths?.length) {
+        addRequestMeta(
+          req,
+          'devGenerateStaticParamsDuration',
+          process.hrtime.bigint() - getStaticPathsStart
+        )
+      }
+
+      if (isAppPath && this.nextConfig.cacheComponents) {
         if (pathsResults.prerenderedRoutes?.length) {
           let smallestFallbackRouteParams = null
           for (const route of pathsResults.prerenderedRoutes) {
@@ -2304,7 +2289,7 @@ export default abstract class Server<
           if (smallestFallbackRouteParams) {
             addRequestMeta(
               req,
-              'devValidatingFallbackParams',
+              'devFallbackParams',
               createOpaqueFallbackRouteParams(smallestFallbackRouteParams)!
             )
           }
@@ -2330,7 +2315,6 @@ export default abstract class Server<
 
     for (const normalizer of [
       this.normalizers.segmentPrefetchRSC,
-      this.normalizers.prefetchRSC,
       this.normalizers.rsc,
     ]) {
       if (normalizer?.match(initPathname)) {

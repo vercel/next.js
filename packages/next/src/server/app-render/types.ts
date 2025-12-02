@@ -4,7 +4,6 @@ import type {
   ExperimentalConfig,
   NextConfigComplete,
 } from '../../server/config-shared'
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
@@ -19,8 +18,21 @@ import type { NextRequestHint } from '../web/adapter'
 import type { BaseNextRequest } from '../base-http'
 import type { IncomingMessage } from 'http'
 import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 
-const dynamicParamTypesSchema = s.enums(['c', 'ci', 'oc', 'd', 'di'])
+const dynamicParamTypesSchema = s.enums([
+  'c',
+  'ci(..)(..)',
+  'ci(.)',
+  'ci(..)',
+  'ci(...)',
+  'oc',
+  'd',
+  'di(..)(..)',
+  'di(.)',
+  'di(..)',
+  'di(...)',
+])
 
 const segmentSchema = s.union([
   s.string(),
@@ -68,7 +80,8 @@ export type ServerOnInstrumentationRequestError = (
   // The request could be middleware, node server or web server request,
   // we normalized them into an aligned format to `onRequestError` API later.
   request: NextRequestHint | BaseNextRequest | IncomingMessage,
-  errorContext: Parameters<InstrumentationOnRequestError>[2]
+  errorContext: Parameters<InstrumentationOnRequestError>[2],
+  silenceLog: boolean
 ) => void | Promise<void>
 
 export interface RenderOptsPartial {
@@ -77,9 +90,9 @@ export interface RenderOptsPartial {
   err?: Error | null
   dev?: boolean
   basePath: string
+  cacheComponents: boolean
   trailingSlash: boolean
   images: ImageConfigComplete
-  clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   supportsDynamicResponse: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
@@ -95,11 +108,16 @@ export interface RenderOptsPartial {
   }
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
+  setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
   setIsrStatus?: (key: string, value: boolean | undefined) => void
   setReactDebugChannel?: (
     debugChannel: { readable: ReadableStream<Uint8Array> },
     htmlRequestId: string,
     requestId: string
+  ) => void
+  sendErrorsToBrowser?: (
+    errorsRscStream: ReadableStream<Uint8Array>,
+    htmlRequestId: string
   ) => void
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
@@ -130,8 +148,6 @@ export interface RenderOptsPartial {
     expireTime: number | undefined
     staleTimes: ExperimentalConfig['staleTimes'] | undefined
     clientTraceMetadata: string[] | undefined
-    cacheComponents: boolean
-    clientSegmentCache: boolean | 'client-only'
 
     /**
      * The origins that are allowed to write the rewritten headers when
