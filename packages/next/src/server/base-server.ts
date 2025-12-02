@@ -1826,6 +1826,11 @@ export default abstract class Server<
     parsedUrl?: NextUrlWithParsedQuery,
     internalRender = false
   ): Promise<void> {
+    // Issue #86717: Ensure encoded dots are normalized to literal dots
+    // so filesystem matching works correctly for static pages.
+    if (pathname.includes('%2e') || pathname.includes('%2E')) {
+      pathname = pathname.replace(/%2e/gi, '.')
+    }
     if (!pathname.startsWith('/')) {
       console.warn(
         `Cannot render page with path "${pathname}", did you mean "/${pathname}"?. See more info here: https://nextjs.org/docs/messages/render-no-starting-slash`
