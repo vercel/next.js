@@ -432,6 +432,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let mut module_graph = ModuleGraph::from_modules(
         Vc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
         false,
+        true,
     );
 
     let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
