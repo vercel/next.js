@@ -308,6 +308,7 @@ async fn build_internal(
     let mut module_graph = ModuleGraph::from_modules(
         Vc::cell(vec![ChunkGroupEntry::Entry(entries.clone())]),
         false,
+        true,
     );
     let module_id_strategy = ResolvedVc::upcast(
         get_global_module_id_strategy(module_graph)
