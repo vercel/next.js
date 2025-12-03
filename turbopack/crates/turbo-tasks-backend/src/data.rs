@@ -171,6 +171,26 @@ pub struct DirtyContainerCount {
 }
 
 impl DirtyContainerCount {
+    pub fn from_current_session_clean(
+        count: i32,
+        current_session_id: SessionId,
+        current_session_clean: i32,
+    ) -> DirtyContainerCount {
+        DirtyContainerCount {
+            count,
+            count_in_session: Some((current_session_id, count - current_session_clean)),
+        }
+    }
+
+    pub fn current_session_clean(&self, current_session_id: SessionId) -> i32 {
+        if let Some((s, c)) = self.count_in_session
+            && s == current_session_id
+        {
+            return self.count - c;
+        }
+        0
+    }
+
     /// Get the count for a specific session. It's only expected to be asked for the current
     /// session, since old session counts might be dropped.
     pub fn get(&self, session: SessionId) -> i32 {

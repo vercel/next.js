@@ -299,7 +299,11 @@ pub fn make_task_dirty_internal(
         if !aggregated_update.is_zero() {
             queue.extend(AggregationUpdateJob::data_update(
                 &mut task,
-                AggregatedDataUpdate::new().dirty_container_update(task_id, aggregated_update),
+                AggregatedDataUpdate::new().dirty_container_update(
+                    task_id,
+                    aggregated_update.count,
+                    aggregated_update.current_session_clean(ctx.session_id()),
+                ),
             ));
         }
         !ctx.should_track_activeness() || task.has_key(&CachedDataItemKey::Activeness {})
