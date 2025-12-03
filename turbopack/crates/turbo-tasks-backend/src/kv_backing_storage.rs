@@ -9,7 +9,7 @@ use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use turbo_tasks::{
-    SessionId, TaskId,
+    TaskId,
     backend::CachedTaskType,
     panic_hooks::{PanicHookGuard, register_panic_hook},
     parallel,
@@ -71,7 +71,6 @@ fn pot_de_symbol_list<'l>() -> pot::de::SymbolList<'l> {
 
 const META_KEY_OPERATIONS: u32 = 0;
 const META_KEY_NEXT_FREE_TASK_ID: u32 = 1;
-const META_KEY_SESSION_ID: u32 = 2;
 
 struct IntKey([u8; 4]);
 
@@ -238,7 +237,7 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorageInner<T> {
         Ok(())
     }
 
-    /// Used to read the previous session id and the next free task ID from the database.
+    /// Used to read the next free task ID from the database.
     fn get_infra_u32(&self, key: u32) -> Result<Option<u32>> {
         let tx = self.database.begin_read_transaction()?;
         self.database
@@ -269,16 +268,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             .map_or(Ok(TaskId::MIN), TaskId::try_from)?)
     }
 
-    fn next_session_id(&self) -> Result<SessionId> {
-        Ok(SessionId::try_from(
-            self.inner
-                .get_infra_u32(META_KEY_SESSION_ID)
-                .context("Unable to read session id from database")?
-                .unwrap_or(0)
-                + 1,
-        )?)
-    }
-
     fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>> {
         fn get(database: &impl KeyValueDatabase) -> Result<Vec<AnyOperation>> {
             let tx = database.begin_read_transaction()?;
@@ -302,7 +291,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 
     fn save_snapshot<I>(
         &self,
-        session_id: SessionId,
         operations: Vec<Arc<AnyOperation>>,
         task_cache_updates: Vec<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
         snapshots: Vec<I>,
@@ -317,7 +305,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             > + Send
             + Sync,
     {
-        let _span = tracing::info_span!("save snapshot", session_id = ?session_id, operations = operations.len()).entered();
+        let _span = tracing::info_span!("save snapshot", operations = operations.len()).entered();
         let mut batch = self.inner.database.write_batch()?;
 
         // Start organizing the updates in parallel
@@ -401,7 +389,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                 save_infra::<T::SerialWriteBatch<'_>, T::ConcurrentWriteBatch<'_>>(
                     &mut WriteBatchRef::concurrent(batch),
                     next_task_id,
-                    session_id,
                     operations,
                 )?;
             }
@@ -473,7 +460,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                 save_infra::<T::SerialWriteBatch<'_>, T::ConcurrentWriteBatch<'_>>(
                     &mut WriteBatchRef::serial(batch),
                     next_task_id,
-                    session_id,
                     operations,
                 )?;
             }
@@ -608,7 +594,6 @@ where
 fn save_infra<'a, S, C>(
     batch: &mut WriteBatchRef<'_, 'a, S, C>,
     next_task_id: u32,
-    session_id: SessionId,
     operations: Vec<Arc<AnyOperation>>,
 ) -> Result<(), anyhow::Error>
 where
@@ -623,16 +608,6 @@ where
                 WriteBuffer::Borrowed(&next_task_id.to_le_bytes()),
             )
             .with_context(|| anyhow!("Unable to write next free task id"))?;
-    }
-    {
-        let _span = tracing::trace_span!("update session id", session_id = ?session_id).entered();
-        batch
-            .put(
-                KeySpace::Infra,
-                WriteBuffer::Borrowed(IntKey::new(META_KEY_SESSION_ID).as_ref()),
-                WriteBuffer::Borrowed(&session_id.to_le_bytes()),
-            )
-            .with_context(|| anyhow!("Unable to write next session id"))?;
     }
     {
         let _span =

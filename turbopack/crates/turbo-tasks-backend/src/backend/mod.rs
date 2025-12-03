@@ -27,8 +27,8 @@ use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
 use turbo_tasks::{
     CellId, FxDashMap, FxIndexMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
-    ReadOutputOptions, ReadTracking, SessionId, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId,
-    TraitTypeId, TurboTasksBackendApi, ValueTypeId,
+    ReadOutputOptions, ReadTracking, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId,
+    TurboTasksBackendApi, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
         TransientTaskType, TurboTasksExecutionError, TypedCellContent, VerificationMode,
@@ -48,8 +48,8 @@ use crate::backend::operation::TaskDirtyCause;
 use crate::{
     backend::{
         operation::{
-            AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
-            CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
+            AggregationUpdateJob, AggregationUpdateQueue, CleanupOldEdgesOperation,
+            ComputeDirtyAndCleanUpdate, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
             Operation, OutdatedEdge, TaskGuard, connect_children, get_aggregation_number,
             get_uppers, is_root_node, make_task_dirty_internal, prepare_new_children,
         },
@@ -180,7 +180,6 @@ struct TurboTasksBackendInner<B: BackingStorage> {
     options: BackendOptions,
 
     start_time: Instant,
-    session_id: SessionId,
 
     persisted_task_id_factory: IdFactoryWithReuse<TaskId>,
     transient_task_id_factory: IdFactoryWithReuse<TaskId>,
@@ -254,9 +253,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         Self {
             options,
             start_time: Instant::now(),
-            session_id: backing_storage
-                .next_session_id()
-                .expect("Failed get session id"),
             persisted_task_id_factory: IdFactoryWithReuse::new(
                 next_task_id,
                 TaskId::try_from(TRANSIENT_TASK_BIT - 1).unwrap(),
@@ -293,10 +289,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> impl ExecuteContext<'a> {
         ExecuteContextImpl::new(self, turbo_tasks)
-    }
-
-    fn session_id(&self) -> SessionId {
-        self.session_id
     }
 
     /// # Safety
@@ -567,14 +559,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 }
             }
 
-            let is_dirty = task.is_dirty(self.session_id);
+            let is_dirty = task.is_dirty();
 
             // Check the dirty count of the root node
-            let dirty_tasks = get!(task, AggregatedDirtyContainerCount)
-                .cloned()
-                .unwrap_or_default()
-                .get(self.session_id);
-            if dirty_tasks > 0 || is_dirty {
+            let has_dirty_containers = task.has_dirty_containers();
+            if has_dirty_containers || is_dirty {
                 let activeness = get_mut!(task, Activeness);
                 let mut task_ids_to_schedule: Vec<_> = Vec::new();
                 // When there are dirty task, subscribe to the all_clean_event
@@ -592,14 +581,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         .set_active_until_clean();
                     if ctx.should_track_activeness() {
                         // A newly added Activeness need to make sure to schedule the tasks
-                        task_ids_to_schedule = get_many!(
-                            task,
-                            AggregatedDirtyContainer {
-                                task
-                            } count if count.get(self.session_id) > 0 => {
-                                task
-                            }
-                        );
+                        task_ids_to_schedule = task.dirty_containers().collect();
                         task_ids_to_schedule.push(task_id);
                     }
                     get!(task, Activeness).unwrap()
@@ -622,8 +604,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             parent_and_count: Option<(TaskId, i32)>,
                             visited: &mut FxHashSet<TaskId>,
                         ) -> String {
-                            let task = ctx.task(task_id, TaskDataCategory::Data);
-                            let is_dirty = task.is_dirty(ctx.session_id());
+                            let task = ctx.task(task_id, TaskDataCategory::All);
+                            let is_dirty = task.is_dirty();
                             let in_progress =
                                 get!(task, InProgress).map_or("not in progress", |p| match p {
                                     InProgressState::InProgress(_) => "in progress",
@@ -644,13 +626,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             };
 
                             // Check the dirty count of the root node
-                            let dirty_tasks = get!(task, AggregatedDirtyContainerCount)
-                                .cloned()
-                                .unwrap_or_default()
-                                .get(ctx.session_id());
+                            let has_dirty_containers = task.has_dirty_containers();
 
                             let task_description = ctx.get_task_description(task_id);
-                            let is_dirty = if is_dirty { ", dirty" } else { "" };
+                            let is_dirty_label = if is_dirty { ", dirty" } else { "" };
+                            let has_dirty_containers_label = if has_dirty_containers {
+                                ", dirty containers"
+                            } else {
+                                ""
+                            };
                             let count = if let Some((_, count)) = parent_and_count {
                                 format!(" {count}")
                             } else {
@@ -658,26 +642,18 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             };
                             let mut info = format!(
                                 "{task_id} {task_description}{count} (aggr={aggregation_number}, \
-                                 {in_progress}, {activeness}{is_dirty})",
+                                 {in_progress}, \
+                                 {activeness}{is_dirty_label}{has_dirty_containers_label})",
                             );
-                            let children: Vec<_> = iter_many!(
-                                task,
-                                AggregatedDirtyContainer {
-                                    task
-                                } count => {
-                                    (task, count.get(ctx.session_id()))
-                                }
-                            )
-                            .filter(|(_, count)| *count > 0)
-                            .collect();
+                            let children: Vec<_> = task.dirty_containers_with_count().collect();
                             drop(task);
 
                             if missing_upper {
                                 info.push_str("\n  ERROR: missing upper connection");
                             }
 
-                            if dirty_tasks > 0 || !children.is_empty() {
-                                writeln!(info, "\n  {dirty_tasks} dirty tasks:").unwrap();
+                            if has_dirty_containers || !children.is_empty() {
+                                writeln!(info, "\n  dirty tasks:").unwrap();
 
                                 for (child_task_id, count) in children {
                                     let task_description = ctx.get_task_description(child_task_id);
@@ -841,9 +817,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
+        let ReadCellOptions {
+            is_serializable_cell_content,
+            tracking,
+            final_read_hint,
+        } = options;
+
         let mut ctx = self.execute_context(turbo_tasks);
         let (mut task, reader_task) = if self.should_track_dependencies()
-            && !matches!(options.tracking, ReadTracking::Untracked)
+            && !matches!(tracking, ReadTracking::Untracked)
             && let Some(reader_id) = reader
             && reader_id != task_id
         {
@@ -856,16 +838,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             (ctx.task(task_id, TaskDataCategory::Data), None)
         };
 
-        let content = if options.final_read_hint {
-            remove!(task, CellData { cell })
-        } else if let Some(content) = get!(task, CellData { cell }) {
-            let content = content.clone();
-            Some(content)
+        let content = if final_read_hint {
+            task.remove_cell_data(is_serializable_cell_content, cell)
         } else {
-            None
+            task.get_cell_data(is_serializable_cell_content, cell)
         };
         if let Some(content) = content {
-            if options.tracking.should_track(false) {
+            if tracking.should_track(false) {
                 add_cell_dependency(task_id, task, reader, reader_task, cell);
             }
             return Ok(Ok(TypedCellContent(
@@ -892,7 +871,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         )
         .copied();
         let Some(max_id) = max_id else {
-            if options.tracking.should_track(true) {
+            if tracking.should_track(true) {
                 add_cell_dependency(task_id, task, reader, reader_task, cell);
             }
             bail!(
@@ -901,7 +880,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             );
         };
         if cell.index >= max_id {
-            if options.tracking.should_track(true) {
+            if tracking.should_track(true) {
                 add_cell_dependency(task_id, task, reader, reader_task, cell);
             }
             bail!(
@@ -1212,7 +1191,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let _span = tracing::info_span!(parent: parent_span, "persist", reason = reason).entered();
         {
             if let Err(err) = self.backing_storage.save_snapshot(
-                self.session_id,
                 suspended_operations,
                 persisted_task_cache_log,
                 task_snapshots,
@@ -2044,6 +2022,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             .get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
             }));
         }
+        if task_id.is_transient() || iter_many!(task, TransientCellData { cell }
+            if cell_counters.get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index) => cell
+        ).count() > 0 {
+            removed_data.extend(task.extract_if(CachedDataItemType::TransientCellData, |key, _| {
+                matches!(key, CachedDataItemKey::TransientCellData { cell } if cell_counters
+                            .get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
+            }));
+        }
 
         old_edges.extend(
             task.iter(CachedDataItemType::OutdatedCollectible)
@@ -2378,68 +2364,77 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             },
         ));
 
-        // Update the dirty state
-        let old_dirtyness = task.dirtyness_and_session();
-
-        let new_dirtyness = if session_dependent {
-            Some((Dirtyness::SessionDependent, Some(self.session_id)))
-        } else {
-            None
+        // Grab the old dirty state
+        let old_dirtyness = get!(task, Dirty).cloned();
+        let (old_self_dirty, old_current_session_self_clean) = match old_dirtyness {
+            None => (false, false),
+            Some(Dirtyness::Dirty) => (true, false),
+            Some(Dirtyness::SessionDependent) => {
+                let clean_in_current_session = get!(task, CurrentSessionClean).is_some();
+                (true, clean_in_current_session)
+            }
         };
 
-        let dirty_changed = old_dirtyness != new_dirtyness;
-        let data_update = if dirty_changed {
-            if let Some((value, _)) = new_dirtyness {
+        // Compute the new dirty state
+        let (new_dirtyness, new_self_dirty, new_current_session_self_clean) = if session_dependent {
+            (Some(Dirtyness::SessionDependent), true, true)
+        } else {
+            (None, false, false)
+        };
+
+        // Update the dirty state
+        if old_dirtyness != new_dirtyness {
+            if let Some(value) = new_dirtyness {
                 task.insert(CachedDataItem::Dirty { value });
             } else if old_dirtyness.is_some() {
                 task.remove(&CachedDataItemKey::Dirty {});
             }
-            if let Some(session_id) = new_dirtyness.and_then(|t| t.1) {
-                task.insert(CachedDataItem::CleanInSession { value: session_id });
-            } else if old_dirtyness.is_some_and(|t| t.1.is_some()) {
-                task.remove(&CachedDataItemKey::CleanInSession {});
+        }
+        if old_current_session_self_clean != new_current_session_self_clean {
+            if new_current_session_self_clean {
+                task.insert(CachedDataItem::CurrentSessionClean { value: () });
+            } else if old_current_session_self_clean {
+                task.remove(&CachedDataItemKey::CurrentSessionClean {});
             }
+        }
 
-            let mut dirty_containers = get!(task, AggregatedDirtyContainerCount)
+        // Propagate dirtyness changes
+        let data_update = if old_self_dirty != new_self_dirty
+            || old_current_session_self_clean != new_current_session_self_clean
+        {
+            let dirty_container_count = get!(task, AggregatedDirtyContainerCount)
                 .cloned()
                 .unwrap_or_default();
-            if let Some((old_dirtyness, old_clean_in_session)) = old_dirtyness {
-                dirty_containers
-                    .update_with_dirtyness_and_session(old_dirtyness, old_clean_in_session);
+            let current_session_clean_container_count =
+                get!(task, AggregatedCurrentSessionCleanContainerCount)
+                    .copied()
+                    .unwrap_or_default();
+            let result = ComputeDirtyAndCleanUpdate {
+                old_dirty_container_count: dirty_container_count,
+                new_dirty_container_count: dirty_container_count,
+                old_current_session_clean_container_count: current_session_clean_container_count,
+                new_current_session_clean_container_count: current_session_clean_container_count,
+                old_self_dirty,
+                new_self_dirty,
+                old_current_session_self_clean,
+                new_current_session_self_clean,
             }
-            let aggregated_update = match (old_dirtyness, new_dirtyness) {
-                (None, None) => unreachable!(),
-                (Some(old), None) => {
-                    dirty_containers.undo_update_with_dirtyness_and_session(old.0, old.1)
-                }
-                (None, Some(new)) => {
-                    dirty_containers.update_with_dirtyness_and_session(new.0, new.1)
-                }
-                (Some(old), Some(new)) => {
-                    dirty_containers.replace_dirtyness_and_session(old.0, old.1, new.0, new.1)
-                }
-            };
-            if !aggregated_update.is_zero() {
-                if aggregated_update.get(self.session_id) < 0
-                    && let Some(activeness_state) = get_mut!(task, Activeness)
-                {
+            .compute();
+            if result.dirty_count_update - result.current_session_clean_update < 0 {
+                // The task is clean now
+                if let Some(activeness_state) = get_mut!(task, Activeness) {
                     activeness_state.all_clean_event.notify(usize::MAX);
                     activeness_state.unset_active_until_clean();
                     if activeness_state.is_empty() {
                         task.remove(&CachedDataItemKey::Activeness {});
                     }
                 }
-                AggregationUpdateJob::data_update(
-                    &mut task,
-                    AggregatedDataUpdate::new().dirty_container_update(
-                        task_id,
-                        aggregated_update.count,
-                        aggregated_update.current_session_clean(ctx.session_id()),
-                    ),
-                )
-            } else {
-                None
             }
+            result
+                .aggregated_update(task_id)
+                .and_then(|aggregated_update| {
+                    AggregationUpdateJob::data_update(&mut task, aggregated_update)
+                })
         } else {
             None
         };
@@ -2475,6 +2470,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn task_execution_completed_cleanup(&self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         task.shrink_to_fit(CachedDataItemType::CellData);
+        task.shrink_to_fit(CachedDataItemType::TransientCellData);
         task.shrink_to_fit(CachedDataItemType::CellTypeMaxIndex);
         task.shrink_to_fit(CachedDataItemType::CellDependency);
         task.shrink_to_fit(CachedDataItemType::OutputDependency);
@@ -2610,13 +2606,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         task_id: TaskId,
         cell: CellId,
-        _options: ReadCellOptions,
+        options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<TypedCellContent> {
         let mut ctx = self.execute_context(turbo_tasks);
         let task = ctx.task(task_id, TaskDataCategory::Data);
-        if let Some(content) = get!(task, CellData { cell }) {
-            Ok(CellContent(Some(content.reference.clone())).into_typed(cell.type_id))
+        if let Some(content) = task.get_cell_data(options.is_serializable_cell_content, cell) {
+            debug_assert!(content.type_id == cell.type_id, "Cell type ID mismatch");
+            Ok(CellContent(Some(content.reference)).into_typed(cell.type_id))
         } else {
             Ok(CellContent(None).into_typed(cell.type_id))
         }
@@ -2757,6 +2754,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         task_id: TaskId,
         cell: CellId,
+        is_serializable_cell_content: bool,
         content: CellContent,
         verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
@@ -2765,6 +2763,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             task_id,
             cell,
             content,
+            is_serializable_cell_content,
             verification_mode,
             self.execute_context(turbo_tasks),
         );
@@ -2905,11 +2904,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
-        let is_dirty = task.is_dirty(self.session_id);
-        let has_dirty_containers = get!(task, AggregatedDirtyContainerCount)
-            .map_or(false, |dirty_containers| {
-                dirty_containers.get(self.session_id) > 0
-            });
+        let is_dirty = task.is_dirty();
+        let has_dirty_containers = task.has_dirty_containers();
         if is_dirty || has_dirty_containers {
             if let Some(activeness_state) = get_mut!(task, Activeness) {
                 // We will finish the task, but it would be removed after the task is done
@@ -2998,9 +2994,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     }
                 }
 
-                let is_dirty = task.is_dirty(self.session_id);
-                let has_dirty_container = get!(task, AggregatedDirtyContainerCount)
-                    .is_some_and(|count| count.get(self.session_id) > 0);
+                let is_dirty = get!(task, Dirty).is_some();
+                let has_dirty_container = task.has_dirty_containers();
                 let should_be_in_upper = is_dirty || has_dirty_container;
 
                 let aggregation_number = get_aggregation_number(&task);
@@ -3023,17 +3018,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
                 if should_be_in_upper {
                     for upper_id in uppers {
-                        let task = ctx.task(task_id, TaskDataCategory::All);
+                        let task = ctx.task(upper_id, TaskDataCategory::All);
                         let in_upper = get!(task, AggregatedDirtyContainer { task: task_id })
-                            .is_some_and(|dirty| dirty.get(self.session_id) > 0);
+                            .is_some_and(|&dirty| dirty > 0);
                         if !in_upper {
+                            let containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task: task_id } value => (task_id, *value));
                             panic!(
                                 "Task {} ({}) is dirty, but is not listed in the upper task {} \
-                                 ({})",
+                                 ({})\nThese dirty containers are present:\n{:#?}",
                                 task_id,
                                 ctx.get_task_description(task_id),
                                 upper_id,
-                                ctx.get_task_description(upper_id)
+                                ctx.get_task_description(upper_id),
+                                containers,
                             );
                         }
                     }
@@ -3354,12 +3351,19 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         &self,
         task_id: TaskId,
         cell: CellId,
+        is_serializable_cell_content: bool,
         content: CellContent,
         verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
-        self.0
-            .update_task_cell(task_id, cell, content, verification_mode, turbo_tasks);
+        self.0.update_task_cell(
+            task_id,
+            cell,
+            is_serializable_cell_content,
+            content,
+            verification_mode,
+            turbo_tasks,
+        );
     }
 
     fn mark_own_task_as_finished(

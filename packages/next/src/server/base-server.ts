@@ -1,5 +1,8 @@
 import type { __ApiPreviewProps } from './api-utils'
-import type { LoadComponentsReturnType } from './load-components'
+import type {
+  GenericComponentMod,
+  LoadComponentsReturnType,
+} from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from './request/params'
 import type { NextConfig, NextConfigComplete } from './config-shared'
@@ -147,9 +150,12 @@ import type { CacheControl } from './lib/cache-control'
 import type { PrerenderedRoute } from '../build/static-paths/types'
 import { createOpaqueFallbackRouteParams } from './request/fallback-params'
 import { RouteKind } from './route-kind'
+import type { ErrorModule } from './load-default-error-components'
 
-export type FindComponentsResult = {
-  components: LoadComponentsReturnType
+export type FindComponentsResult<
+  NextModule extends GenericComponentMod = GenericComponentMod,
+> = {
+  components: LoadComponentsReturnType<NextModule>
   query: NextParsedUrlQuery
 }
 
@@ -231,9 +237,9 @@ export interface Options {
 
 export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
 
-export type LoadedRenderOpts = RenderOpts &
-  LoadComponentsReturnType &
-  RequestLifecycleOpts
+export type LoadedRenderOpts<
+  NextModule extends GenericComponentMod = GenericComponentMod,
+> = RenderOpts & LoadComponentsReturnType<NextModule> & RequestLifecycleOpts
 
 export type RequestLifecycleOpts = {
   waitUntil: ((promise: Promise<any>) => void) | undefined
@@ -2340,15 +2346,7 @@ export default abstract class Server<
       addRequestMeta(request, 'invokeError', opts.err)
     }
 
-    const handler: (
-      req: ServerRequest | IncomingMessage,
-      res: ServerResponse | HTTPServerResponse,
-      ctx: {
-        waitUntil: ReturnType<Server['getWaitUntil']>
-      }
-    ) => Promise<void> = components.ComponentMod.handler
-
-    const maybeDevRequest =
+    const maybeDevRequest: ServerRequest | IncomingMessage =
       // we need to capture fetch metrics when they are set
       // and can't wait for handler to resolve as the fetch
       // metrics are logged on response close which happens
@@ -2371,7 +2369,14 @@ export default abstract class Server<
           })
         : request
 
-    await handler(maybeDevRequest, response, {
+    // @ts-expect-error This isn't entirely correct, but the ServerRequest type param seems overly
+    // generic anyway.
+    let handlerReq: IncomingMessage = maybeDevRequest
+    // @ts-expect-error This isn't entirely correct, but the ServerResponse type param seems overly
+    // generic anyway.
+    let handlerRes: HTTPServerResponse = response
+
+    await components.ComponentMod.handler(handlerReq, handlerRes, {
       waitUntil: this.getWaitUntil(),
     })
 
@@ -2469,7 +2474,7 @@ export default abstract class Server<
   protected abstract getMiddleware(): Promise<MiddlewareRoutingItem | undefined>
   protected abstract getFallbackErrorComponents(
     url?: string
-  ): Promise<LoadComponentsReturnType | null>
+  ): Promise<LoadComponentsReturnType<ErrorModule> | null>
   protected abstract getRoutesManifest(): NormalizedRouteManifest | undefined
 
   private async renderToResponseImpl(

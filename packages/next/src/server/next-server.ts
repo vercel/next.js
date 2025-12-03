@@ -27,6 +27,10 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import type { CacheControl } from './lib/cache-control'
 import type { WaitUntil } from './after/builtin-request-context'
+import type { AppPageModule } from './route-modules/app-page/module'
+import type { AppRouteModule } from './route-modules/app-route/module.compiled'
+import type { ErrorModule } from './load-default-error-components'
+import type { PagesModule } from './route-modules/pages/module.compiled'
 
 import fs from 'fs'
 import { join, relative } from 'path'
@@ -387,7 +391,9 @@ export default class NextNodeServer extends BaseServer<
 
     for (const page of Object.keys(appPathsManifest || {})) {
       try {
-        const { ComponentMod } = await loadComponents({
+        const { ComponentMod } = await loadComponents<
+          AppPageModule | AppRouteModule
+        >({
           distDir: this.distDir,
           page,
           isAppPath: true,
@@ -709,37 +715,37 @@ export default class NextNodeServer extends BaseServer<
           // This code path does not service revalidations for unknown param
           // shells. As a result, we don't need to pass in the unknown params.
           null,
-          renderOpts,
+          renderOpts as LoadedRenderOpts<AppPageModule>,
           this.getServerComponentsHmrCache(),
           {
             buildId: this.buildId,
           }
         )
+      } else {
+        // TODO: re-enable this once we've refactored to use implicit matches
+        // throw new Error('Invariant: render should have used routeModule')
+
+        return lazyRenderPagesPage(
+          req.originalRequest,
+          res.originalResponse,
+          pathname,
+          query,
+          renderOpts as LoadedRenderOpts<PagesModule>,
+          {
+            buildId: this.buildId,
+            deploymentId: this.nextConfig.deploymentId,
+            customServer: this.serverOptions.customServer || undefined,
+          },
+          {
+            isFallback: false,
+            isDraftMode: renderOpts.isDraftMode,
+            developmentNotFoundSourcePage: getRequestMeta(
+              req,
+              'developmentNotFoundSourcePage'
+            ),
+          }
+        )
       }
-
-      // TODO: re-enable this once we've refactored to use implicit matches
-      // throw new Error('Invariant: render should have used routeModule')
-
-      return lazyRenderPagesPage(
-        req.originalRequest,
-        res.originalResponse,
-        pathname,
-        query,
-        renderOpts,
-        {
-          buildId: this.buildId,
-          deploymentId: this.nextConfig.deploymentId,
-          customServer: this.serverOptions.customServer || undefined,
-        },
-        {
-          isFallback: false,
-          isDraftMode: renderOpts.isDraftMode,
-          developmentNotFoundSourcePage: getRequestMeta(
-            req,
-            'developmentNotFoundSourcePage'
-          ),
-        }
-      )
     }
   }
 
@@ -2116,7 +2122,7 @@ export default class NextNodeServer extends BaseServer<
 
   protected async getFallbackErrorComponents(
     _url?: string
-  ): Promise<LoadComponentsReturnType | null> {
+  ): Promise<LoadComponentsReturnType<ErrorModule> | null> {
     // Not implemented for production use cases, this is implemented on the
     // development server.
     return null

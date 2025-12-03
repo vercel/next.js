@@ -104,6 +104,7 @@ export async function getRuntimeContext(
 export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
   const runtime = await getRuntimeContext(params)
 
+  // TODO better typesafety here
   const edgeFunction: (args: {
     request: RequestData
   }) => Promise<FetchEventResult> = (
