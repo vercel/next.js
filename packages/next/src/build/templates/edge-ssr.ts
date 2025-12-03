@@ -22,7 +22,6 @@ import RouteModule, {
 } from '../../server/route-modules/pages/module'
 import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
 
-import type { NextConfigRuntime } from '../../server/config-shared'
 import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event'
 import type RenderResult from '../../server/render-result'
 import type { RenderResultMetadata } from '../../server/render-result'
@@ -31,17 +30,12 @@ import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
 
 // injected by the loader afterwards.
-declare const nextConfig: NextConfigRuntime
 declare const pageRouteModuleOptions: any
 declare const errorRouteModuleOptions: any
 declare const user500RouteModuleOptions: any
-  // INJECT:nextConfig
-  // INJECT:pageRouteModuleOptions
-  // INJECT:errorRouteModuleOptions
-  // INJECT:user500RouteModuleOptions
-
-  // expose this for the route-module
-;(globalThis as any).nextConfig = nextConfig
+// INJECT:pageRouteModuleOptions
+// INJECT:errorRouteModuleOptions
+// INJECT:user500RouteModuleOptions
 
 const pageMod = {
   ...userlandPage,
@@ -113,6 +107,7 @@ async function requestHandler(
     query,
     params,
     buildId,
+    nextConfig,
     isNextDataRequest,
     buildManifest,
     prerenderManifest,

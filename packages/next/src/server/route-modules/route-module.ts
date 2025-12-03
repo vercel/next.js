@@ -42,7 +42,11 @@ import type { ReactLoadableManifest } from '../load-components'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import { normalizeDataPath } from '../../shared/lib/page-path/normalize-data-path'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
-import { addRequestMeta, getRequestMeta } from '../request-meta'
+import {
+  addRequestMeta,
+  getRequestMeta,
+  type NextIncomingMessage,
+} from '../request-meta'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { isStaticMetadataRoute } from '../../lib/metadata/is-metadata-route'
 import { IncrementalCache } from '../lib/incremental-cache'
@@ -499,6 +503,26 @@ export abstract class RouteModule<
       },
       errorContext
     )
+  }
+
+  /** A more lightweight version of `prepare()` for only retrieving the config on edge */
+  public getNextConfigEdge(req: NextIncomingMessage): NextConfigRuntime {
+    if (process.env.NEXT_RUNTIME !== 'edge') {
+      throw new Error(
+        'Invariant: getNextConfigEdge must only be called in edge runtime'
+      )
+    }
+
+    let serverFilesManifest =
+      (self.__SERVER_FILES_MANIFEST as any as RequiredServerFilesManifest) || {}
+    const relativeProjectDir =
+      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+    const routerServerContext =
+      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+    const nextConfig =
+      routerServerContext?.nextConfig || serverFilesManifest.config
+
+    return nextConfig
   }
 
   public async prepare(

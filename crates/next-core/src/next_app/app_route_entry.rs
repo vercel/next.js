@@ -113,7 +113,6 @@ pub async fn get_app_route_entry(
             project_root,
             rsc_entry,
             page,
-            next_config,
         );
     }
 
@@ -132,17 +131,14 @@ async fn wrap_edge_route(
     project_root: FileSystemPath,
     entry: ResolvedVc<Box<dyn Module>>,
     page: AppPage,
-    next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Module>>> {
     let inner = rcstr!("INNER_ROUTE_ENTRY");
-
-    let next_config = &*next_config.await?;
 
     let source = load_next_js_template(
         "edge-app-route.js",
         project_root.clone(),
         [("VAR_USERLAND", &*inner), ("VAR_PAGE", &page.to_string())],
-        [("nextConfig", &*serde_json::to_string(next_config)?)],
+        [],
         [],
     )
     .await?;

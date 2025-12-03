@@ -1,5 +1,4 @@
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
-import type { NextConfigRuntime } from '../../server/config-shared'
 import type { EdgeHandler } from '../../server/web/adapter'
 import { EdgeRouteModuleWrapper } from '../../server/web/edge-route-module-wrapper'
 
@@ -7,8 +6,6 @@ import { EdgeRouteModuleWrapper } from '../../server/web/edge-route-module-wrapp
 import * as module from 'VAR_USERLAND'
 
 // injected by the loader afterwards.
-declare const nextConfig: NextConfigRuntime
-// INJECT:nextConfig
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
@@ -26,7 +23,6 @@ if (rscManifest && rscServerManifest) {
 export const ComponentMod = module
 
 const handler: EdgeHandler = EdgeRouteModuleWrapper.wrap(module.routeModule, {
-  nextConfig,
   page: 'VAR_PAGE',
 })
 export default handler
