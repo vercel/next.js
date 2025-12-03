@@ -17,10 +17,7 @@ import type {
   RenderOptsPartial as AppRenderOptsPartial,
   ServerOnInstrumentationRequestError,
 } from './app-render/types'
-import type {
-  ServerComponentsHmrCache,
-  ResponseCacheBase,
-} from './response-cache'
+import type { ServerComponentsHmrCache } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import {
   NormalizeError,
@@ -329,7 +326,6 @@ export default abstract class Server<
   protected interceptionRoutePatterns: RegExp[]
   protected nextFontManifest?: DeepReadonly<NextFontManifest>
   protected instrumentation: InstrumentationModule | undefined
-  private readonly responseCache: ResponseCacheBase
 
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
@@ -395,10 +391,6 @@ export default abstract class Server<
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
   }): Promise<import('./lib/incremental-cache').IncrementalCache>
-
-  protected abstract getResponseCache(options: {
-    dev: boolean
-  }): ResponseCacheBase
 
   protected getServerComponentsHmrCache():
     | ServerComponentsHmrCache
@@ -569,7 +561,6 @@ export default abstract class Server<
     void this.matchers.reload()
 
     this.setAssetPrefix(assetPrefix)
-    this.responseCache = this.getResponseCache({ dev })
   }
 
   protected reloadMatchers() {
