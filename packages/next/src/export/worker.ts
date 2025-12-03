@@ -7,6 +7,8 @@ import type {
   ExportPagesResult,
   ExportPathEntry,
 } from './types'
+import type { AppPageModule } from '../server/route-modules/app-page/module'
+import type { PagesModule } from '../server/route-modules/pages/module.compiled'
 
 import '../server/node-environment'
 
@@ -278,46 +280,46 @@ async function exportPageImpl(
       pathname,
       query,
       fallbackRouteParams,
-      renderOpts,
+      renderOpts as WorkerRenderOpts<AppPageModule>,
       htmlFilepath,
       debugOutput,
       isDynamicError,
       fileWriter,
       sharedContext
     )
-  }
+  } else {
+    const sharedContext: PagesSharedContext = {
+      buildId,
+      deploymentId: commonRenderOpts.deploymentId,
+      customServer: undefined,
+    }
 
-  const sharedContext: PagesSharedContext = {
-    buildId,
-    deploymentId: commonRenderOpts.deploymentId,
-    customServer: undefined,
-  }
+    const renderContext: PagesRenderContext = {
+      isFallback: exportPath._pagesFallback ?? false,
+      isDraftMode: false,
+      developmentNotFoundSourcePage: undefined,
+    }
 
-  const renderContext: PagesRenderContext = {
-    isFallback: exportPath._pagesFallback ?? false,
-    isDraftMode: false,
-    developmentNotFoundSourcePage: undefined,
+    return exportPagesPage(
+      req,
+      res,
+      path,
+      page,
+      query,
+      params,
+      htmlFilepath,
+      htmlFilename,
+      pagesDataDir,
+      buildExport,
+      isDynamic,
+      sharedContext,
+      renderContext,
+      hasOrigQueryValues,
+      renderOpts as WorkerRenderOpts<PagesModule>,
+      components,
+      fileWriter
+    )
   }
-
-  return exportPagesPage(
-    req,
-    res,
-    path,
-    page,
-    query,
-    params,
-    htmlFilepath,
-    htmlFilename,
-    pagesDataDir,
-    buildExport,
-    isDynamic,
-    sharedContext,
-    renderContext,
-    hasOrigQueryValues,
-    renderOpts,
-    components,
-    fileWriter
-  )
 }
 
 export async function exportPages(
