@@ -243,6 +243,14 @@ Every incoming request would see different random numbers, date, etc.
 
 > **Good to know**: You can cache non-deterministic operations with `use cache`. See the [with non-deterministic operations](#with-non-deterministic-operations) section for examples.
 
+### Suspense misconception
+
+A common misconception is that `<Suspense>` triggers request-time rendering. This is not the case:
+
+- **Suspense does not defer rendering to request time.** Its role is to define a boundary for fallback UI while async content is being prepared or streamed.
+- Components inside `<Suspense>` can still execute at build/prerender time if they have no runtime dependencies.
+- Only Dynamic APIs or [`connection()`](/docs/app/api-reference/functions/connection) force request-time execution.
+
 ## Using `use cache`
 
 The [`use cache`](/docs/app/api-reference/directives/use-cache) directive caches the return value of async functions and components. You can apply it at the function, component, or file level.
