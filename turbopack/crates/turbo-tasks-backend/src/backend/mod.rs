@@ -27,8 +27,8 @@ use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
 use turbo_tasks::{
     CellId, FxDashMap, FxIndexMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
-    ReadOutputOptions, ReadTracking, SessionId, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId,
-    TraitTypeId, TurboTasksBackendApi, ValueTypeId,
+    ReadOutputOptions, ReadTracking, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId,
+    TurboTasksBackendApi, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
         TransientTaskType, TurboTasksExecutionError, TypedCellContent, VerificationMode,
@@ -180,7 +180,6 @@ struct TurboTasksBackendInner<B: BackingStorage> {
     options: BackendOptions,
 
     start_time: Instant,
-    session_id: SessionId,
 
     persisted_task_id_factory: IdFactoryWithReuse<TaskId>,
     transient_task_id_factory: IdFactoryWithReuse<TaskId>,
@@ -254,9 +253,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         Self {
             options,
             start_time: Instant::now(),
-            session_id: backing_storage
-                .next_session_id()
-                .expect("Failed get session id"),
             persisted_task_id_factory: IdFactoryWithReuse::new(
                 next_task_id,
                 TaskId::try_from(TRANSIENT_TASK_BIT - 1).unwrap(),
@@ -293,10 +289,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> impl ExecuteContext<'a> {
         ExecuteContextImpl::new(self, turbo_tasks)
-    }
-
-    fn session_id(&self) -> SessionId {
-        self.session_id
     }
 
     /// # Safety
@@ -567,10 +559,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 }
             }
 
-            let is_dirty = task.is_dirty(self.session_id);
+            let is_dirty = task.is_dirty();
 
             // Check the dirty count of the root node
-            let has_dirty_containers = task.has_dirty_containers(self.session_id);
+            let has_dirty_containers = task.has_dirty_containers();
             if has_dirty_containers || is_dirty {
                 let activeness = get_mut!(task, Activeness);
                 let mut task_ids_to_schedule: Vec<_> = Vec::new();
@@ -589,7 +581,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         .set_active_until_clean();
                     if ctx.should_track_activeness() {
                         // A newly added Activeness need to make sure to schedule the tasks
-                        task_ids_to_schedule = task.dirty_containers(self.session_id).collect();
+                        task_ids_to_schedule = task.dirty_containers().collect();
                         task_ids_to_schedule.push(task_id);
                     }
                     get!(task, Activeness).unwrap()
@@ -613,7 +605,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             visited: &mut FxHashSet<TaskId>,
                         ) -> String {
                             let task = ctx.task(task_id, TaskDataCategory::All);
-                            let is_dirty = task.is_dirty(ctx.session_id());
+                            let is_dirty = task.is_dirty();
                             let in_progress =
                                 get!(task, InProgress).map_or("not in progress", |p| match p {
                                     InProgressState::InProgress(_) => "in progress",
@@ -634,7 +626,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             };
 
                             // Check the dirty count of the root node
-                            let has_dirty_containers = task.has_dirty_containers(ctx.session_id());
+                            let has_dirty_containers = task.has_dirty_containers();
 
                             let task_description = ctx.get_task_description(task_id);
                             let is_dirty_label = if is_dirty { ", dirty" } else { "" };
@@ -653,8 +645,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                  {in_progress}, \
                                  {activeness}{is_dirty_label}{has_dirty_containers_label})",
                             );
-                            let children: Vec<_> =
-                                task.dirty_containers_with_count(ctx.session_id()).collect();
+                            let children: Vec<_> = task.dirty_containers_with_count().collect();
                             drop(task);
 
                             if missing_upper {
@@ -1197,7 +1188,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let _span = tracing::info_span!(parent: parent_span, "persist", reason = reason).entered();
         {
             if let Err(err) = self.backing_storage.save_snapshot(
-                self.session_id,
                 suspended_operations,
                 persisted_task_cache_log,
                 task_snapshots,
@@ -2365,32 +2355,21 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // Grab the old dirty state
         let old_dirtyness = get!(task, Dirty).cloned();
-        let (old_self_dirty, old_current_session_self_clean, old_clean_in_session) =
-            match old_dirtyness {
-                None => (false, false, None),
-                Some(Dirtyness::Dirty) => (true, false, None),
-                Some(Dirtyness::SessionDependent) => {
-                    let clean_in_session = get!(task, CleanInSession).copied();
-                    (
-                        true,
-                        clean_in_session == Some(self.session_id),
-                        clean_in_session,
-                    )
-                }
-            };
+        let (old_self_dirty, old_current_session_self_clean) = match old_dirtyness {
+            None => (false, false),
+            Some(Dirtyness::Dirty) => (true, false),
+            Some(Dirtyness::SessionDependent) => {
+                let clean_in_current_session = get!(task, CurrentSessionClean).is_some();
+                (true, clean_in_current_session)
+            }
+        };
 
         // Compute the new dirty state
-        let (new_dirtyness, new_clean_in_session, new_self_dirty, new_current_session_self_clean) =
-            if session_dependent {
-                (
-                    Some(Dirtyness::SessionDependent),
-                    Some(self.session_id),
-                    true,
-                    true,
-                )
-            } else {
-                (None, None, false, false)
-            };
+        let (new_dirtyness, new_self_dirty, new_current_session_self_clean) = if session_dependent {
+            (Some(Dirtyness::SessionDependent), true, true)
+        } else {
+            (None, false, false)
+        };
 
         // Update the dirty state
         if old_dirtyness != new_dirtyness {
@@ -2400,11 +2379,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 task.remove(&CachedDataItemKey::Dirty {});
             }
         }
-        if old_clean_in_session != new_clean_in_session {
-            if let Some(session_id) = new_clean_in_session {
-                task.insert(CachedDataItem::CleanInSession { value: session_id });
-            } else if old_clean_in_session.is_some() {
-                task.remove(&CachedDataItemKey::CleanInSession {});
+        if old_current_session_self_clean != new_current_session_self_clean {
+            if new_current_session_self_clean {
+                task.insert(CachedDataItem::CurrentSessionClean { value: () });
+            } else if old_current_session_self_clean {
+                task.remove(&CachedDataItemKey::CurrentSessionClean {});
             }
         }
 
@@ -2415,14 +2394,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let dirty_container_count = get!(task, AggregatedDirtyContainerCount)
                 .cloned()
                 .unwrap_or_default();
-            let current_session_clean_container_count = get!(
-                task,
-                AggregatedSessionDependentCleanContainerCount {
-                    session_id: self.session_id
-                }
-            )
-            .copied()
-            .unwrap_or_default();
+            let current_session_clean_container_count =
+                get!(task, AggregatedCurrentSessionCleanContainerCount)
+                    .copied()
+                    .unwrap_or_default();
             let result = ComputeDirtyAndCleanUpdate {
                 old_dirty_container_count: dirty_container_count,
                 new_dirty_container_count: dirty_container_count,
@@ -2914,8 +2889,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
-        let is_dirty = task.is_dirty(self.session_id);
-        let has_dirty_containers = task.has_dirty_containers(self.session_id);
+        let is_dirty = task.is_dirty();
+        let has_dirty_containers = task.has_dirty_containers();
         if is_dirty || has_dirty_containers {
             if let Some(activeness_state) = get_mut!(task, Activeness) {
                 // We will finish the task, but it would be removed after the task is done
@@ -3005,7 +2980,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 }
 
                 let is_dirty = get!(task, Dirty).is_some();
-                let has_dirty_container = task.has_dirty_containers(self.session_id);
+                let has_dirty_container = task.has_dirty_containers();
                 let should_be_in_upper = is_dirty || has_dirty_container;
 
                 let aggregation_number = get_aggregation_number(&task);
