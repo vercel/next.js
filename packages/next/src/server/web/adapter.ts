@@ -76,6 +76,10 @@ export type AdapterOptions = {
   bypassNextUrl?: boolean
 }
 
+export type EdgeHandler = (opts: {
+  request: AdapterOptions['request']
+}) => Promise<FetchEventResult>
+
 let propagator: <T>(request: NextRequestHint, fn: () => T) => T = (
   request,
   fn
