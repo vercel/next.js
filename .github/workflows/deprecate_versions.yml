@@ -1,6 +1,9 @@
 name: Deprecate Vulnerable Versions
 
 on:
+  push:
+    branches:
+      - 12-03-add_deprecation_workflow
   workflow_dispatch:
     inputs:
       dry_run:
@@ -18,7 +21,6 @@ jobs:
   deprecate:
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
-    environment: release-stable
     steps:
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -30,8 +32,8 @@ jobs:
         shell: bash
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
-          DRY_RUN: ${{ inputs.dry_run }}
-          DEPRECATION_MESSAGE: ${{ inputs.message }}
+          DRY_RUN: true
+          DEPRECATION_MESSAGE: ${{ inputs.message || 'This version has a security vulnerability. Please upgrade to a patched version. See https://nextjs.org/blog/CVE-2025-66478 for more details.' }}
         run: |
           # Versions to deprecate based on security advisory ranges:
           # >=15.0.0 <15.0.5
