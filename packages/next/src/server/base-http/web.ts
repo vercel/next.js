@@ -7,6 +7,7 @@ import { DetachedPromise } from '../../lib/detached-promise'
 import type { NextRequestHint } from '../web/adapter'
 import { CloseController, trackBodyConsumed } from '../web/web-on-close'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { NEXT_REQUEST_META } from '../request-meta'
 
 export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
   public request: Request
@@ -27,6 +28,12 @@ export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
     this.headers = {}
     for (const [name, value] of request.headers.entries()) {
       this.headers[name] = value
+    }
+
+    // @ts-ignore
+    if (request[NEXT_REQUEST_META]) {
+      // @ts-ignore
+      this[NEXT_REQUEST_META] = request[NEXT_REQUEST_META]
     }
   }
 
