@@ -16,7 +16,7 @@ describe('app dir - workers', () => {
     page.on('request', (request) => {
       const url = request.url()
       if (url.includes('_next')) {
-        expect(url).toMatch(/^[^?]+\?dpl=test-deployment-id$/)
+        expect(url).toMatch(/^[^?]+\?(v=\d+&)?dpl=test-deployment-id$/)
       }
     })
   }
