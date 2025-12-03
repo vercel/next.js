@@ -161,12 +161,14 @@ export function navigateReducer(
   // implementation. Eventually we'll rewrite the router reducer to a
   // state machine.
   const currentUrl = new URL(state.canonicalUrl, location.origin)
+  const shouldRefreshDynamicData = false
   const result = navigateUsingSegmentCache(
     url,
     currentUrl,
     state.cache,
     state.tree,
     state.nextUrl,
+    shouldRefreshDynamicData,
     shouldScroll,
     mutable
   )

@@ -5,8 +5,9 @@ import type {
   RefreshAction,
 } from '../router-reducer-types'
 import { handleNavigationResult } from './navigate-reducer'
-import { refresh as refreshUsingSegmentCache } from '../../segment-cache/navigation'
+import { navigateToSeededRoute } from '../../segment-cache/navigation'
 import { revalidateEntireCache } from '../../segment-cache/cache'
+import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -19,14 +20,38 @@ export function refreshReducer(
   const currentRouterState = state.tree
   revalidateEntireCache(currentNextUrl, currentRouterState)
 
+  // We always send the last next-url, not the current when performing a dynamic
+  // request. This is because we update the next-url after a navigation, but we
+  // want the same interception route to be matched that used the last next-url.
+  const nextUrlForRefresh = hasInterceptionRouteInCurrentTree(state.tree)
+    ? state.previousNextUrl || currentNextUrl
+    : null
+
+  // A refresh is modeled as a navigation to the current URL, but where any
+  // existing dynamic data (including in shared layouts) is re-fetched.
   const currentUrl = new URL(state.canonicalUrl, action.origin)
-  const result = refreshUsingSegmentCache(
+  const url = currentUrl
+  const currentFlightRouterState = state.tree
+  const shouldScroll = true
+  const shouldRefreshDynamicData = true
+
+  const seedFlightRouterState = state.tree
+  const seedRenderedSearch = state.renderedSearch
+  const seedData = null
+  const seedHead = null
+
+  const result = navigateToSeededRoute(
+    url,
     currentUrl,
     state.cache,
-    state.tree,
-    state.nextUrl,
-    state.renderedSearch,
-    state.canonicalUrl
+    currentFlightRouterState,
+    seedFlightRouterState,
+    seedRenderedSearch,
+    seedData,
+    seedHead,
+    shouldRefreshDynamicData,
+    nextUrlForRefresh,
+    shouldScroll
   )
 
   const mutable: Mutable = {}
