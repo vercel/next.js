@@ -1,5 +1,9 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { createAtomicTimerGroup } from './app-render-scheduling'
+import {
+  DANGEROUSLY_runPendingImmediatesAfterCurrentTask,
+  expectNoPendingImmediates,
+} from '../node-environment-extensions/fast-set-immediate.external'
 
 /**
  * This is a utility function to make scheduling sequential tasks that run back to back easier.
@@ -20,6 +24,7 @@ export function scheduleInSequentialTasks<R>(
       let pendingResult: R | Promise<R>
       scheduleTimeout(() => {
         try {
+          DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
           pendingResult = render()
         } catch (err) {
           reject(err)
@@ -27,8 +32,13 @@ export function scheduleInSequentialTasks<R>(
       })
 
       scheduleTimeout(() => {
-        followup()
-        resolve(pendingResult)
+        try {
+          expectNoPendingImmediates()
+          followup()
+          resolve(pendingResult)
+        } catch (err) {
+          reject(err)
+        }
       })
     })
   }
@@ -55,6 +65,7 @@ export function pipelineInSequentialTasks<A, B, C>(
       let oneResult: A
       scheduleTimeout(() => {
         try {
+          DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
           oneResult = one()
         } catch (err) {
           clearTimeout(twoId)
@@ -69,6 +80,7 @@ export function pipelineInSequentialTasks<A, B, C>(
         // if `one` threw, then this timeout would've been cleared,
         // so if we got here, we're guaranteed to have a value.
         try {
+          DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
           twoResult = two(oneResult!)
         } catch (err) {
           clearTimeout(threeId)
@@ -82,6 +94,7 @@ export function pipelineInSequentialTasks<A, B, C>(
         // if `two` threw, then this timeout would've been cleared,
         // so if we got here, we're guaranteed to have a value.
         try {
+          expectNoPendingImmediates()
           threeResult = three(twoResult!)
         } catch (err) {
           clearTimeout(fourId)
