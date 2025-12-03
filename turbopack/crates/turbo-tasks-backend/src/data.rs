@@ -1,10 +1,8 @@
-use std::cmp::Ordering;
-
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    CellId, KeyValuePair, SessionId, TaskExecutionReason, TaskId, TraitTypeId,
-    TypedSharedReference, ValueTypeId,
+    CellId, KeyValuePair, TaskExecutionReason, TaskId, TraitTypeId, TypedSharedReference,
+    ValueTypeId,
     backend::TurboTasksExecutionError,
     event::{Event, EventListener},
     registry,
@@ -144,344 +142,9 @@ transient_traits!(ActivenessState);
 impl Eq for ActivenessState {}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DirtyState {
-    pub clean_in_session: Option<SessionId>,
-}
-
-impl DirtyState {
-    pub fn get(&self, session: SessionId) -> bool {
-        self.clean_in_session != Some(session)
-    }
-}
-
-fn add_with_diff(v: &mut i32, u: i32) -> i32 {
-    let old = *v;
-    *v += u;
-    if old <= 0 && *v > 0 {
-        1
-    } else if old > 0 && *v <= 0 {
-        -1
-    } else {
-        0
-    }
-}
-
-/// Represents a count of dirty containers. Since dirtiness can be session dependent, there might be
-/// a different count for a specific session. It only need to store the highest session count, since
-/// old sessions can't be visited again, so we can ignore their counts.
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DirtyContainerCount {
-    pub count: i32,
-    pub count_in_session: Option<(SessionId, i32)>,
-}
-
-impl DirtyContainerCount {
-    /// Get the count for a specific session. It's only expected to be asked for the current
-    /// session, since old session counts might be dropped.
-    pub fn get(&self, session: SessionId) -> i32 {
-        if let Some((s, count)) = self.count_in_session
-            && s == session
-        {
-            return count;
-        }
-        self.count
-    }
-
-    /// Increase/decrease the count by the given value.
-    pub fn update(&mut self, count: i32) -> DirtyContainerCount {
-        self.update_count(&DirtyContainerCount {
-            count,
-            count_in_session: None,
-        })
-    }
-
-    /// Increase/decrease the count by the given value, but does not update the count for a specific
-    /// session. This matches the "dirty, but clean in one session" behavior.
-    pub fn update_session_dependent(
-        &mut self,
-        ignore_session: SessionId,
-        count: i32,
-    ) -> DirtyContainerCount {
-        self.update_count(&DirtyContainerCount {
-            count,
-            count_in_session: Some((ignore_session, 0)),
-        })
-    }
-
-    /// Adds the `count` to the current count. This correctly handles session dependent counts.
-    /// Returns a new count object that represents the aggregated count. The aggregated count will
-    /// be +1 when the self count changes from <= 0 to > 0 and -1 when the self count changes from >
-    /// 0 to <= 0. The same for the session dependent count.
-    pub fn update_count(&mut self, count: &DirtyContainerCount) -> DirtyContainerCount {
-        let mut diff = DirtyContainerCount::default();
-        match (
-            self.count_in_session.as_mut(),
-            count.count_in_session.as_ref(),
-        ) {
-            (None, None) => {}
-            (Some((s, c)), None) => {
-                let d = add_with_diff(c, count.count);
-                diff.count_in_session = Some((*s, d));
-            }
-            (None, Some((s, c))) => {
-                let mut new = self.count;
-                let d = add_with_diff(&mut new, *c);
-                self.count_in_session = Some((*s, new));
-                diff.count_in_session = Some((*s, d));
-            }
-            (Some((s1, c1)), Some((s2, c2))) => match (*s1).cmp(s2) {
-                Ordering::Less => {
-                    let mut new = self.count;
-                    let d = add_with_diff(&mut new, *c2);
-                    self.count_in_session = Some((*s2, new));
-                    diff.count_in_session = Some((*s2, d));
-                }
-                Ordering::Equal => {
-                    let d = add_with_diff(c1, *c2);
-                    diff.count_in_session = Some((*s1, d));
-                }
-                Ordering::Greater => {
-                    let d = add_with_diff(c1, count.count);
-                    diff.count_in_session = Some((*s1, d));
-                }
-            },
-        }
-        let d = add_with_diff(&mut self.count, count.count);
-        diff.count = d;
-        diff
-    }
-
-    /// Applies a dirty state to the count. Returns an aggregated count that represents the change.
-    pub fn update_with_dirty_state(&mut self, dirty: &DirtyState) -> DirtyContainerCount {
-        if let Some(clean_in_session) = dirty.clean_in_session {
-            self.update_session_dependent(clean_in_session, 1)
-        } else {
-            self.update(1)
-        }
-    }
-
-    /// Undoes the effect of a dirty state on the count. Returns an aggregated count that represents
-    /// the change.
-    pub fn undo_update_with_dirty_state(&mut self, dirty: &DirtyState) -> DirtyContainerCount {
-        if let Some(clean_in_session) = dirty.clean_in_session {
-            self.update_session_dependent(clean_in_session, -1)
-        } else {
-            self.update(-1)
-        }
-    }
-
-    /// Replaces the old dirty state with the new one. Returns an aggregated count that represents
-    /// the change.
-    pub fn replace_dirty_state(
-        &mut self,
-        old: &DirtyState,
-        new: &DirtyState,
-    ) -> DirtyContainerCount {
-        let mut diff = self.undo_update_with_dirty_state(old);
-        diff.update_count(&self.update_with_dirty_state(new));
-        diff
-    }
-
-    /// Returns true if the count is zero and applying it would have no effect
-    pub fn is_zero(&self) -> bool {
-        self.count == 0 && self.count_in_session.map(|(_, c)| c == 0).unwrap_or(true)
-    }
-
-    /// Negates the counts.
-    pub fn negate(&self) -> Self {
-        Self {
-            count: -self.count,
-            count_in_session: self.count_in_session.map(|(s, c)| (s, -c)),
-        }
-    }
-}
-
-#[cfg(test)]
-mod dirty_container_count_tests {
-    use turbo_tasks::SessionId;
-
-    use super::*;
-
-    const SESSION_1: SessionId = unsafe { SessionId::new_unchecked(1) };
-    const SESSION_2: SessionId = unsafe { SessionId::new_unchecked(2) };
-    const SESSION_3: SessionId = unsafe { SessionId::new_unchecked(3) };
-
-    #[test]
-    fn test_update() {
-        let mut count = DirtyContainerCount::default();
-        assert!(count.is_zero());
-
-        let diff = count.update(1);
-        assert!(!count.is_zero());
-        assert_eq!(count.get(SESSION_1), 1);
-        assert_eq!(diff.get(SESSION_1), 1);
-        assert_eq!(count.get(SESSION_2), 1);
-        assert_eq!(diff.get(SESSION_2), 1);
-
-        let diff = count.update(-1);
-        assert!(count.is_zero());
-        assert_eq!(count.get(SESSION_1), 0);
-        assert_eq!(diff.get(SESSION_1), -1);
-        assert_eq!(count.get(SESSION_2), 0);
-        assert_eq!(diff.get(SESSION_2), -1);
-
-        let diff = count.update(2);
-        assert!(!count.is_zero());
-        assert_eq!(count.get(SESSION_1), 2);
-        assert_eq!(diff.get(SESSION_1), 1);
-        assert_eq!(count.get(SESSION_2), 2);
-        assert_eq!(diff.get(SESSION_2), 1);
-
-        let diff = count.update(-1);
-        assert!(!count.is_zero());
-        assert_eq!(count.get(SESSION_1), 1);
-        assert_eq!(diff.get(SESSION_1), 0);
-        assert_eq!(count.get(SESSION_2), 1);
-        assert_eq!(diff.get(SESSION_2), 0);
-
-        let diff = count.update(-1);
-        assert!(count.is_zero());
-        assert_eq!(count.get(SESSION_1), 0);
-        assert_eq!(diff.get(SESSION_1), -1);
-        assert_eq!(count.get(SESSION_2), 0);
-        assert_eq!(diff.get(SESSION_2), -1);
-
-        let diff = count.update(-1);
-        assert!(!count.is_zero());
-        assert_eq!(count.get(SESSION_1), -1);
-        assert_eq!(diff.get(SESSION_1), 0);
-        assert_eq!(count.get(SESSION_2), -1);
-        assert_eq!(diff.get(SESSION_2), 0);
-
-        let diff = count.update(2);
-        assert!(!count.is_zero());
-        assert_eq!(count.get(SESSION_1), 1);
-        assert_eq!(diff.get(SESSION_1), 1);
-        assert_eq!(count.get(SESSION_2), 1);
-        assert_eq!(diff.get(SESSION_2), 1);
-
-        let diff = count.update(-2);
-        assert!(!count.is_zero());
-        assert_eq!(count.get(SESSION_1), -1);
-        assert_eq!(diff.get(SESSION_1), -1);
-        assert_eq!(count.get(SESSION_2), -1);
-        assert_eq!(diff.get(SESSION_2), -1);
-
-        let diff = count.update(1);
-        assert!(count.is_zero());
-        assert_eq!(count.get(SESSION_1), 0);
-        assert_eq!(diff.get(SESSION_1), 0);
-        assert_eq!(count.get(SESSION_2), 0);
-        assert_eq!(diff.get(SESSION_2), 0);
-    }
-
-    #[test]
-    fn test_session_dependent() {
-        let mut count = DirtyContainerCount::default();
-        assert!(count.is_zero());
-
-        let diff = count.update_session_dependent(SESSION_1, 1);
-        assert!(!count.is_zero());
-        assert_eq!(count.get(SESSION_1), 0);
-        assert_eq!(diff.get(SESSION_1), 0);
-        assert_eq!(count.get(SESSION_2), 1);
-        assert_eq!(diff.get(SESSION_2), 1);
-
-        let diff = count.update_session_dependent(SESSION_1, -1);
-        assert!(count.is_zero());
-        assert_eq!(count.get(SESSION_1), 0);
-        assert_eq!(diff.get(SESSION_1), 0);
-        assert_eq!(count.get(SESSION_2), 0);
-        assert_eq!(diff.get(SESSION_2), -1);
-
-        let diff = count.update_session_dependent(SESSION_1, 2);
-        assert!(!count.is_zero());
-        assert_eq!(count.get(SESSION_1), 0);
-        assert_eq!(diff.get(SESSION_1), 0);
-        assert_eq!(count.get(SESSION_2), 2);
-        assert_eq!(diff.get(SESSION_2), 1);
-
-        let diff = count.update_session_dependent(SESSION_2, -2);
-        assert!(!count.is_zero());
-        assert_eq!(count.get(SESSION_1), 0);
-        assert_eq!(diff.get(SESSION_1), -1);
-        assert_eq!(count.get(SESSION_2), 2);
-        assert_eq!(diff.get(SESSION_2), 0);
-        assert_eq!(count.get(SESSION_3), 0);
-        assert_eq!(diff.get(SESSION_3), -1);
-    }
-
-    #[test]
-    fn test_update_with_dirty_state() {
-        let mut count = DirtyContainerCount::default();
-        let dirty = DirtyState {
-            clean_in_session: None,
-        };
-        let diff = count.update_with_dirty_state(&dirty);
-        assert!(!count.is_zero());
-        assert_eq!(count.get(SESSION_1), 1);
-        assert_eq!(diff.get(SESSION_1), 1);
-        assert_eq!(count.get(SESSION_2), 1);
-        assert_eq!(diff.get(SESSION_2), 1);
-
-        let diff = count.undo_update_with_dirty_state(&dirty);
-        assert!(count.is_zero());
-        assert_eq!(count.get(SESSION_1), 0);
-        assert_eq!(diff.get(SESSION_1), -1);
-        assert_eq!(count.get(SESSION_2), 0);
-        assert_eq!(diff.get(SESSION_2), -1);
-
-        let mut count = DirtyContainerCount::default();
-        let dirty = DirtyState {
-            clean_in_session: Some(SESSION_1),
-        };
-        let diff = count.update_with_dirty_state(&dirty);
-        assert!(!count.is_zero());
-        assert_eq!(count.get(SESSION_1), 0);
-        assert_eq!(diff.get(SESSION_1), 0);
-        assert_eq!(count.get(SESSION_2), 1);
-        assert_eq!(diff.get(SESSION_2), 1);
-
-        let diff = count.undo_update_with_dirty_state(&dirty);
-        assert!(count.is_zero());
-        assert_eq!(count.get(SESSION_1), 0);
-        assert_eq!(diff.get(SESSION_1), 0);
-        assert_eq!(count.get(SESSION_2), 0);
-        assert_eq!(diff.get(SESSION_2), -1);
-    }
-
-    #[test]
-    fn test_replace_dirty_state() {
-        let mut count = DirtyContainerCount::default();
-        let old = DirtyState {
-            clean_in_session: None,
-        };
-        let new = DirtyState {
-            clean_in_session: Some(SESSION_1),
-        };
-        count.update_with_dirty_state(&old);
-        let diff = count.replace_dirty_state(&old, &new);
-        assert!(!count.is_zero());
-        assert_eq!(count.get(SESSION_1), 0);
-        assert_eq!(diff.get(SESSION_1), -1);
-        assert_eq!(count.get(SESSION_2), 1);
-        assert_eq!(diff.get(SESSION_2), 0);
-
-        let mut count = DirtyContainerCount::default();
-        let old = DirtyState {
-            clean_in_session: Some(SESSION_1),
-        };
-        let new = DirtyState {
-            clean_in_session: None,
-        };
-        count.update_with_dirty_state(&old);
-        let diff = count.replace_dirty_state(&old, &new);
-        assert!(!count.is_zero());
-        assert_eq!(count.get(SESSION_1), 1);
-        assert_eq!(diff.get(SESSION_1), 1);
-        assert_eq!(count.get(SESSION_2), 1);
-        assert_eq!(diff.get(SESSION_2), 0);
-    }
+pub enum Dirtyness {
+    Dirty,
+    SessionDependent,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -563,7 +226,11 @@ pub enum CachedDataItem {
 
     // State
     Dirty {
-        value: DirtyState,
+        value: Dirtyness,
+    },
+    #[serde(skip)]
+    CurrentSessionClean {
+        value: (),
     },
 
     // Children
@@ -628,14 +295,23 @@ pub enum CachedDataItem {
     // Aggregated Data
     AggregatedDirtyContainer {
         task: TaskId,
-        value: DirtyContainerCount,
+        value: i32,
+    },
+    #[serde(skip)]
+    AggregatedCurrentSessionCleanContainer {
+        task: TaskId,
+        value: i32,
     },
     AggregatedCollectible {
         collectible: CollectibleRef,
         value: i32,
     },
     AggregatedDirtyContainerCount {
-        value: DirtyContainerCount,
+        value: i32,
+    },
+    #[serde(skip)]
+    AggregatedCurrentSessionCleanContainerCount {
+        value: i32,
     },
 
     // Flags
@@ -695,6 +371,7 @@ impl CachedDataItem {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItem::Dirty { .. } => true,
+            CachedDataItem::CurrentSessionClean { .. } => false,
             CachedDataItem::Child { task, .. } => !task.is_transient(),
             CachedDataItem::CellData { .. } => true,
             CachedDataItem::CellTypeMaxIndex { .. } => true,
@@ -708,10 +385,12 @@ impl CachedDataItem {
             CachedDataItem::Follower { task, .. } => !task.is_transient(),
             CachedDataItem::Upper { task, .. } => !task.is_transient(),
             CachedDataItem::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
+            CachedDataItem::AggregatedCurrentSessionCleanContainer { .. } => false,
             CachedDataItem::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItem::AggregatedDirtyContainerCount { .. } => true,
+            CachedDataItem::AggregatedCurrentSessionCleanContainerCount { .. } => false,
             CachedDataItem::Stateful { .. } => true,
             CachedDataItem::HasInvalidator { .. } => true,
             CachedDataItem::Immutable { .. } => true,
@@ -792,6 +471,9 @@ impl CachedDataItem {
             | Self::OutdatedOutputDependency { .. }
             | Self::OutdatedCellDependency { .. }
             | Self::OutdatedCollectiblesDependency { .. }
+            | Self::CurrentSessionClean { .. }
+            | Self::AggregatedCurrentSessionCleanContainer { .. }
+            | Self::AggregatedCurrentSessionCleanContainerCount { .. }
             | Self::InProgressCell { .. }
             | Self::InProgress { .. }
             | Self::Activeness { .. } => TaskDataCategory::All,
@@ -811,6 +493,7 @@ impl CachedDataItemKey {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItemKey::Dirty { .. } => true,
+            CachedDataItemKey::CurrentSessionClean { .. } => false,
             CachedDataItemKey::Child { task, .. } => !task.is_transient(),
             CachedDataItemKey::CellData { .. } => true,
             CachedDataItemKey::CellTypeMaxIndex { .. } => true,
@@ -824,10 +507,12 @@ impl CachedDataItemKey {
             CachedDataItemKey::Follower { task, .. } => !task.is_transient(),
             CachedDataItemKey::Upper { task, .. } => !task.is_transient(),
             CachedDataItemKey::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
+            CachedDataItemKey::AggregatedCurrentSessionCleanContainer { .. } => false,
             CachedDataItemKey::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItemKey::AggregatedDirtyContainerCount { .. } => true,
+            CachedDataItemKey::AggregatedCurrentSessionCleanContainerCount { .. } => false,
             CachedDataItemKey::Stateful { .. } => true,
             CachedDataItemKey::HasInvalidator { .. } => true,
             CachedDataItemKey::Immutable { .. } => true,
@@ -876,6 +561,9 @@ impl CachedDataItemType {
             | Self::OutdatedOutputDependency { .. }
             | Self::OutdatedCellDependency { .. }
             | Self::OutdatedCollectiblesDependency { .. }
+            | Self::CurrentSessionClean { .. }
+            | Self::AggregatedCurrentSessionCleanContainer { .. }
+            | Self::AggregatedCurrentSessionCleanContainerCount { .. }
             | Self::InProgressCell { .. }
             | Self::InProgress { .. }
             | Self::Activeness { .. } => TaskDataCategory::All,
@@ -909,6 +597,9 @@ impl CachedDataItemType {
             Self::Activeness
             | Self::InProgress
             | Self::InProgressCell
+            | Self::CurrentSessionClean
+            | Self::AggregatedCurrentSessionCleanContainer
+            | Self::AggregatedCurrentSessionCleanContainerCount
             | Self::OutdatedCollectible
             | Self::OutdatedOutputDependency
             | Self::OutdatedCellDependency

@@ -15,10 +15,7 @@ use turbo_tasks_backend::{
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_unix_path::join_path;
-use turbopack::{
-    css::chunk::CssChunkType, ecmascript::chunk::EcmascriptChunkType,
-    global_module_ids::get_global_module_id_strategy,
-};
+use turbopack::global_module_ids::get_global_module_id_strategy;
 use turbopack_browser::{BrowserChunkingContext, ContentHashing, CurrentChunkMethod};
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
@@ -43,6 +40,8 @@ use turbopack_core::{
         parse::Request,
     },
 };
+use turbopack_css::chunk::CssChunkType;
+use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
 use turbopack_node::execution_context::ExecutionContext;
@@ -308,6 +307,7 @@ async fn build_internal(
     let mut module_graph = ModuleGraph::from_modules(
         Vc::cell(vec![ChunkGroupEntry::Entry(entries.clone())]),
         false,
+        true,
     );
     let module_id_strategy = ResolvedVc::upcast(
         get_global_module_id_strategy(module_graph)

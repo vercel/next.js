@@ -1,7 +1,7 @@
 // Override chunk URL mapping in the webpack runtime
 // https://github.com/webpack/webpack/blob/2738eebc7880835d88c727d364ad37f3ec557593/lib/RuntimeGlobals.js#L204
 
-import { getDeploymentIdQueryOrEmptyString } from '../build/deployment-id'
+import { getDeploymentIdQueryOrEmptyString } from '../shared/lib/deployment-id'
 import { encodeURIPath } from '../shared/lib/encode-uri-path'
 
 declare const __webpack_require__: any
