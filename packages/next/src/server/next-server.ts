@@ -525,10 +525,6 @@ export default class NextNodeServer extends BaseServer<
     })
   }
 
-  protected getResponseCache() {
-    return new ResponseCache(this.minimalMode)
-  }
-
   protected getPublicDir(): string {
     return join(/* turbopackIgnore: true */ this.dir, CLIENT_PUBLIC_FILES_PATH)
   }
