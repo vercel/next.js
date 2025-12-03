@@ -1,0 +1,135 @@
+name: Deprecate Vulnerable Versions
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (log commands without executing)'
+        required: true
+        type: boolean
+        default: true
+      message:
+        description: 'Deprecation message'
+        required: true
+        type: string
+        default: 'This version has a security vulnerability. Please upgrade to a patched version. See https://nextjs.org/blog/CVE-2025-66478 for more details.'
+
+jobs:
+  deprecate:
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    environment: release-stable
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Deprecate versions
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          DEPRECATION_MESSAGE: ${{ inputs.message }}
+        run: |
+          # Versions to deprecate based on security advisory ranges:
+          # >=15.0.0 <15.0.5
+          # >=15.1.0 <15.1.9
+          # >=15.2.0 <15.2.6
+          # >=15.3.0 <15.3.6
+          # >=15.4.0 <15.4.8
+          # >=15.5.0 <15.5.7
+          # >=16.0.0 <16.0.7
+
+          VERSIONS=(
+            "15.0.0"
+            "15.0.1"
+            "15.0.2"
+            "15.0.3"
+            "15.0.4"
+            "15.1.0"
+            "15.1.1"
+            "15.1.2"
+            "15.1.3"
+            "15.1.4"
+            "15.1.5"
+            "15.1.6"
+            "15.1.7"
+            "15.1.8"
+            "15.2.0"
+            "15.2.1"
+            "15.2.2"
+            "15.2.3"
+            "15.2.4"
+            "15.2.5"
+            "15.3.0"
+            "15.3.1"
+            "15.3.2"
+            "15.3.3"
+            "15.3.4"
+            "15.3.5"
+            "15.4.0"
+            "15.4.1"
+            "15.4.2"
+            "15.4.3"
+            "15.4.4"
+            "15.4.5"
+            "15.4.6"
+            "15.4.7"
+            "15.5.0"
+            "15.5.1"
+            "15.5.2"
+            "15.5.3"
+            "15.5.4"
+            "15.5.5"
+            "15.5.6"
+            "16.0.0"
+            "16.0.1"
+            "16.0.2"
+            "16.0.3"
+            "16.0.4"
+            "16.0.5"
+            "16.0.6"
+          )
+
+          echo "=== Deprecation Summary ==="
+          echo "Total versions to deprecate: ${#VERSIONS[@]}"
+          echo "Dry run: $DRY_RUN"
+          echo "Message: $DEPRECATION_MESSAGE"
+          echo ""
+
+          SUCCESS_COUNT=0
+          FAIL_COUNT=0
+          FAILED_VERSIONS=""
+
+          for VERSION in "${VERSIONS[@]}"; do
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "[DRY RUN] Would deprecate next@$VERSION"
+            else
+              echo "Deprecating next@$VERSION..."
+              if npm deprecate "next@$VERSION" "$DEPRECATION_MESSAGE" 2>&1; then
+                echo "✓ Successfully deprecated next@$VERSION"
+                SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+              else
+                echo "✗ Failed to deprecate next@$VERSION"
+                FAIL_COUNT=$((FAIL_COUNT + 1))
+                FAILED_VERSIONS="$FAILED_VERSIONS $VERSION"
+              fi
+              # Small delay to avoid potential rate limiting
+              sleep 1
+            fi
+          done
+
+          echo ""
+          echo "=== Results ==="
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "Dry run complete. ${#VERSIONS[@]} versions would be deprecated."
+          else
+            echo "Successfully deprecated: $SUCCESS_COUNT"
+            echo "Failed: $FAIL_COUNT"
+            if [ $FAIL_COUNT -gt 0 ]; then
+              echo "Failed versions:$FAILED_VERSIONS"
+              exit 1
+            fi
+          fi
