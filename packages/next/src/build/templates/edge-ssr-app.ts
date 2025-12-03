@@ -33,9 +33,6 @@ declare const nextConfig: NextConfigRuntime
 // OPTIONAL_IMPORT:incrementalCacheHandler
 // INJECT:nextConfig
 
-// Initialize the cache handlers interface.
-initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
-
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
 const rscManifest = self.__RSC_MANIFEST?.['VAR_PAGE']
@@ -87,6 +84,9 @@ async function requestHandler(
     interceptionRoutePatterns,
     routerServerContext,
   } = prepareResult
+
+  // Initialize the cache handlers interface.
+  initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
   const botType = getBotType(req.headers.get('User-Agent') || '')

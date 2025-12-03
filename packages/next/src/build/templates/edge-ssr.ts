@@ -35,15 +35,12 @@ declare const nextConfig: NextConfigRuntime
 declare const pageRouteModuleOptions: any
 declare const errorRouteModuleOptions: any
 declare const user500RouteModuleOptions: any
-// INJECT:nextConfig
-// INJECT:pageRouteModuleOptions
-// INJECT:errorRouteModuleOptions
-// INJECT:user500RouteModuleOptions
+  // INJECT:nextConfig
+  // INJECT:pageRouteModuleOptions
+  // INJECT:errorRouteModuleOptions
+  // INJECT:user500RouteModuleOptions
 
-// Initialize the cache handlers interface.
-initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
-
-// expose this for the route-module
+  // expose this for the route-module
 ;(globalThis as any).nextConfig = nextConfig
 
 const pageMod = {
@@ -118,6 +115,8 @@ async function requestHandler(
     subresourceIntegrityManifest,
     dynamicCssManifest,
   } = prepareResult
+
+  initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
 
   const renderContext: PagesRouteHandlerContext = {
     page: srcPage,
