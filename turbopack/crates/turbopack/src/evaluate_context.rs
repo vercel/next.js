@@ -96,7 +96,7 @@ pub async fn node_evaluate_asset_context(
                 compile_time_defines!(
                     process.turbopack = true,
                     process.env.NODE_ENV = node_env.into_owned(),
-                    process.env.TURBOPACK = true
+                    process.env.TURBOPACK = "1"
                 )
                 .resolved_cell(),
             )
@@ -131,7 +131,7 @@ pub async fn config_tracing_module_context(
                 compile_time_defines!(
                     process.turbopack = true,
                     process.env.NODE_ENV = node_env.into_owned(),
-                    process.env.TURBOPACK = true
+                    process.env.TURBOPACK = "1"
                 )
                 .resolved_cell(),
             )

@@ -96,9 +96,7 @@ pub use collectibles::CollectiblesSource;
 pub use completion::{Completion, Completions};
 pub use display::ValueToString;
 pub use effect::{ApplyEffectsContext, Effects, apply_effects, effect, get_effects};
-pub use id::{
-    ExecutionId, LocalTaskId, SessionId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId,
-};
+pub use id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId};
 pub use invalidation::{
     InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator, get_invalidator,
 };
