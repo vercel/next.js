@@ -349,6 +349,10 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
     };
+    let has_serialization = match serialization_mode {
+        SerializationMode::None => quote! { false },
+        SerializationMode::Auto | SerializationMode::Custom => quote! { true },
+    };
 
     let value_debug_impl = if inner_type.is_some() {
         // For transparent values, we defer directly to the inner type's `ValueDebug`
@@ -380,6 +384,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         read,
         cell_mode,
         new_value_type,
+        has_serialization,
     );
 
     let expanded = quote! {
@@ -405,6 +410,7 @@ pub fn value_type_and_register(
     read: proc_macro2::TokenStream,
     cell_mode: proc_macro2::TokenStream,
     new_value_type: proc_macro2::TokenStream,
+    has_serialization: proc_macro2::TokenStream,
 ) -> proc_macro2::TokenStream {
     let value_type_ident = get_value_type_ident(ident);
 
@@ -437,6 +443,10 @@ pub fn value_type_and_register(
                     });
 
                 *ident
+            }
+
+            fn has_serialization() -> bool {
+                #has_serialization
             }
         }
     }

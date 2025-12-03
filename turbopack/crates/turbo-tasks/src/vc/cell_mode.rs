@@ -39,7 +39,7 @@ where
     T: VcValueType,
 {
     fn cell(inner: VcReadTarget<T>) -> Vc<T> {
-        let cell = find_cell_by_type(T::get_value_type_id());
+        let cell = find_cell_by_type::<T>();
         cell.update(
             <T::Read as VcRead<T>>::target_to_value(inner),
             VerificationMode::Skip,
@@ -52,7 +52,7 @@ where
 
     fn raw_cell(content: TypedSharedReference) -> RawVc {
         debug_assert_repr::<T>(&content);
-        let cell = find_cell_by_type(content.type_id);
+        let cell = find_cell_by_type::<T>();
         cell.update_with_shared_reference(content.reference, VerificationMode::Skip);
         cell.into()
     }
@@ -69,7 +69,7 @@ where
     T: VcValueType + PartialEq,
 {
     fn cell(inner: VcReadTarget<T>) -> Vc<T> {
-        let cell = find_cell_by_type(T::get_value_type_id());
+        let cell = find_cell_by_type::<T>();
         cell.compare_and_update(<T::Read as VcRead<T>>::target_to_value(inner));
         Vc {
             node: cell.into(),
@@ -79,7 +79,7 @@ where
 
     fn raw_cell(content: TypedSharedReference) -> RawVc {
         debug_assert_repr::<T>(&content);
-        let cell = find_cell_by_type(content.type_id);
+        let cell = find_cell_by_type::<T>();
         cell.compare_and_update_with_shared_reference::<T>(content.reference);
         cell.into()
     }

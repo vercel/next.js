@@ -14,13 +14,15 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{FxIndexMap, KeyValuePair, TaskId, TurboTasksBackendApi};
+use turbo_tasks::{
+    CellId, FxIndexMap, KeyValuePair, TaskId, TurboTasksBackendApi, TypedSharedReference,
+};
 
 use crate::{
     backend::{
         OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
         TurboTasksBackendJob,
-        storage::{SpecificTaskDataCategory, StorageWriteGuard, get, iter_many},
+        storage::{SpecificTaskDataCategory, StorageWriteGuard, get, iter_many, remove},
     },
     backing_storage::BackingStorage,
     data::{
@@ -466,6 +468,35 @@ pub trait TaskGuard: Debug {
             .copied()
             .unwrap_or_default();
         dirty_count > clean_count
+    }
+    fn remove_cell_data(
+        &mut self,
+        is_serializable_cell_content: bool,
+        cell: CellId,
+    ) -> Option<TypedSharedReference> {
+        if is_serializable_cell_content {
+            remove!(self, CellData { cell })
+        } else {
+            remove!(self, TransientCellData { cell }).map(|sr| sr.into_typed(cell.type_id))
+        }
+    }
+    fn get_cell_data(
+        &self,
+        is_serializable_cell_content: bool,
+        cell: CellId,
+    ) -> Option<TypedSharedReference> {
+        if is_serializable_cell_content {
+            get!(self, CellData { cell }).cloned()
+        } else {
+            get!(self, TransientCellData { cell }).map(|sr| sr.clone().into_typed(cell.type_id))
+        }
+    }
+    fn has_cell_data(&self, is_serializable_cell_content: bool, cell: CellId) -> bool {
+        if is_serializable_cell_content {
+            self.has_key(&CachedDataItemKey::CellData { cell })
+        } else {
+            self.has_key(&CachedDataItemKey::TransientCellData { cell })
+        }
     }
 }
 

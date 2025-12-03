@@ -80,6 +80,7 @@ pub fn generic_type(input: TokenStream) -> TokenStream {
         quote! {
             turbo_tasks::ValueType::new_with_any_serialization::<#repr>(#name)
         },
+        quote! { true },
     );
 
     quote! {
