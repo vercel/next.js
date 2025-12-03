@@ -39,7 +39,6 @@ use turbo_tasks_fs::{
 use turbopack::{
     ModuleAssetContext,
     module_options::ModuleOptionsContext,
-    resolve_options_context::ResolveOptionsContext,
     transition::{FullContextTransition, Transition, TransitionOptions},
 };
 use turbopack_core::{
@@ -66,6 +65,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::resolve::esm_resolve;
 use turbopack_nodejs::NodeJsChunkingContext;
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
     dynamic_imports::{

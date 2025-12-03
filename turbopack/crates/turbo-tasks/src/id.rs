@@ -122,7 +122,6 @@ define_id!(TaskId: u32, derive(Serialize, Deserialize), serde(transparent));
 define_id!(FunctionId: u16);
 define_id!(ValueTypeId: u16);
 define_id!(TraitTypeId: u16);
-define_id!(SessionId: u32, derive(Debug, Serialize, Deserialize), serde(transparent));
 define_id!(
     LocalTaskId: u32,
     derive(Debug, Serialize, Deserialize),

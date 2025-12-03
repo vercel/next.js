@@ -4,7 +4,7 @@ use std::{
     hash::Hash,
     mem::take,
     num::NonZeroU32,
-    ops::ControlFlow,
+    ops::{ControlFlow, Deref},
     thread::yield_now,
     time::{Duration, Instant},
 };
@@ -20,7 +20,7 @@ use smallvec::{SmallVec, smallvec};
     feature = "trace_find_and_schedule"
 ))]
 use tracing::{span::Span, trace_span};
-use turbo_tasks::{FxIndexMap, SessionId, TaskExecutionReason, TaskId};
+use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId};
 
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::invalidate::TaskDirtyCause;
@@ -28,11 +28,13 @@ use crate::{
     backend::{
         TaskDataCategory, get_mut, get_mut_or_insert_with,
         operation::{ExecuteContext, Operation, TaskGuard, invalidate::make_task_dirty},
-        storage::{count, get, get_many, iter_many, remove, update, update_count},
+        storage::{
+            count, get, get_many, iter_many, remove, update, update_count, update_count_and_get,
+        },
     },
     data::{
         ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
-        CollectibleRef, DirtyContainerCount,
+        CollectibleRef,
     },
     utils::swap_retain,
 };
@@ -89,6 +91,79 @@ pub fn get_aggregation_number(task: &impl TaskGuard) -> u32 {
     get!(task, AggregationNumber)
         .map(|a| a.effective)
         .unwrap_or_default()
+}
+
+#[derive(Debug)]
+pub struct ComputeDirtyAndCleanUpdate {
+    pub old_dirty_container_count: i32,
+    pub new_dirty_container_count: i32,
+    pub old_current_session_clean_container_count: i32,
+    pub new_current_session_clean_container_count: i32,
+    pub old_self_dirty: bool,
+    pub new_self_dirty: bool,
+    pub old_current_session_self_clean: bool,
+    pub new_current_session_self_clean: bool,
+}
+
+pub struct ComputeDirtyAndCleanUpdateResult {
+    pub dirty_count_update: i32,
+    pub current_session_clean_update: i32,
+}
+
+impl ComputeDirtyAndCleanUpdate {
+    pub fn compute(self) -> ComputeDirtyAndCleanUpdateResult {
+        let ComputeDirtyAndCleanUpdate {
+            old_dirty_container_count,
+            new_dirty_container_count,
+            old_current_session_clean_container_count,
+            new_current_session_clean_container_count,
+            old_self_dirty,
+            new_self_dirty,
+            old_current_session_self_clean,
+            new_current_session_self_clean,
+        } = self;
+        let was_dirty_without_clean = old_self_dirty || old_dirty_container_count > 0;
+        let is_dirty_without_clean = new_self_dirty || new_dirty_container_count > 0;
+        let was_dirty = old_self_dirty && !old_current_session_self_clean
+            || old_dirty_container_count > 0
+                && old_dirty_container_count > old_current_session_clean_container_count;
+        let is_dirty = new_self_dirty && !new_current_session_self_clean
+            || new_dirty_container_count > 0
+                && new_dirty_container_count > new_current_session_clean_container_count;
+        let was_flagged_clean = was_dirty_without_clean && !was_dirty;
+        let is_flagged_clean = is_dirty_without_clean && !is_dirty;
+
+        fn before_after_to_diff_value(before: bool, after: bool) -> i32 {
+            match (before, after) {
+                (true, false) => -1,
+                (false, true) => 1,
+                _ => 0,
+            }
+        }
+        let dirty_count_update =
+            before_after_to_diff_value(was_dirty_without_clean, is_dirty_without_clean);
+        let current_session_clean_update =
+            before_after_to_diff_value(was_flagged_clean, is_flagged_clean);
+
+        ComputeDirtyAndCleanUpdateResult {
+            dirty_count_update,
+            current_session_clean_update,
+        }
+    }
+}
+
+impl ComputeDirtyAndCleanUpdateResult {
+    pub fn aggregated_update(&self, task_id: TaskId) -> Option<AggregatedDataUpdate> {
+        if self.dirty_count_update != 0 || self.current_session_clean_update != 0 {
+            Some(AggregatedDataUpdate::new().dirty_container_update(
+                task_id,
+                self.dirty_count_update,
+                self.current_session_clean_update,
+            ))
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -216,11 +291,33 @@ impl AggregationUpdateJob {
     }
 }
 
+#[derive(Default, Serialize, Deserialize, Clone, Copy, Debug)]
+pub struct SessionDependent<T> {
+    #[serde(skip, default)]
+    pub value: T,
+}
+
+impl<T> SessionDependent<T> {
+    pub fn new(value: T) -> Self {
+        Self { value }
+    }
+}
+
+impl<T> Deref for SessionDependent<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+
 /// Aggregated data update.
 #[derive(Default, Serialize, Deserialize, Clone, Debug)]
 pub struct AggregatedDataUpdate {
     /// One of the inner tasks has changed its dirty state or aggregated dirty state.
-    dirty_container_update: Option<(TaskId, DirtyContainerCount)>,
+    /// (task id, dirty update, current session clean update)
+    // TODO Serialize the current session clean update as 0
+    dirty_container_update: Option<(TaskId, i32, SessionDependent<i32>)>,
     /// One of the inner tasks has changed its collectibles count or aggregated collectibles count.
     collectibles_update: Vec<(CollectibleRef, i32)>,
 }
@@ -230,12 +327,16 @@ impl AggregatedDataUpdate {
     /// upper task.
     fn from_task(task: &mut impl TaskGuard) -> Self {
         let aggregation = get_aggregation_number(task);
-        let mut dirty_container_count = Default::default();
+        let mut dirty_count = 0;
+        let mut current_session_clean_count = 0;
         let mut collectibles_update: Vec<_> =
             get_many!(task, Collectible { collectible } count => (collectible, *count));
         if is_aggregating_node(aggregation) {
-            dirty_container_count = get!(task, AggregatedDirtyContainerCount)
-                .cloned()
+            dirty_count = get!(task, AggregatedDirtyContainerCount)
+                .copied()
+                .unwrap_or_default();
+            current_session_clean_count = get!(task, AggregatedCurrentSessionCleanContainerCount)
+                .copied()
                 .unwrap_or_default();
             let collectibles = iter_many!(
                 task,
@@ -249,21 +350,23 @@ impl AggregatedDataUpdate {
                 collectibles_update.push((collectible, 1));
             }
         }
-        if let Some(dirty) = get!(task, Dirty) {
-            dirty_container_count.update_with_dirty_state(dirty);
+        let (dirty, current_session_clean) = task.dirty();
+        if dirty {
+            dirty_count += 1;
+        }
+        if current_session_clean {
+            current_session_clean_count += 1;
         }
 
         let mut result = Self::new().collectibles_update(collectibles_update);
-        if !dirty_container_count.is_zero() {
-            let DirtyContainerCount {
-                count,
-                count_in_session,
-            } = dirty_container_count;
+        if dirty_count > 0 {
             result = result.dirty_container_update(
                 task.id(),
-                DirtyContainerCount {
-                    count: if count > 0 { 1 } else { 0 },
-                    count_in_session: count_in_session.map(|(s, c)| (s, if c > 0 { 1 } else { 0 })),
+                if dirty_count > 0 { 1 } else { 0 },
+                if dirty_count > 0 && dirty_count - current_session_clean_count <= 0 {
+                    1
+                } else {
+                    0
                 },
             );
         }
@@ -276,8 +379,9 @@ impl AggregatedDataUpdate {
             dirty_container_update,
             collectibles_update,
         } = &mut self;
-        if let Some((_, value)) = dirty_container_update.as_mut() {
-            *value = value.negate()
+        if let Some((_, value, current_session_clean_update)) = dirty_container_update.as_mut() {
+            *value = -*value;
+            current_session_clean_update.value = -current_session_clean_update.value;
         }
         for (_, value) in collectibles_update.iter_mut() {
             *value = -*value;
@@ -290,67 +394,169 @@ impl AggregatedDataUpdate {
     fn apply(
         &self,
         task: &mut impl TaskGuard,
-        session_id: SessionId,
         should_track_activeness: bool,
         queue: &mut AggregationUpdateQueue,
     ) -> AggregatedDataUpdate {
+        fn before_after_to_diff_value(before: bool, after: bool) -> i32 {
+            match (before, after) {
+                (true, false) => -1,
+                (false, true) => 1,
+                _ => 0,
+            }
+        }
+
         let Self {
             dirty_container_update,
             collectibles_update,
         } = self;
         let mut result = Self::default();
-        if let Some((dirty_container_id, count)) = dirty_container_update {
+        if let &Some((dirty_container_id, count, current_session_clean_update)) =
+            dirty_container_update
+        {
             if should_track_activeness {
                 // When a dirty container count is increased and the task is considered as active
                 // we need to schedule the dirty tasks in the new dirty container
-                let current_session_update = count.get(session_id);
+                let current_session_update = count - *current_session_clean_update;
                 if current_session_update > 0 && task.has_key(&CachedDataItemKey::Activeness {}) {
-                    queue.push_find_and_schedule_dirty(*dirty_container_id)
+                    queue.push_find_and_schedule_dirty(dirty_container_id)
                 }
             }
 
-            let mut aggregated_update = DirtyContainerCount::default();
-            update!(
-                task,
-                AggregatedDirtyContainer {
-                    task: *dirty_container_id
-                },
-                |old: Option<DirtyContainerCount>| {
-                    let mut new = old.unwrap_or_default();
-                    aggregated_update = new.update_count(count);
-                    (!new.is_zero()).then_some(new)
-                }
-            );
+            // Update AggregatedDirtyContainer and compute aggregated update
+            let mut dirty_container_count_update = 0;
+            let old_dirty_single_container_count;
+            let new_dirty_single_container_count;
+            if count != 0 {
+                new_dirty_single_container_count = update_count_and_get!(
+                    task,
+                    AggregatedDirtyContainer {
+                        task: dirty_container_id
+                    },
+                    count
+                );
+                old_dirty_single_container_count = new_dirty_single_container_count - count;
+                dirty_container_count_update = before_after_to_diff_value(
+                    old_dirty_single_container_count > 0,
+                    new_dirty_single_container_count > 0,
+                );
+            } else {
+                new_dirty_single_container_count = get!(
+                    task,
+                    AggregatedDirtyContainer {
+                        task: dirty_container_id
+                    }
+                )
+                .copied()
+                .unwrap_or_default();
+                old_dirty_single_container_count = new_dirty_single_container_count;
+            }
 
-            if !aggregated_update.is_zero() {
-                let dirty_state = get!(task, Dirty).copied();
+            // Update AggregatedSessionDependentCleanContainer
+            let old_single_container_current_session_clean_count;
+            let new_single_container_current_session_clean_count;
+            if *current_session_clean_update != 0 {
+                new_single_container_current_session_clean_count = update_count_and_get!(
+                    task,
+                    AggregatedCurrentSessionCleanContainer {
+                        task: dirty_container_id,
+                    },
+                    *current_session_clean_update
+                );
+                old_single_container_current_session_clean_count =
+                    new_single_container_current_session_clean_count
+                        - *current_session_clean_update;
+            } else {
+                new_single_container_current_session_clean_count = get!(
+                    task,
+                    AggregatedCurrentSessionCleanContainer {
+                        task: dirty_container_id,
+                    }
+                )
+                .copied()
+                .unwrap_or_default();
+                old_single_container_current_session_clean_count =
+                    new_single_container_current_session_clean_count;
+            }
+
+            // compute aggregated update
+            let was_single_container_clean = old_dirty_single_container_count > 0
+                && old_dirty_single_container_count
+                    <= old_single_container_current_session_clean_count;
+            let is_single_container_clean = new_dirty_single_container_count > 0
+                && new_dirty_single_container_count
+                    <= new_single_container_current_session_clean_count;
+            let current_session_clean_update =
+                before_after_to_diff_value(was_single_container_clean, is_single_container_clean);
+
+            if dirty_container_count_update != 0 || current_session_clean_update != 0 {
+                let (is_self_dirty, current_session_self_clean) = task.dirty();
+
                 let task_id = task.id();
-                update!(task, AggregatedDirtyContainerCount, |old: Option<
-                    DirtyContainerCount,
-                >| {
-                    let mut new = old.unwrap_or_default();
-                    if let Some(dirty_state) = dirty_state {
-                        new.update_with_dirty_state(&dirty_state);
-                    }
-                    let aggregated_update = new.update_count(&aggregated_update);
-                    if let Some(dirty_state) = dirty_state {
-                        new.undo_update_with_dirty_state(&dirty_state);
-                    }
-                    if !aggregated_update.is_zero() {
-                        result.dirty_container_update = Some((task_id, aggregated_update));
-                    }
-                    (!new.is_zero()).then_some(new)
-                });
-                if let Some((_, count)) = result.dirty_container_update.as_ref()
-                    && count.get(session_id) < 0
-                {
-                    // When the current task is no longer dirty, we need to fire the
-                    // aggregate root events and do some cleanup
-                    if let Some(activeness_state) = get_mut!(task, Activeness) {
-                        activeness_state.all_clean_event.notify(usize::MAX);
-                        activeness_state.unset_active_until_clean();
-                        if activeness_state.is_empty() {
-                            task.remove(&CachedDataItemKey::Activeness {});
+
+                // Update AggregatedDirtyContainerCount and compute aggregate value
+                let old_dirty_container_count;
+                let new_dirty_container_count;
+                if dirty_container_count_update != 0 {
+                    new_dirty_container_count = update_count_and_get!(
+                        task,
+                        AggregatedDirtyContainerCount,
+                        dirty_container_count_update
+                    );
+                    old_dirty_container_count =
+                        new_dirty_container_count - dirty_container_count_update;
+                } else {
+                    new_dirty_container_count = get!(task, AggregatedDirtyContainerCount)
+                        .copied()
+                        .unwrap_or_default();
+                    old_dirty_container_count = new_dirty_container_count;
+                };
+
+                // Update AggregatedSessionDependentCleanContainerCount and compute aggregate value
+                let new_current_session_clean_container_count;
+                let old_current_session_clean_container_count;
+                if current_session_clean_update != 0 {
+                    new_current_session_clean_container_count = update_count_and_get!(
+                        task,
+                        AggregatedCurrentSessionCleanContainerCount,
+                        current_session_clean_update
+                    );
+                    old_current_session_clean_container_count =
+                        new_current_session_clean_container_count - current_session_clean_update;
+                } else {
+                    new_current_session_clean_container_count =
+                        get!(task, AggregatedCurrentSessionCleanContainerCount)
+                            .copied()
+                            .unwrap_or_default();
+                    old_current_session_clean_container_count =
+                        new_current_session_clean_container_count;
+                };
+
+                let compute_result = ComputeDirtyAndCleanUpdate {
+                    old_dirty_container_count,
+                    new_dirty_container_count,
+                    old_current_session_clean_container_count,
+                    new_current_session_clean_container_count,
+                    old_self_dirty: is_self_dirty,
+                    new_self_dirty: is_self_dirty,
+                    old_current_session_self_clean: current_session_self_clean,
+                    new_current_session_self_clean: current_session_self_clean,
+                }
+                .compute();
+
+                if let Some(aggregated_update) = compute_result.aggregated_update(task_id) {
+                    result = aggregated_update;
+
+                    if let Some((_, count, current_session_clean)) = result.dirty_container_update
+                        && count - *current_session_clean < 0
+                    {
+                        // When the current task is no longer dirty, we need to fire the
+                        // aggregate root events and do some cleanup
+                        if let Some(activeness_state) = get_mut!(task, Activeness) {
+                            activeness_state.all_clean_event.notify(usize::MAX);
+                            activeness_state.unset_active_until_clean();
+                            if activeness_state.is_empty() {
+                                task.remove(&CachedDataItemKey::Activeness {});
+                            }
                         }
                     }
                 }
@@ -421,8 +627,17 @@ impl AggregatedDataUpdate {
     }
 
     /// Adds a dirty container update to the update.
-    pub fn dirty_container_update(mut self, task_id: TaskId, count: DirtyContainerCount) -> Self {
-        self.dirty_container_update = Some((task_id, count));
+    pub fn dirty_container_update(
+        mut self,
+        task_id: TaskId,
+        count: i32,
+        current_session_clean_update: i32,
+    ) -> Self {
+        self.dirty_container_update = Some((
+            task_id,
+            count,
+            SessionDependent::new(current_session_clean_update),
+        ));
         self
     }
 
@@ -1043,12 +1258,7 @@ impl AggregationUpdateQueue {
                         // followers
                         let data = AggregatedDataUpdate::from_task(&mut task);
                         let followers = get_followers(&task);
-                        let diff = data.apply(
-                            &mut upper,
-                            ctx.session_id(),
-                            ctx.should_track_activeness(),
-                            self,
-                        );
+                        let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
 
                         if !upper_ids.is_empty() && !diff.is_empty() {
                             // Notify uppers about changed aggregated data
@@ -1140,12 +1350,7 @@ impl AggregationUpdateQueue {
                     // followers
                     let data = AggregatedDataUpdate::from_task(&mut task).invert();
                     let followers = get_followers(&task);
-                    let diff = data.apply(
-                        &mut upper,
-                        ctx.session_id(),
-                        ctx.should_track_activeness(),
-                        self,
-                    );
+                    let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                     if !upper_ids.is_empty() && !diff.is_empty() {
                         self.push(
                             AggregatedDataUpdateJob {
@@ -1207,9 +1412,8 @@ impl AggregationUpdateQueue {
         mut task: impl TaskGuard,
         ctx: &mut impl ExecuteContext<'_>,
     ) {
-        let session_id = ctx.session_id();
         // Task need to be scheduled if it's dirty or doesn't have output
-        let dirty = get!(task, Dirty).map_or(false, |d| d.get(session_id));
+        let dirty = task.is_dirty();
         let should_schedule = if dirty {
             Some(TaskExecutionReason::ActivateDirty)
         } else if !task.has_key(&CachedDataItemKey::Output {}) {
@@ -1222,7 +1426,7 @@ impl AggregationUpdateQueue {
         // this would already be scheduled by the `Activeness`
         let is_active_until_clean = get!(task, Activeness).is_some_and(|a| a.active_until_clean);
         if !is_active_until_clean {
-            let mut dirty_containers = iter_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => task).peekable();
+            let mut dirty_containers = task.dirty_containers().peekable();
             let is_empty = dirty_containers.peek().is_none();
             if !is_empty || dirty {
                 self.extend_find_and_schedule_dirty(dirty_containers);
@@ -1253,12 +1457,7 @@ impl AggregationUpdateQueue {
                 // For performance reasons this should stay `Meta` and not `All`
                 TaskDataCategory::Meta,
             );
-            let diff = update.apply(
-                &mut upper,
-                ctx.session_id(),
-                ctx.should_track_activeness(),
-                self,
-            );
+            let diff = update.apply(&mut upper, ctx.should_track_activeness(), self);
             if !diff.is_empty() {
                 let upper_ids = get_uppers(&upper);
                 if !upper_ids.is_empty() {
@@ -1323,12 +1522,7 @@ impl AggregationUpdateQueue {
                             // For performance reasons this should stay `Meta` and not `All`
                             TaskDataCategory::Meta,
                         );
-                        let diff = data.apply(
-                            &mut upper,
-                            ctx.session_id(),
-                            ctx.should_track_activeness(),
-                            self,
-                        );
+                        let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                         if !diff.is_empty() {
                             let upper_ids = get_uppers(&upper);
                             self.push(
@@ -1484,12 +1678,7 @@ impl AggregationUpdateQueue {
                             // For performance reasons this should stay `Meta` and not `All`
                             TaskDataCategory::Meta,
                         );
-                        let diff = data.apply(
-                            &mut upper,
-                            ctx.session_id(),
-                            ctx.should_track_activeness(),
-                            self,
-                        );
+                        let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                         if !diff.is_empty() {
                             let upper_ids = get_uppers(&upper);
                             self.push(
@@ -1725,12 +1914,7 @@ impl AggregationUpdateQueue {
                             TaskDataCategory::Meta,
                         );
                         if has_data {
-                            let diff = data.apply(
-                                &mut upper,
-                                ctx.session_id(),
-                                ctx.should_track_activeness(),
-                                self,
-                            );
+                            let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                             if !diff.is_empty() {
                                 let upper_ids = get_uppers(&upper);
                                 self.push(
@@ -1927,12 +2111,7 @@ impl AggregationUpdateQueue {
                 let diffs = upper_data_updates
                     .into_iter()
                     .filter_map(|data| {
-                        let diff = data.apply(
-                            &mut upper,
-                            ctx.session_id(),
-                            ctx.should_track_activeness(),
-                            self,
-                        );
+                        let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                         (!diff.is_empty()).then_some(diff)
                     })
                     .collect::<Vec<_>>();
@@ -2105,12 +2284,7 @@ impl AggregationUpdateQueue {
                         // For performance reasons this should stay `Meta` and not `All`
                         TaskDataCategory::Meta,
                     );
-                    let diff = data.apply(
-                        &mut upper,
-                        ctx.session_id(),
-                        ctx.should_track_activeness(),
-                        self,
-                    );
+                    let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                     if !diff.is_empty() {
                         let upper_ids = get_uppers(&upper);
                         self.push(

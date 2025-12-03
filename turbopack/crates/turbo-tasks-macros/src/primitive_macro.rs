@@ -48,6 +48,7 @@ pub fn primitive(input: TokenStream) -> TokenStream {
         quote! {
             turbo_tasks::ValueType::new_with_any_serialization::<#ty>(#name)
         },
+        quote! { true },
     );
 
     let value_default_impl = quote! {
