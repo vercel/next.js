@@ -25,7 +25,7 @@ use crate::{
     backing_storage::BackingStorage,
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemType, CachedDataItemValue,
-        CachedDataItemValueRef, CachedDataItemValueRefMut, Dirtyness,
+        CachedDataItemValueRef, CachedDataItemValueRefMut, DirtyContainerCount, Dirtyness,
     },
 };
 
@@ -429,6 +429,50 @@ pub trait TaskGuard: Debug {
                 get!(self, CleanInSession).copied(),
             )),
         }
+    }
+    /// Returns (is_dirty, is_clean_in_current_session)
+    fn dirty(&self, session_id: SessionId) -> (bool, bool) {
+        match get!(self, Dirty) {
+            None => (false, false),
+            Some(Dirtyness::Dirty) => (true, false),
+            Some(Dirtyness::SessionDependent) => (
+                true,
+                get!(self, CleanInSession).copied() == Some(session_id),
+            ),
+        }
+    }
+    fn dirty_containers(&self, session_id: SessionId) -> impl Iterator<Item = TaskId> {
+        self.dirty_containers_with_count(session_id)
+            .map(|(task_id, _)| task_id)
+    }
+    fn dirty_containers_with_count(
+        &self,
+        session_id: SessionId,
+    ) -> impl Iterator<Item = (TaskId, i32)> {
+        iter_many!(self, AggregatedDirtyContainer { task } count => (task, *count)).filter(
+            move |&(task_id, count)| {
+                if count > 0 {
+                    let clean_count = get!(
+                        self,
+                        AggregatedSessionDependentCleanContainer {
+                            task: task_id,
+                            session_id
+                        }
+                    )
+                    .copied()
+                    .unwrap_or_default();
+                    count > clean_count
+                } else {
+                    false
+                }
+            },
+        )
+    }
+
+    fn dirty_container_count(&self) -> DirtyContainerCount {
+        get!(self, AggregatedDirtyContainerCount)
+            .cloned()
+            .unwrap_or_default()
     }
 }
 

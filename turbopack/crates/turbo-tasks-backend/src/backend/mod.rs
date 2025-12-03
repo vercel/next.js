@@ -592,14 +592,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         .set_active_until_clean();
                     if ctx.should_track_activeness() {
                         // A newly added Activeness need to make sure to schedule the tasks
-                        task_ids_to_schedule = get_many!(
-                            task,
-                            AggregatedDirtyContainer {
-                                task
-                            } count if count.get(self.session_id) > 0 => {
-                                task
-                            }
-                        );
+                        task_ids_to_schedule = task.dirty_containers(self.session_id).collect();
                         task_ids_to_schedule.push(task_id);
                     }
                     get!(task, Activeness).unwrap()
@@ -660,16 +653,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 "{task_id} {task_description}{count} (aggr={aggregation_number}, \
                                  {in_progress}, {activeness}{is_dirty})",
                             );
-                            let children: Vec<_> = iter_many!(
-                                task,
-                                AggregatedDirtyContainer {
-                                    task
-                                } count => {
-                                    (task, count.get(ctx.session_id()))
-                                }
-                            )
-                            .filter(|(_, count)| *count > 0)
-                            .collect();
+                            let children: Vec<_> =
+                                task.dirty_containers_with_count(ctx.session_id()).collect();
                             drop(task);
 
                             if missing_upper {
@@ -2998,9 +2983,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     }
                 }
 
-                let is_dirty = task.is_dirty(self.session_id);
-                let has_dirty_container = get!(task, AggregatedDirtyContainerCount)
-                    .is_some_and(|count| count.get(self.session_id) > 0);
+                let is_dirty = get!(task, Dirty).is_some();
+                let has_dirty_container =
+                    get!(task, AggregatedDirtyContainerCount).is_some_and(|count| count.count > 0);
                 let should_be_in_upper = is_dirty || has_dirty_container;
 
                 let aggregation_number = get_aggregation_number(&task);
@@ -3025,7 +3010,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     for upper_id in uppers {
                         let task = ctx.task(task_id, TaskDataCategory::All);
                         let in_upper = get!(task, AggregatedDirtyContainer { task: task_id })
-                            .is_some_and(|dirty| dirty.get(self.session_id) > 0);
+                            .is_some_and(|&dirty| dirty > 0);
                         if !in_upper {
                             panic!(
                                 "Task {} ({}) is dirty, but is not listed in the upper task {} \
