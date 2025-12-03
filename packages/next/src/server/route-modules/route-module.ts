@@ -223,9 +223,8 @@ export abstract class RouteModule<
             process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
           ),
         },
-        serverFilesManifest: {
-          config: (globalThis as any).nextConfig || {},
-        } as any,
+        serverFilesManifest:
+          self.__SERVER_FILES_MANIFEST as any as RequiredServerFilesManifest,
         clientReferenceManifest: self.__RSC_MANIFEST?.[srcPage],
         serverActionsManifest: maybeJSONParse(self.__RSC_SERVER_MANIFEST),
         subresourceIntegrityManifest: maybeJSONParse(
@@ -337,7 +336,7 @@ export abstract class RouteModule<
           : loadManifestFromRelativePath<RequiredServerFilesManifest>({
               projectDir,
               distDir: this.distDir,
-              manifest: SERVER_FILES_MANIFEST,
+              manifest: `${SERVER_FILES_MANIFEST}.json`,
             }),
         this.isDev
           ? 'development'

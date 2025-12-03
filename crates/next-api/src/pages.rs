@@ -1441,6 +1441,16 @@ impl PageEndpoint {
                         fxindexset![]
                     };
 
+                    if this
+                        .pages_project
+                        .project()
+                        .next_mode()
+                        .await?
+                        .is_production()
+                    {
+                        file_paths_from_root.insert(rcstr!("required-server-files.js"));
+                    }
+
                     let all_assets = assets.concatenate(*referenced_assets);
                     let assets_ref = assets.await?;
 
