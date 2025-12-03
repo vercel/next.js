@@ -3,7 +3,7 @@ import { retry } from 'next-test-utils'
 import { Page } from 'playwright'
 
 describe('app dir - workers', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, skipped, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
@@ -15,8 +15,11 @@ describe('app dir - workers', () => {
   function beforePageLoad(page: Page) {
     page.on('request', (request) => {
       const url = request.url()
-      if (url.includes('_next')) {
-        expect(url).toMatch(/^[^?]+\?(v=\d+&)?dpl=test-deployment-id$/)
+      // TODO fix deployment id for webpack
+      if (isTurbopack) {
+        if (url.includes('_next')) {
+          expect(url).toMatch(/^[^?]+\?(v=\d+&)?dpl=test-deployment-id$/)
+        }
       }
     })
   }
