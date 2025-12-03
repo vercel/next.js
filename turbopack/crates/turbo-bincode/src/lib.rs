@@ -1,5 +1,6 @@
 #[doc(hidden)]
 pub mod macro_helpers;
+pub mod serde_self_describing;
 
 use std::{any::Any, ptr::copy_nonoverlapping};
 
