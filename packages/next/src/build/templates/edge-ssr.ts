@@ -52,6 +52,8 @@ const pageMod = {
       Document,
     },
     userland: userlandPage,
+    distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
+    relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   }),
 }
 
@@ -64,6 +66,8 @@ const errorMod = {
       Document,
     },
     userland: userlandErrorPage,
+    distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
+    relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   }),
 }
 
@@ -78,6 +82,8 @@ const error500Mod = userland500Page
           Document,
         },
         userland: userland500Page,
+        distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
+        relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
       }),
     }
   : null

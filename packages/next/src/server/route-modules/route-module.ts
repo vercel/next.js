@@ -224,7 +224,8 @@ export abstract class RouteModule<
           ),
         },
         serverFilesManifest:
-          self.__SERVER_FILES_MANIFEST as any as RequiredServerFilesManifest,
+          (self.__SERVER_FILES_MANIFEST as any as RequiredServerFilesManifest) ||
+          {},
         clientReferenceManifest: self.__RSC_MANIFEST?.[srcPage],
         serverActionsManifest: maybeJSONParse(self.__RSC_SERVER_MANIFEST),
         subresourceIntegrityManifest: maybeJSONParse(
@@ -332,7 +333,8 @@ export abstract class RouteModule<
           shouldCache: !this.isDev,
         }),
         this.isDev
-          ? ({} as any)
+          ? // in dev, routerServerGlobal is read instead for the nextConfig
+            ({} as any)
           : loadManifestFromRelativePath<RequiredServerFilesManifest>({
               projectDir,
               distDir: this.distDir,

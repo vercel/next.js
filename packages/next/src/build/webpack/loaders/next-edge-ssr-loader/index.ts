@@ -46,7 +46,10 @@ function swapDistFolderWithEsmDistFolder(path: string) {
 }
 
 function getRouteModuleOptions(page: string) {
-  const options: Omit<PagesRouteModuleOptions, 'userland' | 'components'> = {
+  const options: Omit<
+    PagesRouteModuleOptions,
+    'userland' | 'components' | 'distDir' | 'relativeProjectDir'
+  > = {
     definition: {
       kind: RouteKind.PAGES,
       page: normalizePagePath(page),
@@ -55,9 +58,6 @@ function getRouteModuleOptions(page: string) {
       bundlePath: '',
       filename: '',
     },
-    // edge runtime doesn't read from distDir or projectDir
-    distDir: '',
-    relativeProjectDir: '',
   }
 
   return options
