@@ -249,8 +249,8 @@ impl AggregatedDataUpdate {
                 collectibles_update.push((collectible, 1));
             }
         }
-        if let Some(dirty) = get!(task, Dirty) {
-            dirty_container_count.update_with_dirty_state(dirty);
+        if let Some((dirtyness, clean_in_session)) = task.dirtyness_and_session() {
+            dirty_container_count.update_with_dirtyness_and_session(dirtyness, clean_in_session);
         }
 
         let mut result = Self::new().collectibles_update(collectibles_update);
@@ -323,18 +323,18 @@ impl AggregatedDataUpdate {
             );
 
             if !aggregated_update.is_zero() {
-                let dirty_state = get!(task, Dirty).copied();
+                let dirtyness_and_session = task.dirtyness_and_session();
                 let task_id = task.id();
                 update!(task, AggregatedDirtyContainerCount, |old: Option<
                     DirtyContainerCount,
                 >| {
                     let mut new = old.unwrap_or_default();
-                    if let Some(dirty_state) = dirty_state {
-                        new.update_with_dirty_state(&dirty_state);
+                    if let Some((dirtyness, clean_in_session)) = dirtyness_and_session {
+                        new.update_with_dirtyness_and_session(dirtyness, clean_in_session);
                     }
                     let aggregated_update = new.update_count(&aggregated_update);
-                    if let Some(dirty_state) = dirty_state {
-                        new.undo_update_with_dirty_state(&dirty_state);
+                    if let Some((dirtyness, clean_in_session)) = dirtyness_and_session {
+                        new.undo_update_with_dirtyness_and_session(dirtyness, clean_in_session);
                     }
                     if !aggregated_update.is_zero() {
                         result.dirty_container_update = Some((task_id, aggregated_update));
@@ -1209,7 +1209,7 @@ impl AggregationUpdateQueue {
     ) {
         let session_id = ctx.session_id();
         // Task need to be scheduled if it's dirty or doesn't have output
-        let dirty = get!(task, Dirty).map_or(false, |d| d.get(session_id));
+        let dirty = task.is_dirty(session_id);
         let should_schedule = if dirty {
             Some(TaskExecutionReason::ActivateDirty)
         } else if !task.has_key(&CachedDataItemKey::Output {}) {

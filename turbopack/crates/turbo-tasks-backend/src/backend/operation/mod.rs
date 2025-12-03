@@ -20,12 +20,12 @@ use crate::{
     backend::{
         OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
         TurboTasksBackendJob,
-        storage::{SpecificTaskDataCategory, StorageWriteGuard, iter_many},
+        storage::{SpecificTaskDataCategory, StorageWriteGuard, get, iter_many},
     },
     backing_storage::BackingStorage,
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemType, CachedDataItemValue,
-        CachedDataItemValueRef, CachedDataItemValueRefMut,
+        CachedDataItemValueRef, CachedDataItemValueRefMut, Dirtyness,
     },
 };
 
@@ -415,6 +415,21 @@ pub trait TaskGuard: Debug {
     fn invalidate_serialization(&mut self);
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>>;
     fn is_immutable(&self) -> bool;
+    fn is_dirty(&self, session_id: SessionId) -> bool {
+        get!(self, Dirty).is_some_and(|dirtyness| match dirtyness {
+            Dirtyness::Dirty => true,
+            Dirtyness::SessionDependent => get!(self, CleanInSession).copied() != Some(session_id),
+        })
+    }
+    fn dirtyness_and_session(&self) -> Option<(Dirtyness, Option<SessionId>)> {
+        match get!(self, Dirty)? {
+            Dirtyness::Dirty => Some((Dirtyness::Dirty, None)),
+            Dirtyness::SessionDependent => Some((
+                Dirtyness::SessionDependent,
+                get!(self, CleanInSession).copied(),
+            )),
+        }
+    }
 }
 
 pub struct TaskGuardImpl<'a, B: BackingStorage> {
