@@ -48,8 +48,8 @@ use crate::backend::operation::TaskDirtyCause;
 use crate::{
     backend::{
         operation::{
-            AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
-            CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
+            AggregationUpdateJob, AggregationUpdateQueue, CleanupOldEdgesOperation,
+            ComputeDirtyAndCleanUpdate, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
             Operation, OutdatedEdge, TaskGuard, connect_children, get_aggregation_number,
             get_uppers, is_root_node, make_task_dirty_internal, prepare_new_children,
         },
@@ -570,11 +570,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let is_dirty = task.is_dirty(self.session_id);
 
             // Check the dirty count of the root node
-            let dirty_tasks = get!(task, AggregatedDirtyContainerCount)
-                .cloned()
-                .unwrap_or_default()
-                .get(self.session_id);
-            if dirty_tasks > 0 || is_dirty {
+            let has_dirty_containers = task.has_dirty_containers(self.session_id);
+            if has_dirty_containers || is_dirty {
                 let activeness = get_mut!(task, Activeness);
                 let mut task_ids_to_schedule: Vec<_> = Vec::new();
                 // When there are dirty task, subscribe to the all_clean_event
@@ -615,7 +612,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             parent_and_count: Option<(TaskId, i32)>,
                             visited: &mut FxHashSet<TaskId>,
                         ) -> String {
-                            let task = ctx.task(task_id, TaskDataCategory::Data);
+                            let task = ctx.task(task_id, TaskDataCategory::All);
                             let is_dirty = task.is_dirty(ctx.session_id());
                             let in_progress =
                                 get!(task, InProgress).map_or("not in progress", |p| match p {
@@ -637,13 +634,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             };
 
                             // Check the dirty count of the root node
-                            let dirty_tasks = get!(task, AggregatedDirtyContainerCount)
-                                .cloned()
-                                .unwrap_or_default()
-                                .get(ctx.session_id());
+                            let has_dirty_containers = task.has_dirty_containers(ctx.session_id());
 
                             let task_description = ctx.get_task_description(task_id);
-                            let is_dirty = if is_dirty { ", dirty" } else { "" };
+                            let is_dirty_label = if is_dirty { ", dirty" } else { "" };
+                            let has_dirty_containers_label = if has_dirty_containers {
+                                ", dirty containers"
+                            } else {
+                                ""
+                            };
                             let count = if let Some((_, count)) = parent_and_count {
                                 format!(" {count}")
                             } else {
@@ -651,7 +650,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             };
                             let mut info = format!(
                                 "{task_id} {task_description}{count} (aggr={aggregation_number}, \
-                                 {in_progress}, {activeness}{is_dirty})",
+                                 {in_progress}, \
+                                 {activeness}{is_dirty_label}{has_dirty_containers_label})",
                             );
                             let children: Vec<_> =
                                 task.dirty_containers_with_count(ctx.session_id()).collect();
@@ -661,8 +661,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 info.push_str("\n  ERROR: missing upper connection");
                             }
 
-                            if dirty_tasks > 0 || !children.is_empty() {
-                                writeln!(info, "\n  {dirty_tasks} dirty tasks:").unwrap();
+                            if has_dirty_containers || !children.is_empty() {
+                                writeln!(info, "\n  dirty tasks:").unwrap();
 
                                 for (child_task_id, count) in children {
                                     let task_description = ctx.get_task_description(child_task_id);
@@ -2363,68 +2363,92 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             },
         ));
 
+        // Grab the old dirty state
+        let old_dirtyness = get!(task, Dirty).cloned();
+        let (old_self_dirty, old_current_session_self_clean, old_clean_in_session) =
+            match old_dirtyness {
+                None => (false, false, None),
+                Some(Dirtyness::Dirty) => (true, false, None),
+                Some(Dirtyness::SessionDependent) => {
+                    let clean_in_session = get!(task, CleanInSession).copied();
+                    (
+                        true,
+                        clean_in_session == Some(self.session_id),
+                        clean_in_session,
+                    )
+                }
+            };
+
+        // Compute the new dirty state
+        let (new_dirtyness, new_clean_in_session, new_self_dirty, new_current_session_self_clean) =
+            if session_dependent {
+                (
+                    Some(Dirtyness::SessionDependent),
+                    Some(self.session_id),
+                    true,
+                    true,
+                )
+            } else {
+                (None, None, false, false)
+            };
+
         // Update the dirty state
-        let old_dirtyness = task.dirtyness_and_session();
-
-        let new_dirtyness = if session_dependent {
-            Some((Dirtyness::SessionDependent, Some(self.session_id)))
-        } else {
-            None
-        };
-
-        let dirty_changed = old_dirtyness != new_dirtyness;
-        let data_update = if dirty_changed {
-            if let Some((value, _)) = new_dirtyness {
+        if old_dirtyness != new_dirtyness {
+            if let Some(value) = new_dirtyness {
                 task.insert(CachedDataItem::Dirty { value });
             } else if old_dirtyness.is_some() {
                 task.remove(&CachedDataItemKey::Dirty {});
             }
-            if let Some(session_id) = new_dirtyness.and_then(|t| t.1) {
+        }
+        if old_clean_in_session != new_clean_in_session {
+            if let Some(session_id) = new_clean_in_session {
                 task.insert(CachedDataItem::CleanInSession { value: session_id });
-            } else if old_dirtyness.is_some_and(|t| t.1.is_some()) {
+            } else if old_clean_in_session.is_some() {
                 task.remove(&CachedDataItemKey::CleanInSession {});
             }
+        }
 
-            let mut dirty_containers = get!(task, AggregatedDirtyContainerCount)
+        // Propagate dirtyness changes
+        let data_update = if old_self_dirty != new_self_dirty
+            || old_current_session_self_clean != new_current_session_self_clean
+        {
+            let dirty_container_count = get!(task, AggregatedDirtyContainerCount)
                 .cloned()
                 .unwrap_or_default();
-            if let Some((old_dirtyness, old_clean_in_session)) = old_dirtyness {
-                dirty_containers
-                    .update_with_dirtyness_and_session(old_dirtyness, old_clean_in_session);
+            let current_session_clean_container_count = get!(
+                task,
+                AggregatedSessionDependentCleanContainerCount {
+                    session_id: self.session_id
+                }
+            )
+            .copied()
+            .unwrap_or_default();
+            let result = ComputeDirtyAndCleanUpdate {
+                old_dirty_container_count: dirty_container_count,
+                new_dirty_container_count: dirty_container_count,
+                old_current_session_clean_container_count: current_session_clean_container_count,
+                new_current_session_clean_container_count: current_session_clean_container_count,
+                old_self_dirty,
+                new_self_dirty,
+                old_current_session_self_clean,
+                new_current_session_self_clean,
             }
-            let aggregated_update = match (old_dirtyness, new_dirtyness) {
-                (None, None) => unreachable!(),
-                (Some(old), None) => {
-                    dirty_containers.undo_update_with_dirtyness_and_session(old.0, old.1)
-                }
-                (None, Some(new)) => {
-                    dirty_containers.update_with_dirtyness_and_session(new.0, new.1)
-                }
-                (Some(old), Some(new)) => {
-                    dirty_containers.replace_dirtyness_and_session(old.0, old.1, new.0, new.1)
-                }
-            };
-            if !aggregated_update.is_zero() {
-                if aggregated_update.get(self.session_id) < 0
-                    && let Some(activeness_state) = get_mut!(task, Activeness)
-                {
+            .compute();
+            if result.dirty_count_update - result.current_session_clean_update < 0 {
+                // The task is clean now
+                if let Some(activeness_state) = get_mut!(task, Activeness) {
                     activeness_state.all_clean_event.notify(usize::MAX);
                     activeness_state.unset_active_until_clean();
                     if activeness_state.is_empty() {
                         task.remove(&CachedDataItemKey::Activeness {});
                     }
                 }
-                AggregationUpdateJob::data_update(
-                    &mut task,
-                    AggregatedDataUpdate::new().dirty_container_update(
-                        task_id,
-                        aggregated_update.count,
-                        aggregated_update.current_session_clean(ctx.session_id()),
-                    ),
-                )
-            } else {
-                None
             }
+            result
+                .aggregated_update(task_id)
+                .and_then(|aggregated_update| {
+                    AggregationUpdateJob::data_update(&mut task, aggregated_update)
+                })
         } else {
             None
         };
@@ -2891,10 +2915,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let is_dirty = task.is_dirty(self.session_id);
-        let has_dirty_containers = get!(task, AggregatedDirtyContainerCount)
-            .map_or(false, |dirty_containers| {
-                dirty_containers.get(self.session_id) > 0
-            });
+        let has_dirty_containers = task.has_dirty_containers(self.session_id);
         if is_dirty || has_dirty_containers {
             if let Some(activeness_state) = get_mut!(task, Activeness) {
                 // We will finish the task, but it would be removed after the task is done
@@ -2984,8 +3005,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 }
 
                 let is_dirty = get!(task, Dirty).is_some();
-                let has_dirty_container =
-                    get!(task, AggregatedDirtyContainerCount).is_some_and(|count| count.count > 0);
+                let has_dirty_container = task.has_dirty_containers(self.session_id);
                 let should_be_in_upper = is_dirty || has_dirty_container;
 
                 let aggregation_number = get_aggregation_number(&task);
@@ -3008,17 +3028,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
                 if should_be_in_upper {
                     for upper_id in uppers {
-                        let task = ctx.task(task_id, TaskDataCategory::All);
+                        let task = ctx.task(upper_id, TaskDataCategory::All);
                         let in_upper = get!(task, AggregatedDirtyContainer { task: task_id })
                             .is_some_and(|&dirty| dirty > 0);
                         if !in_upper {
+                            let containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task: task_id } value => (task_id, *value));
                             panic!(
                                 "Task {} ({}) is dirty, but is not listed in the upper task {} \
-                                 ({})",
+                                 ({})\nThese dirty containers are present:\n{:#?}",
                                 task_id,
                                 ctx.get_task_description(task_id),
                                 upper_id,
-                                ctx.get_task_description(upper_id)
+                                ctx.get_task_description(upper_id),
+                                containers,
                             );
                         }
                     }

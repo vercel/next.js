@@ -8,7 +8,7 @@ use crate::{
         operation::{
             ExecuteContext, Operation, TaskGuard,
             aggregation_update::{
-                AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
+                AggregationUpdateJob, AggregationUpdateQueue, ComputeDirtyAndCleanUpdate,
             },
         },
         storage::{get, get_mut, remove},
@@ -234,7 +234,7 @@ pub fn make_task_dirty_internal(
     let old = task.insert(CachedDataItem::Dirty {
         value: Dirtyness::Dirty,
     });
-    let mut dirty_container = match old {
+    let (old_self_dirty, old_current_session_self_clean) = match old {
         Some(CachedDataItemValue::Dirty {
             value: Dirtyness::Dirty,
         }) => {
@@ -252,37 +252,47 @@ pub fn make_task_dirty_internal(
         Some(CachedDataItemValue::Dirty {
             value: Dirtyness::SessionDependent,
         }) => {
+            // It was a session-dependent dirty before, so we need to remove that clean count
             let old = remove!(task, CleanInSession);
-            match old {
-                None => {
-                    #[cfg(feature = "trace_task_dirty")]
-                    let _span = tracing::trace_span!(
-                        "session-dependent task already dirty",
-                        name = ctx.get_task_description(task_id),
-                        cause = %TaskDirtyCauseInContext::new(&cause, ctx)
-                    )
-                    .entered();
-                    // already dirty
-                    return;
-                }
-                Some(session_id) => {
-                    // Got dirty in that one session only
-                    let mut dirty_container = get!(task, AggregatedDirtyContainerCount)
-                        .cloned()
-                        .unwrap_or_default();
-                    dirty_container.update_session_dependent(session_id, 1);
-                    dirty_container
-                }
+            if let Some(session_id) = old
+                && session_id == ctx.session_id()
+            {
+                // There was a clean count for a session. If it was the current session, we need to
+                // propagate that change.
+                (true, true)
+            } else {
+                #[cfg(feature = "trace_task_dirty")]
+                let _span = tracing::trace_span!(
+                    "session-dependent task already dirty",
+                    name = ctx.get_task_description(task_id),
+                    cause = %TaskDirtyCauseInContext::new(&cause, ctx)
+                )
+                .entered();
+                // already dirty
+                return;
             }
         }
         None => {
-            // Get dirty for all sessions
-            get!(task, AggregatedDirtyContainerCount)
-                .cloned()
-                .unwrap_or_default()
+            // It was clean before, so we need to increase the dirty count
+            (false, false)
         }
         _ => unreachable!(),
     };
+
+    let new_self_dirty = true;
+    let new_current_session_self_clean = false;
+
+    let dirty_container_count = get!(task, AggregatedDirtyContainerCount)
+        .copied()
+        .unwrap_or_default();
+    let current_session_clean_container_count = get!(
+        task,
+        AggregatedSessionDependentCleanContainerCount {
+            session_id: ctx.session_id(),
+        }
+    )
+    .copied()
+    .unwrap_or_default();
 
     #[cfg(feature = "trace_task_dirty")]
     let _span = tracing::trace_span!(
@@ -293,21 +303,27 @@ pub fn make_task_dirty_internal(
     )
     .entered();
 
-    let should_schedule = {
-        let aggregated_update =
-            dirty_container.update_with_dirtyness_and_session(Dirtyness::Dirty, None);
-        if !aggregated_update.is_zero() {
-            queue.extend(AggregationUpdateJob::data_update(
-                &mut task,
-                AggregatedDataUpdate::new().dirty_container_update(
-                    task_id,
-                    aggregated_update.count,
-                    aggregated_update.current_session_clean(ctx.session_id()),
-                ),
-            ));
-        }
-        !ctx.should_track_activeness() || task.has_key(&CachedDataItemKey::Activeness {})
-    };
+    let result = ComputeDirtyAndCleanUpdate {
+        old_dirty_container_count: dirty_container_count,
+        new_dirty_container_count: dirty_container_count,
+        old_current_session_clean_container_count: current_session_clean_container_count,
+        new_current_session_clean_container_count: current_session_clean_container_count,
+        old_self_dirty,
+        new_self_dirty,
+        old_current_session_self_clean,
+        new_current_session_self_clean,
+    }
+    .compute();
+
+    if let Some(aggregated_update) = result.aggregated_update(task_id) {
+        queue.extend(AggregationUpdateJob::data_update(
+            &mut task,
+            aggregated_update,
+        ));
+    }
+
+    let should_schedule =
+        !ctx.should_track_activeness() || task.has_key(&CachedDataItemKey::Activeness {});
 
     if should_schedule {
         let description = || ctx.get_task_desc_fn(task_id);
