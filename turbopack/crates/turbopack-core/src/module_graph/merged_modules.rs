@@ -148,21 +148,22 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 .map(|e| Ok((*e, -*module_depth.get(e).context("Module depth not found")?)))
                 .collect::<Result<Vec<_>>>()?,
             &mut (),
-            |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData)>,
+            |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData, _)>,
              node: ResolvedVc<Box<dyn Module>>,
              _|
              -> Result<GraphTraversalAction> {
                 // On the down traversal, establish which edges are mergeable and set the list
                 // indices.
-                let (parent_module, hoisted) = parent_info.map_or((None, false), |(node, ty)| {
-                    (
-                        Some(node),
-                        match &ty.chunking_type {
-                            ChunkingType::Parallel { hoisted, .. } => *hoisted,
-                            _ => false,
-                        },
-                    )
-                });
+                let (parent_module, hoisted) =
+                    parent_info.map_or((None, false), |(node, ty, _)| {
+                        (
+                            Some(node),
+                            match &ty.chunking_type {
+                                ChunkingType::Parallel { hoisted, .. } => *hoisted,
+                                _ => false,
+                            },
+                        )
+                    });
                 let module = node;
 
                 Ok(if parent_module.is_some_and(|p| p == module) {
@@ -341,14 +342,16 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                                 let module = node;
                                 let bitmap = module_merged_groups
                                     .get(&module)
-                                    .context("every module should have a bitmap at this point")?;
+                                    .context("every module should have a bitmap")?;
 
                                 if mergeable.contains(&module) {
                                     let mergeable_module =
                                         ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(
                                             module,
                                         )
-                                        .unwrap();
+                                        .context(
+                                            "found mergeable module which is not a MergeableModule",
+                                        )?;
                                     match chunk_lists.entry(bitmap) {
                                         Entry::Vacant(e) => {
                                             // New list, insert the module
@@ -381,8 +384,12 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                                 }
 
                                 if let Some((parent, _)) = parent_info {
-                                    let same_bitmap = module_merged_groups.get(&parent).unwrap()
-                                        == module_merged_groups.get(&module).unwrap();
+                                    let same_bitmap = module_merged_groups
+                                        .get(&parent)
+                                        .context("every module should have a bitmap")?
+                                        == module_merged_groups
+                                            .get(&module)
+                                            .context("every module should have a bitmap")?;
 
                                     if same_bitmap {
                                         intra_group_references_rev
@@ -469,8 +476,12 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 let module = node;
 
                 if let Some((parent, _)) = parent_info {
-                    let same_bitmap = module_merged_groups.get(&parent).unwrap()
-                        == module_merged_groups.get(&module).unwrap();
+                    let same_bitmap = module_merged_groups
+                        .get(&parent)
+                        .context("every module should have a bitmap")?
+                        == module_merged_groups
+                            .get(&module)
+                            .context("every module should have a bitmap")?;
 
                     if same_bitmap {
                         intra_group_references
@@ -480,17 +491,26 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     }
                 }
 
-                if parent_info.is_none_or(|(parent, _)| {
-                    module_merged_groups.get(&parent).unwrap()
-                        != module_merged_groups.get(&module).unwrap()
-                }) {
+                if match parent_info {
+                    None => true,
+                    Some((parent, _)) => {
+                        module_merged_groups
+                            .get(&parent)
+                            .context("every module should have a bitmap")?
+                            != module_merged_groups
+                                .get(&module)
+                                .context("every module should have a bitmap")?
+                    }
+                } {
                     // This module needs to be exposed:
                     // - referenced from another group or
                     // - an entry module (TODO assume it will be required for Node/Edge, but not
                     // necessarily needed for browser),
                     exposed_modules_imported.insert(module);
                 }
-                if parent_info.is_some_and(|(_, r)| matches!(r.export, ExportUsage::All)) {
+                if parent_info
+                    .is_some_and(|(_, r)| matches!(r.binding_usage.export, ExportUsage::All))
+                {
                     // This module needs to be exposed:
                     // - namespace import from another group
                     exposed_modules_namespace.insert(module);
@@ -550,7 +570,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             // Insert occurrences for the "common" list, skip the first because that is now
             // guaranteed to exist only once
             for (i, &m) in common_list.iter().enumerate().skip(1) {
-                let occurrences = lists_reverse_indices.get_mut(&m).unwrap();
+                let occurrences = lists_reverse_indices
+                    .get_mut(&m)
+                    .context("every module should have occurrences")?;
                 for common_occurrence in &common_occurrences {
                     let removed = occurrences.swap_remove(&ListOccurrence {
                         chunk_group: common_occurrence.chunk_group,

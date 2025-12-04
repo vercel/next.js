@@ -103,6 +103,19 @@ we attempt to capture traces of the playwright run to make debugging the failure
 A test-trace artifact should be uploaded after the workflow completes which can be downloaded, unzipped,
 and then inspected with `pnpm playwright show-trace ./path/to/trace`
 
+To attach the chrome debugger to next the easiest approach is to modify the `createNext` call in your test to pass `--inspect` to next.
+
+```js
+const next = await createNext({
+  ...
+  startArgs: =['--inspect'],
+})
+```
+
+Consider also sett `NEXT_E2E_TEST_TIMEOUT=0`
+
+To debug the test process itself you need to pass the `inspect` flag to the node process running jest. e.g. `IS_TURBOPACK_TEST=1 TURBOPACK_DEV=1 NEXT_TEST_MODE=dev node --inspect node_modules/jest/bin/jest.js ...`
+
 ### Profiling tests
 
 Add `NEXT_TEST_TRACE=1` to enable test profiling. It's useful for improving our testing infrastructure.

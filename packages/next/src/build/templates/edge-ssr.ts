@@ -1,5 +1,9 @@
 import '../../server/web/globals'
-import { adapter, type NextRequestHint } from '../../server/web/adapter'
+import {
+  adapter,
+  type EdgeHandler,
+  type NextRequestHint,
+} from '../../server/web/adapter'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
 import { initializeCacheHandlers } from '../../server/use-cache/handlers'
 
@@ -18,7 +22,6 @@ import RouteModule, {
 } from '../../server/route-modules/pages/module'
 import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
 
-import type { RequestData } from '../../server/web/types'
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event'
 import type RenderResult from '../../server/render-result'
@@ -301,12 +304,18 @@ async function requestHandler(
         throw err
       }
 
-      await errRouteModule.onRequestError(baseReq, err, {
-        routerKind: 'Pages Router',
-        routePath: srcPage,
-        routeType: 'render',
-        revalidateReason: undefined,
-      })
+      const silenceLog = false
+      await errRouteModule.onRequestError(
+        baseReq,
+        err,
+        {
+          routerKind: 'Pages Router',
+          routePath: srcPage,
+          routeType: 'render',
+          revalidateReason: undefined,
+        },
+        silenceLog
+      )
 
       const errResult = await errRouteModule.render(
         // @ts-expect-error we don't type this for edge
@@ -348,12 +357,14 @@ async function requestHandler(
   )
 }
 
-export default function nHandler(opts: { page: string; request: RequestData }) {
+const handler: EdgeHandler = (opts) => {
   return adapter({
     ...opts,
     IncrementalCache,
     handler: requestHandler,
     incrementalCacheHandler,
     bypassNextUrl: true,
+    page: 'VAR_PAGE',
   })
 }
+export default handler

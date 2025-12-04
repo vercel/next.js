@@ -15,10 +15,7 @@ use turbo_tasks_backend::{
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_unix_path::join_path;
-use turbopack::{
-    css::chunk::CssChunkType, ecmascript::chunk::EcmascriptChunkType,
-    global_module_ids::get_global_module_id_strategy,
-};
+use turbopack::global_module_ids::get_global_module_id_strategy;
 use turbopack_browser::{BrowserChunkingContext, ContentHashing, CurrentChunkMethod};
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
@@ -33,16 +30,18 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         ModuleGraph,
+        binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
-        export_usage::compute_export_usage_info,
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
-        origin::{PlainResolveOrigin, ResolveOriginExt},
+        origin::{PlainResolveOrigin, ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
 };
+use turbopack_css::chunk::CssChunkType;
+use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
 use turbopack_node::execution_context::ExecutionContext;
@@ -287,7 +286,7 @@ async fn build_internal(
                 let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
                 let request = request_vc.await?;
                 origin
-                    .resolve_asset(request_vc, origin.resolve_options(ty.clone()).await?, ty)
+                    .resolve_asset(request_vc, origin.resolve_options(ty.clone()), ty)
                     .await?
                     .first_module()
                     .await?
@@ -305,18 +304,20 @@ async fn build_internal(
     .instrument(tracing::info_span!("resolve entries"))
     .await?;
 
-    let module_graph = ModuleGraph::from_modules(
+    let mut module_graph = ModuleGraph::from_modules(
         Vc::cell(vec![ChunkGroupEntry::Entry(entries.clone())]),
         false,
+        true,
     );
     let module_id_strategy = ResolvedVc::upcast(
         get_global_module_id_strategy(module_graph)
             .to_resolved()
             .await?,
     );
-    let export_usage = compute_export_usage_info(module_graph.to_resolved().await?)
+    let binding_usage = compute_binding_usage_info(module_graph.to_resolved().await?, true)
         .resolve_strongly_consistent()
         .await?;
+    module_graph = module_graph.without_unused_references(*binding_usage);
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match target {
         Target::Browser => {
@@ -342,7 +343,8 @@ async fn build_internal(
             )
             .source_maps(source_maps_type)
             .module_id_strategy(module_id_strategy)
-            .export_usage(Some(export_usage))
+            .export_usage(Some(binding_usage))
+            .unused_references(Some(binding_usage))
             .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
             .minify_type(minify_type);
 
@@ -391,7 +393,8 @@ async fn build_internal(
             )
             .source_maps(source_maps_type)
             .module_id_strategy(module_id_strategy)
-            .export_usage(Some(export_usage))
+            .export_usage(Some(binding_usage))
+            .unused_references(Some(binding_usage))
             .minify_type(minify_type);
 
             match *node_env.await? {

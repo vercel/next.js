@@ -70,6 +70,7 @@ turbo-tasks-hash = { workspace = true }
 turbopack = { workspace = true }
 turbopack-browser = { workspace = true }
 turbopack-core = { workspace = true }
+turbopack-css = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, features = [
   "transform_emotion",
@@ -78,6 +79,7 @@ turbopack-ecmascript-runtime = { workspace = true }
 turbopack-image = { workspace = true }
 turbopack-node = { workspace = true }
 turbopack-nodejs = { workspace = true }
+turbopack-resolve = { workspace = true }
 turbopack-static = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 

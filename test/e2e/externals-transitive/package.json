@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "dep-a": "file:./dep-a",
+    "dep-b": "file:./dep-b",
+    "lodash": "3.10.1"
+  }
+}

@@ -1,4 +1,6 @@
 [
+  // alineacms.com generates this package at build time and it should not end up in a cache (much like the @prisma/client package)
+  "@alinea/generated",
   "@appsignal/nodejs",
   "@aws-sdk/client-s3",
   "@aws-sdk/s3-presigned-post",
@@ -22,6 +24,8 @@
   // Native Node.js addons
   "@swc/core",
   "@xenova/transformers",
+  // Builds on top of @prisma/client so dynamically loads the version.
+  "@zenstackhq/runtime",
   "argon2",
   "autoprefixer",
   "aws-crt",

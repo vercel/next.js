@@ -15,7 +15,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
-    module_graph::{ModuleGraph, export_usage::ModuleExportUsageInfo},
+    module_graph::{ModuleGraph, binding_usage_info::ModuleExportUsageInfo},
     output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
     reference_type::ReferenceType,
@@ -149,7 +149,7 @@ impl EcmascriptClientReferenceModule {
 
         let code = code.build();
         let proxy_module_content =
-            AssetContent::file(File::from(code.source_code().clone()).into());
+            AssetContent::file(FileContent::Content(File::from(code.source_code().clone())).cell());
 
         let proxy_source = VirtualSource::new(
             self.server_ident.path().await?.join(

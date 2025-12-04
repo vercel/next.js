@@ -58,12 +58,14 @@ where
     let asset_reasons = {
         let module_graph = module_graph.read_graphs().await?;
         let mut edges = vec![];
-        module_graph.traverse_all_edges_unordered(|(parent_node, r), current| {
-            edges.push((
-                parent_node,
-                RcStr::from(format!("{}: {}", r.chunking_type, r.export)),
-                current,
-            ));
+        module_graph.traverse_all_edges_unordered(|parent, current| {
+            if let Some((parent_node, r)) = parent {
+                edges.push((
+                    parent_node,
+                    RcStr::from(format!("{}: {}", r.chunking_type, r.binding_usage.export)),
+                    current,
+                ));
+            }
             Ok(())
         })?;
 

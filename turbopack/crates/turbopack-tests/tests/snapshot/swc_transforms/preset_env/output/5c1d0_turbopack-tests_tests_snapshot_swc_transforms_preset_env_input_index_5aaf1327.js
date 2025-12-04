@@ -8,9 +8,9 @@ if (!Array.isArray(globalThis.TURBOPACK)) {
 }
 
 const CHUNK_BASE_PATH = "";
-const CHUNK_SUFFIX_PATH = "";
 const RELATIVE_ROOT_PATH = "../../../../../../..";
 const RUNTIME_PUBLIC_PATH = "";
+const CHUNK_SUFFIX = "";
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
@@ -1096,7 +1096,7 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkUrl) {
     var entry = instrumentedBackendLoadChunks.get(thenable);
     if (entry === undefined) {
         var resolve = instrumentedBackendLoadChunks.set.bind(instrumentedBackendLoadChunks, thenable, loadedChunk);
-        entry = thenable.then(resolve).catch(function(error) {
+        entry = thenable.then(resolve).catch(function(cause) {
             var loadReason;
             switch(sourceType){
                 case 0:
@@ -1113,9 +1113,11 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkUrl) {
                         return `Unknown source type: ${sourceType}`;
                     });
             }
-            throw new Error(`Failed to load chunk ${chunkUrl} ${loadReason}${error ? `: ${error}` : ''}`, error ? {
-                cause: error
+            var error = new Error(`Failed to load chunk ${chunkUrl} ${loadReason}${cause ? `: ${cause}` : ''}`, cause ? {
+                cause: cause
             } : undefined);
+            error.name = 'ChunkLoadError';
+            throw error;
         });
         instrumentedBackendLoadChunks.set(thenable, entry);
     }
@@ -1148,6 +1150,7 @@ browserContextPrototype.P = resolveAbsolutePath;
     // It is important to reverse the array so when bootstrapping we can infer what chunk is being
     // evaluated by poping urls off of this array.  See `getPathFromScript`
     var bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
+self.TURBOPACK_CHUNK_SUFFIX = ${JSON.stringify(CHUNK_SUFFIX)};
 self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
 importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`;
     var blob = new Blob([
@@ -1168,7 +1171,7 @@ browserContextPrototype.b = getWorkerBlobURL;
  */ function getChunkRelativeUrl(chunkPath) {
     return `${CHUNK_BASE_PATH}${chunkPath.split('/').map(function(p) {
         return encodeURIComponent(p);
-    }).join('/')}${CHUNK_SUFFIX_PATH}`;
+    }).join('/')}${CHUNK_SUFFIX}`;
 }
 function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {

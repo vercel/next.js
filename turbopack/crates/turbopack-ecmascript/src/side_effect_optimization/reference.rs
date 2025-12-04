@@ -14,7 +14,7 @@ use turbopack_core::{
     },
     module::Module,
     reference::ModuleReference,
-    resolve::{ExportUsage, ModulePart, ModuleResolveResult},
+    resolve::{BindingUsage, ExportUsage, ImportUsage, ModulePart, ModuleResolveResult},
 };
 
 use super::{
@@ -144,8 +144,12 @@ impl ChunkableModuleReference for EcmascriptModulePartReference {
     }
 
     #[turbo_tasks::function]
-    fn export_usage(&self) -> Vc<ExportUsage> {
-        *self.export_usage
+    async fn binding_usage(&self) -> Result<Vc<BindingUsage>> {
+        Ok(BindingUsage {
+            import: ImportUsage::SideEffects,
+            export: self.export_usage.owned().await?,
+        }
+        .cell())
     }
 }
 
