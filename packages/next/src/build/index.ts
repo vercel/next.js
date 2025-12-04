@@ -1,5 +1,9 @@
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
-import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
+import type {
+  ExportPathMap,
+  NextConfigComplete,
+  NextConfigRuntime,
+} from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
 import type { CacheControl, Revalidate } from '../server/lib/cache-control'
@@ -12,7 +16,7 @@ import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
 import { Worker } from '../lib/worker'
-import { defaultConfig } from '../server/config-shared'
+import { defaultConfig, getNextConfigRuntime } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
@@ -605,7 +609,7 @@ async function writeFunctionsConfigManifest(
 
 export interface RequiredServerFilesManifest {
   version: number
-  config: NextConfigComplete
+  config: NextConfigRuntime
   appDir: string
   relativeAppDir: string
   files: string[]
@@ -2412,8 +2416,6 @@ export default async function build(
         )
       }
 
-      const { cacheHandler } = config
-
       const instrumentationHookEntryFiles: string[] = []
       if (hasInstrumentationHook) {
         instrumentationHookEntryFiles.push(
@@ -2437,10 +2439,11 @@ export default async function build(
       const requiredServerFilesManifest = nextBuildSpan
         .traceChild('generate-required-server-files')
         .traceFn(() => {
-          const normalizedCacheHandlers: Record<string, string> = {}
+          let runtimeConfig = getNextConfigRuntime(config)
 
+          const normalizedCacheHandlers: Record<string, string> = {}
           for (const [key, value] of Object.entries(
-            config.cacheHandlers || {}
+            runtimeConfig.cacheHandlers || {}
           )) {
             if (key && value) {
               normalizedCacheHandlers[key] = path.relative(distDir, value)
@@ -2450,19 +2453,18 @@ export default async function build(
           const serverFilesManifest: RequiredServerFilesManifest = {
             version: 1,
             config: {
-              ...config,
-              configFile: undefined,
+              ...runtimeConfig,
               ...(ciEnvironment.hasNextSupport
                 ? {
                     compress: false,
                   }
                 : {}),
-              cacheHandler: cacheHandler
-                ? path.relative(distDir, cacheHandler)
-                : config.cacheHandler,
+              cacheHandler: runtimeConfig.cacheHandler
+                ? path.relative(distDir, runtimeConfig.cacheHandler)
+                : runtimeConfig.cacheHandler,
               cacheHandlers: normalizedCacheHandlers,
               experimental: {
-                ...config.experimental,
+                ...runtimeConfig.experimental,
                 trustHostHeader: ciEnvironment.hasNextSupport,
                 isExperimentalCompile: isCompileMode,
               },
