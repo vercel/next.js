@@ -50,32 +50,34 @@ pub async fn create_page_ssr_entry_module(
         .to_resolved()
         .await?;
 
-    let template_file = match (&reference_type, runtime) {
-        (ReferenceType::Entry(EntryReferenceSubType::Page), _)
-        | (ReferenceType::Entry(EntryReferenceSubType::PageData), _) => {
+    let template_file = match &reference_type {
+        ReferenceType::Entry(EntryReferenceSubType::Page)
+        | ReferenceType::Entry(EntryReferenceSubType::PageData) => {
             // Load the Page entry file.
-            "pages.js"
+            match runtime {
+                NextRuntime::NodeJs => "pages.js",
+                NextRuntime::Edge => "edge-ssr.js",
+            }
         }
-        (ReferenceType::Entry(EntryReferenceSubType::PagesApi), NextRuntime::NodeJs) => {
+        ReferenceType::Entry(EntryReferenceSubType::PagesApi) => {
             // Load the Pages API entry file.
-            "pages-api.js"
-        }
-        (ReferenceType::Entry(EntryReferenceSubType::PagesApi), NextRuntime::Edge) => {
-            // Load the Pages API entry file.
-            "pages-edge-api.js"
+            match runtime {
+                NextRuntime::NodeJs => "pages-api.js",
+                NextRuntime::Edge => "pages-edge-api.js",
+            }
         }
         _ => bail!("Invalid path type"),
     };
 
     let inner = rcstr!("INNER_PAGE");
-
     let inner_document = rcstr!("INNER_DOCUMENT");
     let inner_app = rcstr!("INNER_APP");
+    let inner_error = rcstr!("INNER_ERROR");
+    let inner_error_500 = rcstr!("INNER_500");
 
     let mut replacements = vec![
-        ("VAR_DEFINITION_PAGE", &*definition_page),
-        ("VAR_DEFINITION_PATHNAME", &definition_pathname),
-        ("VAR_USERLAND", &inner),
+        ("VAR_DEFINITION_PATHNAME", &*definition_pathname),
+        ("VAR_USERLAND", &*inner),
     ];
 
     let is_page = matches!(
@@ -83,19 +85,66 @@ pub async fn create_page_ssr_entry_module(
         ReferenceType::Entry(EntryReferenceSubType::Page)
             | ReferenceType::Entry(EntryReferenceSubType::PageData)
     );
-    if is_page {
-        replacements.push(("VAR_MODULE_DOCUMENT", &inner_document));
-        replacements.push(("VAR_MODULE_APP", &inner_app));
+    if !(is_page && runtime == NextRuntime::Edge) {
+        replacements.push(("VAR_DEFINITION_PAGE", &*definition_page));
     }
-    let source_ident = source.ident().await?;
-    // for PagesData we apply a ?server-data query parameter to avoid conflicts with the Page
-    // module.
-    // We need to copy that to all the modules we create.
-    let source_query = source_ident.query.clone();
+    if is_page {
+        replacements.push(("VAR_MODULE_DOCUMENT", &*inner_document));
+        replacements.push(("VAR_MODULE_APP", &*inner_app));
+        if is_page && runtime == NextRuntime::Edge {
+            replacements.push(("VAR_MODULE_GLOBAL_ERROR", &*inner_error));
+        }
+    }
+
+    let pages_structure_ref = pages_structure.await?;
+
+    let (injections, imports) = if is_page && runtime == NextRuntime::Edge {
+        let next_config_val = &*next_config.await?;
+        let injections = vec![
+            // TODO do we really need to pass the entire next config here?
+            // This is bad for invalidation as any config change will invalidate this
+            ("nextConfig", serde_json::to_string(next_config_val)?),
+            (
+                "pageRouteModuleOptions",
+                serde_json::to_string(&get_route_module_options(
+                    definition_page.clone(),
+                    definition_pathname.clone(),
+                ))?,
+            ),
+            (
+                "errorRouteModuleOptions",
+                serde_json::to_string(&get_route_module_options(
+                    rcstr!("/_error"),
+                    rcstr!("/_error"),
+                ))?,
+            ),
+            (
+                "user500RouteModuleOptions",
+                serde_json::to_string(&get_route_module_options(rcstr!("/500"), rcstr!("/500")))?,
+            ),
+        ];
+        let imports = vec![
+            // TODO
+            ("incrementalCacheHandler", None),
+            (
+                "userland500Page",
+                pages_structure_ref.error_500.map(|_| &*inner_error_500),
+            ),
+        ];
+        (injections, imports)
+    } else {
+        (vec![], vec![])
+    };
 
     // Load the file from the next.js codebase.
-    let mut source =
-        load_next_js_template(template_file, project_root.clone(), &replacements, &[], &[]).await?;
+    let mut source = load_next_js_template(
+        template_file,
+        project_root.clone(),
+        replacements,
+        injections.iter().map(|(k, v)| (*k, &**v)),
+        imports,
+    )
+    .await?;
 
     // When we're building the instrumentation page (only when the
     // instrumentation file conflicts with a page also labeled
@@ -125,7 +174,10 @@ pub async fn create_page_ssr_entry_module(
         inner => ssr_module,
     };
 
-    let pages_structure_ref = pages_structure.await?;
+    // for PagesData we apply a ?server-data query parameter to avoid conflicts with the Page
+    // module.
+    // We need to copy that to all the modules we create.
+    let source_query = source.ident().await?.query.clone();
 
     let (app_module, document_module) = if is_page {
         // We process the document and app modules in the same context and reference type.
@@ -147,6 +199,34 @@ pub async fn create_page_ssr_entry_module(
         .await?;
         inner_assets.insert(inner_document, document_module);
         inner_assets.insert(inner_app, app_module);
+
+        if is_page && runtime == NextRuntime::Edge {
+            inner_assets.insert(
+                inner_error,
+                process_global_item(
+                    *pages_structure_ref.error,
+                    reference_type.clone(),
+                    source_query.clone(),
+                    ssr_module_context,
+                )
+                .to_resolved()
+                .await?,
+            );
+
+            if let Some(error_500) = pages_structure_ref.error_500 {
+                inner_assets.insert(
+                    inner_error_500,
+                    process_global_item(
+                        *error_500,
+                        reference_type.clone(),
+                        source_query.clone(),
+                        ssr_module_context,
+                    )
+                    .to_resolved()
+                    .await?,
+                );
+            }
+        }
         (Some(app_module), Some(document_module))
     } else {
         (None, None)
@@ -160,26 +240,12 @@ pub async fn create_page_ssr_entry_module(
         .module();
 
     if matches!(runtime, NextRuntime::Edge) {
-        if is_page {
-            ssr_module = wrap_edge_page(
-                ssr_module_context,
-                project_root,
-                ssr_module,
-                definition_page.clone(),
-                definition_pathname.clone(),
-                reference_type,
-                pages_structure,
-                next_config,
-                source_query.clone(),
-            );
-        } else {
-            ssr_module = wrap_edge_entry(
-                ssr_module_context,
-                project_root,
-                ssr_module,
-                pages_function_name(&definition_page).into(),
-            );
-        }
+        ssr_module = wrap_edge_entry(
+            ssr_module_context,
+            project_root,
+            ssr_module,
+            pages_function_name(&definition_page).into(),
+        );
     }
 
     Ok(PageSsrEntryModule {
@@ -202,121 +268,6 @@ async fn process_global_item(
         source_query,
     ));
     Ok(module_context.process(source, reference_type).module())
-}
-
-#[turbo_tasks::function]
-async fn wrap_edge_page(
-    asset_context: Vc<Box<dyn AssetContext>>,
-    project_root: FileSystemPath,
-    entry: ResolvedVc<Box<dyn Module>>,
-    page: RcStr,
-    pathname: RcStr,
-    reference_type: ReferenceType,
-    pages_structure: Vc<PagesStructure>,
-    next_config: Vc<NextConfig>,
-    source_query: RcStr,
-) -> Result<Vc<Box<dyn Module>>> {
-    const INNER: &str = "INNER_PAGE_ENTRY";
-
-    const INNER_DOCUMENT: &str = "INNER_DOCUMENT";
-    const INNER_APP: &str = "INNER_APP";
-    const INNER_ERROR: &str = "INNER_ERROR";
-    const INNER_ERROR_500: &str = "INNER_500";
-
-    let next_config_val = &*next_config.await?;
-
-    let source = load_next_js_template(
-        "edge-ssr.js",
-        project_root.clone(),
-        &[
-            ("VAR_USERLAND", INNER),
-            ("VAR_PAGE", &pathname),
-            ("VAR_MODULE_DOCUMENT", INNER_DOCUMENT),
-            ("VAR_MODULE_APP", INNER_APP),
-            ("VAR_MODULE_GLOBAL_ERROR", INNER_ERROR),
-        ],
-        &[
-            // TODO do we really need to pass the entire next config here?
-            // This is bad for invalidation as any config change will invalidate this
-            ("nextConfig", &*serde_json::to_string(next_config_val)?),
-            (
-                "pageRouteModuleOptions",
-                &serde_json::to_string(&get_route_module_options(page.clone(), pathname.clone()))?,
-            ),
-            (
-                "errorRouteModuleOptions",
-                &serde_json::to_string(&get_route_module_options(
-                    rcstr!("/_error"),
-                    rcstr!("/_error"),
-                ))?,
-            ),
-            (
-                "user500RouteModuleOptions",
-                &serde_json::to_string(&get_route_module_options(rcstr!("/500"), rcstr!("/500")))?,
-            ),
-        ],
-        &[
-            // TODO
-            ("incrementalCacheHandler", None),
-            (
-                "userland500Page",
-                pages_structure.await?.error_500.map(|_| INNER_ERROR_500),
-            ),
-        ],
-    )
-    .await?;
-
-    let pages_structure_ref = pages_structure.await?;
-
-    let mut inner_assets = fxindexmap! {
-        INNER.into() => entry,
-        INNER_DOCUMENT.into() => process_global_item(
-            *pages_structure_ref.document,
-            reference_type.clone(),
-            source_query.clone(),
-            asset_context,
-        ).to_resolved().await?,
-        INNER_APP.into() => process_global_item(
-            *pages_structure_ref.app,
-            reference_type.clone(),
-            source_query.clone(),
-            asset_context,
-        ).to_resolved().await?,
-        INNER_ERROR.into() => process_global_item(
-            *pages_structure_ref.error,
-            reference_type.clone(),
-            source_query.clone(),
-            asset_context,
-        ).to_resolved().await?,
-    };
-
-    if let Some(error_500) = pages_structure_ref.error_500 {
-        inner_assets.insert(
-            INNER_ERROR_500.into(),
-            process_global_item(
-                *error_500,
-                reference_type.clone(),
-                source_query.clone(),
-                asset_context,
-            )
-            .to_resolved()
-            .await?,
-        );
-    }
-
-    let wrapped = asset_context
-        .process(
-            source,
-            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
-        )
-        .module();
-
-    Ok(wrap_edge_entry(
-        asset_context,
-        project_root,
-        wrapped,
-        pages_function_name(&page).into(),
-    ))
 }
 
 #[derive(Serialize)]

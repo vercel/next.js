@@ -76,7 +76,7 @@ pub async fn get_app_page_entry(
     let source = load_next_js_template(
         "app-page.js",
         project_root.clone(),
-        &[
+        [
             ("VAR_DEFINITION_PAGE", &*page.to_string()),
             ("VAR_DEFINITION_PATHNAME", &pathname),
             (
@@ -88,12 +88,12 @@ pub async fn get_app_page_entry(
                 },
             ),
         ],
-        &[
+        [
             ("tree", &*loader_tree_code),
             ("__next_app_require__", &TURBOPACK_REQUIRE.bound()),
             ("__next_app_load_chunk__", &TURBOPACK_LOAD.bound()),
         ],
-        &[],
+        [],
     )
     .await?;
 
@@ -150,13 +150,13 @@ async fn wrap_edge_page(
     let source = load_next_js_template(
         "edge-ssr-app.js",
         project_root.clone(),
-        &[("VAR_USERLAND", INNER), ("VAR_PAGE", &page.to_string())],
-        &[
+        [("VAR_USERLAND", INNER), ("VAR_PAGE", &page.to_string())],
+        [
             // TODO do we really need to pass the entire next config here?
             // This is bad for invalidation as any config change will invalidate this
             ("nextConfig", &*serde_json::to_string(next_config_val)?),
         ],
-        &[("incrementalCacheHandler", None)],
+        [("incrementalCacheHandler", None)],
     )
     .await?;
 
