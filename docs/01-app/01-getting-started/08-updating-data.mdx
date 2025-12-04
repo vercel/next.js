@@ -1,6 +1,6 @@
 ---
 title: Updating Data
-description: Learn how to mutate data using Server Functions.
+description: Learn how to mutate data using Server Functions and Server Actions in Next.js.
 related:
   title: API Reference
   description: Learn more about the features mentioned in this page by reading the API Reference.
@@ -17,6 +17,8 @@ You can update data in Next.js using React's [Server Functions](https://react.de
 A **Server Function** is an asynchronous function that runs on the server. They can be called from the client through a network request, which is why they must be asynchronous.
 
 In an `action` or mutation context, they are also called **Server Actions**.
+
+> **Good to know:** Server Functions were called "Server Actions". The naming has been updated to reflect that Server Functions can be used for multiple purposes. When you see older tutorials referring to "Server Actions", they're talking about Server Functions.
 
 By convention, a Server Action is an async function used with [`startTransition`](https://react.dev/reference/react/startTransition). This happens automatically when the function is:
 

@@ -3,7 +3,7 @@ title: cookies
 description: API Reference for the cookies function.
 ---
 
-`cookies` is an **async** function that allows you to read the HTTP incoming request cookies in [Server Components](/docs/app/getting-started/server-and-client-components), and read/write outgoing request cookies in [Server Actions](/docs/app/getting-started/updating-data) or [Route Handlers](/docs/app/api-reference/file-conventions/route).
+`cookies` is an **async** function that allows you to read the HTTP incoming request cookies in [Server Components](/docs/app/getting-started/server-and-client-components), and read/write outgoing request cookies in [Server Functions](/docs/app/getting-started/updating-data) or [Route Handlers](/docs/app/api-reference/file-conventions/route).
 
 ```tsx filename="app/page.tsx" switcher
 import { cookies } from 'next/headers'
@@ -69,26 +69,26 @@ To learn more about these options, see the [MDN docs](https://developer.mozilla.
   - In version 14 and earlier, `cookies` was a synchronous function. To help with backwards compatibility, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
 - `cookies` is a [Dynamic API](/docs/app/guides/caching#dynamic-rendering) whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into [dynamic rendering](/docs/app/guides/caching#dynamic-rendering).
 - The `.delete` method can only be called:
-  - In a [Server Action](/docs/app/getting-started/updating-data) or [Route Handler](/docs/app/api-reference/file-conventions/route).
+  - In a [Server Function](/docs/app/getting-started/updating-data) or [Route Handler](/docs/app/api-reference/file-conventions/route).
   - If it belongs to the same domain from which `.set` is called. For wildcard domains, the specific subdomain must be an exact match. Additionally, the code must be executed on the same protocol (HTTP or HTTPS) as the cookie you want to delete.
-- HTTP does not allow setting cookies after streaming starts, so you must use `.set` in a [Server Action](/docs/app/getting-started/updating-data) or [Route Handler](/docs/app/api-reference/file-conventions/route).
+- HTTP does not allow setting cookies after streaming starts, so you must use `.set` in a [Server Function](/docs/app/getting-started/updating-data) or [Route Handler](/docs/app/api-reference/file-conventions/route).
 
 ## Understanding Cookie Behavior in Server Components
 
 When working with cookies in Server Components, it's important to understand that cookies are fundamentally a client-side storage mechanism:
 
 - **Reading cookies** works in Server Components because you're accessing the cookie data that the client's browser sends to the server in the HTTP request headers.
-- **Setting cookies** cannot be done directly in a Server Component, even when using a Route Handler or Server Action. This is because cookies are actually stored by the browser, not the server.
+- **Setting cookies** is not supported during Server Component rendering. To modify cookies, invoke a Server Function from the client or use a Route Handler.
 
-The server can only send instructions (via `Set-Cookie` headers) to tell the browser to store cookies - the actual storage happens on the client side. This is why cookie operations that modify state (`.set`, `.delete`, `.clear`) must be performed in a Route Handler or Server Action where the response headers can be properly set.
+The server can only send instructions (via `Set-Cookie` headers) to tell the browser to store cookies - the actual storage happens on the client side. This is why cookie operations that modify state (`.set`, `.delete`, `.clear`) must be performed in a Server Function or Route Handler where the response headers can be properly set.
 
-## Understanding Cookie Behavior in Server Actions
+## Understanding Cookie Behavior in Server Functions
 
-After you set or delete a cookie in a Server Action, Next.js re-renders the current page and its layouts on the server so the UI reflects the new cookie value. See the [Caching guide](/docs/app/guides/caching#cookies).
+After you set or delete a cookie in a Server Function, Next.js can return both the updated UI and new data in a single server roundtrip when the function is used as a [Server Action](/docs/app/getting-started/updating-data#what-are-server-functions) (e.g., passed to a form's `action` prop). See the [Caching guide](/docs/app/guides/caching#cookies).
 
 The UI is not unmounted, but effects that depend on data coming from the server will re-run.
 
-To refresh cached data too, call [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) inside the action.
+To refresh cached data too, call [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) inside the function.
 
 ## Examples
 
@@ -150,7 +150,7 @@ export default async function Page() {
 
 ### Setting a cookie
 
-You can use the `(await cookies()).set(name, value, options)` method in a [Server Action](/docs/app/getting-started/updating-data) or [Route Handler](/docs/app/api-reference/file-conventions/route) to set a cookie. The [`options` object](#options) is optional.
+You can use the `(await cookies()).set(name, value, options)` method in a [Server Function](/docs/app/getting-started/updating-data) or [Route Handler](/docs/app/api-reference/file-conventions/route) to set a cookie. The [`options` object](#options) is optional.
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
