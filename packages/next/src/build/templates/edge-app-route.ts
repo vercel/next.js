@@ -1,5 +1,6 @@
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
 import type { NextConfigComplete } from '../../server/config-shared'
+import type { EdgeHandler } from '../../server/web/adapter'
 import { EdgeRouteModuleWrapper } from '../../server/web/edge-route-module-wrapper'
 
 // Import the userland code.
@@ -24,4 +25,8 @@ if (rscManifest && rscServerManifest) {
 
 export const ComponentMod = module
 
-export default EdgeRouteModuleWrapper.wrap(module.routeModule, { nextConfig })
+const handler: EdgeHandler = EdgeRouteModuleWrapper.wrap(module.routeModule, {
+  nextConfig,
+  page: 'VAR_PAGE',
+})
+export default handler
