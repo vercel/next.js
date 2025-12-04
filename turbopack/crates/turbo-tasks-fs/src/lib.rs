@@ -1120,6 +1120,26 @@ impl FileSystem for DiskFileSystem {
                         PathBuf::from(unix_to_sys(target).as_ref())
                     };
                     let full_path = full_path.into_owned();
+
+                    if old_content.is_some() {
+                        // Remove existing symlink before creating a new one. At least on Unix,
+                        // symlink(2) fails with EEXIST if the link already exists instead of
+                        // overwriting it
+                        retry_blocking(full_path.clone(), |path| std::fs::remove_file(path))
+                            .concurrency_limited(&inner.write_semaphore)
+                            .await
+                            .or_else(|err| {
+                                if err.kind() == ErrorKind::NotFound {
+                                    Ok(())
+                                } else {
+                                    Err(err)
+                                }
+                            })
+                            .with_context(|| {
+                                anyhow!("removing existing symlink {} failed", full_path.display())
+                            })?;
+                    }
+
                     retry_blocking(target_path, move |target_path| {
                         let _span = tracing::info_span!(
                             "write symlink",
