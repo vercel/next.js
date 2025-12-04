@@ -1590,7 +1590,6 @@ export interface NextConfigRuntime {
   deploymentId: NextConfigComplete['deploymentId']
 
   configFileName?: string
-
   // Should only be included when using isExperimentalCompile
   env?: NextConfigComplete['env']
 
@@ -1616,6 +1615,7 @@ export interface NextConfigRuntime {
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   skipProxyUrlNormalize: NextConfigComplete['skipProxyUrlNormalize']
   pageExtensions: NextConfigComplete['pageExtensions']
+  useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
 
   experimental: Pick<
     NextConfigComplete['experimental'],
@@ -1650,6 +1650,8 @@ export interface NextConfigRuntime {
     | 'imgOptSkipMetadata'
     | 'imgOptTimeoutInSeconds'
     | 'proxyClientMaxBodySize'
+    | 'proxyTimeout'
+    | 'testProxy'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1660,12 +1662,16 @@ export interface NextConfigRuntime {
 }
 
 export function getNextConfigRuntime(
-  config: NextConfigComplete
+  config: NextConfigComplete | NextConfigRuntime
 ): NextConfigRuntime {
   let ex = config.experimental
 
-  let experimental: NextConfigRuntime['experimental'] = ex
-    ? {
+  type Requiredish<T> = {
+    [K in keyof Required<T>]: T[K]
+  }
+
+  let experimental = ex
+    ? ({
         ppr: ex.ppr,
         taint: ex.taint,
         serverActions: ex.serverActions,
@@ -1698,16 +1704,19 @@ export function getNextConfigRuntime(
         imgOptSkipMetadata: ex.imgOptSkipMetadata,
         imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
         proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
+        proxyTimeout: ex.proxyTimeout,
+        testProxy: ex.testProxy,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,
-      }
+      } satisfies Requiredish<NextConfigRuntime['experimental']>)
     : {}
 
-  let runtimeConfig: NextConfigRuntime = {
+  let runtimeConfig: Requiredish<NextConfigRuntime> = {
     deploymentId: config.deploymentId,
 
     configFileName: undefined,
+    env: undefined,
 
     distDir: config.distDir,
     cacheComponents: config.cacheComponents,
@@ -1731,6 +1740,7 @@ export function getNextConfigRuntime(
     httpAgentOptions: config.httpAgentOptions,
     skipProxyUrlNormalize: config.skipProxyUrlNormalize,
     pageExtensions: config.pageExtensions,
+    useFileSystemPublicRoutes: config.useFileSystemPublicRoutes,
 
     experimental,
   }
