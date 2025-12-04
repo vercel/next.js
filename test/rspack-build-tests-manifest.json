@@ -17794,10 +17794,10 @@
     "runtimeError": false
   },
   "test/integration/next-image-legacy/asset-prefix/test/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Image Component assetPrefix Tests production mode should use base64 data url with placeholder=blur during next start"
     ],
+    "failed": [],
     "pending": [
       "Image Component assetPrefix Tests development mode should include assetPrefix when placeholder=blur during next dev"
     ],
@@ -20971,6 +20971,16 @@
     "failed": [
       "bundle-size should not load too much: App Router: between identical pages with a client component"
     ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/chunk-load-failure/chunk-load-failure.test.ts": {
+    "passed": [
+      "chunk-load-failure should report aborted chunks when navigating away",
+      "chunk-load-failure should report async chunk load failures"
+    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

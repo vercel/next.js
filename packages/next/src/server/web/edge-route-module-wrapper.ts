@@ -6,7 +6,7 @@ import type {
 
 import './globals'
 
-import { adapter, type AdapterOptions } from './adapter'
+import { adapter, type EdgeHandler } from './adapter'
 import { IncrementalCache } from '../lib/incremental-cache'
 import { RouteMatcher } from '../route-matchers/route-matcher'
 import type { NextFetchEvent } from './spec-extension/fetch-event'
@@ -19,6 +19,7 @@ import type { NextConfigComplete } from '../config-shared'
 
 export interface WrapOptions {
   nextConfig: NextConfigComplete
+  page: string
 }
 
 /**
@@ -52,17 +53,21 @@ export class EdgeRouteModuleWrapper {
    *                override the ones passed from the runtime
    * @returns a function that can be used as a handler for the edge runtime
    */
-  public static wrap(routeModule: AppRouteRouteModule, options: WrapOptions) {
+  public static wrap(
+    routeModule: AppRouteRouteModule,
+    options: WrapOptions
+  ): EdgeHandler {
     // Create the module wrapper.
     const wrapper = new EdgeRouteModuleWrapper(routeModule, options.nextConfig)
 
     // Return the wrapping function.
-    return (opts: AdapterOptions) => {
+    return (opts) => {
       return adapter({
         ...opts,
         IncrementalCache,
         // Bind the handler method to the wrapper so it still has context.
         handler: wrapper.handler.bind(wrapper),
+        page: options.page,
       })
     }
   }

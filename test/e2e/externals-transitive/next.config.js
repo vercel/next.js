@@ -1,5 +1,5 @@
 module.exports = {
-  serverExternalPackages: ['lodash'],
+  serverExternalPackages: ['@storybook/global', 'lodash'],
   experimental: {
     turbopackModuleIds: 'named',
     turbopackMinify: false,

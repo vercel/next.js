@@ -39,7 +39,6 @@ use turbo_tasks_fs::{
 use turbopack::{
     ModuleAssetContext,
     module_options::ModuleOptionsContext,
-    resolve_options_context::ResolveOptionsContext,
     transition::{FullContextTransition, Transition, TransitionOptions},
 };
 use turbopack_core::{
@@ -66,6 +65,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::resolve::esm_resolve;
 use turbopack_nodejs::NodeJsChunkingContext;
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
     dynamic_imports::{
@@ -728,7 +728,10 @@ impl PageEndpoint {
 
         if *project.per_page_module_graph().await? {
             let next_mode = project.next_mode();
-            let should_trace = next_mode.await?.is_production();
+            let next_mode_ref = next_mode.await?;
+            let should_trace = next_mode_ref.is_production();
+            let should_read_binding_usage = next_mode_ref.is_production();
+
             let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
             // Implements layout segment optimization to compute a graph "chain" for document, app,
             // page
@@ -745,6 +748,7 @@ impl PageEndpoint {
                     vec![ChunkGroupEntry::Shared(module)],
                     visited_modules,
                     should_trace,
+                    should_read_binding_usage,
                 );
                 graphs.push(graph);
                 visited_modules = visited_modules.concatenate(graph);
@@ -754,6 +758,7 @@ impl PageEndpoint {
                 vec![ChunkGroupEntry::Entry(vec![ssr_chunk_module.ssr_module])],
                 visited_modules,
                 should_trace,
+                should_read_binding_usage,
             );
             graphs.push(graph);
 

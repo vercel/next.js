@@ -951,5 +951,18 @@
   "950": "The manifests singleton was not initialized.",
   "951": "The client reference manifest for route \"%s\" does not exist.",
   "952": "Cannot access \"%s\" without a work store.",
-  "953": "This is a proxied client reference manifest. The property \"%s\" is not handled."
+  "953": "This is a proxied client reference manifest. The property \"%s\" is not handled.",
+  "954": "Cannot start capturing immediates again without finishing the previous task (state: %s)",
+  "955": "An unexpected error occurred while executing immediates",
+  "956": "performWork can only be called while waiting (state: %s)",
+  "957": "Cannot stop capturing immediates before execution is finished (state: %s)",
+  "958": "Expected all captured immediates to have been executed (state: %s)",
+  "959": "scheduleWorkAfterTicksAndMicrotasks can only be called while waiting (state: %s)",
+  "960": "DANGEROUSLY_runPendingImmediatesAfterCurrentTask cannot be called in the edge runtime",
+  "961": "The \"callback\" argument must be of type function. Received %s",
+  "962": "expectNoPendingImmediates cannot be called in the edge runtime",
+  "963": "Fast setImmediate is not available in the edge runtime.",
+  "964": "An unexpected error occurred while starting to capture immediates",
+  "965": "Expected setImmediate to reject invalid arguments",
+  "966": "Expected process.nextTick to reject invalid arguments"
 }
