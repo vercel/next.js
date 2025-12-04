@@ -49,7 +49,10 @@ import { warn } from '../../build/output/log'
 import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { fromNodeOutgoingHttpHeaders } from '../web/utils'
-import { selectWorkerForForwarding, type ServerModuleMap } from './action-utils'
+import {
+  selectWorkerForForwarding,
+  type ServerModuleMap,
+} from './manifests-singleton'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { synchronizeMutableCookies } from '../async-storage/request-store'
