@@ -1827,6 +1827,177 @@ export default async function build(
         traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
+      const requiredServerFilesManifest = await nextBuildSpan
+        .traceChild('generate-required-server-files')
+        .traceAsyncFn(async () => {
+          let runtimeConfig = getNextConfigRuntime(config)
+
+          const normalizedCacheHandlers: Record<string, string> = {}
+          for (const [key, value] of Object.entries(
+            runtimeConfig.cacheHandlers || {}
+          )) {
+            if (key && value) {
+              normalizedCacheHandlers[key] = path.relative(distDir, value)
+            }
+          }
+
+          const serverFilesManifest: RequiredServerFilesManifest = {
+            version: 1,
+            config: {
+              ...runtimeConfig,
+
+              ...(ciEnvironment.hasNextSupport
+                ? {
+                    compress: false,
+                  }
+                : {}),
+              cacheHandler: runtimeConfig.cacheHandler
+                ? path.relative(distDir, runtimeConfig.cacheHandler)
+                : runtimeConfig.cacheHandler,
+              cacheHandlers: normalizedCacheHandlers,
+              experimental: {
+                ...runtimeConfig.experimental,
+                trustHostHeader: ciEnvironment.hasNextSupport,
+                isExperimentalCompile: isCompileMode,
+              },
+            },
+            appDir: dir,
+            relativeAppDir: path.relative(outputFileTracingRoot, dir),
+            files: [
+              ROUTES_MANIFEST,
+              path.relative(distDir, pagesManifestPath),
+              BUILD_MANIFEST,
+              PRERENDER_MANIFEST,
+              path.join(SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
+              path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+              path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
+              ...(bundler !== Bundler.Turbopack
+                ? [
+                    path.join(
+                      SERVER_DIRECTORY,
+                      MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
+                    ),
+                    REACT_LOADABLE_MANIFEST,
+                  ]
+                : []),
+              ...(appDir
+                ? [
+                    ...(config.experimental.sri
+                      ? [
+                          path.join(
+                            SERVER_DIRECTORY,
+                            SUBRESOURCE_INTEGRITY_MANIFEST + '.js'
+                          ),
+                          path.join(
+                            SERVER_DIRECTORY,
+                            SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
+                          ),
+                        ]
+                      : []),
+                    path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
+                    path.join(APP_PATH_ROUTES_MANIFEST),
+                    path.join(
+                      SERVER_DIRECTORY,
+                      SERVER_REFERENCE_MANIFEST + '.js'
+                    ),
+                    path.join(
+                      SERVER_DIRECTORY,
+                      SERVER_REFERENCE_MANIFEST + '.json'
+                    ),
+                  ]
+                : []),
+              ...(pagesDir && bundler !== Bundler.Turbopack
+                ? [
+                    DYNAMIC_CSS_MANIFEST + '.json',
+                    path.join(SERVER_DIRECTORY, DYNAMIC_CSS_MANIFEST + '.js'),
+                  ]
+                : []),
+              BUILD_ID_FILE,
+              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
+              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
+              SERVER_FILES_MANIFEST,
+            ]
+              .filter(nonNullable)
+              .map((file) => path.join(config.distDir, file)),
+            ignore: [] as string[],
+          }
+
+          if (hasInstrumentationHook) {
+            serverFilesManifest.files.push(
+              path.join(SERVER_DIRECTORY, `${INSTRUMENTATION_HOOK_FILENAME}.js`)
+            )
+            // If there are edge routes, append the edge instrumentation hook
+            // Turbopack generates this chunk with a hashed name and references it in middleware-manifest.
+            let edgeInstrumentationHook = path.join(
+              SERVER_DIRECTORY,
+              `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`
+            )
+            if (
+              bundler !== Bundler.Turbopack &&
+              existsSync(path.join(distDir, edgeInstrumentationHook))
+            ) {
+              serverFilesManifest.files.push(edgeInstrumentationHook)
+            }
+          }
+
+          if (config.experimental.optimizeCss) {
+            const globOrig =
+              require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+
+            const cssFilePaths = await new Promise<string[]>(
+              (resolve, reject) => {
+                globOrig(
+                  '**/*.css',
+                  { cwd: path.join(distDir, 'static') },
+                  (err, files) => {
+                    if (err) {
+                      return reject(err)
+                    }
+                    resolve(files)
+                  }
+                )
+              }
+            )
+
+            serverFilesManifest.files.push(
+              ...cssFilePaths.map((filePath) =>
+                path.join(config.distDir, 'static', filePath)
+              )
+            )
+          }
+
+          // Under standalone mode, we need to ensure that the cache entry debug
+          // handler is copied so that it can be used in the test. This is required
+          // for the turbopack test to run as it's more strict about the build
+          // directories. This is only used for testing and is not used in
+          // production.
+          if (
+            process.env.__NEXT_TEST_MODE &&
+            process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+          ) {
+            serverFilesManifest.files.push(
+              path.relative(
+                dir,
+                path.isAbsolute(
+                  process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+                )
+                  ? process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+                  : path.join(
+                      dir,
+                      process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+                    )
+              )
+            )
+          }
+
+          return serverFilesManifest
+        })
+
+      await writeRequiredServerFilesManifest(
+        distDir,
+        requiredServerFilesManifest
+      )
+
       const numberOfWorkers = getNumberOfWorkers(config)
       const collectingPageDataStart = process.hrtime()
       const postCompileSpinner = createSpinner(
@@ -2416,124 +2587,6 @@ export default async function build(
         )
       }
 
-      const instrumentationHookEntryFiles: string[] = []
-      if (hasInstrumentationHook) {
-        instrumentationHookEntryFiles.push(
-          path.join(SERVER_DIRECTORY, `${INSTRUMENTATION_HOOK_FILENAME}.js`)
-        )
-        // If there's edge routes, append the edge instrumentation hook
-        // Turbopack generates this chunk with a hashed name and references it in middleware-manifest.
-        if (
-          bundler !== Bundler.Turbopack &&
-          (edgeRuntimeAppCount || edgeRuntimePagesCount)
-        ) {
-          instrumentationHookEntryFiles.push(
-            path.join(
-              SERVER_DIRECTORY,
-              `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`
-            )
-          )
-        }
-      }
-
-      const requiredServerFilesManifest = nextBuildSpan
-        .traceChild('generate-required-server-files')
-        .traceFn(() => {
-          let runtimeConfig = getNextConfigRuntime(config)
-
-          const normalizedCacheHandlers: Record<string, string> = {}
-          for (const [key, value] of Object.entries(
-            runtimeConfig.cacheHandlers || {}
-          )) {
-            if (key && value) {
-              normalizedCacheHandlers[key] = path.relative(distDir, value)
-            }
-          }
-
-          const serverFilesManifest: RequiredServerFilesManifest = {
-            version: 1,
-            config: {
-              ...runtimeConfig,
-              ...(ciEnvironment.hasNextSupport
-                ? {
-                    compress: false,
-                  }
-                : {}),
-              cacheHandler: runtimeConfig.cacheHandler
-                ? path.relative(distDir, runtimeConfig.cacheHandler)
-                : runtimeConfig.cacheHandler,
-              cacheHandlers: normalizedCacheHandlers,
-              experimental: {
-                ...runtimeConfig.experimental,
-                trustHostHeader: ciEnvironment.hasNextSupport,
-                isExperimentalCompile: isCompileMode,
-              },
-            },
-            appDir: dir,
-            relativeAppDir: path.relative(outputFileTracingRoot, dir),
-            files: [
-              ROUTES_MANIFEST,
-              path.relative(distDir, pagesManifestPath),
-              BUILD_MANIFEST,
-              PRERENDER_MANIFEST,
-              path.join(SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
-              path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
-              path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
-              ...(bundler !== Bundler.Turbopack
-                ? [
-                    path.join(
-                      SERVER_DIRECTORY,
-                      MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
-                    ),
-                    REACT_LOADABLE_MANIFEST,
-                  ]
-                : []),
-              ...(appDir
-                ? [
-                    ...(config.experimental.sri
-                      ? [
-                          path.join(
-                            SERVER_DIRECTORY,
-                            SUBRESOURCE_INTEGRITY_MANIFEST + '.js'
-                          ),
-                          path.join(
-                            SERVER_DIRECTORY,
-                            SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
-                          ),
-                        ]
-                      : []),
-                    path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
-                    path.join(APP_PATH_ROUTES_MANIFEST),
-                    path.join(
-                      SERVER_DIRECTORY,
-                      SERVER_REFERENCE_MANIFEST + '.js'
-                    ),
-                    path.join(
-                      SERVER_DIRECTORY,
-                      SERVER_REFERENCE_MANIFEST + '.json'
-                    ),
-                  ]
-                : []),
-              ...(pagesDir && bundler !== Bundler.Turbopack
-                ? [
-                    DYNAMIC_CSS_MANIFEST + '.json',
-                    path.join(SERVER_DIRECTORY, DYNAMIC_CSS_MANIFEST + '.js'),
-                  ]
-                : []),
-              BUILD_ID_FILE,
-              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
-              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
-              SERVER_FILES_MANIFEST,
-              ...instrumentationHookEntryFiles,
-            ]
-              .filter(nonNullable)
-              .map((file) => path.join(config.distDir, file)),
-            ignore: [] as string[],
-          }
-
-          return serverFilesManifest
-        })
-
       const middlewareFile = normalizePathSep(
         proxyFilePath || middlewareFilePath || ''
       )
@@ -2648,52 +2701,6 @@ export default async function build(
 
       await writeBuildId(distDir, buildId)
 
-      if (config.experimental.optimizeCss) {
-        const globOrig =
-          require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
-
-        const cssFilePaths = await new Promise<string[]>((resolve, reject) => {
-          globOrig(
-            '**/*.css',
-            { cwd: path.join(distDir, 'static') },
-            (err, files) => {
-              if (err) {
-                return reject(err)
-              }
-              resolve(files)
-            }
-          )
-        })
-
-        requiredServerFilesManifest.files.push(
-          ...cssFilePaths.map((filePath) =>
-            path.join(config.distDir, 'static', filePath)
-          )
-        )
-      }
-
-      // Under standalone mode, we need to ensure that the cache entry debug
-      // handler is copied so that it can be used in the test. This is required
-      // for the turbopack test to run as it's more strict about the build
-      // directories. This is only used for testing and is not used in
-      // production.
-      if (
-        process.env.__NEXT_TEST_MODE &&
-        process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
-      ) {
-        requiredServerFilesManifest.files.push(
-          path.relative(
-            dir,
-            path.isAbsolute(process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS)
-              ? process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
-              : path.join(
-                  dir,
-                  process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
-                )
-          )
-        )
-      }
-
       const features: EventBuildFeatureUsage[] = [
         {
           featureName: 'experimental/cacheComponents',
@@ -2727,11 +2734,6 @@ export default async function build(
             payload: feature,
           }
         })
-      )
-
-      await writeRequiredServerFilesManifest(
-        distDir,
-        requiredServerFilesManifest
       )
 
       // we don't need to inline for turbopack build as
