@@ -19,13 +19,13 @@ use turbo_tasks::{
     CollectiblesSource, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::css::{CssModuleAsset, ModuleCssAsset};
 use turbopack_core::{
     context::AssetContext,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraphWithBindingUsage},
 };
+use turbopack_css::{CssModuleAsset, ModuleCssAsset};
 
 use crate::{
     client_references::{ClientManifestEntryType, ClientReferenceData, map_client_references},
@@ -460,6 +460,7 @@ impl ClientReferencesGraphs {
         entry: Vc<Box<dyn Module>>,
         has_layout_segments: bool,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Result<Vc<ClientReferenceGraphResult>> {
         let span = tracing::info_span!("collect all client references for endpoint");
         async move {
@@ -477,7 +478,9 @@ impl ClientReferencesGraphs {
                 // messes up the order of the server_component_entries.
                 let server_entries = async {
                     if has_layout_segments {
-                        let server_entries = find_server_entries(entry, include_traced).await?;
+                        let server_entries =
+                            find_server_entries(entry, include_traced, include_binding_usage)
+                                .await?;
                         Ok(Some(server_entries))
                     } else {
                         Ok(None)

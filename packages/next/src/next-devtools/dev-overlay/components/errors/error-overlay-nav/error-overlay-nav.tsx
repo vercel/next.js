@@ -18,9 +18,9 @@ export function ErrorOverlayNav({
   setActiveIndex,
   versionInfo,
 }: ErrorOverlayNavProps) {
-  const bundlerName = (process.env.__NEXT_BUNDLER || 'Webpack') as
-    | 'Webpack'
+  const bundlerName = (process.env.__NEXT_BUNDLER || 'Turbopack') as
     | 'Turbopack'
+    | 'Webpack'
     | 'Rspack'
 
   return (
