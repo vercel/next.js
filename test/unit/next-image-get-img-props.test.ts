@@ -727,4 +727,73 @@ describe('getImageProps()', () => {
       delete process.env.NEXT_DEPLOYMENT_ID
     }
   })
+  it('should add query string with question mark for unoptimized relative svg when NEXT_DEPLOYMENT_ID defined', async () => {
+    try {
+      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: '/test.svg',
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        ['src', '/test.svg?dpl=dpl_123'],
+      ])
+    } finally {
+      delete process.env.NEXT_DEPLOYMENT_ID
+    }
+  })
+  it('should add query string with ampersand for unoptimized relative svg when NEXT_DEPLOYMENT_ID defined', async () => {
+    try {
+      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: '/test.svg?v=1',
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        ['src', '/test.svg?v=1&dpl=dpl_123'],
+      ])
+    } finally {
+      delete process.env.NEXT_DEPLOYMENT_ID
+    }
+  })
+  it('should not add query string for unoptimized absolute remote svg when NEXT_DEPLOYMENT_ID defined', async () => {
+    try {
+      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: 'http://example.com/test.svg',
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        ['src', 'http://example.com/test.svg'],
+      ])
+    } finally {
+      delete process.env.NEXT_DEPLOYMENT_ID
+    }
+  })
 })
