@@ -964,5 +964,6 @@
   "963": "Fast setImmediate is not available in the edge runtime.",
   "964": "An unexpected error occurred while starting to capture immediates",
   "965": "Expected setImmediate to reject invalid arguments",
-  "966": "Expected process.nextTick to reject invalid arguments"
+  "966": "Expected process.nextTick to reject invalid arguments",
+  "967": "The key \"%s\" under \"env\" in %sconfig is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed"
 }

@@ -5,7 +5,7 @@ import type {
 } from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from './request/params'
-import type { NextConfig, NextConfigComplete } from './config-shared'
+import type { NextConfig, NextConfigRuntime } from './config-shared'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
@@ -311,7 +311,7 @@ export default abstract class Server<
   public readonly port?: number
   protected readonly dir: string
   protected readonly quiet: boolean
-  protected readonly nextConfig: NextConfigComplete
+  protected readonly nextConfig: NextConfigRuntime
   protected readonly distDir: string
   protected readonly publicDir: string
   protected readonly hasStaticDir: boolean
@@ -446,7 +446,7 @@ export default abstract class Server<
 
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
-    this.nextConfig = conf as NextConfigComplete
+    this.nextConfig = conf as NextConfigRuntime
     this.hostname = hostname
     if (this.hostname) {
       // we format the hostname so that it can be fetched
