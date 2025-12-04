@@ -59,6 +59,7 @@ import {
   handleChromeDevtoolsWorkspaceRequest,
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
+import { getNextConfigRuntime } from '../config-shared'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -715,7 +716,7 @@ export async function initialize(opts: {
   const relativeProjectDir = path.relative(process.cwd(), opts.dir)
 
   routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
-    nextConfig: config,
+    nextConfig: getNextConfigRuntime(config),
     hostname: handlers.server.hostname,
     revalidate: handlers.server.revalidate.bind(handlers.server),
     render404: handlers.server.render404.bind(handlers.server),
