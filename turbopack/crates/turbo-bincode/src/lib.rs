@@ -1,3 +1,6 @@
+#[doc(hidden)]
+pub mod macro_helpers;
+
 use std::ptr::copy_nonoverlapping;
 
 use ::smallvec::SmallVec;
@@ -113,6 +116,57 @@ impl Reader for TurboBincodeReader<'_> {
     fn consume(&mut self, n: usize) {
         self.buffer = &self.buffer[n..];
     }
+}
+
+/// Represents a type that can only be encoded with a [`TurboBincodeEncoder`].
+///
+/// All traits implementing this must also implement the more generic [`Encode`] trait, but they
+/// should panic if any other encoder is used.
+///
+/// Use [`impl_encode_for_turbo_bincode_encode`] to automatically implement the [`Encode`] trait
+/// from this one.
+pub trait TurboBincodeEncode: Encode {
+    fn encode(&self, encoder: &mut TurboBincodeEncoder) -> Result<(), EncodeError>;
+}
+
+/// Represents a type that can only be decoded with a [`TurboBincodeDecoder`] and an empty `()`
+/// context.
+///
+/// All traits implementing this must also implement the more generic [`Decode`] trait, but they
+/// should panic if any other encoder is used.
+///
+/// Use [`impl_decode_for_turbo_bincode_decode`] to automatically implement the [`Decode`] trait
+/// from this one.
+pub trait TurboBincodeDecode<Context>: Decode<Context> {
+    fn decode(decoder: &mut TurboBincodeDecoder) -> Result<Self, DecodeError>;
+}
+
+#[macro_export]
+macro_rules! impl_encode_for_turbo_bincode_encode {
+    ($ty:ty) => {
+        impl $crate::macro_helpers::bincode::Encode for $ty {
+            fn encode<'a, E: $crate::macro_helpers::bincode::enc::Encoder>(
+                &self,
+                encoder: &'a mut E,
+            ) -> ::std::result::Result<(), $crate::macro_helpers::bincode::error::EncodeError> {
+                $crate::macro_helpers::encode_for_turbo_bincode_encode_impl(self, encoder)
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! impl_decode_for_turbo_bincode_decode {
+    ($ty:ty) => {
+        impl<Context> $crate::macro_helpers::bincode::Decode<Context> for $ty {
+            fn decode<D: $crate::macro_helpers::bincode::de::Decoder<Context = Context>>(
+                decoder: &mut D,
+            ) -> ::std::result::Result<Self, $crate::macro_helpers::bincode::error::DecodeError>
+            {
+                $crate::macro_helpers::decode_for_turbo_bincode_decode_impl(decoder)
+            }
+        }
+    };
 }
 
 pub mod indexmap {
