@@ -296,6 +296,7 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
          "/node_modules/next/dist/server/lib/trace/tracer.js",
          "/node_modules/next/dist/server/load-manifest.external.js",
          "/node_modules/next/dist/server/node-environment-extensions/console-dim.external.js",
+         "/node_modules/next/dist/server/node-environment-extensions/fast-set-immediate.external.js",
          "/node_modules/next/dist/server/response-cache/types.js",
          "/node_modules/next/dist/server/route-modules/app-page/module.compiled.js",
          "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/app-router-context.js",
