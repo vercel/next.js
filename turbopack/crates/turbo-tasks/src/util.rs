@@ -304,7 +304,11 @@ pub struct IntoChunks<T> {
 
 impl<T> IntoChunks<T> {
     pub fn len(&self) -> usize {
-        (self.data.len() - self.index + self.chunk_size - 1) / self.chunk_size
+        (self.data.len() - self.index).div_ceil(self.chunk_size)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.index >= self.data.len()
     }
 }
 
