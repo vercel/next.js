@@ -8,7 +8,15 @@ import { getFormattedNodeOptionsWithoutInspect } from '../../server/lib/utils'
  * @default https://registry.npmjs.org/
  */
 export function getRegistry(baseDir: string = process.cwd()) {
-  const pkgManager = getPkgManager(baseDir)
+  let pkgManager = getPkgManager(baseDir)
+
+  // Starting from pnpm v10.7.1, pnpm fallbacks to npm for registry config.
+  // This works in most cases, unless the project is a workspace because the flag below is needed.
+  // Setting `pkgManager` to `npm` to ensure the command works as expected.
+  if (pkgManager === 'pnpm') {
+    pkgManager = 'npm'
+  }
+
   // Since `npm config` command fails in npm workspace to prevent workspace config conflicts,
   // add `--no-workspaces` flag to run under the context of the root project only.
   // Safe for non-workspace projects as it's equivalent to default `--workspaces=false`.
