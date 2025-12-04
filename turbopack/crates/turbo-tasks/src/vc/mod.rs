@@ -611,7 +611,7 @@ macro_rules! into_future {
             type Output = <ReadVcFuture<T> as Future>::Output;
             type IntoFuture = ReadVcFuture<T>;
             fn into_future(self) -> Self::IntoFuture {
-                self.node.into_read().into()
+                self.node.into_read(T::has_serialization()).into()
             }
         }
     };
@@ -629,21 +629,30 @@ where
     #[cfg(feature = "non_operation_vc_strongly_consistent")]
     #[must_use]
     pub fn strongly_consistent(self) -> ReadVcFuture<T> {
-        self.node.into_read().strongly_consistent().into()
+        self.node
+            .into_read(T::has_serialization())
+            .strongly_consistent()
+            .into()
     }
 
     /// Returns a untracked read of the value. This will not invalidate the current function when
     /// the read value changed.
     #[must_use]
     pub fn untracked(self) -> ReadVcFuture<T> {
-        self.node.into_read().untracked().into()
+        self.node
+            .into_read(T::has_serialization())
+            .untracked()
+            .into()
     }
 
     /// Read the value with the hint that this is the final read of the value. This might drop the
     /// cell content. Future reads might need to recompute the value.
     #[must_use]
     pub fn final_read_hint(self) -> ReadVcFuture<T> {
-        self.node.into_read().final_read_hint().into()
+        self.node
+            .into_read(T::has_serialization())
+            .final_read_hint()
+            .into()
     }
 }
 
@@ -654,7 +663,7 @@ where
 {
     /// Read the value and returns a owned version of it. It might clone the value.
     pub fn owned(self) -> ReadOwnedVcFuture<T> {
-        let future: ReadVcFuture<T> = self.node.into_read().into();
+        let future: ReadVcFuture<T> = self.node.into_read(T::has_serialization()).into();
         future.owned()
     }
 }

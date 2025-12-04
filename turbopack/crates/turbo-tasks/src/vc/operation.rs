@@ -130,7 +130,11 @@ impl<T: ?Sized> OperationVc<T> {
     where
         T: VcValueType,
     {
-        self.connect().node.into_read().strongly_consistent().into()
+        self.connect()
+            .node
+            .into_read(T::has_serialization())
+            .strongly_consistent()
+            .into()
     }
 }
 
