@@ -17,8 +17,8 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-async-compression = { workspace = true }
 auto-hash-map = { workspace = true }
+flate2 = { workspace = true }
 futures = { workspace = true }
 hyper = { version = "0.14", features = ["full"] }
 hyper-tungstenite = "0.9.0"

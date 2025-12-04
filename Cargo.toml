@@ -373,10 +373,6 @@ allsorts = { version = "0.14.0", default-features = false, features = [
   "flate2_rust",
 ] }
 anyhow = "1.0.100"
-async-compression = { version = "0.3.13", default-features = false, features = [
-  "gzip",
-  "tokio",
-] }
 async-trait = "0.1.64"
 bitfield = "0.18.0"
 byteorder = "1.5.0"
