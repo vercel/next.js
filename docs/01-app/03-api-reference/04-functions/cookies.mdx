@@ -38,7 +38,6 @@ The following methods are available:
 | `has('name')`               | Boolean          | Accepts a cookie name and returns a boolean based on if the cookie exists.      |
 | `set(name, value, options)` | -                | Accepts a cookie name, value, and options and sets the outgoing request cookie. |
 | `delete(name)`              | -                | Accepts a cookie name and deletes the cookie.                                   |
-| `clear()`                   | -                | Deletes all cookies.                                                            |
 | `toString()`                | String           | Returns a string representation of the cookies.                                 |
 
 ### Options
@@ -80,7 +79,7 @@ When working with cookies in Server Components, it's important to understand tha
 - **Reading cookies** works in Server Components because you're accessing the cookie data that the client's browser sends to the server in the HTTP request headers.
 - **Setting cookies** cannot be done directly in a Server Component, even when using a Route Handler or Server Action. This is because cookies are actually stored by the browser, not the server.
 
-The server can only send instructions (via `Set-Cookie` headers) to tell the browser to store cookies - the actual storage happens on the client side. This is why cookie operations that modify state (`.set`, `.delete`, `.clear`) must be performed in a Route Handler or Server Action where the response headers can be properly set.
+The server can only send instructions (via `Set-Cookie` headers) to tell the browser to store cookies - the actual storage happens on the client side. This is why cookie operations that modify state (`.set`, `.delete`) must be performed in a Route Handler or Server Action where the response headers can be properly set.
 
 ## Understanding Cookie Behavior in Server Actions
 
