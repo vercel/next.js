@@ -796,4 +796,28 @@ describe('getImageProps()', () => {
       delete process.env.NEXT_DEPLOYMENT_ID
     }
   })
+  it('should not add query string for unoptimized with no protocol when NEXT_DEPLOYMENT_ID defined', async () => {
+    try {
+      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: '//example.com/test.png',
+        unoptimized: true,
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        ['src', '//example.com/test.png'],
+      ])
+    } finally {
+      delete process.env.NEXT_DEPLOYMENT_ID
+    }
+  })
 })

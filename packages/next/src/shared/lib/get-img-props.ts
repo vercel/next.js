@@ -232,7 +232,7 @@ function generateImgAttrs({
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
     const deploymentId = getDeploymentId()
-    if (src.startsWith('/') && deploymentId) {
+    if (src.startsWith('/') && !src.startsWith('//') && deploymentId) {
       const sep = src.includes('?') ? '&' : '?'
       src = `${src}${sep}dpl=${deploymentId}`
     }
