@@ -1,13 +1,15 @@
 import '../../server/web/globals'
-import { adapter, type NextRequestHint } from '../../server/web/adapter'
+import {
+  adapter,
+  type EdgeHandler,
+  type NextRequestHint,
+} from '../../server/web/adapter'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
 
 import * as pageMod from 'VAR_USERLAND'
 
-import type { RequestData } from '../../server/web/types'
 import type { NextConfigComplete } from '../../server/config-shared'
-import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
-import { createServerModuleMap } from '../../server/app-render/action-utils'
+import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
 import { initializeCacheHandlers } from '../../server/use-cache/handlers'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
@@ -40,13 +42,10 @@ const rscManifest = self.__RSC_MANIFEST?.['VAR_PAGE']
 const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)
 
 if (rscManifest && rscServerManifest) {
-  setReferenceManifestsSingleton({
+  setManifestsSingleton({
     page: 'VAR_PAGE',
     clientReferenceManifest: rscManifest,
     serverActionsManifest: rscServerManifest,
-    serverModuleMap: createServerModuleMap({
-      serverActionsManifest: rscServerManifest,
-    }),
   })
 }
 
@@ -81,12 +80,10 @@ async function requestHandler(
     buildManifest,
     prerenderManifest,
     reactLoadableManifest,
-    clientReferenceManifest,
     subresourceIntegrityManifest,
     dynamicCssManifest,
     nextFontManifest,
     resolvedPathname,
-    serverActionsManifest,
     interceptionRoutePatterns,
     routerServerContext,
   } = prepareResult
@@ -129,8 +126,6 @@ async function requestHandler(
       reactLoadableManifest,
       subresourceIntegrityManifest,
       dynamicCssManifest,
-      serverActionsManifest,
-      clientReferenceManifest,
       setIsrStatus: routerServerContext?.setIsrStatus,
 
       dir: pageRouteModule.relativeProjectDir,
@@ -180,11 +175,17 @@ async function requestHandler(
       },
       onAfterTaskError: () => {},
 
-      onInstrumentationRequestError: (error, _request, errorContext) =>
+      onInstrumentationRequestError: (
+        error,
+        _request,
+        errorContext,
+        silenceLog
+      ) =>
         pageRouteModule.onRequestError(
           baseReq,
           error,
           errorContext,
+          silenceLog,
           routerServerContext
         ),
       dev: pageRouteModule.isDev,
@@ -319,12 +320,18 @@ async function requestHandler(
 
       return renderResultToResponse(result)
     } catch (err) {
-      await pageRouteModule.onRequestError(baseReq, err, {
-        routerKind: 'App Router',
-        routePath: normalizedSrcPage,
-        routeType: 'render',
-        revalidateReason: undefined,
-      })
+      const silenceLog = false
+      await pageRouteModule.onRequestError(
+        baseReq,
+        err,
+        {
+          routerKind: 'App Router',
+          routePath: normalizedSrcPage,
+          routeType: 'render',
+          revalidateReason: undefined,
+        },
+        silenceLog
+      )
       // rethrow so that we can handle serving error page
       throw err
     }
@@ -349,11 +356,13 @@ async function requestHandler(
   )
 }
 
-export default function nHandler(opts: { page: string; request: RequestData }) {
+const handler: EdgeHandler = (opts) => {
   return adapter({
     ...opts,
     IncrementalCache,
     handler: requestHandler,
     incrementalCacheHandler,
+    page: 'VAR_PAGE',
   })
 }
+export default handler

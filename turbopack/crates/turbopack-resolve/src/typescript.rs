@@ -21,7 +21,7 @@ use turbopack_core::{
             ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
             ResolveOptions,
         },
-        origin::{ResolveOrigin, ResolveOriginExt},
+        origin::ResolveOrigin,
         parse::Request,
         pattern::Pattern,
         resolve,
@@ -255,7 +255,7 @@ async fn try_join_base_url(
     base_url: RcStr,
 ) -> Result<Vc<FileSystemPathOption>> {
     Ok(Vc::cell(
-        source.ident().path().await?.parent().try_join(&base_url)?,
+        source.ident().path().await?.parent().try_join(&base_url),
     ))
 }
 
@@ -294,7 +294,7 @@ pub async fn tsconfig_resolve_options(
         {
             let mut context_dir = source.ident().path().await?.parent();
             if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str()
-                && let Some(new_context) = context_dir.try_join(base_url)?
+                && let Some(new_context) = context_dir.try_join(base_url)
             {
                 context_dir = new_context;
             };
@@ -417,7 +417,7 @@ pub async fn type_resolve(
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined);
     let context_path = origin.origin_path().await?.parent();
-    let options = origin.resolve_options(ty.clone()).await?;
+    let options = origin.resolve_options(ty.clone());
     let options = apply_typescript_types_options(options);
     let types_request = if let Request::Module {
         module: m,
@@ -472,16 +472,7 @@ pub async fn type_resolve(
             .asset_context()
             .process_resolve_result(result, ty.clone()),
     );
-    handle_resolve_error(
-        result,
-        ty,
-        origin.origin_path().owned().await?,
-        request,
-        options,
-        false,
-        None,
-    )
-    .await
+    handle_resolve_error(result, ty, origin, request, options, false, None).await
 }
 
 #[turbo_tasks::function]

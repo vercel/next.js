@@ -13,13 +13,6 @@ pub mod module_options;
 pub mod transition;
 
 use anyhow::{Result, bail};
-use css::{CssModuleAsset, ModuleCssAsset};
-use ecmascript::{
-    EcmascriptModuleAsset, EcmascriptModuleAssetType, TreeShakingMode,
-    chunk::EcmascriptChunkPlaceable,
-    references::{FollowExportsResult, follow_reexports},
-    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
-};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
@@ -28,7 +21,6 @@ use turbo_tasks_fs::{
     FileSystemPath,
     glob::{Glob, GlobOptions},
 };
-pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
     chunk::SourceMapsType,
@@ -51,26 +43,34 @@ use turbopack_core::{
     },
     source::Source,
 };
-pub use turbopack_css as css;
-pub use turbopack_ecmascript as ecmascript;
+use turbopack_css::{CssModuleAsset, ModuleCssAsset};
 use turbopack_ecmascript::{
-    AnalyzeMode,
+    AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, TreeShakingMode,
+    chunk::EcmascriptChunkPlaceable,
     inlined_bytes_module::InlinedBytesJsModule,
-    references::external_module::{
-        CachedExternalModule, CachedExternalTracingMode, CachedExternalType,
+    references::{
+        FollowExportsResult,
+        external_module::{CachedExternalModule, CachedExternalTracingMode, CachedExternalType},
+        follow_reexports,
     },
-    side_effect_optimization::locals::module::EcmascriptModuleLocalsModule,
+    side_effect_optimization::{
+        facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
+    },
     tree_shake::asset::EcmascriptModulePartAsset,
 };
 use turbopack_json::JsonModuleAsset;
-pub use turbopack_resolve::{resolve::resolve_options, resolve_options_context};
-use turbopack_resolve::{resolve_options_context::ResolveOptionsContext, typescript::type_resolve};
+use turbopack_resolve::{
+    resolve::resolve_options, resolve_options_context::ResolveOptionsContext,
+    typescript::type_resolve,
+};
 use turbopack_static::{css::StaticUrlCssModule, ecma::StaticUrlJsModule};
 use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySource};
 
-use self::transition::{Transition, TransitionOptions};
-use crate::module_options::{
-    CssOptionsContext, CustomModuleType, EcmascriptOptionsContext, TypescriptTransformOptions,
+use crate::{
+    module_options::{
+        CssOptionsContext, CustomModuleType, EcmascriptOptionsContext, TypescriptTransformOptions,
+    },
+    transition::{Transition, TransitionOptions},
 };
 
 async fn apply_module_type(
@@ -898,8 +898,36 @@ impl AssetContext for ModuleAssetContext {
                                 ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
                             }
                         }
-                        ResolveResultItem::External { name, ty, traced } => {
+                        ResolveResultItem::External {
+                            name,
+                            ty,
+                            traced,
+                            target,
+                        } => {
                             let replacement = if replace_externals {
+                                // Determine the package folder, `target` is the full path to the
+                                // resolved file.
+                                let target = if let Some(mut target) = target {
+                                    loop {
+                                        let parent = target.parent();
+                                        if parent.is_root() {
+                                            break;
+                                        }
+                                        if parent.file_name() == "node_modules" {
+                                            break;
+                                        }
+                                        if parent.file_name().starts_with("@")
+                                            && parent.parent().file_name() == "node_modules"
+                                        {
+                                            break;
+                                        }
+                                        target = parent;
+                                    }
+                                    Some(target)
+                                } else {
+                                    None
+                                };
+
                                 let analyze_mode = if traced == ExternalTraced::Traced
                                     && let Some(options) = &self
                                         .module_options_context()
@@ -907,15 +935,22 @@ impl AssetContext for ModuleAssetContext {
                                         .enable_externals_tracing
                                 {
                                     // result.affecting_sources can be ignored for tracing, as this
-                                    // request will later be resolved relative to tracing_root
-                                    // anyway.
+                                    // request will later be resolved relative to tracing_root (or
+                                    // the .next/node_modules/lodash-1238123 symlink) anyway.
 
                                     let options = options.await?;
                                     let origin = PlainResolveOrigin::new(
                                         Vc::upcast(externals_tracing_module_context(
                                             *options.compile_time_info,
                                         )),
-                                        options.tracing_root.join("_")?,
+                                        // If target is specified, a symlink will be created to
+                                        // make the folder
+                                        // itself available, but we still need to trace
+                                        // resolving the individual file(s) inside the package.
+                                        target
+                                            .as_ref()
+                                            .unwrap_or(&options.tracing_root)
+                                            .join("_")?,
                                     );
                                     CachedExternalTracingMode::Traced {
                                         origin: ResolvedVc::upcast(origin.to_resolved().await?),
@@ -924,7 +959,8 @@ impl AssetContext for ModuleAssetContext {
                                     CachedExternalTracingMode::Untraced
                                 };
 
-                                replace_external(&name, ty, import_externals, analyze_mode).await?
+                                replace_external(&name, ty, target, import_externals, analyze_mode)
+                                    .await?
                             } else {
                                 None
                             };
@@ -1051,6 +1087,7 @@ pub async fn emit_assets_into_dir_operation(
 pub async fn replace_external(
     name: &RcStr,
     ty: ExternalType,
+    target: Option<FileSystemPath>,
     import_externals: bool,
     analyze_mode: CachedExternalTracingMode,
 ) -> Result<Option<ModuleResolveResultItem>> {
@@ -1071,7 +1108,7 @@ pub async fn replace_external(
         }
     };
 
-    let module = CachedExternalModule::new(name.clone(), external_type, analyze_mode)
+    let module = CachedExternalModule::new(name.clone(), target, external_type, analyze_mode)
         .to_resolved()
         .await?;
 

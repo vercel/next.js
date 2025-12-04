@@ -141,10 +141,6 @@ pub struct NextConfig {
     compress: bool,
     eslint: EslintConfig,
     exclude_default_moment_locales: bool,
-    // this can be a function in js land
-    export_path_map: Option<serde_json::Value>,
-    // this is a function in js land
-    generate_build_id: Option<serde_json::Value>,
     generate_etags: bool,
     http_agent_options: HttpAgentConfig,
     on_demand_entries: OnDemandEntriesConfig,
@@ -156,7 +152,11 @@ pub struct NextConfig {
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     cache_components: Option<bool>,
-    webpack: Option<serde_json::Value>,
+    //
+    // These are never used by Turbopack, and potentially non-serializable anyway:
+    // export_path_map: Option<serde_json::Value>,
+    // generate_build_id: Option<serde_json::Value>,
+    // webpack: Option<serde_json::Value>,
 }
 
 #[turbo_tasks::value_impl]
@@ -900,6 +900,8 @@ pub struct ExperimentalConfig {
     turbopack_use_builtin_babel: Option<bool>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
+    /// Defaults to false in development mode, true in production mode.
+    turbopack_remove_unused_imports: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
     turbopack_remove_unused_exports: Option<bool>,
     /// Devtool option for the segment explorer.
@@ -1752,6 +1754,27 @@ impl NextConfig {
             None => Some(TreeShakingMode::ReexportsOnly),
         })
         .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub async fn turbopack_remove_unused_imports(
+        self: Vc<Self>,
+        mode: Vc<NextMode>,
+    ) -> Result<Vc<bool>> {
+        let remove_unused_imports = self
+            .await?
+            .experimental
+            .turbopack_remove_unused_imports
+            .unwrap_or(matches!(*mode.await?, NextMode::Build));
+
+        if remove_unused_imports && !*self.turbopack_remove_unused_exports(mode).await? {
+            bail!(
+                "`experimental.turbopackRemoveUnusedImports` cannot be enabled without also \
+                 enabling `experimental.turbopackRemoveUnusedExports`"
+            );
+        }
+
+        Ok(Vc::cell(remove_unused_imports))
     }
 
     #[turbo_tasks::function]

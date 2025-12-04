@@ -145,6 +145,7 @@ export function createWorkStore({
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),
     runInCleanSnapshot: createSnapshot(),
     shouldTrackFetchMetrics,
+    reactServerErrorsByDigest: new Map(),
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context
