@@ -2861,7 +2861,114 @@ mod tests {
         .unwrap();
     }
 
-    // Test helpers for denied_path tests
+    #[cfg(test)]
+    mod symlink_tests {
+        use std::{
+            fs::{File, create_dir_all, read_to_string},
+            io::Write,
+        };
+
+        use turbo_rcstr::{RcStr, rcstr};
+        use turbo_tasks::{ResolvedVc, apply_effects};
+        use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+
+        use crate::{DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkType};
+
+        #[turbo_tasks::function(operation)]
+        async fn test_write_link_effect(
+            fs: ResolvedVc<DiskFileSystem>,
+            path: FileSystemPath,
+            target: RcStr,
+        ) -> anyhow::Result<()> {
+            let write_file = |f| {
+                fs.write_link(
+                    f,
+                    LinkContent::Link {
+                        target: format!("{target}/data.txt").into(),
+                        link_type: LinkType::empty(),
+                    }
+                    .cell(),
+                )
+            };
+            // Write it twice (same content)
+            write_file(path.join("symlink-file")?).await?;
+            write_file(path.join("symlink-file")?).await?;
+
+            let write_dir = |f| {
+                fs.write_link(
+                    f,
+                    LinkContent::Link {
+                        target: target.clone(),
+                        link_type: LinkType::DIRECTORY,
+                    }
+                    .cell(),
+                )
+            };
+            // Write it twice (same content)
+            write_dir(path.join("symlink-dir")?).await?;
+            write_dir(path.join("symlink-dir")?).await?;
+
+            Ok(())
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn test_write_link() {
+            let scratch = tempfile::tempdir().unwrap();
+            let path = scratch.path().to_owned();
+
+            create_dir_all(path.join("subdir-a")).unwrap();
+            File::create_new(path.join("subdir-a/data.txt"))
+                .unwrap()
+                .write_all(b"foo")
+                .unwrap();
+            create_dir_all(path.join("subdir-b")).unwrap();
+            File::create_new(path.join("subdir-b/data.txt"))
+                .unwrap()
+                .write_all(b"bar")
+                .unwrap();
+            let root = path.to_str().unwrap().into();
+
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+
+            tt.run_once(async move {
+                let fs = DiskFileSystem::new(rcstr!("test"), root)
+                    .to_resolved()
+                    .await?;
+                let root_path = fs.root().owned().await?;
+
+                let write_result =
+                    test_write_link_effect(fs, root_path.clone(), rcstr!("subdir-a"));
+                write_result.read_strongly_consistent().await?;
+                apply_effects(write_result).await?;
+
+                assert_eq!(read_to_string(path.join("symlink-file")).unwrap(), "foo");
+                assert_eq!(
+                    read_to_string(path.join("symlink-dir/data.txt")).unwrap(),
+                    "foo"
+                );
+
+                // Write the same links again but with different targets
+                let write_result = test_write_link_effect(fs, root_path, rcstr!("subdir-b"));
+                write_result.read_strongly_consistent().await?;
+                apply_effects(write_result).await?;
+
+                assert_eq!(read_to_string(path.join("symlink-file")).unwrap(), "bar");
+                assert_eq!(
+                    read_to_string(path.join("symlink-dir/data.txt")).unwrap(),
+                    "bar"
+                );
+
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+        }
+    }
+
+    // Tests helpers for denied_path tests
     #[cfg(test)]
     mod denied_path_tests {
         use std::{
