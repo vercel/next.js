@@ -1229,7 +1229,10 @@ impl Pattern {
     /// Calls `cb` on all constants that are at the end of the pattern and
     /// replaces the given final constant with the returned pattern. Returns
     /// true if replacements were performed.
-    pub fn replace_final_constants(&mut self, cb: &impl Fn(&RcStr) -> Option<Pattern>) -> bool {
+    pub fn replace_final_constants(
+        &mut self,
+        cb: &mut impl FnMut(&RcStr) -> Option<Pattern>,
+    ) -> bool {
         let mut replaced = false;
         match self {
             Pattern::Constant(c) => {
@@ -2492,12 +2495,12 @@ mod tests {
 
     #[test]
     fn replace_final_constants() {
-        fn f(mut p: Pattern, cb: &impl Fn(&RcStr) -> Option<Pattern>) -> Pattern {
+        fn f(mut p: Pattern, cb: &mut impl FnMut(&RcStr) -> Option<Pattern>) -> Pattern {
             p.replace_final_constants(cb);
             p
         }
 
-        let js_to_ts_tsx = |c: &RcStr| -> Option<Pattern> {
+        let mut js_to_ts_tsx = |c: &RcStr| -> Option<Pattern> {
             c.strip_suffix(".js").map(|rest| {
                 let new_ending = Pattern::Alternatives(vec![
                     Pattern::Constant(rcstr!(".ts")),
@@ -2523,7 +2526,7 @@ mod tests {
                         Pattern::Constant(rcstr!(".node")),
                     ])
                 ]),
-                &js_to_ts_tsx
+                &mut js_to_ts_tsx
             ),
             Pattern::Concatenation(vec![
                 Pattern::Constant(rcstr!(".")),
@@ -2546,7 +2549,7 @@ mod tests {
                     Pattern::Constant(rcstr!("/")),
                     Pattern::Constant(rcstr!("abc.js")),
                 ]),
-                &js_to_ts_tsx
+                &mut js_to_ts_tsx
             ),
             Pattern::Concatenation(vec![
                 Pattern::Constant(rcstr!(".")),
