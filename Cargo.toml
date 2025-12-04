@@ -293,6 +293,7 @@ next-taskless = { path = "crates/next-taskless" }
 
 # Turbopack
 auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
+turbo-bincode = { path = "turbopack/crates/turbo-bincode" }
 turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
 turbo-rcstr = { path = "turbopack/crates/turbo-rcstr" }
 turbo-dyn-eq-hash = { path = "turbopack/crates/turbo-dyn-eq-hash" }
@@ -359,6 +360,7 @@ preset_env_base = "6.0.0"
 
 
 # General Deps
+bincode = { version = "2.0.1", features = ["serde"] }
 chromiumoxide = { version = "0.5.4", features = [
   "tokio-runtime",
 ], default-features = false }
@@ -481,4 +483,5 @@ webbrowser = "1.0.6"
 inventory = "0.3.21"
 
 [patch.crates-io]
+bincode = { git = "https://github.com/bgw/bincode.git", branch = "bgw/patches" }
 mdxjs = { git = "https://github.com/mischnic/mdxjs-rs.git", branch = "swc-core-32" }
