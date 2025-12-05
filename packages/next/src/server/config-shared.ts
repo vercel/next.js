@@ -836,6 +836,14 @@ export interface ExperimentalConfig {
    * @default false
    */
   hideLogsAfterAbort?: boolean
+
+  /**
+   * Whether `process.env.NEXT_DEPLOYMENT_ID` is available at runtime in the server (and `next
+   * build` doesn't need to embed the deployment ID value into the build output).
+   *
+   * @default false
+   */
+  runtimeServerDeploymentId?: boolean
 }
 
 export type ExportPathMap = {
@@ -1652,6 +1660,7 @@ export interface NextConfigRuntime {
     | 'proxyClientMaxBodySize'
     | 'proxyTimeout'
     | 'testProxy'
+    | 'runtimeServerDeploymentId'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1706,6 +1715,7 @@ export function getNextConfigRuntime(
         proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
         proxyTimeout: ex.proxyTimeout,
         testProxy: ex.testProxy,
+        runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,
@@ -1713,7 +1723,9 @@ export function getNextConfigRuntime(
     : {}
 
   let runtimeConfig: Requiredish<NextConfigRuntime> = {
-    deploymentId: config.deploymentId,
+    deploymentId: config.experimental.runtimeServerDeploymentId
+      ? ''
+      : config.deploymentId,
 
     configFileName: undefined,
     env: undefined,
