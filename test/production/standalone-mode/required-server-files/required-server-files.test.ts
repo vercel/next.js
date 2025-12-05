@@ -247,11 +247,11 @@ describe('required server files', () => {
           redirect: 'manual',
         }
       )
-      expect(dataRes.headers.get('cache-control')).toBe(cacheControl)
       expect((await dataRes.json()).pageProps).toEqual({
         __N_REDIRECT: dest,
         __N_REDIRECT_STATUS: 307,
       })
+      expect(dataRes.headers.get('cache-control')).toBe(cacheControl)
     }
   )
 
