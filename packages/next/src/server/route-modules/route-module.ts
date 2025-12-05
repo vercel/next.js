@@ -190,6 +190,7 @@ export abstract class RouteModule<
     dynamicCssManifest: any
     interceptionRoutePatterns: RegExp[]
   } {
+    let result
     if (process.env.NEXT_RUNTIME === 'edge') {
       const { getEdgePreviewProps } =
         require('../web/get-edge-preview-props') as typeof import('../web/get-edge-preview-props')
@@ -197,7 +198,7 @@ export abstract class RouteModule<
       const maybeJSONParse = (str?: string) =>
         str ? JSON.parse(str) : undefined
 
-      return {
+      result = {
         buildId: process.env.__NEXT_BUILD_ID || '',
         buildManifest: self.__BUILD_MANIFEST as any,
         fallbackBuildManifest: {} as any,
@@ -209,7 +210,7 @@ export abstract class RouteModule<
           notFoundRoutes: [],
           version: 4,
           preview: getEdgePreviewProps(),
-        },
+        } as const,
         routesManifest: {
           version: 4,
           caseSensitive: Boolean(process.env.__NEXT_CASE_SENSITIVE_ROUTES),
@@ -357,7 +358,7 @@ export abstract class RouteModule<
         }),
       ]
 
-      return {
+      result = {
         buildId,
         buildManifest,
         fallbackBuildManifest,
@@ -376,6 +377,20 @@ export abstract class RouteModule<
           .map((rewrite) => new RegExp(rewrite.regex)),
       }
     }
+
+    if (
+      result.serverFilesManifest?.config.experimental?.runtimeServerDeploymentId
+    ) {
+      if (!process.env.NEXT_DEPLOYMENT_ID) {
+        throw new Error(
+          'process.env.NEXT_DEPLOYMENT_ID is missing but runtimeServerDeploymentId is enabled'
+        )
+      }
+      result.serverFilesManifest.config.deploymentId =
+        process.env.NEXT_DEPLOYMENT_ID
+    }
+
+    return result
   }
 
   public async loadCustomCacheHandlers(
@@ -522,6 +537,15 @@ export abstract class RouteModule<
 
     if (!nextConfig) {
       throw new Error("Invariant: nextConfig couldn't be loaded")
+    }
+
+    if (nextConfig.experimental?.runtimeServerDeploymentId) {
+      if (!process.env.NEXT_DEPLOYMENT_ID) {
+        throw new Error(
+          'process.env.NEXT_DEPLOYMENT_ID is missing but runtimeServerDeploymentId is enabled'
+        )
+      }
+      nextConfig.deploymentId = process.env.NEXT_DEPLOYMENT_ID
     }
 
     return nextConfig

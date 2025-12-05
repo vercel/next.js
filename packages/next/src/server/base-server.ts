@@ -447,6 +447,24 @@ export default abstract class Server<
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigRuntime
+
+    if (this.nextConfig.experimental.runtimeServerDeploymentId) {
+      if (!process.env.NEXT_DEPLOYMENT_ID) {
+        throw new Error(
+          'process.env.NEXT_DEPLOYMENT_ID is missing but runtimeServerDeploymentId is enabled'
+        )
+      }
+      this.nextConfig = {
+        ...this.nextConfig,
+        deploymentId: process.env.NEXT_DEPLOYMENT_ID,
+      }
+    } else {
+      process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.experimental
+        .useSkewCookie
+        ? ''
+        : this.nextConfig.deploymentId || ''
+    }
+
     this.hostname = hostname
     if (this.hostname) {
       // we format the hostname so that it can be fetched
@@ -501,13 +519,6 @@ export default abstract class Server<
     }
 
     this.nextFontManifest = this.getNextFontManifest()
-
-    if (this.nextConfig.experimental.runtimeServerDeploymentId !== true) {
-      process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.experimental
-        .useSkewCookie
-        ? ''
-        : this.nextConfig.deploymentId || ''
-    }
 
     this.renderOpts = {
       dir: this.dir,
