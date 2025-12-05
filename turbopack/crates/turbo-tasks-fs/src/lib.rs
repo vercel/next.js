@@ -1912,7 +1912,7 @@ impl File {
     }
 
     /// Returns a Read/AsyncRead/Stream/Iterator to access the File's contents.
-    pub fn read(&self) -> RopeReader {
+    pub fn read(&self) -> RopeReader<'_> {
         self.content.read()
     }
 }

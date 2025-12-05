@@ -97,9 +97,7 @@ function defaultLoader({
 
   let deploymentId = getDeploymentId()
   return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${q}${
-    src.startsWith('/_next/static/media/') && deploymentId
-      ? `&dpl=${deploymentId}`
-      : ''
+    src.startsWith('/') && deploymentId ? `&dpl=${deploymentId}` : ''
   }`
 }
 

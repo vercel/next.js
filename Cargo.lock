@@ -329,19 +329,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-compression"
-version = "0.3.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "942c7cd7ae39e91bde4820d74132e9862e62c2f386c3aa90ccf55949f5bad63a"
-dependencies = [
- "flate2",
- "futures-core",
- "memchr",
- "pin-project-lite",
- "tokio",
-]
-
-[[package]]
 name = "async-stream"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -570,6 +557,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "bincode"
+version = "2.0.1"
+source = "git+https://github.com/bgw/bincode.git?branch=bgw%2Fpatches#19f09c5f6895d769883c10b3d374f761ab7fe83d"
+dependencies = [
+ "bincode_derive",
+ "serde",
+ "unty",
+]
+
+[[package]]
+name = "bincode_derive"
+version = "2.0.1"
+source = "git+https://github.com/bgw/bincode.git?branch=bgw%2Fpatches#19f09c5f6895d769883c10b3d374f761ab7fe83d"
+dependencies = [
+ "virtue",
 ]
 
 [[package]]
@@ -1178,7 +1183,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "35584c5fcba8059780748866387fb97c5a203bcfc563fc3d0790af406727a117"
 dependencies = [
  "anyhow",
- "bincode",
+ "bincode 1.3.3",
  "colored",
  "glob",
  "libc",
@@ -6753,9 +6758,9 @@ checksum = "03b634d87b960ab1a38c4fe143b508576f075e7c978bfad18217645ebfdfa2ec"
 
 [[package]]
 name = "smallvec"
-version = "1.13.1"
+version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6ecd384b10a64542d77071bd64bd7b231f4ed5940fba55e98c3de13824cf3d7"
+checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 dependencies = [
  "serde",
 ]
@@ -9080,6 +9085,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "turbo-bincode"
+version = "0.0.0"
+dependencies = [
+ "bincode 2.0.1",
+ "either",
+ "indexmap 2.9.0",
+ "mime",
+ "ringmap",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "unty",
+]
+
+[[package]]
 name = "turbo-dyn-eq-hash"
 version = "0.0.1"
 
@@ -9151,7 +9171,7 @@ dependencies = [
 name = "turbo-static"
 version = "0.1.0"
 dependencies = [
- "bincode",
+ "bincode 1.3.3",
  "clap",
  "ctrlc",
  "ignore",
@@ -9662,8 +9682,8 @@ name = "turbopack-dev-server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-compression",
  "auto-hash-map",
+ "flate2",
  "futures",
  "hyper 0.14.32",
  "hyper-tungstenite",
@@ -10238,6 +10258,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
+name = "unty"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d49784317cd0d1ee7ec5c716dd598ec5b4483ea832a2dced265471cc0f690ae"
+
+[[package]]
 name = "url"
 version = "2.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10419,7 +10445,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.22.1",
- "bincode",
+ "bincode 1.3.3",
  "bytecheck 0.6.11",
  "bytes",
  "derive_more 2.0.1",
@@ -10435,6 +10461,12 @@ dependencies = [
  "tracing",
  "virtual-mio",
 ]
+
+[[package]]
+name = "virtue"
+version = "0.0.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 
 [[package]]
 name = "vlq"
@@ -10806,7 +10838,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.22.1",
- "bincode",
+ "bincode 1.3.3",
  "bytecheck 0.6.11",
  "bytes",
  "derive_more 2.0.1",
@@ -10912,7 +10944,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.22.1",
- "bincode",
+ "bincode 1.3.3",
  "blake3",
  "bus",
  "bytecheck 0.6.11",
