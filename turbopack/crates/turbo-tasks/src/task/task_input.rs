@@ -3,15 +3,24 @@ use std::{
     fmt::Debug,
     future::Future,
     hash::Hash,
+    ops::{Deref, DerefMut},
     sync::Arc,
     time::Duration,
 };
 
 use anyhow::Result;
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+};
 use either::Either;
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 
+// This import is necessary for derive macros to work, as their expansion refers to the crate
+// name directly.
+use crate as turbo_tasks;
 use crate::{
     MagicAny, ReadRef, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
     trace::TraceRawVcs,
@@ -20,9 +29,14 @@ use crate::{
 /// Trait to implement in order for a type to be accepted as a
 /// [`#[turbo_tasks::function]`][crate::function] argument.
 ///
-/// Serialization must be deterministic and compatible with `eq` comparisons.  If two `TaskInputs`
-/// compare equal they must also serialize to the same bytes.
-pub trait TaskInput: Send + Sync + Clone + Debug + PartialEq + Eq + Hash + TraceRawVcs {
+/// Transient task inputs are required to implement [`Encode`] and [`Decode`], but are allowed to
+/// panic at runtime. This requirement could be lifted in the future.
+///
+/// Bincode encoding must be deterministic and compatible with [`Eq`] comparisons. If two
+/// `TaskInput`s compare equal they must also encode to the same bytes.
+pub trait TaskInput:
+    Send + Sync + Clone + Debug + PartialEq + Eq + Hash + TraceRawVcs + Encode + Decode<()>
+{
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         async { Ok(self.clone()) }
     }
@@ -205,31 +219,15 @@ where
     }
 }
 
-impl<T> Serialize for TransientValue<T>
-where
-    T: MagicAny + Clone + 'static,
-{
-    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        Err(serde::ser::Error::custom(
-            "cannot serialize transient task inputs",
-        ))
+impl<T> Encode for TransientValue<T> {
+    fn encode<E: Encoder>(&self, _encoder: &mut E) -> Result<(), EncodeError> {
+        Err(EncodeError::Other("cannot encode transient task inputs"))
     }
 }
 
-impl<'de, T> Deserialize<'de> for TransientValue<T>
-where
-    T: MagicAny + Clone + 'static,
-{
-    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        Err(serde::de::Error::custom(
-            "cannot deserialize transient task inputs",
-        ))
+impl<Context, T> Decode<Context> for TransientValue<T> {
+    fn decode<D: Decoder<Context = Context>>(_decoder: &mut D) -> Result<Self, DecodeError> {
+        Err(DecodeError::Other("cannot decode transient task inputs"))
     }
 }
 
@@ -242,48 +240,15 @@ where
     }
 }
 
-impl<T> Serialize for TransientInstance<T> {
-    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        Err(serde::ser::Error::custom(
-            "cannot serialize transient task inputs",
-        ))
+impl<T> Encode for TransientInstance<T> {
+    fn encode<E: Encoder>(&self, _encoder: &mut E) -> Result<(), EncodeError> {
+        Err(EncodeError::Other("cannot encode transient task inputs"))
     }
 }
 
-impl<'de, T> Deserialize<'de> for TransientInstance<T> {
-    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        Err(serde::de::Error::custom(
-            "cannot deserialize transient task inputs",
-        ))
-    }
-}
-
-impl<L, R> TaskInput for Either<L, R>
-where
-    L: TaskInput,
-    R: TaskInput,
-{
-    fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
-        self.as_ref().map_either(
-            |l| async move { anyhow::Ok(Either::Left(l.resolve_input().await?)) },
-            |r| async move { anyhow::Ok(Either::Right(r.resolve_input().await?)) },
-        )
-    }
-
-    fn is_resolved(&self) -> bool {
-        self.as_ref()
-            .either(TaskInput::is_resolved, TaskInput::is_resolved)
-    }
-
-    fn is_transient(&self) -> bool {
-        self.as_ref()
-            .either(TaskInput::is_transient, TaskInput::is_transient)
+impl<Context, T> Decode<Context> for TransientInstance<T> {
+    fn decode<D: Decoder<Context = Context>>(_decoder: &mut D) -> Result<Self, DecodeError> {
+        Err(DecodeError::Other("cannot decode transient task inputs"))
     }
 }
 
@@ -335,6 +300,68 @@ where
     }
 }
 
+/// A thin wrapper around [`Either`] that implements the traits required by [`TaskInput`], notably
+/// [`Encode`] and [`Decode`].
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs)]
+pub struct EitherTaskInput<L, R>(pub Either<L, R>);
+
+impl<L, R> Deref for EitherTaskInput<L, R> {
+    type Target = Either<L, R>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<L, R> DerefMut for EitherTaskInput<L, R> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<L, R> Encode for EitherTaskInput<L, R>
+where
+    L: Encode,
+    R: Encode,
+{
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        turbo_bincode::either::encode(self, encoder)
+    }
+}
+
+impl<Context, L, R> Decode<Context> for EitherTaskInput<L, R>
+where
+    L: Decode<Context>,
+    R: Decode<Context>,
+{
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        turbo_bincode::either::decode(decoder).map(Self)
+    }
+}
+
+impl<L, R> TaskInput for EitherTaskInput<L, R>
+where
+    L: TaskInput,
+    R: TaskInput,
+{
+    fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
+        self.as_ref().map_either(
+            |l| async move { anyhow::Ok(Self(Either::Left(l.resolve_input().await?))) },
+            |r| async move { anyhow::Ok(Self(Either::Right(r.resolve_input().await?))) },
+        )
+    }
+
+    fn is_resolved(&self) -> bool {
+        self.as_ref()
+            .either(TaskInput::is_resolved, TaskInput::is_resolved)
+    }
+
+    fn is_transient(&self) -> bool {
+        self.as_ref()
+            .either(TaskInput::is_transient, TaskInput::is_transient)
+    }
+}
+
 macro_rules! tuple_impls {
     ( $( $name:ident )+ ) => {
         impl<$($name: TaskInput),+> TaskInput for ($($name,)+)
@@ -381,9 +408,6 @@ mod tests {
     use turbo_tasks_macros::TaskInput;
 
     use super::*;
-    // This is necessary for the derive macro to work, as its expansion refers to
-    // the crate name directly.
-    use crate as turbo_tasks;
 
     fn assert_task_input<T>(_: T)
     where
@@ -393,9 +417,7 @@ mod tests {
 
     #[test]
     fn test_no_fields() -> Result<()> {
-        #[derive(
-            Clone, TaskInput, Eq, PartialEq, Hash, Debug, Serialize, Deserialize, TraceRawVcs,
-        )]
+        #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
         struct NoFields;
 
         assert_task_input(NoFields);
@@ -404,9 +426,7 @@ mod tests {
 
     #[test]
     fn test_one_unnamed_field() -> Result<()> {
-        #[derive(
-            Clone, TaskInput, Eq, PartialEq, Hash, Debug, Serialize, Deserialize, TraceRawVcs,
-        )]
+        #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
         struct OneUnnamedField(u32);
 
         assert_task_input(OneUnnamedField(42));
@@ -415,9 +435,7 @@ mod tests {
 
     #[test]
     fn test_multiple_unnamed_fields() -> Result<()> {
-        #[derive(
-            Clone, TaskInput, Eq, PartialEq, Hash, Debug, Serialize, Deserialize, TraceRawVcs,
-        )]
+        #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
         struct MultipleUnnamedFields(u32, RcStr);
 
         assert_task_input(MultipleUnnamedFields(42, rcstr!("42")));
@@ -426,9 +444,7 @@ mod tests {
 
     #[test]
     fn test_one_named_field() -> Result<()> {
-        #[derive(
-            Clone, TaskInput, Eq, PartialEq, Hash, Debug, Serialize, Deserialize, TraceRawVcs,
-        )]
+        #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
         struct OneNamedField {
             named: u32,
         }
@@ -439,9 +455,7 @@ mod tests {
 
     #[test]
     fn test_multiple_named_fields() -> Result<()> {
-        #[derive(
-            Clone, TaskInput, Eq, PartialEq, Hash, Debug, Serialize, Deserialize, TraceRawVcs,
-        )]
+        #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
         struct MultipleNamedFields {
             named: u32,
             other: RcStr,
@@ -456,9 +470,7 @@ mod tests {
 
     #[test]
     fn test_generic_field() -> Result<()> {
-        #[derive(
-            Clone, TaskInput, Eq, PartialEq, Hash, Debug, Serialize, Deserialize, TraceRawVcs,
-        )]
+        #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
         struct GenericField<T>(T);
 
         assert_task_input(GenericField(42));
@@ -466,7 +478,7 @@ mod tests {
         Ok(())
     }
 
-    #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Serialize, Deserialize, TraceRawVcs)]
+    #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
     enum OneVariant {
         Variant,
     }
@@ -479,9 +491,7 @@ mod tests {
 
     #[test]
     fn test_multiple_variants() -> Result<()> {
-        #[derive(
-            Clone, TaskInput, PartialEq, Eq, Hash, Debug, Serialize, Deserialize, TraceRawVcs,
-        )]
+        #[derive(Clone, TaskInput, PartialEq, Eq, Hash, Debug, Encode, Decode, TraceRawVcs)]
         enum MultipleVariants {
             Variant1,
             Variant2,
@@ -491,7 +501,7 @@ mod tests {
         Ok(())
     }
 
-    #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Serialize, Deserialize, TraceRawVcs)]
+    #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
     enum MultipleVariantsAndHeterogeneousFields {
         Variant1,
         Variant2(u32),
@@ -511,9 +521,7 @@ mod tests {
 
     #[test]
     fn test_nested_variants() -> Result<()> {
-        #[derive(
-            Clone, TaskInput, Eq, PartialEq, Hash, Debug, Serialize, Deserialize, TraceRawVcs,
-        )]
+        #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
         enum NestedVariants {
             Variant1,
             Variant2(MultipleVariantsAndHeterogeneousFields),

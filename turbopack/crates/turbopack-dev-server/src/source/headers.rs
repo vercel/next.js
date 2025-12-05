@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, hash::Hash, mem::replace, ops::DerefMut};
 
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 
@@ -16,6 +17,8 @@ use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
     Deserialize,
     NonLocalValue,
     TaskInput,
+    Encode,
+    Decode,
 )]
 #[serde(transparent)]
 pub struct Headers(BTreeMap<String, HeaderValue>);
@@ -23,7 +26,18 @@ pub struct Headers(BTreeMap<String, HeaderValue>);
 /// The value of an http header. HTTP headers might contain non-utf-8 bytes. An
 /// header might also occur multiple times.
 #[derive(
-    Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Serialize, Deserialize, NonLocalValue, TaskInput,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+    TaskInput,
+    Encode,
+    Decode,
 )]
 #[serde(untagged)]
 pub enum HeaderValue {

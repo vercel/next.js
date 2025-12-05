@@ -1,7 +1,7 @@
 #[doc(hidden)]
 pub mod macro_helpers;
 
-use std::ptr::copy_nonoverlapping;
+use std::{any::Any, ptr::copy_nonoverlapping};
 
 use ::smallvec::SmallVec;
 use bincode::{
@@ -17,6 +17,8 @@ pub type TurboBincodeEncoder<'a> =
     EncoderImpl<TurboBincodeWriter<'a>, bincode::config::Configuration>;
 pub type TurboBincodeDecoder<'a> =
     DecoderImpl<TurboBincodeReader<'a>, bincode::config::Configuration, ()>;
+pub type AnyEncodeFn = fn(&dyn Any, &mut TurboBincodeEncoder<'_>) -> Result<(), EncodeError>;
+pub type AnyDecodeFn<T> = fn(&mut TurboBincodeDecoder<'_>) -> Result<T, DecodeError>;
 
 fn new_turbo_bincode_encoder(buf: &mut TurboBincodeBuffer) -> TurboBincodeEncoder<'_> {
     EncoderImpl::new(TurboBincodeWriter::new(buf), TURBO_BINCODE_CONFIG)

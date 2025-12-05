@@ -604,17 +604,6 @@ fn encode_task_type(
     buffer: &mut TurboBincodeBuffer,
     task_id: Option<TaskId>,
 ) -> Result<()> {
-    // DO NOT REMOVE THE `inline(never)` ATTRIBUTE!
-    // CachedTaskType's `Encode`/`Decode` implementations use `pot` internally for `TaskInput`s.
-    // TODO: remove `serde` and `pot`, make `TaskInput: Encode + Decode`.
-    //
-    // `pot` uses the pointer address of `&'static str` to deduplicate Symbols.
-    // If this function is inlined into multiple different callsites it might inline the Serialize
-    // implementation too, which can pull a `&'static str` from another crate into this crate.
-    // Since string deduplication between crates is not guaranteed, it can lead to behavior changes
-    // due to the pointer addresses. This can lead to lookup path and store path creating different
-    // serialization of the same task type, which breaks task cache lookups.
-    #[inline(never)]
     fn encode_once_into(
         task_type: &CachedTaskType,
         buffer: &mut TurboBincodeBuffer,

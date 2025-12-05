@@ -91,46 +91,51 @@ use std::hash::BuildHasherDefault;
 
 pub use anyhow::{Error, Result};
 use auto_hash_map::AutoSet;
-pub use capture_future::TurboTasksPanic;
-pub use collectibles::CollectiblesSource;
-pub use completion::{Completion, Completions};
-pub use display::ValueToString;
-pub use effect::{ApplyEffectsContext, Effects, apply_effects, effect, get_effects};
-pub use id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId};
-pub use invalidation::{
-    InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator, get_invalidator,
-};
-pub use join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt};
-pub use key_value_pair::KeyValuePair;
-pub use magic_any::MagicAny;
-pub use manager::{
-    CurrentCellRef, ReadConsistency, ReadTracking, TaskPersistence, TurboTasks, TurboTasksApi,
-    TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo, dynamic_call, emit, mark_finished,
-    mark_root, mark_session_dependent, mark_stateful, prevent_gc, run, run_once,
-    run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope,
-};
-pub use output::OutputContent;
-pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
-pub use read_options::{ReadCellOptions, ReadOutputOptions};
-pub use read_ref::ReadRef;
 use rustc_hash::FxHasher;
-pub use serialization_invalidation::SerializationInvalidator;
 pub use shrink_to_fit::ShrinkToFit;
-pub use spawn::{
-    JoinHandle, block_for_future, block_in_place, spawn, spawn_blocking, spawn_thread,
-};
-pub use state::{State, TransientState};
-pub use task::{SharedReference, TypedSharedReference, task_input::TaskInput};
-pub use task_execution_reason::TaskExecutionReason;
-pub use trait_ref::{IntoTraitRef, TraitRef};
 pub use turbo_tasks_macros::{TaskInput, function, value_impl};
-pub use value::{TransientInstance, TransientValue};
-pub use value_type::{TraitMethod, TraitType, ValueType};
-pub use vc::{
-    Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
-    Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellNewMode,
-    VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType,
-    VcValueTypeCast,
+
+pub use crate::{
+    capture_future::TurboTasksPanic,
+    collectibles::CollectiblesSource,
+    completion::{Completion, Completions},
+    display::ValueToString,
+    effect::{ApplyEffectsContext, Effects, apply_effects, effect, get_effects},
+    id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
+    invalidation::{
+        InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
+        get_invalidator,
+    },
+    join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt},
+    key_value_pair::KeyValuePair,
+    magic_any::MagicAny,
+    manager::{
+        CurrentCellRef, ReadConsistency, ReadTracking, TaskPersistence, TurboTasks, TurboTasksApi,
+        TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo, dynamic_call, emit,
+        mark_finished, mark_root, mark_session_dependent, mark_stateful, prevent_gc, run, run_once,
+        run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope,
+    },
+    output::OutputContent,
+    raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError},
+    read_options::{ReadCellOptions, ReadOutputOptions},
+    read_ref::ReadRef,
+    serialization_invalidation::SerializationInvalidator,
+    spawn::{JoinHandle, block_for_future, block_in_place, spawn, spawn_blocking, spawn_thread},
+    state::{State, TransientState},
+    task::{
+        SharedReference, TypedSharedReference,
+        task_input::{EitherTaskInput, TaskInput},
+    },
+    task_execution_reason::TaskExecutionReason,
+    trait_ref::{IntoTraitRef, TraitRef},
+    value::{TransientInstance, TransientValue},
+    value_type::{TraitMethod, TraitType, ValueType},
+    vc::{
+        Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
+        Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellNewMode,
+        VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType,
+        VcValueTypeCast,
+    },
 };
 
 pub type SliceMap<K, V> = Box<[(K, V)]>;

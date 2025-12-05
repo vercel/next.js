@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
@@ -32,11 +33,13 @@ use turbopack_node::{
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
-use super::transforms::get_next_client_transforms_rules;
 use crate::{
     mode::NextMode,
     next_build::get_postcss_package_mapping,
-    next_client::runtime_entry::{RuntimeEntries, RuntimeEntry},
+    next_client::{
+        runtime_entry::{RuntimeEntries, RuntimeEntry},
+        transforms::get_next_client_transforms_rules,
+    },
     next_config::NextConfig,
     next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{
@@ -405,7 +408,19 @@ pub async fn get_client_module_options_context(
     Ok(module_options_context)
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    TaskInput,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+)]
 pub struct ClientChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,

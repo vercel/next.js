@@ -1,6 +1,7 @@
 use std::{borrow::Cow, iter, sync::Arc, thread::available_parallelism, time::Duration};
 
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use futures_retry::{FutureRetry, RetryPolicy};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
@@ -143,6 +144,8 @@ async fn emit_evaluate_pool_assets_with_effects_operation(
     TaskInput,
     NonLocalValue,
     TraceRawVcs,
+    Encode,
+    Decode,
 )]
 pub enum EnvVarTracking {
     WholeEnvTracked,
@@ -509,7 +512,6 @@ async fn pull_operation<T: EvaluateContext>(
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, Serialize, Deserialize, TraceRawVcs)]
 struct BasicEvaluateContext {
     entries: ResolvedVc<EvaluateEntries>,
     cwd: FileSystemPath,

@@ -395,7 +395,19 @@ pub enum InfoMessage {
     },
 }
 
-#[derive(Debug, Clone, TaskInput, Hash, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Debug,
+    Clone,
+    TaskInput,
+    Hash,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    Encode,
+    Decode,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct WebpackResolveOptions {
     alias_fields: Option<Vec<RcStr>>,
@@ -430,7 +442,19 @@ pub enum ResponseMessage {
     TrackFileRead {},
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Serialize, Deserialize, Debug, TraceRawVcs)]
+#[derive(
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    TaskInput,
+    Serialize,
+    Deserialize,
+    Debug,
+    TraceRawVcs,
+    Encode,
+    Decode,
+)]
 pub struct WebpackLoaderContext {
     pub entries: ResolvedVc<EvaluateEntries>,
     pub cwd: FileSystemPath,

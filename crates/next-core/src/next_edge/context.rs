@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
@@ -196,7 +197,19 @@ pub async fn get_edge_resolve_options_context(
     .cell())
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    TaskInput,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+)]
 pub struct EdgeChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,

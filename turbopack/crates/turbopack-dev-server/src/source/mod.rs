@@ -28,7 +28,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, Xxh3Hash64Hasher};
 use turbopack_core::version::{Version, VersionedContent};
 
-use self::{
+use crate::source::{
     headers::Headers, issue_context::IssueFilePathContentSource, query::Query,
     route_tree::RouteTree,
 };
@@ -192,6 +192,8 @@ impl HeaderList {
     Hash,
     Default,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub struct ContentSourceData {
     /// HTTP method, if requested.
