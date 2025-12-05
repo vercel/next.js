@@ -3,37 +3,37 @@ import { promises } from 'fs'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import contentDisposition from 'next/dist/compiled/content-disposition'
-import imageSizeOf from 'next/dist/compiled/image-size'
 import { detector } from 'next/dist/compiled/image-detector/detector.js'
+import imageSizeOf from 'next/dist/compiled/image-size'
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
 import nodeUrl, { type UrlWithParsedQuery } from 'url'
 
+import { ALL } from 'dns'
+import { lookup } from 'dns/promises'
+import { isIP } from 'net'
+import * as Log from '../build/output/log'
+import isError from '../lib/is-error'
+import { parseUrl } from '../lib/url'
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
+import { InvariantError } from '../shared/lib/invariant-error'
 import { hasLocalMatch } from '../shared/lib/match-local-pattern'
 import { hasRemoteMatch } from '../shared/lib/match-remote-pattern'
 import type { NextConfigComplete } from './config-shared'
+import { isPrivateIp } from './is-private-ip'
+import type { CacheControl } from './lib/cache-control'
 import { createRequestResponseMocks } from './lib/mock-request'
 import type { NextUrlWithParsedQuery } from './request-meta'
 import {
-  CachedRouteKind,
-  type CachedImageValue,
-  type IncrementalCacheEntry,
-  type IncrementalCacheValue,
-  type IncrementalResponseCacheEntry,
+    CachedRouteKind,
+    type CachedImageValue,
+    type IncrementalCacheEntry,
+    type IncrementalCacheValue,
+    type IncrementalResponseCacheEntry,
 } from './response-cache'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
-import * as Log from '../build/output/log'
-import isError from '../lib/is-error'
-import { isPrivateIp } from './is-private-ip'
-import { parseUrl } from '../lib/url'
-import type { CacheControl } from './lib/cache-control'
-import { InvariantError } from '../shared/lib/invariant-error'
-import { lookup } from 'dns/promises'
-import { isIP } from 'net'
-import { ALL } from 'dns'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -328,7 +328,7 @@ export class ImageOptimizerCache {
       imageSizes = [],
       domains = [],
       minimumCacheTTL = 14400,
-      formats = ['image/webp'],
+      formats = ['image/avif', 'image/webp'],
     } = imageData
     const remotePatterns = nextConfig.images?.remotePatterns || []
     const localPatterns = nextConfig.images?.localPatterns
