@@ -35,7 +35,6 @@ import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
-import { NEXT_REQUEST_META, type RequestMeta } from '../request-meta'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -44,15 +43,10 @@ export class NextRequestHint extends NextRequest {
   constructor(params: {
     init: RequestInit
     input: Request | string
-    meta: RequestMeta | undefined
     page: string
   }) {
     super(params.input, params.init)
     this.sourcePage = params.page
-    if (params.meta) {
-      // @ts-ignore
-      this[NEXT_REQUEST_META] = params.meta
-    }
   }
 
   get request() {
@@ -191,7 +185,6 @@ export async function adapter(
       nextConfig: params.request.nextConfig,
       signal: params.request.signal,
     },
-    meta: params.request.meta,
   })
 
   /**

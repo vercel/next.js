@@ -1715,7 +1715,7 @@ export default class NextNodeServer extends BaseServer<
         method !== 'GET' && method !== 'HEAD'
           ? (getRequestMeta(params.request, 'clonableBody') as any)
           : undefined,
-      meta: getRequestMeta(params.request),
+
       signal: signalFromNodeResponse(params.response.originalResponse),
       waitUntil: this.getWaitUntil(),
     }
@@ -2056,7 +2056,6 @@ export default class NextNodeServer extends BaseServer<
           ...(params.params && { params: params.params }),
         },
         body: getRequestMeta(params.req, 'clonableBody'),
-        meta: getRequestMeta(params.req),
         signal: signalFromNodeResponse(params.res.originalResponse),
         waitUntil: this.getWaitUntil(),
       },
