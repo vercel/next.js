@@ -2,7 +2,6 @@ import type {
   CacheNodeSeedData,
   FlightRouterState,
   FlightSegmentPath,
-  Segment,
 } from '../../../shared/lib/app-router-types'
 import type {
   CacheNode,
@@ -26,6 +25,7 @@ import {
 } from './fetch-server-response'
 import { isNavigatingToNewRootLayout } from './is-navigating-to-new-root-layout'
 import { DYNAMIC_STALETIME_MS } from './reducers/navigate-reducer'
+import { convertServerPatchToFullTree } from '../segment-cache/navigation'
 
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
@@ -34,6 +34,7 @@ import { DYNAMIC_STALETIME_MS } from './reducers/navigate-reducer'
 // because those include reused nodes, too. This tree is discarded as soon as
 // the navigation response is received.
 export type NavigationTask = {
+  status: NavigationTaskStatus
   // The router state that corresponds to the tree that this Task represents.
   route: FlightRouterState
   // The CacheNode that corresponds to the tree that this Task represents.
@@ -55,6 +56,12 @@ export const enum FreshnessPolicy {
   Hydration,
   HistoryTraversal,
   RefreshAll,
+}
+
+const enum NavigationTaskStatus {
+  Pending,
+  Fulfilled,
+  Rejected,
 }
 
 export type NavigationRequestAccumulation = {
@@ -567,6 +574,9 @@ function updateCacheNodeOnNavigation(
   }
 
   return {
+    status: needsDynamicRequest
+      ? NavigationTaskStatus.Pending
+      : NavigationTaskStatus.Fulfilled,
     route: patchRouterStateWithNewChildren(
       newRouterState,
       patchedRouterStateChildren
@@ -580,13 +590,7 @@ function updateCacheNodeOnNavigation(
       parentNeedsDynamicRequest
     ),
     refreshUrl,
-    // NavigationTasks only have children if neither itself nor any of its
-    // parents require a dynamic request. When writing dynamic data into the
-    // tree, we can skip over any tasks that have children.
-    // TODO: This is probably an unncessary optimization. The task tree only
-    // lives for as long as the navigation request, anyway.
-    children:
-      parentNeedsDynamicRequest || needsDynamicRequest ? null : taskChildren,
+    children: taskChildren,
   }
 }
 
@@ -872,6 +876,9 @@ function createCacheNodeOnNavigation(
   }
 
   return {
+    status: needsDynamicRequest
+      ? NavigationTaskStatus.Pending
+      : NavigationTaskStatus.Fulfilled,
     route: patchRouterStateWithNewChildren(
       newRouterState,
       patchedRouterStateChildren
@@ -887,8 +894,7 @@ function createCacheNodeOnNavigation(
     // This route is not part of the current tree, so there's no reason to
     // track the refresh URL.
     refreshUrl: null,
-    children:
-      parentNeedsDynamicRequest || needsDynamicRequest ? null : taskChildren,
+    children: taskChildren,
   }
 }
 
@@ -1226,8 +1232,8 @@ export function listenForDynamicRequest(
   // and handle server failures using some more robust mechanism. Perhaps by
   // throwing a special offline error, or by triggering an MPA refresh.
   Promise.all(requestPromises).then(
-    () => abortTask(task, null, null),
-    () => abortTask(task, null, null)
+    () => abortRemainingPendingTasks(task, null, null),
+    () => abortRemainingPendingTasks(task, null, null)
   )
 }
 
@@ -1242,143 +1248,61 @@ function attachServerResponseListener(
       // the prefetch.
       return
     }
-    const { flightData, debugInfo } = result
-    for (const normalizedFlightData of flightData) {
-      const {
-        segmentPath,
-        tree: serverRouterState,
-        seedData: dynamicData,
-        head: dynamicHead,
-      } = normalizedFlightData
-
-      if (!dynamicData) {
-        // This shouldn't happen. PPR should always send back a response.
-        // However, `FlightDataPath` is a shared type and the pre-PPR handling of
-        // this might return null.
-        continue
-      }
-
-      writeDynamicDataIntoPendingTask(
-        task,
-        segmentPath,
-        serverRouterState,
-        dynamicData,
-        dynamicHead,
-        debugInfo
-      )
-    }
+    const fullTreeResponse = convertServerPatchToFullTree(
+      task.route,
+      result.flightData,
+      result.renderedSearch
+    )
+    finishTaskUsingDynamicDataPayload(
+      task,
+      fullTreeResponse.tree,
+      fullTreeResponse.data,
+      fullTreeResponse.head,
+      result.debugInfo
+    )
   })
 }
-
-function writeDynamicDataIntoPendingTask(
-  rootTask: NavigationTask,
-  segmentPath: FlightSegmentPath,
-  serverRouterState: FlightRouterState,
-  dynamicData: CacheNodeSeedData,
-  dynamicHead: HeadData,
-  debugInfo: Array<any> | null
-) {
-  // The data sent by the server represents only a subtree of the app. We need
-  // to find the part of the task tree that matches the server response, and
-  // fulfill it using the dynamic data.
-  //
-  // segmentPath represents the parent path of subtree. It's a repeating pattern
-  // of parallel route key and segment:
-  //
-  //   [string, Segment, string, Segment, string, Segment, ...]
-  //
-  // Iterate through the path and finish any tasks that match this payload.
-  let task = rootTask
-  for (let i = 0; i < segmentPath.length; i += 2) {
-    const parallelRouteKey: string = segmentPath[i]
-    const segment: Segment = segmentPath[i + 1]
-    const taskChildren = task.children
-    if (taskChildren !== null) {
-      const taskChild = taskChildren.get(parallelRouteKey)
-      if (taskChild !== undefined) {
-        const taskSegment = taskChild.route[0]
-        if (matchSegment(segment, taskSegment)) {
-          // Found a match for this task. Keep traversing down the task tree.
-          task = taskChild
-          continue
-        }
-      }
-    }
-    // We didn't find a child task that matches the server data. Exit. We won't
-    // abort the task, though, because a different FlightDataPath may be able to
-    // fulfill it (see loop in listenForDynamicRequest). We only abort tasks
-    // once we've run out of data.
-    return
-  }
-
-  finishTaskUsingDynamicDataPayload(
-    task,
-    serverRouterState,
-    dynamicData,
-    dynamicHead,
-    debugInfo
-  )
-}
-
 function finishTaskUsingDynamicDataPayload(
   task: NavigationTask,
   serverRouterState: FlightRouterState,
-  dynamicData: CacheNodeSeedData,
+  dynamicData: CacheNodeSeedData | null,
   dynamicHead: HeadData,
   debugInfo: Array<any> | null
 ) {
-  if (task.dynamicRequestTree === null) {
-    // Everything in this subtree is already complete. Bail out.
-    return
+  if (task.status === NavigationTaskStatus.Pending && dynamicData !== null) {
+    finishPendingCacheNode(task.node, dynamicData, dynamicHead, debugInfo)
   }
 
-  // dynamicData may represent a larger subtree than the task. Before we can
-  // finish the task, we need to line them up.
   const taskChildren = task.children
-  const taskNode = task.node
-  if (taskChildren === null) {
-    // We've reached the leaf node of the pending task. The server data tree
-    // lines up the pending Cache Node tree. We can now switch to the
-    // normal algorithm.
-    if (taskNode !== null) {
-      finishPendingCacheNode(
-        taskNode,
-        task.route,
-        serverRouterState,
-        dynamicData,
-        dynamicHead,
-        debugInfo
-      )
-    }
-    return
-  }
-  // The server returned more data than we need to finish the task. Skip over
-  // the extra segments until we reach the leaf task node.
   const serverChildren = serverRouterState[1]
-  const dynamicDataChildren = dynamicData[1]
+  const dynamicDataChildren = dynamicData !== null ? dynamicData[1] : null
 
-  for (const parallelRouteKey in serverChildren) {
-    const serverRouterStateChild: FlightRouterState =
-      serverChildren[parallelRouteKey]
-    const dynamicDataChild: CacheNodeSeedData | null | void =
-      dynamicDataChildren[parallelRouteKey]
+  if (taskChildren !== null) {
+    for (const parallelRouteKey in serverChildren) {
+      const serverRouterStateChild: FlightRouterState =
+        serverChildren[parallelRouteKey]
+      const dynamicDataChild: CacheNodeSeedData | null | void =
+        dynamicDataChildren !== null
+          ? dynamicDataChildren[parallelRouteKey]
+          : null
 
-    const taskChild = taskChildren.get(parallelRouteKey)
-    if (taskChild !== undefined) {
-      const taskSegment = taskChild.route[0]
-      if (
-        matchSegment(serverRouterStateChild[0], taskSegment) &&
-        dynamicDataChild !== null &&
-        dynamicDataChild !== undefined
-      ) {
-        // Found a match for this task. Keep traversing down the task tree.
-        finishTaskUsingDynamicDataPayload(
-          taskChild,
-          serverRouterStateChild,
-          dynamicDataChild,
-          dynamicHead,
-          debugInfo
-        )
+      const taskChild = taskChildren.get(parallelRouteKey)
+      if (taskChild !== undefined) {
+        const taskSegment = taskChild.route[0]
+        if (
+          matchSegment(serverRouterStateChild[0], taskSegment) &&
+          dynamicDataChild !== null &&
+          dynamicDataChild !== undefined
+        ) {
+          // Found a match for this task. Keep traversing down the task tree.
+          finishTaskUsingDynamicDataPayload(
+            taskChild,
+            serverRouterStateChild,
+            dynamicDataChild,
+            dynamicHead,
+            debugInfo
+          )
+        }
       }
     }
   }
@@ -1386,8 +1310,6 @@ function finishTaskUsingDynamicDataPayload(
 
 function finishPendingCacheNode(
   cacheNode: CacheNode,
-  taskState: FlightRouterState,
-  serverState: FlightRouterState,
   dynamicData: CacheNodeSeedData,
   dynamicHead: HeadData,
   debugInfo: Array<any> | null
@@ -1402,54 +1324,19 @@ function finishPendingCacheNode(
   // We must resolve every promise in the tree, or else it will suspend
   // indefinitely. If we did not receive data for a segment, we will resolve its
   // data promise to `null` to trigger a lazy fetch during render.
-  const taskStateChildren = taskState[1]
-  const serverStateChildren = serverState[1]
-  const dataChildren = dynamicData[1]
-
-  // The router state that we traverse the tree with (taskState) is the same one
-  // that we used to construct the pending Cache Node tree. That way we're sure
-  // to resolve all the pending promises.
-  const parallelRoutes = cacheNode.parallelRoutes
-  for (let parallelRouteKey in taskStateChildren) {
-    const taskStateChild: FlightRouterState =
-      taskStateChildren[parallelRouteKey]
-    const serverStateChild: FlightRouterState | void =
-      serverStateChildren[parallelRouteKey]
-    const dataChild: CacheNodeSeedData | null | void =
-      dataChildren[parallelRouteKey]
-
-    const segmentMapChild = parallelRoutes.get(parallelRouteKey)
-    const taskSegmentChild = taskStateChild[0]
-    const taskSegmentKeyChild = createRouterCacheKey(taskSegmentChild)
-
-    const cacheNodeChild =
-      segmentMapChild !== undefined
-        ? segmentMapChild.get(taskSegmentKeyChild)
-        : undefined
-
-    if (cacheNodeChild !== undefined) {
-      if (
-        serverStateChild !== undefined &&
-        matchSegment(taskSegmentChild, serverStateChild[0]) &&
-        dataChild !== undefined &&
-        dataChild !== null
-      ) {
-        finishPendingCacheNode(
-          cacheNodeChild,
-          taskStateChild,
-          serverStateChild,
-          dataChild,
-          dynamicHead,
-          debugInfo
-        )
-      }
-    }
-  }
 
   // Use the dynamic data from the server to fulfill the deferred RSC promise
   // on the Cache Node.
   const rsc = cacheNode.rsc
   const dynamicSegmentData = dynamicData[0]
+
+  if (dynamicSegmentData === null) {
+    // This is an empty CacheNode; this particular server request did not
+    // render this segment. There may be a separate pending request that will,
+    // though, so we won't abort the task until all pending requests finish.
+    return
+  }
+
   if (rsc === null) {
     // This is a lazy cache node. We can overwrite it. This is only safe
     // because we know that the LayoutRouter suspends if `rsc` is `null`.
@@ -1481,67 +1368,29 @@ function finishPendingCacheNode(
   }
 }
 
-export function abortTask(
+function abortRemainingPendingTasks(
   task: NavigationTask,
   error: any,
   debugInfo: Array<any> | null
 ): void {
-  const cacheNode = task.node
-  if (cacheNode === null) {
-    // This indicates the task is already complete.
-    return
+  if (task.status === NavigationTaskStatus.Pending) {
+    task.status = NavigationTaskStatus.Rejected
+    abortPendingCacheNode(task.node, error, debugInfo)
   }
 
   const taskChildren = task.children
-  if (taskChildren === null) {
-    // Reached the leaf task node. This is the root of a pending cache
-    // node tree.
-    abortPendingCacheNode(task.route, cacheNode, error, debugInfo)
-  } else {
-    // This is an intermediate task node. Keep traversing until we reach a
-    // task node with no children. That will be the root of the cache node tree
-    // that needs to be resolved.
-    for (const taskChild of taskChildren.values()) {
-      abortTask(taskChild, error, debugInfo)
+  if (taskChildren !== null) {
+    for (const [, taskChild] of taskChildren) {
+      abortRemainingPendingTasks(taskChild, error, debugInfo)
     }
   }
-
-  // Set this to null to indicate that this task is now complete.
-  task.dynamicRequestTree = null
 }
 
 function abortPendingCacheNode(
-  routerState: FlightRouterState,
   cacheNode: CacheNode,
   error: any,
   debugInfo: Array<any> | null
 ): void {
-  // For every pending segment in the tree, resolve its `rsc` promise to `null`
-  // to trigger a lazy fetch during render.
-  //
-  // Or, if an error object is provided, it will error instead.
-  const routerStateChildren = routerState[1]
-  const parallelRoutes = cacheNode.parallelRoutes
-  for (let parallelRouteKey in routerStateChildren) {
-    const routerStateChild: FlightRouterState =
-      routerStateChildren[parallelRouteKey]
-    const segmentMapChild = parallelRoutes.get(parallelRouteKey)
-    if (segmentMapChild === undefined) {
-      // This shouldn't happen because we're traversing the same tree that was
-      // used to construct the cache nodes in the first place.
-      continue
-    }
-    const segmentChild = routerStateChild[0]
-    const segmentKeyChild = createRouterCacheKey(segmentChild)
-    const cacheNodeChild = segmentMapChild.get(segmentKeyChild)
-    if (cacheNodeChild !== undefined) {
-      abortPendingCacheNode(routerStateChild, cacheNodeChild, error, debugInfo)
-    } else {
-      // This shouldn't happen because we're traversing the same tree that was
-      // used to construct the cache nodes in the first place.
-    }
-  }
-
   const rsc = cacheNode.rsc
   if (isDeferredRsc(rsc)) {
     if (error === null) {
