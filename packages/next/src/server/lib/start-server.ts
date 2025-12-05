@@ -25,7 +25,10 @@ import setupDebug from 'next/dist/compiled/debug'
 import { RESTART_EXIT_CODE } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
-import { CONFIG_FILES } from '../../shared/lib/constants'
+import {
+  CONFIG_FILES,
+  PHASE_DEVELOPMENT_SERVER,
+} from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
@@ -473,10 +476,10 @@ export async function startServer(
 
         Log.event(`Ready in ${formatDurationText}`)
 
-        if (process.env.TURBOPACK) {
+        if (process.env.TURBOPACK && isDev) {
           await validateTurboNextConfig({
             dir: serverOptions.dir,
-            isDev: serverOptions.isDev,
+            configPhase: PHASE_DEVELOPMENT_SERVER,
           })
         }
       } catch (err) {

@@ -1,10 +1,6 @@
 import type { NextConfigComplete } from '../server/config-shared'
 import loadConfig from '../server/config'
 import * as Log from '../build/output/log'
-import {
-  PHASE_DEVELOPMENT_SERVER,
-  PHASE_PRODUCTION_BUILD,
-} from '../shared/lib/constants'
 
 const unsupportedTurbopackNextConfigOptions = [
   // Left to be implemented (priority)
@@ -45,10 +41,10 @@ const unsupportedTurbopackNextConfigOptions = [
 /**  */
 export async function validateTurboNextConfig({
   dir,
-  isDev,
+  configPhase,
 }: {
   dir: string
-  isDev?: boolean
+  configPhase: Parameters<typeof loadConfig>[0]
 }) {
   const { defaultConfig } =
     require('../server/config-shared') as typeof import('../server/config-shared')
@@ -65,16 +61,15 @@ export async function validateTurboNextConfig({
   const unsupportedConfig: string[] = []
   let rawNextConfig: NextConfigComplete = {} as NextConfigComplete
 
-  const phase = isDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD
   try {
     rawNextConfig = interopDefault(
-      await loadConfig(phase, dir, {
+      await loadConfig(configPhase, dir, {
         rawConfig: true,
       })
     )
 
     if (typeof rawNextConfig === 'function') {
-      rawNextConfig = (rawNextConfig as any)(phase, {
+      rawNextConfig = (rawNextConfig as any)(configPhase, {
         defaultConfig,
       })
     }

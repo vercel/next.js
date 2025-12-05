@@ -8,6 +8,7 @@ import { getSupportedBrowsers } from '../utils'
 import { normalizePath } from '../../lib/normalize-path'
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { __ApiPreviewProps } from '../../server/api-utils'
+import { PHASE_PRODUCTION_BUILD } from '../../api/constants'
 
 export type AnalyzeContext = {
   config: NextConfigComplete
@@ -25,7 +26,7 @@ export async function turbopackAnalyze(
 }> {
   await validateTurboNextConfig({
     dir: analyzeContext.dir,
-    isDev: false,
+    configPhase: PHASE_PRODUCTION_BUILD,
   })
 
   const { config, dir, distDir, noMangling } = analyzeContext
