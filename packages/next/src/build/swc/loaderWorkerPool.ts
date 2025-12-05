@@ -20,7 +20,12 @@ async function runPoolScaler(
 ) {
   while (true) {
     try {
+      console.log('[loaderWorkerPool] waiting for pool request')
       let poolOptions = await binding.recvPoolRequest()
+      console.log('[loaderWorkerPool] received pool request', {
+        ...poolOptions,
+        env: 'omitted',
+      })
       const { filename, concurrency, env, cwd } = poolOptions
       // Wildcard of "*" meaning to scale all of pools even with different poolId
       const workers =
@@ -55,7 +60,12 @@ async function runWorkerTerminator(
 ) {
   while (true) {
     try {
+      console.log('[loaderWorkerPool] waiting for worker termination')
       const { filename, workerId } = await binding.recvWorkerTermination()
+      console.log('[loaderWorkerPool] received worker termination', {
+        filename,
+        workerId,
+      })
       const workers = loaderWorkers[filename]
       const workerIdx = workers.findIndex(
         (worker) => worker.threadId === workerId

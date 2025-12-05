@@ -38,6 +38,7 @@ export const run = async (
         getValue = module.default
       }
       const value = await getValue(new TaskChannel(binding, taskId), ...args)
+      console.log(`[worker ${workerId}] sending end task message for ${taskId}`)
       await binding.sendTaskMessage(
         taskId,
         JSON.stringify({
@@ -46,7 +47,11 @@ export const run = async (
           duration: 0,
         })
       )
+      console.log(`[worker ${workerId}] sent end task message for ${taskId}`)
     } catch (err) {
+      console.log(
+        `[worker ${workerId}] sending error task message for ${taskId}`
+      )
       await binding.sendTaskMessage(
         taskId,
         JSON.stringify({
@@ -54,34 +59,41 @@ export const run = async (
           ...structuredError(err as Error),
         })
       )
+      console.log(`[worker ${workerId}] sent error task message for ${taskId}`)
     }
     isRunning = false
     runningTask = undefined
   }
 
   const loop = async () => {
+    console.log(`[worker ${workerId}] waiting for worker request`)
     let taskId: number | undefined
     let msg_str: string
+    console.log(`[worker ${workerId}] received worker request ${taskId}`)
 
+    console.log(`[worker ${workerId}] notifying worker ack ${taskId}`)
     if (isRunning) {
       msg_str = await binding.recvMessageInWorker(workerId)
     } else {
       taskId = await binding.recvWorkerRequest(workerData.poolId)
       await binding.notifyWorkerAck(taskId, workerId)
+      console.log(`[worker ${workerId}] notified worker ack ${taskId}`)
+      console.log(`[worker ${workerId}] waiting for message in worker`)
       msg_str = await binding.recvMessageInWorker(workerId)
+      console.log(`[worker ${workerId}] received message in worker`)
     }
 
     const msg = JSON.parse(msg_str) as
       | {
-          type: 'evaluate'
-          args: string[]
-        }
+        type: 'evaluate'
+        args: string[]
+      }
       | {
-          type: 'result'
-          id: number
-          error?: string
-          data?: any
-        }
+        type: 'result'
+        id: number
+        error?: string
+        data?: any
+      }
 
     switch (msg.type) {
       case 'evaluate': {
