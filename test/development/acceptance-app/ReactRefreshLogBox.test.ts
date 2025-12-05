@@ -1501,12 +1501,12 @@ describe('ReactRefreshLogBox app', () => {
        }
       `)
     } else if (isRspack) {
-      await expect(browser).toDisplayRedbox(`
+      await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  ╰─▶   × Error: RspackResolver(NotFound("./boom.css"))",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-019ece87ceca63077f0fc42ffe0998120c5395cbe3a7680fe4e8cfddf6b0ba09/node_modules/.pnpm/next@file+..+next-repo-d92ced68c09fa54e8c0349609441232096e6a3239d0f389db7fc890c9822dd9e+packa_r2ifvm3wkxtbhbv6m5cjtuqlzy/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[15].oneOf[10].use[2]!/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-019ece87ceca63077f0fc42ffe0998120c5395cbe3a7680fe4e8cfddf6b0ba09/node_modules/.pnpm/next@file+..+next-repo-d92ced68c09fa54e8c0349609441232096e6a3239d0f389db7fc890c9822dd9e+packa_r2ifvm3wkxtbhbv6m5cjtuqlzy/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[15].oneOf[10].use[3]!/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-019ece87ceca63077f0fc42ffe0998120c5395cbe3a7680fe4e8cfddf6b0ba09/app/styles2.css
+         "source": "<FIXME-project-root>/node_modules/.pnpm/next@file+..+next-repo-9c6e97679f5c3553d3ec04ec28ac7e5aca39fe6dbd50a0b00e66ae89d134f775+packa_kefuxcpyzen6dvrrroklci3grq/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[15].oneOf[10].use[2]!<FIXME-project-root>/node_modules/.pnpm/next@file+..+next-repo-9c6e97679f5c3553d3ec04ec28ac7e5aca39fe6dbd50a0b00e66ae89d134f775+packa_kefuxcpyzen6dvrrroklci3grq/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[15].oneOf[10].use[3]!<FIXME-project-root>/app/styles2.css
          ╰─▶   × Error: RspackResolver(NotFound("./boom.css"))",
          "stack": [],
        }
