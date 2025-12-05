@@ -50,7 +50,7 @@ import { initializeCacheHandlers, setCacheHandler } from '../use-cache/handlers'
 import { interopDefault } from '../app-render/interop-default'
 import { RouteKind } from '../route-kind'
 import type { BaseNextRequest } from '../base-http'
-import type { I18NConfig, NextConfigComplete } from '../config-shared'
+import type { I18NConfig, NextConfigRuntime } from '../config-shared'
 import ResponseCache, { type ResponseGenerator } from '../response-cache'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
@@ -378,7 +378,7 @@ export abstract class RouteModule<
 
   public async loadCustomCacheHandlers(
     req: IncomingMessage | BaseNextRequest,
-    nextConfig: NextConfigComplete
+    nextConfig: NextConfigRuntime
   ) {
     if (process.env.NEXT_RUNTIME !== 'edge') {
       const { cacheMaxMemorySize, cacheHandlers } = nextConfig
@@ -418,7 +418,7 @@ export abstract class RouteModule<
 
   public async getIncrementalCache(
     req: IncomingMessage | BaseNextRequest,
-    nextConfig: NextConfigComplete,
+    nextConfig: NextConfigRuntime,
     prerenderManifest: DeepReadonly<PrerenderManifest>,
     isMinimalMode: boolean
   ): Promise<IncrementalCache> {
@@ -542,7 +542,7 @@ export abstract class RouteModule<
         subresourceIntegrityManifest?: DeepReadonly<Record<string, string>>
         isOnDemandRevalidate: boolean
         revalidateOnlyGenerated: boolean
-        nextConfig: NextConfigComplete
+        nextConfig: NextConfigRuntime
         routerServerContext?: RouterServerContext[string]
         interceptionRoutePatterns?: any
       }
@@ -923,7 +923,7 @@ export abstract class RouteModule<
     isMinimalMode,
   }: {
     req: IncomingMessage | BaseNextRequest
-    nextConfig: NextConfigComplete
+    nextConfig: NextConfigRuntime
     cacheKey: string | null
     routeKind: RouteKind
     isFallback?: boolean

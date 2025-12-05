@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { NextConfigComplete } from '../../config-shared'
+import type { NextConfigRuntime } from '../../config-shared'
 import type { UrlWithParsedQuery } from 'node:url'
 import type { ServerCacheStatus } from '../../../next-devtools/dev-overlay/cache-indicator'
 
@@ -30,7 +30,7 @@ export type RouterServerContext = Record<
       setHeaders?: boolean
     ) => Promise<void>
     // exposing nextConfig for dev mode specifically
-    nextConfig?: NextConfigComplete
+    nextConfig?: NextConfigRuntime
     // whether running in custom server mode
     isCustomServer?: boolean
     // whether test proxy is enabled

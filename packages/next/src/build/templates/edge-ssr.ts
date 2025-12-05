@@ -22,7 +22,7 @@ import RouteModule, {
 } from '../../server/route-modules/pages/module'
 import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
 
-import type { NextConfigComplete } from '../../server/config-shared'
+import type { NextConfigRuntime } from '../../server/config-shared'
 import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event'
 import type RenderResult from '../../server/render-result'
 import type { RenderResultMetadata } from '../../server/render-result'
@@ -31,7 +31,7 @@ import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
 
 // injected by the loader afterwards.
-declare const nextConfig: NextConfigComplete
+declare const nextConfig: NextConfigRuntime
 declare const pageRouteModuleOptions: any
 declare const errorRouteModuleOptions: any
 declare const user500RouteModuleOptions: any

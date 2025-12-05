@@ -1,12 +1,18 @@
-import type { NextConfigComplete } from '../server/config-shared'
+import type {
+  NextConfigComplete,
+  NextConfigRuntime,
+} from '../server/config-shared'
 
-function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
+function errorIfEnvConflicted(
+  config: NextConfigComplete | NextConfigRuntime,
+  key: string
+) {
   const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
   const hasNextRuntimeKey = key === 'NEXT_RUNTIME'
 
   if (isPrivateKey || hasNextRuntimeKey) {
     throw new Error(
-      `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
+      `The key "${key}" under "env" in ${config.configFileName || 'config'} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
     )
   }
 }
@@ -31,7 +37,9 @@ export function getNextPublicEnvironmentVariables() {
 /**
  * Collects the `env` config value from the Next.js config.
  */
-export function getNextConfigEnv(config: NextConfigComplete) {
+export function getNextConfigEnv(
+  config: NextConfigComplete | NextConfigRuntime
+) {
   // Refactored code below to use for-of
   const defineEnv: Record<string, string | undefined> = {}
   const env = config.env
@@ -45,7 +53,7 @@ export function getNextConfigEnv(config: NextConfigComplete) {
   return defineEnv
 }
 
-export function getStaticEnv(config: NextConfigComplete) {
+export function getStaticEnv(config: NextConfigComplete | NextConfigRuntime) {
   const staticEnv: Record<string, string | undefined> = {
     ...getNextPublicEnvironmentVariables(),
     ...getNextConfigEnv(config),
@@ -54,7 +62,9 @@ export function getStaticEnv(config: NextConfigComplete) {
   return staticEnv
 }
 
-export function populateStaticEnv(config: NextConfigComplete) {
+export function populateStaticEnv(
+  config: NextConfigComplete | NextConfigRuntime
+) {
   // since inlining comes after static generation we need
   // to ensure this value is assigned to process env so it
   // can still be accessed

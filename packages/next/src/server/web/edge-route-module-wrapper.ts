@@ -15,10 +15,10 @@ import { getServerUtils } from '../server-utils'
 import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
 import { CloseController, trackStreamConsumed } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
-import type { NextConfigComplete } from '../config-shared'
+import type { NextConfigRuntime } from '../config-shared'
 
 export interface WrapOptions {
-  nextConfig: NextConfigComplete
+  nextConfig: NextConfigRuntime
   page: string
 }
 
@@ -38,7 +38,7 @@ export class EdgeRouteModuleWrapper {
    */
   private constructor(
     private readonly routeModule: AppRouteRouteModule,
-    private readonly nextConfig: NextConfigComplete
+    private readonly nextConfig: NextConfigRuntime
   ) {
     // TODO: (wyattjoh) possibly allow the module to define it's own matcher
     this.matcher = new RouteMatcher(routeModule.definition)

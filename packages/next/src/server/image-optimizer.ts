@@ -13,7 +13,7 @@ import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { hasLocalMatch } from '../shared/lib/match-local-pattern'
 import { hasRemoteMatch } from '../shared/lib/match-remote-pattern'
-import type { NextConfigComplete } from './config-shared'
+import type { NextConfigComplete, NextConfigRuntime } from './config-shared'
 import { createRequestResponseMocks } from './lib/mock-request'
 import type { NextUrlWithParsedQuery } from './request-meta'
 import {
@@ -314,12 +314,12 @@ export async function detectContentType(
 
 export class ImageOptimizerCache {
   private cacheDir: string
-  private nextConfig: NextConfigComplete
+  private nextConfig: NextConfigRuntime
 
   static validateParams(
     req: IncomingMessage,
     query: UrlWithParsedQuery['query'],
-    nextConfig: NextConfigComplete,
+    nextConfig: NextConfigRuntime,
     isDev: boolean
   ): ImageParamsResult | { errorMessage: string } {
     const imageData = nextConfig.images
@@ -497,7 +497,7 @@ export class ImageOptimizerCache {
     nextConfig,
   }: {
     distDir: string
-    nextConfig: NextConfigComplete
+    nextConfig: NextConfigRuntime
   }) {
     this.cacheDir = join(/* turbopackIgnore: true */ distDir, 'cache', 'images')
     this.nextConfig = nextConfig
