@@ -588,7 +588,7 @@ type NavigationSeed = {
   head: HeadData | null
 }
 
-function convertServerPatchToFullTree(
+export function convertServerPatchToFullTree(
   currentTree: FlightRouterState,
   flightData: Array<NormalizedFlightData>,
   renderedSearch: string
