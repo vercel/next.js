@@ -118,12 +118,11 @@ async function loadWasm(
 function buildEnvironmentVariablesFrom(
   injectedEnvironments: Record<string, string>
 ): Record<string, string | undefined> {
-  const pairs = Object.keys(process.env).map((key) => [key, process.env[key]])
-  const env = Object.fromEntries(pairs)
-  for (const key of Object.keys(injectedEnvironments)) {
-    env[key] = injectedEnvironments[key]
-  }
-  env.NEXT_RUNTIME = 'edge'
+  let env = Object.fromEntries([
+    ...Object.entries(process.env),
+    ...Object.entries(injectedEnvironments),
+    ['NEXT_RUNTIME', 'edge'],
+  ])
   return env
 }
 

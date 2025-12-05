@@ -42,7 +42,11 @@ import type { ReactLoadableManifest } from '../load-components'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import { normalizeDataPath } from '../../shared/lib/page-path/normalize-data-path'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
-import { addRequestMeta, getRequestMeta } from '../request-meta'
+import {
+  addRequestMeta,
+  getRequestMeta,
+  type NextIncomingMessage,
+} from '../request-meta'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { isStaticMetadataRoute } from '../../lib/metadata/is-metadata-route'
 import { IncrementalCache } from '../lib/incremental-cache'
@@ -178,7 +182,7 @@ export abstract class RouteModule<
     routesManifest: DeepReadonly<DevRoutesManifest>
     nextFontManifest: DeepReadonly<NextFontManifest>
     prerenderManifest: DeepReadonly<PrerenderManifest>
-    serverFilesManifest: RequiredServerFilesManifest
+    serverFilesManifest: RequiredServerFilesManifest | undefined
     reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
     subresourceIntegrityManifest: any
     clientReferenceManifest: any
@@ -223,9 +227,7 @@ export abstract class RouteModule<
             process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
           ),
         },
-        serverFilesManifest: {
-          config: (globalThis as any).nextConfig || {},
-        } as any,
+        serverFilesManifest: self.__SERVER_FILES_MANIFEST,
         clientReferenceManifest: self.__RSC_MANIFEST?.[srcPage],
         serverActionsManifest: maybeJSONParse(self.__RSC_SERVER_MANIFEST),
         subresourceIntegrityManifest: maybeJSONParse(
@@ -333,12 +335,12 @@ export abstract class RouteModule<
           shouldCache: !this.isDev,
         }),
         this.isDev
-          ? ({} as any)
-          : loadManifestFromRelativePath<RequiredServerFilesManifest>({
+          ? undefined
+          : (loadManifestFromRelativePath<RequiredServerFilesManifest>({
               projectDir,
               distDir: this.distDir,
-              manifest: SERVER_FILES_MANIFEST,
-            }),
+              manifest: `${SERVER_FILES_MANIFEST}.json`,
+            }) as RequiredServerFilesManifest),
         this.isDev
           ? 'development'
           : loadManifestFromRelativePath<any>({
@@ -500,6 +502,31 @@ export abstract class RouteModule<
     )
   }
 
+  /** A more lightweight version of `prepare()` for only retrieving the config on edge */
+  public getNextConfigEdge(req: NextIncomingMessage): NextConfigRuntime {
+    if (process.env.NEXT_RUNTIME !== 'edge') {
+      throw new Error(
+        'Invariant: getNextConfigEdge must only be called in edge runtime'
+      )
+    }
+
+    let serverFilesManifest = self.__SERVER_FILES_MANIFEST as any as
+      | RequiredServerFilesManifest
+      | undefined
+    const relativeProjectDir =
+      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+    const routerServerContext =
+      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+    const nextConfig =
+      routerServerContext?.nextConfig || serverFilesManifest?.config
+
+    if (!nextConfig) {
+      throw new Error("Invariant: nextConfig couldn't be loaded")
+    }
+
+    return nextConfig
+  }
+
   public async prepare(
     req: IncomingMessage | BaseNextRequest,
     res: ServerResponse | null,
@@ -530,7 +557,9 @@ export abstract class RouteModule<
         buildManifest: DeepReadonly<BuildManifest>
         fallbackBuildManifest: DeepReadonly<BuildManifest>
         nextFontManifest: DeepReadonly<NextFontManifest>
-        serverFilesManifest: DeepReadonly<RequiredServerFilesManifest>
+        serverFilesManifest:
+          | DeepReadonly<RequiredServerFilesManifest>
+          | undefined
         reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
         routesManifest: DeepReadonly<DevRoutesManifest>
         prerenderManifest: DeepReadonly<PrerenderManifest>
@@ -849,7 +878,11 @@ export abstract class RouteModule<
     const routerServerContext =
       routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
     const nextConfig =
-      routerServerContext?.nextConfig || serverFilesManifest.config
+      routerServerContext?.nextConfig || serverFilesManifest?.config
+
+    if (!nextConfig) {
+      throw new Error("Invariant: nextConfig couldn't be loaded")
+    }
 
     let resolvedPathname = normalizedSrcPage
     if (isDynamicRoute(resolvedPathname) && params) {
@@ -890,7 +923,6 @@ export abstract class RouteModule<
       isOnDemandRevalidate,
       revalidateOnlyGenerated,
       ...manifests,
-      serverActionsManifest: manifests.serverActionsManifest,
       clientReferenceManifest: manifests.clientReferenceManifest,
       nextConfig,
       routerServerContext,

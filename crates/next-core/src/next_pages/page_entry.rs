@@ -16,7 +16,6 @@ use turbopack_core::{
 };
 
 use crate::{
-    next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
     pages_structure::{PagesStructure, PagesStructureItem},
     util::{NextRuntime, file_content_rope, load_next_js_template, pages_function_name},
@@ -39,7 +38,6 @@ pub async fn create_page_ssr_entry_module(
     next_original_name: RcStr,
     pages_structure: Vc<PagesStructure>,
     runtime: NextRuntime,
-    next_config: Vc<NextConfig>,
 ) -> Result<Vc<PageSsrEntryModule>> {
     let definition_page = next_original_name;
     let definition_pathname = pathname;
@@ -99,11 +97,7 @@ pub async fn create_page_ssr_entry_module(
     let pages_structure_ref = pages_structure.await?;
 
     let (injections, imports) = if is_page && runtime == NextRuntime::Edge {
-        let next_config_val = &*next_config.await?;
         let injections = vec![
-            // TODO do we really need to pass the entire next config here?
-            // This is bad for invalidation as any config change will invalidate this
-            ("nextConfig", serde_json::to_string(next_config_val)?),
             (
                 "pageRouteModuleOptions",
                 serde_json::to_string(&get_route_module_options(

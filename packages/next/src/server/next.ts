@@ -298,7 +298,7 @@ export class NextServer implements NextWrapperServer {
           path.join(
             /* turbopackIgnore: true */ dir,
             config.distDir,
-            SERVER_FILES_MANIFEST
+            SERVER_FILES_MANIFEST + '.json'
           )
         ).config
 

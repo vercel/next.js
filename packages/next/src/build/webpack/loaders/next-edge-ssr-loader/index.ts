@@ -19,7 +19,6 @@ export type EdgeSSRLoaderQuery = {
   dev: boolean
   isServerComponent: boolean
   page: string
-  stringifiedConfig: string
   appDirLoader?: string
   pagesType: PAGE_TYPES
   sriEnabled: boolean
@@ -46,7 +45,10 @@ function swapDistFolderWithEsmDistFolder(path: string) {
 }
 
 function getRouteModuleOptions(page: string) {
-  const options: Omit<PagesRouteModuleOptions, 'userland' | 'components'> = {
+  const options: Omit<
+    PagesRouteModuleOptions,
+    'userland' | 'components' | 'distDir' | 'relativeProjectDir'
+  > = {
     definition: {
       kind: RouteKind.PAGES,
       page: normalizePagePath(page),
@@ -55,9 +57,6 @@ function getRouteModuleOptions(page: string) {
       bundlePath: '',
       filename: '',
     },
-    // edge runtime doesn't read from distDir or projectDir
-    distDir: '',
-    relativeProjectDir: '',
   }
 
   return options
@@ -73,7 +72,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       absolute500Path,
       absoluteErrorPath,
       isServerComponent,
-      stringifiedConfig: stringifiedConfigBase64,
       appDirLoader: appDirLoaderBase64,
       pagesType,
       cacheHandler,
@@ -94,10 +92,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       Buffer.from(middlewareConfigBase64, 'base64').toString()
     )
 
-    const stringifiedConfig = Buffer.from(
-      stringifiedConfigBase64 || '',
-      'base64'
-    ).toString()
     const appDirLoader = Buffer.from(
       appDirLoaderBase64 || '',
       'base64'
@@ -160,9 +154,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           VAR_USERLAND: pageModPath,
           VAR_PAGE: page,
         },
-        {
-          nextConfig: stringifiedConfig,
-        },
+        {},
         {
           incrementalCacheHandler: cacheHandler ?? null,
         }
@@ -178,7 +170,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           VAR_MODULE_GLOBAL_ERROR: errorPath,
         },
         {
-          nextConfig: stringifiedConfig,
           pageRouteModuleOptions: JSON.stringify(getRouteModuleOptions(page)),
           errorRouteModuleOptions: JSON.stringify(
             getRouteModuleOptions('/_error')

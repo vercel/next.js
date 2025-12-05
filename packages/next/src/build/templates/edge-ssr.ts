@@ -22,7 +22,6 @@ import RouteModule, {
 } from '../../server/route-modules/pages/module'
 import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
 
-import type { NextConfigRuntime } from '../../server/config-shared'
 import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event'
 import type RenderResult from '../../server/render-result'
 import type { RenderResultMetadata } from '../../server/render-result'
@@ -31,20 +30,12 @@ import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
 
 // injected by the loader afterwards.
-declare const nextConfig: NextConfigRuntime
 declare const pageRouteModuleOptions: any
 declare const errorRouteModuleOptions: any
 declare const user500RouteModuleOptions: any
-// INJECT:nextConfig
 // INJECT:pageRouteModuleOptions
 // INJECT:errorRouteModuleOptions
 // INJECT:user500RouteModuleOptions
-
-// Initialize the cache handlers interface.
-initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
-
-// expose this for the route-module
-;(globalThis as any).nextConfig = nextConfig
 
 const pageMod = {
   ...userlandPage,
@@ -55,6 +46,8 @@ const pageMod = {
       Document,
     },
     userland: userlandPage,
+    distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
+    relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   }),
 }
 
@@ -67,6 +60,8 @@ const errorMod = {
       Document,
     },
     userland: userlandErrorPage,
+    distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
+    relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   }),
 }
 
@@ -81,6 +76,8 @@ const error500Mod = userland500Page
           Document,
         },
         userland: userland500Page,
+        distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
+        relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
       }),
     }
   : null
@@ -110,6 +107,7 @@ async function requestHandler(
     query,
     params,
     buildId,
+    nextConfig,
     isNextDataRequest,
     buildManifest,
     prerenderManifest,
@@ -118,6 +116,8 @@ async function requestHandler(
     subresourceIntegrityManifest,
     dynamicCssManifest,
   } = prepareResult
+
+  initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
 
   const renderContext: PagesRouteHandlerContext = {
     page: srcPage,

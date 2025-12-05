@@ -904,7 +904,6 @@ impl PageEndpoint {
                     this.original_name.clone(),
                     *this.pages_structure,
                     runtime,
-                    this.pages_project.project().next_config(),
                 )
                 .await?;
 
@@ -1440,6 +1439,16 @@ impl PageEndpoint {
                     } else {
                         fxindexset![]
                     };
+
+                    if this
+                        .pages_project
+                        .project()
+                        .next_mode()
+                        .await?
+                        .is_production()
+                    {
+                        file_paths_from_root.insert(rcstr!("required-server-files.js"));
+                    }
 
                     let all_assets = assets.concatenate(*referenced_assets);
                     let assets_ref = assets.await?;
