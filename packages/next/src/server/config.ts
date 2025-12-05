@@ -375,23 +375,6 @@ function assignDefaultsAndValidate(
   }
 
   if (
-    result.experimental.runtimeServerDeploymentId == null &&
-    phase === PHASE_PRODUCTION_BUILD &&
-    ciEnvironment.hasNextSupport &&
-    process.env.NEXT_DEPLOYMENT_ID
-  ) {
-    if (
-      result.deploymentId != null &&
-      result.deploymentId !== process.env.NEXT_DEPLOYMENT_ID
-    ) {
-      throw new Error(
-        `The NEXT_DEPLOYMENT_ID environment variable value "${process.env.NEXT_DEPLOYMENT_ID}" does not match the provided deploymentId "${result.deploymentId}" in the config.`
-      )
-    }
-    result.experimental.runtimeServerDeploymentId = true
-  }
-
-  if (
     result.experimental?.allowDevelopmentBuild &&
     process.env.NODE_ENV !== 'development'
   ) {
@@ -931,6 +914,23 @@ function assignDefaultsAndValidate(
         `turbopack.root should be absolute, using: ${result.turbopack.root}`
       )
     }
+  }
+
+  if (
+    result.experimental.runtimeServerDeploymentId == null &&
+    phase === PHASE_PRODUCTION_BUILD &&
+    ciEnvironment.hasNextSupport &&
+    process.env.NEXT_DEPLOYMENT_ID
+  ) {
+    if (
+      result.deploymentId != null &&
+      result.deploymentId !== process.env.NEXT_DEPLOYMENT_ID
+    ) {
+      throw new Error(
+        `The NEXT_DEPLOYMENT_ID environment variable value "${process.env.NEXT_DEPLOYMENT_ID}" does not match the provided deploymentId "${result.deploymentId}" in the config.`
+      )
+    }
+    result.experimental.runtimeServerDeploymentId = true
   }
 
   // only leverage deploymentId

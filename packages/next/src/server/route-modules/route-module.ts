@@ -182,7 +182,7 @@ export abstract class RouteModule<
     routesManifest: DeepReadonly<DevRoutesManifest>
     nextFontManifest: DeepReadonly<NextFontManifest>
     prerenderManifest: DeepReadonly<PrerenderManifest>
-    serverFilesManifest: RequiredServerFilesManifest | undefined
+    serverFilesManifest: DeepReadonly<RequiredServerFilesManifest> | undefined
     reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
     subresourceIntegrityManifest: any
     clientReferenceManifest: any
@@ -337,11 +337,11 @@ export abstract class RouteModule<
         }),
         this.isDev
           ? undefined
-          : (loadManifestFromRelativePath<RequiredServerFilesManifest>({
+          : loadManifestFromRelativePath<RequiredServerFilesManifest>({
               projectDir,
               distDir: this.distDir,
               manifest: `${SERVER_FILES_MANIFEST}.json`,
-            }) as RequiredServerFilesManifest),
+            }),
         this.isDev
           ? 'development'
           : loadManifestFromRelativePath<any>({
@@ -376,18 +376,6 @@ export abstract class RouteModule<
           .filter(isInterceptionRouteRewrite)
           .map((rewrite) => new RegExp(rewrite.regex)),
       }
-    }
-
-    if (
-      result.serverFilesManifest?.config.experimental?.runtimeServerDeploymentId
-    ) {
-      if (!process.env.NEXT_DEPLOYMENT_ID) {
-        throw new Error(
-          'process.env.NEXT_DEPLOYMENT_ID is missing but runtimeServerDeploymentId is enabled'
-        )
-      }
-      result.serverFilesManifest.config.deploymentId =
-        process.env.NEXT_DEPLOYMENT_ID
     }
 
     return result
@@ -518,7 +506,10 @@ export abstract class RouteModule<
   }
 
   /** A more lightweight version of `prepare()` for only retrieving the config on edge */
-  public getNextConfigEdge(req: NextIncomingMessage): NextConfigRuntime {
+  public getNextConfigEdge(req: NextIncomingMessage): {
+    nextConfig: NextConfigRuntime
+    deploymentId: string
+  } {
     if (process.env.NEXT_RUNTIME !== 'edge') {
       throw new Error(
         'Invariant: getNextConfigEdge must only be called in edge runtime'
@@ -539,16 +530,19 @@ export abstract class RouteModule<
       throw new Error("Invariant: nextConfig couldn't be loaded")
     }
 
+    let deploymentId
     if (nextConfig.experimental?.runtimeServerDeploymentId) {
       if (!process.env.NEXT_DEPLOYMENT_ID) {
         throw new Error(
           'process.env.NEXT_DEPLOYMENT_ID is missing but runtimeServerDeploymentId is enabled'
         )
       }
-      nextConfig.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+      deploymentId = process.env.NEXT_DEPLOYMENT_ID
+    } else {
+      deploymentId = nextConfig.deploymentId || ''
     }
 
-    return nextConfig
+    return { nextConfig, deploymentId }
   }
 
   public async prepare(
@@ -564,6 +558,7 @@ export abstract class RouteModule<
   ): Promise<
     | {
         buildId: string
+        deploymentId: string
         locale?: string
         locales?: readonly string[]
         defaultLocale?: string
@@ -929,6 +924,18 @@ export abstract class RouteModule<
 
     resolvedPathname = removeTrailingSlash(resolvedPathname)
 
+    let deploymentId
+    if (nextConfig.experimental?.runtimeServerDeploymentId) {
+      if (!process.env.NEXT_DEPLOYMENT_ID) {
+        throw new Error(
+          'process.env.NEXT_DEPLOYMENT_ID is missing but runtimeServerDeploymentId is enabled'
+        )
+      }
+      deploymentId = process.env.NEXT_DEPLOYMENT_ID
+    } else {
+      deploymentId = nextConfig.deploymentId || ''
+    }
+
     return {
       query,
       originalQuery,
@@ -947,9 +954,12 @@ export abstract class RouteModule<
       isOnDemandRevalidate,
       revalidateOnlyGenerated,
       ...manifests,
-      clientReferenceManifest: manifests.clientReferenceManifest,
-      nextConfig,
+      // loadManifest returns a readonly object, but we don't want to propagate that throughout the
+      // whole codebase (for now)
+      nextConfig:
+        nextConfig satisfies DeepReadonly<NextConfigRuntime> as NextConfigRuntime,
       routerServerContext,
+      deploymentId,
     }
   }
 

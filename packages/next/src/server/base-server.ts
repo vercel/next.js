@@ -448,21 +448,21 @@ export default abstract class Server<
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigRuntime
 
+    let deploymentId
     if (this.nextConfig.experimental.runtimeServerDeploymentId) {
       if (!process.env.NEXT_DEPLOYMENT_ID) {
         throw new Error(
           'process.env.NEXT_DEPLOYMENT_ID is missing but runtimeServerDeploymentId is enabled'
         )
       }
-      this.nextConfig = {
-        ...this.nextConfig,
-        deploymentId: process.env.NEXT_DEPLOYMENT_ID,
-      }
+      deploymentId = process.env.NEXT_DEPLOYMENT_ID
     } else {
-      process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.experimental
-        .useSkewCookie
+      let id = this.nextConfig.experimental.useSkewCookie
         ? ''
         : this.nextConfig.deploymentId || ''
+
+      deploymentId = id
+      process.env.NEXT_DEPLOYMENT_ID = id
     }
 
     this.hostname = hostname
@@ -524,7 +524,7 @@ export default abstract class Server<
       dir: this.dir,
       supportsDynamicResponse: true,
       trailingSlash: this.nextConfig.trailingSlash,
-      deploymentId: this.nextConfig.deploymentId,
+      deploymentId: deploymentId,
       poweredByHeader: this.nextConfig.poweredByHeader,
       generateEtags,
       previewProps: this.getPrerenderManifest().preview,

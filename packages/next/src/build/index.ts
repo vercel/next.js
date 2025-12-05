@@ -989,7 +989,7 @@ export default async function build(
       // when using compile mode static env isn't inlined so we
       // need to populate in normal runtime env
       if (isCompileMode || isGenerateMode) {
-        populateStaticEnv(config)
+        populateStaticEnv(config, config.deploymentId)
       }
 
       const customRoutes: CustomRoutes = await nextBuildSpan

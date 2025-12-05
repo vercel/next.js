@@ -53,22 +53,26 @@ export function getNextConfigEnv(
   return defineEnv
 }
 
-export function getStaticEnv(config: NextConfigComplete | NextConfigRuntime) {
+export function getStaticEnv(
+  config: NextConfigComplete | NextConfigRuntime,
+  deploymentId: string
+) {
   const staticEnv: Record<string, string | undefined> = {
     ...getNextPublicEnvironmentVariables(),
     ...getNextConfigEnv(config),
-    'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || '',
+    'process.env.NEXT_DEPLOYMENT_ID': deploymentId,
   }
   return staticEnv
 }
 
 export function populateStaticEnv(
-  config: NextConfigComplete | NextConfigRuntime
+  config: NextConfigComplete | NextConfigRuntime,
+  deploymentId: string
 ) {
   // since inlining comes after static generation we need
   // to ensure this value is assigned to process env so it
   // can still be accessed
-  const staticEnv = getStaticEnv(config)
+  const staticEnv = getStaticEnv(config, deploymentId)
   for (const key in staticEnv) {
     const innerKey = key.split('.').pop() || ''
     if (!process.env[innerKey]) {

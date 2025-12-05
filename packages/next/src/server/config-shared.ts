@@ -1594,8 +1594,8 @@ export async function normalizeConfig(phase: string, config: any) {
 //   };
 // };
 export interface NextConfigRuntime {
-  // TODO remove in some cases
-  deploymentId: NextConfigComplete['deploymentId']
+  // Can be undefined, particularly when experimental.runtimeServerDeploymentId is true
+  deploymentId?: NextConfigComplete['deploymentId']
 
   configFileName?: string
   // Should only be included when using isExperimentalCompile
