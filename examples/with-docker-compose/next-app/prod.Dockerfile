@@ -2,6 +2,9 @@
 
 FROM node:20-alpine AS base
 
+# Install curl for health check
+RUN apk add --no-cache curl
+
 # Step 1. Rebuild the source code only when needed
 FROM base AS builder
 
@@ -71,5 +74,9 @@ ENV NEXT_PUBLIC_ENV_VARIABLE=${NEXT_PUBLIC_ENV_VARIABLE}
 # ENV NEXT_TELEMETRY_DISABLED 1
 
 # Note: Don't expose ports here, Compose will handle that for us
+
+# Health check for container orchestration (Docker, Kubernetes, etc.)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:3000/api/health || exit 1
 
 CMD ["node", "server.js"]
