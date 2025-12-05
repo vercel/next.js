@@ -165,12 +165,29 @@ impl UpdateCellOperation {
             in_progress.event.notify(usize::MAX);
         }
     }
+
+    fn is_serializable(&self) -> bool {
+        match self {
+            UpdateCellOperation::InvalidateWhenCellDependency {
+                is_serializable_cell_content,
+                ..
+            } => *is_serializable_cell_content,
+            UpdateCellOperation::FinalCellChange {
+                is_serializable_cell_content,
+                ..
+            } => *is_serializable_cell_content,
+            UpdateCellOperation::AggregationUpdate { .. } => true,
+            UpdateCellOperation::Done => true,
+        }
+    }
 }
 
 impl Operation for UpdateCellOperation {
     fn execute(mut self, ctx: &mut impl ExecuteContext) {
         loop {
-            ctx.operation_suspend_point(&self);
+            if self.is_serializable() {
+                ctx.operation_suspend_point(&self);
+            }
             match self {
                 UpdateCellOperation::InvalidateWhenCellDependency {
                     is_serializable_cell_content,
