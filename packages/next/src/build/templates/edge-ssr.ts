@@ -91,7 +91,7 @@ async function requestHandler(
   req: NextRequestHint,
   _event: NextFetchEvent
 ): Promise<Response> {
-  let srcPage = 'VAR_PAGE'
+  let srcPage = 'VAR_DEFINITION_PATHNAME'
 
   const relativeUrl = `${req.nextUrl.pathname}${req.nextUrl.search}`
   const baseReq = new WebNextRequest(req)
@@ -364,7 +364,7 @@ const handler: EdgeHandler = (opts) => {
     handler: requestHandler,
     incrementalCacheHandler,
     bypassNextUrl: true,
-    page: 'VAR_PAGE',
+    page: 'VAR_DEFINITION_PATHNAME',
   })
 }
 export default handler

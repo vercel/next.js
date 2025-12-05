@@ -890,12 +890,16 @@ impl PageEndpoint {
                     runtime: NextRuntime::NodeJs,
                     regions: config.preferred_region.clone(),
                 }
-            } else if runtime == NextRuntime::Edge {
+            } else {
                 let modules = create_page_ssr_entry_module(
                     this.pathname.clone(),
                     reference_type,
                     project_root,
-                    Vc::upcast(edge_module_context),
+                    if runtime == NextRuntime::Edge {
+                        Vc::upcast(edge_module_context)
+                    } else {
+                        Vc::upcast(module_context)
+                    },
                     self.source(),
                     this.original_name.clone(),
                     *this.pages_structure,
@@ -904,26 +908,6 @@ impl PageEndpoint {
                 )
                 .await?;
 
-                InternalSsrChunkModule {
-                    ssr_module: modules.ssr_module,
-                    app_module: modules.app_module,
-                    document_module: modules.document_module,
-                    runtime,
-                    regions: config.preferred_region.clone(),
-                }
-            } else {
-                let modules = create_page_ssr_entry_module(
-                    this.pathname.clone(),
-                    reference_type,
-                    project_root,
-                    Vc::upcast(module_context),
-                    self.source(),
-                    this.original_name.clone(),
-                    *this.pages_structure,
-                    runtime,
-                    this.pages_project.project().next_config(),
-                )
-                .await?;
                 InternalSsrChunkModule {
                     ssr_module: modules.ssr_module,
                     app_module: modules.app_module,

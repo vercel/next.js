@@ -172,7 +172,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         'edge-ssr',
         {
           VAR_USERLAND: pageModPath,
-          VAR_PAGE: page,
+          VAR_DEFINITION_PATHNAME: page,
           VAR_MODULE_DOCUMENT: documentPath,
           VAR_MODULE_APP: appPath,
           VAR_MODULE_GLOBAL_ERROR: errorPath,
