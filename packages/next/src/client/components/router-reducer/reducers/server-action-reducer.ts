@@ -411,19 +411,22 @@ export function serverActionReducer(
           // will use this to render the new page. If this happens to be only a
           // subset of the data needed to render the new page, we'll initiate a
           // new fetch, like we would for a normal navigation.
-          const seedFlightRouterState = normalizedFlightData.tree
-          const seedRenderedSearch = flightDataRenderedSearch
-          const seedData = normalizedFlightData.seedData
-          const seedHead = normalizedFlightData.head
+          const redirectCanonicalUrl = createHrefFromUrl(redirectUrl)
+          const navigationSeed = {
+            tree: normalizedFlightData.tree,
+            renderedSearch: flightDataRenderedSearch,
+            data: normalizedFlightData.seedData,
+            head: normalizedFlightData.head,
+          }
+          const now = Date.now()
           const result = navigateToSeededRoute(
+            now,
             redirectUrl,
+            redirectCanonicalUrl,
+            navigationSeed,
             currentUrl,
             state.cache,
             currentFlightRouterState,
-            seedFlightRouterState,
-            seedRenderedSearch,
-            seedData,
-            seedHead,
             freshnessPolicy,
             nextUrl,
             shouldScroll
