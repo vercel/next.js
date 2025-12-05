@@ -501,7 +501,13 @@ export default abstract class Server<
     }
 
     this.nextFontManifest = this.getNextFontManifest()
-    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.deploymentId || ''
+
+    if (this.nextConfig.experimental.runtimeServerDeploymentId !== true) {
+      process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.experimental
+        .useSkewCookie
+        ? ''
+        : this.nextConfig.deploymentId || ''
+    }
 
     this.renderOpts = {
       dir: this.dir,
