@@ -59,6 +59,12 @@ function formatMessage(
       body = body.slice(0, breakingChangeIndex)
     }
 
+    // TODO: Rspack currently doesn't populate moduleName correctly in some cases,
+    // fall back to moduleIdentifier as a workaround
+    if (!message.moduleName && !message.file) {
+      message.moduleName = message.moduleIdentifier
+    }
+
     message =
       (message.moduleName ? stripAnsi(message.moduleName) + '\n' : '') +
       (message.file ? stripAnsi(message.file) + '\n' : '') +

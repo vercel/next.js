@@ -118,7 +118,7 @@ describe('use-cache-unknown-cache-kind', () => {
         )
       } else if (isRspack) {
         expect(errorDescription).toMatchInlineSnapshot(
-          `"  × Module build failed:"`
+          `"  ╰─▶   × Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config."`
         )
       } else {
         expect(errorDescription).toMatchInlineSnapshot(
@@ -141,9 +141,8 @@ describe('use-cache-unknown-cache-kind', () => {
       } else if (isRspack) {
         expect(errorSource).toMatchInlineSnapshot(`
          "./app/page.tsx
-           × Module build failed:
            ╰─▶   × Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
-                 │   |
+                 │
                  │    ,-[1:1]
                  │  1 | 'use cache: custom'
                  │    : ^^^^^^^^^^^^^^^^^^^

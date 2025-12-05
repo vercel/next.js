@@ -56,11 +56,10 @@ describe('Error recovery app', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '>', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '>', got '<eof>'
                │    ,----
                │  1 | export default () => <div/
@@ -150,11 +149,10 @@ describe('Error recovery app', () => {
     } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/server/page.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '}', got '<eof>'
                │    ,-[2:1]
                │  1 | export default function Page() {
@@ -235,11 +233,10 @@ describe('Error recovery app', () => {
     } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/client/page.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '}', got '<eof>'
                │    ,-[2:1]
                │  1 | export default function Page() {
@@ -671,11 +668,10 @@ describe('Error recovery app', () => {
     } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '}', got '<eof>'
                │     ,-[10:1]
                │   7 |     throw Error('no ' + i)
@@ -732,11 +728,10 @@ describe('Error recovery app', () => {
     } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '}', got '<eof>'
                │     ,-[10:1]
                │   7 |     throw Error('no ' + i)
@@ -925,11 +920,10 @@ describe('Error recovery app', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '{', got 'return'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '{', got 'return'
                │    ,-[5:1]
                │  2 |
@@ -1009,11 +1003,10 @@ describe('Error recovery app', () => {
     } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '{', got 'throw'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '{', got 'throw'
                │    ,-[5:1]
                │  2 |
@@ -1136,11 +1129,10 @@ describe('Error recovery app', () => {
     } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '}', got '<eof>'
                │    ,----
                │  1 | {{{
