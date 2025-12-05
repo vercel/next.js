@@ -370,8 +370,17 @@ function assignDefaultsAndValidate(
   }
 
   // ensure correct default is set for api-resolver revalidate handling
-  if (!result.experimental?.trustHostHeader && ciEnvironment.hasNextSupport) {
+  if (!result.experimental.trustHostHeader && ciEnvironment.hasNextSupport) {
     result.experimental.trustHostHeader = true
+  }
+
+  if (
+    result.experimental.runtimeServerDeploymentId == null &&
+    phase === PHASE_PRODUCTION_BUILD &&
+    ciEnvironment.hasNextSupport &&
+    (result.deploymentId || process.env.NEXT_DEPLOYMENT_ID)
+  ) {
+    result.experimental.runtimeServerDeploymentId = true
   }
 
   if (
