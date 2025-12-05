@@ -273,7 +273,7 @@ function updateCacheNodeOnNavigation(
     // Reuse the existing CacheNode
     newCacheNode = reuseDynamicCacheNode(oldCacheNode, newParallelRoutes)
     needsDynamicRequest = false
-  } else if (seedData !== null) {
+  } else if (seedData !== null && seedData[0] !== null) {
     // If this navigation was the result of an action, then check if the
     // server sent back data in the action response. We should favor using
     // that, rather than performing a separate request. This is both better
@@ -581,7 +581,7 @@ function createCacheNodeOnNavigation(
     // Reuse the existing CacheNode
     newCacheNode = reuseDynamicCacheNode(oldCacheNode, newParallelRoutes)
     needsDynamicRequest = false
-  } else if (seedData !== null) {
+  } else if (seedData !== null && seedData[0] !== null) {
     // If this navigation was the result of an action, then check if the
     // server sent back data in the action response. We should favor using
     // that, rather than performing a separate request. This is both better
@@ -952,71 +952,50 @@ export function listenForDynamicRequest(
   nextUrl: string | null,
   task: NavigationTask,
   dynamicRequestTree: FlightRouterState,
-  // TODO: Rather than pass this into listenForDynamicRequest, we should seed
-  // the data into the CacheNode tree during the first traversal. Similar to
-  // what we will do for seeding navigations from a Server Action.
-  existingDynamicRequestPromise: Promise<FetchServerResponseResult> | null,
   accumulation: NavigationRequestAccumulation
 ): void {
   const requestPromises = []
   const separateRefreshUrls = accumulation.separateRefreshUrls
   if (separateRefreshUrls === null) {
     // Normal case. All the data can be fetched from the same URL.
-    if (existingDynamicRequestPromise !== null) {
-      // A dynamic request was already initiated. This can happen if the route
-      // tree was not already prefetched/cached before navigation.
-      requestPromises.push(
-        attachServerResponseListener(task, existingDynamicRequestPromise)
+    requestPromises.push(
+      attachServerResponseListener(
+        task,
+        fetchServerResponse(url, {
+          flightRouterState: dynamicRequestTree,
+          nextUrl,
+        })
       )
-    } else {
-      // Initiate a new dynamic request.
+    )
+  } else {
+    // There are multiple URLs that we need to request the data from. This
+    // happens when a "default" parallel route slot is present in the tree, and
+    // its data cannot be fetched from the current route. We need to split the
+    // combined dynamic request tree into separate requests per URL.
+    //
+    // First construct a request tree for the main URL. This will prune away
+    // the parts of the tree that are not present in the current route. (`null`
+    // as the second argument is used to represent the main URL.)
+
+    // TODO: Create a scoped dynamic request tree that omits anything that
+    // is not relevant to the given URL. Without doing this, the server may
+    // sometimes render more data than necessary; this is not a regression
+    // compared to the pre-Segment Cache implementation, though, just an
+    // optimization we can make in the future.
+    // const primaryDynamicRequestTree = splitTaskByURL(task, null)
+    const primaryDynamicRequestTree = dynamicRequestTree
+    if (primaryDynamicRequestTree !== null) {
       requestPromises.push(
         attachServerResponseListener(
           task,
           fetchServerResponse(url, {
-            flightRouterState: dynamicRequestTree,
+            flightRouterState: primaryDynamicRequestTree,
             nextUrl,
           })
         )
       )
     }
-  } else {
-    // This is a refresh navigation, and there are multiple URLs that we need to
-    // request the data from. This happens when a "default" parallel route slot
-    // is present in the tree, and its data cannot be fetched from the current
-    // route. We need to split the combined dynamic request tree into separate
-    // requests per URL.
-    //
-    // First construct a request tree for the main URL. This will prune away
-    // the parts of the tree that are not present in the current route. (`null`
-    // as the second argument is used to represent the main URL.)
-    if (existingDynamicRequestPromise !== null) {
-      // A dynamic request was already initiated. This can happen if the route
-      // tree was not already prefetched/cached before navigation.
-      requestPromises.push(
-        attachServerResponseListener(task, existingDynamicRequestPromise)
-      )
-    } else {
-      // Initiate a new dynamic request.
-      // TODO: Create a scoped dynamic request tree that omits anything that
-      // is not relevant to the given URL. Without doing this, the server may
-      // sometimes render more data than necessary; this is not a regression
-      // compared to the pre-Segment Cache implementation, though, just an
-      // optimization we can make in the future.
-      // const primaryDynamicRequestTree = splitTaskByURL(task, null)
-      const primaryDynamicRequestTree = dynamicRequestTree
-      if (primaryDynamicRequestTree !== null) {
-        requestPromises.push(
-          attachServerResponseListener(
-            task,
-            fetchServerResponse(url, {
-              flightRouterState: primaryDynamicRequestTree,
-              nextUrl,
-            })
-          )
-        )
-      }
-    }
+
     // Then construct a request tree for each additional refresh URL. This will
     // prune away everything except the parts of the tree that match the
     // given refresh URL.

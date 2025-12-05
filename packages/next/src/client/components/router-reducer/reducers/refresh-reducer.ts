@@ -29,26 +29,28 @@ export function refreshReducer(
 
   // A refresh is modeled as a navigation to the current URL, but where any
   // existing dynamic data (including in shared layouts) is re-fetched.
-  const currentUrl = new URL(state.canonicalUrl, action.origin)
-  const url = currentUrl
+  const currentCanonicalUrl = state.canonicalUrl
+  const currentUrl = new URL(currentCanonicalUrl, action.origin)
   const currentFlightRouterState = state.tree
   const shouldScroll = true
   const shouldRefreshDynamicData = true
 
-  const seedFlightRouterState = state.tree
-  const seedRenderedSearch = state.renderedSearch
-  const seedData = null
-  const seedHead = null
+  const navigationSeed = {
+    tree: state.tree,
+    renderedSearch: state.renderedSearch,
+    data: null,
+    head: null,
+  }
 
+  const now = Date.now()
   const result = navigateToSeededRoute(
-    url,
+    now,
+    currentUrl,
+    currentCanonicalUrl,
+    navigationSeed,
     currentUrl,
     state.cache,
     currentFlightRouterState,
-    seedFlightRouterState,
-    seedRenderedSearch,
-    seedData,
-    seedHead,
     shouldRefreshDynamicData,
     nextUrlForRefresh,
     shouldScroll
