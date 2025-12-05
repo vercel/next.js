@@ -45,10 +45,10 @@ const customJestConfig = {
   coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
   coverageThresholds: {
     global: {
-      statements: 15,
-      branches: 12,
-      functions: 15,
-      lines: 15,
+      statements: 50,
+      branches: 45,
+      functions: 50,
+      lines: 50,
     },
     // Critical modules with higher thresholds
     './packages/next/src/cli/**/*.{js,ts}': {
@@ -68,6 +68,40 @@ const customJestConfig = {
       branches: 60,
       functions: 70,
       lines: 70,
+    },
+    // Shared library utilities
+    './packages/next/src/shared/lib/**/*.{js,ts}': {
+      statements: 60,
+      branches: 55,
+      functions: 60,
+      lines: 60,
+    },
+    './packages/next/src/shared/lib/router/utils/**/*.{js,ts}': {
+      statements: 70,
+      branches: 65,
+      functions: 70,
+      lines: 70,
+    },
+    // Server modules
+    './packages/next/src/server/config*.{js,ts}': {
+      statements: 50,
+      branches: 45,
+      functions: 50,
+      lines: 50,
+    },
+    // Build utilities
+    './packages/next/src/build/utils.{js,ts}': {
+      statements: 50,
+      branches: 45,
+      functions: 50,
+      lines: 50,
+    },
+    // Lib helpers
+    './packages/next/src/lib/helpers/**/*.{js,ts}': {
+      statements: 60,
+      branches: 55,
+      functions: 60,
+      lines: 60,
     },
   },
 }
