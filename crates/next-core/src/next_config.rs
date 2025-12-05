@@ -92,7 +92,7 @@ pub struct NextConfig {
     cache_handler: Option<RcStr>,
     #[bincode(with_serde)]
     cache_handlers: Option<FxIndexMap<RcStr, RcStr>>,
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     env: FxIndexMap<String, JsonValue>,
     experimental: ExperimentalConfig,
     images: ImageConfig,
@@ -101,12 +101,12 @@ pub struct NextConfig {
     react_production_profiling: Option<bool>,
     react_strict_mode: Option<bool>,
     transpile_packages: Option<Vec<RcStr>>,
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     modularize_imports: Option<FxIndexMap<String, ModularizeImportPackageConfig>>,
     dist_dir: RcStr,
     dist_dir_root: RcStr,
     deployment_id: Option<RcStr>,
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     sass_options: Option<serde_json::Value>,
     trailing_slash: Option<bool>,
     asset_prefix: Option<RcStr>,
@@ -119,9 +119,9 @@ pub struct NextConfig {
     output: Option<OutputType>,
     turbopack: Option<TurbopackConfig>,
     production_browser_source_maps: bool,
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     output_file_tracing_includes: Option<serde_json::Value>,
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     output_file_tracing_excludes: Option<serde_json::Value>,
     // TODO: This option is not respected, it uses Turbopack's root instead.
     output_file_tracing_root: Option<RcStr>,
@@ -154,9 +154,9 @@ pub struct NextConfig {
     http_agent_options: HttpAgentConfig,
     on_demand_entries: OnDemandEntriesConfig,
     powered_by_header: bool,
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     public_runtime_config: FxIndexMap<String, serde_json::Value>,
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     server_runtime_config: FxIndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
     target: Option<String>,
@@ -686,9 +686,9 @@ pub enum RemotePatternProtocol {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct TurbopackConfig {
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     pub rules: Option<FxIndexMap<RcStr, RuleConfigCollection>>,
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub debug_ids: Option<bool>,
@@ -955,7 +955,7 @@ pub struct ExperimentalConfig {
     /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs)
     mdx_rs: Option<MdxRsOptions>,
     strict_next_head: Option<bool>,
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
     external_middleware_rewrites_resolve: Option<bool>,
     scroll_restoration: Option<bool>,
@@ -964,7 +964,7 @@ pub struct ExperimentalConfig {
     middleware_prefetch: Option<MiddlewarePrefetchType>,
     /// optimizeCss can be boolean or critters' option object
     /// Use Record<string, unknown> as critters doesn't export its Option type ([link](https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts))
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     optimize_css: Option<serde_json::Value>,
     next_script_workers: Option<bool>,
     web_vitals_attribution: Option<Vec<RcStr>>,
@@ -982,7 +982,7 @@ pub struct ExperimentalConfig {
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     after: Option<bool>,
     app_document_preloading: Option<bool>,
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     cache_life: Option<FxIndexMap<String, CacheLifeProfile>>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
@@ -990,7 +990,7 @@ pub struct ExperimentalConfig {
     disable_optimized_loading: Option<bool>,
     disable_postcss_preset_env: Option<bool>,
     esm_externals: Option<EsmExternals>,
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     extension_alias: Option<serde_json::Value>,
     external_dir: Option<bool>,
     /// If set to `false`, webpack won't fall back to polyfill Node.js modules
@@ -1005,7 +1005,7 @@ pub struct ExperimentalConfig {
     instrumentation_hook: Option<bool>,
     client_trace_metadata: Option<Vec<String>>,
     large_page_data_bytes: Option<f64>,
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     logging: Option<serde_json::Value>,
     memory_based_workers_count: Option<bool>,
     /// Optimize React APIs for server builds.
@@ -1024,7 +1024,7 @@ pub struct ExperimentalConfig {
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
 
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     url_imports: Option<serde_json::Value>,
     /// This option is to enable running the Webpack build in a worker thread
     /// (doesn't apply to Turbopack).
@@ -1395,7 +1395,7 @@ pub struct ResolveExtensions(Option<Vec<RcStr>>);
 
 #[turbo_tasks::value(transparent)]
 pub struct SwcPlugins(
-    #[bincode(with = "turbo_bincode::serde_json")] Vec<(RcStr, serde_json::Value)>,
+    #[bincode(with = "turbo_bincode::serde_self_describing")] Vec<(RcStr, serde_json::Value)>,
 );
 
 #[turbo_tasks::value(transparent)]
@@ -1413,7 +1413,7 @@ pub struct OptionServerActions(Option<ServerActions>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionJsonValue(
-    #[bincode(with = "turbo_bincode::serde_json")] pub Option<serde_json::Value>,
+    #[bincode(with = "turbo_bincode::serde_self_describing")] pub Option<serde_json::Value>,
 );
 
 fn turbopack_config_documentation_link() -> RcStr {
@@ -1466,7 +1466,7 @@ impl Issue for InvalidLoaderRuleRenameAsIssue {
 
 #[turbo_tasks::value(shared)]
 struct InvalidLoaderRuleConditionIssue {
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     condition: ConfigConditionItem,
     config_file_path: FileSystemPath,
 }
@@ -2207,7 +2207,7 @@ impl NextConfig {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct JsConfig {
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     compiler_options: Option<serde_json::Value>,
 }
 

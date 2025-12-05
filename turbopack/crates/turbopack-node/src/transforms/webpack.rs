@@ -98,7 +98,7 @@ struct WebpackLoadersProcessingResult {
 pub struct WebpackLoaderItem {
     pub loader: RcStr,
     #[serde(default)]
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     pub options: serde_json::Map<String, serde_json::Value>,
 }
 
@@ -364,7 +364,7 @@ enum LogType {
 pub struct LogInfo {
     time: u64,
     log_type: LogType,
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     args: Vec<JsonValue>,
     trace: Option<Vec<StackFrame<'static>>>,
 }
