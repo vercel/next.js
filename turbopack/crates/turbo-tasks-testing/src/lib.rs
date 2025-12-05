@@ -119,7 +119,15 @@ impl TurboTasksCallApi for VcStorage {
     ) -> RawVc {
         unreachable!()
     }
-
+    fn devirtualized_trait_call(
+        &self,
+        __trait_impl: &'static turbo_tasks::macro_helpers::NativeFunction,
+        _this: RawVc,
+        _arg: Box<dyn MagicAny>,
+        _persistence: TaskPersistence,
+    ) -> RawVc {
+        unreachable!()
+    }
     fn run(
         &self,
         _future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,

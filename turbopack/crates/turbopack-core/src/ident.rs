@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs,
 };
@@ -104,6 +104,17 @@ impl AssetIdent {
         let path = self.path.clone();
         self.path = root.join(&pattern.replace('*', &path.path))?;
         Ok(())
+    }
+}
+
+#[turbo_tasks::value]
+struct TestStruct {}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for TestStruct {
+    #[turbo_tasks::function]
+    fn to_string(self: Vc<Self>) -> Vc<RcStr> {
+        Vc::cell(rcstr!("huh"))
     }
 }
 

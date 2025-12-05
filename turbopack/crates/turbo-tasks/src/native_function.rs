@@ -156,6 +156,8 @@ pub struct NativeFunction {
 
     // The globally unique name for this function, used when persisting
     pub(crate) global_name: &'static str,
+
+    pub(crate) filters_this: bool,
 }
 
 impl Debug for NativeFunction {
@@ -181,6 +183,7 @@ impl NativeFunction {
             global_name,
             arg_meta: ArgMeta::new::<Inputs>(),
             implementation: Box::new(implementation.into_task_fn()),
+            filters_this: false,
         }
     }
 
@@ -203,6 +206,7 @@ impl NativeFunction {
                 ArgMeta::new::<Inputs>()
             },
             implementation: Box::new(implementation.into_task_fn()),
+            filters_this: true,
         }
     }
 
@@ -226,6 +230,7 @@ impl NativeFunction {
                 ArgMeta::new::<Inputs>()
             },
             implementation: Box::new(implementation.into_task_fn_with_this()),
+            filters_this: false,
         }
     }
 

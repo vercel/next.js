@@ -74,7 +74,13 @@ pub trait TurboTasksCallApi: Sync + Send {
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
     ) -> RawVc;
-
+    fn devirtualized_trait_call(
+        &self,
+        trait_impl: &'static NativeFunction,
+        this: RawVc,
+        arg: Box<dyn MagicAny>,
+        persistence: TaskPersistence,
+    ) -> RawVc;
     fn run(
         &self,
         future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
@@ -658,6 +664,22 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.schedule_local_task(task_type, persistence)
     }
 
+    pub fn devirtualized_trait_call(
+        &self,
+        trait_impl: &'static NativeFunction,
+        this: RawVc,
+        arg: Box<dyn MagicAny>,
+        persistence: TaskPersistence,
+    ) -> RawVc {
+        let arg = trait_impl.arg_meta.filter_owned(arg);
+        return self.dynamic_call(
+            trait_impl,
+            (!trait_impl.filters_this).then_some(this),
+            arg,
+            persistence,
+        );
+    }
+
     pub fn trait_call(
         &self,
         trait_method: &'static TraitMethod,
@@ -1185,7 +1207,15 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
     ) -> RawVc {
         self.trait_call(trait_method, this, arg, persistence)
     }
-
+    fn devirtualized_trait_call(
+        &self,
+        trait_impl: &'static NativeFunction,
+        this: RawVc,
+        arg: Box<dyn MagicAny>,
+        persistence: TaskPersistence,
+    ) -> RawVc {
+        self.devirtualized_trait_call(trait_impl, this, arg, persistence)
+    }
     #[track_caller]
     fn run(
         &self,
@@ -1587,6 +1617,15 @@ pub fn trait_call(
     persistence: TaskPersistence,
 ) -> RawVc {
     with_turbo_tasks(|tt| tt.trait_call(trait_method, this, arg, persistence))
+}
+/// Calls [`TurboTasks::devirtualized_trait_call`] for the current turbo tasks instance.
+pub fn devirtualized_trait_call(
+    trait_impl: &'static NativeFunction,
+    this: RawVc,
+    arg: Box<dyn MagicAny>,
+    persistence: TaskPersistence,
+) -> RawVc {
+    with_turbo_tasks(|tt| tt.devirtualized_trait_call(trait_impl, this, arg, persistence))
 }
 
 pub fn turbo_tasks() -> Arc<dyn TurboTasksApi> {
