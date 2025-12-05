@@ -33,6 +33,7 @@ erased-serde = { workspace = true }
 event-listener = "5.4.0"
 futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
+inventory = { workspace = true }
 once_cell = { workspace = true }
 parking_lot = { workspace = true, features = ["serde"]}
 pin-project-lite = { workspace = true }
@@ -41,7 +42,7 @@ regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["rc", "derive"] }
 serde_json = { workspace = true }
-shrink-to-fit = { workspace=true,features = ["indexmap", "serde_json", "smallvec", "nightly"] }
+shrink-to-fit = { workspace = true, features = ["indexmap", "serde_json", "smallvec", "nightly"] }
 smallvec = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
@@ -55,7 +56,8 @@ turbo-tasks-hash = { workspace = true }
 turbo-tasks-macros = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 unsize = { workspace = true }
-inventory = { workspace = true }
+unty = { workspace = true }
+pot = "3.0.0"
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

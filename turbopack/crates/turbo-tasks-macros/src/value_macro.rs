@@ -348,7 +348,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         },
         SerializationMode::Auto | SerializationMode::Custom => {
             quote! {
-                turbo_tasks::ValueType::new_with_any_serialization::<#ident>(#name)
+                turbo_tasks::ValueType::new_with_bincode::<#ident>(#name)
             }
         }
     };

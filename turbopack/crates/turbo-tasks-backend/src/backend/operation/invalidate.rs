@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use smallvec::SmallVec;
 use turbo_tasks::{TaskExecutionReason, TaskId};
 
@@ -19,7 +19,7 @@ use crate::{
     },
 };
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Encode, Decode, Clone, Default)]
 #[allow(clippy::large_enum_variant)]
 pub enum InvalidateOperation {
     MakeDirty {

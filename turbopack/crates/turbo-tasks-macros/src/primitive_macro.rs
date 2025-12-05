@@ -3,14 +3,16 @@ use quote::quote;
 use syn::parse_macro_input;
 
 use crate::{
-    global_name::global_name, ident::get_type_ident, primitive_input::PrimitiveInput,
+    global_name::global_name,
+    ident::get_type_ident,
+    primitive_input::{BincodeWrappers, PrimitiveInput},
     value_macro::value_type_and_register,
 };
 
 pub fn primitive(input: TokenStream) -> TokenStream {
     let PrimitiveInput {
         ty,
-        bincode_wrappers: _,
+        bincode_wrappers,
     } = parse_macro_input!(input as PrimitiveInput);
 
     let Some(ident) = get_type_ident(&ty) else {
@@ -38,9 +40,18 @@ pub fn primitive(input: TokenStream) -> TokenStream {
     };
 
     let name = global_name(quote!(stringify!(#ty)));
-    // TODO: https://github.com/vercel/next.js/pull/86338 -- switch to bincode, use bincode wrapper
-    let new_value_type = quote! {
-        turbo_tasks::ValueType::new_with_any_serialization::<#ty>(#name);
+    let new_value_type = if let Some(bincode_wrappers) = bincode_wrappers {
+        let BincodeWrappers {
+            encode_ty,
+            decode_ty,
+        } = bincode_wrappers;
+        quote! {
+            turbo_tasks::ValueType::new_with_bincode_wrappers::<#ty, #encode_ty, #decode_ty>(#name)
+        }
+    } else {
+        quote! {
+            turbo_tasks::ValueType::new_with_bincode::<#ty>(#name)
+        }
     };
 
     let value_type_and_register = value_type_and_register(

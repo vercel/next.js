@@ -8,8 +8,8 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use pin_project_lite::pin_project;
-use serde::{Deserialize, Serialize};
 
 use crate::{backend::TurboTasksExecutionErrorMessage, panic_hooks::LAST_ERROR_LOCATION};
 
@@ -26,7 +26,7 @@ impl<T, F: Future<Output = T>> CaptureFuture<T, F> {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
 pub struct TurboTasksPanic {
     pub message: TurboTasksExecutionErrorMessage,
     pub location: Option<String>,

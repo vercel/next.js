@@ -2204,9 +2204,10 @@ impl NextConfig {
 /// A subset of ts/jsconfig that next.js implicitly
 /// interops with.
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct JsConfig {
+    #[bincode(with = "turbo_bincode::serde_json")]
     compiler_options: Option<serde_json::Value>,
 }
 

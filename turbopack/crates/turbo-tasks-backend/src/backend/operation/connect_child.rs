@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_tasks::{TaskExecutionReason, TaskId};
 
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
     data::{CachedDataItem, CachedDataItemKey, InProgressState, InProgressStateInner},
 };
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Encode, Decode, Clone, Default)]
 #[allow(clippy::large_enum_variant)]
 pub enum ConnectChildOperation {
     UpdateAggregation {

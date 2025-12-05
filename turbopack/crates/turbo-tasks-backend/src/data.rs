@@ -1,3 +1,4 @@
+use bincode::{Decode, Encode};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
@@ -32,25 +33,25 @@ macro_rules! transient_traits {
     };
 }
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct CellRef {
     pub task: TaskId,
     pub cell: CellId,
 }
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct CollectibleRef {
     pub collectible_type: TraitTypeId,
     pub cell: CellRef,
 }
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct CollectiblesRef {
     pub task: TaskId,
     pub collectible_type: TraitTypeId,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Encode, Decode)]
 pub enum OutputValue {
     Cell(CellRef),
     Output(TaskId),
@@ -140,7 +141,7 @@ transient_traits!(ActivenessState);
 
 impl Eq for ActivenessState {}
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Encode, Decode, PartialEq, Eq)]
 pub enum Dirtyness {
     Dirty,
     SessionDependent,
@@ -205,14 +206,14 @@ impl InProgressCellState {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub struct AggregationNumber {
     pub base: u32,
     pub distance: u32,
     pub effective: u32,
 }
 
-#[derive(Debug, Clone, KeyValuePair, Serialize, Deserialize)]
+#[derive(Debug, Clone, KeyValuePair, Encode, Decode)]
 pub enum CachedDataItem {
     // Output
     Output {
@@ -227,8 +228,10 @@ pub enum CachedDataItem {
     Dirty {
         value: Dirtyness,
     },
-    #[serde(skip)]
     CurrentSessionClean {
+        // TODO: bgw: Add a way to skip the entire enum variant in bincode (generating an error
+        // upon attempted serialization) similar to #[serde(skip)] on variants
+        #[bincode(skip, default = "unreachable_decode")]
         value: (),
     },
 
@@ -243,9 +246,10 @@ pub enum CachedDataItem {
         cell: CellId,
         value: TypedSharedReference,
     },
-    #[serde(skip)]
     TransientCellData {
+        #[bincode(skip, default = "unreachable_decode")]
         cell: CellId,
+        #[bincode(skip, default = "unreachable_decode")]
         value: SharedReference,
     },
     CellTypeMaxIndex {
@@ -301,9 +305,10 @@ pub enum CachedDataItem {
         task: TaskId,
         value: i32,
     },
-    #[serde(skip)]
     AggregatedCurrentSessionCleanContainer {
+        #[bincode(skip, default = "unreachable_decode")]
         task: TaskId,
+        #[bincode(skip, default = "unreachable_decode")]
         value: i32,
     },
     AggregatedCollectible {
@@ -313,8 +318,8 @@ pub enum CachedDataItem {
     AggregatedDirtyContainerCount {
         value: i32,
     },
-    #[serde(skip)]
     AggregatedCurrentSessionCleanContainerCount {
+        #[bincode(skip, default = "unreachable_decode")]
         value: i32,
     },
 
@@ -330,41 +335,50 @@ pub enum CachedDataItem {
     },
 
     // Transient Root Type
-    #[serde(skip)]
     Activeness {
+        #[bincode(skip, default = "unreachable_decode")]
         value: ActivenessState,
     },
 
     // Transient In Progress state
-    #[serde(skip)]
     InProgress {
+        #[bincode(skip, default = "unreachable_decode")]
         value: InProgressState,
     },
-    #[serde(skip)]
     InProgressCell {
+        #[bincode(skip, default = "unreachable_decode")]
         cell: CellId,
+        #[bincode(skip, default = "unreachable_decode")]
         value: InProgressCellState,
     },
-    #[serde(skip)]
     OutdatedCollectible {
+        #[bincode(skip, default = "unreachable_decode")]
         collectible: CollectibleRef,
+        #[bincode(skip, default = "unreachable_decode")]
         value: i32,
     },
-    #[serde(skip)]
     OutdatedOutputDependency {
+        #[bincode(skip, default = "unreachable_decode")]
         target: TaskId,
+        #[bincode(skip, default = "unreachable_decode")]
         value: (),
     },
-    #[serde(skip)]
     OutdatedCellDependency {
+        #[bincode(skip, default = "unreachable_decode")]
         target: CellRef,
+        #[bincode(skip, default = "unreachable_decode")]
         value: (),
     },
-    #[serde(skip)]
     OutdatedCollectiblesDependency {
+        #[bincode(skip, default = "unreachable_decode")]
         target: CollectiblesRef,
+        #[bincode(skip, default = "unreachable_decode")]
         value: (),
     },
+}
+
+fn unreachable_decode<T>() -> T {
+    unreachable!("CachedDataItem variant should not have been encoded, cannot decode")
 }
 
 impl CachedDataItem {

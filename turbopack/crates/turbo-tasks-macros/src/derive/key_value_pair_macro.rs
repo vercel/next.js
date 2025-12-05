@@ -591,9 +591,9 @@ fn field_declarations(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::TokenStre
                 .map(|field| {
                     let ty = &field.ty;
                     let ident = field.ident.as_ref().unwrap();
-                    let attrs = &field.attrs;
+                    // we don't preserve attrs here because we don't copy over the derives, so the
+                    // attributes are likely irrelevant to the generated type
                     quote! {
-                        #(#attrs)*
                         #ident: #ty
                     }
                 })
@@ -614,9 +614,8 @@ fn ref_field_declarations(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::Token
                 .map(|field| {
                     let ty = &field.ty;
                     let ident = field.ident.as_ref().unwrap();
-                    let attrs = &field.attrs;
+                    // don't preserve attrs because we don't copy over the derives either
                     quote! {
-                        #(#attrs)*
                         #ident: &'l #ty
                     }
                 })
@@ -637,9 +636,8 @@ fn mut_ref_field_declarations(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::T
                 .map(|field| {
                     let ty = &field.ty;
                     let ident = field.ident.as_ref().unwrap();
-                    let attrs = &field.attrs;
+                    // don't preserve attrs because we don't copy over the derives either
                     quote! {
-                        #(#attrs)*
                         #ident: &'l mut #ty
                     }
                 })

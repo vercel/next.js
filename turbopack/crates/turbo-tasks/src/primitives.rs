@@ -44,8 +44,6 @@ __turbo_tasks_internal_primitive!(Duration);
 __turbo_tasks_internal_primitive!(Vec<u8>);
 __turbo_tasks_internal_primitive!(Vec<bool>);
 
-// TODO: use this in https://github.com/vercel/next.js/pull/86338
-#[allow(dead_code)]
 struct JsonValueEncodeWrapper<'a>(&'a serde_json::Value);
 
 impl ManualEncodeWrapper for JsonValueEncodeWrapper<'_> {
@@ -62,8 +60,6 @@ impl Encode for JsonValueEncodeWrapper<'_> {
     }
 }
 
-// TODO: use this in https://github.com/vercel/next.js/pull/86338
-#[allow(dead_code)]
 struct JsonValueDecodeWrapper(serde_json::Value);
 
 impl ManualDecodeWrapper for JsonValueDecodeWrapper {

@@ -1,6 +1,6 @@
 use std::mem::take;
 
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use smallvec::SmallVec;
 #[cfg(not(feature = "verify_determinism"))]
 use turbo_tasks::backend::VerificationMode;
@@ -20,7 +20,7 @@ use crate::{
     data::{CachedDataItem, CachedDataItemKey, CellRef},
 };
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Encode, Decode, Clone, Default)]
 #[allow(clippy::large_enum_variant)]
 pub enum UpdateCellOperation {
     InvalidateWhenCellDependency {
