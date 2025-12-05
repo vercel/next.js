@@ -378,8 +378,16 @@ function assignDefaultsAndValidate(
     result.experimental.runtimeServerDeploymentId == null &&
     phase === PHASE_PRODUCTION_BUILD &&
     ciEnvironment.hasNextSupport &&
-    (result.deploymentId || process.env.NEXT_DEPLOYMENT_ID)
+    process.env.NEXT_DEPLOYMENT_ID
   ) {
+    if (
+      result.deploymentId != null &&
+      result.deploymentId !== process.env.NEXT_DEPLOYMENT_ID
+    ) {
+      throw new Error(
+        `The NEXT_DEPLOYMENT_ID environment variable value "${process.env.NEXT_DEPLOYMENT_ID}" does not match the provided deploymentId "${result.deploymentId}" in the config.`
+      )
+    }
     result.experimental.runtimeServerDeploymentId = true
   }
 
