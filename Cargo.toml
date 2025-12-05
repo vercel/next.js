@@ -293,6 +293,7 @@ next-taskless = { path = "crates/next-taskless" }
 
 # Turbopack
 auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
+turbo-bincode = { path = "turbopack/crates/turbo-bincode" }
 turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
 turbo-rcstr = { path = "turbopack/crates/turbo-rcstr" }
 turbo-dyn-eq-hash = { path = "turbopack/crates/turbo-dyn-eq-hash" }
@@ -359,6 +360,7 @@ preset_env_base = "6.0.0"
 
 
 # General Deps
+bincode = { version = "2.0.1", features = ["serde"] }
 chromiumoxide = { version = "0.5.4", features = [
   "tokio-runtime",
 ], default-features = false }
@@ -371,10 +373,6 @@ allsorts = { version = "0.14.0", default-features = false, features = [
   "flate2_rust",
 ] }
 anyhow = "1.0.100"
-async-compression = { version = "0.3.13", default-features = false, features = [
-  "gzip",
-  "tokio",
-] }
 async-trait = "0.1.64"
 bitfield = "0.18.0"
 byteorder = "1.5.0"
@@ -472,6 +470,7 @@ tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
 triomphe = { git = "https://github.com/sokra/triomphe", branch = "sokra/unstable" }
 unsize = "1.1.0"
+unty = "0.0.4"
 url = "2.2.2"
 urlencoding = "2.1.2"
 uuid = "1.18.1"
@@ -481,4 +480,5 @@ webbrowser = "1.0.6"
 inventory = "0.3.21"
 
 [patch.crates-io]
+bincode = { git = "https://github.com/bgw/bincode.git", branch = "bgw/patches" }
 mdxjs = { git = "https://github.com/mischnic/mdxjs-rs.git", branch = "swc-core-32" }

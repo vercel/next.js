@@ -148,7 +148,7 @@ async fn pick_endpoint(
     op: OperationVc<Entrypoints>,
     selector: EndpointSelector,
 ) -> Result<Vc<OptionEndpoint>> {
-    let endpoints = op.connect().strongly_consistent().await?;
+    let endpoints = op.read_strongly_consistent().await?;
     let endpoint = match selector {
         EndpointSelector::InstrumentationNodeJs => {
             endpoints.instrumentation.as_ref().map(|i| i.node_js)

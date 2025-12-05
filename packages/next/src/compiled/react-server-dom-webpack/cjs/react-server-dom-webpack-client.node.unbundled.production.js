@@ -11,7 +11,8 @@
 "use strict";
 var util = require("util"),
   ReactDOM = require("react-dom"),
-  decoderOptions = { stream: !0 };
+  decoderOptions = { stream: !0 },
+  hasOwnProperty = Object.prototype.hasOwnProperty;
 function resolveClientReference(bundlerConfig, metadata) {
   var moduleExports = bundlerConfig[metadata[0]];
   if ((bundlerConfig = moduleExports && moduleExports[metadata[2]]))
@@ -67,11 +68,10 @@ function requireModule(metadata) {
   var moduleExports = asyncModuleCache.get(metadata.specifier);
   if ("fulfilled" === moduleExports.status) moduleExports = moduleExports.value;
   else throw moduleExports.reason;
-  return "*" === metadata.name
-    ? moduleExports
-    : "" === metadata.name
-      ? moduleExports.default
-      : moduleExports[metadata.name];
+  if ("*" === metadata.name) return moduleExports;
+  if ("" === metadata.name) return moduleExports.default;
+  if (hasOwnProperty.call(moduleExports, metadata.name))
+    return moduleExports[metadata.name];
 }
 function prepareDestinationWithChunks(moduleLoading, chunks, nonce$jscomp$0) {
   if (null !== moduleLoading)
