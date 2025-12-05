@@ -23,6 +23,53 @@ const customJestConfig = {
   moduleNameMapper: {
     '@next/font/(.*)': '@next/font/$1',
   },
+  // Coverage configuration
+  collectCoverage: !!process.env.COVERAGE,
+  collectCoverageFrom: [
+    '<rootDir>/../packages/next/src/**/*.{js,jsx,ts,tsx}',
+    '<rootDir>/../packages/font/src/**/*.{js,jsx,ts,tsx}',
+    '<rootDir>/../packages/next-codemod/**/*.{js,jsx,ts,tsx}',
+    '<rootDir>/../packages/create-next-app/**/*.{js,jsx,ts,tsx}',
+    // Exclude compiled/vendored dependencies
+    '!<rootDir>/../packages/next/src/compiled/**',
+    '!<rootDir>/../packages/next/src/bundles/**',
+    // Exclude build output
+    '!<rootDir>/../**/dist/**',
+    '!<rootDir>/../**/.next/**',
+    '!<rootDir>/../**/node_modules/**',
+    // Exclude test files
+    '!<rootDir>/../**/*.test.{js,jsx,ts,tsx}',
+    '!<rootDir>/../**/__tests__/**',
+  ],
+  coverageDirectory: '<rootDir>/../coverage',
+  coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
+  coverageThresholds: {
+    global: {
+      statements: 15,
+      branches: 12,
+      functions: 15,
+      lines: 15,
+    },
+    // Critical modules with higher thresholds
+    './packages/next/src/cli/**/*.{js,ts}': {
+      statements: 70,
+      branches: 60,
+      functions: 70,
+      lines: 70,
+    },
+    './packages/next/src/api/**/*.{js,ts}': {
+      statements: 70,
+      branches: 60,
+      functions: 70,
+      lines: 70,
+    },
+    './packages/next/src/export/**/*.{js,ts}': {
+      statements: 70,
+      branches: 60,
+      functions: 70,
+      lines: 70,
+    },
+  },
 }
 
 // Check if the environment variable is set to enable test report,

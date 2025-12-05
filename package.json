@@ -15,6 +15,7 @@
     "pack-next": "tsx scripts/pack-next.ts",
     "test-types": "tsc",
     "test-unit": "jest test/unit/ packages/next/ packages/font",
+    "test-unit-coverage": "cross-env COVERAGE=true jest test/unit/ packages/next/ packages/font",
     "test-dev-inner": "cross-env NEXT_TEST_MODE=dev pnpm testheadless",
     "test-dev": "pnpm run test-dev-webpack",
     "test-dev-webpack": "pnpm run with-webpack pnpm test-dev-inner",
