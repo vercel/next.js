@@ -44,6 +44,7 @@ use std::{
 
 use anyhow::{Context, Result, anyhow, bail};
 use auto_hash_map::{AutoMap, AutoSet};
+use bincode::{Decode, Encode};
 use bitflags::bitflags;
 use dunce::simplified;
 use indexmap::IndexSet;
@@ -252,31 +253,37 @@ struct DiskFileSystemApplyContext {
     created_directories: FxHashSet<PathBuf>,
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 struct DiskFileSystemInner {
     pub name: RcStr,
     pub root: RcStr,
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip)]
+    #[bincode(skip)]
     mutex_map: MutexMap<PathBuf>,
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip)]
+    #[bincode(skip)]
     invalidator_map: InvalidatorMap,
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip)]
+    #[bincode(skip)]
     dir_invalidator_map: InvalidatorMap,
     /// Lock that makes invalidation atomic. It will keep a write lock during
     /// watcher invalidation and a read lock during other operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip)]
+    #[bincode(skip)]
     invalidation_lock: RwLock<()>,
     /// Semaphore to limit the maximum number of concurrent file operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip, default = "create_read_semaphore")]
+    #[bincode(skip, default = "create_read_semaphore")]
     read_semaphore: tokio::sync::Semaphore,
     /// Semaphore to limit the maximum number of concurrent file operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip, default = "create_write_semaphore")]
+    #[bincode(skip, default = "create_write_semaphore")]
     write_semaphore: tokio::sync::Semaphore,
 
     #[turbo_tasks(debug_ignore, trace_ignore)]
@@ -1675,13 +1682,26 @@ pub struct RealPathResult {
 
 /// Errors that can occur when resolving a path with symlinks.
 /// Many of these can be transient conditions that might happen when package managers are running.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, NonLocalValue, TraceRawVcs)]
+#[derive(
+    Debug,
+    Clone,
+    Hash,
+    Eq,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+    TraceRawVcs,
+    Encode,
+    Decode,
+)]
 pub enum RealPathResultError {
     TooManySymlinks,
     CycleDetected,
     Invalid,
     NotFound,
 }
+
 impl RealPathResultError {
     /// Formats the error message
     pub fn as_error_message(&self, orig: &FileSystemPath, result: &RealPathResult) -> String {
@@ -1838,7 +1858,16 @@ impl FileContent {
 }
 
 bitflags! {
-  #[derive(Default, Serialize, Deserialize, TraceRawVcs, NonLocalValue, DeterministicHash)]
+  #[derive(
+    Default,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    DeterministicHash,
+    Encode,
+    Decode,
+  )]
   pub struct LinkType: u8 {
       const DIRECTORY = 0b00000001;
       const ABSOLUTE = 0b00000010;
@@ -2048,6 +2077,7 @@ pub struct FileMeta {
     // len: u64,
     permissions: Permissions,
     #[serde(with = "mime_option_serde")]
+    #[bincode(with = "turbo_bincode::mime_option")]
     #[turbo_tasks(trace_ignore)]
     content_type: Option<Mime>,
 }
@@ -2316,7 +2346,19 @@ pub enum FileLinesContent {
     NotFound,
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+#[derive(
+    Hash,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
 pub enum RawDirectoryEntry {
     File,
     Directory,
@@ -2325,7 +2367,19 @@ pub enum RawDirectoryEntry {
     Other,
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+#[derive(
+    Hash,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
 pub enum DirectoryEntry {
     File(FileSystemPath),
     Directory(FileSystemPath),

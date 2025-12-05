@@ -434,6 +434,7 @@ impl AllActions {
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub struct ActionMap {
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub actions: FxIndexMap<String, String>,
     pub entry_path: String,
     pub entry_query: String,
@@ -446,7 +447,10 @@ struct OptionActionMap(Option<ResolvedVc<ActionMap>>);
 type LayerAndActions = (ActionLayer, ResolvedVc<ActionMap>);
 /// A mapping of every module module containing Server Actions, mapping to its layer and actions.
 #[turbo_tasks::value(transparent)]
-pub struct AllModuleActions(FxIndexMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>);
+pub struct AllModuleActions(
+    #[bincode(with = "turbo_bincode::indexmap")]
+    FxIndexMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>,
+);
 
 #[turbo_tasks::function]
 pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllModuleActions>> {

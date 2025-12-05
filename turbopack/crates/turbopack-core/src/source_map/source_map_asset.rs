@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -16,7 +17,17 @@ use crate::{
     source_map::{GenerateSourceMap, SourceMap},
 };
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, NonLocalValue, TraceRawVcs, ValueDebugFormat)]
+#[derive(
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+    TraceRawVcs,
+    ValueDebugFormat,
+    Encode,
+    Decode,
+)]
 enum PathType {
     Fixed {
         path: FileSystemPath,

@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
@@ -21,7 +22,9 @@ use turbopack_node::{
 use super::ModuleRule;
 use crate::module_options::RuleCondition;
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+#[derive(
+    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, Encode, Decode,
+)]
 pub struct LoaderRuleItem {
     pub loaders: ResolvedVc<WebpackLoaderItems>,
     pub rename_as: Option<RcStr>,
@@ -37,7 +40,9 @@ pub struct LoaderRuleItem {
 #[turbo_tasks::value(transparent)]
 pub struct WebpackRules(Vec<(RcStr, LoaderRuleItem)>);
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+#[derive(
+    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, Encode, Decode,
+)]
 pub enum ConditionPath {
     Glob(RcStr),
     Regex(ResolvedVc<EsRegex>),
@@ -104,7 +109,9 @@ impl WebpackLoaderBuiltinConditionSet for EmptyWebpackLoaderBuiltinConditionSet 
 
 /// The kind of decorators transform to use.
 /// [TODO]: might need bikeshed for the name (Ecma)
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+#[derive(
+    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, Encode, Decode,
+)]
 pub enum DecoratorsKind {
     Legacy,
     Ecma,

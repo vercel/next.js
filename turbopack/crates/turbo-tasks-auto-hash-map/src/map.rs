@@ -5,6 +5,13 @@ use std::{
     marker::PhantomData,
 };
 
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 use hashbrown::hash_map::HashMap;
 use rustc_hash::FxHasher;
 use serde::{
@@ -54,7 +61,7 @@ impl<K, V> AutoMap<K, V, BuildHasherDefault<FxHasher>, 0> {
     }
 }
 
-impl<K, V, H: BuildHasher, const I: usize> AutoMap<K, V, H, I> {
+impl<K, V, H, const I: usize> AutoMap<K, V, H, I> {
     /// see [HashMap::with_hasher](https://doc.rust-lang.org/std/collections/hash_map/struct.HashMap.html#method.with_hasher)
     pub const fn with_hasher() -> Self {
         AutoMap::List(SmallVec::new_const())
@@ -812,6 +819,56 @@ where
         })
     }
 }
+
+impl<K, V, H, const I: usize> Encode for AutoMap<K, V, H, I>
+where
+    K: Encode,
+    V: Encode,
+{
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        // Encode the length first
+        self.len().encode(encoder)?;
+        // Then encode each key-value tuple
+        for entry in self.iter() {
+            entry.encode(encoder)?;
+        }
+        Ok(())
+    }
+}
+
+impl<Context, K, V, H, const I: usize> Decode<Context> for AutoMap<K, V, H, I>
+where
+    K: Decode<Context> + Eq + Hash,
+    V: Decode<Context>,
+    H: BuildHasher + Default,
+{
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let len = usize::decode(decoder)?;
+        if len <= MAX_LIST_SIZE {
+            let mut list = SmallVec::with_capacity(len);
+            for _ in 0..len {
+                let entry = <(K, V)>::decode(decoder)?;
+                list.push(entry);
+            }
+            Ok(AutoMap::List(list))
+        } else {
+            let mut map = HashMap::with_capacity_and_hasher(len, H::default());
+            for _ in 0..len {
+                let (key, value) = <(K, V)>::decode(decoder)?;
+                map.insert(key, value);
+            }
+            Ok(AutoMap::Map(Box::new(map)))
+        }
+    }
+}
+
+impl_borrow_decode!(
+    AutoMap<K, V, H, I>,
+    K: Decode<__Context> + Eq + Hash,
+    V: Decode<__Context>,
+    H: BuildHasher + Default,
+    const I: usize,
+);
 
 impl<K: Eq + Hash, V: Eq, H: BuildHasher, const I: usize> PartialEq for AutoMap<K, V, H, I> {
     fn eq(&self, other: &Self) -> bool {

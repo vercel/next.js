@@ -5,8 +5,9 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use patricia_tree::PatriciaMap;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue,
@@ -24,9 +25,15 @@ use super::pattern::Pattern;
 ///
 /// If the pattern does not have a wildcard character, it will only match the
 /// exact string, and return the template as-is.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Encode, Decode)]
 #[serde(transparent)]
+#[bincode(
+    encode_bounds = "T: Serialize",
+    decode_bounds = "T: DeserializeOwned",
+    borrow_decode_bounds = "T: Deserialize<'__de>"
+)]
 pub struct AliasMap<T> {
+    #[bincode(with_serde)]
     map: PatriciaMap<BTreeMap<AliasKey, T>>,
 }
 

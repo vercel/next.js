@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use next_core::emit_assets;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -25,6 +26,8 @@ use turbopack_core::{
     Deserialize,
     Debug,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 struct MapEntry {
     assets_operation: OperationVc<ExpandedOutputAssets>,
@@ -38,19 +41,48 @@ unsafe impl OperationValue for MapEntry {}
 #[turbo_tasks::value(transparent, operation)]
 struct OptionMapEntry(Option<MapEntry>);
 
-#[turbo_tasks::value]
-#[derive(Debug)]
+#[derive(
+    Clone,
+    TraceRawVcs,
+    PartialEq,
+    Eq,
+    ValueDebugFormat,
+    Serialize,
+    Deserialize,
+    Debug,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
 pub struct PathToOutputOperation(
     /// We need to use an operation for outputs as it's stored for later usage and we want to
     /// reconnect this operation when it's received from the map again.
     ///
-    /// It may not be 100% correct for the key (`FileSystemPath`) to be in a `ResolvedVc` here, but
-    /// it's impractical to make it an `OperationVc`/`OperationValue`, and it's unlikely to
+    /// It may not be 100% correct for the key (`FileSystemPath`) to contain a `ResolvedVc` here,
+    /// but it's impractical to make it an `OperationVc`/`OperationValue`, and it's unlikely to
     /// change/break?
-    FxHashMap<FileSystemPath, FxIndexSet<OperationVc<ExpandedOutputAssets>>>,
+    FxHashMap<FileSystemPath, ExpandedOutputAssetsOperationSet>,
 );
 
-// HACK: This is technically incorrect because the map's key is a `ResolvedVc`...
+#[derive(
+    Clone,
+    Default,
+    TraceRawVcs,
+    PartialEq,
+    Eq,
+    ValueDebugFormat,
+    Serialize,
+    Deserialize,
+    Debug,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
+struct ExpandedOutputAssetsOperationSet(
+    #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<OperationVc<ExpandedOutputAssets>>,
+);
+
+// HACK: This is technically incorrect because the map's key contains a `ResolvedVc`...
 unsafe impl OperationValue for PathToOutputOperation {}
 
 // A precomputed map for quick access to output asset by filepath
@@ -133,7 +165,12 @@ impl VersionedContentMap {
             let mut stale_assets = map.0.keys().cloned().collect::<FxHashSet<_>>();
 
             for (k, _) in entries.iter().flatten() {
-                let res = map.0.entry(k.clone()).or_default().insert(assets_operation);
+                let res = map
+                    .0
+                    .entry(k.clone())
+                    .or_default()
+                    .0
+                    .insert(assets_operation);
                 stale_assets.remove(k);
                 changed = changed || res;
             }
@@ -145,6 +182,7 @@ impl VersionedContentMap {
                     .get_mut(k)
                     // guaranteed
                     .unwrap()
+                    .0
                     .swap_remove(&assets_operation);
                 changed = changed || res
             }
@@ -235,7 +273,7 @@ impl VersionedContentMap {
     fn raw_get(&self, path: FileSystemPath) -> Vc<OptionMapEntry> {
         let assets = {
             let map = &self.map_path_to_op.get().0;
-            map.get(&path).and_then(|m| m.iter().next().copied())
+            map.get(&path).and_then(|m| m.0.iter().next().copied())
         };
         let Some(assets) = assets else {
             return Vc::cell(None);

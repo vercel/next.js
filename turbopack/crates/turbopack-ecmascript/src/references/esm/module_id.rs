@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use swc_core::quote;
 use turbo_rcstr::RcStr;
@@ -11,11 +12,13 @@ use turbopack_core::{
     resolve::ModuleResolveResult,
 };
 
-use super::{EsmAssetReference, base::ReferencedAsset};
 use crate::{
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
+    references::{
+        AstPath,
+        esm::{EsmAssetReference, base::ReferencedAsset},
+    },
     utils::module_id_to_lit,
 };
 
@@ -74,7 +77,17 @@ impl IntoCodeGenReference for EsmModuleIdAssetReference {
 }
 
 #[derive(
-    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    ValueDebugFormat,
+    NonLocalValue,
+    Hash,
+    Debug,
+    Encode,
+    Decode,
 )]
 pub struct EsmModuleIdAssetReferenceCodeGen {
     path: AstPath,

@@ -1,6 +1,12 @@
 use std::{borrow::Cow, io::Write, ops::Deref, sync::Arc};
 
 use anyhow::Result;
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+};
 use bytes_str::BytesStr;
 use either::Either;
 use once_cell::sync::Lazy;
@@ -693,3 +699,24 @@ impl<'de> Deserialize<'de> for CrateMapWrapper {
         Ok(CrateMapWrapper(map))
     }
 }
+
+impl Encode for CrateMapWrapper {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        let mut bytes = Vec::new();
+        self.0
+            .to_writer(&mut bytes)
+            .map_err(|e| EncodeError::OtherString(e.to_string()))?;
+        bytes.encode(encoder)
+    }
+}
+
+impl<Context> Decode<Context> for CrateMapWrapper {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let bytes = Vec::<u8>::decode(decoder)?;
+        let map = DecodedMap::from_reader(&*bytes)
+            .map_err(|e| DecodeError::OtherString(e.to_string()))?;
+        Ok(CrateMapWrapper(map))
+    }
+}
+
+bincode::impl_borrow_decode!(CrateMapWrapper);

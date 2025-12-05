@@ -30,6 +30,7 @@ lmdb = ["dep:lmdb-rkv"]
 
 [dependencies]
 anyhow = { workspace = true }
+bincode = { workspace = true }
 arc-swap = { version = "1.7.1" }
 auto-hash-map = { workspace = true }
 bitfield = { workspace = true }

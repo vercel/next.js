@@ -14,6 +14,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+bincode = { workspace = true }
 once_cell = { workspace = true }
 regex = { workspace = true, features = ["pattern"] }
 serde = { workspace = true }

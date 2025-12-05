@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -294,7 +295,16 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
 }
 
 #[derive(
-    Clone, Serialize, Deserialize, Eq, PartialEq, ValueDebugFormat, TraceRawVcs, NonLocalValue,
+    Clone,
+    Serialize,
+    Deserialize,
+    Eq,
+    PartialEq,
+    ValueDebugFormat,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct ResolvedReference {
     pub chunking_type: ChunkingType,

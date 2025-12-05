@@ -3,6 +3,13 @@ use std::{
     sync::{Arc, Weak},
 };
 
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 use serde::{Deserialize, Serialize, de::Visitor};
 use tokio::runtime::Handle;
 
@@ -94,3 +101,21 @@ impl<'de> Deserialize<'de> for SerializationInvalidator {
         deserializer.deserialize_newtype_struct("SerializationInvalidator", V)
     }
 }
+
+impl Encode for SerializationInvalidator {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        Encode::encode(&self.task, encoder)
+    }
+}
+
+impl<Context> Decode<Context> for SerializationInvalidator {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(SerializationInvalidator {
+            task: Decode::decode(decoder)?,
+            turbo_tasks: with_turbo_tasks(Arc::downgrade),
+            handle: tokio::runtime::Handle::current(),
+        })
+    }
+}
+
+impl_borrow_decode!(SerializationInvalidator);

@@ -12,6 +12,7 @@ use std::{
 };
 
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
@@ -38,6 +39,8 @@ pub use crate::next_app::{
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum PageSegment {
     /// e.g. `/dashboard`
@@ -143,6 +146,8 @@ impl Display for PageSegment {
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum PageType {
     Page,
@@ -173,6 +178,8 @@ impl Display for PageType {
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct AppPage(pub Vec<PageSegment>);
 
@@ -357,6 +364,8 @@ impl PartialOrd for AppPage {
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum PathSegment {
     /// e.g. `/dashboard`
@@ -409,6 +418,8 @@ impl Display for PathSegment {
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct AppPath(pub Vec<PathSegment>);
 

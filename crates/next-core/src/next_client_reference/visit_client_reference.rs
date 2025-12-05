@@ -1,6 +1,7 @@
 use std::future::Future;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
@@ -36,6 +37,8 @@ use crate::{
     ValueDebugFormat,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct ClientReference {
     pub server_component: Option<ResolvedVc<NextServerComponentModule>>,
@@ -54,6 +57,8 @@ pub struct ClientReference {
     ValueDebugFormat,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum ClientReferenceType {
     EcmascriptClientReference(ResolvedVc<EcmascriptClientReferenceModule>),

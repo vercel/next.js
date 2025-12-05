@@ -1,6 +1,7 @@
 use std::{future::Future, hash::Hash, ops::Deref};
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use either::Either;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -49,7 +50,18 @@ pub async fn attach_async_info_to_chunkable_module(
 }
 
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue, TaskInput,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum ChunkItemOrBatchWithAsyncModuleInfo {
     ChunkItem(ChunkItemWithAsyncModuleInfo),

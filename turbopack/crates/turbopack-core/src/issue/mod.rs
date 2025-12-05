@@ -10,6 +10,7 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use auto_hash_map::AutoSet;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -290,6 +291,8 @@ impl CapturedIssues {
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct IssueSource {
     source: ResolvedVc<Box<dyn Source>>,
@@ -309,6 +312,8 @@ pub struct IssueSource {
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 enum SourceRange {
     LineColumn(SourcePos, SourcePos),

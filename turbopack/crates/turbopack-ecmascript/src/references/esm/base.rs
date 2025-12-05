@@ -35,7 +35,6 @@ use turbopack_core::{
 };
 use turbopack_resolve::ecmascript::esm_resolve;
 
-use super::export::{all_known_export_names, is_export_missing};
 use crate::{
     EcmascriptModuleAsset, ScopeHoistingContext, TreeShakingMode,
     analyzer::imports::ImportAnnotations,
@@ -43,7 +42,13 @@ use crate::{
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     export::Liveness,
     magic_identifier,
-    references::{esm::EsmExport, util::throw_module_not_found_expr},
+    references::{
+        esm::{
+            EsmExport,
+            export::{all_known_export_names, is_export_missing},
+        },
+        util::throw_module_not_found_expr,
+    },
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
     tree_shake::{TURBOPACK_PART_IMPORT_SOURCE, asset::EcmascriptModulePartAsset},
     utils::module_id_to_lit,

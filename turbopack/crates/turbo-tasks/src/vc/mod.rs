@@ -17,6 +17,7 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use shrink_to_fit::ShrinkToFit;
 
@@ -161,8 +162,9 @@ type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 /// [book-cells]: https://turbopack-rust-docs.vercel.sh/turbo-engine/cells.html
 /// [collectibles]: crate::CollectiblesSource
 #[must_use]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Encode, Decode)]
 #[serde(transparent, bound = "")]
+#[bincode(bounds = "T: ?Sized")]
 #[repr(transparent)]
 pub struct Vc<T>
 where

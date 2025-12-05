@@ -10,6 +10,7 @@ bench = false
 
 [dependencies]
 anyhow = { workspace = true }
+bincode = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 turbo-rcstr = { workspace = true }

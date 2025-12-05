@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use next_taskless::NEVER_EXTERNAL_RE;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
@@ -333,7 +334,9 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
     }
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, Debug, NonLocalValue)]
+#[derive(
+    Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode,
+)]
 pub struct PackagesGlobs {
     path_glob: ResolvedVc<Glob>,
     request_glob: ResolvedVc<Glob>,

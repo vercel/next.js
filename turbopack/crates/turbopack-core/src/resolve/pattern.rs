@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -1498,6 +1499,8 @@ impl ValueToString for Pattern {
     Deserialize,
     ValueDebugFormat,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum PatternMatch {
     File(RcStr, FileSystemPath),

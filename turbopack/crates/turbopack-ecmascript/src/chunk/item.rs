@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use turbo_rcstr::{RcStr, rcstr};
@@ -40,6 +41,8 @@ use crate::{
     TaskInput,
     NonLocalValue,
     Default,
+    Encode,
+    Decode,
 )]
 pub enum RewriteSourcePath {
     AbsoluteFilePath(FileSystemPath),
@@ -177,7 +180,17 @@ impl EcmascriptChunkItemContent {
 }
 
 #[derive(
-    PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+    PartialEq,
+    Eq,
+    Default,
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item should be in "use strict" mode.
@@ -195,7 +208,18 @@ pub struct EcmascriptChunkItemOptions {
 }
 
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    TaskInput,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct EcmascriptChunkItemWithAsyncInfo {
     pub chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,

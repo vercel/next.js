@@ -6,6 +6,13 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 use indexmap::map::Entry;
 use serde::{Deserialize, Serialize, de::Visitor};
 use tokio::runtime::Handle;
@@ -143,6 +150,24 @@ impl<'de> Deserialize<'de> for Invalidator {
         deserializer.deserialize_newtype_struct("Invalidator", V)
     }
 }
+
+impl Encode for Invalidator {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        Encode::encode(&self.task, encoder)
+    }
+}
+
+impl<Context> Decode<Context> for Invalidator {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(Invalidator {
+            task: Decode::decode(decoder)?,
+            turbo_tasks: with_turbo_tasks(Arc::downgrade),
+            handle: tokio::runtime::Handle::current(),
+        })
+    }
+}
+
+impl_borrow_decode!(Invalidator);
 
 /// A user-facing reason why a task was invalidated. This should only be used
 /// for invalidation that were triggered by the user.

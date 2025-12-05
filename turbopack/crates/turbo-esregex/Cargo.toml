@@ -6,6 +6,7 @@ license = "MIT"
 
 [dependencies]
 anyhow = { workspace = true }
+bincode = { workspace = true }
 regex = { workspace = true }
 regress = { workspace = true }
 serde = { workspace = true }

@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use indexmap::map::{Entry, OccupiedEntry};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -86,7 +87,9 @@ impl AppDirModules {
 }
 
 /// A single metadata file plus an optional "alt" text file.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
+#[derive(
+    Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode,
+)]
 pub enum MetadataWithAltItem {
     Static {
         path: FileSystemPath,
@@ -99,7 +102,18 @@ pub enum MetadataWithAltItem {
 
 /// A single metadata file.
 #[derive(
-    Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs, NonLocalValue,
+    Clone,
+    Debug,
+    Hash,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum MetadataItem {
     Static { path: FileSystemPath },
@@ -146,7 +160,17 @@ impl From<MetadataWithAltItem> for MetadataItem {
 
 /// Metadata file that can be placed in any segment of the app directory.
 #[derive(
-    Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue,
+    Default,
+    Clone,
+    Debug,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct Metadata {
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
@@ -412,6 +436,7 @@ async fn get_directory_tree_internal(
 pub struct AppPageLoaderTree {
     pub page: AppPage,
     pub segment: RcStr,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub parallel_routes: FxIndexMap<RcStr, AppPageLoaderTree>,
     pub modules: AppDirModules,
     pub global_metadata: ResolvedVc<GlobalMetadata>,
@@ -516,6 +541,8 @@ impl ValueDefault for FileSystemPathVec {
     Debug,
     TaskInput,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum Entrypoint {
     AppPage {
@@ -554,7 +581,9 @@ impl Entrypoint {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Entrypoints(FxIndexMap<AppPath, Entrypoint>);
+pub struct Entrypoints(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<AppPath, Entrypoint>,
+);
 
 fn is_parallel_route(name: &str) -> bool {
     name.starts_with('@')
@@ -768,7 +797,7 @@ pub fn get_entrypoints(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct CollectedRootParams(FxIndexSet<RcStr>);
+pub struct CollectedRootParams(#[bincode(with = "turbo_bincode::indexset")] FxIndexSet<RcStr>);
 
 #[turbo_tasks::function]
 pub async fn collect_root_params(

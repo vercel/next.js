@@ -22,10 +22,13 @@ use crate::{
 
 #[turbo_tasks::value]
 pub struct ClientReferencesChunks {
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub client_component_client_chunks:
         FxIndexMap<ClientReferenceType, ResolvedVc<ChunkGroupResult>>,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub client_component_ssr_chunks:
         FxIndexMap<ClientReferenceType, ResolvedVc<OutputAssetsWithReferenced>>,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub layout_segment_client_chunks:
         FxIndexMap<ResolvedVc<NextServerComponentModule>, ResolvedVc<OutputAssetsWithReferenced>>,
 }

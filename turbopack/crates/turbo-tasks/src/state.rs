@@ -6,6 +6,7 @@ use std::{
 };
 
 use auto_hash_map::AutoSet;
+use bincode::{Decode, Encode};
 use parking_lot::{Mutex, MutexGuard};
 use serde::{Deserialize, Serialize};
 use tracing::trace_span;
@@ -15,7 +16,7 @@ use crate::{
     mark_stateful, trace::TraceRawVcs,
 };
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Encode, Decode)]
 struct StateInner<T> {
     value: T,
     invalidators: AutoSet<Invalidator>,
@@ -102,6 +103,41 @@ impl<T> Drop for StateRef<'_, T> {
     }
 }
 
+mod parking_lot_mutex_bincode {
+    use bincode::{
+        BorrowDecode,
+        de::{BorrowDecoder, Decoder},
+        enc::Encoder,
+        error::{DecodeError, EncodeError},
+    };
+
+    use super::*;
+
+    pub fn encode<T: Encode, E: Encoder>(
+        mutex: &Mutex<T>,
+        encoder: &mut E,
+    ) -> Result<(), EncodeError> {
+        mutex.lock().encode(encoder)
+    }
+
+    pub fn decode<Context, T: Decode<Context>, D: Decoder<Context = Context>>(
+        decoder: &mut D,
+    ) -> Result<Mutex<T>, DecodeError> {
+        Ok(Mutex::new(T::decode(decoder)?))
+    }
+
+    pub fn borrow_decode<
+        'de,
+        Context,
+        T: BorrowDecode<'de, Context>,
+        D: BorrowDecoder<'de, Context = Context>,
+    >(
+        decoder: &mut D,
+    ) -> Result<Mutex<T>, DecodeError> {
+        Ok(Mutex::new(T::borrow_decode(decoder)?))
+    }
+}
+
 /// **This API violates core assumption of turbo-tasks, is believed to be unsound, and there's no
 /// plan fix it.** You should prefer to use [collectibles][crate::CollectiblesSource] instead of
 /// state where at all possible. This API may be removed in the future.
@@ -125,9 +161,10 @@ impl<T> Drop for StateRef<'_, T> {
 /// [strong consistency]: crate::OperationVc::read_strongly_consistent
 /// [`OperationVc`]: crate::OperationVc
 /// [`OperationValue`]: crate::OperationValue
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Encode, Decode)]
 pub struct State<T> {
     serialization_invalidator: SerializationInvalidator,
+    #[bincode(with = "parking_lot_mutex_bincode")]
     inner: Mutex<StateInner<T>>,
 }
 
@@ -235,29 +272,16 @@ impl<T: PartialEq> State<T> {
     }
 }
 
+#[derive(Serialize, Deserialize, Encode, Decode)]
+#[bincode(bounds = "")]
 pub struct TransientState<T> {
+    #[serde(skip, default = "default_transient_state_inner")]
+    #[bincode(skip, default = "default_transient_state_inner")]
     inner: Mutex<StateInner<Option<T>>>,
 }
 
-impl<T> Serialize for TransientState<T> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        Serialize::serialize(&(), serializer)
-    }
-}
-
-impl<'de, T> Deserialize<'de> for TransientState<T> {
-    fn deserialize<D>(deserializer: D) -> Result<TransientState<T>, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let () = Deserialize::deserialize(deserializer)?;
-        Ok(TransientState {
-            inner: Mutex::new(StateInner::new(Default::default())),
-        })
-    }
+fn default_transient_state_inner<T>() -> Mutex<StateInner<Option<T>>> {
+    Mutex::new(StateInner::new(None))
 }
 
 impl<T: Debug> Debug for TransientState<T> {

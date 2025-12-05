@@ -32,7 +32,7 @@ pub fn route_bootstrap(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct BootstrapConfig(FxIndexMap<String, String>);
+pub struct BootstrapConfig(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, String>);
 
 #[turbo_tasks::value_impl]
 impl BootstrapConfig {

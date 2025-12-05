@@ -20,6 +20,7 @@
 //!      won't occur
 
 use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use next_core::{
     next_app::ClientReferencesChunks, next_client_reference::EcmascriptClientReferenceModule,
     next_dynamic::NextDynamicEntryModule,
@@ -102,6 +103,7 @@ pub(crate) async fn collect_next_dynamic_chunks(
 #[turbo_tasks::value(transparent)]
 #[derive(Default)]
 pub struct DynamicImportedChunks(
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub  FxIndexMap<
         ResolvedVc<NextDynamicEntryModule>,
         (ResolvedVc<ModuleId>, ResolvedVc<OutputAssetsWithReferenced>),
@@ -109,7 +111,16 @@ pub struct DynamicImportedChunks(
 );
 
 #[derive(
-    Clone, PartialEq, Eq, ValueDebugFormat, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+    Clone,
+    PartialEq,
+    Eq,
+    ValueDebugFormat,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum DynamicImportEntriesMapType {
     DynamicEntry(ResolvedVc<NextDynamicEntryModule>),
@@ -118,7 +129,8 @@ pub enum DynamicImportEntriesMapType {
 
 #[turbo_tasks::value(transparent)]
 pub struct DynamicImportEntries(
-    pub FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportEntriesMapType>,
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub  FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportEntriesMapType>,
 );
 
 #[turbo_tasks::function]

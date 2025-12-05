@@ -45,6 +45,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, anyhow, bail};
+use bincode::{Decode, Encode};
 use chunk::EcmascriptChunkItem;
 use code_gen::{CodeGeneration, CodeGenerationHoistedStmt};
 use either::Either;
@@ -144,6 +145,8 @@ use crate::{
     NonLocalValue,
     Serialize,
     Deserialize,
+    Encode,
+    Decode,
 )]
 pub enum SpecifiedModuleType {
     #[default]
@@ -167,6 +170,8 @@ pub enum SpecifiedModuleType {
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum TreeShakingMode {
@@ -190,6 +195,8 @@ pub enum TreeShakingMode {
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum AnalyzeMode {
     /// For bundling only, no tracing of referenced files.
@@ -233,6 +240,8 @@ pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum TypeofWindow {
     Object,

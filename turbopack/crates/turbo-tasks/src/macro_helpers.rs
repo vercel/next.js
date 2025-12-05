@@ -1,6 +1,7 @@
 //! Runtime helpers for [turbo-tasks-macro].
 
 pub use async_trait::async_trait;
+pub use bincode;
 pub use once_cell::sync::{Lazy, OnceCell};
 use rustc_hash::FxHashMap;
 pub use serde;

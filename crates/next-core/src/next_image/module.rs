@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, fxindexmap, trace::TraceRawVcs};
@@ -26,6 +27,8 @@ use super::source_asset::StructuredImageFileSource;
     NonLocalValue,
     Serialize,
     Deserialize,
+    Encode,
+    Decode,
 )]
 pub enum BlurPlaceholderMode {
     /// Do not generate a blur placeholder at all.

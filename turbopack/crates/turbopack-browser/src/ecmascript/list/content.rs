@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use either::Either;
 use indoc::writedoc;
 use serde::{Deserialize, Serialize};
@@ -29,7 +30,9 @@ use crate::chunking_context::{
     CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod,
 };
 
-#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
+#[derive(
+    Clone, Debug, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode,
+)]
 enum CurrentChunkMethodWithData {
     StringLiteral(RcStr),
     DocumentCurrentScript,
@@ -39,6 +42,7 @@ enum CurrentChunkMethodWithData {
 #[turbo_tasks::value]
 pub(super) struct EcmascriptDevChunkListContent {
     current_chunk_method: CurrentChunkMethodWithData,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub(super) chunks_contents: FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
     source: EcmascriptDevChunkListSource,
 }

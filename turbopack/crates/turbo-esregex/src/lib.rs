@@ -3,12 +3,20 @@
 use std::vec;
 
 use anyhow::{Result, bail};
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
+use serde::{Deserialize, Serialize};
 
 /// A simple regular expression implementation following ecmascript semantics
 ///
 /// Delegates to the `regex` crate when possible and `regress` otherwise.
-#[derive(Debug, Clone)]
-#[turbo_tasks::value(eq = "manual", shared)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[turbo_tasks::value(eq = "manual", shared, serialization = "custom")]
 #[serde(into = "RegexForm", try_from = "RegexForm")]
 pub struct EsRegex {
     #[turbo_tasks(trace_ignore)]
@@ -59,6 +67,25 @@ impl From<EsRegex> for RegexForm {
         }
     }
 }
+
+impl Encode for EsRegex {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self.pattern.encode(encoder)?;
+        self.flags.encode(encoder)?;
+        Ok(())
+    }
+}
+
+impl<Context> Decode<Context> for EsRegex {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let pattern: String = Decode::decode(decoder)?;
+        let flags: String = Decode::decode(decoder)?;
+        // TODO: perf: there's cloning happening here, we should be able to just move the `String`
+        EsRegex::new(&pattern, &flags).map_err(|err| DecodeError::OtherString(err.to_string()))
+    }
+}
+
+impl_borrow_decode!(EsRegex);
 
 impl EsRegex {
     /// Support ecmascript style regular expressions by selecting the `regex` crate when possible

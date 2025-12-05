@@ -25,6 +25,7 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 auto-hash-map = { workspace = true }
+bincode = { workspace = true }
 bitflags = "1.3.2"
 bytes = { workspace = true }
 concurrent-queue = { workspace = true }
@@ -46,6 +47,7 @@ serde_path_to_error = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 triomphe = { workspace = true }
+turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }

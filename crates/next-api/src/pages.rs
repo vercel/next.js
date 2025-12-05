@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use futures::future::BoxFuture;
 use next_core::{
     PageLoaderAsset, create_page_loader_entry_module, get_asset_path_from_pathname,
@@ -597,6 +598,8 @@ struct PageEndpoint {
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 enum PageEndpointType {
     Api,

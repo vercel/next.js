@@ -4,6 +4,7 @@ pub mod client_reference_manifest;
 mod encode_uri_component;
 
 use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -32,6 +33,7 @@ pub struct BuildManifest {
 
     pub polyfill_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     pub root_main_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub pages: FxIndexMap<RcStr, ResolvedVc<OutputAssets>>,
 }
 
@@ -164,6 +166,7 @@ pub struct ClientBuildManifest {
     pub output_path: FileSystemPath,
     pub client_relative_path: FileSystemPath,
 
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub pages: FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>,
 }
 
@@ -244,6 +247,8 @@ impl Default for MiddlewaresManifest {
     Serialize,
     Deserialize,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase", default)]
 pub struct ProxyMatcher {
@@ -419,6 +424,8 @@ pub enum ActionManifestModuleId<'a> {
     Serialize,
     Deserialize,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum ActionLayer {
