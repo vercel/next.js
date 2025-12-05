@@ -390,11 +390,28 @@ function commonJsRequire(
 }
 contextPrototype.r = commonJsRequire
 
+/** Remove fragments and query parameters since they are never part of the context map keys */
+function parseRequest(request: string): string {
+  // Per the URI spec fragments can contain `?` characters, so we should trim it off first
+  // https://datatracker.ietf.org/doc/html/rfc3986#section-3.5
+  const hashIndex = request.indexOf('#')
+  if (hashIndex !== -1) {
+    request = request.substring(0, hashIndex)
+  }
+
+  const queryIndex = request.indexOf('?')
+  if (queryIndex !== -1) {
+    request = request.substring(0, queryIndex)
+  }
+
+  return request
+}
 /**
  * `require.context` and require/import expression runtime.
  */
 function moduleContext(map: ModuleContextMap): ModuleContext {
-  function moduleContext(id: ModuleId): Exports {
+  function moduleContext(id: string): Exports {
+    id = parseRequest(id)
     if (hasOwnProperty.call(map, id)) {
       return map[id].module()
     }
@@ -404,11 +421,12 @@ function moduleContext(map: ModuleContextMap): ModuleContext {
     throw e
   }
 
-  moduleContext.keys = (): ModuleId[] => {
+  moduleContext.keys = (): string[] => {
     return Object.keys(map)
   }
 
-  moduleContext.resolve = (id: ModuleId): ModuleId => {
+  moduleContext.resolve = (id: string): ModuleId => {
+    id = parseRequest(id)
     if (hasOwnProperty.call(map, id)) {
       return map[id].id()
     }
@@ -418,7 +436,7 @@ function moduleContext(map: ModuleContextMap): ModuleContext {
     throw e
   }
 
-  moduleContext.import = async (id: ModuleId) => {
+  moduleContext.import = async (id: string) => {
     return await (moduleContext(id) as Promise<Exports>)
   }
 

@@ -2248,6 +2248,9 @@ async fn resolve_relative_request(
     let mut new_path = path_pattern.clone();
 
     if !fragment.is_empty() {
+        // 'fragments' should not be part of the result, however it could be that the user is
+        // attempting to match a file with a '#' character in it.  In that case we need
+        // to look for it which is what this alternation does
         new_path.push(Pattern::Alternatives(vec![
             Pattern::Constant(RcStr::default()),
             Pattern::Constant(fragment.clone()),
@@ -2312,17 +2315,20 @@ async fn resolve_relative_request(
     }
 
     let mut results = Vec::new();
-    eprintln!("read_matches: {new_path:?}");
     let matches = read_matches(
         lookup_path.clone(),
         rcstr!(""),
         force_in_lookup_dir,
-        Pattern::new(new_path).resolve().await?,
+        Pattern::new(new_path.clone()).resolve().await?,
     )
     .await?;
 
+    // This loop is necessary to 'undo' the modifications to 'new_path' that were performed above.
+    // e.g. we added extensions but these shouldn't be part of the request key so remove them
+    // TODO: this logic is not completely correct because it fails to account for the extension
+    // replacement logic that we perform conditionally.
+
     for m in matches.iter() {
-        eprintln!("matched: {m:?}");
         if let PatternMatch::File(matched_pattern, path) = m {
             let mut pushed = false;
             if !options_value.fully_specified {
@@ -2333,10 +2339,10 @@ async fn resolve_relative_request(
 
                     if !fragment.is_empty() {
                         // If the fragment is not empty, we need to strip it from the matched
-                        // pattern
-                        if let Some(matched_pattern) = matched_pattern
-                            .strip_suffix(fragment.as_str())
-                            .and_then(|s| s.strip_suffix('#'))
+                        // pattern so it matches path_pattern
+                        if let Some(matched_pattern) =
+                            matched_pattern.strip_suffix(fragment.as_str())
+                            && path_pattern.is_match(matched_pattern)
                         {
                             results.push(
                                 resolved(
@@ -2354,7 +2360,7 @@ async fn resolve_relative_request(
                             pushed = true;
                         }
                     }
-                    if !pushed && path_pattern.is_match(matched_pattern) {
+                    if path_pattern.is_match(matched_pattern) {
                         results.push(
                             resolved(
                                 RequestKey::new(matched_pattern.into()),
@@ -2373,8 +2379,11 @@ async fn resolve_relative_request(
                 }
             }
             if !fragment.is_empty() {
-                // If the fragment is not empty, we need to strip it from the matched pattern
-                if let Some(matched_pattern) = matched_pattern.strip_suffix(fragment.as_str()) {
+                // If the fragment is not empty, we need to strip it from the matched pattern so it
+                // matches the original pattern
+                if let Some(matched_pattern) = matched_pattern.strip_suffix(fragment.as_str())
+                    && path_pattern.is_match(matched_pattern)
+                {
                     results.push(
                         resolved(
                             RequestKey::new(matched_pattern.into()),
@@ -3463,12 +3472,7 @@ mod tests {
             pattern: rcstr!("./page#section").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
-            expected: vec![
-                // WRONG: request key contains extension
-                ("./page#section.ts", "page#section.ts"),
-                // WRONG: js file should not be produced and the request key is wrong
-                ("./page#section.js", "page#section.js"),
-            ],
+            expected: vec![("./page", "page#section.ts")],
         })
         .await;
     }
