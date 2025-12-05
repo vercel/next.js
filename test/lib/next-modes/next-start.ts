@@ -217,7 +217,7 @@ export class NextStartInstance extends NextInstance {
       )
     }
 
-    return new Promise<{
+    let result = await new Promise<{
       exitCode: NodeJS.Signals | number | null
       cliOutput: string
     }>((resolve) => {
@@ -238,6 +238,21 @@ export class NextStartInstance extends NextInstance {
         })
       })
     })
+
+    this._buildId = (
+      await fs
+        .readFile(
+          path.join(
+            this.testDir,
+            this.nextConfig?.distDir || '.next',
+            'BUILD_ID'
+          ),
+          'utf8'
+        )
+        .catch(() => '')
+    ).trim()
+
+    return result
   }
 
   public async waitForMinPrerenderAge(minAgeMS: number): Promise<void> {
