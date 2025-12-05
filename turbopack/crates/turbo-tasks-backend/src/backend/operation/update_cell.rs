@@ -184,15 +184,17 @@ impl Operation for UpdateCellOperation {
                             // once tasks are never invalidated
                             continue;
                         }
+                        let mut make_stale = true;
                         let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
                         if dependent.has_key(&CachedDataItemKey::OutdatedCellDependency {
                             target: cell_ref,
                         }) {
                             // cell dependency is outdated, so it hasn't read the cell yet
-                            // and doesn't need to be invalidated
-                            continue;
-                        }
-                        if !dependent
+                            // and doesn't need to be invalidated.
+                            // But importantly we still need to make the task dirty as it should no
+                            // longer be considered as "recomputation".
+                            make_stale = false;
+                        } else if !dependent
                             .has_key(&CachedDataItemKey::CellDependency { target: cell_ref })
                         {
                             // cell dependency has been removed, so the task doesn't depend on the
@@ -203,7 +205,7 @@ impl Operation for UpdateCellOperation {
                         make_task_dirty_internal(
                             dependent,
                             dependent_task_id,
-                            true,
+                            make_stale,
                             #[cfg(feature = "trace_task_dirty")]
                             TaskDirtyCause::CellChange {
                                 value_type: cell_ref.cell.type_id,
