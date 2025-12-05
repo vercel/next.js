@@ -1922,7 +1922,6 @@ export default async function build(
               BUILD_ID_FILE,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
-              SERVER_FILES_MANIFEST + '.js',
               SERVER_FILES_MANIFEST + '.json',
             ]
               .filter(nonNullable)
