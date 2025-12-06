@@ -1,14 +1,15 @@
 use std::{any::Any, fmt::Debug, hash::Hash, pin::Pin};
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use futures::Future;
 use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
 use tracing::Span;
+use turbo_bincode::{AnyDecodeFn, AnyEncodeFn};
 
 use crate::{
     RawVc, TaskExecutionReason, TaskInput, TaskPersistence,
-    magic_any::{MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
+    magic_any::{MagicAny, any_as_encode},
     task::{
         IntoTaskFn, TaskFn,
         function::{IntoTaskFnWithThis, NativeTaskFuture},
@@ -24,8 +25,8 @@ type FilterOwnedArgsFunctor = for<'a> fn(Box<dyn MagicAny>) -> Box<dyn MagicAny>
 type FilterAndResolveFunctor = ResolveFunctor;
 
 pub struct ArgMeta {
-    serializer: MagicAnySerializeSeed,
-    deserializer: MagicAnyDeserializeSeed,
+    // TODO: This should be an `Option` with `None` for transient tasks. We can skip some codegen.
+    pub bincode: (AnyEncodeFn, AnyDecodeFn<Box<dyn MagicAny>>),
     is_resolved: IsResolvedFunctor,
     resolve: ResolveFunctor,
     /// Used for trait methods, filters out unused arguments.
@@ -43,7 +44,7 @@ pub struct ArgMeta {
 impl ArgMeta {
     pub fn new<T>() -> Self
     where
-        T: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
+        T: TaskInput + Encode + Decode<()> + 'static,
     {
         fn noop_filter_args(args: Box<dyn MagicAny>) -> Box<dyn MagicAny> {
             args
@@ -56,24 +57,24 @@ impl ArgMeta {
         filter_and_resolve: FilterAndResolveFunctor,
     ) -> Self
     where
-        T: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
+        T: TaskInput + Encode + Decode<()> + 'static,
     {
         Self {
-            serializer: MagicAnySerializeSeed::new::<T>(),
-            deserializer: MagicAnyDeserializeSeed::new::<T>(),
+            bincode: (
+                |this, enc| {
+                    T::encode(any_as_encode::<T>(this), enc)?;
+                    Ok(())
+                },
+                |dec| {
+                    let val = T::decode(dec)?;
+                    Ok(Box::new(val))
+                },
+            ),
             is_resolved: |value| downcast_args_ref::<T>(value).is_resolved(),
             resolve: resolve_functor_impl::<T>,
             filter_owned,
             filter_and_resolve,
         }
-    }
-
-    pub fn deserialization_seed(&self) -> MagicAnyDeserializeSeed {
-        self.deserializer
-    }
-
-    pub fn as_serialize<'a>(&self, value: &'a dyn MagicAny) -> &'a dyn erased_serde::Serialize {
-        self.serializer.as_serialize(value)
     }
 
     pub fn is_resolved(&self, value: &dyn MagicAny) -> bool {
@@ -174,7 +175,7 @@ impl NativeFunction {
         implementation: impl IntoTaskFn<Mode, Inputs>,
     ) -> Self
     where
-        Inputs: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
+        Inputs: TaskInput + Encode + Decode<()> + 'static,
     {
         Self {
             name,
@@ -191,7 +192,7 @@ impl NativeFunction {
         implementation: I,
     ) -> Self
     where
-        Inputs: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
+        Inputs: TaskInput + Encode + Decode<()> + 'static,
         I: IntoTaskFn<Mode, Inputs>,
     {
         Self {
@@ -214,7 +215,7 @@ impl NativeFunction {
     ) -> Self
     where
         This: Sync + Send + 'static,
-        Inputs: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
+        Inputs: TaskInput + Encode + Decode<()> + 'static,
         I: IntoTaskFnWithThis<Mode, This, Inputs>,
     {
         Self {

@@ -59,6 +59,7 @@ import {
   handleChromeDevtoolsWorkspaceRequest,
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
+import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -118,9 +119,13 @@ export async function initialize(opts: {
 
   const renderServer: LazyRenderServerInstance = {}
 
-  let developmentBundler: DevBundler | undefined
-
-  let devBundlerService: DevBundlerService | undefined
+  let development:
+    | {
+        bundler: DevBundler
+        service: DevBundlerService
+        config: NextConfigComplete
+      }
+    | undefined = undefined
 
   let originalFetch = globalThis.fetch
 
@@ -146,7 +151,11 @@ export async function initialize(opts: {
     const setupDevBundlerSpan = opts.startServerSpan
       ? opts.startServerSpan.traceChild('setup-dev-bundler')
       : trace('setup-dev-bundler')
-    developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
+
+    // In development, it's always the complete config.
+    let developmentConfig = config as NextConfigComplete
+
+    let developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
       setupDevBundler({
         // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
         renderServer,
@@ -155,7 +164,7 @@ export async function initialize(opts: {
         telemetry,
         fsChecker,
         dir: opts.dir,
-        nextConfig: config,
+        nextConfig: developmentConfig,
         isCustomServer: opts.customServer,
         turbo: !!process.env.TURBOPACK,
         port: opts.port,
@@ -164,7 +173,7 @@ export async function initialize(opts: {
       })
     )
 
-    devBundlerService = new DevBundlerService(
+    let devBundlerService = new DevBundlerService(
       developmentBundler,
       // The request handler is assigned below, this allows us to create a lazy
       // reference to it.
@@ -172,6 +181,12 @@ export async function initialize(opts: {
         return requestHandlers[opts.dir](req, res)
       }
     )
+
+    development = {
+      bundler: developmentBundler,
+      service: devBundlerService,
+      config: developmentConfig,
+    }
   }
 
   renderServer.instance =
@@ -328,8 +343,15 @@ export async function initialize(opts: {
       }
 
       // handle hot-reloader first
-      if (developmentBundler) {
-        if (blockCrossSite(req, res, config.allowedDevOrigins, opts.hostname)) {
+      if (development) {
+        if (
+          blockCrossSite(
+            req,
+            res,
+            development.config.allowedDevOrigins,
+            opts.hostname
+          )
+        ) {
           return
         }
 
@@ -348,7 +370,7 @@ export async function initialize(opts: {
 
         const parsedUrl = url.parse(req.url || '/')
 
-        const hotReloaderResult = await developmentBundler.hotReloader.run(
+        const hotReloaderResult = await development.bundler.hotReloader.run(
           req,
           res,
           parsedUrl
@@ -380,7 +402,7 @@ export async function initialize(opts: {
         return
       }
 
-      if (developmentBundler && matchedOutput?.type === 'devVirtualFsItem') {
+      if (development && matchedOutput?.type === 'devVirtualFsItem') {
         const origUrl = req.url || '/'
 
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
@@ -397,7 +419,7 @@ export async function initialize(opts: {
             res.setHeader(key, resHeaders[key])
           }
         }
-        const result = await developmentBundler.requestHandler(req, res)
+        const result = await development.bundler.requestHandler(req, res)
 
         if (result.finished) {
           return
@@ -576,7 +598,7 @@ export async function initialize(opts: {
       }
 
       // We want the original pathname without any basePath or proxy rewrites.
-      if (opts.dev && isChromeDevtoolsWorkspaceUrl(req.url)) {
+      if (development && isChromeDevtoolsWorkspaceUrl(req.url)) {
         await handleChromeDevtoolsWorkspaceRequest(res, opts, config)
         return
       }
@@ -625,7 +647,7 @@ export async function initialize(opts: {
       }
 
       const appNotFound = opts.dev
-        ? developmentBundler?.serverFields.hasAppNotFound
+        ? development?.bundler?.serverFields.hasAppNotFound
         : await fsChecker.getItem(UNDERSCORE_NOT_FOUND_ROUTE)
 
       res.statusCode = 404
@@ -692,12 +714,14 @@ export async function initialize(opts: {
     dev: !!opts.dev,
     server: opts.server,
     serverFields: {
-      ...(developmentBundler?.serverFields || {}),
-      setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
+      ...(development?.bundler?.serverFields || {}),
+      setIsrStatus: development?.service?.setIsrStatus.bind(
+        development?.service
+      ),
     } satisfies ServerFields,
     experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
-    bundlerService: devBundlerService,
+    bundlerService: development?.service,
     startServerSpan: opts.startServerSpan,
     quiet: opts.quiet,
     onDevServerCleanup: opts.onDevServerCleanup,
@@ -715,7 +739,7 @@ export async function initialize(opts: {
   const relativeProjectDir = path.relative(process.cwd(), opts.dir)
 
   routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
-    nextConfig: config,
+    nextConfig: getNextConfigRuntime(config),
     hostname: handlers.server.hostname,
     revalidate: handlers.server.revalidate.bind(handlers.server),
     render404: handlers.server.render404.bind(handlers.server),
@@ -724,14 +748,15 @@ export async function initialize(opts: {
       ? handlers.server.logErrorWithOriginalStack.bind(handlers.server)
       : (err: unknown) => !opts.quiet && Log.error(err),
     setCacheStatus: config.cacheComponents
-      ? devBundlerService?.setCacheStatus.bind(devBundlerService)
+      ? development?.service?.setCacheStatus.bind(development?.service)
       : undefined,
-    setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
-    setReactDebugChannel: config.experimental.reactDebugChannel
-      ? devBundlerService?.setReactDebugChannel.bind(devBundlerService)
+    setIsrStatus: development?.service?.setIsrStatus.bind(development?.service),
+    setReactDebugChannel: development?.config.experimental.reactDebugChannel
+      ? development?.service?.setReactDebugChannel.bind(development?.service)
       : undefined,
-    sendErrorsToBrowser:
-      devBundlerService?.sendErrorsToBrowser.bind(devBundlerService),
+    sendErrorsToBrowser: development?.service?.sendErrorsToBrowser.bind(
+      development?.service
+    ),
   }
 
   const logError = async (
@@ -759,7 +784,7 @@ export async function initialize(opts: {
     opts,
     renderServer.instance,
     renderServerOpts,
-    developmentBundler?.ensureMiddleware
+    development?.bundler?.ensureMiddleware
   )
 
   const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
@@ -773,9 +798,14 @@ export async function initialize(opts: {
         // console.error(_err);
       })
 
-      if (opts.dev && developmentBundler && req.url) {
+      if (opts.dev && development && req.url) {
         if (
-          blockCrossSite(req, socket, config.allowedDevOrigins, opts.hostname)
+          blockCrossSite(
+            req,
+            socket,
+            development.config.allowedDevOrigins,
+            opts.hostname
+          )
         ) {
           return
         }
@@ -802,7 +832,7 @@ export async function initialize(opts: {
         // only handle HMR requests if the basePath in the request
         // matches the basePath for the handler responding to the request
         if (isHMRRequest) {
-          return developmentBundler.hotReloader.onHMR(
+          return development.bundler.hotReloader.onHMR(
             req,
             socket,
             head,
@@ -818,7 +848,7 @@ export async function initialize(opts: {
                 client.send(
                   JSON.stringify({
                     type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST,
-                    data: devBundlerService?.appIsrManifest || {},
+                    data: development.service?.appIsrManifest || {},
                   } satisfies AppIsrManifestMessage)
                 )
               }
@@ -864,7 +894,7 @@ export async function initialize(opts: {
     upgradeHandler,
     server: handlers.server,
     closeUpgraded() {
-      developmentBundler?.hotReloader?.close()
+      development?.bundler?.hotReloader?.close()
     },
   }
 }
