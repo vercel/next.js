@@ -3,14 +3,17 @@ use std::{
     collections::BTreeMap,
     fmt::{Display, Formatter, Write},
     future::Future,
-    iter::once,
+    iter::{empty, once},
 };
 
 use anyhow::{Result, bail};
 use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
+use either::Either;
+use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use tracing::{Instrument, Level};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -2247,10 +2250,121 @@ async fn resolve_relative_request(
 
     let mut new_path = path_pattern.clone();
 
+    // A small tree to 'undo' the set of modifications we make to patterns, ensuring that we produce
+    // correct request keys
+    #[derive(Eq, PartialEq, Clone, Hash, Debug)]
+    enum PatternModification {
+        /// A leaf node for 'no change'
+        None,
+        /// We added a fragment to the request and thus need to potentially remove it when matching
+        AddedFragment,
+        // We added an extension to the request and thus need to potentially remove it when
+        // matching
+        AddedExtension {
+            /// The extension that was added
+            ext: RcStr,
+            /// This modification can be composed with others
+            /// In reality just `None' or `AddedFragment``
+            next: Vec<PatternModification>,
+        },
+        ReplacedExtension {
+            /// The extension that was replaced, to figure out the original you need to query
+            /// [TS_EXTENSION_REPLACEMENTS]
+            ext: RcStr,
+            /// This modification can be composed with others
+            /// In just [AddedExtension], [None] or [AddedFragment]
+            next: Vec<PatternModification>,
+        },
+    }
+
+    impl PatternModification {
+        /// Modifies the matched pattern using the modification rules and produces results if they
+        /// match the supplied [pattern]
+        fn apply(
+            &self,
+            matched_pattern: &RcStr,
+            fragment: &RcStr,
+            pattern: &Pattern,
+        ) -> impl Iterator<Item = (RcStr, RcStr)> {
+            self.apply_internal(matched_pattern, fragment, pattern)
+                .into_iter()
+        }
+
+        fn apply_internal(
+            &self,
+            matched_pattern: &RcStr,
+            fragment: &RcStr,
+            pattern: &Pattern,
+        ) -> SmallVec<[(RcStr, RcStr); 2]> {
+            match self {
+                PatternModification::None => {
+                    if pattern.is_match(matched_pattern.as_str()) {
+                        // OPTIMIZATION: Clone RcStr (cheap refcount bump, no allocation)
+                        let mut result = SmallVec::new();
+                        result.push((matched_pattern.clone(), fragment.clone()));
+                        result
+                    } else {
+                        SmallVec::new()
+                    }
+                }
+                PatternModification::AddedFragment => {
+                    debug_assert!(
+                        !fragment.is_empty(),
+                        "can only have an AddedFragment modification if there was a fragment"
+                    );
+                    if let Some(stripped_pattern) = matched_pattern.strip_suffix(fragment.as_str())
+                        && pattern.is_match(stripped_pattern)
+                    {
+                        let mut result = SmallVec::new();
+                        result.push((stripped_pattern.into(), RcStr::default()));
+                        result
+                    } else {
+                        SmallVec::new()
+                    }
+                }
+                PatternModification::AddedExtension { ext, next } => {
+                    if let Some(stripped_pattern) = matched_pattern.strip_suffix(ext.as_str()) {
+                        let stripped_pattern: RcStr = stripped_pattern.into();
+                        Self::apply_all(next, &stripped_pattern, fragment, pattern)
+                    } else {
+                        SmallVec::new()
+                    }
+                }
+                PatternModification::ReplacedExtension { ext, next } => {
+                    if let Some(stripped_pattern) = matched_pattern.strip_suffix(ext.as_str()) {
+                        let replaced_pattern: RcStr = format!(
+                            "{stripped_pattern}{old_ext}",
+                            old_ext = TS_EXTENSION_REPLACEMENTS.reverse.get(ext).unwrap()
+                        )
+                        .into();
+                        Self::apply_all(next, &replaced_pattern, fragment, pattern)
+                    } else {
+                        SmallVec::new()
+                    }
+                }
+            }
+        }
+
+        fn apply_all(
+            list: &[PatternModification],
+            matched_pattern: &RcStr,
+            fragment: &RcStr,
+            pattern: &Pattern,
+        ) -> SmallVec<[(RcStr, RcStr); 2]> {
+            list.iter()
+                .flat_map(|pm| pm.apply_internal(matched_pattern, fragment, pattern))
+                .collect()
+        }
+    }
+
+    let mut modifications = Vec::new();
+    modifications.push(PatternModification::None);
+
     // Fragments are a bit odd. `require()` allows importing files with literal `#` characters in
     // them, but `import` treats it like a url and drops it from resolution. So we need to consider
     // both cases here.
     if !fragment.is_empty() {
+        modifications.push(PatternModification::AddedFragment);
         new_path.push(Pattern::Alternatives(vec![
             Pattern::Constant(RcStr::default()),
             Pattern::Constant(fragment.clone()),
@@ -2258,6 +2372,18 @@ async fn resolve_relative_request(
     }
 
     if !options_value.fully_specified {
+        // For each current set of modifications append an extension modification
+        modifications =
+            modifications
+                .iter()
+                .cloned()
+                .chain(options_value.extensions.iter().map(|ext| {
+                    PatternModification::AddedExtension {
+                        ext: ext.clone(),
+                        next: modifications.clone(),
+                    }
+                }))
+                .collect();
         // Add the extensions as alternatives to the path
         // read_matches keeps the order of alternatives intact
         new_path.push(Pattern::Alternatives(
@@ -2273,48 +2399,85 @@ async fn resolve_relative_request(
         new_path.normalize();
     };
 
+    struct ExtensionReplacements {
+        forward: FxHashMap<RcStr, SmallVec<[RcStr; 3]>>,
+        reverse: FxHashMap<RcStr, RcStr>,
+    }
+    static TS_EXTENSION_REPLACEMENTS: Lazy<ExtensionReplacements> = Lazy::new(|| {
+        let mut forward = FxHashMap::default();
+        let mut reverse = FxHashMap::default();
+        forward.insert(
+            rcstr!(".js"),
+            SmallVec::from_vec(vec![rcstr!(".ts"), rcstr!(".tsx"), rcstr!(".js")]),
+        );
+        reverse.insert(rcstr!(".ts"), rcstr!(".js"));
+        reverse.insert(rcstr!(".tsx"), rcstr!(".js"));
+
+        forward.insert(
+            rcstr!(".mjs"),
+            SmallVec::from_vec(vec![rcstr!(".mts"), rcstr!(".mjs")]),
+        );
+
+        reverse.insert(rcstr!(".mts"), rcstr!(".mjs"));
+        forward.insert(
+            rcstr!(".cjs"),
+            SmallVec::from_vec(vec![rcstr!(".cts"), rcstr!(".cjs")]),
+        );
+        reverse.insert(rcstr!(".cts"), rcstr!(".cjs"));
+        ExtensionReplacements { forward, reverse }
+    });
+
     if options_value.enable_typescript_with_output_extension {
-        new_path.replace_final_constants(&|c: &RcStr| -> Option<Pattern> {
-            let (base, replacement) = match c.rsplit_once(".") {
-                Some((base, "js")) => (
-                    base,
-                    vec![
-                        Pattern::Constant(rcstr!(".ts")),
-                        Pattern::Constant(rcstr!(".tsx")),
-                        Pattern::Constant(rcstr!(".js")),
-                    ],
-                ),
-                Some((base, "mjs")) => (
-                    base,
-                    vec![
-                        Pattern::Constant(rcstr!(".mts")),
-                        Pattern::Constant(rcstr!(".mjs")),
-                    ],
-                ),
-                Some((base, "cjs")) => (
-                    base,
-                    vec![
-                        Pattern::Constant(rcstr!(".cts")),
-                        Pattern::Constant(rcstr!(".cjs")),
-                    ],
-                ),
-                _ => {
-                    return None;
-                }
+        // there are at most 4 possible replacements (the size of the reverse map)
+        let mut replaced_extensions = SmallVec::<[RcStr; 4]>::new();
+        let replaced = new_path.replace_final_constants(&mut |c: &RcStr| -> Option<Pattern> {
+            let Some(dot) = c.rfind('.') else {
+                return None;
             };
+            let (base, ext) = c.split_at(dot);
+
+            let Some((ext, replacements)) = TS_EXTENSION_REPLACEMENTS.forward.get_key_value(ext)
+            else {
+                return None;
+            };
+            for replacement in replacements {
+                if replacement != ext && !replaced_extensions.contains(replacement) {
+                    replaced_extensions.push(replacement.clone());
+                    debug_assert!(replaced_extensions.len() <= replaced_extensions.inline_size());
+                }
+            }
+
+            let replacements = replacements
+                .iter()
+                .cloned()
+                .map(Pattern::Constant)
+                .collect();
+
             if base.is_empty() {
-                Some(Pattern::Alternatives(replacement))
+                Some(Pattern::Alternatives(replacements))
             } else {
                 Some(Pattern::Concatenation(vec![
                     Pattern::Constant(base.into()),
-                    Pattern::Alternatives(replacement),
+                    Pattern::Alternatives(replacements),
                 ]))
             }
         });
-        new_path.normalize();
+        if replaced {
+            // For each current set of modifications append an extension replacement modification
+            modifications = modifications
+                .iter()
+                .cloned()
+                .chain(replaced_extensions.iter().map(|ext| {
+                    PatternModification::ReplacedExtension {
+                        ext: ext.clone(),
+                        next: modifications.clone(),
+                    }
+                }))
+                .collect();
+            new_path.normalize();
+        }
     }
 
-    let mut results = Vec::new();
     let matches = read_matches(
         lookup_path.clone(),
         rcstr!(""),
@@ -2324,100 +2487,37 @@ async fn resolve_relative_request(
     .await?;
 
     // This loop is necessary to 'undo' the modifications to 'new_path' that were performed above.
-    // e.g. we added extensions but these shouldn't be part of the request key so remove them
-    // TODO: this logic is not completely correct because it fails to account for the extension
-    // replacement logic that we perform conditionally.
+    // e.g. we added extensions but these shouldn't be part of the request key so remove them.
 
-    for m in matches.iter() {
-        if let PatternMatch::File(matched_pattern, path) = m {
-            let mut pushed = false;
-            if !options_value.fully_specified {
-                for ext in options_value.extensions.iter() {
-                    let Some(matched_pattern) = matched_pattern.strip_suffix(&**ext) else {
-                        continue;
-                    };
+    let mut results = matches
+        .iter()
+        .flat_map(|m| {
+            if let PatternMatch::File(matched_pattern, path) = m {
+                Either::Left(
+                    modifications
+                        .iter()
+                        .flat_map(|m| m.apply(matched_pattern, &fragment, path_pattern))
+                        .map(move |result| (result, path)),
+                )
+            } else {
+                Either::Right(empty())
+            }
+        })
+        .map(|((matched_pattern, fragment), path)| {
+            resolved(
+                RequestKey::new(matched_pattern),
+                path.clone(),
+                lookup_path.clone(),
+                request,
+                options_value,
+                options,
+                query.clone(),
+                fragment,
+            )
+        })
+        .try_join()
+        .await?;
 
-                    if !fragment.is_empty() {
-                        // If the fragment is not empty, we need to strip it from the matched
-                        // pattern so it matches path_pattern
-                        if let Some(matched_pattern) =
-                            matched_pattern.strip_suffix(fragment.as_str())
-                            && path_pattern.is_match(matched_pattern)
-                        {
-                            results.push(
-                                resolved(
-                                    RequestKey::new(matched_pattern.into()),
-                                    path.clone(),
-                                    lookup_path.clone(),
-                                    request,
-                                    options_value,
-                                    options,
-                                    query.clone(),
-                                    RcStr::default(),
-                                )
-                                .await?,
-                            );
-                            pushed = true;
-                        }
-                    }
-                    if path_pattern.is_match(matched_pattern) {
-                        results.push(
-                            resolved(
-                                RequestKey::new(matched_pattern.into()),
-                                path.clone(),
-                                lookup_path.clone(),
-                                request,
-                                options_value,
-                                options,
-                                query.clone(),
-                                fragment.clone(),
-                            )
-                            .await?,
-                        );
-                        pushed = true;
-                    }
-                }
-            }
-            if !fragment.is_empty() {
-                // If the fragment is not empty, we need to strip it from the matched pattern so it
-                // matches the original pattern
-                if let Some(matched_pattern) = matched_pattern.strip_suffix(fragment.as_str())
-                    && path_pattern.is_match(matched_pattern)
-                {
-                    results.push(
-                        resolved(
-                            RequestKey::new(matched_pattern.into()),
-                            path.clone(),
-                            lookup_path.clone(),
-                            request,
-                            options_value,
-                            options,
-                            query.clone(),
-                            RcStr::default(),
-                        )
-                        .await?,
-                    );
-                    pushed = true;
-                }
-            }
-
-            if !pushed || path_pattern.is_match(matched_pattern) {
-                results.push(
-                    resolved(
-                        RequestKey::new(matched_pattern.clone()),
-                        path.clone(),
-                        lookup_path.clone(),
-                        request,
-                        options_value,
-                        options,
-                        query.clone(),
-                        fragment.clone(),
-                    )
-                    .await?,
-                );
-            }
-        }
-    }
     // Directory matches must be resolved AFTER file matches
     for m in matches.iter() {
         if let PatternMatch::Directory(matched_pattern, path) = m {
@@ -3375,12 +3475,7 @@ mod tests {
             pattern: rcstr!("./foo.js").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
-            expected: vec![
-                // WRONG: request key is incorrect
-                ("./foo.ts", "foo.ts"),
-                // WRONG: shouldn't produce the .js file
-                ("./foo.js", "foo.js"),
-            ],
+            expected: vec![("./foo.js", "foo.ts")],
         })
         .await;
     }
@@ -3454,13 +3549,9 @@ mod tests {
             pattern: rcstr!("./client#component.js").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
-            expected: vec![
-                // The request key is fundamentally ambiguous.  It depends on whether or not we
-                // consider this fragment to be part of the request pattern
-                ("./client#component.ts", "client#component.ts"),
-                // WRONG: js file should not be produced
-                ("./client", "client#component.js"),
-            ],
+            // Whether or not this request key is correct somewhat ambiguous.  It depends on whether
+            // or not we consider this fragment to be part of the request pattern
+            expected: vec![("./client", "client#component.ts")],
         })
         .await;
     }
@@ -3506,11 +3597,8 @@ mod tests {
             enable_typescript_with_output_extension: true,
             fully_specified: false,
             expected: vec![
-                // WRONG: request key doesn't match pattern
-                ("./src/foo.ts", "src/foo.ts"),
+                ("./src/foo.js", "src/foo.ts"),
                 ("./src/bar.js", "src/bar.js"),
-                // WRONG: source file is redundant with extension rewriting
-                ("./src/foo.js", "src/foo.js"),
             ],
         })
         .await;
@@ -3530,11 +3618,12 @@ mod tests {
             enable_typescript_with_output_extension: true,
             fully_specified: false,
             expected: vec![
-                ("./src/bar", "src/bar.js"),
+                // TODO: does order matter? should extension or no extension in the key come first?
                 ("./src/bar.js", "src/bar.js"),
+                ("./src/bar", "src/bar.js"),
                 // WRONG: all three should point at the .ts file
-                ("./src/foo", "src/foo.js"),
                 ("./src/foo.js", "src/foo.js"),
+                ("./src/foo", "src/foo.js"),
                 ("./src/foo.ts", "src/foo.ts"),
             ],
         })
