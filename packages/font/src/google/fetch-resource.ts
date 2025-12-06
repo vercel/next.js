@@ -24,7 +24,7 @@ export function fetchResource(
         headers: {
           // The file format is based off of the user agent, make sure woff2 files are fetched
           'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ' +
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
             'AppleWebKit/537.36 (KHTML, like Gecko) ' +
             'Chrome/104.0.0.0 Safari/537.36',
         },
