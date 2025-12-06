@@ -2420,6 +2420,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         None,
                                         Expr::Ident(ident.clone()),
                                         ident.span,
+                                        None,
                                     )),
                                 })),
                             }),
@@ -2963,6 +2964,7 @@ fn create_cache_wrapper(
     fn_ident: Option<Ident>,
     target_expr: Expr,
     original_span: Span,
+    params: Option<&[Param]>,
 ) -> Expr {
     let cache_call = CallExpr {
         span: original_span,
@@ -2977,7 +2979,32 @@ fn create_cache_wrapper(
             })))
             .as_arg(),
             Box::new(target_expr).as_arg(),
-            Box::new(Expr::Ident(private_ident!(DUMMY_SP, "arguments"))).as_arg(),
+            match params {
+                // The params are statically known and rest params are not used.
+                Some(params) if !params.iter().any(|p| matches!(p.pat, Pat::Rest(_))) => {
+                    if params.is_empty() {
+                        // No params are declared, we can pass an empty array to ignore unused
+                        // arguments.
+                        Box::new(Expr::Array(ArrayLit {
+                            span: DUMMY_SP,
+                            elems: vec![],
+                        }))
+                        .as_arg()
+                    } else {
+                        // Slice to declared params length to ignore unused arguments.
+                        Box::new(quote!(
+                            "Array.prototype.slice.call(arguments, 0, $end)" as Expr,
+                            end: Expr = params.len().into(),
+                        ))
+                        .as_arg()
+                    }
+                }
+                // The params are statically unknown, or rest params are used.
+                _ => {
+                    // Pass all arguments as an array.
+                    Box::new(quote!("Array.prototype.slice.call(arguments)" as Expr,)).as_arg()
+                }
+            },
         ],
         ..Default::default()
     };
@@ -3021,6 +3048,16 @@ fn create_and_hoist_cache_function(
     let inner_fn_name: Atom = format!("{}_INNER", cache_name).into();
     let inner_fn_ident = private_ident!(Span::dummy_with_cmt(), inner_fn_name);
 
+    let wrapper_fn = Box::new(create_cache_wrapper(
+        cache_kind,
+        reference_id.clone(),
+        bound_args_length,
+        fn_ident.clone(),
+        Expr::Ident(inner_fn_ident.clone()),
+        original_span,
+        Some(&params),
+    ));
+
     let inner_fn_expr = FnExpr {
         ident: fn_ident.clone(),
         function: Box::new(Function {
@@ -3052,15 +3089,6 @@ fn create_and_hoist_cache_function(
     if fn_ident.is_none() {
         hoisted_extra_items.push(ModuleItem::Stmt(assign_name_to_ident(&inner_fn_ident, "")));
     }
-
-    let wrapper_fn = Box::new(create_cache_wrapper(
-        cache_kind,
-        reference_id.clone(),
-        bound_args_length,
-        fn_ident.clone(),
-        Expr::Ident(inner_fn_ident),
-        original_span,
-    ));
 
     hoisted_extra_items.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
         span: DUMMY_SP,
