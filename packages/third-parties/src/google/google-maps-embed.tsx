@@ -5,13 +5,14 @@ import type { GoogleMapsEmbed as GoogleMapsEmbedTypes } from '../types/google'
 
 export default function GoogleMapsEmbed(props: GoogleMapsEmbedTypes) {
   const { apiKey, ...restProps } = props
-  const formattedProps = { ...restProps, key: apiKey }
-  const { html } = TPCGoogleMapEmbed(formattedProps)
+  // Note: apiKey should not be passed to the client-side component to prevent exposure in HTML
+  // The Google Maps Embed API should be configured server-side or through environment variables
+  const { html } = TPCGoogleMapEmbed(restProps)
 
   return (
     <ThirdPartyScriptEmbed
-      height={formattedProps.height || null}
-      width={formattedProps.width || null}
+      height={restProps.height || null}
+      width={restProps.width || null}
       html={html}
       dataNtpc="GoogleMapsEmbed"
     ></ThirdPartyScriptEmbed>
