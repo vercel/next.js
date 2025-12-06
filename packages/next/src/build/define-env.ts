@@ -61,12 +61,12 @@ interface SerializedDefineEnv {
  * Serializes the DefineEnv config so that it can be inserted into the code by Webpack/Turbopack, JSON stringifies each value.
  */
 function serializeDefineEnv(defineEnv: DefineEnv): SerializedDefineEnv {
-  const defineEnvStringified: SerializedDefineEnv = {}
-  for (const key in defineEnv) {
-    const value = defineEnv[key]
-    defineEnvStringified[key] = JSON.stringify(value)
-  }
-
+  const defineEnvStringified: SerializedDefineEnv = Object.fromEntries(
+    Object.entries(defineEnv).map(([key, value]) => [
+      key,
+      JSON.stringify(value),
+    ])
+  )
   return defineEnvStringified
 }
 
@@ -167,9 +167,24 @@ export function getDefineEnv({
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
 
-    'process.env.NEXT_DEPLOYMENT_ID': config.experimental?.useSkewCookie
-      ? false
-      : config.deploymentId || false,
+    ...(isClient
+      ? {
+          // TODO use `globalThis.NEXT_DEPLOYMENT_ID` on client to still support accessing
+          // process.env.NEXT_DEPLOYMENT_ID in userland
+          'process.env.NEXT_DEPLOYMENT_ID': config.experimental?.useSkewCookie
+            ? false
+            : config.deploymentId || false,
+        }
+      : config.experimental?.runtimeServerDeploymentId
+        ? {
+            // Don't inline at all, keep process.env.NEXT_DEPLOYMENT_ID as is
+          }
+        : {
+            'process.env.NEXT_DEPLOYMENT_ID': config.experimental?.useSkewCookie
+              ? false
+              : config.deploymentId || false,
+          }),
+
     // Propagates the `__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING` environment
     // variable to the client.
     'process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING':
@@ -372,8 +387,10 @@ export function getDefineEnv({
     for (const key in nextConfigEnv) {
       serializedDefineEnv[key] = safeKey(key)
     }
-    for (const key of ['process.env.NEXT_DEPLOYMENT_ID']) {
-      serializedDefineEnv[key] = safeKey(key)
+    if (!config.experimental.runtimeServerDeploymentId) {
+      for (const key of ['process.env.NEXT_DEPLOYMENT_ID']) {
+        serializedDefineEnv[key] = safeKey(key)
+      }
     }
   }
 

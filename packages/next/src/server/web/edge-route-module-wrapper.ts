@@ -81,7 +81,7 @@ export class EdgeRouteModuleWrapper {
       caseSensitive: false,
     })
 
-    const nextConfig = this.routeModule.getNextConfigEdge(
+    const { nextConfig } = this.routeModule.getNextConfigEdge(
       new WebNextRequest(request)
     )
 

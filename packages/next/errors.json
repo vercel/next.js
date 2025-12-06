@@ -967,5 +967,7 @@
   "966": "Expected process.nextTick to reject invalid arguments",
   "967": "The key \"%s\" under \"env\" in %sconfig is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed",
   "968": "Invariant: getNextConfigEdge must only be called in edge runtime",
-  "969": "Invariant: nextConfig couldn't be loaded"
+  "969": "Invariant: nextConfig couldn't be loaded",
+  "970": "process.env.NEXT_DEPLOYMENT_ID is missing but runtimeServerDeploymentId is enabled",
+  "971": "The NEXT_DEPLOYMENT_ID environment variable value \"%s\" does not match the provided deploymentId \"%s\" in the config."
 }
