@@ -41,7 +41,7 @@ const IGNORE_CONTENT = new RegExp(
     'build-manifest\\.json',
     'client-build-manifest\\.json',
     'fallback-build-manifest\\.json',
-    'middleware-build-manifest.js',
+    'middleware-build-manifest\\.js',
   ]
     .map((v) => '(?:\\/|^)' + v + '$')
     .join('|')
