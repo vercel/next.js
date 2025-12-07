@@ -15,27 +15,28 @@ workspace = true
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 base64 = "0.21.0"
+allsorts = { workspace = true }
+bincode = { workspace = true }
 either = { workspace = true, features = ["serde"] }
+futures = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
+indoc = { workspace = true }
+itertools = { workspace = true }
+mime_guess = "2.0.4"
 once_cell = { workspace = true }
+percent-encoding = "2.3.1"
 qstring = { workspace = true }
+react_remove_properties = { workspace = true }
 regex = { workspace = true }
+regress = { workspace = true }
+remove_console = { workspace = true }
+rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-indexmap = { workspace = true, features = ["serde"] }
-mime_guess = "2.0.4"
-indoc = { workspace = true }
-allsorts = { workspace = true }
-futures = { workspace = true }
-thiserror = { workspace = true }
-tracing = { workspace = true }
-regress = { workspace = true }
-rustc-hash = { workspace = true }
-react_remove_properties = { workspace = true }
-remove_console = { workspace = true }
-itertools = { workspace = true }
-percent-encoding = "2.3.1"
 serde_path_to_error = { workspace = true }
 swc_sourcemap = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "base",
@@ -59,6 +60,7 @@ modularize_imports = { workspace = true }
 next-custom-transforms = { workspace = true }
 next-taskless = { workspace = true }
 
+turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-esregex = { workspace = true }
 turbo-tasks = { workspace = true }
@@ -70,6 +72,7 @@ turbo-tasks-hash = { workspace = true }
 turbopack = { workspace = true }
 turbopack-browser = { workspace = true }
 turbopack-core = { workspace = true }
+turbopack-css = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, features = [
   "transform_emotion",
@@ -78,6 +81,7 @@ turbopack-ecmascript-runtime = { workspace = true }
 turbopack-image = { workspace = true }
 turbopack-node = { workspace = true }
 turbopack-nodejs = { workspace = true }
+turbopack-resolve = { workspace = true }
 turbopack-static = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 

@@ -74,7 +74,7 @@ pub const USER_AGENT_FOR_GOOGLE_FONTS: &str = "Mozilla/5.0 (Macintosh; Intel Mac
 pub const GOOGLE_FONTS_INTERNAL_PREFIX: &str = "@vercel/turbopack-next/internal/font/google/font";
 
 #[turbo_tasks::value(transparent)]
-struct FontData(FxIndexMap<RcStr, FontDataEntry>);
+struct FontData(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, FontDataEntry>);
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct NextFontGoogleReplacer {
@@ -756,7 +756,7 @@ async fn get_mock_stylesheet(
         .module();
 
     let entries = get_evaluate_entries(mocked_response_asset, asset_context, None);
-    let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false);
+    let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false, false);
 
     let root = mock_fs.root().owned().await?;
     let val = evaluate(

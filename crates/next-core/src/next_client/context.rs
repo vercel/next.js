@@ -1,17 +1,14 @@
 use std::collections::BTreeSet;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::{
-    css::chunk::CssChunkType,
-    module_options::{
-        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule,
-        TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
-    },
-    resolve_options_context::ResolveOptionsContext,
+use turbopack::module_options::{
+    CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule,
+    TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
 };
 use turbopack_browser::{
     BrowserChunkingContext, ChunkSuffix, ContentHashing, CurrentChunkMethod,
@@ -28,17 +25,21 @@ use turbopack_core::{
     module_graph::binding_usage_info::OptionBindingUsageInfo,
     resolve::{parse::Request, pattern::Pattern},
 };
+use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType};
 use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
 };
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
-use super::transforms::get_next_client_transforms_rules;
 use crate::{
     mode::NextMode,
     next_build::get_postcss_package_mapping,
-    next_client::runtime_entry::{RuntimeEntries, RuntimeEntry},
+    next_client::{
+        runtime_entry::{RuntimeEntries, RuntimeEntry},
+        transforms::get_next_client_transforms_rules,
+    },
     next_config::NextConfig,
     next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{
@@ -407,7 +408,19 @@ pub async fn get_client_module_options_context(
     Ok(module_options_context)
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    TaskInput,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+)]
 pub struct ClientChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,

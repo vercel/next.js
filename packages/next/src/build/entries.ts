@@ -461,60 +461,65 @@ export async function createPagesMapping({
   appDirOnly: boolean
 }): Promise<MappedPages> {
   const isAppRoute = pagesType === 'app'
-  const pages: MappedPages = {}
-  const promises = pagePaths.map<Promise<void>>(async (pagePath) => {
-    // Do not process .d.ts files as routes
-    if (pagePath.endsWith('.d.ts') && pageExtensions.includes('ts')) {
-      return
-    }
 
-    let pageKey = getPageFromPath(pagePath, pageExtensions)
-    if (isAppRoute) {
-      pageKey = pageKey.replace(/%5F/g, '_')
-      if (pageKey === UNDERSCORE_NOT_FOUND_ROUTE) {
-        pageKey = UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
+  const promises = pagePaths.map<Promise<[string, string] | undefined>>(
+    async (pagePath) => {
+      // Do not process .d.ts files as routes
+      if (pagePath.endsWith('.d.ts') && pageExtensions.includes('ts')) {
+        return
       }
-      if (pageKey === UNDERSCORE_GLOBAL_ERROR_ROUTE) {
-        pageKey = UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+
+      let pageKey = getPageFromPath(pagePath, pageExtensions)
+      if (isAppRoute) {
+        pageKey = pageKey.replace(/%5F/g, '_')
+        if (pageKey === UNDERSCORE_NOT_FOUND_ROUTE) {
+          pageKey = UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
+        }
+        if (pageKey === UNDERSCORE_GLOBAL_ERROR_ROUTE) {
+          pageKey = UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+        }
       }
-    }
 
-    const normalizedPath = normalizePathSep(
-      join(
-        pagesType === 'pages'
-          ? PAGES_DIR_ALIAS
-          : pagesType === 'app'
-            ? APP_DIR_ALIAS
-            : ROOT_DIR_ALIAS,
-        pagePath
+      const normalizedPath = normalizePathSep(
+        join(
+          pagesType === 'pages'
+            ? PAGES_DIR_ALIAS
+            : pagesType === 'app'
+              ? APP_DIR_ALIAS
+              : ROOT_DIR_ALIAS,
+          pagePath
+        )
       )
-    )
 
-    let route = pagesType === 'app' ? normalizeMetadataRoute(pageKey) : pageKey
+      let route =
+        pagesType === 'app' ? normalizeMetadataRoute(pageKey) : pageKey
 
-    if (
-      pagesType === 'app' &&
-      isMetadataRouteFile(pagePath, pageExtensions, true)
-    ) {
-      const filePath = join(appDir!, pagePath)
-      const staticInfo = await getPageStaticInfo({
-        nextConfig: {},
-        pageFilePath: filePath,
-        isDev,
-        page: pageKey,
-        pageType: pagesType,
-      })
+      if (
+        pagesType === 'app' &&
+        isMetadataRouteFile(pagePath, pageExtensions, true)
+      ) {
+        const filePath = join(appDir!, pagePath)
+        const staticInfo = await getPageStaticInfo({
+          nextConfig: {},
+          pageFilePath: filePath,
+          isDev,
+          page: pageKey,
+          pageType: pagesType,
+        })
 
-      route = normalizeMetadataPageToRoute(
-        route,
-        !!(staticInfo.generateImageMetadata || staticInfo.generateSitemaps)
-      )
+        route = normalizeMetadataPageToRoute(
+          route,
+          !!(staticInfo.generateImageMetadata || staticInfo.generateSitemaps)
+        )
+      }
+
+      return [route, normalizedPath]
     }
+  )
 
-    pages[route] = normalizedPath
-  })
-
-  await Promise.all(promises)
+  const pages: MappedPages = Object.fromEntries(
+    (await Promise.all(promises)).filter((entry) => entry != null)
+  )
 
   switch (pagesType) {
     case PAGE_TYPES.ROOT: {
@@ -616,7 +621,6 @@ export function getEdgeServerEntry(opts: {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
       appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
-      nextConfig: Buffer.from(JSON.stringify(opts.config)).toString('base64'),
       preferredRegion: opts.preferredRegion,
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
@@ -677,9 +681,6 @@ export function getEdgeServerEntry(opts: {
     dev: opts.isDev,
     isServerComponent: opts.isServerComponent,
     page: opts.page,
-    stringifiedConfig: Buffer.from(JSON.stringify(opts.config)).toString(
-      'base64'
-    ),
     pagesType: opts.pagesType,
     appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
     sriEnabled: !opts.isDev && !!opts.config.experimental.sri?.algorithm,

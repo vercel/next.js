@@ -13,28 +13,26 @@ use std::{
     sync::{Arc, atomic::Ordering},
 };
 
-use serde::{Deserialize, Serialize};
-use turbo_tasks::{FxIndexMap, KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
+use bincode::{Decode, Encode};
+use turbo_tasks::{
+    CellId, FxIndexMap, KeyValuePair, TaskId, TurboTasksBackendApi, TypedSharedReference,
+};
 
 use crate::{
     backend::{
         OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
         TurboTasksBackendJob,
-        storage::{SpecificTaskDataCategory, StorageWriteGuard, iter_many},
+        storage::{SpecificTaskDataCategory, StorageWriteGuard, get, iter_many, remove},
     },
     backing_storage::BackingStorage,
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemType, CachedDataItemValue,
-        CachedDataItemValueRef, CachedDataItemValueRefMut,
+        CachedDataItemValueRef, CachedDataItemValueRefMut, Dirtyness,
     },
 };
 
 pub trait Operation:
-    Serialize
-    + for<'de> Deserialize<'de>
-    + Default
-    + TryFrom<AnyOperation, Error = ()>
-    + Into<AnyOperation>
+    Encode + Decode<()> + Default + TryFrom<AnyOperation, Error = ()> + Into<AnyOperation>
 {
     fn execute(self, ctx: &mut impl ExecuteContext);
 }
@@ -51,7 +49,6 @@ pub trait ExecuteContext<'e>: Sized {
     fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'l, Self>
     where
         'e: 'l;
-    fn session_id(&self) -> SessionId;
     fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl;
     fn is_once_task(&self, task_id: TaskId) -> bool;
     fn task_pair(
@@ -179,10 +176,6 @@ where
             backend: self.backend,
             turbo_tasks: self.turbo_tasks,
         }
-    }
-
-    fn session_id(&self) -> SessionId {
-        self.backend.session_id()
     }
 
     fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl {
@@ -415,6 +408,92 @@ pub trait TaskGuard: Debug {
     fn invalidate_serialization(&mut self);
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>>;
     fn is_immutable(&self) -> bool;
+    fn is_dirty(&self) -> bool {
+        get!(self, Dirty).is_some_and(|dirtyness| match dirtyness {
+            Dirtyness::Dirty => true,
+            Dirtyness::SessionDependent => get!(self, CurrentSessionClean).is_none(),
+        })
+    }
+    fn dirtyness_and_session(&self) -> Option<(Dirtyness, bool)> {
+        match get!(self, Dirty)? {
+            Dirtyness::Dirty => Some((Dirtyness::Dirty, false)),
+            Dirtyness::SessionDependent => Some((
+                Dirtyness::SessionDependent,
+                get!(self, CurrentSessionClean).is_some(),
+            )),
+        }
+    }
+    /// Returns (is_dirty, is_clean_in_current_session)
+    fn dirty(&self) -> (bool, bool) {
+        match get!(self, Dirty) {
+            None => (false, false),
+            Some(Dirtyness::Dirty) => (true, false),
+            Some(Dirtyness::SessionDependent) => (true, get!(self, CurrentSessionClean).is_some()),
+        }
+    }
+    fn dirty_containers(&self) -> impl Iterator<Item = TaskId> {
+        self.dirty_containers_with_count()
+            .map(|(task_id, _)| task_id)
+    }
+    fn dirty_containers_with_count(&self) -> impl Iterator<Item = (TaskId, i32)> {
+        iter_many!(self, AggregatedDirtyContainer { task } count => (task, *count)).filter(
+            move |&(task_id, count)| {
+                if count > 0 {
+                    let clean_count = get!(
+                        self,
+                        AggregatedCurrentSessionCleanContainer { task: task_id }
+                    )
+                    .copied()
+                    .unwrap_or_default();
+                    count > clean_count
+                } else {
+                    false
+                }
+            },
+        )
+    }
+
+    fn has_dirty_containers(&self) -> bool {
+        let dirty_count = get!(self, AggregatedDirtyContainerCount)
+            .copied()
+            .unwrap_or_default();
+        if dirty_count <= 0 {
+            return false;
+        }
+        let clean_count = get!(self, AggregatedCurrentSessionCleanContainerCount)
+            .copied()
+            .unwrap_or_default();
+        dirty_count > clean_count
+    }
+    fn remove_cell_data(
+        &mut self,
+        is_serializable_cell_content: bool,
+        cell: CellId,
+    ) -> Option<TypedSharedReference> {
+        if is_serializable_cell_content {
+            remove!(self, CellData { cell })
+        } else {
+            remove!(self, TransientCellData { cell }).map(|sr| sr.into_typed(cell.type_id))
+        }
+    }
+    fn get_cell_data(
+        &self,
+        is_serializable_cell_content: bool,
+        cell: CellId,
+    ) -> Option<TypedSharedReference> {
+        if is_serializable_cell_content {
+            get!(self, CellData { cell }).cloned()
+        } else {
+            get!(self, TransientCellData { cell }).map(|sr| sr.clone().into_typed(cell.type_id))
+        }
+    }
+    fn has_cell_data(&self, is_serializable_cell_content: bool, cell: CellId) -> bool {
+        if is_serializable_cell_content {
+            self.has_key(&CachedDataItemKey::CellData { cell })
+        } else {
+            self.has_key(&CachedDataItemKey::TransientCellData { cell })
+        }
+    }
 }
 
 pub struct TaskGuardImpl<'a, B: BackingStorage> {
@@ -703,7 +782,7 @@ macro_rules! impl_operation {
     };
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Encode, Decode, Clone)]
 pub enum AnyOperation {
     ConnectChild(connect_child::ConnectChildOperation),
     Invalidate(invalidate::InvalidateOperation),
@@ -740,8 +819,8 @@ impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 pub use self::invalidate::TaskDirtyCause;
 pub use self::{
     aggregation_update::{
-        AggregatedDataUpdate, AggregationUpdateJob, get_aggregation_number, get_uppers,
-        is_aggregating_node, is_root_node,
+        AggregatedDataUpdate, AggregationUpdateJob, ComputeDirtyAndCleanUpdate,
+        get_aggregation_number, get_uppers, is_aggregating_node, is_root_node,
     },
     cleanup_old_edges::OutdatedEdge,
     connect_children::connect_children,

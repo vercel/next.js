@@ -15,6 +15,7 @@ pub mod wrapping_source;
 use std::collections::BTreeSet;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use futures::{TryStreamExt, stream::Stream as StreamTrait};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
@@ -27,7 +28,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, Xxh3Hash64Hasher};
 use turbopack_core::version::{Version, VersionedContent};
 
-use self::{
+use crate::source::{
     headers::Headers, issue_context::IssueFilePathContentSource, query::Query,
     route_tree::RouteTree,
 };
@@ -191,6 +192,8 @@ impl HeaderList {
     Hash,
     Default,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub struct ContentSourceData {
     /// HTTP method, if requested.
@@ -261,7 +264,19 @@ impl ValueDefault for Body {
 }
 
 /// Filter function that describes which information is required.
-#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, Hash, Serialize, Deserialize, NonLocalValue)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    Hash,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
 pub enum ContentSourceDataFilter {
     All,
     Subset(BTreeSet<String>),
@@ -486,7 +501,9 @@ impl ContentSource for NoContentSource {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, Encode, Decode,
+)]
 pub enum RewriteType {
     Location {
         /// The new path and query used to lookup content. This _does not_ need to be the original

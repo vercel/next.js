@@ -1,0 +1,22 @@
+[package]
+name = "turbo-bincode"
+version = "0.0.0"
+description = "Utilities for bincode used in turbo-tasks and turbopack"
+license = "MIT"
+edition = "2024"
+
+[lib]
+
+[lints]
+workspace = true
+
+[dependencies]
+bincode = { workspace = true }
+either = { workspace = true }
+indexmap = { workspace = true }
+mime = { workspace = true }
+ringmap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+smallvec = { workspace = true }
+unty = { workspace = true }
