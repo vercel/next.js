@@ -2286,8 +2286,9 @@ async fn resolve_relative_request(
             fragment: &RcStr,
             pattern: &Pattern,
         ) -> impl Iterator<Item = (RcStr, RcStr)> {
-            self.apply_internal(matched_pattern, fragment, pattern)
-                .into_iter()
+            let mut result = SmallVec::new();
+            self.apply_internal(matched_pattern, fragment, pattern, &mut result);
+            result.into_iter()
         }
 
         fn apply_internal(
@@ -2295,16 +2296,12 @@ async fn resolve_relative_request(
             matched_pattern: &RcStr,
             fragment: &RcStr,
             pattern: &Pattern,
-        ) -> SmallVec<[(RcStr, RcStr); 2]> {
+            result: &mut SmallVec<[(RcStr, RcStr); 2]>,
+        ) {
             match self {
                 PatternModification::None => {
                     if pattern.is_match(matched_pattern.as_str()) {
-                        // OPTIMIZATION: Clone RcStr (cheap refcount bump, no allocation)
-                        let mut result = SmallVec::new();
                         result.push((matched_pattern.clone(), fragment.clone()));
-                        result
-                    } else {
-                        SmallVec::new()
                     }
                 }
                 PatternModification::AddedFragment => {
@@ -2315,19 +2312,13 @@ async fn resolve_relative_request(
                     if let Some(stripped_pattern) = matched_pattern.strip_suffix(fragment.as_str())
                         && pattern.is_match(stripped_pattern)
                     {
-                        let mut result = SmallVec::new();
                         result.push((stripped_pattern.into(), RcStr::default()));
-                        result
-                    } else {
-                        SmallVec::new()
                     }
                 }
                 PatternModification::AddedExtension { ext, next } => {
                     if let Some(stripped_pattern) = matched_pattern.strip_suffix(ext.as_str()) {
                         let stripped_pattern: RcStr = stripped_pattern.into();
-                        Self::apply_all(next, &stripped_pattern, fragment, pattern)
-                    } else {
-                        SmallVec::new()
+                        Self::apply_all(next, &stripped_pattern, fragment, pattern, result);
                     }
                 }
                 PatternModification::ReplacedExtension { ext, next } => {
@@ -2337,9 +2328,7 @@ async fn resolve_relative_request(
                             old_ext = TS_EXTENSION_REPLACEMENTS.reverse.get(ext).unwrap()
                         )
                         .into();
-                        Self::apply_all(next, &replaced_pattern, fragment, pattern)
-                    } else {
-                        SmallVec::new()
+                        Self::apply_all(next, &replaced_pattern, fragment, pattern, result);
                     }
                 }
             }
@@ -2350,10 +2339,10 @@ async fn resolve_relative_request(
             matched_pattern: &RcStr,
             fragment: &RcStr,
             pattern: &Pattern,
-        ) -> SmallVec<[(RcStr, RcStr); 2]> {
+            result: &mut SmallVec<[(RcStr, RcStr); 2]>,
+        ) {
             list.iter()
-                .flat_map(|pm| pm.apply_internal(matched_pattern, fragment, pattern))
-                .collect()
+                .for_each(|pm| pm.apply_internal(matched_pattern, fragment, pattern, result));
         }
     }
 
@@ -3612,10 +3601,13 @@ mod tests {
             enable_typescript_with_output_extension: true,
             fully_specified: false,
             expected: vec![
-                // TODO: does order matter? should extension or no extension in the key come first?
                 ("./src/bar.js", "src/bar.js"),
                 ("./src/bar", "src/bar.js"),
-                // WRONG: all three should point at the .ts file
+                // TODO: all three should point at the .ts file
+                // This happens because read_matches returns the `.js` file first simply because we
+                // match every file in the directory with this pattern. To address we would need to
+                // sort read_matches after the fact, or otherwise change how we modify dynamic
+                // patterns.
                 ("./src/foo.js", "src/foo.js"),
                 ("./src/foo", "src/foo.js"),
                 ("./src/foo.ts", "src/foo.ts"),
