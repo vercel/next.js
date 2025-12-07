@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use either::Either;
 use next_core::{get_next_package, next_server::get_tracing_compile_time_info};
 use serde::{Deserialize, Serialize};
@@ -31,7 +32,18 @@ use crate::{
 };
 
 #[derive(
-    PartialEq, Eq, TraceRawVcs, NonLocalValue, Deserialize, Serialize, Debug, Clone, Hash, TaskInput,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Deserialize,
+    Serialize,
+    Debug,
+    Clone,
+    Hash,
+    TaskInput,
+    Encode,
+    Decode,
 )]
 enum ServerNftType {
     Minimal,

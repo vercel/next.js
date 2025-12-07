@@ -10,10 +10,10 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use indexmap::map::Entry;
 use ringmap::RingSet;
 use rustc_hash::{FxBuildHasher, FxHashMap};
-use serde::{Deserialize, Serialize, Serializer, ser::SerializeSeq};
 use smallvec::{SmallVec, smallvec};
 #[cfg(any(
     feature = "trace_aggregation_update",
@@ -166,9 +166,11 @@ impl ComputeDirtyAndCleanUpdateResult {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Encode, Decode, Clone, Debug)]
 pub struct InnerOfUppersHasNewFollowersJob {
+    #[bincode(with = "turbo_bincode::smallvec")]
     pub upper_ids: TaskIdVec,
+    #[bincode(with = "turbo_bincode::smallvec")]
     pub new_follower_ids: TaskIdVec,
 }
 
@@ -178,9 +180,11 @@ impl From<InnerOfUppersHasNewFollowersJob> for AggregationUpdateJob {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Encode, Decode, Clone, Debug)]
 pub struct InnerOfUppersLostFollowersJob {
+    #[bincode(with = "turbo_bincode::smallvec")]
     pub upper_ids: TaskIdVec,
+    #[bincode(with = "turbo_bincode::smallvec")]
     pub lost_follower_ids: TaskIdVec,
 }
 
@@ -190,7 +194,7 @@ impl From<InnerOfUppersLostFollowersJob> for AggregationUpdateJob {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Encode, Decode, Clone, Debug)]
 pub struct AggregatedDataUpdateJob {
     pub upper_ids: TaskIdVec,
     pub update: AggregatedDataUpdate,
@@ -203,7 +207,7 @@ impl From<AggregatedDataUpdateJob> for AggregationUpdateJob {
 }
 
 /// A job in the job queue for updating something in the aggregated graph.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Encode, Decode, Clone, Debug)]
 pub enum AggregationUpdateJob {
     /// Update the aggregation number of a task. This might result in balancing needed to update
     /// "upper" and "follower" edges.
@@ -252,23 +256,37 @@ pub enum AggregationUpdateJob {
         collectible_type: turbo_tasks::TraitTypeId,
     },
     /// Increases the active counter of the task
-    #[serde(skip)]
-    IncreaseActiveCount { task: TaskId },
+    IncreaseActiveCount {
+        // TODO: bgw: Add a way to skip the entire enum variant in bincode (generating an error
+        // upon attempted serialization) similar to #[serde(skip)] on variants
+        #[bincode(skip, default = "unreachable_decode")]
+        task: TaskId,
+    },
     /// Increases the active counters of the tasks
-    #[serde(skip)]
-    IncreaseActiveCounts { task_ids: TaskIdVec },
+    IncreaseActiveCounts {
+        #[bincode(skip, default = "unreachable_decode")]
+        task_ids: TaskIdVec,
+    },
     /// Decreases the active counter of the task
-    #[serde(skip)]
-    DecreaseActiveCount { task: TaskId },
+    DecreaseActiveCount {
+        #[bincode(skip, default = "unreachable_decode")]
+        task: TaskId,
+    },
     /// Decreases the active counters of the tasks
-    #[serde(skip)]
-    DecreaseActiveCounts { task_ids: TaskIdVec },
+    DecreaseActiveCounts {
+        #[bincode(skip, default = "unreachable_decode")]
+        task_ids: TaskIdVec,
+    },
     /// Balances the edges of the graph. This checks if the graph invariant is still met for this
     /// edge and coverts a upper edge to a follower edge or vice versa. Balancing might triggers
     /// more changes to the structure.
     BalanceEdge { upper_id: TaskId, task_id: TaskId },
     /// Does nothing. This is used to filter out transient jobs during serialization.
     Noop,
+}
+
+fn unreachable_decode<T>() -> T {
+    unreachable!("AggregatedDataUpdateJob variant should not have been encoded, cannot decode")
 }
 
 impl AggregationUpdateJob {
@@ -291,9 +309,10 @@ impl AggregationUpdateJob {
     }
 }
 
-#[derive(Default, Serialize, Deserialize, Clone, Copy, Debug)]
+#[derive(Default, Encode, Decode, Clone, Copy, Debug)]
+#[bincode(decode_bounds = "T: Default", borrow_decode_bounds = "T: Default")]
 pub struct SessionDependent<T> {
-    #[serde(skip, default)]
+    #[bincode(skip)]
     pub value: T,
 }
 
@@ -312,7 +331,7 @@ impl<T> Deref for SessionDependent<T> {
 }
 
 /// Aggregated data update.
-#[derive(Default, Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Encode, Decode, Clone, Debug)]
 pub struct AggregatedDataUpdate {
     /// One of the inner tasks has changed its dirty state or aggregated dirty state.
     /// (task id, dirty update, current session clean update)
@@ -649,21 +668,21 @@ impl AggregatedDataUpdate {
 }
 
 /// An aggregation number update job that is enqueued.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Encode, Decode, Clone)]
 struct AggregationNumberUpdate {
     base_aggregation_number: u32,
     distance: Option<NonZeroU32>,
     #[cfg(feature = "trace_aggregation_update")]
-    #[serde(skip, default)]
+    #[bincode(skip, default)]
     span: Option<Span>,
 }
 
 /// An aggregated data update job that is enqueued. See `AggregatedDataUpdate`.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Encode, Decode, Clone)]
 struct AggregationUpdateJobItem {
     job: AggregationUpdateJob,
     #[cfg(feature = "trace_aggregation_update")]
-    #[serde(skip, default)]
+    #[bincode(skip, default)]
     span: Option<Span>,
 }
 
@@ -692,12 +711,12 @@ struct AggregationUpdateJobGuard {
 }
 
 /// A balancing job that is enqueued. See `balance_edge`.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Encode, Decode, Clone)]
 struct BalanceJob {
     upper_id: TaskId,
     task_id: TaskId,
     #[cfg(feature = "trace_aggregation_update")]
-    #[serde(skip, default)]
+    #[bincode(skip, default)]
     span: Option<Span>,
 }
 
@@ -728,11 +747,11 @@ impl PartialEq for BalanceJob {
 impl Eq for BalanceJob {}
 
 /// An optimization job that is enqueued. See `optimize_task`.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Encode, Decode, Clone)]
 struct OptimizeJob {
     task_id: TaskId,
     #[cfg(feature = "trace_aggregation_update")]
-    #[serde(skip, default)]
+    #[bincode(skip, default)]
     span: Option<Span>,
 }
 
@@ -761,11 +780,11 @@ impl PartialEq for OptimizeJob {
 impl Eq for OptimizeJob {}
 
 /// A job to find and schedule dirty tasks that is enqueued. See `find_and_schedule_dirty`.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Encode, Decode, Clone)]
 struct FindAndScheduleJob {
     task_id: TaskId,
     #[cfg(feature = "trace_find_and_schedule")]
-    #[serde(skip, default)]
+    #[bincode(skip, default)]
     span: Option<Span>,
 }
 
@@ -793,42 +812,73 @@ impl PartialEq for FindAndScheduleJob {
 
 impl Eq for FindAndScheduleJob {}
 
-/// Serializes the jobs in the queue. This is used to filter out transient jobs during
-/// serialization.
-fn serialize_jobs<S: Serializer>(
-    jobs: &VecDeque<AggregationUpdateJobItem>,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    let mut seq = serializer.serialize_seq(Some(jobs.len()))?;
-    for job in jobs {
-        match job.job {
-            AggregationUpdateJob::IncreaseActiveCount { .. }
-            | AggregationUpdateJob::IncreaseActiveCounts { .. }
-            | AggregationUpdateJob::DecreaseActiveCount { .. }
-            | AggregationUpdateJob::DecreaseActiveCounts { .. } => {
-                seq.serialize_element(&AggregationUpdateJobItem {
-                    job: AggregationUpdateJob::Noop,
-                    #[cfg(feature = "trace_aggregation_update")]
-                    span: None,
-                })?;
-            }
-            _ => {
-                seq.serialize_element(job)?;
+/// Encodes the jobs in the queue. This is used to filter out transient jobs during encoding.
+mod encode_jobs {
+    use bincode::{
+        de::{BorrowDecoder, Decoder},
+        enc::Encoder,
+        error::{DecodeError, EncodeError},
+    };
+
+    use super::*;
+
+    pub fn encode<E: Encoder>(
+        jobs: &VecDeque<AggregationUpdateJobItem>,
+        encoder: &mut E,
+    ) -> Result<(), EncodeError> {
+        usize::encode(&jobs.len(), encoder)?;
+        for job in jobs {
+            match job.job {
+                AggregationUpdateJob::IncreaseActiveCount { .. }
+                | AggregationUpdateJob::IncreaseActiveCounts { .. }
+                | AggregationUpdateJob::DecreaseActiveCount { .. }
+                | AggregationUpdateJob::DecreaseActiveCounts { .. } => {
+                    AggregationUpdateJobItem {
+                        job: AggregationUpdateJob::Noop,
+                        #[cfg(feature = "trace_aggregation_update")]
+                        span: None,
+                    }
+                    .encode(encoder)?;
+                }
+                _ => {
+                    job.encode(encoder)?;
+                }
             }
         }
+        Ok(())
     }
-    seq.end()
+
+    pub fn decode<Context, D: Decoder<Context = Context>>(
+        decoder: &mut D,
+    ) -> Result<VecDeque<AggregationUpdateJobItem>, DecodeError> {
+        let len = usize::decode(decoder)?;
+        let mut jobs = VecDeque::with_capacity(len);
+        for _ in 0..len {
+            jobs.push_back(Decode::decode(decoder)?);
+        }
+        Ok(jobs)
+    }
+
+    pub fn borrow_decode<'de, Context, D: BorrowDecoder<'de, Context = Context>>(
+        decoder: &mut D,
+    ) -> Result<VecDeque<AggregationUpdateJobItem>, DecodeError> {
+        decode(decoder)
+    }
 }
 
 /// A queue for aggregation update jobs.
-#[derive(Default, Serialize, Deserialize, Clone)]
+#[derive(Default, Encode, Decode, Clone)]
 pub struct AggregationUpdateQueue {
-    #[serde(serialize_with = "serialize_jobs")]
+    #[bincode(with = "encode_jobs")]
     jobs: VecDeque<AggregationUpdateJobItem>,
+    #[bincode(with = "turbo_bincode::indexmap")]
     number_updates: FxIndexMap<TaskId, AggregationNumberUpdate>,
     done_number_updates: FxHashMap<TaskId, AggregationNumberUpdate>,
+    #[bincode(with = "turbo_bincode::ringset")]
     find_and_schedule: FxRingSet<FindAndScheduleJob>,
+    #[bincode(with = "turbo_bincode::ringset")]
     balance_queue: FxRingSet<BalanceJob>,
+    #[bincode(with = "turbo_bincode::ringset")]
     optimize_queue: FxRingSet<OptimizeJob>,
 }
 

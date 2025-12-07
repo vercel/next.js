@@ -1,6 +1,7 @@
 use std::{borrow::Cow, collections::HashSet};
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
@@ -37,7 +38,17 @@ use crate::{
     utils::module_id_to_lit,
 };
 
-#[derive(PartialEq, Eq, ValueDebugFormat, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+#[derive(
+    PartialEq,
+    Eq,
+    ValueDebugFormat,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
 pub(crate) enum SinglePatternMapping {
     /// Invalid request.
     Invalid,
@@ -83,7 +94,7 @@ pub(crate) enum PatternMapping {
     /// ```js
     /// require(`./images/${name}.png`)
     /// ```
-    Map(FxIndexMap<String, SinglePatternMapping>),
+    Map(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, SinglePatternMapping>),
 }
 
 #[derive(
@@ -98,6 +109,8 @@ pub(crate) enum PatternMapping {
     TraceRawVcs,
     TaskInput,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub(crate) enum ResolveType {
     AsyncChunkLoader,

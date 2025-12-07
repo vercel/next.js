@@ -7,6 +7,13 @@ use std::{
     ops::Deref,
 };
 
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode_with_context,
+};
 use serde::{Deserialize, Serialize};
 use turbo_tasks_hash::DeterministicHash;
 
@@ -211,6 +218,27 @@ where
         Ok(Self(triomphe::Arc::new(value)))
     }
 }
+
+impl<T> Encode for ReadRef<T>
+where
+    T: Encode,
+{
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        Self::as_raw_ref(self).encode(encoder)
+    }
+}
+
+impl<Context, T> Decode<Context> for ReadRef<T>
+where
+    T: Decode<Context>,
+{
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let value = T::decode(decoder)?;
+        Ok(Self(triomphe::Arc::new(value)))
+    }
+}
+
+impl_borrow_decode_with_context!(ReadRef<T>, Context, Context, T: Decode<Context>);
 
 impl<T> ReadRef<T> {
     pub fn new_owned(value: T) -> Self {

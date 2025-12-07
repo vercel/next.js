@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::Result;
 use async_trait::async_trait;
+use bincode::{Decode, Encode};
 use indexmap::IndexMap;
 use rustc_hash::{FxBuildHasher, FxHasher};
 use serde::{Deserialize, Serialize};
@@ -23,7 +24,17 @@ use turbo_tasks::{NonLocalValue, OperationValue, ValueDefault, Vc, trace::TraceR
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 #[derive(
-    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, OperationValue,
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum EmotionLabelKind {
@@ -70,6 +81,7 @@ pub struct EmotionTransformConfig {
     pub sourcemap: Option<bool>,
     pub label_format: Option<String>,
     pub auto_label: Option<EmotionLabelKind>,
+    #[bincode(with_serde)]
     pub import_map: Option<IndexMap<RcStr, EmotionImportMapValue, FxBuildHasher>>,
 }
 

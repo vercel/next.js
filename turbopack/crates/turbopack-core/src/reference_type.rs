@@ -1,6 +1,8 @@
 use std::fmt::Display;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 
@@ -11,7 +13,9 @@ use crate::{module::Module, resolve::ModulePart};
 ///
 /// Name is usually in UPPER_CASE to make it clear that this is an inner asset.
 #[turbo_tasks::value(transparent)]
-pub struct InnerAssets(FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>);
+pub struct InnerAssets(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>,
+);
 
 #[turbo_tasks::value_impl]
 impl InnerAssets {
@@ -32,14 +36,16 @@ impl InnerAssets {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
+    Serialize,
+    Deserialize,
     Debug,
     Default,
     Clone,
     Copy,
     Hash,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum CommonJsReferenceSubType {
     Custom(u8),
@@ -52,13 +58,15 @@ pub enum CommonJsReferenceSubType {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
+    Serialize,
+    Deserialize,
     Debug,
     Clone,
     Copy,
     Hash,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum ImportWithType {
     Json,
@@ -70,13 +78,15 @@ pub enum ImportWithType {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
+    Serialize,
+    Deserialize,
     Debug,
     Default,
     Clone,
     Hash,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum EcmaScriptModulesReferenceSubType {
     ImportPart(ModulePart),
@@ -210,14 +220,16 @@ impl ImportContext {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
+    Serialize,
+    Deserialize,
     Debug,
     Default,
     Clone,
     Copy,
     Hash,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum CssReferenceSubType {
     AtImport(Option<ResolvedVc<ImportContext>>),
@@ -238,14 +250,16 @@ pub enum CssReferenceSubType {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
+    Serialize,
+    Deserialize,
     Debug,
     Default,
     Clone,
     Copy,
     Hash,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum UrlReferenceSubType {
     EcmaScriptNewUrl,
@@ -260,13 +274,15 @@ pub enum UrlReferenceSubType {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
+    Serialize,
+    Deserialize,
     Debug,
     Clone,
     Copy,
     Hash,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum TypeScriptReferenceSubType {
     Custom(u8),
@@ -278,13 +294,15 @@ pub enum TypeScriptReferenceSubType {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
+    Serialize,
+    Deserialize,
     Debug,
     Clone,
     Copy,
     Hash,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum WorkerReferenceSubType {
     WebWorker,
@@ -302,13 +320,15 @@ pub enum WorkerReferenceSubType {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
+    Serialize,
+    Deserialize,
     Debug,
     Clone,
     Copy,
     Hash,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum EntryReferenceSubType {
     Web,
@@ -332,13 +352,15 @@ pub enum EntryReferenceSubType {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    serde::Serialize,
-    serde::Deserialize,
+    Serialize,
+    Deserialize,
     Debug,
     Default,
     Clone,
     Hash,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum ReferenceType {
     CommonJs(CommonJsReferenceSubType),
