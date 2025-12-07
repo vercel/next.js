@@ -1,6 +1,6 @@
 import type { FsOutput } from './filesystem'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { NextConfigComplete } from '../../config-shared'
+import type { NextConfigRuntime } from '../../config-shared'
 import type { RenderServer, initialize } from '../router-server'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
 import type { Redirect } from '../../../types'
@@ -51,7 +51,7 @@ export function getResolveRoutes(
   fsChecker: UnwrapPromise<
     ReturnType<typeof import('./filesystem').setupFsCheck>
   >,
-  config: NextConfigComplete,
+  config: NextConfigRuntime,
   opts: Parameters<typeof initialize>[0],
   renderServer: RenderServer,
   renderServerOpts: Parameters<RenderServer['initialize']>[0],

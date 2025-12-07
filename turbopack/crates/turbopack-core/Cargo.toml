@@ -16,6 +16,7 @@ workspace = true
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
+bincode = { workspace = true }
 bitfield = { workspace = true }
 browserslist-rs = { workspace = true }
 bytes-str = { workspace = true }
@@ -37,6 +38,7 @@ smallvec = { workspace = true }
 swc_sourcemap = { workspace = true }
 swc_core = { workspace = true, features = ["ecma_preset_env", "common"] }
 tracing = { workspace = true }
+turbo-bincode = { workspace = true }
 turbo-prehash = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }

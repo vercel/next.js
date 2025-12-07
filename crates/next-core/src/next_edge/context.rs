@@ -1,9 +1,9 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::{css::chunk::CssChunkType, resolve_options_context::ResolveOptionsContext};
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
@@ -15,8 +15,10 @@ use turbopack_core::{
     free_var_references,
     module_graph::binding_usage_info::OptionBindingUsageInfo,
 };
+use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_node::execution_context::ExecutionContext;
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
     app_structure::CollectedRootParams,
@@ -195,7 +197,19 @@ pub async fn get_edge_resolve_options_context(
     .cell())
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    TaskInput,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+)]
 pub struct EdgeChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,

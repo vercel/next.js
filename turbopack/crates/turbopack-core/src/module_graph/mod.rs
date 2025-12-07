@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
+use bincode::{Decode, Encode};
 use petgraph::{
     Direction,
     graph::{DiGraph, EdgeIndex, NodeIndex},
@@ -53,12 +54,25 @@ mod traced_di_graph;
 pub use self::module_batches::BatchingConfig;
 
 #[derive(
-    Debug, Copy, Clone, Eq, PartialOrd, Ord, Hash, PartialEq, Serialize, Deserialize, TraceRawVcs,
+    Debug,
+    Copy,
+    Clone,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    Encode,
+    Decode,
 )]
 pub struct GraphNodeIndex {
     #[turbo_tasks(trace_ignore)]
     graph_idx: u32,
     #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
     node_idx: NodeIndex,
 }
 impl GraphNodeIndex {
@@ -73,14 +87,28 @@ impl GraphNodeIndex {
 unsafe impl NonLocalValue for GraphNodeIndex {}
 
 #[derive(
-    Debug, Copy, Clone, Eq, PartialOrd, Ord, Hash, PartialEq, Serialize, Deserialize, TraceRawVcs,
+    Debug,
+    Copy,
+    Clone,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct GraphEdgeIndex {
-    #[turbo_tasks(trace_ignore)]
     graph_idx: u32,
     #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
     edge_idx: EdgeIndex,
 }
+
 impl GraphEdgeIndex {
     fn new(graph_idx: u32, edge_idx: EdgeIndex) -> Self {
         Self {
@@ -90,11 +118,10 @@ impl GraphEdgeIndex {
     }
 }
 
-unsafe impl NonLocalValue for GraphEdgeIndex {}
-
 #[turbo_tasks::value]
 #[derive(Clone, Debug)]
 pub struct VisitedModules {
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub modules: FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
     next_graph_idx: u32,
 }
@@ -208,6 +235,7 @@ pub struct SingleModuleGraph {
     //
     // This contains Vcs, but they are already contained in the graph, so no need to trace this.
     #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
     modules: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 
     #[turbo_tasks(trace_ignore)]
@@ -240,6 +268,7 @@ impl SingleModuleGraph {
         entries: &GraphEntriesT,
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         let emit_spans = tracing::enabled!(Level::INFO);
         let root_edges = entries
@@ -263,6 +292,7 @@ impl SingleModuleGraph {
                     visited_modules,
                     emit_spans,
                     include_traced,
+                    include_binding_usage,
                 },
             )
             .await
@@ -783,16 +813,26 @@ impl ModuleGraph {
     pub fn from_entry_module(
         module: ResolvedVc<Box<dyn Module>>,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Vc<Self> {
         Self::from_single_graph(SingleModuleGraph::new_with_entries(
             Vc::cell(vec![ChunkGroupEntry::Entry(vec![module])]),
             include_traced,
+            include_binding_usage,
         ))
     }
 
     #[turbo_tasks::function]
-    pub fn from_modules(modules: Vc<GraphEntries>, include_traced: bool) -> Vc<Self> {
-        Self::from_single_graph(SingleModuleGraph::new_with_entries(modules, include_traced))
+    pub fn from_modules(
+        modules: Vc<GraphEntries>,
+        include_traced: bool,
+        include_binding_usage: bool,
+    ) -> Vc<Self> {
+        Self::from_single_graph(SingleModuleGraph::new_with_entries(
+            modules,
+            include_traced,
+            include_binding_usage,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -912,7 +952,18 @@ impl ModuleGraph {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TaskInput, TraceRawVcs, NonLocalValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct SingleModuleGraphWithBindingUsage {
     pub graph: ResolvedVc<SingleModuleGraph>,
@@ -1534,8 +1585,15 @@ impl SingleModuleGraph {
     pub async fn new_with_entries(
         entries: Vc<GraphEntries>,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(&*entries.await?, &Default::default(), include_traced).await
+        SingleModuleGraph::new_inner(
+            &*entries.await?,
+            &Default::default(),
+            include_traced,
+            include_binding_usage,
+        )
+        .await
     }
 
     #[turbo_tasks::function]
@@ -1543,11 +1601,13 @@ impl SingleModuleGraph {
         entries: Vc<GraphEntries>,
         visited_modules: Vc<VisitedModules>,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             &*entries.await?,
             &visited_modules.await?.modules,
             include_traced,
+            include_binding_usage,
         )
         .await
     }
@@ -1558,13 +1618,19 @@ impl SingleModuleGraph {
         entries: GraphEntriesT,
         visited_modules: Vc<VisitedModules>,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(&entries, &visited_modules.await?.modules, include_traced)
-            .await
+        SingleModuleGraph::new_inner(
+            &entries,
+            &visited_modules.await?.modules,
+            include_traced,
+            include_binding_usage,
+        )
+        .await
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum SingleModuleGraphNode {
     Module(ResolvedVc<Box<dyn Module>>),
     // Models a module that is referenced but has already been visited by an earlier graph.
@@ -1689,6 +1755,9 @@ struct SingleModuleGraphBuilder<'a> {
 
     /// Whether to walk ChunkingType::Traced references
     include_traced: bool,
+
+    /// Whether to read ChunkableModuleReference::binding_usage()
+    include_binding_usage: bool,
 }
 impl
     Visit<(
@@ -1753,10 +1822,15 @@ impl
         let visited_modules = self.visited_modules;
         let emit_spans = self.emit_spans;
         let include_traced = self.include_traced;
+        let include_binding_usage = self.include_binding_usage;
         async move {
             Ok(match (module, chunkable_ref_target) {
                 (Some(module), None) => {
-                    let refs_cell = primary_chunkable_referenced_modules(*module, include_traced);
+                    let refs_cell = primary_chunkable_referenced_modules(
+                        *module,
+                        include_traced,
+                        include_binding_usage,
+                    );
                     let refs = match refs_cell.await {
                         Ok(refs) => refs,
                         Err(e) => {
@@ -2107,6 +2181,7 @@ pub mod tests {
             let parent_graph = SingleModuleGraph::new_with_entries(
                 GraphEntries::cell(GraphEntries(vec![ChunkGroupEntry::Entry(vec![b_module])])),
                 false,
+                false,
             );
 
             let module_graph = ModuleGraph::from_graphs(vec![
@@ -2114,6 +2189,7 @@ pub mod tests {
                 SingleModuleGraph::new_with_entries_visited(
                     GraphEntries::cell(GraphEntries(vec![ChunkGroupEntry::Entry(vec![a_module])])),
                     VisitedModules::from_graph(parent_graph),
+                    false,
                     false,
                 ),
             ])
@@ -2339,6 +2415,7 @@ pub mod tests {
                 GraphEntries::cell(GraphEntries(vec![ChunkGroupEntry::Entry(
                     entry_modules.clone(),
                 )])),
+                false,
                 false,
             );
 
