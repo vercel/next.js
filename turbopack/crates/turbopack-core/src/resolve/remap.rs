@@ -8,12 +8,11 @@ use serde_json::Value;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::FxIndexMap;
 
-use super::{
-    alias_map::{AliasMap, AliasMapIter, AliasPattern, AliasTemplate},
+use crate::resolve::{
+    alias_map::{AliasKey, AliasMap, AliasMapIter, AliasPattern, AliasTemplate},
     options::ConditionValue,
     pattern::Pattern,
 };
-use crate::resolve::alias_map::AliasKey;
 
 /// A small helper type to differentiate parsing exports and imports fields.
 #[derive(Copy, Clone)]
@@ -364,7 +363,7 @@ impl<'a> Iterator for ResultsIterMut<'a> {
 }
 
 /// Content of an "exports" field in a package.json
-#[derive(PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
+#[derive(PartialEq, Eq, Encode, Decode)]
 pub struct ExportsField(AliasMap<SubpathValue>);
 
 impl TryFrom<&Value> for ExportsField {
@@ -458,7 +457,7 @@ impl Deref for ExportsField {
 }
 
 /// Content of an "imports" field in a package.json
-#[derive(PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
+#[derive(PartialEq, Eq, Encode, Decode)]
 pub struct ImportsField(AliasMap<SubpathValue>);
 
 impl TryFrom<&Value> for ImportsField {

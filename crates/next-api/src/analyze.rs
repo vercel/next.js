@@ -3,12 +3,9 @@ use std::{borrow::Cow, io::Write};
 use anyhow::Result;
 use byteorder::{BE, WriteBytesExt};
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs,
-};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     File, FileContent, FileSystemPath,
     rope::{Rope, RopeBuilder},
@@ -25,9 +22,6 @@ use turbopack_core::{
 
 use crate::route::ModuleGraphs;
 
-#[derive(
-    Default, Clone, Debug, Deserialize, Eq, NonLocalValue, PartialEq, Serialize, TraceRawVcs,
-)]
 pub struct EdgesData {
     pub offsets: Vec<u32>,
     pub data: Vec<u32>,

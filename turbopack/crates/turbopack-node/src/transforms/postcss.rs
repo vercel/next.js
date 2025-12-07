@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use indoc::formatdoc;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, Vc,
@@ -54,8 +54,6 @@ struct PostCssProcessingResult {
     Hash,
     Debug,
     TraceRawVcs,
-    Serialize,
-    Deserialize,
     TaskInput,
     NonLocalValue,
     Encode,

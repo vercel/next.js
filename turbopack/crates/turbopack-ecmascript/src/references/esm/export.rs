@@ -3,7 +3,6 @@ use std::{borrow::Cow, collections::BTreeMap, ops::ControlFlow};
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashSet;
-use serde::{Deserialize, Serialize};
 use swc_core::{
     common::{DUMMY_SP, SyntaxContext},
     ecma::ast::{
@@ -41,20 +40,7 @@ use crate::{
 /// Models the 'liveness' of an esm export
 /// All ESM exports are technically live but many never change and we can optimize representation to
 /// support that, this enum tracks the actual behavior of the export binding.
-#[derive(
-    Copy,
-    Clone,
-    Hash,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Copy, Clone, Hash, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum Liveness {
     // The binding never changes after module evaluation
     Constant,
@@ -66,19 +52,7 @@ pub enum Liveness {
     Mutable,
 }
 
-#[derive(
-    Clone,
-    Hash,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum EsmExport {
     /// A local binding that is exported (export { a } or export const a = 1)
     ///
@@ -157,19 +131,7 @@ pub async fn all_known_export_names(
     Ok(Vc::cell(export_names.esm_exports.keys().cloned().collect()))
 }
 
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum FoundExportType {
     Found,
     Dynamic,

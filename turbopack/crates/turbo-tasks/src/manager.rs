@@ -1738,7 +1738,7 @@ pub(crate) async fn read_task_cell(
 ///
 /// Mutations should not outside of the task that that owns this cell. Doing so
 /// is a logic error, and may lead to incorrect caching behavior.
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy)]
 pub struct CurrentCellRef {
     current_task: TaskId,
     index: CellId,
