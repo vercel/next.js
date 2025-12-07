@@ -2431,8 +2431,7 @@ async fn resolve_relative_request(
         // there are at most 4 possible replacements (the size of the reverse map)
         let mut replaced_extensions = SmallVec::<[RcStr; 4]>::new();
         let replaced = new_path.replace_final_constants(&mut |c: &RcStr| -> Option<Pattern> {
-            let dot = c.rfind('.')?;
-            let (base, ext) = c.split_at(dot);
+            let (base, ext) = c.split_at(c.rfind('.')?);
 
             let (ext, replacements) = TS_EXTENSION_REPLACEMENTS.forward.get_key_value(ext)?;
             for replacement in replacements {
