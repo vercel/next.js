@@ -145,6 +145,7 @@ export interface RenderOptsPartial {
      * prerendering.
      */
     isRoutePPREnabled?: boolean
+    isSuspenseProfilingEnabled?: boolean
     expireTime: number | undefined
     staleTimes: ExperimentalConfig['staleTimes'] | undefined
     clientTraceMetadata: string[] | undefined

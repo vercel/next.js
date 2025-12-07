@@ -166,6 +166,9 @@ export function getDefineEnv({
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
+    'process.env.__NEXT_SUSPENSE_PROFILING': Boolean(
+      config.experimental.suspenseProfiling
+    ),
 
     ...(isClient
       ? {

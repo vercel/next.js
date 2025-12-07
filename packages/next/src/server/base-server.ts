@@ -558,6 +558,8 @@ export default abstract class Server<
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        isSuspenseProfilingEnabled:
+          !!this.nextConfig.experimental.suspenseProfiling,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),

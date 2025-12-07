@@ -396,6 +396,8 @@ async function exportAppImpl(
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
+      isSuspenseProfilingEnabled:
+        !!nextConfig.experimental.suspenseProfiling,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
     hasReadableErrorStacks:

@@ -92,6 +92,10 @@ import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
+import {
+  suspenseBoundaryCollectorStorage,
+  createSuspenseBoundaryCollector,
+} from './suspense-boundary-collector'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
 import { createComponentTree, getRootParams } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
@@ -2406,25 +2410,34 @@ export const renderToHTMLOrFlight: AppPageRender = (
     nonce,
   })
 
-  return workAsyncStorage.run(
-    workStore,
-    // The function to run
-    renderToHTMLOrFlightImpl,
-    // all of it's args
-    req,
-    res,
-    url,
-    pagePath,
-    query,
-    renderOpts,
-    workStore,
-    parsedRequestHeaders,
-    postponedState,
-    serverComponentsHmrCache,
-    sharedContext,
-    interpolatedParams,
-    fallbackRouteParams
-  )
+  const runRender = () =>
+    workAsyncStorage.run(
+      workStore,
+      // The function to run
+      renderToHTMLOrFlightImpl,
+      // all of it's args
+      req,
+      res,
+      url,
+      pagePath,
+      query,
+      renderOpts,
+      workStore,
+      parsedRequestHeaders,
+      postponedState,
+      serverComponentsHmrCache,
+      sharedContext,
+      interpolatedParams,
+      fallbackRouteParams
+    )
+
+  // When suspense profiling is enabled, wrap with the boundary collector context
+  if (renderOpts.experimental.isSuspenseProfilingEnabled) {
+    const collector = createSuspenseBoundaryCollector()
+    return suspenseBoundaryCollectorStorage.run(collector, runRender)
+  }
+
+  return runRender()
 }
 
 function applyMetadataFromPrerenderResult(

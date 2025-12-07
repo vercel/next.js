@@ -584,6 +584,9 @@ export async function handler(
           cacheComponents: Boolean(nextConfig.cacheComponents),
           experimental: {
             isRoutePPREnabled,
+            isSuspenseProfilingEnabled: Boolean(
+              nextConfig.experimental.suspenseProfiling
+            ),
             expireTime: nextConfig.expireTime,
             staleTimes: nextConfig.experimental.staleTimes,
             dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),

@@ -298,6 +298,8 @@ export async function adapter(
                 cacheComponents: false,
                 experimental: {
                   isRoutePPREnabled: false,
+                  isSuspenseProfilingEnabled:
+                    !!params.request.nextConfig?.experimental?.suspenseProfiling,
                   authInterrupts:
                     !!params.request.nextConfig?.experimental?.authInterrupts,
                 },

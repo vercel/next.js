@@ -22,7 +22,10 @@ export interface RequestData {
     trailingSlash?: boolean
     experimental?: Pick<
       ExperimentalConfig,
-      'cacheLife' | 'authInterrupts' | 'clientParamParsingOrigins'
+      | 'cacheLife'
+      | 'authInterrupts'
+      | 'clientParamParsingOrigins'
+      | 'suspenseProfiling'
     >
   }
   page?: {

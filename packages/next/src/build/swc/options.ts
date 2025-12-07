@@ -150,7 +150,7 @@ function getBaseSWCOptions({
           runtime: 'automatic',
           pragmaFrag: 'React.Fragment',
           throwIfNamespace: true,
-          development: !!development,
+            development: !!development,
           useBuiltins: true,
           refresh: !!hasReactRefresh,
         },

@@ -11,6 +11,8 @@ import { streamToString } from '../stream-utils/node-web-streams-helper'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import type { ClientTraceDataEntry } from '../lib/trace/tracer'
+import { SuspenseBoundaryScript } from './suspense-boundary-injector'
+import { getSuspenseBoundaries } from './suspense-boundary-collector'
 
 export function makeGetServerInsertedHTML({
   polyfills,
@@ -74,6 +76,8 @@ export function makeGetServerInsertedHTML({
     const serverInsertedHTML = renderServerInsertedHTML()
 
     // Skip React rendering if we know the content is empty.
+    // Note: We can't skip when suspense profiling might be active since
+    // SuspenseBoundaryScript may have data to inject.
     if (
       polyfillTags.length === 0 &&
       traceMetaTags.length === 0 &&
@@ -81,7 +85,11 @@ export function makeGetServerInsertedHTML({
       Array.isArray(serverInsertedHTML) &&
       serverInsertedHTML.length === 0
     ) {
-      return ''
+      // Check if there are any suspense boundaries to inject
+      const boundaries = getSuspenseBoundaries()
+      if (boundaries.length === 0) {
+        return ''
+      }
     }
 
     const stream = await renderToReadableStream(
@@ -90,6 +98,7 @@ export function makeGetServerInsertedHTML({
         {serverInsertedHTML}
         {traceMetaTags}
         {errorMetaTags}
+        <SuspenseBoundaryScript />
       </>,
       {
         // Larger chunk because this isn't sent over the network.

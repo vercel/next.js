@@ -844,6 +844,17 @@ export interface ExperimentalConfig {
    * @default false
    */
   runtimeServerDeploymentId?: boolean
+
+  /**
+   * Enable Suspense boundary profiling for inspecting static shell composition.
+   * When enabled, Next.js will track all Suspense boundaries during rendering
+   * and inject inspection data into the HTML output.
+   *
+   * This is intended for profiling builds and will increase bundle size.
+   *
+   * @default false
+   */
+  suspenseProfiling?: boolean
 }
 
 export type ExportPathMap = {
@@ -1670,6 +1681,7 @@ export interface NextConfigRuntime {
     | 'proxyTimeout'
     | 'testProxy'
     | 'runtimeServerDeploymentId'
+    | 'suspenseProfiling'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1725,6 +1737,7 @@ export function getNextConfigRuntime(
         proxyTimeout: ex.proxyTimeout,
         testProxy: ex.testProxy,
         runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
+        suspenseProfiling: ex.suspenseProfiling,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,
