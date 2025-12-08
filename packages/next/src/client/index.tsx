@@ -1,4 +1,11 @@
 /* global location */
+// Initialize waterfall detector FIRST (before any fetch calls can be made)
+// This must be at the very top to patch fetch before other code runs
+if (process.env.__NEXT_PROFILER_BUILD) {
+  const { initWaterfallDetector } = (require('./waterfall-detector') as typeof import('./waterfall-detector'))
+  initWaterfallDetector()
+}
+
 // imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
 import type Router from '../shared/lib/router/router'
@@ -49,6 +56,21 @@ import tracer from './tracing/tracer'
 import { isNextRouterError } from './components/is-next-router-error'
 
 /// <reference types="react-dom/experimental" />
+
+// Log profiler build info at startup
+if (process.env.__NEXT_PROFILER_BUILD) {
+  console.log('')
+  console.log(
+    '%c[Next.js Profiler Build]',
+    'background: #0070f3; color: white; padding: 2px 6px; border-radius: 3px;',
+    '\n• Source maps: enabled',
+    '\n• Minification: disabled',
+    '\n• React Profiler: enabled (react-dom/profiling)',
+    '\n• Waterfall detection: enabled',
+    '\n\nOpen React DevTools Profiler tab to analyze component performance.'
+  )
+  console.log('')
+}
 
 declare global {
   interface Window {

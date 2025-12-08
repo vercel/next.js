@@ -345,6 +345,7 @@ export function getDefineEnv({
       config.experimental.reactDebugChannel ?? false,
     'process.env.__NEXT_TRANSITION_INDICATOR':
       config.experimental.transitionIndicator ?? false,
+    'process.env.__NEXT_PROFILER_BUILD': config.profiler ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}

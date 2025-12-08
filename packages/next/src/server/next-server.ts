@@ -1302,8 +1302,9 @@ export default class NextNodeServer extends BaseServer<
 
     const handler = super.getRequestHandler()
 
-    return (req, res, parsedUrl) =>
-      handler(this.normalizeReq(req), this.normalizeRes(res), parsedUrl)
+    return async (req, res, parsedUrl) => {
+      return handler(this.normalizeReq(req), this.normalizeRes(res), parsedUrl)
+    }
   }
 
   public async revalidate({

@@ -21,6 +21,7 @@ export type NextBuildOptions = {
   debug?: boolean
   debugPrerender?: boolean
   profile?: boolean
+  profiler?: boolean
   mangling: boolean
   turbo?: boolean
   turbopack?: boolean
@@ -44,6 +45,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     debugPrerender,
     experimentalDebugMemoryUsage,
     profile,
+    profiler,
     mangling,
     experimentalAppOnly,
     experimentalBuildMode,
@@ -80,6 +82,14 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     warn(
       `Prerendering is running in debug mode. ${italic(
         'Note: This may affect performance and should not be used for production.'
+      )}`
+    )
+  }
+
+  if (profiler) {
+    warn(
+      `Profiler build is enabled. ${italic(
+        'Note: Source maps are enabled and minification is disabled. This build is not suitable for production.'
       )}`
     )
   }
@@ -128,7 +138,8 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     experimentalBuildMode,
     traceUploadUrl,
     resolvedAppPaths,
-    resolvedPagePaths
+    resolvedPagePaths,
+    profiler
   )
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {

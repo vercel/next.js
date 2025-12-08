@@ -1415,6 +1415,7 @@ function getCacheKey(
   customConfig?: object | null,
   reactProductionProfiling?: boolean,
   debugPrerender?: boolean,
+  profiler?: boolean,
   pid?: number
 ): string {
   // The next.config.js is unique per project, so we can use the dir as the major key
@@ -1425,6 +1426,7 @@ function getCacheKey(
     hasCustomConfig: Boolean(customConfig),
     reactProductionProfiling: Boolean(reactProductionProfiling),
     debugPrerender: Boolean(debugPrerender),
+    profiler: Boolean(profiler),
     pid: pid || 0,
   })
 
@@ -1440,6 +1442,7 @@ type LoadConfigOptions = {
   ) => void
   reactProductionProfiling?: boolean
   debugPrerender?: boolean
+  profiler?: boolean
 }
 
 export default async function loadConfig(
@@ -1468,6 +1471,7 @@ export default async function loadConfig(
     reportExperimentalFeatures,
     reactProductionProfiling,
     debugPrerender,
+    profiler,
   }: LoadConfigOptions = {}
 ): Promise<NextConfigComplete> {
   // Generate cache key based on parameters that affect config output
@@ -1478,6 +1482,7 @@ export default async function loadConfig(
     customConfig,
     reactProductionProfiling,
     debugPrerender,
+    profiler,
     process.pid
   )
 
@@ -1718,6 +1723,7 @@ export default async function loadConfig(
       isDefaultConfig: false,
       configuredExperimentalFeatures,
       debugPrerender,
+      profiler,
       phase,
     })
 
@@ -1776,6 +1782,7 @@ export default async function loadConfig(
     isDefaultConfig: true,
     configuredExperimentalFeatures,
     debugPrerender,
+    profiler,
     phase,
   })
 
@@ -1818,12 +1825,14 @@ function enforceExperimentalFeatures(
     isDefaultConfig: boolean
     configuredExperimentalFeatures: ConfiguredExperimentalFeature[] | undefined
     debugPrerender: boolean | undefined
+    profiler: boolean | undefined
     phase: PHASE_TYPE
   }
 ) {
   const {
     configuredExperimentalFeatures,
     debugPrerender,
+    profiler,
     isDefaultConfig,
     phase,
   } = options
@@ -1857,6 +1866,43 @@ function enforceExperimentalFeatures(
       false,
       configuredExperimentalFeatures
     )
+  }
+
+  // Profiler build: enable source maps (client + server) and disable minification
+  if (
+    profiler &&
+    (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_EXPORT)
+  ) {
+    // Enable client-side source maps
+    config.productionBrowserSourceMaps = true
+
+    // Enable server source maps
+    config.enablePrerenderSourceMaps = true
+
+    setExperimentalFeatureForDebugPrerender(
+      config.experimental,
+      'serverSourceMaps',
+      true,
+      configuredExperimentalFeatures
+    )
+
+    // Disable minification for readable stack traces (both client and server)
+    setExperimentalFeatureForDebugPrerender(
+      config.experimental,
+      'serverMinification',
+      false,
+      configuredExperimentalFeatures
+    )
+
+    setExperimentalFeatureForDebugPrerender(
+      config.experimental,
+      'turbopackMinify',
+      false,
+      configuredExperimentalFeatures
+    )
+
+    // Mark this as a profiler build in config for runtime detection
+    config.profiler = true
   }
 
   // TODO: Remove this once we've made Cache Components the default.

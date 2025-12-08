@@ -390,6 +390,7 @@ export async function workerMain(workerData: {
     {
       debugPrerender: NextBuildContext.debugPrerender,
       reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+      profiler: NextBuildContext.profiler,
     }
   ))
   await installBindings(config.experimental?.useWasmBinary)

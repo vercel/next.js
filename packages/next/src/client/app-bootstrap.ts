@@ -5,6 +5,14 @@
  * - next/script with `beforeInteractive` strategy
  */
 
+// Initialize waterfall detector FIRST (before any fetch calls can be made)
+// This must be at the very top to patch fetch before other code runs
+if (process.env.__NEXT_PROFILER_BUILD) {
+  // Import synchronously to ensure fetch is patched immediately
+  const { initWaterfallDetector } = (require('./waterfall-detector') as typeof import('./waterfall-detector'))
+  initWaterfallDetector()
+}
+
 import { getAssetPrefix } from './asset-prefix'
 import { setAttributesFromProps } from './set-attributes-from-props'
 
@@ -13,6 +21,21 @@ const version = process.env.__NEXT_VERSION
 window.next = {
   version,
   appDir: true,
+}
+
+// Log profiler build info at startup
+if (process.env.__NEXT_PROFILER_BUILD) {
+  console.log('')
+  console.log(
+    '%c[Next.js Profiler Build]',
+    'background: #0070f3; color: white; padding: 2px 6px; border-radius: 3px;',
+    '\n• Source maps: enabled',
+    '\n• Minification: disabled',
+    '\n• React Profiler: enabled (react-dom/profiling)',
+    '\n• Waterfall detection: enabled',
+    '\n\nOpen React DevTools Profiler tab to analyze component performance.'
+  )
+  console.log('')
 }
 
 function loadScriptsInSequence(

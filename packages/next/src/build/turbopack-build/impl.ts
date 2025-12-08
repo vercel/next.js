@@ -230,6 +230,7 @@ export async function workerMain(workerData: {
     {
       debugPrerender: NextBuildContext.debugPrerender,
       reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+      profiler: NextBuildContext.profiler,
     }
   ))
   // Matches handling in build/index.ts

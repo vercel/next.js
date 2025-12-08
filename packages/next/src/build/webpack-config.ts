@@ -394,6 +394,8 @@ export default async function getBaseWebpackConfig(
 
   const hasAppDir = !!appDir
   const disableOptimizedLoading = true
+  // Combine reactProductionProfiling with profiler flag for React profiling builds
+  const enableReactProfiling = reactProductionProfiling || config.profiler
   const bundledReactChannel = needsExperimentalReact(config)
     ? '-experimental'
     : ''
@@ -780,7 +782,7 @@ export default async function getBaseWebpackConfig(
       pagesDir,
       appDir,
       dir,
-      reactProductionProfiling,
+      reactProductionProfiling: enableReactProfiling,
     }),
     ...(isClient
       ? {
@@ -1555,7 +1557,7 @@ export default async function getBaseWebpackConfig(
                   // will be ignored completely.
                   alias: createVendoredReactAliases(bundledReactChannel, {
                     // No server components profiling
-                    reactProductionProfiling,
+                    reactProductionProfiling: enableReactProfiling,
                     layer: WEBPACK_LAYERS.reactServerComponents,
                     isBrowser: isClient,
                     isEdgeServer,
@@ -1624,7 +1626,7 @@ export default async function getBaseWebpackConfig(
                       // It needs `conditionNames` here to require the proper asset,
                       // when react is acting as dependency of compiled/react-dom.
                       alias: createVendoredReactAliases(bundledReactChannel, {
-                        reactProductionProfiling,
+                        reactProductionProfiling: enableReactProfiling,
                         layer: WEBPACK_LAYERS.reactServerComponents,
                         isBrowser: isClient,
                         isEdgeServer,
@@ -1636,7 +1638,7 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: WEBPACK_LAYERS.serverSideRendering,
                     resolve: {
                       alias: createVendoredReactAliases(bundledReactChannel, {
-                        reactProductionProfiling,
+                        reactProductionProfiling: enableReactProfiling,
                         layer: WEBPACK_LAYERS.serverSideRendering,
                         isBrowser: isClient,
                         isEdgeServer,
@@ -1650,7 +1652,7 @@ export default async function getBaseWebpackConfig(
                 issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
                 resolve: {
                   alias: createVendoredReactAliases(bundledReactChannel, {
-                    reactProductionProfiling,
+                    reactProductionProfiling: enableReactProfiling,
                     layer: WEBPACK_LAYERS.appPagesBrowser,
                     isBrowser: isClient,
                     isEdgeServer,
@@ -1705,7 +1707,7 @@ export default async function getBaseWebpackConfig(
                 mainFields: getMainField(compilerType, true),
                 conditionNames: reactServerConditionNames,
                 alias: createVendoredReactAliases(bundledReactChannel, {
-                  reactProductionProfiling,
+                  reactProductionProfiling: enableReactProfiling,
                   layer: WEBPACK_LAYERS.middleware,
                   isBrowser: isClient,
                   isEdgeServer,
@@ -1720,7 +1722,7 @@ export default async function getBaseWebpackConfig(
                 mainFields: getMainField(compilerType, true),
                 conditionNames: reactServerConditionNames,
                 alias: createVendoredReactAliases(bundledReactChannel, {
-                  reactProductionProfiling,
+                  reactProductionProfiling: enableReactProfiling,
                   layer: WEBPACK_LAYERS.instrument,
                   isBrowser: isClient,
                   isEdgeServer,
@@ -2336,7 +2338,7 @@ export default async function getBaseWebpackConfig(
     assetPrefix: config.assetPrefix,
     disableOptimizedLoading,
     isEdgeRuntime: isEdgeServer,
-    reactProductionProfiling,
+    reactProductionProfiling: enableReactProfiling,
     webpack: !!config.webpack,
     hasRewrites,
     swcLoader: useSWCLoader,
@@ -2596,7 +2598,7 @@ export default async function getBaseWebpackConfig(
         issuerLayer: layer,
         resolve: {
           alias: createVendoredReactAliases(bundledReactChannel, {
-            reactProductionProfiling,
+            reactProductionProfiling: enableReactProfiling,
             layer,
             isBrowser: isClient,
             isEdgeServer,

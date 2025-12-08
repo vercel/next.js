@@ -1141,6 +1141,13 @@ export interface NextConfig {
   reactProductionProfiling?: boolean
 
   /**
+   * Enable profiler build with source maps and no minification.
+   * This is set automatically when using `next build --profiler`.
+   * @internal
+   */
+  profiler?: boolean
+
+  /**
    * The Next.js runtime is Strict Mode-compliant.
    *
    * @see [React Strict Mode](https://nextjs.org/docs/app/api-reference/config/next-config-js/reactStrictMode)
@@ -1422,6 +1429,7 @@ export const defaultConfig = Object.freeze({
   productionBrowserSourceMaps: false,
   excludeDefaultMomentLocales: true,
   reactProductionProfiling: false,
+  profiler: false,
   reactStrictMode: null,
   reactMaxHeadersLength: 6000,
   httpAgentOptions: {
