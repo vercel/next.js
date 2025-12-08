@@ -758,7 +758,7 @@ function assignDefaultsAndValidate(
     )
     if (isNaN(value) || value < 1) {
       throw new Error(
-        'Server Actions Size Limit must be a valid number or filesize format larger than 1MB: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit'
+        'Server Actions Size Limit must be a valid number or filesize format larger than 1MB: https://nextjs.org/docs/app/api-reference/config/next-config-js/serverActions#bodysizelimit'
       )
     }
   }
