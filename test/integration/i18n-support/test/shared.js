@@ -2689,7 +2689,7 @@ export function runTests(ctx) {
     // expect(result2.query).toEqual({})
   })
 
-  // ('should set locale cookie when removing default locale and accept-lang doesnt match', async () => {
+  // ("should set locale cookie when removing default locale and accept-lang doesn't match", async () => {
   //   const res = await fetchViaHTTP(ctx.appPort, '/en-US', undefined, {
   //     headers: {
   //       'accept-language': 'nl',

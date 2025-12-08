@@ -63,7 +63,7 @@ describe('react-virtualized wrapping next/image', () => {
       })
 
       it('should not cancel requests for images', async () => {
-        // TODO: this test doesnt work unless we can set `disableCache: true`
+        // TODO: this test doesn't work unless we can set `disableCache: true`
         let browser = await webdriver(appPort, '/', {
           disableCache: true,
         })

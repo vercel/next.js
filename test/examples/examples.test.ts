@@ -39,7 +39,7 @@ const testedExamples = [
 
 describe.each(testedExamples)(`example '%s'`, (example) => {
   // If there is an issue during a build, jest won't tell us which example caused it
-  // we need to log it ourselfs
+  // we need to log it ourselves
   beforeAll(() => {
     require('console').log(`Running example '${example}'`)
   })

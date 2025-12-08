@@ -1419,7 +1419,7 @@ export function findAllTelemetryEvents(output: string, eventName: string) {
 type TestVariants = 'default' | 'turbo'
 
 // WEB-168: There are some differences / incompletes in turbopack implementation enforces jest requires to update
-// test snapshot when run against turbo. This fn returns describe, or describe.skip dependes on the running context
+// test snapshot when run against turbo. This fn returns describe, or describe.skip depends on the running context
 // to avoid force-snapshot update per each runs until turbopack update includes all the changes.
 export function getSnapshotTestDescribe(variant: TestVariants) {
   const runningEnv = variant ?? 'default'

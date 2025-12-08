@@ -7,7 +7,7 @@ import {
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 
 // we don't need to exhaustively test this, just do some basic sanity checks
-// for use in combiantion with basePath
+// for use in combination with basePath
 ;(isNextDev ? describe : describe.skip)(
   'Trailing slashes in development mode, with basepath, trailingSlash: true',
   () => {

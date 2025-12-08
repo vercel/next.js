@@ -89,7 +89,7 @@ describe('segment cache (revalidation)', () => {
     await act(async () => {
       const link = await browser.elementByCss('a[href="/greeting"]')
       await link.click()
-      // Navigation should finish immedately because the page is
+      // Navigation should finish immediately because the page is
       // fully prefetched.
       const greeting = await browser.elementById('greeting')
       expect(await greeting.innerHTML()).toBe('random-greeting [1]')
@@ -142,7 +142,7 @@ describe('segment cache (revalidation)', () => {
         'form[action="/greeting"] button'
       )
       await button.click()
-      // Navigation should finish immedately because the page is
+      // Navigation should finish immediately because the page is
       // fully prefetched.
       const greeting = await browser.elementById('greeting')
       expect(await greeting.innerHTML()).toBe('random-greeting [1]')
@@ -193,7 +193,7 @@ describe('segment cache (revalidation)', () => {
     await act(async () => {
       const link = await browser.elementByCss('a[href="/greeting"]')
       await link.click()
-      // Navigation should finish immedately because the page is
+      // Navigation should finish immediately because the page is
       // fully prefetched.
       const greeting = await browser.elementById('greeting')
       expect(await greeting.innerHTML()).toBe('random-greeting [1]')
@@ -240,7 +240,7 @@ describe('segment cache (revalidation)', () => {
     await act(async () => {
       const link = await browser.elementByCss('a[href="/greeting"]')
       await link.click()
-      // Navigation should finish immedately because the page is
+      // Navigation should finish immediately because the page is
       // fully prefetched.
       const greeting = await browser.elementById('greeting')
       expect(await greeting.innerHTML()).toBe('random-greeting [1]')

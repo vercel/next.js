@@ -77,7 +77,7 @@ describe('middlewares', () => {
 
   it.each([
     {
-      title: 'returning null reponse body',
+      title: 'returning null response body',
       code: outdent`
         export default function middleware() {
           return new Response(null);

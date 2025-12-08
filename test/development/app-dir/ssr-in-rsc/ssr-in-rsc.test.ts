@@ -27,7 +27,7 @@ describe('react-dom/server in React Server environment', () => {
 
   let isStarted = false
   beforeEach(async () => {
-    // FIXME: next-custom-transforms RSC errors are not cleared during dev server livetime so we have to restart
+    // FIXME: next-custom-transforms RSC errors are not cleared during dev server lifetime so we have to restart
     if (isStarted) {
       await next.stop()
     }

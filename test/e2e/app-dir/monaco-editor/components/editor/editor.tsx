@@ -35,7 +35,7 @@ export function Editor() {
   const editorRef = useRef<HTMLDivElement>(null)
   return (
     <>
-      <Suspense fallback="initalizing monaco">
+      <Suspense fallback="initializing monaco">
         <LazyMonaco editorRef={editorRef} />
         <div id="editor" ref={editorRef} className="h-full" />
       </Suspense>

@@ -98,7 +98,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
   })
   ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
     // this test fails frequently with turbopack
-    'should not continously poll a custom error page',
+    'should not continuously poll a custom error page',
     async () => {
       await next.patchFile(
         join('pages', '_error.js'),

@@ -27,7 +27,7 @@ declare global {
        * If the project root appears in the snapshot, pass in the `NextInstance`
        * as well to normalize the snapshot e.g. `await expect({ browser, next }).toDisplayRedbox()`.
        *
-       * Unintented content in the snapshot should be reported to the Next.js DX team.
+       * Unintended content in the snapshot should be reported to the Next.js DX team.
        * `<FIXME-internal-frame>` in the snapshot would be unintended.
        * `<FIXME-project-root>` in the snapshot would be unintended.
        * `<FIXME-file-protocol>` in the snapshot would be unintended.
@@ -50,7 +50,7 @@ declare global {
        * If the project root appears in the snapshot, pass in the `NextInstance`
        * as well to normalize the snapshot e.g. `await expect({ browser, next }).toDisplayCollapsedRedbox()`.
        *
-       * Unintented content in the snapshot should be reported to the Next.js DX team.
+       * Unintended content in the snapshot should be reported to the Next.js DX team.
        * `<FIXME-internal-frame>` in the snapshot would be unintended.
        * `<FIXME-project-root>` in the snapshot would be unintended.
        * `<FIXME-file-protocol>` in the snapshot would be unintended.

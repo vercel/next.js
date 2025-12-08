@@ -162,7 +162,7 @@ describe('config telemetry', () => {
 
       // Turbopack intentionally does not support these events
       ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
-        'emits telemery for usage of image, script & dynamic',
+        'emits telemetry for usage of image, script & dynamic',
         async () => {
           const { stderr } = await nextBuild(appDir, [], {
             stderr: true,

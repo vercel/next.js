@@ -354,7 +354,7 @@ describe('empty strategy in document body', () => {
     describe('experimental.nextScriptWorkers: true with required Partytown dependency for inline script', () => {
       let next: NextInstance
 
-      // Note: previously we were using `finally` cluase inside of test assertion. However, if the test times out
+      // Note: previously we were using `finally` clause inside of test assertion. However, if the test times out
       // exceeding jest.setTimeout() value, the finally clause is not executed and subsequent tests will fail due to
       // hanging next instance.
       afterEach(async () => {

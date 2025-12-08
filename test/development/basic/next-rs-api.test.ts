@@ -492,16 +492,16 @@ describe('next.rs api', () => {
   for (const { name, path, type, runtime, config } of routes) {
     // eslint-disable-next-line no-loop-func
     it(`should allow to write ${name} to disk`, async () => {
-      const entrypointsSubscribtion = project.entrypointsSubscribe()
+      const entrypointsSubscription = project.entrypointsSubscribe()
       const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
-        await entrypointsSubscribtion.next()
+        await entrypointsSubscription.next()
       ).value
       if (!('routes' in entrypoints)) {
         throw new Error('Entrypoints not available due to compilation errors')
       }
 
       const route = entrypoints.routes.get(path)
-      entrypointsSubscribtion.return()
+      entrypointsSubscription.return()
 
       expect(route.type).toBe(type)
 
@@ -631,16 +631,16 @@ describe('next.rs api', () => {
       it(`should have working HMR on ${name} ${i}`, async () => {
         console.log('start')
         await new Promise((r) => setTimeout(r, 1000))
-        const entrypointsSubscribtion = project.entrypointsSubscribe()
+        const entrypointsSubscription = project.entrypointsSubscribe()
         const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
-          await entrypointsSubscribtion.next()
+          await entrypointsSubscription.next()
         ).value
         if (!('routes' in entrypoints)) {
           throw new Error('Entrypoints not available due to compilation errors')
         }
 
         const route = entrypoints.routes.get(path)
-        entrypointsSubscribtion.return()
+        entrypointsSubscription.return()
 
         expect(route.type).toBe(type)
 
@@ -778,16 +778,16 @@ describe('next.rs api', () => {
   it.skip('should allow to make many HMR updates', async () => {
     console.log('start')
     await new Promise((r) => setTimeout(r, 1000))
-    const entrypointsSubscribtion = project.entrypointsSubscribe()
+    const entrypointsSubscription = project.entrypointsSubscribe()
     const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
-      await entrypointsSubscribtion.next()
+      await entrypointsSubscription.next()
     ).value
     if (!('routes' in entrypoints)) {
       throw new Error('Entrypoints not available due to compilation errors')
     }
 
     const route = entrypoints.routes.get('/')
-    entrypointsSubscribtion.return()
+    entrypointsSubscription.return()
 
     if (route.type !== 'page') throw new Error('unknown route type')
     await route.htmlEndpoint.writeToDisk()

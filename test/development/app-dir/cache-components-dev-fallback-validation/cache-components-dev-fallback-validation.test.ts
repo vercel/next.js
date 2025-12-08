@@ -7,7 +7,7 @@ describe('Cache Components Fallback Validation', () => {
   })
 
   it('should not warn about missing Suspense when accessing params if static params are completely known at build time', async () => {
-    // when the params are complete we don't expect to see any errors await params regarless of where there
+    // when the params are complete we don't expect to see any errors await params regardless of where there
     // are Suspense boundaries.
     const browser = await next.browser(
       '/complete/prerendered/wrapped/prerendered'
