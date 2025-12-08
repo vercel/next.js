@@ -1,6 +1,7 @@
 use std::cmp::Reverse;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use indexmap::map::Entry;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -23,7 +24,18 @@ use crate::{
 };
 
 #[derive(
-    TaskInput, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, NonLocalValue, TraceRawVcs,
+    TaskInput,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+    TraceRawVcs,
+    Encode,
+    Decode,
 )]
 pub struct StyleGroupsConfig {
     pub max_chunk_size: usize,
@@ -37,6 +49,7 @@ pub struct StyleGroupsConfig {
 pub struct StyleGroups {
     /// The key chunk item is contained in the value chunk item batch. All chunk items that are not
     /// contained in this map are placed in a separate chunk per chunk item.
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub shared_chunk_items:
         FxIndexMap<ChunkItemWithAsyncModuleInfo, ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>>,
 }

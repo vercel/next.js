@@ -2,6 +2,7 @@ use std::{fmt::Debug, hash::Hash, marker::PhantomData};
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 pub use turbo_tasks_macros::OperationValue;
 
@@ -48,6 +49,9 @@ use crate::{
 /// [`State`]: crate::State
 /// [`ReadRef`]: crate::ReadRef
 #[must_use]
+#[derive(Serialize, Deserialize, Encode, Decode)]
+#[serde(transparent, bound = "")]
+#[bincode(bounds = "T: ?Sized")]
 #[repr(transparent)]
 pub struct OperationVc<T>
 where
@@ -203,26 +207,6 @@ where
         }
         Ok(Self {
             node: Vc::from(raw),
-        })
-    }
-}
-
-impl<T> Serialize for OperationVc<T>
-where
-    T: ?Sized,
-{
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.node.serialize(serializer)
-    }
-}
-
-impl<'de, T> Deserialize<'de> for OperationVc<T>
-where
-    T: ?Sized,
-{
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Ok(OperationVc {
-            node: Vc::deserialize(deserializer)?,
         })
     }
 }

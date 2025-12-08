@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use either::Either;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -49,7 +50,9 @@ struct CustomRoutes {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ModularizeImports(FxIndexMap<String, ModularizeImportPackageConfig>);
+pub struct ModularizeImports(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, ModularizeImportPackageConfig>,
+);
 
 #[turbo_tasks::value(transparent)]
 #[derive(Clone, Debug)]
@@ -87,7 +90,9 @@ pub struct NextConfig {
     cache_max_memory_size: Option<f64>,
     /// custom path to a cache handler to use
     cache_handler: Option<RcStr>,
+    #[bincode(with_serde)]
     cache_handlers: Option<FxIndexMap<RcStr, RcStr>>,
+    #[bincode(with = "turbo_bincode::serde_json")]
     env: FxIndexMap<String, JsonValue>,
     experimental: ExperimentalConfig,
     images: ImageConfig,
@@ -96,10 +101,12 @@ pub struct NextConfig {
     react_production_profiling: Option<bool>,
     react_strict_mode: Option<bool>,
     transpile_packages: Option<Vec<RcStr>>,
+    #[bincode(with = "turbo_bincode::serde_json")]
     modularize_imports: Option<FxIndexMap<String, ModularizeImportPackageConfig>>,
     dist_dir: RcStr,
     dist_dir_root: RcStr,
     deployment_id: Option<RcStr>,
+    #[bincode(with = "turbo_bincode::serde_json")]
     sass_options: Option<serde_json::Value>,
     trailing_slash: Option<bool>,
     asset_prefix: Option<RcStr>,
@@ -112,7 +119,9 @@ pub struct NextConfig {
     output: Option<OutputType>,
     turbopack: Option<TurbopackConfig>,
     production_browser_source_maps: bool,
+    #[bincode(with = "turbo_bincode::serde_json")]
     output_file_tracing_includes: Option<serde_json::Value>,
+    #[bincode(with = "turbo_bincode::serde_json")]
     output_file_tracing_excludes: Option<serde_json::Value>,
     // TODO: This option is not respected, it uses Turbopack's root instead.
     output_file_tracing_root: Option<RcStr>,
@@ -145,7 +154,9 @@ pub struct NextConfig {
     http_agent_options: HttpAgentConfig,
     on_demand_entries: OnDemandEntriesConfig,
     powered_by_header: bool,
+    #[bincode(with = "turbo_bincode::serde_json")]
     public_runtime_config: FxIndexMap<String, serde_json::Value>,
+    #[bincode(with = "turbo_bincode::serde_json")]
     server_runtime_config: FxIndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
     target: Option<String>,
@@ -171,7 +182,17 @@ impl NextConfig {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum CrossOriginConfig {
@@ -192,6 +213,8 @@ pub struct OptionCrossOriginConfig(Option<CrossOriginConfig>);
     TraceRawVcs,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 struct EslintConfig {
@@ -209,6 +232,8 @@ struct EslintConfig {
     TraceRawVcs,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum BuildActivityPositions {
@@ -229,6 +254,8 @@ pub enum BuildActivityPositions {
     TraceRawVcs,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct DevIndicatorsOptions {
@@ -237,7 +264,16 @@ pub struct DevIndicatorsOptions {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(untagged)]
 pub enum DevIndicatorsConfig {
@@ -255,6 +291,8 @@ pub enum DevIndicatorsConfig {
     TraceRawVcs,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 struct OnDemandEntriesConfig {
@@ -272,6 +310,8 @@ struct OnDemandEntriesConfig {
     TraceRawVcs,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 struct HttpAgentConfig {
@@ -279,7 +319,17 @@ struct HttpAgentConfig {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct DomainLocale {
@@ -290,7 +340,17 @@ pub struct DomainLocale {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct I18NConfig {
@@ -304,7 +364,17 @@ pub struct I18NConfig {
 pub struct OptionI18NConfig(Option<I18NConfig>);
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum OutputType {
@@ -329,6 +399,8 @@ pub struct OptionOutputType(Option<OutputType>);
     Deserialize,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum RouteHas {
@@ -375,7 +447,16 @@ pub struct Header {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub enum RedirectStatus {
@@ -384,7 +465,16 @@ pub enum RedirectStatus {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct Redirect {
@@ -403,7 +493,9 @@ pub struct Redirect {
     pub status: RedirectStatus,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, Encode, Decode,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct Rewrite {
     pub source: String,
@@ -437,6 +529,8 @@ pub struct Rewrites {
     TraceRawVcs,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct TypeScriptConfig {
@@ -496,7 +590,16 @@ impl Default for ImageConfig {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum ImageLoader {
@@ -508,7 +611,16 @@ pub enum ImageLoader {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 pub enum ImageFormat {
     #[serde(rename = "image/webp")]
@@ -527,6 +639,8 @@ pub enum ImageFormat {
     TraceRawVcs,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct RemotePattern {
@@ -540,7 +654,16 @@ pub struct RemotePattern {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum RemotePatternProtocol {
@@ -558,12 +681,14 @@ pub enum RemotePatternProtocol {
     TraceRawVcs,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct TurbopackConfig {
-    /// This option has been replaced by `rules`.
-    pub loaders: Option<JsonValue>,
+    #[bincode(with = "turbo_bincode::serde_json")]
     pub rules: Option<FxIndexMap<RcStr, RuleConfigCollection>>,
+    #[bincode(with = "turbo_bincode::serde_json")]
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub debug_ids: Option<bool>,
@@ -731,7 +856,16 @@ pub enum ModuleIds {
 pub struct OptionModuleIds(pub Option<ModuleIds>);
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(untagged)]
 pub enum MdxRsOptions {
@@ -771,7 +905,16 @@ pub struct ReactCompilerOptions {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(untagged)]
 pub enum ReactCompilerOptionsOrBoolean {
@@ -793,6 +936,8 @@ pub struct OptionalReactCompilerOptions(Option<ResolvedVc<ReactCompilerOptions>>
     ValueDebugFormat,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
@@ -810,6 +955,7 @@ pub struct ExperimentalConfig {
     /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs)
     mdx_rs: Option<MdxRsOptions>,
     strict_next_head: Option<bool>,
+    #[bincode(with = "turbo_bincode::serde_json")]
     swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
     external_middleware_rewrites_resolve: Option<bool>,
     scroll_restoration: Option<bool>,
@@ -818,6 +964,7 @@ pub struct ExperimentalConfig {
     middleware_prefetch: Option<MiddlewarePrefetchType>,
     /// optimizeCss can be boolean or critters' option object
     /// Use Record<string, unknown> as critters doesn't export its Option type ([link](https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts))
+    #[bincode(with = "turbo_bincode::serde_json")]
     optimize_css: Option<serde_json::Value>,
     next_script_workers: Option<bool>,
     web_vitals_attribution: Option<Vec<RcStr>>,
@@ -835,6 +982,7 @@ pub struct ExperimentalConfig {
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     after: Option<bool>,
     app_document_preloading: Option<bool>,
+    #[bincode(with = "turbo_bincode::serde_json")]
     cache_life: Option<FxIndexMap<String, CacheLifeProfile>>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
@@ -842,6 +990,7 @@ pub struct ExperimentalConfig {
     disable_optimized_loading: Option<bool>,
     disable_postcss_preset_env: Option<bool>,
     esm_externals: Option<EsmExternals>,
+    #[bincode(with = "turbo_bincode::serde_json")]
     extension_alias: Option<serde_json::Value>,
     external_dir: Option<bool>,
     /// If set to `false`, webpack won't fall back to polyfill Node.js modules
@@ -856,6 +1005,7 @@ pub struct ExperimentalConfig {
     instrumentation_hook: Option<bool>,
     client_trace_metadata: Option<Vec<String>>,
     large_page_data_bytes: Option<f64>,
+    #[bincode(with = "turbo_bincode::serde_json")]
     logging: Option<serde_json::Value>,
     memory_based_workers_count: Option<bool>,
     /// Optimize React APIs for server builds.
@@ -874,6 +1024,7 @@ pub struct ExperimentalConfig {
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
 
+    #[bincode(with = "turbo_bincode::serde_json")]
     url_imports: Option<serde_json::Value>,
     /// This option is to enable running the Webpack build in a worker thread
     /// (doesn't apply to Turbopack).
@@ -966,7 +1117,17 @@ fn test_cache_life_profiles_invalid() {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct SubResourceIntegrity {
@@ -974,7 +1135,16 @@ pub struct SubResourceIntegrity {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(untagged)]
 pub enum ServerActionsOrLegacyBool {
@@ -987,7 +1157,16 @@ pub enum ServerActionsOrLegacyBool {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum EsmExternalsValue {
@@ -995,7 +1174,16 @@ pub enum EsmExternalsValue {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(untagged)]
 pub enum EsmExternals {
@@ -1033,6 +1221,8 @@ fn test_esm_externals_deserialization() {
     TraceRawVcs,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct ServerActions {
@@ -1040,7 +1230,9 @@ pub struct ServerActions {
     pub body_size_limit: Option<SizeLimit>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue)]
+#[derive(
+    Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
 #[serde(untagged)]
 pub enum SizeLimit {
     Number(f64),
@@ -1062,7 +1254,16 @@ impl PartialEq for SizeLimit {
 impl Eq for SizeLimit {}
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum MiddlewarePrefetchType {
@@ -1071,7 +1272,16 @@ pub enum MiddlewarePrefetchType {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(untagged)]
 pub enum EmotionTransformOptionsOrBoolean {
@@ -1089,7 +1299,16 @@ impl EmotionTransformOptionsOrBoolean {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(untagged)]
 pub enum StyledComponentsTransformOptionsOrBoolean {
@@ -1118,7 +1337,16 @@ pub struct CompilerConfig {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum ReactRemoveProperties {
@@ -1136,7 +1364,16 @@ impl ReactRemoveProperties {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(untagged)]
 pub enum RemoveConsoleConfig {
@@ -1157,7 +1394,9 @@ impl RemoveConsoleConfig {
 pub struct ResolveExtensions(Option<Vec<RcStr>>);
 
 #[turbo_tasks::value(transparent)]
-pub struct SwcPlugins(Vec<(RcStr, serde_json::Value)>);
+pub struct SwcPlugins(
+    #[bincode(with = "turbo_bincode::serde_json")] Vec<(RcStr, serde_json::Value)>,
+);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionalMdxTransformOptions(Option<ResolvedVc<MdxTransformOptions>>);
@@ -1173,7 +1412,9 @@ pub struct OptionFileSystemPath(Option<FileSystemPath>);
 pub struct OptionServerActions(Option<ServerActions>);
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionJsonValue(pub Option<serde_json::Value>);
+pub struct OptionJsonValue(
+    #[bincode(with = "turbo_bincode::serde_json")] pub Option<serde_json::Value>,
+);
 
 fn turbopack_config_documentation_link() -> RcStr {
     rcstr!("https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders")
@@ -1225,6 +1466,7 @@ impl Issue for InvalidLoaderRuleRenameAsIssue {
 
 #[turbo_tasks::value(shared)]
 struct InvalidLoaderRuleConditionIssue {
+    #[bincode(with = "turbo_bincode::serde_json")]
     condition: ConfigConditionItem,
     config_file_path: FileSystemPath,
 }
@@ -1962,9 +2204,10 @@ impl NextConfig {
 /// A subset of ts/jsconfig that next.js implicitly
 /// interops with.
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct JsConfig {
+    #[bincode(with = "turbo_bincode::serde_json")]
     compiler_options: Option<serde_json::Value>,
 }
 

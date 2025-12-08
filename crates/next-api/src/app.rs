@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use next_core::{
     app_structure::{
         AppPageLoaderTree, CollectedRootParams, Entrypoint as AppEntrypoint,
@@ -1068,13 +1069,27 @@ pub fn app_entry_point_to_route(
 #[turbo_tasks::value(transparent)]
 struct OutputAssetsWithAvailability((ResolvedVc<OutputAssets>, AvailabilityInfo));
 
-#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue)]
+#[derive(
+    Copy,
+    Clone,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Debug,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
 enum AppPageEndpointType {
     Html,
     Rsc,
 }
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue)]
+#[derive(
+    Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode,
+)]
 enum AppEndpointType {
     Page {
         ty: AppPageEndpointType,
@@ -1528,6 +1543,9 @@ impl AppEndpoint {
                     rcstr!("server/middleware-build-manifest.js"),
                     rcstr!("server/interception-route-rewrite-manifest.js"),
                 ];
+                if project.next_mode().await?.is_production() {
+                    file_paths_from_root.insert(rcstr!("required-server-files.js"));
+                }
                 if emit_manifests == EmitManifests::Full {
                     file_paths_from_root.insert(rcstr!("server/next-font-manifest.js"));
                 };

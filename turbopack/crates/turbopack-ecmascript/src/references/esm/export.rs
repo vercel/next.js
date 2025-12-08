@@ -1,6 +1,7 @@
 use std::{borrow::Cow, collections::BTreeMap, ops::ControlFlow};
 
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use swc_core::{
@@ -26,13 +27,13 @@ use turbopack_core::{
     resolve::ModulePart,
 };
 
-use super::base::ReferencedAsset;
 use crate::{
     EcmascriptModuleAsset, ScopeHoistingContext,
     analyzer::graph::EvalContext,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
+    references::esm::base::ReferencedAsset,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
     tree_shake::asset::EcmascriptModulePartAsset,
     utils::module_id_to_lit,
@@ -42,7 +43,18 @@ use crate::{
 /// All ESM exports are technically live but many never change and we can optimize representation to
 /// support that, this enum tracks the actual behavior of the export binding.
 #[derive(
-    Copy, Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+    Copy,
+    Clone,
+    Hash,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum Liveness {
     // The binding never changes after module evaluation
@@ -55,7 +67,19 @@ pub enum Liveness {
     Mutable,
 }
 
-#[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(
+    Clone,
+    Hash,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
 pub enum EsmExport {
     /// A local binding that is exported (export { a } or export const a = 1)
     ///
@@ -134,7 +158,19 @@ pub async fn all_known_export_names(
     Ok(Vc::cell(export_names.esm_exports.keys().cloned().collect()))
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
 pub enum FoundExportType {
     Found,
     Dynamic,
@@ -323,6 +359,7 @@ async fn find_export_from_reexports(
 
 #[turbo_tasks::value]
 struct AllExportNamesResult {
+    #[bincode(with = "turbo_bincode::indexmap")]
     esm_exports: FxIndexMap<RcStr, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
     dynamic_exporting_modules: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
@@ -381,6 +418,7 @@ async fn get_all_export_names(
 
 #[turbo_tasks::value]
 pub struct ExpandStarResult {
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub esm_exports: FxIndexMap<RcStr, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
     pub dynamic_exporting_modules: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }

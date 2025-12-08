@@ -1,13 +1,18 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, ResolvedVc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{reference_type::ReferenceType, source::Source};
 
-use super::{RuleCondition, match_mode::MatchMode};
-use crate::transition::Transition;
+use crate::{
+    module_options::{RuleCondition, match_mode::MatchMode},
+    transition::Transition,
+};
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode,
+)]
 pub struct TransitionRule {
     condition: RuleCondition,
     transition: ResolvedVc<Box<dyn Transition>>,

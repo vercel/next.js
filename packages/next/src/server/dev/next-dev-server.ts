@@ -51,7 +51,7 @@ import {
 import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
-import { defaultConfig } from '../config-shared'
+import { defaultConfig, type NextConfigComplete } from '../config-shared'
 import { isMiddlewareFile } from '../../build/utils'
 import { formatServerError } from '../../lib/format-server-error'
 import { DevRouteMatcherManager } from '../route-matcher-managers/dev-route-matcher-manager'
@@ -95,6 +95,8 @@ const ReactDevOverlay: PagesDevOverlayBridgeType = (props) => {
 }
 
 export interface Options extends ServerOptions {
+  // Override type to make the full config available instead of only NextConfigRuntime
+  conf: NextConfigComplete
   /**
    * Tells of Next.js is running from the `next dev` command
    */
@@ -112,6 +114,9 @@ export interface Options extends ServerOptions {
 }
 
 export default class DevServer extends Server {
+  // Override type to make the full config available instead of only NextConfigRuntime
+  protected readonly nextConfig: NextConfigComplete
+
   /**
    * The promise that resolves when the server is ready. When this is unset
    * the server is ready.
@@ -171,6 +176,7 @@ export default class DevServer extends Server {
       Error.stackTraceLimit = 50
     } catch {}
     super({ ...options, dev: true })
+    this.nextConfig = options.conf
     this.bundlerService = options.bundlerService
     this.startServerSpan =
       options.startServerSpan ?? trace('start-next-dev-server')

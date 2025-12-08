@@ -41,7 +41,6 @@
   display: flex;
   align-items: center;
   white-space: pre;
-  cursor: default;
   color: var(--color-gray-1000);
 }
 
@@ -90,8 +89,6 @@
   line-height: 16px;
   font-size: var(--size-12);
   font-weight: 500;
-  user-select: none;
-  cursor: pointer;
   background-color: var(--color-gray-300);
   color: var(--color-gray-1000);
 }

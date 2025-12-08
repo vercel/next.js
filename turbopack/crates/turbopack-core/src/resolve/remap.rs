@@ -1,6 +1,7 @@
 use std::{borrow::Cow, collections::BTreeMap, fmt::Display, ops::Deref};
 
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -363,7 +364,7 @@ impl<'a> Iterator for ResultsIterMut<'a> {
 }
 
 /// Content of an "exports" field in a package.json
-#[derive(PartialEq, Eq, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub struct ExportsField(AliasMap<SubpathValue>);
 
 impl TryFrom<&Value> for ExportsField {
@@ -457,7 +458,7 @@ impl Deref for ExportsField {
 }
 
 /// Content of an "imports" field in a package.json
-#[derive(PartialEq, Eq, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub struct ImportsField(AliasMap<SubpathValue>);
 
 impl TryFrom<&Value> for ImportsField {

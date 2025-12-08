@@ -4611,7 +4611,7 @@
     }
     function loadServerReference$1(response, metaData, parentObject, key) {
       var id = metaData.id;
-      if ("string" !== typeof id) return null;
+      if ("string" !== typeof id || "then" === key) return null;
       var serverReference = resolveServerReference(response._bundlerConfig, id);
       id = metaData.bound;
       var promise = preloadModule(serverReference);
@@ -4972,8 +4972,8 @@
     function extractIterator(response, model) {
       return model[Symbol.iterator]();
     }
-    function createModel(response, model) {
-      return model;
+    function createModel(response, model, parentObject, key) {
+      return "then" === key && "function" === typeof model ? null : model;
     }
     function parseTypedArray(
       response,
