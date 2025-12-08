@@ -61,6 +61,8 @@ export default function Home() {
     isLoading: isAnalyzeLoading,
     error: analyzeError,
   } = useSWR<AnalyzeData>(analyzeDataPath, fetchAnalyzeData, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
     onSuccess: (newData) => {
       const newRootSourceIndex = getRootSourceIndex(newData)
       setSelectedSourceIndex(newRootSourceIndex)

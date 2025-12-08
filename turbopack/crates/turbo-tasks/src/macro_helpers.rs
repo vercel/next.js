@@ -1,6 +1,7 @@
 //! Runtime helpers for [turbo-tasks-macro].
 
 pub use async_trait::async_trait;
+pub use bincode;
 pub use once_cell::sync::{Lazy, OnceCell};
 use rustc_hash::FxHashMap;
 pub use serde;
@@ -14,7 +15,7 @@ use crate::{
 pub use crate::{
     global_name, inventory_submit,
     magic_any::MagicAny,
-    manager::{find_cell_by_type, spawn_detached_for_testing},
+    manager::{find_cell_by_id, find_cell_by_type, spawn_detached_for_testing},
     native_function::{
         CollectableFunction, NativeFunction, downcast_args_owned, downcast_args_ref,
     },

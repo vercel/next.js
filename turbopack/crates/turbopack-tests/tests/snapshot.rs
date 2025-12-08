@@ -20,9 +20,6 @@ use turbo_tasks_fs::{
 use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
-    ecmascript::{
-        AnalyzeMode, EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType,
-    },
     module_options::{
         EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
         ModuleRuleEffect, RuleCondition, TypescriptTransformOptions,
@@ -53,6 +50,9 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
+};
+use turbopack_ecmascript::{
+    AnalyzeMode, EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType,
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::{EmotionTransformConfig, EmotionTransformer},
@@ -291,7 +291,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let mut defines = compile_time_defines!(
         process.turbopack = true,
-        process.env.TURBOPACK = true,
+        process.env.TURBOPACK = "1",
         process.env.NODE_ENV = "development",
         DEFINED_VALUE = "value",
         DEFINED_TRUE = true,
@@ -432,6 +432,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let mut module_graph = ModuleGraph::from_modules(
         Vc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
         false,
+        true,
     );
 
     let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {

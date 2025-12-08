@@ -874,5 +874,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.3.0-canary-fd524fe0-20251121";
+    exports.version = "19.3.0-canary-378973b3-20251205";
   })();

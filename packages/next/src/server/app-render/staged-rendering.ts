@@ -40,7 +40,10 @@ export class StagedRenderingController {
             this.runtimeStagePromise.promise.catch(ignoreReject) // avoid unhandled rejections
             this.runtimeStagePromise.reject(reason)
           }
-          if (this.currentStage < RenderStage.Dynamic) {
+          if (
+            this.currentStage < RenderStage.Dynamic ||
+            this.currentStage === RenderStage.Abandoned
+          ) {
             this.dynamicStagePromise.promise.catch(ignoreReject) // avoid unhandled rejections
             this.dynamicStagePromise.reject(reason)
           }

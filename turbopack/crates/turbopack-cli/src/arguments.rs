@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::anyhow;
+use bincode::{Decode, Encode};
 use clap::{Args, Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
@@ -48,6 +49,8 @@ impl Arguments {
     TaskInput,
     NonLocalValue,
     TraceRawVcs,
+    Encode,
+    Decode,
 )]
 pub enum Target {
     Browser,

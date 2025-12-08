@@ -14,7 +14,7 @@
       "react-server": "./server.react-server.js",
       "workerd": "./server.edge.js",
       "bun": "./server.bun.js",
-      "deno": "./server.browser.js",
+      "deno": "./server.node.js",
       "worker": "./server.browser.js",
       "node": "./server.node.js",
       "edge-light": "./server.edge.js",
@@ -72,10 +72,10 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "scheduler": "0.0.0-experimental-fd524fe0-20251121"
+    "scheduler": "0.0.0-experimental-378973b3-20251205"
   },
   "peerDependencies": {
-    "react": "0.0.0-experimental-fd524fe0-20251121"
+    "react": "0.0.0-experimental-378973b3-20251205"
   },
   "browser": {
     "./server.js": "./server.browser.js",
