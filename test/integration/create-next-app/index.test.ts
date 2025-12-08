@@ -127,7 +127,7 @@ describe('create-next-app', () => {
       projectFilesShouldExist({
         cwd,
         projectName,
-        files: ['.gitignore', 'package.json'],
+        files: ['.env.example', '.gitignore', 'package.json'],
       })
       projectFilesShouldNotExist({ cwd, projectName, files: ['node_modules'] })
     })

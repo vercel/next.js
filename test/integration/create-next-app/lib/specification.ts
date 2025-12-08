@@ -28,6 +28,7 @@ export const projectSpecification: ProjectSpecification = {
       'package.json',
       'eslint.config.mjs',
       'node_modules/next',
+      '.env.example',
       '.gitignore',
     ],
     deps: [
