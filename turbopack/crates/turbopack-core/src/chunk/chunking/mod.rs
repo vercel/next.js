@@ -1,6 +1,7 @@
 use std::future::IntoFuture;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
@@ -50,7 +51,16 @@ struct BatchChunkItemsWithInfo(
 );
 
 #[derive(
-    Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, ValueDebugFormat,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    ValueDebugFormat,
+    Encode,
+    Decode,
 )]
 enum ChunkItemOrBatchWithInfo {
     ChunkItem {

@@ -5,6 +5,13 @@ use std::{
     ops::Deref,
 };
 
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 use serde::{Deserialize, Serialize, de::Visitor};
 
 use crate::{
@@ -66,6 +73,7 @@ macro_rules! define_id {
             type Target = $primitive;
 
             fn deref(&self) -> &Self::Target {
+                // SAFETY: `NonZero<T>` is guaranteed to have the same layout as `T`
                 unsafe { transmute_copy(&&self.id) }
             }
         }
@@ -118,19 +126,19 @@ macro_rules! define_id {
     };
 }
 
-define_id!(TaskId: u32, derive(Serialize, Deserialize), serde(transparent));
+define_id!(TaskId: u32, derive(Serialize, Deserialize, Encode, Decode), serde(transparent));
 define_id!(FunctionId: u16);
 define_id!(ValueTypeId: u16);
 define_id!(TraitTypeId: u16);
 define_id!(
     LocalTaskId: u32,
-    derive(Debug, Serialize, Deserialize),
+    derive(Debug, Serialize, Deserialize, Encode, Decode),
     serde(transparent),
     doc = "Represents the nth `local` function call inside a task.",
 );
 define_id!(
     ExecutionId: u16,
-    derive(Debug, Serialize, Deserialize),
+    derive(Debug, Serialize, Deserialize, Encode, Decode),
     serde(transparent),
     doc = "An identifier for a specific task execution. Used to assert that local `Vc`s don't \
         leak. This value may overflow and re-use old values.",
@@ -158,8 +166,8 @@ impl TaskId {
     }
 }
 
-macro_rules! make_serializable {
-    ($ty:ty, $get_object:path, $validate_type_id:path, $visitor_name:ident) => {
+macro_rules! make_registered_serializable {
+    ($ty:ty, $primitive:ty, $get_object:path, $validate_type_id:path $(,)?) => {
         impl Serialize for $ty {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
             where
@@ -174,33 +182,32 @@ macro_rules! make_serializable {
             where
                 D: serde::Deserializer<'de>,
             {
-                deserializer.deserialize_u16($visitor_name)
-            }
-        }
+                struct DeserializeVisitor;
+                impl<'de> Visitor<'de> for DeserializeVisitor {
+                    type Value = $ty;
 
-        struct $visitor_name;
+                    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                        formatter.write_str(concat!("an id of a registered ", stringify!($ty)))
+                    }
 
-        impl<'de> Visitor<'de> for $visitor_name {
-            type Value = $ty;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str(concat!("an id of a registered ", stringify!($ty)))
-            }
-
-            fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                match Self::Value::new(v) {
-                    Some(value) => {
-                        if let Some(error) = $validate_type_id(value) {
-                            Err(E::custom(error))
-                        } else {
-                            Ok(value)
+                    fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match Self::Value::new(v) {
+                            Some(value) => {
+                                if let Some(error) = $validate_type_id(value) {
+                                    Err(E::custom(error))
+                                } else {
+                                    Ok(value)
+                                }
+                            }
+                            None => Err(E::unknown_variant(&format!("{v}"), &["a non zero u16"])),
                         }
                     }
-                    None => Err(E::unknown_variant(&format!("{v}"), &["a non zero u16"])),
                 }
+
+                deserializer.deserialize_u16(DeserializeVisitor)
             }
         }
 
@@ -212,24 +219,45 @@ macro_rules! make_serializable {
                     .finish()
             }
         }
+
+        impl Encode for $ty {
+            fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+                <NonZero<$primitive> as Encode>::encode(&self.id, encoder)
+            }
+        }
+
+        impl<Context> Decode<Context> for $ty {
+            fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+                let value = Self {
+                    id: NonZero::<$primitive>::decode(decoder)?,
+                };
+                if let Some(error) = $validate_type_id(value) {
+                    Err(DecodeError::OtherString(error.to_string()))
+                } else {
+                    Ok(value)
+                }
+            }
+        }
+
+        impl_borrow_decode!($ty);
     };
 }
 
-make_serializable!(
+make_registered_serializable!(
     ValueTypeId,
+    u16,
     registry::get_value_type,
     registry::validate_value_type_id,
-    ValueTypeVisitor
 );
-make_serializable!(
+make_registered_serializable!(
     TraitTypeId,
+    u16,
     registry::get_trait,
     registry::validate_trait_type_id,
-    TraitTypeVisitor
 );
-make_serializable!(
+make_registered_serializable!(
     FunctionId,
+    u16,
     registry::get_native_function,
     registry::validate_function_id,
-    FunctionTypeVisitor
 );

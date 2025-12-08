@@ -8,6 +8,7 @@ use std::{
 
 use anyhow::{Result, bail};
 use auto_hash_map::AutoSet;
+use bincode::{Decode, Encode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
@@ -19,17 +20,6 @@ use turbo_tasks::{
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 use turbo_unix_path::normalize_request;
 
-use self::{
-    options::{
-        ConditionValue, ImportMapResult, ResolveInPackage, ResolveIntoPackage, ResolveModules,
-        ResolveModulesOptions, ResolveOptions, resolve_modules_options,
-    },
-    origin::ResolveOrigin,
-    parse::Request,
-    pattern::Pattern,
-    plugin::BeforeResolvePlugin,
-    remap::{ExportsField, ImportsField},
-};
 use crate::{
     context::AssetContext,
     data_uri_source::DataUriSource,
@@ -45,10 +35,15 @@ use crate::{
     resolve::{
         alias_map::AliasKey,
         node::{node_cjs_resolve_options, node_esm_resolve_options},
-        parse::stringify_data_uri,
-        pattern::{PatternMatch, read_matches},
-        plugin::AfterResolvePlugin,
-        remap::ReplacedSubpathValueResult,
+        options::{
+            ConditionValue, ImportMapResult, ResolveInPackage, ResolveIntoPackage, ResolveModules,
+            ResolveModulesOptions, ResolveOptions, resolve_modules_options,
+        },
+        origin::ResolveOrigin,
+        parse::{Request, stringify_data_uri},
+        pattern::{Pattern, PatternMatch, read_matches},
+        plugin::{AfterResolvePlugin, BeforeResolvePlugin},
+        remap::{ExportsField, ImportsField, ReplacedSubpathValueResult},
     },
     source::{OptionSource, Source, Sources},
 };
@@ -398,6 +393,8 @@ impl ModuleResolveResult {
     TraceRawVcs,
     Serialize,
     Deserialize,
+    Encode,
+    Decode,
 )]
 pub enum ExternalTraced {
     Untraced,
@@ -425,6 +422,8 @@ impl Display for ExternalTraced {
     TraceRawVcs,
     TaskInput,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum ExternalType {
     Url,
@@ -1289,7 +1288,9 @@ pub async fn find_context_file_or_package_key(
     Ok(find_context_file(lookup_path.parent(), names, false))
 }
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue)]
+#[derive(
+    Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue, Encode, Decode,
+)]
 enum FindPackageItem {
     PackageDirectory { name: RcStr, dir: FileSystemPath },
     PackageFile { name: RcStr, file: FileSystemPath },
@@ -3241,7 +3242,18 @@ async fn error_severity(resolve_options: Vc<ResolveOptions>) -> Result<IssueSeve
 ///
 /// Currently this is used only for ESMs.
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    TaskInput,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum ModulePart {
     /// Represents the side effects of a module. This part is evaluated even if
