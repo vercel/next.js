@@ -1,11 +1,4 @@
 /* global location */
-// Initialize waterfall detector FIRST (before any fetch calls can be made)
-// This must be at the very top to patch fetch before other code runs
-if (process.env.__NEXT_PROFILER_BUILD) {
-  const { initWaterfallDetector } = (require('./waterfall-detector') as typeof import('./waterfall-detector'))
-  initWaterfallDetector()
-}
-
 // imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
 import type Router from '../shared/lib/router/router'

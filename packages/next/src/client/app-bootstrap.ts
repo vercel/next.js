@@ -5,14 +5,6 @@
  * - next/script with `beforeInteractive` strategy
  */
 
-// Initialize waterfall detector FIRST (before any fetch calls can be made)
-// This must be at the very top to patch fetch before other code runs
-if (process.env.__NEXT_PROFILER_BUILD) {
-  // Import synchronously to ensure fetch is patched immediately
-  const { initWaterfallDetector } = (require('./waterfall-detector') as typeof import('./waterfall-detector'))
-  initWaterfallDetector()
-}
-
 import { getAssetPrefix } from './asset-prefix'
 import { setAttributesFromProps } from './set-attributes-from-props'
 

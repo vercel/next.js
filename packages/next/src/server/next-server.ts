@@ -1303,8 +1303,319 @@ export default class NextNodeServer extends BaseServer<
     const handler = super.getRequestHandler()
 
     return async (req, res, parsedUrl) => {
+      // Handle profiler ingest endpoint - always enabled for testing
+      const url = req.url || ''
+      const pathname = url.split('?')[0]
+
+      if (pathname === '/__nextjs_profiler_ingest') {
+        const rawRes =
+          res instanceof NodeNextResponse ? res.originalResponse : res
+        const rawReq =
+          req instanceof NodeNextRequest ? req.originalRequest : req
+
+        // Handle POST request with waterfall report
+        if (rawReq.method === 'POST') {
+          let body = ''
+          rawReq.on('data', (chunk: Buffer) => {
+            body += chunk.toString()
+          })
+          rawReq.on('end', () => {
+            try {
+              const report = JSON.parse(body)
+              this.handleProfilerReport(report)
+              rawRes.statusCode = 200
+              rawRes.setHeader('Content-Type', 'application/json')
+              rawRes.end(JSON.stringify({ ok: true }))
+            } catch (e) {
+              rawRes.statusCode = 400
+              rawRes.setHeader('Content-Type', 'application/json')
+              rawRes.end(JSON.stringify({ ok: false, error: 'Invalid JSON' }))
+            }
+          })
+          return
+        }
+
+        // Handle GET request (for testing)
+        rawRes.statusCode = 200
+        rawRes.setHeader('Content-Type', 'application/json')
+        rawRes.end(
+          JSON.stringify({
+            ok: true,
+            message: 'Profiler ingest endpoint ready',
+          })
+        )
+        return
+      }
+
       return handler(this.normalizeReq(req), this.normalizeRes(res), parsedUrl)
     }
+  }
+
+  /**
+   * Handle profiler waterfall detection report from the client.
+   * Prints an AI-ready prompt to the terminal with resolved source locations.
+   */
+  private handleProfilerReport(report: {
+    type: 'waterfall' | 'render-blocking' | 'no-waterfall' | 'no-fetches'
+    pageUrl: string
+    timestamp: number
+    totalFetches: number
+    totalCommits: number
+    renderTriggeringFetches: Array<{
+      url: string
+      stackTrace: string
+      parsedFrames: Array<{
+        functionName: string
+        fileName: string
+        lineNumber: number
+        columnNumber: number
+        raw: string
+      }>
+    }>
+    waterfallChains: Array<
+      Array<{
+        url: string
+        stackTrace: string
+        parsedFrames: Array<{
+          functionName: string
+          fileName: string
+          lineNumber: number
+          columnNumber: number
+          raw: string
+        }>
+      }>
+    >
+  }): void {
+    const separator = '═'.repeat(80)
+    const thinSeparator = '─'.repeat(80)
+
+    console.log('')
+    console.log(separator)
+    console.log('  🔍 NEXT.JS PROFILER: WATERFALL DETECTION REPORT')
+    console.log(separator)
+    console.log('')
+    console.log(`  Page: ${report.pageUrl}`)
+    console.log(`  Time: ${new Date(report.timestamp).toISOString()}`)
+    console.log(`  Total fetches: ${report.totalFetches}`)
+    console.log(`  Total React commits: ${report.totalCommits}`)
+    console.log('')
+
+    if (report.type === 'no-fetches') {
+      console.log('  ✅ STATUS: NO CLIENT-SIDE FETCHES')
+      console.log('')
+      console.log('  No data fetches were made during initial page load.')
+      console.log('  This is ideal - all data is being fetched on the server.')
+      console.log('')
+      console.log(separator)
+      console.log('')
+      return
+    }
+
+    if (report.type === 'no-waterfall') {
+      console.log('  ✅ STATUS: NO RENDER-BLOCKING FETCHES')
+      console.log('')
+      console.log(
+        '  Client-side fetches were made, but none triggered React re-renders.'
+      )
+      console.log('  No waterfall patterns found.')
+      console.log('')
+      console.log(separator)
+      console.log('')
+      return
+    }
+
+    if (report.type === 'render-blocking') {
+      console.log('  ⚠️  STATUS: RENDER-BLOCKING FETCHES DETECTED')
+      console.log('')
+      console.log(
+        `  Found ${report.renderTriggeringFetches.length} fetch(es) that triggered React re-renders.`
+      )
+      console.log(
+        '  Consider moving data fetching to the server (Server Components, getServerSideProps, etc.)'
+      )
+      console.log('')
+      console.log(thinSeparator)
+      console.log('')
+
+      report.renderTriggeringFetches.forEach((fetch, i) => {
+        const topFrame = this.filterUserFrames(fetch.parsedFrames)[0]
+        console.log(`  ${i + 1}. fetch("${this.truncateUrl(fetch.url, 60)}")`)
+        if (topFrame) {
+          console.log(
+            `     └─ ${topFrame.fileName}:${topFrame.lineNumber}:${topFrame.columnNumber}`
+          )
+          if (
+            topFrame.functionName &&
+            topFrame.functionName !== '<anonymous>'
+          ) {
+            console.log(`        in ${topFrame.functionName}()`)
+          }
+        }
+        console.log('')
+      })
+
+      console.log(separator)
+      console.log('')
+      console.log('  📋 AI AGENT PROMPT:')
+      console.log(thinSeparator)
+      console.log('')
+      console.log(
+        '  The following client-side fetches are blocking renders and should be'
+      )
+      console.log('  moved to server-side data fetching:')
+      console.log('')
+      report.renderTriggeringFetches.forEach((fetch, i) => {
+        const topFrame = this.filterUserFrames(fetch.parsedFrames)[0]
+        const location = topFrame
+          ? `${topFrame.fileName}:${topFrame.lineNumber}:${topFrame.columnNumber}`
+          : 'unknown location'
+        console.log(`  ${i + 1}. fetch("${fetch.url}")`)
+        console.log(`     at ${location}`)
+      })
+      console.log('')
+      console.log('  Recommended actions:')
+      console.log('  - Move these fetches to Server Components')
+      console.log(
+        '  - Or use getServerSideProps/getStaticProps for Pages Router'
+      )
+      console.log('  - Or fetch at a higher level in the component tree')
+      console.log('')
+      console.log(separator)
+      console.log('')
+      return
+    }
+
+    // report.type === 'waterfall'
+    console.log('  🚨 STATUS: WATERFALL PATTERNS DETECTED')
+    console.log('')
+    console.log(
+      `  Found ${report.waterfallChains.length} waterfall chain(s) that may impact performance.`
+    )
+    console.log('  These fetches happen sequentially, each blocking the next.')
+    console.log('')
+    console.log(thinSeparator)
+    console.log('')
+
+    report.waterfallChains.forEach((chain, chainIndex) => {
+      console.log(
+        `  WATERFALL CHAIN ${chainIndex + 1} (${chain.length} sequential fetches):`
+      )
+      console.log('')
+
+      chain.forEach((fetch, j) => {
+        const topFrame = this.filterUserFrames(fetch.parsedFrames)[0]
+        const isLast = j === chain.length - 1
+        const arrow = isLast ? '' : ' → (triggers render) →'
+
+        console.log(
+          `    ${j + 1}. fetch("${this.truncateUrl(fetch.url, 50)}")${arrow}`
+        )
+        if (topFrame) {
+          console.log(
+            `       └─ ${topFrame.fileName}:${topFrame.lineNumber}:${topFrame.columnNumber}`
+          )
+          if (
+            topFrame.functionName &&
+            topFrame.functionName !== '<anonymous>'
+          ) {
+            console.log(`          in ${topFrame.functionName}()`)
+          }
+        }
+        console.log('')
+      })
+    })
+
+    console.log(separator)
+    console.log('')
+    console.log('  📋 AI AGENT PROMPT:')
+    console.log(thinSeparator)
+    console.log('')
+    console.log('  PERFORMANCE ISSUE: Sequential fetch waterfall detected')
+    console.log('')
+    console.log(
+      '  The following fetch calls happen sequentially because each one triggers'
+    )
+    console.log('  a React re-render that starts the next fetch:')
+    console.log('')
+
+    report.waterfallChains.forEach((chain, chainIndex) => {
+      if (report.waterfallChains.length > 1) {
+        console.log(`  Chain ${chainIndex + 1}:`)
+      }
+      chain.forEach((fetch, j) => {
+        const topFrame = this.filterUserFrames(fetch.parsedFrames)[0]
+        const location = topFrame
+          ? `${topFrame.fileName}:${topFrame.lineNumber}:${topFrame.columnNumber}`
+          : 'unknown location'
+        const funcName =
+          topFrame && topFrame.functionName !== '<anonymous>'
+            ? ` (${topFrame.functionName})`
+            : ''
+        const arrow = j < chain.length - 1 ? ' →' : ''
+        console.log(`    ${j + 1}. fetch("${fetch.url}")${arrow}`)
+        console.log(`       at ${location}${funcName}`)
+      })
+      console.log('')
+    })
+
+    console.log('  RECOMMENDED FIX:')
+    console.log(
+      '  1. Move these fetches to a higher level in the component tree'
+    )
+    console.log('  2. Use Promise.all() to fetch data in parallel')
+    console.log(
+      '  3. Consider using Server Components to fetch data on the server'
+    )
+    console.log(
+      '  4. Use React Suspense boundaries to enable concurrent fetching'
+    )
+    console.log('')
+    console.log(separator)
+    console.log('')
+  }
+
+  /**
+   * Filter stack frames to show only user code (exclude node_modules, Next.js internals, etc.)
+   */
+  private filterUserFrames(
+    frames: Array<{
+      functionName: string
+      fileName: string
+      lineNumber: number
+      columnNumber: number
+      raw: string
+    }>
+  ): Array<{
+    functionName: string
+    fileName: string
+    lineNumber: number
+    columnNumber: number
+    raw: string
+  }> {
+    const excludePatterns = [
+      'node_modules',
+      'patchedFetch',
+      'waterfall-detector',
+      'webpack',
+      'turbopack',
+      '_next/static/chunks',
+      'react-dom',
+      'react.',
+      'scheduler',
+    ]
+
+    return frames.filter((frame) => {
+      const combined = `${frame.fileName} ${frame.functionName}`
+      return !excludePatterns.some((pattern) => combined.includes(pattern))
+    })
+  }
+
+  /**
+   * Truncate URL for display
+   */
+  private truncateUrl(url: string, maxLength: number = 60): string {
+    if (url.length <= maxLength) return url
+    return url.slice(0, maxLength - 3) + '...'
   }
 
   public async revalidate({

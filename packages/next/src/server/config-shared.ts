@@ -1632,6 +1632,7 @@ export interface NextConfigRuntime {
   skipProxyUrlNormalize: NextConfigComplete['skipProxyUrlNormalize']
   pageExtensions: NextConfigComplete['pageExtensions']
   useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
+  profiler?: NextConfigComplete['profiler']
 
   experimental: Pick<
     NextConfigComplete['experimental'],
@@ -1761,6 +1762,7 @@ export function getNextConfigRuntime(
     skipProxyUrlNormalize: config.skipProxyUrlNormalize,
     pageExtensions: config.pageExtensions,
     useFileSystemPublicRoutes: config.useFileSystemPublicRoutes,
+    profiler: config.profiler,
 
     experimental,
   }

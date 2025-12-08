@@ -284,6 +284,17 @@ async function analyzeWaterfalls() {
     console.log('')
     console.log('  No data fetches were made during initial page load.')
     console.log('  This is ideal - all data is being fetched on the server.')
+
+    // Send report to server
+    sendReportToServer({
+      type: 'no-fetches',
+      pageUrl: typeof window !== 'undefined' ? window.location.href : '',
+      timestamp: Date.now(),
+      totalFetches: 0,
+      totalCommits: commitEvents.length,
+      renderTriggeringFetches: [],
+      waterfallChains: [],
+    })
     return
   }
 
@@ -399,6 +410,17 @@ async function analyzeWaterfalls() {
       '  Client-side fetches were made, but none triggered React re-renders.'
     )
     console.log('  No waterfall patterns found.')
+
+    // Send report to server
+    sendReportToServer({
+      type: 'no-waterfall',
+      pageUrl: typeof window !== 'undefined' ? window.location.href : '',
+      timestamp: Date.now(),
+      totalFetches: fetchEvents.length,
+      totalCommits: commitEvents.length,
+      renderTriggeringFetches: [],
+      waterfallChains: [],
+    })
   } else if (chains.length === 0 && renderTriggeringFetches.length > 0) {
     // Fetches triggered renders but no waterfall chain detected
     console.log(
@@ -434,6 +456,21 @@ async function analyzeWaterfalls() {
         }
       }
       console.log('')
+    })
+
+    // Send report to server
+    sendReportToServer({
+      type: 'render-blocking',
+      pageUrl: typeof window !== 'undefined' ? window.location.href : '',
+      timestamp: Date.now(),
+      totalFetches: fetchEvents.length,
+      totalCommits: commitEvents.length,
+      renderTriggeringFetches: renderTriggeringFetches.map((f) => ({
+        url: f.url,
+        stackTrace: f.stackTrace,
+        parsedFrames: f.parsedFrames,
+      })),
+      waterfallChains: [],
     })
   } else {
     console.log(
@@ -529,6 +566,27 @@ async function analyzeWaterfalls() {
     )
     console.log('  in the component tree, or use Promise.all() to parallelize.')
     console.log('')
+
+    // Send report to server
+    sendReportToServer({
+      type: 'waterfall',
+      pageUrl: typeof window !== 'undefined' ? window.location.href : '',
+      timestamp: Date.now(),
+      totalFetches: fetchEvents.length,
+      totalCommits: commitEvents.length,
+      renderTriggeringFetches: renderTriggeringFetches.map((f) => ({
+        url: f.url,
+        stackTrace: f.stackTrace,
+        parsedFrames: f.parsedFrames,
+      })),
+      waterfallChains: chains.map((chain) =>
+        chain.map((f) => ({
+          url: f.url,
+          stackTrace: f.stackTrace,
+          parsedFrames: f.parsedFrames,
+        }))
+      ),
+    })
   }
 }
 
@@ -577,12 +635,59 @@ function parseStackFrames(stack: string): StackFrame[] {
 
 /**
  * Resolve stack frames - currently returns frames as-is
- * Source map resolution is not available without a server endpoint
+ * Source map resolution happens server-side after the report is sent
  */
 async function resolveStackFrames(frames: StackFrame[]): Promise<StackFrame[]> {
-  // Source map resolution removed - frames are returned as-is
-  // The browser DevTools will still resolve source maps when viewing errors in the console
+  // Stack frames are sent raw to the server, which resolves them using source maps
   return frames
+}
+
+/**
+ * Report structure sent to the server for processing
+ */
+interface WaterfallReport {
+  type: 'waterfall' | 'render-blocking' | 'no-waterfall' | 'no-fetches'
+  pageUrl: string
+  timestamp: number
+  totalFetches: number
+  totalCommits: number
+  renderTriggeringFetches: Array<{
+    url: string
+    stackTrace: string
+    parsedFrames: StackFrame[]
+  }>
+  waterfallChains: Array<
+    Array<{
+      url: string
+      stackTrace: string
+      parsedFrames: StackFrame[]
+    }>
+  >
+}
+
+/**
+ * Send the waterfall report to the server for source map resolution and logging
+ */
+async function sendReportToServer(report: WaterfallReport): Promise<void> {
+  try {
+    const response = await originalFetch('/__nextjs_profiler_ingest', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(report),
+    })
+
+    if (!response.ok) {
+      console.warn(
+        '[Waterfall Detector] Failed to send report to server:',
+        response.status
+      )
+    }
+  } catch (error) {
+    // Silently fail - don't disrupt the user experience
+    console.warn('[Waterfall Detector] Could not send report to server:', error)
+  }
 }
 
 /**
@@ -614,6 +719,24 @@ function filterStackFrames(frames: StackFrame[]): StackFrame[] {
 function truncateUrl(url: string, maxLength: number = 60): string {
   if (url.length <= maxLength) return url
   return url.slice(0, maxLength - 3) + '...'
+}
+
+/**
+ * Disable waterfall detection (called on client-side navigation)
+ */
+export function disableWaterfallDetector() {
+  if (hasAnalyzed) return
+
+  // Mark as analyzed to stop all tracking
+  hasAnalyzed = true
+  isInitialLoad = false
+
+  // Clean up timers
+  if (settleTimer) clearTimeout(settleTimer)
+  if (idleTimer) clearTimeout(idleTimer)
+  if (maxWindowTimer) clearTimeout(maxWindowTimer)
+
+  log('Disabled (client-side navigation detected)')
 }
 
 /**
