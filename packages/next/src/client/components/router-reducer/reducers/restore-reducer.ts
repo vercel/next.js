@@ -56,5 +56,6 @@ export function restoreReducer(
     nextUrl: extractPathFromFlightRouterState(treeToRestore) ?? url.pathname,
     previousNextUrl: null,
     debugInfo: null,
+    navigationId: state.navigationId + 1,
   }
 }

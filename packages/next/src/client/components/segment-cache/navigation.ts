@@ -12,7 +12,7 @@ import type { NormalizedFlightData } from '../../flight-data-helpers'
 import { fetchServerResponse } from '../router-reducer/fetch-server-response'
 import {
   startPPRNavigation,
-  listenForDynamicRequest,
+  spawnDynamicRequests,
   type NavigationTask,
   type NavigationRequestAccumulation,
 } from '../router-reducer/ppr-navigations'
@@ -67,6 +67,7 @@ export type NavigationResult =
  * stream in any missing data.
  */
 export function navigate(
+  navigationId: number,
   url: URL,
   currentUrl: URL,
   currentCacheNode: CacheNode | null,
@@ -119,6 +120,7 @@ export function navigate(
     const renderedSearch = route.renderedSearch
     return navigateUsingPrefetchedRouteTree(
       now,
+      navigationId,
       url,
       currentUrl,
       nextUrl,
@@ -163,6 +165,7 @@ export function navigate(
       const newRenderedSearch = optimisticRoute.renderedSearch
       return navigateUsingPrefetchedRouteTree(
         now,
+        navigationId,
         url,
         currentUrl,
         nextUrl,
@@ -189,6 +192,7 @@ export function navigate(
   return {
     tag: NavigationResultTag.Async,
     data: navigateDynamicallyWithNoPrefetch(
+      navigationId,
       now,
       url,
       currentUrl,
@@ -204,6 +208,7 @@ export function navigate(
 
 export function navigateToSeededRoute(
   now: number,
+  navigationId: number,
   url: URL,
   canonicalUrl: string,
   navigationSeed: NavigationSeed,
@@ -238,9 +243,11 @@ export function navigateToSeededRoute(
   )
   if (task !== null) {
     if (task.dynamicRequestTree !== null) {
-      listenForDynamicRequest(
+      spawnDynamicRequests(
+        navigationId,
         url,
         nextUrl,
+        shouldScroll,
         task,
         task.dynamicRequestTree,
         accumulation
@@ -264,6 +271,7 @@ export function navigateToSeededRoute(
 
 function navigateUsingPrefetchedRouteTree(
   now: number,
+  navigationId: number,
   url: URL,
   currentUrl: URL,
   nextUrl: string | null,
@@ -308,9 +316,11 @@ function navigateUsingPrefetchedRouteTree(
   )
   if (task !== null) {
     if (task.dynamicRequestTree !== null) {
-      listenForDynamicRequest(
+      spawnDynamicRequests(
+        navigationId,
         url,
         nextUrl,
+        shouldScroll,
         task,
         task.dynamicRequestTree,
         accumulation
@@ -495,6 +505,7 @@ const DynamicRequestTreeForEntireRoute: FlightRouterState = [
 ]
 
 async function navigateDynamicallyWithNoPrefetch(
+  navigationId: number,
   now: number,
   url: URL,
   currentUrl: URL,
@@ -517,6 +528,8 @@ async function navigateDynamicallyWithNoPrefetch(
   // tree. So it's the same flow as the "happy path" (prefetch, then
   // navigation), except we use a single server response for both stages.
 
+  // TODO: This results in an promise-wrapped reducer state. Refactor to use the
+  // "continuation" mechanism, instead of blocking the reducer.
   const promiseForDynamicServerResponse = fetchServerResponse(url, {
     flightRouterState: shouldRefreshDynamicData
       ? DynamicRequestTreeForEntireRoute
@@ -554,6 +567,7 @@ async function navigateDynamicallyWithNoPrefetch(
 
   return navigateToSeededRoute(
     now,
+    navigationId,
     url,
     createHrefFromUrl(canonicalUrl),
     navigationSeed,
@@ -566,7 +580,7 @@ async function navigateDynamicallyWithNoPrefetch(
   )
 }
 
-type NavigationSeed = {
+export type NavigationSeed = {
   tree: FlightRouterState
   renderedSearch: string
   data: CacheNodeSeedData | null

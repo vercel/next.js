@@ -228,10 +228,9 @@ export async function fetchServerResponse(
     if (!isFlightResponse || !res.ok || !res.body) {
       // in case the original URL came with a hash, preserve it before redirecting to the new URL
       if (url.hash) {
-        responseUrl.hash = url.hash
+        canonicalUrl.hash = url.hash
       }
-
-      return doMpaNavigation(responseUrl.toString())
+      return doMpaNavigation(canonicalUrl.toString())
     }
 
     // We may navigate to a page that requires a different Webpack runtime.
@@ -267,7 +266,7 @@ export async function fetchServerResponse(
     const flightResponse = await flightResponsePromise
 
     if (getAppBuildId() !== flightResponse.b) {
-      return doMpaNavigation(res.url)
+      return doMpaNavigation(canonicalUrl.toString())
     }
 
     const normalizedFlightData = normalizeFlightData(flightResponse.f)
@@ -296,7 +295,7 @@ export async function fetchServerResponse(
     // If fetch fails handle it like a mpa navigation
     // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
     // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
-    return originalUrl.toString()
+    return urlToUrlWithoutFlightMarker(originalUrl).toString()
   }
 }
 

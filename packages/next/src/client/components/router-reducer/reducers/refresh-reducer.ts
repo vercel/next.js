@@ -35,6 +35,12 @@ export function refreshReducer(
   const shouldScroll = true
   const shouldRefreshDynamicData = true
 
+  // A refresh does not receive a new navigation id, because it should not
+  // supersede earlier navigations. For example, if the user clicks and link,
+  // then immediately refreshes before the navigation completes, the refresh
+  // should not cancel the link the navigation.
+  const currentNavigationId = state.navigationId
+
   const navigationSeed = {
     tree: state.tree,
     renderedSearch: state.renderedSearch,
@@ -45,6 +51,7 @@ export function refreshReducer(
   const now = Date.now()
   const result = navigateToSeededRoute(
     now,
+    currentNavigationId,
     currentUrl,
     currentCanonicalUrl,
     navigationSeed,
@@ -59,5 +66,12 @@ export function refreshReducer(
   const mutable: Mutable = {}
   mutable.preserveCustomHistoryState = false
 
-  return handleNavigationResult(currentUrl, state, mutable, false, result)
+  return handleNavigationResult(
+    currentNavigationId,
+    currentUrl,
+    state,
+    mutable,
+    false,
+    result
+  )
 }

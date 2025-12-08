@@ -297,9 +297,11 @@ export function dispatchNavigateAction(
     type: ACTION_NAVIGATE,
     url,
     isExternalUrl: isExternalURL(url),
-    locationSearch: location.search,
     shouldScroll,
     navigateType,
+    shouldRefreshDynamicData: false,
+    seed: null,
+    continuationId: null,
   })
 }
 

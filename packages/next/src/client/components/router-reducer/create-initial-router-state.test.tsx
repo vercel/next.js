@@ -120,6 +120,7 @@ describe('createInitialRouterState', () => {
       nextUrl: '/linking',
       previousNextUrl: null,
       debugInfo: null,
+      navigationId: 0,
     }
 
     expect(state).toMatchObject(expected)

@@ -365,12 +365,26 @@ export function serverActionReducer(
 
       // The action triggered a navigation — either a redirect, a revalidation,
       // or both.
-
-      // If there was no redirect, then the target URL is the same as the
-      // current URL.
+      //
+      // If there is a redirect, treat this as a navigation and increment the
+      // navigation id. Otherwise, treat this as a refresh.
+      //
+      // Note the subtle difference between a refresh and a redirect to the
+      // current location. A redirect to the current location must receive a
+      // new navigation id, because it should supersede an earlier navigation.
+      // But a refresh receives the current navigation id. (This matches the
+      // behavior in refreshReducer.)
       const currentUrl = new URL(state.canonicalUrl, location.origin)
       const redirectUrl =
         redirectLocation !== undefined ? redirectLocation : currentUrl
+      const currentNavigationId = state.navigationId
+      const navigationId =
+        redirectLocation !== undefined
+          ? // This is a navigation, regardless of whether the URL changed.
+            currentNavigationId + 1
+          : // This is a refresh.
+            currentNavigationId
+
       const currentFlightRouterState = state.tree
       const shouldScroll = true
 
@@ -406,6 +420,7 @@ export function serverActionReducer(
           const now = Date.now()
           const result = navigateToSeededRoute(
             now,
+            navigationId,
             redirectUrl,
             redirectCanonicalUrl,
             navigationSeed,
@@ -417,6 +432,7 @@ export function serverActionReducer(
             shouldScroll
           )
           return handleNavigationResult(
+            navigationId,
             redirectUrl,
             state,
             mutable,
@@ -429,6 +445,7 @@ export function serverActionReducer(
       // The server did not send back new data. We'll perform a regular, non-
       // seeded navigation — effectively the same as <Link> or router.push().
       const result = navigateUsingSegmentCache(
+        navigationId,
         redirectUrl,
         currentUrl,
         state.cache,
@@ -439,6 +456,7 @@ export function serverActionReducer(
         mutable
       )
       return handleNavigationResult(
+        navigationId,
         redirectUrl,
         state,
         mutable,

@@ -12,8 +12,10 @@ import type {
 import { handleMutable } from '../handle-mutable'
 
 import {
+  navigateToSeededRoute,
   navigate as navigateUsingSegmentCache,
   type NavigationResult,
+  type NavigationSeed,
 } from '../../segment-cache/navigation'
 import { NavigationResultTag } from '../../segment-cache/types'
 import { getStaleTimeMs } from '../../segment-cache/cache'
@@ -68,6 +70,7 @@ export function generateSegmentsFromPatch(
 }
 
 export function handleNavigationResult(
+  navigationId: number,
   url: URL,
   state: ReadonlyReducerState,
   mutable: Mutable,
@@ -78,7 +81,9 @@ export function handleNavigationResult(
     case NavigationResultTag.MPA: {
       // Perform an MPA navigation.
       const newUrl = result.data
-      return handleExternalUrl(state, mutable, newUrl, pendingPush)
+      const newState = handleExternalUrl(state, mutable, newUrl, pendingPush)
+      newState.navigationId = navigationId
+      return newState
     }
     case NavigationResultTag.Success: {
       // Received a new result.
@@ -114,12 +119,27 @@ export function handleNavigationResult(
         mutable.scrollableSegments = []
       }
 
-      return handleMutable(state, mutable)
+      const newState = handleMutable(state, mutable)
+      // NOTE: Intentionally setting this manually instead of in handleMutable.
+      // Eventually we should inline all the logic in handleMutable into this
+      // function. The separate `state.mutable` object was originally handled to
+      // account for reducer actions being replayed by useReducer, but since we
+      // no longer run these "reducers" during the render phase, we can get rid
+      // of the extra indirection.
+      newState.navigationId = navigationId
+      return newState
     }
     case NavigationResultTag.Async: {
       return result.data.then(
         (asyncResult) =>
-          handleNavigationResult(url, state, mutable, pendingPush, asyncResult),
+          handleNavigationResult(
+            navigationId,
+            url,
+            state,
+            mutable,
+            pendingPush,
+            asyncResult
+          ),
         // If the navigation failed, return the current state.
         // TODO: This matches the current behavior but we need to do something
         // better here if the network fails.
@@ -139,7 +159,95 @@ export function navigateReducer(
   state: ReadonlyReducerState,
   action: NavigateAction
 ): ReducerState {
-  const { url, isExternalUrl, navigateType, shouldScroll } = action
+  // Before proceeding, check whether this is a "continuation" navigation.
+  //
+  // A continuation navigation is an async navigation that occurs as a result of
+  // an earlier navigation attempt.
+  //
+  // Semantically, the continuation is not a separate navigation, but we model
+  // each attempt as a separate state update. Like a generator function, or
+  // async/await.
+  //
+  // The main reason we don't use async/await is because we need to be able to
+  // cancel the continuation if a newer navigation occurs in the meantime. To do
+  // this, we compare the navigation id of the parent navigation with the
+  // current navigation id. If they do not match, we cancel the continuation.
+  //
+  // The underlying principle here is that the most recent navigation initiated
+  // by the user should always take precedence.
+  const continuationId = action.continuationId
+  const currentNavigationId = state.navigationId
+
+  if (continuationId === null) {
+    // This is not a continuation. Assign a new navigation id.
+    const newNavigationId = currentNavigationId + 1
+    return continueNavigationReducer(
+      state,
+      newNavigationId,
+      action.url,
+      action.navigateType,
+      action.isExternalUrl,
+      action.shouldScroll,
+      action.shouldRefreshDynamicData,
+      action.seed
+    )
+  }
+
+  // This is a continuation of an earlier navigation.
+  if (continuationId === currentNavigationId) {
+    // This is still the most recent navigation. Continue.
+    return continueNavigationReducer(
+      state,
+      continuationId,
+      action.url,
+      action.navigateType,
+      action.isExternalUrl,
+      action.shouldScroll,
+      action.shouldRefreshDynamicData,
+      action.seed
+    )
+  }
+
+  // The continuation navigation was superseded by a newer navigation. Do not
+  // proceed with the continuation. However, we may need to perform a refresh.
+  const shouldRefreshDynamicData = action.shouldRefreshDynamicData
+  if (!shouldRefreshDynamicData) {
+    // There's nothing to update. Return the previous state.
+    return state
+  }
+
+  // Although the continuation was canceled, the parent navigation has
+  // indicated to us that there is stale or missing dynamic data in the
+  // tree. Trigger a refresh of the current tree to ensure it's consistent.
+  // This is semantically similar to a Server Action refresh().
+  const currentUrl = new URL(state.canonicalUrl, location.origin)
+  const navigateType = 'replace'
+  const isExternalUrl = false
+  const seed = null
+  return continueNavigationReducer(
+    state,
+    currentNavigationId,
+    currentUrl,
+    navigateType,
+    isExternalUrl,
+    action.shouldScroll,
+    shouldRefreshDynamicData,
+    seed
+  )
+}
+
+function continueNavigationReducer(
+  state: ReadonlyReducerState,
+  navigationId: number,
+  url: URL,
+  navigateType: 'push' | 'replace',
+  isExternalUrl: boolean,
+  shouldScroll: boolean,
+  shouldRefreshDynamicData: boolean,
+  seed: NavigationSeed | null
+) {
+  // Everything from this point is the same whether this is a continuation or
+  // a new navigation.
   const mutable: Mutable = {}
   const href = createHrefFromUrl(url)
   const pendingPush = navigateType === 'push'
@@ -161,16 +269,38 @@ export function navigateReducer(
   // implementation. Eventually we'll rewrite the router reducer to a
   // state machine.
   const currentUrl = new URL(state.canonicalUrl, location.origin)
-  const shouldRefreshDynamicData = false
-  const result = navigateUsingSegmentCache(
+  const result =
+    seed !== null
+      ? navigateToSeededRoute(
+          Date.now(),
+          navigationId,
+          url,
+          createHrefFromUrl(url),
+          seed,
+          currentUrl,
+          state.cache,
+          state.tree,
+          shouldRefreshDynamicData,
+          state.nextUrl,
+          shouldScroll
+        )
+      : navigateUsingSegmentCache(
+          navigationId,
+          url,
+          currentUrl,
+          state.cache,
+          state.tree,
+          state.nextUrl,
+          shouldRefreshDynamicData,
+          shouldScroll,
+          mutable
+        )
+  return handleNavigationResult(
+    navigationId,
     url,
-    currentUrl,
-    state.cache,
-    state.tree,
-    state.nextUrl,
-    shouldRefreshDynamicData,
-    shouldScroll,
-    mutable
+    state,
+    mutable,
+    pendingPush,
+    result
   )
-  return handleNavigationResult(url, state, mutable, pendingPush, result)
 }

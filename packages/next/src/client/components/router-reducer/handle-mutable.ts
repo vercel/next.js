@@ -2,7 +2,7 @@ import { computeChangedPath } from './compute-changed-path'
 import type {
   Mutable,
   ReadonlyReducerState,
-  ReducerState,
+  AppRouterState,
 } from './router-reducer-types'
 
 function isNotUndefined<T>(value: T): value is Exclude<T, undefined> {
@@ -12,7 +12,7 @@ function isNotUndefined<T>(value: T): value is Exclude<T, undefined> {
 export function handleMutable(
   state: ReadonlyReducerState,
   mutable: Mutable
-): ReducerState {
+): AppRouterState {
   // shouldScroll is true by default, can override to false.
   const shouldScroll = mutable.shouldScroll ?? true
 
@@ -82,5 +82,6 @@ export function handleMutable(
     nextUrl,
     previousNextUrl: previousNextUrl,
     debugInfo: mutable.collectedDebugInfo ?? null,
+    navigationId: state.navigationId,
   }
 }

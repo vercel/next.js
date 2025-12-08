@@ -3,6 +3,7 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
 } from '../../../shared/lib/app-router-types'
+import type { NavigationSeed } from '../segment-cache/navigation'
 import type { FetchServerResponseResult } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
@@ -106,9 +107,18 @@ export interface NavigateAction {
   type: typeof ACTION_NAVIGATE
   url: URL
   isExternalUrl: boolean
-  locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   shouldScroll: boolean
+  shouldRefreshDynamicData: boolean
+
+  seed: NavigationSeed | null
+
+  /**
+   * If given, this action is a continuation of a previous navigation. The ID
+   * corresponds to the navigation that spawned this continuation. If it doesn't
+   * match the most recent navigation, the continuation will be canceled.
+   */
+  continuationId: number | null
 }
 
 /**
@@ -207,6 +217,14 @@ export type AppRouterState = {
    * - Holds which segments and parallel routes are shown on the screen.
    */
   tree: FlightRouterState
+
+  /**
+   * An incrementing id assigned to each navigation. This is used to keep track
+   * of the most recent navigation, to prevent concurrent navigations from
+   * resolving out of order. This is not incremented during a refresh.
+   */
+  navigationId: number
+
   /**
    * The cache holds React nodes for every segment that is shown on screen as well as previously shown segments.
    * It also holds in-progress data requests.

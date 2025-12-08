@@ -77,6 +77,7 @@ export function createInitialRouterState({
 
   const initialState = {
     tree: initialTree,
+    navigationId: 0,
     cache,
     pushRef: {
       pendingPush: false,
