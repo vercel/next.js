@@ -116,7 +116,6 @@
   "with-mux-video": true,
   "with-mysql": true,
   "with-neo4j": true,
-  "with-next-page-transitions": true,
   "with-next-seo": true,
   "with-next-sitemap": true,
   "with-next-ui": true,
