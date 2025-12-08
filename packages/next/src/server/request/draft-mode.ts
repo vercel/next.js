@@ -238,7 +238,7 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
 
           throw err
         case 'request':
-          trackDynamicDataInDynamicRender(workUnitStore)
+          trackDynamicDataInDynamicRender(workUnitStore, expression)
           break
         default:
           workUnitStore satisfies never

@@ -106,7 +106,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
           // so we don't need an additional delay here.
           return makeUntrackedCookies(workUnitStore.cookies)
         case 'request':
-          trackDynamicDataInDynamicRender(workUnitStore)
+          trackDynamicDataInDynamicRender(workUnitStore, callingExpression)
 
           let underlyingCookies: ReadonlyRequestCookies
 

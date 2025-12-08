@@ -49,6 +49,7 @@ import {
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { trackDynamicAPIAccess } from './suspense-boundary-collector'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -224,7 +225,10 @@ export function throwToInterruptStaticGeneration(
  *
  * @internal
  */
-export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
+export function trackDynamicDataInDynamicRender(
+  workUnitStore: WorkUnitStore,
+  expression?: string
+) {
   switch (workUnitStore.type) {
     case 'cache':
     case 'unstable-cache':
@@ -245,6 +249,14 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
     case 'request':
       if (process.env.NODE_ENV !== 'production') {
         workUnitStore.usedDynamic = true
+      }
+      // Track for suspense profiling
+      if (expression) {
+        const ownerStack =
+          process.env.NODE_ENV !== 'production' && React.captureOwnerStack
+            ? React.captureOwnerStack()
+            : null
+        trackDynamicAPIAccess(expression, ownerStack)
       }
       break
     default:
@@ -367,6 +379,13 @@ export function postponeWithTracking(
       expression,
     })
   }
+
+  // Track for suspense profiling
+  const ownerStack =
+    process.env.NODE_ENV !== 'production' && React.captureOwnerStack
+      ? React.captureOwnerStack()
+      : null
+  trackDynamicAPIAccess(expression, ownerStack)
 
   React.unstable_postpone(createPostponeReason(route, expression))
 }

@@ -8,5 +8,5 @@ const ReactRSC = (
 // The wrapper checks at render time if the collector is active.
 // If not, it renders the original Suspense without markers.
 module.exports = Object.assign({}, ReactRSC, {
-  Suspense: createProfilingSuspense(ReactRSC.Suspense),
+  Suspense: createProfilingSuspense(ReactRSC.Suspense, ReactRSC),
 })

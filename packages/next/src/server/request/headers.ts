@@ -132,7 +132,7 @@ export function headers(): Promise<ReadonlyHeaders> {
           // so we don't need an additional delay here.
           return makeUntrackedHeaders(workUnitStore.headers)
         case 'request':
-          trackDynamicDataInDynamicRender(workUnitStore)
+          trackDynamicDataInDynamicRender(workUnitStore, callingExpression)
 
           if (process.env.NODE_ENV === 'development') {
             // Semantically we only need the dev tracking when running in `next dev`

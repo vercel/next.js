@@ -101,7 +101,7 @@ export function connection(): Promise<void> {
             workUnitStore
           )
         case 'request':
-          trackDynamicDataInDynamicRender(workUnitStore)
+          trackDynamicDataInDynamicRender(workUnitStore, callingExpression)
           if (process.env.NODE_ENV === 'development') {
             // Semantically we only need the dev tracking when running in `next dev`
             // but since you would never use next dev with production NODE_ENV we use this
