@@ -127,7 +127,7 @@ export function filterStackFrameDEV(
     // Make sure this doesn't adversely affect performance when CJS is used by Next.js.
     const sourceMap = findSourceMap(sourceURL)
     if (sourceMap === undefined) {
-      // No source map assoicated.
+      // No source map associated.
       // TODO: Node.js types should reflect that `findSourceMap` can return `undefined`.
       return true
     }
@@ -163,7 +163,7 @@ const sourceMapURLs = new LRUCache<string | typeof invalidSourceMap>(
   512 * 1024 * 1024,
   (url) =>
     url === invalidSourceMap
-      ? // Ideally we'd account for key length. So we just guestimate a small source map
+      ? // Ideally we'd account for key length. So we just guesstimate a small source map
         // so that we don't create a huge cache with empty source maps.
         8 * 1024
       : // these URLs contain only ASCII characters so .length is equal to Buffer.byteLength

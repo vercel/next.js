@@ -77,7 +77,7 @@ const SYMBOL_LOAD_CONFIG = Symbol('next.load_config')
 
 interface NextWrapperServer {
   // NOTE: the methods/properties here are the public API for custom servers.
-  // Consider backwards compatibilty when changing something here!
+  // Consider backwards compatibility when changing something here!
 
   options: NextServerOptions
   hostname: string | undefined

@@ -277,7 +277,7 @@ function noDefaultTransitionIndicator() {
 
 const reactRootOptions: ReactDOMClient.RootOptions = {
   onDefaultTransitionIndicator: enableTransitionIndicator
-    ? // TODO: Compose default with user-configureable (e.g. nprogress)
+    ? // TODO: Compose default with user-configurable (e.g. nprogress)
       undefined
     : noDefaultTransitionIndicator,
   onRecoverableError,

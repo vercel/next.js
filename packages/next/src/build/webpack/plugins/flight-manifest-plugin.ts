@@ -132,7 +132,7 @@ function getAppPathRequiredChunks(
       const chunkId = '' + chunk.id
       chunk.files.forEach((file) => {
         // It's possible that a chunk also emits CSS files, that will
-        // be handled separatedly.
+        // be handled separately.
         if (!file.endsWith('.js')) return null
         if (file.endsWith('.hot-update.js')) return null
         if (excludedFiles.has(file)) return null

@@ -53,7 +53,7 @@ type SPANavigationTask = {
 
 // A special type used to bail out and trigger a full-page navigation.
 type MPANavigationTask = {
-  // MPA tasks are distinguised from SPA tasks by having a null `route`.
+  // MPA tasks are distinguished from SPA tasks by having a null `route`.
   route: null
   node: null
   dynamicRequestTree: null
@@ -1509,7 +1509,7 @@ export function updateCacheNodeOnPopstateRestoration(
 
   // Only show prefetched data if the dynamic data is still pending.
   //
-  // Tehnically, what we're actually checking is whether the dynamic network
+  // Technically, what we're actually checking is whether the dynamic network
   // response was received. But since it's a streaming response, this does not
   // mean that all the dynamic data has fully streamed in. It just means that
   // _some_ of the dynamic data was received. But as a heuristic, we assume that

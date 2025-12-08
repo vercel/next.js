@@ -352,7 +352,7 @@ function collectSegmentDataImpl(
   return {
     name,
     paramType,
-    // This value is ommitted from the prefetch response when cacheComponents
+    // This value is omitted from the prefetch response when cacheComponents
     // is enabled.
     paramKey: isClientParamParsingEnabled ? null : paramKey,
     hasRuntimePrefetch,

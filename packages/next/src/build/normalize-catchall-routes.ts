@@ -88,7 +88,7 @@ function isMatchableSlot(segment: string): boolean {
 const catchAllRouteRegex = /\[?\[\.\.\./
 
 function isCatchAllRoute(pathname: string): boolean {
-  // Optional catch-all slots are not currently supported, and as such they are not considered when checking for match compatability.
+  // Optional catch-all slots are not currently supported, and as such they are not considered when checking for match compatibility.
   return !isOptionalCatchAll(pathname) && isCatchAll(pathname)
 }
 

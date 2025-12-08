@@ -638,7 +638,7 @@ interface ResolvedMetadataWithURLs extends DeprecatedMetadataFields {
 
   // meta name="abstract"
   // A brief description of what this web-page is about.
-  // Not recommended, superceded by description.
+  // Not recommended, superseded by description.
   // https://www.metatags.org/all-meta-tags-overview/meta-name-abstract/
   abstract: null | string
 

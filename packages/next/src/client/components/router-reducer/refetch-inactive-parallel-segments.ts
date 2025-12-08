@@ -91,7 +91,7 @@ async function refreshInactiveParallelSegmentsImpl({
       } else {
         // When result is a string, it suggests that the server response should have triggered an MPA navigation
         // I'm not 100% sure of this decision, but it seems unlikely that we'd want to introduce a redirect side effect
-        // when refreshing on-screen data, so handling this has been ommitted.
+        // when refreshing on-screen data, so handling this has been omitted.
       }
     })
 

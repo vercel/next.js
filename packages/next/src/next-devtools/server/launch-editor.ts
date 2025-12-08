@@ -307,7 +307,7 @@ function printInstructions(fileName: string, errorMessage: string | null) {
 
 export function escapeApplescriptStringFragment(input: string): string {
   // The only two special characters in a quoted applescript string are
-  // backslash and double quote. Both are escaped with a preceeding backslash.
+  // backslash and double quote. Both are escaped with a preceding backslash.
   //
   // Some whitespace characters (like newlines) can be escaped (as `\n`), but
   // aren't required to be escaped (so we're not bothering to do that).
