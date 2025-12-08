@@ -62,5 +62,71 @@ describe('debug-build-paths', () => {
       expect(buildResult.cliOutput).not.toContain('○ /about')
       expect(buildResult.cliOutput).not.toContain('○ /dashboard')
     })
+
+    it('should match nested routes with app/blog/**/page.tsx pattern', async () => {
+      const buildResult = await next.build({
+        args: ['--debug-build-paths', 'app/blog/**/page.tsx'],
+      })
+      expect(buildResult.exitCode).toBe(0)
+      expect(buildResult.cliOutput).toBeDefined()
+
+      // Should build the blog route
+      expect(buildResult.cliOutput).toContain('Route (app)')
+      expect(buildResult.cliOutput).toContain('/blog/[slug]')
+      // Should not build other app routes (check for exact route, not substring)
+      expect(buildResult.cliOutput).not.toMatch(/○ \/\n/)
+      expect(buildResult.cliOutput).not.toContain('○ /about')
+      expect(buildResult.cliOutput).not.toContain('○ /dashboard')
+      // Should not build pages routes
+      expect(buildResult.cliOutput).not.toContain('Route (pages)')
+    })
+
+    it('should match multiple app routes with explicit patterns', async () => {
+      const buildResult = await next.build({
+        args: [
+          '--debug-build-paths',
+          'app/page.tsx,app/about/page.tsx,app/dashboard/page.tsx,app/blog/**/page.tsx',
+        ],
+      })
+      expect(buildResult.exitCode).toBe(0)
+      expect(buildResult.cliOutput).toBeDefined()
+
+      // Should build specified app routes
+      expect(buildResult.cliOutput).toContain('Route (app)')
+      expect(buildResult.cliOutput).toContain('○ /')
+      expect(buildResult.cliOutput).toContain('○ /about')
+      expect(buildResult.cliOutput).toContain('○ /dashboard')
+      expect(buildResult.cliOutput).toContain('/blog/[slug]')
+      // Should not build routes not specified
+      expect(buildResult.cliOutput).not.toContain('/with-type-error')
+      // Should not build pages routes
+      expect(buildResult.cliOutput).not.toContain('Route (pages)')
+    })
+  })
+
+  describe('typechecking with debug-build-paths', () => {
+    it('should skip typechecking for excluded app routes', async () => {
+      // Build only pages routes, excluding app routes with type error
+      const buildResult = await next.build({
+        args: ['--debug-build-paths', 'pages/foo.tsx'],
+      })
+      // Build should succeed because the file with type error is not checked
+      expect(buildResult.exitCode).toBe(0)
+      expect(buildResult.cliOutput).toContain('Route (pages)')
+      expect(buildResult.cliOutput).toContain('○ /foo')
+      // Should not include app routes
+      expect(buildResult.cliOutput).not.toContain('Route (app)')
+    })
+
+    it('should fail typechecking when route with type error is included', async () => {
+      // Build all app routes including the one with type error
+      const buildResult = await next.build({
+        args: ['--debug-build-paths', 'app/**/page.tsx'],
+      })
+      // Build should fail due to type error in with-type-error/page.tsx
+      expect(buildResult.exitCode).toBe(1)
+      expect(buildResult.cliOutput).toContain('Type error')
+      expect(buildResult.cliOutput).toContain('with-type-error/page.tsx')
+    })
   })
 })

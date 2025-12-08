@@ -28,7 +28,9 @@ function verifyTypeScriptSetup(
   enableWorkerThreads: boolean | undefined,
   hasAppDir: boolean,
   hasPagesDir: boolean,
-  isolatedDevBuild: boolean | undefined
+  isolatedDevBuild: boolean | undefined,
+  debugBuildAppPaths: string[] | undefined,
+  debugBuildPagePaths: string[] | undefined
 ) {
   const typeCheckWorker = new Worker(
     require.resolve('../lib/verify-typescript-setup'),
@@ -56,6 +58,8 @@ function verifyTypeScriptSetup(
       hasAppDir,
       hasPagesDir,
       isolatedDevBuild,
+      debugBuildAppPaths,
+      debugBuildPagePaths,
     })
     .then((result) => {
       typeCheckWorker.end()
@@ -76,6 +80,8 @@ export async function startTypeChecking({
   pagesDir,
   telemetry,
   appDir,
+  debugBuildAppPaths,
+  debugBuildPagePaths,
 }: {
   cacheDir: string
   config: NextConfigComplete
@@ -84,6 +90,8 @@ export async function startTypeChecking({
   pagesDir?: string
   telemetry: Telemetry
   appDir?: string
+  debugBuildAppPaths?: string[]
+  debugBuildPagePaths?: string[]
 }) {
   const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
 
@@ -119,7 +127,9 @@ export async function startTypeChecking({
           config.experimental.workerThreads,
           !!appDir,
           !!pagesDir,
-          config.experimental.isolatedDevBuild
+          config.experimental.isolatedDevBuild,
+          debugBuildAppPaths,
+          debugBuildPagePaths
         ).then((resolved) => {
           const checkEnd = process.hrtime(typeCheckAndLintStart)
           return [resolved, checkEnd] as const

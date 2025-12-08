@@ -44,6 +44,8 @@ export async function verifyTypeScriptSetup({
   hasAppDir,
   hasPagesDir,
   isolatedDevBuild,
+  debugBuildAppPaths,
+  debugBuildPagePaths,
 }: {
   dir: string
   distDir: string
@@ -55,6 +57,8 @@ export async function verifyTypeScriptSetup({
   hasAppDir: boolean
   hasPagesDir: boolean
   isolatedDevBuild: boolean | undefined
+  debugBuildAppPaths?: string[]
+  debugBuildPagePaths?: string[]
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const tsConfigFileName = tsconfigPath || 'tsconfig.json'
   const resolvedTsConfigPath = path.join(dir, tsConfigFileName)
@@ -159,7 +163,11 @@ export async function verifyTypeScriptSetup({
         resolvedTsConfigPath,
         cacheDir,
         hasAppDir,
-        isolatedDevBuild
+        isolatedDevBuild,
+        intentDirs,
+        hasPagesDir,
+        debugBuildAppPaths,
+        debugBuildPagePaths
       )
     }
     return { result, version: typescriptVersion }
