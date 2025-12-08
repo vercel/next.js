@@ -1480,16 +1480,17 @@ export default class NextNodeServer extends BaseServer<
 
   /**
    * Handle insights waterfall detection report from the client.
-   * Prints an AI-ready prompt to the terminal with resolved source locations.
+   * Receives raw timing data and performs all analysis server-side.
    */
   private async handleInsightsReport(report: {
-    type: 'waterfall' | 'render-blocking' | 'no-waterfall' | 'no-fetches'
     pageUrl: string
     timestamp: number
-    totalFetches: number
-    totalCommits: number
-    renderTriggeringFetches: Array<{
+    fetchEvents: Array<{
+      id: number
       url: string
+      startTime: number
+      endTime: number
+      artificialDelay: number
       stackTrace: string
       parsedFrames: Array<{
         functionName: string
@@ -1499,85 +1500,268 @@ export default class NextNodeServer extends BaseServer<
         raw: string
       }>
     }>
-    waterfallChains: Array<
-      Array<{
-        url: string
-        stackTrace: string
-        parsedFrames: Array<{
-          functionName: string
-          fileName: string
-          lineNumber: number
-          columnNumber: number
-          raw: string
-        }>
-      }>
-    >
+    commitEvents: Array<{
+      time: number
+    }>
   }): Promise<void> {
-    // Resolve source maps for all frames
-    for (const fetch of report.renderTriggeringFetches) {
-      for (let i = 0; i < fetch.parsedFrames.length; i++) {
-        fetch.parsedFrames[i] = await this.resolveSourceMapFrame(
-          fetch.parsedFrames[i],
+    const route = new URL(report.pageUrl).pathname
+    const debug =
+      new URL(report.pageUrl).searchParams.has('__debug_waterfall') ||
+      process.env.DEBUG_WATERFALL === '1'
+
+    // Configuration for analysis
+    const PROXIMITY_THRESHOLD = 100 // ms to consider events causally related
+    const PARALLEL_THRESHOLD = 50 // ms - fetches starting within this time are considered parallel
+
+    // Resolve source maps for all fetch frames
+    for (const fetchEvent of report.fetchEvents) {
+      for (let i = 0; i < fetchEvent.parsedFrames.length; i++) {
+        fetchEvent.parsedFrames[i] = await this.resolveSourceMapFrame(
+          fetchEvent.parsedFrames[i],
           report.pageUrl
         )
       }
     }
-    for (const chain of report.waterfallChains) {
-      for (const fetch of chain) {
-        for (let i = 0; i < fetch.parsedFrames.length; i++) {
-          fetch.parsedFrames[i] = await this.resolveSourceMapFrame(
-            fetch.parsedFrames[i],
-            report.pageUrl
-          )
+
+    // Helper to get location string from frames
+    const getLocation = (
+      parsedFrames: Array<{
+        functionName: string
+        fileName: string
+        lineNumber: number
+        columnNumber: number
+        raw: string
+      }>
+    ) => {
+      const topFrame = this.filterUserFrames(parsedFrames || [])[0]
+      if (!topFrame) return 'unknown location'
+      let filePath = topFrame.fileName
+      if (filePath.startsWith(this.dir)) {
+        filePath = filePath.slice(this.dir.length)
+        if (filePath.startsWith('/')) {
+          filePath = filePath.slice(1)
         }
       }
+      return `${filePath}:${topFrame.lineNumber}`
     }
 
-    const route = new URL(report.pageUrl).pathname
-
-    // No issues - simple one-line output
-    if (report.type === 'no-fetches' || report.type === 'no-waterfall') {
-      console.log(`✅ No waterfall detected on ${route}`)
+    // No fetches - nothing to analyze
+    if (report.fetchEvents.length === 0) {
+      console.log(`✅ No waterfall detected on ${route} (no client fetches)`)
       return
     }
 
-    // Issues detected - detailed output
+    // Debug: Print raw data
+    if (debug) {
+      console.log('')
+      console.log('═'.repeat(80))
+      console.log(`WATERFALL DETECTION DEBUG for ${route}`)
+      console.log('═'.repeat(80))
+      console.log('')
+      console.log('Configuration:')
+      console.log(`  PROXIMITY_THRESHOLD: ${PROXIMITY_THRESHOLD}ms`)
+      console.log(`  PARALLEL_THRESHOLD: ${PARALLEL_THRESHOLD}ms`)
+      console.log('')
+      console.log('Raw Fetch Events:')
+      report.fetchEvents.forEach((f) => {
+        console.log(
+          `  [${f.id}] ${f.url} | start: ${f.startTime.toFixed(1)}ms | end: ${f.endTime.toFixed(1)}ms | delay: ${f.artificialDelay}ms`
+        )
+      })
+      console.log('')
+      console.log('Raw Commit Events:')
+      report.commitEvents.forEach((c, i) => {
+        console.log(`  [${i}] time: ${c.time.toFixed(1)}ms`)
+      })
+      console.log('')
+    }
+
+    // Step 1: Identify fetches that triggered a React commit
+    // (fetch.endTime → commit.time within threshold)
+    const fetchesWithCommits = new Set<number>()
+    for (const fetchEvent of report.fetchEvents) {
+      const hasRelatedCommit = report.commitEvents.some(
+        (commit) =>
+          commit.time >= fetchEvent.endTime &&
+          commit.time - fetchEvent.endTime <= PROXIMITY_THRESHOLD
+      )
+      if (hasRelatedCommit) {
+        fetchesWithCommits.add(fetchEvent.id)
+      }
+    }
+
+    // Step 2: Group fetches into parallel batches
+    // Fetches starting within PARALLEL_THRESHOLD of each other are parallel
+    type FetchBatch = typeof report.fetchEvents
+    const fetchBatches: FetchBatch[] = []
+    let currentBatch: FetchBatch = []
+
+    for (const f of report.fetchEvents) {
+      if (
+        currentBatch.length === 0 ||
+        f.startTime - currentBatch[0].startTime <= PARALLEL_THRESHOLD
+      ) {
+        currentBatch.push(f)
+      } else {
+        fetchBatches.push(currentBatch)
+        currentBatch = [f]
+      }
+    }
+    if (currentBatch.length > 0) {
+      fetchBatches.push(currentBatch)
+    }
+
+    // Map fetch id to batch index
+    const fetchToBatch = new Map<number, number>()
+    for (let batchIdx = 0; batchIdx < fetchBatches.length; batchIdx++) {
+      for (const f of fetchBatches[batchIdx]) {
+        fetchToBatch.set(f.id, batchIdx)
+      }
+    }
+
+    if (debug) {
+      console.log('Fetch Batches (parallel groups):')
+      fetchBatches.forEach((batch, i) => {
+        const urls = batch.map((f) => f.url).join(', ')
+        console.log(`  Batch ${i}: ${batch.length} fetch(es) - ${urls}`)
+      })
+      console.log('')
+      console.log('Fetches that triggered commits:', [...fetchesWithCommits])
+      console.log('')
+    }
+
+    // Step 3: Build waterfall chains
+    // A waterfall is: fetch.end → commit → fetch.start (from a LATER batch)
+    type FetchEvent = (typeof report.fetchEvents)[0]
+    const chains: FetchEvent[][] = []
+    const processedFetchIds = new Set<number>()
+
+    for (const fetchEvent of report.fetchEvents) {
+      if (processedFetchIds.has(fetchEvent.id)) continue
+      if (!fetchesWithCommits.has(fetchEvent.id)) continue
+
+      const chain: FetchEvent[] = [fetchEvent]
+      processedFetchIds.add(fetchEvent.id)
+
+      let currentFetchEndTime = fetchEvent.endTime
+      let currentBatchIdx = fetchToBatch.get(fetchEvent.id)!
+
+      while (true) {
+        // Capture current values to avoid closure issues in loop
+        const endTimeToMatch = currentFetchEndTime
+        const batchIdxToCompare = currentBatchIdx
+
+        // Find a commit shortly after this fetch ended
+        const relatedCommit = report.commitEvents.find(
+          (c) =>
+            c.time >= endTimeToMatch &&
+            c.time - endTimeToMatch <= PROXIMITY_THRESHOLD
+        )
+        if (!relatedCommit) break
+
+        // Find a fetch that started shortly after that commit, from a LATER batch
+        const nextFetch = report.fetchEvents.find((f) => {
+          const fBatchIdx = fetchToBatch.get(f.id)!
+          return (
+            !processedFetchIds.has(f.id) &&
+            fBatchIdx > batchIdxToCompare &&
+            f.startTime >= relatedCommit.time &&
+            f.startTime - relatedCommit.time <= PROXIMITY_THRESHOLD
+          )
+        })
+        if (!nextFetch) break
+
+        chain.push(nextFetch)
+        processedFetchIds.add(nextFetch.id)
+        currentFetchEndTime = nextFetch.endTime
+        currentBatchIdx = fetchToBatch.get(nextFetch.id)!
+      }
+
+      if (chain.length > 1) {
+        chains.push(chain)
+      }
+    }
+
+    if (debug) {
+      console.log('Detected Waterfall Chains:')
+      if (chains.length === 0) {
+        console.log('  (none)')
+      } else {
+        chains.forEach((chain, i) => {
+          console.log(`  Chain ${i + 1}:`)
+          chain.forEach((f, j) => {
+            console.log(`    ${j + 1}. [${f.id}] ${f.url}`)
+          })
+        })
+      }
+      console.log('')
+      console.log('═'.repeat(80))
+      console.log('')
+    }
+
+    // Step 4: Determine result and output
+    const parallelBatches = fetchBatches.filter((b) => b.length > 1)
+    const hasParallelBatches = parallelBatches.length > 0
+
+    // No waterfall chains detected
+    if (chains.length === 0) {
+      if (hasParallelBatches) {
+        console.log(`✅ No waterfall detected on ${route}`)
+        parallelBatches.forEach((batch, i) => {
+          console.log(`   Parallel fetch group ${i + 1}:`)
+          batch.forEach((f) => {
+            const location = getLocation(f.parsedFrames)
+            console.log(`     - ${f.url}`)
+            console.log(`       at ${location}`)
+          })
+        })
+      } else {
+        console.log(`✅ No waterfall detected on ${route}`)
+      }
+      return
+    }
+
+    // Waterfall detected - detailed output
     console.log('')
     console.log('═'.repeat(80))
     console.log(`🚨 WATERFALL DETECTED on ${route}`)
     console.log('═'.repeat(80))
     console.log('')
 
-    // Collect all fetches to display
-    const allFetches =
-      report.type === 'waterfall'
-        ? report.waterfallChains.flat()
-        : report.renderTriggeringFetches
+    // First, show parallel batches for context (if any)
+    if (hasParallelBatches) {
+      console.log('Parallel fetches on initial load:')
+      parallelBatches.forEach((batch, _i) => {
+        batch.forEach((f) => {
+          const location = getLocation(f.parsedFrames)
+          console.log(`  - ${f.url}`)
+          console.log(`    at ${location}`)
+        })
+      })
+      console.log('')
+      console.log('Waterfall chain(s):')
+      console.log('')
+    }
 
-    allFetches.forEach((fetch, i) => {
-      const topFrame = this.filterUserFrames(fetch.parsedFrames || [])[0]
-      let location = 'unknown location'
-      if (topFrame) {
-        // Make path relative to project directory
-        let filePath = topFrame.fileName
-        if (filePath.startsWith(this.dir)) {
-          filePath = filePath.slice(this.dir.length)
-          if (filePath.startsWith('/')) {
-            filePath = filePath.slice(1)
-          }
-        }
-        location = `${filePath}:${topFrame.lineNumber}`
+    chains.forEach((chain, chainIdx) => {
+      if (chains.length > 1) {
+        console.log(`Chain ${chainIdx + 1}:`)
       }
-
-      if (i === 0) {
-        console.log(`1. Initial fetch: ${fetch.url}`)
-        console.log(`   at ${location}`)
-      } else {
+      chain.forEach((fetchEvent, i) => {
+        const location = getLocation(fetchEvent.parsedFrames)
+        if (i === 0) {
+          console.log(`1. Initial fetch: ${fetchEvent.url}`)
+          console.log(`   at ${location}`)
+        } else {
+          console.log('')
+          console.log(`   ↓ triggers render, then:`)
+          console.log('')
+          console.log(`${i + 1}. Fetches: ${fetchEvent.url}`)
+          console.log(`   at ${location}`)
+        }
+      })
+      if (chainIdx < chains.length - 1) {
         console.log('')
-        console.log(`   ↓ triggers render, then:`)
-        console.log('')
-        console.log(`${i + 1}. Fetches: ${fetch.url}`)
-        console.log(`   at ${location}`)
       }
     })
 

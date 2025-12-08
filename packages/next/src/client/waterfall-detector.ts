@@ -1,11 +1,12 @@
 /**
- * Waterfall Detection for Next.js Insights Builds
+ * Waterfall Detection Client for Next.js Insights Builds
  *
- * This module detects fetch waterfalls during initial page load by:
- * 1. Patching globalThis.fetch with artificial delays to amplify timing relationships
- * 2. Hooking into React DevTools to track commits
- * 3. Analyzing the timeline to find: fetch.end → commit → fetch.start chains
+ * This module collects raw timing data during initial page load:
+ * 1. Patches globalThis.fetch to add artificial delays and capture timing
+ * 2. Hooks into React DevTools to track commits
+ * 3. Sends raw data to the server for analysis
  *
+ * All analysis logic is on the server side.
  * Only active when process.env.__NEXT_INSIGHTS_BUILD is true
  */
 
@@ -24,7 +25,6 @@ interface FetchEvent {
   endTime: number
   artificialDelay: number
   stackTrace: string
-  error: Error // Store the actual Error object for browser DevTools
   parsedFrames: StackFrame[]
 }
 
@@ -36,7 +36,6 @@ interface CommitEvent {
 const FETCH_DELAY_MIN = 1000 // Minimum artificial delay
 const FETCH_DELAY_MAX = 3000 // Maximum artificial delay
 const FETCH_DELAY_STEP = 500 // Delay increments (1000, 1500, 2000, 2500, 3000)
-const PROXIMITY_THRESHOLD = 100 // ms to consider events causally related
 const IDLE_TIMEOUT = 4000 // Consider page idle after 4s of no fetch activity (> max delay)
 const MAX_ANALYSIS_WINDOW = 60000 // Stop analyzing after 60s regardless
 
@@ -91,11 +90,7 @@ function patchFetch() {
     }
 
     // Capture stack trace synchronously BEFORE any await
-    const {
-      error,
-      stack: stackTrace,
-      frames: parsedFrames,
-    } = captureStackTrace()
+    const { stack: stackTrace, frames: parsedFrames } = captureStackTrace()
     const startTime = performance.now()
     const delay = getRandomDelay()
 
@@ -119,7 +114,6 @@ function patchFetch() {
         endTime,
         artificialDelay: delay,
         stackTrace,
-        error,
         parsedFrames,
       })
 
@@ -138,7 +132,6 @@ function patchFetch() {
         endTime,
         artificialDelay: delay,
         stackTrace,
-        error,
         parsedFrames,
       })
       pendingFetches--
@@ -189,8 +182,8 @@ function setupReactHook() {
 }
 
 /**
- * Reset the idle timer - triggers analysis when page becomes idle
- * Waits for IDLE_TIMEOUT of no fetch activity before analyzing
+ * Reset the idle timer - triggers sending data when page becomes idle
+ * Waits for IDLE_TIMEOUT of no fetch activity before sending
  */
 function resetIdleTimer() {
   if (hasAnalyzed) return
@@ -209,15 +202,15 @@ function resetIdleTimer() {
   // Wait for idle period with no new fetches
   idleTimer = setTimeout(() => {
     if (pendingFetches === 0 && !hasAnalyzed) {
-      analyzeWaterfalls()
+      sendRawData()
     }
   }, IDLE_TIMEOUT)
 }
 
 /**
- * Analyze the collected fetch and commit events to detect waterfall patterns
+ * Send raw timing data to the server for analysis
  */
-async function analyzeWaterfalls() {
+async function sendRawData() {
   if (hasAnalyzed) return
   hasAnalyzed = true
   isInitialLoad = false
@@ -227,158 +220,45 @@ async function analyzeWaterfalls() {
   if (maxWindowTimer) clearTimeout(maxWindowTimer)
   hideWarningBanner()
 
-  if (fetchEvents.length === 0) {
-    // Send report to server
-    sendReportToServer({
-      type: 'no-fetches',
-      pageUrl: typeof window !== 'undefined' ? window.location.href : '',
-      timestamp: Date.now(),
-      totalFetches: 0,
-      totalCommits: commitEvents.length,
-      renderTriggeringFetches: [],
-      waterfallChains: [],
-    })
-    return
-  }
-
-  // Sort events by time
+  // Sort events by time before sending
   fetchEvents.sort((a, b) => a.startTime - b.startTime)
   commitEvents.sort((a, b) => a.time - b.time)
 
-  // First, identify fetches that have an associated React commit
-  // (fetch.end → commit within threshold means this fetch triggered a re-render)
-  const fetchesWithCommits = new Set<number>()
-  for (const fetchEvent of fetchEvents) {
-    const hasRelatedCommit = commitEvents.some(
-      (commit) =>
-        commit.time >= fetchEvent.endTime &&
-        commit.time - fetchEvent.endTime <= PROXIMITY_THRESHOLD
-    )
-    if (hasRelatedCommit) {
-      fetchesWithCommits.add(fetchEvent.id)
-    }
+  // Send raw data to server
+  const report: RawWaterfallReport = {
+    pageUrl: typeof window !== 'undefined' ? window.location.href : '',
+    timestamp: Date.now(),
+    fetchEvents: fetchEvents.map((f) => ({
+      id: f.id,
+      url: f.url,
+      startTime: f.startTime,
+      endTime: f.endTime,
+      artificialDelay: f.artificialDelay,
+      stackTrace: f.stackTrace,
+      parsedFrames: f.parsedFrames,
+    })),
+    commitEvents: commitEvents.map((c) => ({
+      time: c.time,
+    })),
   }
 
-  // Build waterfall chains using the causal relationship:
-  // fetch.end → commit within threshold → fetch.start within threshold
-  const chains: FetchEvent[][] = []
-  const processedFetchIds = new Set<number>()
-
-  for (const fetch of fetchEvents) {
-    if (processedFetchIds.has(fetch.id)) continue
-    // Only start chains from fetches that trigger commits
-    if (!fetchesWithCommits.has(fetch.id)) continue
-
-    // Start a new chain with this fetch
-    const chain: FetchEvent[] = [fetch]
-    processedFetchIds.add(fetch.id)
-
-    let currentFetchEndTime = fetch.endTime
-
-    // Try to extend the chain
-    while (true) {
-      // Find a commit that happened shortly after this fetch ended
-      let relatedCommit: CommitEvent | undefined
-      for (let i = 0; i < commitEvents.length; i++) {
-        const commit = commitEvents[i]
-        if (
-          commit.time >= currentFetchEndTime &&
-          commit.time - currentFetchEndTime <= PROXIMITY_THRESHOLD
-        ) {
-          relatedCommit = commit
-          break
-        }
-      }
-
-      if (!relatedCommit) break
-
-      // Find a fetch that started shortly after that commit
-      let nextFetch: FetchEvent | undefined
-      for (let i = 0; i < fetchEvents.length; i++) {
-        const f = fetchEvents[i]
-        if (
-          !processedFetchIds.has(f.id) &&
-          f.startTime >= relatedCommit.time &&
-          f.startTime - relatedCommit.time <= PROXIMITY_THRESHOLD
-        ) {
-          nextFetch = f
-          break
-        }
-      }
-
-      if (!nextFetch) break
-
-      // Found a causal chain!
-      chain.push(nextFetch)
-      processedFetchIds.add(nextFetch.id)
-      currentFetchEndTime = nextFetch.endTime
-    }
-
-    // Only report chains with 2+ fetches (actual waterfalls)
-    if (chain.length > 1) {
-      chains.push(chain)
-    }
-  }
-
-  // Count fetches that triggered renders (these are the ones we care about)
-  const renderTriggeringFetches = fetchEvents.filter((f) =>
-    fetchesWithCommits.has(f.id)
-  )
-
-  // Determine report type and send to server
-  if (chains.length === 0 && renderTriggeringFetches.length === 0) {
-    sendReportToServer({
-      type: 'no-waterfall',
-      pageUrl: typeof window !== 'undefined' ? window.location.href : '',
-      timestamp: Date.now(),
-      totalFetches: fetchEvents.length,
-      totalCommits: commitEvents.length,
-      renderTriggeringFetches: [],
-      waterfallChains: [],
+  try {
+    await originalFetch('/__nextjs_insights_ingest', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(report),
     })
-  } else if (chains.length === 0 && renderTriggeringFetches.length > 0) {
-    sendReportToServer({
-      type: 'render-blocking',
-      pageUrl: typeof window !== 'undefined' ? window.location.href : '',
-      timestamp: Date.now(),
-      totalFetches: fetchEvents.length,
-      totalCommits: commitEvents.length,
-      renderTriggeringFetches: renderTriggeringFetches.map((f) => ({
-        url: f.url,
-        stackTrace: f.stackTrace,
-        parsedFrames: f.parsedFrames,
-      })),
-      waterfallChains: [],
-    })
-  } else {
-    sendReportToServer({
-      type: 'waterfall',
-      pageUrl: typeof window !== 'undefined' ? window.location.href : '',
-      timestamp: Date.now(),
-      totalFetches: fetchEvents.length,
-      totalCommits: commitEvents.length,
-      renderTriggeringFetches: renderTriggeringFetches.map((f) => ({
-        url: f.url,
-        stackTrace: f.stackTrace,
-        parsedFrames: f.parsedFrames,
-      })),
-      waterfallChains: chains.map((chain) =>
-        chain.map((f) => ({
-          url: f.url,
-          stackTrace: f.stackTrace,
-          parsedFrames: f.parsedFrames,
-        }))
-      ),
-    })
+  } catch {
+    // Silently fail - don't disrupt the user experience
   }
 }
 
 /**
  * Capture a clean stack trace, excluding our patched fetch
- * Returns both the Error object and parsed frames
  */
 function captureStackTrace(): {
-  error: Error
   stack: string
   frames: StackFrame[]
 } {
@@ -389,7 +269,7 @@ function captureStackTrace(): {
   }
   const stack = error.stack || ''
   const frames = parseStackFrames(stack)
-  return { error, stack, frames }
+  return { stack, frames }
 }
 
 /**
@@ -417,43 +297,24 @@ function parseStackFrames(stack: string): StackFrame[] {
 }
 
 /**
- * Report structure sent to the server for processing
+ * Raw report structure sent to the server
+ * Server handles all analysis logic
  */
-interface WaterfallReport {
-  type: 'waterfall' | 'render-blocking' | 'no-waterfall' | 'no-fetches'
+interface RawWaterfallReport {
   pageUrl: string
   timestamp: number
-  totalFetches: number
-  totalCommits: number
-  renderTriggeringFetches: Array<{
+  fetchEvents: Array<{
+    id: number
     url: string
+    startTime: number
+    endTime: number
+    artificialDelay: number
     stackTrace: string
     parsedFrames: StackFrame[]
   }>
-  waterfallChains: Array<
-    Array<{
-      url: string
-      stackTrace: string
-      parsedFrames: StackFrame[]
-    }>
-  >
-}
-
-/**
- * Send the waterfall report to the server for source map resolution and logging
- */
-async function sendReportToServer(report: WaterfallReport): Promise<void> {
-  try {
-    await originalFetch('/__nextjs_insights_ingest', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(report),
-    })
-  } catch {
-    // Silently fail - don't disrupt the user experience
-  }
+  commitEvents: Array<{
+    time: number
+  }>
 }
 
 let warningBanner: HTMLDivElement | null = null
@@ -538,15 +399,15 @@ export function initWaterfallDetector() {
   // Set maximum analysis window
   maxWindowTimer = setTimeout(() => {
     if (!hasAnalyzed) {
-      analyzeWaterfalls()
+      sendRawData()
     }
   }, MAX_ANALYSIS_WINDOW)
 
-  // Also analyze on page visibility change (user switches tabs)
+  // Also send data on page visibility change (user switches tabs)
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden' && !hasAnalyzed) {
-        analyzeWaterfalls()
+        sendRawData()
       }
     })
   }
