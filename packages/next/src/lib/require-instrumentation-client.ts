@@ -8,7 +8,7 @@
 // Initialize waterfall detector FIRST (before any other code runs)
 // This must happen before the instrumentation client is loaded to patch fetch early
 let disableWaterfallDetector: (() => void) | null = null
-if (process.env.__NEXT_PROFILER_BUILD) {
+if (process.env.__NEXT_INSIGHTS_BUILD) {
   const waterfallDetector =
     require('../client/waterfall-detector') as typeof import('../client/waterfall-detector')
   waterfallDetector.initWaterfallDetector()

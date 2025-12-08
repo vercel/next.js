@@ -21,7 +21,7 @@ export type NextBuildOptions = {
   debug?: boolean
   debugPrerender?: boolean
   profile?: boolean
-  profiler?: boolean
+  insights?: boolean
   mangling: boolean
   turbo?: boolean
   turbopack?: boolean
@@ -45,7 +45,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     debugPrerender,
     experimentalDebugMemoryUsage,
     profile,
-    profiler,
+    insights,
     mangling,
     experimentalAppOnly,
     experimentalBuildMode,
@@ -86,9 +86,9 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     )
   }
 
-  if (profiler) {
+  if (insights) {
     warn(
-      `Profiler build is enabled. ${italic(
+      `Insights build is enabled. ${italic(
         'Note: Source maps are enabled and minification is disabled. This build is not suitable for production.'
       )}`
     )
@@ -139,7 +139,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     traceUploadUrl,
     resolvedAppPaths,
     resolvedPagePaths,
-    profiler
+    insights
   )
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {

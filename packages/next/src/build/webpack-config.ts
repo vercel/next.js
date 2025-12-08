@@ -394,8 +394,8 @@ export default async function getBaseWebpackConfig(
 
   const hasAppDir = !!appDir
   const disableOptimizedLoading = true
-  // Combine reactProductionProfiling with profiler flag for React profiling builds
-  const enableReactProfiling = reactProductionProfiling || config.profiler
+  // Combine reactProductionProfiling with insights flag for React profiling builds
+  const enableReactProfiling = reactProductionProfiling || config.insights
   const bundledReactChannel = needsExperimentalReact(config)
     ? '-experimental'
     : ''

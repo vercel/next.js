@@ -16,6 +16,7 @@ export function logStartInfo({
   experimentalFeatures,
   logBundler,
   cacheComponents,
+  insights,
 }: {
   networkUrl: string | null
   appUrl: string | null
@@ -23,6 +24,7 @@ export function logStartInfo({
   experimentalFeatures?: ConfiguredExperimentalFeature[]
   logBundler: boolean
   cacheComponents?: boolean
+  insights?: boolean
 }) {
   let versionSuffix = ''
   const parts = []
@@ -39,6 +41,10 @@ export function logStartInfo({
 
   if (cacheComponents) {
     parts.push('Cache Components')
+  }
+
+  if (insights) {
+    parts.push('Insights')
   }
 
   if (parts.length > 0) {
@@ -114,9 +120,11 @@ export async function getStartServerInfo({
   envInfo?: string[]
   experimentalFeatures?: ConfiguredExperimentalFeature[]
   cacheComponents?: boolean
+  insights?: boolean
 }> {
   let experimentalFeatures: ConfiguredExperimentalFeature[] = []
   let cacheComponents = false
+  let insights = false
   const config = await loadConfig(
     dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
     dir,
@@ -132,6 +140,7 @@ export async function getStartServerInfo({
   )
 
   cacheComponents = !!config.cacheComponents
+  insights = !!config.insights
 
   // we need to reset env if we are going to create
   // the worker process with the esm loader so that the
@@ -146,5 +155,6 @@ export async function getStartServerInfo({
     envInfo,
     experimentalFeatures,
     cacheComponents,
+    insights,
   }
 }

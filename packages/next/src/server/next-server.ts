@@ -33,7 +33,9 @@ import type { ErrorModule } from './load-default-error-components'
 import type { PagesModule } from './route-modules/pages/module.compiled'
 
 import fs from 'fs'
-import { join, relative } from 'path'
+import fsPromises from 'fs/promises'
+import { join, relative, dirname } from 'path'
+import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { addRequestMeta, getRequestMeta, setRequestMeta } from './request-meta'
 import {
@@ -1303,11 +1305,11 @@ export default class NextNodeServer extends BaseServer<
     const handler = super.getRequestHandler()
 
     return async (req, res, parsedUrl) => {
-      // Handle profiler ingest endpoint - always enabled for testing
+      // Handle insights ingest endpoint - always enabled for testing
       const url = req.url || ''
       const pathname = url.split('?')[0]
 
-      if (pathname === '/__nextjs_profiler_ingest') {
+      if (pathname === '/__nextjs_insights_ingest') {
         const rawRes =
           res instanceof NodeNextResponse ? res.originalResponse : res
         const rawReq =
@@ -1319,10 +1321,10 @@ export default class NextNodeServer extends BaseServer<
           rawReq.on('data', (chunk: Buffer) => {
             body += chunk.toString()
           })
-          rawReq.on('end', () => {
+          rawReq.on('end', async () => {
             try {
               const report = JSON.parse(body)
-              this.handleProfilerReport(report)
+              await this.handleInsightsReport(report)
               rawRes.statusCode = 200
               rawRes.setHeader('Content-Type', 'application/json')
               rawRes.end(JSON.stringify({ ok: true }))
@@ -1341,7 +1343,7 @@ export default class NextNodeServer extends BaseServer<
         rawRes.end(
           JSON.stringify({
             ok: true,
-            message: 'Profiler ingest endpoint ready',
+            message: 'Insights ingest endpoint ready',
           })
         )
         return
@@ -1352,10 +1354,135 @@ export default class NextNodeServer extends BaseServer<
   }
 
   /**
-   * Handle profiler waterfall detection report from the client.
+   * Resolve a stack frame's source location using source maps
+   */
+  private async resolveSourceMapFrame(
+    frame: {
+      functionName: string
+      fileName: string
+      lineNumber: number
+      columnNumber: number
+      raw: string
+    },
+    pageUrl: string
+  ): Promise<{
+    functionName: string
+    fileName: string
+    lineNumber: number
+    columnNumber: number
+    raw: string
+  }> {
+    try {
+      // Extract the path from URLs like http://localhost:3000/_next/static/chunks/app/page-abc.js
+      const url = new URL(frame.fileName, pageUrl)
+      const pathname = url.pathname
+
+      // Check if this is a Next.js chunk
+      if (!pathname.includes('/_next/')) {
+        return frame
+      }
+
+      // Convert URL path to file path: /_next/static/chunks/... -> .next/static/chunks/...
+      const relativePath = pathname.replace('/_next/', '')
+      const filePath = join(this.distDir, relativePath)
+
+      // Read the source file to find source map URL
+      let fileContents: string
+      try {
+        fileContents = await fsPromises.readFile(filePath, 'utf-8')
+      } catch {
+        return frame
+      }
+
+      // Find source map URL in file
+      const sourceMapMatch = fileContents.match(
+        /\/\/[#@] ?sourceMappingURL=([^\s'"]+)\s*$/m
+      )
+      if (!sourceMapMatch) {
+        return frame
+      }
+
+      const sourceMapUrl = sourceMapMatch[1]
+      let sourceMapContent: string
+
+      if (sourceMapUrl.startsWith('data:')) {
+        // Inline source map
+        const base64Match = sourceMapUrl.match(
+          /^data:application\/json;(?:charset=utf-8;)?base64,(.+)$/
+        )
+        if (!base64Match) {
+          return frame
+        }
+        sourceMapContent = Buffer.from(base64Match[1], 'base64').toString(
+          'utf-8'
+        )
+      } else {
+        // External source map file
+        const sourceMapPath = join(dirname(filePath), sourceMapUrl)
+        try {
+          sourceMapContent = await fsPromises.readFile(sourceMapPath, 'utf-8')
+        } catch {
+          return frame
+        }
+      }
+
+      const sourceMap = JSON.parse(sourceMapContent)
+      const consumer = await new SourceMapConsumer(sourceMap)
+
+      try {
+        const original = consumer.originalPositionFor({
+          line: frame.lineNumber,
+          column: frame.columnNumber,
+        })
+
+        if (original.source) {
+          // Convert source paths to absolute file paths
+          // Uses same patterns as hot-reloader-turbopack.ts and webpack-module-path.ts
+          let resolvedFileName = original.source
+
+          // Turbopack: turbopack:///[project]/path/to/file.tsx -> /absolute/path/to/file.tsx
+          // Same pattern as hot-reloader-turbopack.ts:162
+          resolvedFileName = resolvedFileName.replace(
+            /turbopack:\/\/\/\[project\]/,
+            this.dir
+          )
+
+          // Webpack: webpack://app/./path -> ./path, webpack://_N_E/./path -> ./path
+          // Same pattern as webpack-module-path.ts
+          resolvedFileName = resolvedFileName
+            .replace(/^webpack-internal:\/\/\/(\([\w-]+\)\/)?/, '')
+            .replace(
+              /^(webpack:\/\/\/|webpack:\/\/(_N_E\/)?)(\([\w-]+\)\/)?/,
+              ''
+            )
+
+          // Convert relative paths to absolute
+          if (resolvedFileName.startsWith('./')) {
+            resolvedFileName = join(this.dir, resolvedFileName.slice(2))
+          }
+
+          return {
+            functionName: original.name || frame.functionName,
+            fileName: resolvedFileName,
+            lineNumber: original.line || frame.lineNumber,
+            columnNumber: original.column || frame.columnNumber,
+            raw: frame.raw,
+          }
+        }
+      } finally {
+        consumer.destroy()
+      }
+    } catch {
+      // Return original frame on any error
+    }
+    return frame
+  }
+
+  /**
+   * Handle insights waterfall detection report from the client.
    * Prints an AI-ready prompt to the terminal with resolved source locations.
    */
-  private handleProfilerReport(report: {
+  private async handleInsightsReport(report: {
     type: 'waterfall' | 'render-blocking' | 'no-waterfall' | 'no-fetches'
     pageUrl: string
     timestamp: number
@@ -1385,192 +1512,101 @@ export default class NextNodeServer extends BaseServer<
         }>
       }>
     >
-  }): void {
-    const separator = '═'.repeat(80)
-    const thinSeparator = '─'.repeat(80)
-
-    console.log('')
-    console.log(separator)
-    console.log('  🔍 NEXT.JS PROFILER: WATERFALL DETECTION REPORT')
-    console.log(separator)
-    console.log('')
-    console.log(`  Page: ${report.pageUrl}`)
-    console.log(`  Time: ${new Date(report.timestamp).toISOString()}`)
-    console.log(`  Total fetches: ${report.totalFetches}`)
-    console.log(`  Total React commits: ${report.totalCommits}`)
-    console.log('')
-
-    if (report.type === 'no-fetches') {
-      console.log('  ✅ STATUS: NO CLIENT-SIDE FETCHES')
-      console.log('')
-      console.log('  No data fetches were made during initial page load.')
-      console.log('  This is ideal - all data is being fetched on the server.')
-      console.log('')
-      console.log(separator)
-      console.log('')
-      return
-    }
-
-    if (report.type === 'no-waterfall') {
-      console.log('  ✅ STATUS: NO RENDER-BLOCKING FETCHES')
-      console.log('')
-      console.log(
-        '  Client-side fetches were made, but none triggered React re-renders.'
-      )
-      console.log('  No waterfall patterns found.')
-      console.log('')
-      console.log(separator)
-      console.log('')
-      return
-    }
-
-    if (report.type === 'render-blocking') {
-      console.log('  ⚠️  STATUS: RENDER-BLOCKING FETCHES DETECTED')
-      console.log('')
-      console.log(
-        `  Found ${report.renderTriggeringFetches.length} fetch(es) that triggered React re-renders.`
-      )
-      console.log(
-        '  Consider moving data fetching to the server (Server Components, getServerSideProps, etc.)'
-      )
-      console.log('')
-      console.log(thinSeparator)
-      console.log('')
-
-      report.renderTriggeringFetches.forEach((fetch, i) => {
-        const topFrame = this.filterUserFrames(fetch.parsedFrames)[0]
-        console.log(`  ${i + 1}. fetch("${this.truncateUrl(fetch.url, 60)}")`)
-        if (topFrame) {
-          console.log(
-            `     └─ ${topFrame.fileName}:${topFrame.lineNumber}:${topFrame.columnNumber}`
-          )
-          if (
-            topFrame.functionName &&
-            topFrame.functionName !== '<anonymous>'
-          ) {
-            console.log(`        in ${topFrame.functionName}()`)
-          }
-        }
-        console.log('')
-      })
-
-      console.log(separator)
-      console.log('')
-      console.log('  📋 AI AGENT PROMPT:')
-      console.log(thinSeparator)
-      console.log('')
-      console.log(
-        '  The following client-side fetches are blocking renders and should be'
-      )
-      console.log('  moved to server-side data fetching:')
-      console.log('')
-      report.renderTriggeringFetches.forEach((fetch, i) => {
-        const topFrame = this.filterUserFrames(fetch.parsedFrames)[0]
-        const location = topFrame
-          ? `${topFrame.fileName}:${topFrame.lineNumber}:${topFrame.columnNumber}`
-          : 'unknown location'
-        console.log(`  ${i + 1}. fetch("${fetch.url}")`)
-        console.log(`     at ${location}`)
-      })
-      console.log('')
-      console.log('  Recommended actions:')
-      console.log('  - Move these fetches to Server Components')
-      console.log(
-        '  - Or use getServerSideProps/getStaticProps for Pages Router'
-      )
-      console.log('  - Or fetch at a higher level in the component tree')
-      console.log('')
-      console.log(separator)
-      console.log('')
-      return
-    }
-
-    // report.type === 'waterfall'
-    console.log('  🚨 STATUS: WATERFALL PATTERNS DETECTED')
-    console.log('')
-    console.log(
-      `  Found ${report.waterfallChains.length} waterfall chain(s) that may impact performance.`
-    )
-    console.log('  These fetches happen sequentially, each blocking the next.')
-    console.log('')
-    console.log(thinSeparator)
-    console.log('')
-
-    report.waterfallChains.forEach((chain, chainIndex) => {
-      console.log(
-        `  WATERFALL CHAIN ${chainIndex + 1} (${chain.length} sequential fetches):`
-      )
-      console.log('')
-
-      chain.forEach((fetch, j) => {
-        const topFrame = this.filterUserFrames(fetch.parsedFrames)[0]
-        const isLast = j === chain.length - 1
-        const arrow = isLast ? '' : ' → (triggers render) →'
-
-        console.log(
-          `    ${j + 1}. fetch("${this.truncateUrl(fetch.url, 50)}")${arrow}`
+  }): Promise<void> {
+    // Resolve source maps for all frames
+    for (const fetch of report.renderTriggeringFetches) {
+      for (let i = 0; i < fetch.parsedFrames.length; i++) {
+        fetch.parsedFrames[i] = await this.resolveSourceMapFrame(
+          fetch.parsedFrames[i],
+          report.pageUrl
         )
-        if (topFrame) {
-          console.log(
-            `       └─ ${topFrame.fileName}:${topFrame.lineNumber}:${topFrame.columnNumber}`
+      }
+    }
+    for (const chain of report.waterfallChains) {
+      for (const fetch of chain) {
+        for (let i = 0; i < fetch.parsedFrames.length; i++) {
+          fetch.parsedFrames[i] = await this.resolveSourceMapFrame(
+            fetch.parsedFrames[i],
+            report.pageUrl
           )
-          if (
-            topFrame.functionName &&
-            topFrame.functionName !== '<anonymous>'
-          ) {
-            console.log(`          in ${topFrame.functionName}()`)
+        }
+      }
+    }
+
+    const route = new URL(report.pageUrl).pathname
+
+    // No issues - simple one-line output
+    if (report.type === 'no-fetches' || report.type === 'no-waterfall') {
+      console.log(`✅ No waterfall detected on ${route}`)
+      return
+    }
+
+    // Issues detected - detailed output
+    console.log('')
+    console.log('═'.repeat(80))
+    console.log(`🚨 WATERFALL DETECTED on ${route}`)
+    console.log('═'.repeat(80))
+    console.log('')
+
+    // Collect all fetches to display
+    const allFetches =
+      report.type === 'waterfall'
+        ? report.waterfallChains.flat()
+        : report.renderTriggeringFetches
+
+    allFetches.forEach((fetch, i) => {
+      const topFrame = this.filterUserFrames(fetch.parsedFrames || [])[0]
+      let location = 'unknown location'
+      if (topFrame) {
+        // Make path relative to project directory
+        let filePath = topFrame.fileName
+        if (filePath.startsWith(this.dir)) {
+          filePath = filePath.slice(this.dir.length)
+          if (filePath.startsWith('/')) {
+            filePath = filePath.slice(1)
           }
         }
-        console.log('')
-      })
-    })
-
-    console.log(separator)
-    console.log('')
-    console.log('  📋 AI AGENT PROMPT:')
-    console.log(thinSeparator)
-    console.log('')
-    console.log('  PERFORMANCE ISSUE: Sequential fetch waterfall detected')
-    console.log('')
-    console.log(
-      '  The following fetch calls happen sequentially because each one triggers'
-    )
-    console.log('  a React re-render that starts the next fetch:')
-    console.log('')
-
-    report.waterfallChains.forEach((chain, chainIndex) => {
-      if (report.waterfallChains.length > 1) {
-        console.log(`  Chain ${chainIndex + 1}:`)
+        location = `${filePath}:${topFrame.lineNumber}`
       }
-      chain.forEach((fetch, j) => {
-        const topFrame = this.filterUserFrames(fetch.parsedFrames)[0]
-        const location = topFrame
-          ? `${topFrame.fileName}:${topFrame.lineNumber}:${topFrame.columnNumber}`
-          : 'unknown location'
-        const funcName =
-          topFrame && topFrame.functionName !== '<anonymous>'
-            ? ` (${topFrame.functionName})`
-            : ''
-        const arrow = j < chain.length - 1 ? ' →' : ''
-        console.log(`    ${j + 1}. fetch("${fetch.url}")${arrow}`)
-        console.log(`       at ${location}${funcName}`)
-      })
-      console.log('')
+
+      if (i === 0) {
+        console.log(`1. Initial fetch: ${fetch.url}`)
+        console.log(`   at ${location}`)
+      } else {
+        console.log('')
+        console.log(`   ↓ triggers render, then:`)
+        console.log('')
+        console.log(`${i + 1}. Fetches: ${fetch.url}`)
+        console.log(`   at ${location}`)
+      }
     })
 
-    console.log('  RECOMMENDED FIX:')
-    console.log(
-      '  1. Move these fetches to a higher level in the component tree'
-    )
-    console.log('  2. Use Promise.all() to fetch data in parallel')
-    console.log(
-      '  3. Consider using Server Components to fetch data on the server'
-    )
-    console.log(
-      '  4. Use React Suspense boundaries to enable concurrent fetching'
-    )
     console.log('')
-    console.log(separator)
+    console.log('─'.repeat(80))
+    console.log('')
+    console.log('This delays rendering of the critical path.')
+    console.log('')
+    console.log('RECOMMENDED FIX: Move fetches to a Server Component and pass')
+    console.log('promises to Client Components using the `use` hook.')
+    console.log('')
+    console.log('Example:')
+    console.log('')
+    console.log('  // app/page.tsx (Server Component)')
+    console.log('  export default function Page() {')
+    console.log('    const dataPromise = fetchData() // Start fetch on server')
+    console.log('    return <ClientComponent dataPromise={dataPromise} />')
+    console.log('  }')
+    console.log('')
+    console.log('  // app/client-component.tsx')
+    console.log("  'use client'")
+    console.log("  import { use } from 'react'")
+    console.log('')
+    console.log('  export function ClientComponent({ dataPromise }) {')
+    console.log('    const data = use(dataPromise) // Unwrap on client')
+    console.log('    return <div>{data}</div>')
+    console.log('  }')
+    console.log('')
+    console.log('═'.repeat(80))
     console.log('')
   }
 
@@ -1596,15 +1632,17 @@ export default class NextNodeServer extends BaseServer<
       'node_modules',
       'patchedFetch',
       'waterfall-detector',
-      'webpack',
-      'turbopack',
+      'webpack-internal',
+      'turbopack-internal',
       '_next/static/chunks',
       'react-dom',
-      'react.',
       'scheduler',
+      'next/dist',
     ]
 
     return frames.filter((frame) => {
+      // Skip frames without fileName
+      if (!frame.fileName) return false
       const combined = `${frame.fileName} ${frame.functionName}`
       return !excludePatterns.some((pattern) => combined.includes(pattern))
     })

@@ -355,15 +355,22 @@ export async function startServer(
       }
 
       // Only load env and config in dev to for logging purposes
+      // For production, we still need to check for insights mode
       let envInfo: string[] | undefined
       let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
       let cacheComponents: boolean | undefined
+      let insights: boolean | undefined
       try {
         if (isDev) {
           const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
           envInfo = startServerInfo.envInfo
           cacheComponents = startServerInfo.cacheComponents
           experimentalFeatures = startServerInfo.experimentalFeatures
+          insights = startServerInfo.insights
+        } else {
+          // For production, check if this is an insights build
+          const startServerInfo = await getStartServerInfo({ dir, dev: false })
+          insights = startServerInfo.insights
         }
         logStartInfo({
           networkUrl,
@@ -371,6 +378,7 @@ export async function startServer(
           envInfo,
           experimentalFeatures,
           cacheComponents,
+          insights,
           logBundler: isDev,
         })
 

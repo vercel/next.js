@@ -50,11 +50,11 @@ import { isNextRouterError } from './components/is-next-router-error'
 
 /// <reference types="react-dom/experimental" />
 
-// Log profiler build info at startup
-if (process.env.__NEXT_PROFILER_BUILD) {
+// Log insights build info at startup
+if (process.env.__NEXT_INSIGHTS_BUILD) {
   console.log('')
   console.log(
-    '%c[Next.js Profiler Build]',
+    '%c[Next.js Insights Build]',
     'background: #0070f3; color: white; padding: 2px 6px; border-radius: 3px;',
     '\n• Source maps: enabled',
     '\n• Minification: disabled',

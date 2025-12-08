@@ -187,8 +187,8 @@ program
     'Comma-separated glob patterns or explicit paths for selective builds. Examples: "app/*", "app/page.tsx", "app/**/page.tsx"'
   )
   .option(
-    '--profiler',
-    'Creates a profiler build with source maps enabled, no minification, and React profiling.'
+    '--insights',
+    'Creates an insights build with source maps enabled, no minification, and React profiling.'
   )
   .action((directory: string, options: NextBuildOptions) => {
     if (options.experimentalNextConfigStripTypes) {

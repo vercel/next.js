@@ -891,7 +891,7 @@ export default async function build(
   traceUploadUrl: string | undefined,
   debugBuildAppPaths?: string[],
   debugBuildPagePaths?: string[],
-  profiler = false
+  insights = false
 ): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
@@ -914,7 +914,7 @@ export default async function build(
     NextBuildContext.reactProductionProfiling = reactProductionProfiling
     NextBuildContext.noMangling = noMangling
     NextBuildContext.debugPrerender = debugPrerender
-    NextBuildContext.profiler = profiler
+    NextBuildContext.insights = insights
 
     await nextBuildSpan.traceAsyncFn(async () => {
       // attempt to load global env values so they are available in next.config.js
@@ -934,7 +934,7 @@ export default async function build(
                 silent: false,
                 reactProductionProfiling,
                 debugPrerender,
-                profiler,
+                insights,
               }),
             turborepoAccessTraceResult
           )

@@ -1415,7 +1415,7 @@ function getCacheKey(
   customConfig?: object | null,
   reactProductionProfiling?: boolean,
   debugPrerender?: boolean,
-  profiler?: boolean,
+  insights?: boolean,
   pid?: number
 ): string {
   // The next.config.js is unique per project, so we can use the dir as the major key
@@ -1426,7 +1426,7 @@ function getCacheKey(
     hasCustomConfig: Boolean(customConfig),
     reactProductionProfiling: Boolean(reactProductionProfiling),
     debugPrerender: Boolean(debugPrerender),
-    profiler: Boolean(profiler),
+    insights: Boolean(insights),
     pid: pid || 0,
   })
 
@@ -1442,7 +1442,7 @@ type LoadConfigOptions = {
   ) => void
   reactProductionProfiling?: boolean
   debugPrerender?: boolean
-  profiler?: boolean
+  insights?: boolean
 }
 
 export default async function loadConfig(
@@ -1471,7 +1471,7 @@ export default async function loadConfig(
     reportExperimentalFeatures,
     reactProductionProfiling,
     debugPrerender,
-    profiler,
+    insights,
   }: LoadConfigOptions = {}
 ): Promise<NextConfigComplete> {
   // Generate cache key based on parameters that affect config output
@@ -1482,7 +1482,7 @@ export default async function loadConfig(
     customConfig,
     reactProductionProfiling,
     debugPrerender,
-    profiler,
+    insights,
     process.pid
   )
 
@@ -1723,7 +1723,7 @@ export default async function loadConfig(
       isDefaultConfig: false,
       configuredExperimentalFeatures,
       debugPrerender,
-      profiler,
+      insights,
       phase,
     })
 
@@ -1782,7 +1782,7 @@ export default async function loadConfig(
     isDefaultConfig: true,
     configuredExperimentalFeatures,
     debugPrerender,
-    profiler,
+    insights,
     phase,
   })
 
@@ -1825,14 +1825,14 @@ function enforceExperimentalFeatures(
     isDefaultConfig: boolean
     configuredExperimentalFeatures: ConfiguredExperimentalFeature[] | undefined
     debugPrerender: boolean | undefined
-    profiler: boolean | undefined
+    insights: boolean | undefined
     phase: PHASE_TYPE
   }
 ) {
   const {
     configuredExperimentalFeatures,
     debugPrerender,
-    profiler,
+    insights,
     isDefaultConfig,
     phase,
   } = options
@@ -1868,9 +1868,9 @@ function enforceExperimentalFeatures(
     )
   }
 
-  // Profiler build: enable source maps (client + server) and disable minification
+  // Insights build: enable source maps (client + server) and disable minification
   if (
-    profiler &&
+    insights &&
     (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_EXPORT)
   ) {
     // Enable client-side source maps
@@ -1901,8 +1901,8 @@ function enforceExperimentalFeatures(
       configuredExperimentalFeatures
     )
 
-    // Mark this as a profiler build in config for runtime detection
-    config.profiler = true
+    // Mark this as a insights build in config for runtime detection
+    config.insights = true
   }
 
   // TODO: Remove this once we've made Cache Components the default.

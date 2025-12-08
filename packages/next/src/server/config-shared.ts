@@ -1141,11 +1141,11 @@ export interface NextConfig {
   reactProductionProfiling?: boolean
 
   /**
-   * Enable profiler build with source maps and no minification.
-   * This is set automatically when using `next build --profiler`.
+   * Enable insights build with source maps and no minification.
+   * This is set automatically when using `next build --insights`.
    * @internal
    */
-  profiler?: boolean
+  insights?: boolean
 
   /**
    * The Next.js runtime is Strict Mode-compliant.
@@ -1429,7 +1429,7 @@ export const defaultConfig = Object.freeze({
   productionBrowserSourceMaps: false,
   excludeDefaultMomentLocales: true,
   reactProductionProfiling: false,
-  profiler: false,
+  insights: false,
   reactStrictMode: null,
   reactMaxHeadersLength: 6000,
   httpAgentOptions: {
@@ -1632,7 +1632,7 @@ export interface NextConfigRuntime {
   skipProxyUrlNormalize: NextConfigComplete['skipProxyUrlNormalize']
   pageExtensions: NextConfigComplete['pageExtensions']
   useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
-  profiler?: NextConfigComplete['profiler']
+  insights?: NextConfigComplete['insights']
 
   experimental: Pick<
     NextConfigComplete['experimental'],
@@ -1762,7 +1762,7 @@ export function getNextConfigRuntime(
     skipProxyUrlNormalize: config.skipProxyUrlNormalize,
     pageExtensions: config.pageExtensions,
     useFileSystemPublicRoutes: config.useFileSystemPublicRoutes,
-    profiler: config.profiler,
+    insights: config.insights,
 
     experimental,
   }
