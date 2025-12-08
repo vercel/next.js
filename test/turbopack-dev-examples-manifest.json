@@ -162,7 +162,6 @@
   "with-slate": true,
   "with-static-export": true,
   "with-stencil": true,
-  "with-stitches": true,
   "with-storybook": true,
   "with-strict-csp": true,
   "with-stripe-typescript": true,
