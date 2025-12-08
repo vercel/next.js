@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -294,7 +295,16 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
 }
 
 #[derive(
-    Clone, Serialize, Deserialize, Eq, PartialEq, ValueDebugFormat, TraceRawVcs, NonLocalValue,
+    Clone,
+    Serialize,
+    Deserialize,
+    Eq,
+    PartialEq,
+    ValueDebugFormat,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct ResolvedReference {
     pub chunking_type: ChunkingType,
@@ -314,6 +324,7 @@ pub struct ModulesWithRefData(Vec<(ResolvedVc<Box<dyn ModuleReference>>, Resolve
 pub async fn primary_chunkable_referenced_modules(
     module: ResolvedVc<Box<dyn Module>>,
     include_traced: bool,
+    include_binding_usage: bool,
 ) -> Result<Vc<ModulesWithRefData>> {
     let modules = module
         .references()
@@ -333,7 +344,11 @@ pub async fn primary_chunkable_referenced_modules(
                     .await?
                     .primary_modules_ref()
                     .await?;
-                let binding_usage = reference.binding_usage().owned().await?;
+                let binding_usage = if include_binding_usage {
+                    reference.binding_usage().owned().await?
+                } else {
+                    BindingUsage::default()
+                };
 
                 return Ok(Some((
                     ResolvedVc::upcast(reference),

@@ -302,8 +302,11 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 #[derive(
                     turbo_tasks::macro_helpers::serde::Serialize,
                     turbo_tasks::macro_helpers::serde::Deserialize,
+                    turbo_tasks::macro_helpers::bincode::Encode,
+                    turbo_tasks::macro_helpers::bincode::Decode,
                 )]
                 #[serde(crate = "turbo_tasks::macro_helpers::serde")]
+                #[bincode(crate = "turbo_tasks::macro_helpers::bincode")]
             });
             if transparent {
                 struct_attributes.push(quote! {
@@ -345,9 +348,13 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         },
         SerializationMode::Auto | SerializationMode::Custom => {
             quote! {
-                turbo_tasks::ValueType::new_with_any_serialization::<#ident>(#name)
+                turbo_tasks::ValueType::new_with_bincode::<#ident>(#name)
             }
         }
+    };
+    let has_serialization = match serialization_mode {
+        SerializationMode::None => quote! { false },
+        SerializationMode::Auto | SerializationMode::Custom => quote! { true },
     };
 
     let value_debug_impl = if inner_type.is_some() {
@@ -380,6 +387,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         read,
         cell_mode,
         new_value_type,
+        has_serialization,
     );
 
     let expanded = quote! {
@@ -405,6 +413,7 @@ pub fn value_type_and_register(
     read: proc_macro2::TokenStream,
     cell_mode: proc_macro2::TokenStream,
     new_value_type: proc_macro2::TokenStream,
+    has_serialization: proc_macro2::TokenStream,
 ) -> proc_macro2::TokenStream {
     let value_type_ident = get_value_type_ident(ident);
 
@@ -437,6 +446,10 @@ pub fn value_type_and_register(
                     });
 
                 *ident
+            }
+
+            fn has_serialization() -> bool {
+                #has_serialization
             }
         }
     }

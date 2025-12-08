@@ -30,6 +30,7 @@ lmdb = ["dep:lmdb-rkv"]
 
 [dependencies]
 anyhow = { workspace = true }
+bincode = { workspace = true }
 arc-swap = { version = "1.7.1" }
 auto-hash-map = { workspace = true }
 bitfield = { workspace = true }
@@ -41,7 +42,6 @@ indexmap = { workspace = true }
 lmdb-rkv = { version = "0.14.0", optional = true }
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
-pot = "3.0.0"
 rand = { workspace = true }
 ringmap = { workspace = true, features = ["serde"] }
 rustc-hash = { workspace = true }
@@ -52,10 +52,10 @@ smallvec = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 thread_local = { workspace = true }
+turbo-bincode = { workspace = true }
 turbo-persistence = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
-turbo-tasks-testing = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
@@ -64,6 +64,7 @@ regex = { workspace = true }
 tempfile = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 rstest = { workspace = true }
+turbo-tasks-testing = { workspace = true }
 
 
 [[bench]]

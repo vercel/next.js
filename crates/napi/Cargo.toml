@@ -56,6 +56,7 @@ ignored = [
 
 [dependencies]
 anyhow = { workspace = true }
+bincode = { workspace = true }
 console-subscriber = { workspace = true, optional = true }
 dhat = { workspace = true, optional = true }
 either = { workspace = true }

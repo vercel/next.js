@@ -600,6 +600,27 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/cache-components-reused-promise/cache-components-reused-promise.test.ts": {
+    "passed": [
+      "cache-components-dev-warmup - reused promise aborts dynamic promises when restarting the render"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/cache-components-tasks/cache-components-tasks.test.ts": {
+    "passed": [
+      "cache-components-tasks - with runtime prefetch configs initial load setImmediate resolves between tasks",
+      "cache-components-tasks - with runtime prefetch configs navigation setImmediate resolves between tasks",
+      "cache-components-tasks - without runtime prefetch configs initial load setImmediate resolves between tasks",
+      "cache-components-tasks - without runtime prefetch configs navigation setImmediate resolves between tasks"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/cache-components-warnings/cache-components.warnings.test.ts": {
     "passed": [],
     "failed": [],
@@ -813,6 +834,15 @@
   "test/development/app-dir/hmr-deleted-page/hmr-deleted-page.test.ts": {
     "passed": ["hmr-deleted-page should not show errors for a deleted page"],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/hmr-iframe/hmr-iframe.test.ts": {
+    "passed": [],
+    "failed": [
+      "hmr-iframe should do HMR when rendering two server component changes at the same time"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1180,14 +1210,13 @@
   },
   "test/development/app-hmr/hmr.test.ts": {
     "passed": [
+      "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime",
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
       "app-dir-hmr filesystem changes should not break when renaming a folder",
       "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
       "app-dir-hmr filesystem changes should update server components after navigating to a page with a different runtime"
     ],
-    "failed": [
-      "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1813,11 +1842,12 @@
       "client-dev-overlay should be able to minimize the fullscreen overlay",
       "client-dev-overlay should be possible to hide the minimized overlay when there are no errors",
       "client-dev-overlay should have a role of \"dialog\" if the page is focused",
-      "client-dev-overlay should keep the error indicator visible when there are errors",
+      "client-dev-overlay should keep the error indicator visible when there are errors"
+    ],
+    "failed": [
       "client-dev-overlay should nudge to use Turbopack unless Turbopack is disabled",
       "client-dev-overlay with Cache Components should show Cache Components as enabled in the devtools menu"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

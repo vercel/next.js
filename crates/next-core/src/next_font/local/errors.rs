@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
@@ -9,7 +10,9 @@ pub(crate) enum FontResult<T> {
     FontFileNotFound(FontFileNotFound),
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize, NonLocalValue, TraceRawVcs)]
+#[derive(
+    Debug, Eq, PartialEq, Serialize, Deserialize, NonLocalValue, TraceRawVcs, Encode, Decode,
+)]
 pub(crate) struct FontFileNotFound(pub RcStr);
 
 impl Display for FontFileNotFound {
