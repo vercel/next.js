@@ -17,6 +17,7 @@ turbopack = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
+bincode = { workspace = true }
 dunce = { workspace = true }
 once_cell = { workspace = true }
 rustc-hash = { workspace = true }

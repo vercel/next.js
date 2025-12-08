@@ -4,7 +4,7 @@ import type {
   PrerenderManifest,
   RoutesManifest,
 } from '../../../build'
-import type { NextConfigComplete } from '../../config-shared'
+import type { NextConfigRuntime } from '../../config-shared'
 import type { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
@@ -109,7 +109,7 @@ export async function setupFsCheck(opts: {
   dir: string
   dev: boolean
   minimalMode?: boolean
-  config: NextConfigComplete
+  config: NextConfigRuntime
 }) {
   const getItemsLru = !opts.dev
     ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value) {

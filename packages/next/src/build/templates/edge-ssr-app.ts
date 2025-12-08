@@ -8,7 +8,6 @@ import { IncrementalCache } from '../../server/lib/incremental-cache'
 
 import * as pageMod from 'VAR_USERLAND'
 
-import type { NextConfigComplete } from '../../server/config-shared'
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
 import { initializeCacheHandlers } from '../../server/use-cache/handlers'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
@@ -29,12 +28,7 @@ import { checkIsOnDemandRevalidate } from '../../server/api-utils'
 import { CloseController } from '../../server/web/web-on-close'
 
 declare const incrementalCacheHandler: any
-declare const nextConfig: NextConfigComplete
 // OPTIONAL_IMPORT:incrementalCacheHandler
-// INJECT:nextConfig
-
-// Initialize the cache handlers interface.
-initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
@@ -77,6 +71,7 @@ async function requestHandler(
     query,
     params,
     buildId,
+    nextConfig,
     buildManifest,
     prerenderManifest,
     reactLoadableManifest,
@@ -86,7 +81,11 @@ async function requestHandler(
     resolvedPathname,
     interceptionRoutePatterns,
     routerServerContext,
+    deploymentId,
   } = prepareResult
+
+  // Initialize the cache handlers interface.
+  initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
   const botType = getBotType(req.headers.get('User-Agent') || '')
@@ -139,7 +138,7 @@ async function requestHandler(
       trailingSlash: nextConfig.trailingSlash,
       images: nextConfig.images,
       previewProps: prerenderManifest.preview,
-      deploymentId: nextConfig.deploymentId,
+      deploymentId,
       enableTainting: nextConfig.experimental.taint,
       htmlLimitedBots: nextConfig.htmlLimitedBots,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
