@@ -32,7 +32,10 @@ use crate::{
     key::{StoreKey, hash_key},
     lookup_entry::{LookupEntry, LookupValue},
     merge_iter::MergeIter,
-    meta_file::{AmqfCache, MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
+    meta_file::{
+        AmqfCache, MetaBatchLookupResult, MetaEntryFlags, MetaFile, MetaLookupResult,
+        StaticSortedFileRange,
+    },
     meta_file_builder::MetaFileBuilder,
     parallel_scheduler::ParallelScheduler,
     sst_filter::SstFilter,
@@ -1402,6 +1405,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     ) -> Result<Vec<Option<ArcSlice<u8>>>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
         let mut cells: Vec<(u64, usize, Option<LookupValue>)> = Vec::with_capacity(keys.len());
+        let mut empty_cells = keys.len();
         for (index, key) in keys.iter().enumerate() {
             let hash = hash_key(key);
             cells.push((hash, index, None));
@@ -1409,41 +1413,49 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         cells.sort_by_key(|(hash, _, _)| *hash);
         let inner = self.inner.read();
         for meta in inner.meta_files.iter().rev() {
-            for (hash, index, result) in cells.iter_mut() {
-                if result.is_some() {
-                    continue;
+            let result = meta.batch_lookup(
+                family as u32,
+                keys,
+                &mut cells,
+                &mut empty_cells,
+                &self.amqf_cache,
+                &self.key_block_cache,
+                &self.value_block_cache,
+            )?;
+
+            #[cfg(feature = "stats")]
+            {
+                let MetaBatchLookupResult {
+                    family_miss,
+                    range_misses,
+                    quick_filter_misses,
+                    sst_misses,
+                    hits: _,
+                } = result;
+                if family_miss {
+                    self.stats.miss_family.fetch_add(1, Ordering::Relaxed);
                 }
-                let key = &keys[*index];
-                match meta.lookup(
-                    family as u32,
-                    *hash,
-                    key,
-                    &self.amqf_cache,
-                    &self.key_block_cache,
-                    &self.value_block_cache,
-                )? {
-                    MetaLookupResult::FamilyMiss => {
-                        #[cfg(feature = "stats")]
-                        self.stats.miss_family.fetch_add(1, Ordering::Relaxed);
-                    }
-                    MetaLookupResult::RangeMiss => {
-                        #[cfg(feature = "stats")]
-                        self.stats.miss_range.fetch_add(1, Ordering::Relaxed);
-                    }
-                    MetaLookupResult::QuickFilterMiss => {
-                        #[cfg(feature = "stats")]
-                        self.stats.miss_amqf.fetch_add(1, Ordering::Relaxed);
-                    }
-                    MetaLookupResult::SstLookup(sst_result) => match sst_result {
-                        SstLookupResult::Found(found) => {
-                            *result = Some(found);
-                        }
-                        SstLookupResult::NotFound => {
-                            #[cfg(feature = "stats")]
-                            self.stats.miss_key.fetch_add(1, Ordering::Relaxed);
-                        }
-                    },
+                if range_misses > 0 {
+                    self.stats
+                        .miss_range
+                        .fetch_add(range_misses as u64, Ordering::Relaxed);
                 }
+                if quick_filter_misses > 0 {
+                    self.stats
+                        .miss_amqf
+                        .fetch_add(quick_filter_misses as u64, Ordering::Relaxed);
+                }
+                if sst_misses > 0 {
+                    self.stats
+                        .miss_key
+                        .fetch_add(sst_misses as u64, Ordering::Relaxed);
+                }
+            }
+            #[cfg(not(feature = "stats"))]
+            let _ = result;
+
+            if empty_cells == 0 {
+                break;
             }
         }
         let mut results = vec![None; keys.len()];

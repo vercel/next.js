@@ -5,7 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [features]
-default = []
+default = ["stats"]
 verify_sst_content = []
 strict_checks = []
 stats = ["quick_cache/stats"]
