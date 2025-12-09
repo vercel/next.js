@@ -1244,12 +1244,22 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
 
     /// Get a value from the database. Returns None if the key is not found. The returned value
     /// might hold onto a block of the database and it should not be hold long-term.
-    pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcSlice<u8>>> {
+    pub fn get<K: QueryKey + Sync>(&self, family: usize, key: &K) -> Result<Option<ArcSlice<u8>>> {
         let hash = hash_key(key);
+        self.parallel_scheduler
+            .block_in_place(|| self.get_inner(family as u32, hash, key))
+    }
+
+    fn get_inner<K: QueryKey>(
+        &self,
+        family: u32,
+        hash: u64,
+        key: &K,
+    ) -> Result<Option<ArcSlice<u8>>> {
         let inner = self.inner.read();
         for meta in inner.meta_files.iter().rev() {
             match meta.lookup(
-                family as u32,
+                family,
                 hash,
                 key,
                 &self.amqf_cache,
