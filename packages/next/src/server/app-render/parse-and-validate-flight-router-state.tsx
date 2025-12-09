@@ -19,7 +19,7 @@ export function parseAndValidateFlightRouterState(
   }
   if (Array.isArray(stateHeader)) {
     throw new Error(
-      'Multiple router state headers were sent. This is not allowed.'
+      `Multiple router state headers were sent. This is not allowed (stateHeader length ${stateHeader.length}).`
     )
   }
 
@@ -29,7 +29,9 @@ export function parseAndValidateFlightRouterState(
   // This is around 2,000 nested or parallel route segment states:
   // '{"children":["",{}]}'.length === 20.
   if (stateHeader.length > 20 * 2000) {
-    throw new Error('The router state header was too large.')
+    throw new Error(
+      `The router state header was too large (stateHeader=${stateHeader.substring(0, 1000)}).`
+    )
   }
 
   try {
@@ -37,6 +39,8 @@ export function parseAndValidateFlightRouterState(
     assert(state, flightRouterStateSchema)
     return state
   } catch {
-    throw new Error('The router state header was sent but could not be parsed.')
+    throw new Error(
+      `The router state header was sent but could not be parsed. (stateHeader=${stateHeader.substring(0, 1000)})`
+    )
   }
 }
