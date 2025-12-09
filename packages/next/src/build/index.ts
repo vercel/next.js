@@ -1953,15 +1953,10 @@ export default async function build(
           }
 
           if (config.experimental.optimizeCss) {
-            const globOrig = require('next/dist/compiled/glob')
-            const globFiles = (
-              pattern: string,
-              options: any
-            ): Promise<string[]> => {
-              return globOrig(pattern, options)
-            }
+            const glob =
+              require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
 
-            const cssFilePaths = await globFiles('**/*.css', {
+            const cssFilePaths = await glob('**/*.css', {
               cwd: path.join(distDir, 'static'),
             })
 
