@@ -69,15 +69,6 @@ import {
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
 
-function formDataFromSearchQueryString(query: string) {
-  const searchParams = new URLSearchParams(query)
-  const formData = new FormData()
-  for (const [key, value] of searchParams) {
-    formData.append(key, value)
-  }
-  return formData
-}
-
 function nodeHeadersToRecord(
   headers: IncomingHttpHeaders | OutgoingHttpHeaders
 ) {
@@ -539,9 +530,9 @@ export async function handleAction({
 
   const {
     actionId,
-    isURLEncodedAction,
     isMultipartAction,
     isFetchAction,
+    isURLEncodedAction,
     isPossibleServerAction,
   } = getServerActionRequestMetadata(req)
 
@@ -550,6 +541,19 @@ export async function handleAction({
   // But won't know if it's an MPA action or not until we call `decodeAction` below.
   if (!isPossibleServerAction) {
     return null
+  }
+
+  // We don't currently support URL encoded actions, so we bail out early.
+  // Depending on if it's a fetch action or an MPA, we return a different response.
+  if (isURLEncodedAction) {
+    if (isFetchAction) {
+      return {
+        type: 'not-found',
+      }
+    } else {
+      // This is an MPA action, so we return null
+      return null
+    }
   }
 
   if (workStore.isStaticGeneration) {
@@ -796,20 +800,11 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            if (isURLEncodedAction) {
-              const formData = formDataFromSearchQueryString(actionData)
-              boundActionArguments = await decodeReply(
-                formData,
-                serverModuleMap,
-                { temporaryReferences }
-              )
-            } else {
-              boundActionArguments = await decodeReply(
-                actionData,
-                serverModuleMap,
-                { temporaryReferences }
-              )
-            }
+            boundActionArguments = await decodeReply(
+              actionData,
+              serverModuleMap,
+              { temporaryReferences }
+            )
           }
         } else if (
           // The type check here ensures that `req` is correctly typed, and the
@@ -984,20 +979,11 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            if (isURLEncodedAction) {
-              const formData = formDataFromSearchQueryString(actionData)
-              boundActionArguments = await decodeReply(
-                formData,
-                serverModuleMap,
-                { temporaryReferences }
-              )
-            } else {
-              boundActionArguments = await decodeReply(
-                actionData,
-                serverModuleMap,
-                { temporaryReferences }
-              )
-            }
+            boundActionArguments = await decodeReply(
+              actionData,
+              serverModuleMap,
+              { temporaryReferences }
+            )
           }
         } else {
           throw new Error('Invariant: Unknown request type.')

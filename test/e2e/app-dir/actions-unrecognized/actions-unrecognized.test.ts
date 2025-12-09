@@ -54,15 +54,6 @@ describe('unrecognized server actions', () => {
           body: new FormData(),
         },
       },
-      {
-        // we never use urlencoded actions, but we currently have codepaths for it in `handleAction`,
-        // so might as well test them.
-        name: 'urlencoded',
-        request: {
-          contentType: 'application/x-www-form-urlencoded',
-          body: 'foo=bar',
-        },
-      },
     ])(
       'should 404 when POSTing a server action with an unrecognized id to a nonexistent page: $name',
       async ({ request: { contentType, body } }) => {
@@ -90,6 +81,19 @@ describe('unrecognized server actions', () => {
       }
     )
   }
+
+  it('should 404 when POSTing a urlencoded action to a nonexistent page', async () => {
+    const res = await next.fetch('/non-existent-route', {
+      method: 'POST',
+      headers: {
+        'next-action': '123',
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: 'foo=bar',
+    })
+
+    expect(res.status).toBe(404)
+  })
 
   describe.each(['nodejs', 'edge'])(
     'should error and log a warning when submitting a server action with an unrecognized ID - %s',
