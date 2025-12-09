@@ -1,6 +1,7 @@
 use std::{borrow::Cow, io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{Context, Result, anyhow, bail};
+use bincode::{Decode, Encode};
 use flate2::write::GzEncoder;
 use futures_util::TryFutureExt;
 use napi::{
@@ -1528,6 +1529,8 @@ pub fn project_compilation_events_subscribe(
     Serialize,
     TaskInput,
     TraceRawVcs,
+    Encode,
+    Decode,
 )]
 pub struct StackFrame {
     pub is_server: bool,

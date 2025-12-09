@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -35,7 +36,7 @@ pub enum ResolveTypeError {
     ReadError { source: anyhow::Error },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub struct CellId {
     pub type_id: ValueTypeId,
     pub index: u32,
@@ -61,7 +62,7 @@ impl Display for CellId {
 /// otherwise be treated as an internal implementation detail of `turbo-tasks`.
 ///
 /// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub enum RawVc {
     /// The synchronous return value of a task (after argument resolution). This is the
     /// representation used by [`OperationVc`][crate::OperationVc].
@@ -210,7 +211,7 @@ impl RawVc {
                         task,
                         index,
                         ReadCellOptions {
-                            is_serializable_cell_content: value_type.is_serializable(),
+                            is_serializable_cell_content: value_type.bincode.is_some(),
                             final_read_hint: false,
                             tracking: ReadTracking::default(),
                         },
@@ -466,7 +467,7 @@ impl Future for ReadRawVcFuture {
                         if this.is_serializable_cell_content_unknown {
                             let value_type = registry::get_value_type(index.type_id);
                             this.read_cell_options.is_serializable_cell_content =
-                                value_type.is_serializable();
+                                value_type.bincode.is_some();
                         }
                         let read_result =
                             tt.try_read_task_cell(task, index, this.read_cell_options);

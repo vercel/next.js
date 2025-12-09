@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::{DUMMY_SP, FileName, SourceMap, sync::Lrc},
@@ -12,10 +13,10 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbopack_core::{chunk::ChunkingContext, compile_time_info::CompileTimeDefineValue};
 
-use super::AstPath;
 use crate::{
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
+    references::AstPath,
 };
 
 #[derive(
@@ -29,6 +30,8 @@ use crate::{
     TraceRawVcs,
     ValueDebugFormat,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct ConstantValueCodeGen {
     value: CompileTimeDefineValue,

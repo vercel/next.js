@@ -28,7 +28,7 @@ export async function turbopackBuild(): Promise<{
 }> {
   await validateTurboNextConfig({
     dir: NextBuildContext.dir!,
-    isDev: false,
+    configPhase: PHASE_PRODUCTION_BUILD,
   })
 
   const config = NextBuildContext.config!

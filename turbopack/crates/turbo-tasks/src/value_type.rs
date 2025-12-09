@@ -1,20 +1,19 @@
 use std::{
-    any::{Any, type_name},
     fmt::{self, Debug, Display, Formatter},
     hash::Hash,
 };
 
 use auto_hash_map::{AutoMap, AutoSet};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use tracing::Span;
+use turbo_bincode::{AnyDecodeFn, AnyEncodeFn};
 
 use crate::{
-    RawVc, VcValueType, id::TraitTypeId, macro_helpers::NativeFunction,
-    magic_any::AnyDeserializeSeed, registry, task::shared_reference::TypedSharedReference,
+    RawVc, SharedReference, VcValueType, id::TraitTypeId, macro_helpers::NativeFunction,
+    magic_any::any_as_encode, registry, task::shared_reference::TypedSharedReference,
     vc::VcCellMode,
 };
 
-type AnySerializationFn = fn(&(dyn Any + Sync + Send)) -> &dyn erased_serde::Serialize;
 type RawCellFactoryFn = fn(TypedSharedReference) -> RawVc;
 
 // TODO this type need some refactoring when multiple languages are added to
@@ -36,14 +35,14 @@ pub struct ValueType {
     /// List of trait methods available
     trait_methods: AutoMap<&'static TraitMethod, &'static NativeFunction>,
 
-    /// Functors for serialization
-    any_serialization: Option<(AnySerializationFn, AnyDeserializeSeed)>,
+    /// Functions to convert to write the type to a buffer or read it from a buffer.
+    pub bincode: Option<(AnyEncodeFn, AnyDecodeFn<SharedReference>)>,
 
     /// An implementation of
-    /// [`VcCellMode::raw_cell`][crate::vc::cell_mode::VcCellMode::raw_cell].
+    /// [`VcCellMode::raw_cell`][crate::vc::VcCellMode::raw_cell].
     ///
     /// Allows dynamically constructing a cell using the type id. Used inside of
-    /// [`RawVc`] where we have a type id, but not the concrete type `T` of
+    /// [`TraitRef`][crate::TraitRef] where we have a type id, but not the concrete type `T` of
     /// `Vc<T>`.
     ///
     /// Because we allow resolving `Vc<dyn Trait>`, it's otherwise not possible
@@ -86,64 +85,86 @@ impl Display for ValueType {
     }
 }
 
-pub fn any_as_serialize<T: Any + Serialize + Send + Sync + 'static>(
-    this: &(dyn Any + Send + Sync),
-) -> &dyn erased_serde::Serialize {
-    if let Some(r) = this.downcast_ref::<T>() {
-        return r;
-    }
-    panic!(
-        "any_as_serialize::<{}> called with invalid type",
-        type_name::<T>()
-    );
+pub trait ManualEncodeWrapper: Encode {
+    type Value;
+
+    // this uses RPIT to avoid some lifetime problems
+    fn new<'a>(value: &'a Self::Value) -> impl Encode + 'a;
+}
+
+pub trait ManualDecodeWrapper: Decode<()> {
+    type Value;
+
+    fn inner(self) -> Self::Value;
 }
 
 impl ValueType {
-    /// This is internally used by `#[turbo_tasks::value]`
+    /// This is internally used by [`#[turbo_tasks::value]`][crate::value].
     pub fn new<T: VcValueType>(global_name: &'static str) -> Self {
-        Self {
-            name: std::any::type_name::<T>(),
-            global_name,
-            traits: AutoSet::new(),
-            trait_methods: AutoMap::new(),
-            any_serialization: None,
-            raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
-        }
+        Self::new_inner::<T>(global_name, None)
     }
 
-    /// This is internally used by `#[turbo_tasks::value]`
-    pub fn new_with_any_serialization<
-        T: VcValueType + Any + Serialize + for<'de> Deserialize<'de>,
+    /// This is internally used by [`#[turbo_tasks::value]`][crate::value].
+    pub fn new_with_bincode<T: VcValueType + Encode + Decode<()>>(
+        global_name: &'static str,
+    ) -> Self {
+        Self::new_inner::<T>(
+            global_name,
+            Some((
+                |this, enc| {
+                    T::encode(any_as_encode::<T>(this), enc)?;
+                    Ok(())
+                },
+                |dec| {
+                    let val = T::decode(dec)?;
+                    Ok(SharedReference::new(triomphe::Arc::new(val)))
+                },
+            )),
+        )
+    }
+
+    /// This is used internally by [`turbo_tasks_macros::primitive`] to encode/decode foreign types
+    /// that cannot implement the [`bincode`] traits due to the [orphan rules].
+    ///
+    /// This is done by constructing wrapper types that implement the bincode traits on behalf of
+    /// the wrapped type.
+    ///
+    /// [orphan rules]: https://doc.rust-lang.org/reference/items/implementations.html#orphan-rules
+    pub fn new_with_bincode_wrappers<
+        T: VcValueType,
+        E: ManualEncodeWrapper<Value = T>,
+        D: ManualDecodeWrapper<Value = T>,
     >(
         global_name: &'static str,
+    ) -> Self {
+        Self::new_inner::<T>(
+            global_name,
+            Some((
+                |this, enc| {
+                    E::new(any_as_encode::<T>(this)).encode(enc)?;
+                    Ok(())
+                },
+                |dec| {
+                    let val = D::inner(D::decode(dec)?);
+                    Ok(SharedReference::new(triomphe::Arc::new(val)))
+                },
+            )),
+        )
+    }
+
+    // Helper for other constructor functions
+    fn new_inner<T: VcValueType>(
+        global_name: &'static str,
+        bincode: Option<(AnyEncodeFn, AnyDecodeFn<SharedReference>)>,
     ) -> Self {
         Self {
             name: std::any::type_name::<T>(),
             global_name,
             traits: AutoSet::new(),
             trait_methods: AutoMap::new(),
-            any_serialization: Some((any_as_serialize::<T>, AnyDeserializeSeed::new::<T>())),
+            bincode,
             raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
         }
-    }
-
-    pub fn any_as_serializable<'a>(
-        &self,
-        arc: &'a triomphe::Arc<dyn Any + Sync + Send>,
-    ) -> Option<&'a dyn erased_serde::Serialize> {
-        if let Some(s) = self.any_serialization {
-            Some((s.0)(&**arc))
-        } else {
-            None
-        }
-    }
-
-    pub fn is_serializable(&self) -> bool {
-        self.any_serialization.is_some()
-    }
-
-    pub fn get_any_deserialize_seed(&self) -> Option<AnyDeserializeSeed> {
-        self.any_serialization.map(|s| s.1)
     }
 
     pub(crate) fn register_trait_method(

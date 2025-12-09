@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
@@ -6,10 +7,12 @@ use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::Trace
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
-use super::{ChunkableModule, EvaluatableAssets, availability_info::AvailabilityInfo};
 use crate::{
     asset::Asset,
-    chunk::{ChunkItem, ChunkType, ModuleId},
+    chunk::{
+        ChunkItem, ChunkType, ChunkableModule, EvaluatableAssets, ModuleId,
+        availability_info::AvailabilityInfo,
+    },
     environment::Environment,
     ident::AssetIdent,
     module::Module,
@@ -37,6 +40,8 @@ use crate::{
     TraceRawVcs,
     DeterministicHash,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum MangleType {
@@ -86,6 +91,8 @@ pub enum SourceMapsType {
     TraceRawVcs,
     DeterministicHash,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum ChunkGroupType {
     Entry,
@@ -226,6 +233,8 @@ pub struct EntryChunkGroupResult {
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub struct ChunkingConfig {
     /// Try to avoid creating more than 1 chunk smaller than this size.

@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
@@ -17,19 +18,31 @@ use turbopack_core::{
     resolve::{BindingUsage, ExportUsage, ImportUsage, ModulePart, ModuleResolveResult},
 };
 
-use super::{
-    facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
-};
 use crate::{
     ScopeHoistingContext,
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     references::esm::base::{ReferencedAsset, ReferencedAssetIdent},
     runtime_functions::TURBOPACK_IMPORT,
+    side_effect_optimization::{
+        facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
+    },
     utils::module_id_to_lit,
 };
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, NonLocalValue, TraceRawVcs)]
+#[derive(
+    Debug,
+    Clone,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+    TraceRawVcs,
+    Encode,
+    Decode,
+)]
 enum EcmascriptModulePartReferenceMode {
     Synthesize,
     Normal,
