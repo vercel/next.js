@@ -25,8 +25,13 @@ export function getRouteMatcher({
     const decode = (param: string) => {
       try {
         return decodeURIComponent(param)
-      } catch {
-        throw new DecodeError('failed to decode param')
+      } catch (e: any) {
+        const encodedParam = encodeURIComponent(param)
+        try {
+          return decodeURIComponent(encodedParam)
+        } catch {
+          throw new DecodeError('failed to decode param')
+        }
       }
     }
 
