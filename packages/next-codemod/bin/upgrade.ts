@@ -5,6 +5,7 @@ import {
   satisfies as satisfiesVersionRange,
   compare as compareVersions,
   major,
+  minor,
 } from 'semver'
 import { execSync } from 'child_process'
 import path from 'path'
@@ -81,6 +82,33 @@ function endMessage(targetNextVersion: string) {
 
 const cwd = process.cwd()
 
+/**
+ * Resolves semantic version keywords (patch, minor, major) to npm version queries.
+ * - patch: latest patch within current minor (e.g., 15.0.x -> 15.0.y)
+ * - minor: latest minor within current major (e.g., 15.0.x -> 15.1.x)
+ * - major: latest stable version (equivalent to "latest")
+ */
+function resolveSemanticRevision(
+  revision: string,
+  installedVersion: string
+): string {
+  const installedMajor = major(installedVersion)
+  const installedMinor = minor(installedVersion)
+
+  switch (revision) {
+    case 'patch':
+      // ~15.0.0 matches >=15.0.0 <15.1.0
+      return `~${installedMajor}.${installedMinor}.0`
+    case 'minor':
+      // ^15.0.0 matches >=15.0.0 <16.0.0
+      return `^${installedMajor}.0.0`
+    case 'major':
+      return 'latest'
+    default:
+      return revision
+  }
+}
+
 export async function runUpgrade(
   revision: string | undefined,
   options: { verbose: boolean }
@@ -89,18 +117,53 @@ export async function runUpgrade(
   const appPackageJsonPath = path.resolve(cwd, 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
 
+  const installedNextVersion = getInstalledNextVersion()
+
+  // Resolve semantic keywords to npm version queries
+  const resolvedRevision = resolveSemanticRevision(
+    revision ?? 'minor',
+    installedNextVersion
+  )
+
+  if (options.verbose) {
+    console.log(`  Resolved upgrade target: ${resolvedRevision}`)
+  }
+
   let targetNextPackageJson: {
     version: string
     peerDependencies: Record<string, string>
   }
 
   try {
+    // First, find the highest matching version
+    const versionsJSON = execSync(
+      `npm --silent view "next@${resolvedRevision}" --json --field version`,
+      { encoding: 'utf-8' }
+    )
+    const versionOrVersions = JSON.parse(versionsJSON)
+    let targetVersion: string
+    if (Array.isArray(versionOrVersions)) {
+      versionOrVersions.sort(compareVersions)
+      targetVersion = versionOrVersions[versionOrVersions.length - 1]
+    } else {
+      targetVersion = versionOrVersions
+    }
+
+    if (options.verbose) {
+      console.log(`  Target version: ${targetVersion}`)
+    }
+
+    // Then fetch the full package info for that specific version
     const targetNextPackage = execSync(
-      `npm --silent view "next@${revision}" --json`,
+      `npm --silent view "next@${targetVersion}" --json`,
       { encoding: 'utf-8' }
     )
     targetNextPackageJson = JSON.parse(targetNextPackage)
-  } catch {}
+  } catch (e) {
+    if (options.verbose) {
+      console.error('  Error fetching package info:', e)
+    }
+  }
 
   const validRevision =
     targetNextPackageJson !== null &&
@@ -109,11 +172,9 @@ export async function runUpgrade(
     'peerDependencies' in targetNextPackageJson
   if (!validRevision) {
     throw new BadInput(
-      `Invalid revision provided: "${revision}". Please provide a valid Next.js version or dist-tag (e.g. "latest", "canary", "beta", "rc", or "15.0.0").\nCheck available versions at https://www.npmjs.com/package/next?activeTab=versions.`
+      `Invalid revision provided: "${revision ?? 'minor'}" (resolved to "${resolvedRevision}"). Please provide a valid Next.js version, dist-tag (e.g. "latest", "canary", "rc"), or upgrade type ("patch", "minor", "major").\nCheck available versions at https://www.npmjs.com/package/next?activeTab=versions.`
     )
   }
-
-  const installedNextVersion = getInstalledNextVersion()
 
   const targetNextVersion = targetNextPackageJson.version
 
