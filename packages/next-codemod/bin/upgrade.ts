@@ -42,7 +42,9 @@ const optionalNextjsPackages = [
  */
 async function loadHighestNPMVersionMatching(query: string) {
   const versionsJSON = execSync(
-    `npm --silent view "${query}" --json --field version`,
+    // Run as global to avoid being affected by devEngines.packageManager field in local package.json
+    // https://github.com/vercel/next.js/issues/85587
+    `npm -g --silent view "${query}" --json --field version`,
     { encoding: 'utf-8' }
   )
   const versionOrVersions = JSON.parse(versionsJSON)
@@ -96,11 +98,19 @@ export async function runUpgrade(
 
   try {
     const targetNextPackage = execSync(
-      `npm --silent view "next@${revision}" --json`,
+      // Run as global to avoid being affected by devEngines.packageManager field in local package.json
+      // https://github.com/vercel/next.js/issues/85587
+      `npm -g --silent view "next@${revision}" --json`,
       { encoding: 'utf-8' }
     )
     targetNextPackageJson = JSON.parse(targetNextPackage)
-  } catch {}
+  } catch (e) {
+    const output = e.output[1]
+    if (output) {
+      console.error(pc.red(output))
+    }
+    throw new BadInput('Failed to fetch Next.js versions using npm view.')
+  }
 
   const validRevision =
     targetNextPackageJson !== null &&
