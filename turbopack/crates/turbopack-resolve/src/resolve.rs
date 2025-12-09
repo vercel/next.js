@@ -203,6 +203,7 @@ async fn base_resolve_options(
         resolved_map: opt.resolved_map,
         after_resolve_plugins: opt.after_resolve_plugins.clone(),
         before_resolve_plugins: opt.before_resolve_plugins.clone(),
+        typescript_file_extension_substitution: opt.enable_typescript,
         loose_errors: opt.loose_errors,
         collect_affecting_sources: opt.collect_affecting_sources,
         ..Default::default()

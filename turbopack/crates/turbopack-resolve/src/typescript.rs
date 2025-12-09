@@ -238,7 +238,6 @@ pub async fn read_from_tsconfigs<T>(
 pub struct TsConfigResolveOptions {
     base_url: Option<FileSystemPath>,
     import_map: Option<ResolvedVc<ImportMap>>,
-    is_module_resolution_nodenext: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -354,18 +353,9 @@ pub async fn tsconfig_resolve_options(
         None
     };
 
-    let is_module_resolution_nodenext = read_from_tsconfigs(&configs, |json, _| {
-        json["compilerOptions"]["moduleResolution"]
-            .as_str()
-            .map(|module_resolution| module_resolution.eq_ignore_ascii_case("nodenext"))
-    })
-    .await?
-    .unwrap_or_default();
-
     Ok(TsConfigResolveOptions {
         base_url,
         import_map,
-        is_module_resolution_nodenext,
     }
     .cell())
 }
@@ -404,8 +394,6 @@ pub async fn apply_tsconfig_resolve_options(
                 .await?,
         );
     }
-    resolve_options.enable_typescript_with_output_extension =
-        tsconfig_resolve_options.is_module_resolution_nodenext;
 
     Ok(resolve_options.cell())
 }

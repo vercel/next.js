@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    // Extensions are always substituted to .ts, regardless of tsconfig settings.
     "allowJs": true,
     "outDir": "dist"
   },

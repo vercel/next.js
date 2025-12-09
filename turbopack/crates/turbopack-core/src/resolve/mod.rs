@@ -2268,7 +2268,7 @@ async fn resolve_relative_request(
         new_path.normalize();
     };
 
-    if options_value.enable_typescript_with_output_extension {
+    if options_value.typescript_file_extension_substitution {
         new_path.replace_final_constants(&|c: &RcStr| -> Option<Pattern> {
             let (base, replacement) = match c.rsplit_once(".") {
                 Some((base, "js")) => (
