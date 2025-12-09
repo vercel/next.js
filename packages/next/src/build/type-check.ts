@@ -20,7 +20,6 @@ import { hrtimeDurationToString } from './duration-to-string'
 function verifyTypeScriptSetup(
   dir: string,
   distDir: string,
-  intentDirs: string[],
   typeCheckPreflight: boolean,
   tsconfigPath: string | undefined,
   disableStaticImages: boolean,
@@ -29,8 +28,9 @@ function verifyTypeScriptSetup(
   hasAppDir: boolean,
   hasPagesDir: boolean,
   isolatedDevBuild: boolean | undefined,
-  debugBuildAppPaths: string[] | undefined,
-  debugBuildPagePaths: string[] | undefined
+  appDir: string | undefined,
+  pagesDir: string | undefined,
+  debugBuildPaths: { app?: string[]; pages?: string[] } | undefined
 ) {
   const typeCheckWorker = new Worker(
     require.resolve('../lib/verify-typescript-setup'),
@@ -50,7 +50,6 @@ function verifyTypeScriptSetup(
     .verifyTypeScriptSetup({
       dir,
       distDir,
-      intentDirs,
       typeCheckPreflight,
       tsconfigPath,
       disableStaticImages,
@@ -58,8 +57,9 @@ function verifyTypeScriptSetup(
       hasAppDir,
       hasPagesDir,
       isolatedDevBuild,
-      debugBuildAppPaths,
-      debugBuildPagePaths,
+      appDir,
+      pagesDir,
+      debugBuildPaths,
     })
     .then((result) => {
       typeCheckWorker.end()
@@ -80,8 +80,7 @@ export async function startTypeChecking({
   pagesDir,
   telemetry,
   appDir,
-  debugBuildAppPaths,
-  debugBuildPagePaths,
+  debugBuildPaths,
 }: {
   cacheDir: string
   config: NextConfigComplete
@@ -90,8 +89,7 @@ export async function startTypeChecking({
   pagesDir?: string
   telemetry: Telemetry
   appDir?: string
-  debugBuildAppPaths?: string[]
-  debugBuildPagePaths?: string[]
+  debugBuildPaths?: { app?: string[]; pages?: string[] }
 }) {
   const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
 
@@ -119,7 +117,6 @@ export async function startTypeChecking({
         verifyTypeScriptSetup(
           dir,
           config.distDir,
-          [pagesDir, appDir].filter(Boolean) as string[],
           !ignoreTypeScriptErrors,
           config.typescript.tsconfigPath,
           config.images.disableStaticImages,
@@ -128,8 +125,9 @@ export async function startTypeChecking({
           !!appDir,
           !!pagesDir,
           config.experimental.isolatedDevBuild,
-          debugBuildAppPaths,
-          debugBuildPagePaths
+          appDir,
+          pagesDir,
+          debugBuildPaths
         ).then((resolved) => {
           const checkEnd = process.hrtime(typeCheckAndLintStart)
           return [resolved, checkEnd] as const

@@ -37,31 +37,34 @@ export async function verifyTypeScriptSetup({
   dir,
   distDir,
   cacheDir,
-  intentDirs,
   tsconfigPath,
   typeCheckPreflight,
   disableStaticImages,
   hasAppDir,
   hasPagesDir,
   isolatedDevBuild,
-  debugBuildAppPaths,
-  debugBuildPagePaths,
+  appDir,
+  pagesDir,
+  debugBuildPaths,
 }: {
   dir: string
   distDir: string
   cacheDir?: string
   tsconfigPath: string | undefined
-  intentDirs: string[]
   typeCheckPreflight: boolean
   disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
   isolatedDevBuild: boolean | undefined
-  debugBuildAppPaths?: string[]
-  debugBuildPagePaths?: string[]
+  appDir?: string
+  pagesDir?: string
+  debugBuildPaths?: { app?: string[]; pages?: string[] }
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const tsConfigFileName = tsconfigPath || 'tsconfig.json'
   const resolvedTsConfigPath = path.join(dir, tsConfigFileName)
+
+  // Construct intentDirs from appDir and pagesDir for getTypeScriptIntent
+  const intentDirs = [pagesDir, appDir].filter(Boolean) as string[]
 
   try {
     // Check if the project uses TypeScript:
@@ -164,10 +167,8 @@ export async function verifyTypeScriptSetup({
         cacheDir,
         hasAppDir,
         isolatedDevBuild,
-        intentDirs,
-        hasPagesDir,
-        debugBuildAppPaths,
-        debugBuildPagePaths
+        { app: appDir, pages: pagesDir },
+        debugBuildPaths
       )
     }
     return { result, version: typescriptVersion }

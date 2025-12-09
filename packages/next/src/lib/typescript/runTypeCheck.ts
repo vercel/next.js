@@ -16,6 +16,16 @@ export interface TypeCheckResult {
   incremental: boolean
 }
 
+export interface TypeCheckDirs {
+  app?: string
+  pages?: string
+}
+
+export interface DebugBuildPaths {
+  app?: string[]
+  pages?: string[]
+}
+
 export async function runTypeCheck(
   typescript: typeof import('typescript'),
   baseDir: string,
@@ -24,10 +34,8 @@ export async function runTypeCheck(
   cacheDir?: string,
   isAppDirEnabled?: boolean,
   isolatedDevBuild?: boolean,
-  intentDirs?: string[],
-  hasPagesDir?: boolean,
-  debugBuildAppPaths?: string[],
-  debugBuildPagePaths?: string[]
+  dirs?: TypeCheckDirs,
+  debugBuildPaths?: DebugBuildPaths
 ): Promise<TypeCheckResult> {
   const effectiveConfiguration = await getTypeScriptConfiguration(
     typescript,
@@ -57,55 +65,41 @@ export async function runTypeCheck(
   }
 
   // Apply debug build paths filter if specified
-  if (
-    intentDirs &&
-    (debugBuildAppPaths !== undefined || debugBuildPagePaths !== undefined)
-  ) {
-    // Determine appDir and pagesDir from intentDirs
-    // intentDirs is [pagesDir, appDir].filter(Boolean) from type-check.ts
-    let pagesDir: string | undefined
-    let appDir: string | undefined
-
-    if (hasPagesDir && isAppDirEnabled) {
-      pagesDir = intentDirs[0]
-      appDir = intentDirs[1]
-    } else if (hasPagesDir) {
-      pagesDir = intentDirs[0]
-    } else if (isAppDirEnabled) {
-      appDir = intentDirs[0]
-    }
+  if (dirs && debugBuildPaths) {
+    const { app: appDir, pages: pagesDir } = dirs
+    const { app: debugAppPaths, pages: debugPagePaths } = debugBuildPaths
 
     fileNames = fileNames.filter((fileName) => {
       // Check if file is in app directory
       if (appDir && fileName.startsWith(appDir + path.sep)) {
-        // If debugBuildAppPaths is undefined, include all app files
-        if (debugBuildAppPaths === undefined) {
+        // If debugAppPaths is undefined, include all app files
+        if (debugAppPaths === undefined) {
           return true
         }
-        // If debugBuildAppPaths is empty array, exclude all app files
-        if (debugBuildAppPaths.length === 0) {
+        // If debugAppPaths is empty array, exclude all app files
+        if (debugAppPaths.length === 0) {
           return false
         }
         // Check if file matches any of the debug paths
         const relativeToApp = fileName.slice(appDir.length)
-        return debugBuildAppPaths.some((debugPath) =>
+        return debugAppPaths.some((debugPath) =>
           relativeToApp.startsWith(debugPath.replace(/\.[^/.]+$/, ''))
         )
       }
 
       // Check if file is in pages directory
       if (pagesDir && fileName.startsWith(pagesDir + path.sep)) {
-        // If debugBuildPagePaths is undefined, include all pages files
-        if (debugBuildPagePaths === undefined) {
+        // If debugPagePaths is undefined, include all pages files
+        if (debugPagePaths === undefined) {
           return true
         }
-        // If debugBuildPagePaths is empty array, exclude all pages files
-        if (debugBuildPagePaths.length === 0) {
+        // If debugPagePaths is empty array, exclude all pages files
+        if (debugPagePaths.length === 0) {
           return false
         }
         // Check if file matches any of the debug paths
         const relativeToPages = fileName.slice(pagesDir.length)
-        return debugBuildPagePaths.some((debugPath) =>
+        return debugPagePaths.some((debugPath) =>
           relativeToPages.startsWith(debugPath.replace(/\.[^/.]+$/, ''))
         )
       }
