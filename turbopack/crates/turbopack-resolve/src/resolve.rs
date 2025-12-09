@@ -141,6 +141,15 @@ async fn base_resolve_options(
         if opt.enable_mjs_extension {
             ext.push(rcstr!(".mjs"));
         }
+        
+        if opt.enable_react_native_web_infix {
+            ext = ext
+                .iter()
+                .map(|e| format!(".web{e}").into())
+                .chain(ext.iter().cloned())
+                .collect();
+        }
+
         if opt.enable_node_native_modules {
             ext.push(rcstr!(".node"));
         }

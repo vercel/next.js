@@ -23,6 +23,8 @@ pub struct ResolveOptionsContext {
     #[serde(default)]
     pub enable_react: bool,
     #[serde(default)]
+    pub enable_react_native_web_infix: bool,
+    #[serde(default)]
     pub enable_node_native_modules: bool,
     #[serde(default)]
     // Enable resolving of .mjs files without the .mjs extension
