@@ -53,6 +53,8 @@ import { fromNodeOutgoingHttpHeaders } from '../web/utils'
 import {
   selectWorkerForForwarding,
   type ServerModuleMap,
+  getServerActionsManifest,
+  getServerModuleMap,
 } from './manifests-singleton'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
@@ -63,11 +65,22 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import { executeRevalidates } from '../revalidation-utils'
 import { getRequestMeta } from '../request-meta'
 import { setCacheBustingSearchParam } from '../../client/components/router-reducer/set-cache-busting-search-param'
-import { getServerModuleMap } from './manifests-singleton'
 import {
   ActionDidNotRevalidate,
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
+
+/**
+ * Checks if the app has any server actions defined in any runtime.
+ */
+function hasServerActions() {
+  const serverActionsManifest = getServerActionsManifest()
+
+  return (
+    Object.keys(serverActionsManifest.node).length > 0 ||
+    Object.keys(serverActionsManifest.edge).length > 0
+  )
+}
 
 function nodeHeadersToRecord(
   headers: IncomingHttpHeaders | OutgoingHttpHeaders
@@ -536,6 +549,24 @@ export async function handleAction({
     isPossibleServerAction,
   } = getServerActionRequestMetadata(req)
 
+  const handleUnrecognizedFetchAction = (err: unknown): HandleActionResult => {
+    // If the deployment doesn't have skew protection, this is expected to occasionally happen,
+    // so we use a warning instead of an error.
+    console.warn(err)
+
+    // Return an empty response with a header that the client router will interpret.
+    // We don't need to waste time encoding a flight response, and using a blank body + header
+    // means that unrecognized actions can also be handled at the infra level
+    // (i.e. without needing to invoke a lambda)
+    res.setHeader(NEXT_ACTION_NOT_FOUND_HEADER, '1')
+    res.setHeader('content-type', 'text/plain')
+    res.statusCode = 404
+    return {
+      type: 'done',
+      result: RenderResult.fromStatic('Server action not found.', 'text/plain'),
+    }
+  }
+
   // If it can't be a Server Action, skip handling.
   // Note that this can be a false positive -- any multipart/urlencoded POST can get us here,
   // But won't know if it's an MPA action or not until we call `decodeAction` below.
@@ -554,6 +585,11 @@ export async function handleAction({
       // This is an MPA action, so we return null
       return null
     }
+  }
+
+  // If the app has no server actions at all, we can 404 early.
+  if (!hasServerActions()) {
+    return handleUnrecognizedFetchAction(getActionNotFoundError(actionId))
   }
 
   if (workStore.isStaticGeneration) {
@@ -671,24 +707,6 @@ export async function handleAction({
           ctx.renderOpts.basePath
         ),
       }
-    }
-  }
-
-  const handleUnrecognizedFetchAction = (err: unknown): HandleActionResult => {
-    // If the deployment doesn't have skew protection, this is expected to occasionally happen,
-    // so we use a warning instead of an error.
-    console.warn(err)
-
-    // Return an empty response with a header that the client router will interpret.
-    // We don't need to waste time encoding a flight response, and using a blank body + header
-    // means that unrecognized actions can also be handled at the infra level
-    // (i.e. without needing to invoke a lambda)
-    res.setHeader(NEXT_ACTION_NOT_FOUND_HEADER, '1')
-    res.setHeader('content-type', 'text/plain')
-    res.statusCode = 404
-    return {
-      type: 'done',
-      result: RenderResult.fromStatic('Server action not found.', 'text/plain'),
     }
   }
 
@@ -1221,10 +1239,14 @@ function getActionModIdOrError(
   const actionModId = serverModuleMap[actionId]?.id
 
   if (!actionModId) {
-    throw new Error(
-      `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
-    )
+    throw getActionNotFoundError(actionId)
   }
 
   return actionModId
+}
+
+function getActionNotFoundError(actionId: string | null): Error {
+  return new Error(
+    `Failed to find Server Action${actionId ? ` "${actionId}"` : ''}. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
+  )
 }
