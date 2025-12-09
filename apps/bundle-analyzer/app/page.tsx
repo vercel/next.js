@@ -11,12 +11,14 @@ import {
 import { Sidebar } from '@/components/sidebar'
 import { TreemapVisualizer } from '@/components/treemap-visualizer'
 
+import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { TreemapSkeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
 import { fetchStrict } from '@/lib/utils'
+import { formatBytes } from '@/lib/utils'
 
 export default function Home() {
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null)
@@ -65,6 +67,7 @@ export default function Home() {
   const [isMouseInTreemap, setIsMouseInTreemap] = useState(false)
   const [hoveredNodeInfo, setHoveredNodeInfo] = useState<{
     name: string
+    size: number
     server?: boolean
     client?: boolean
   } | null>(null)
@@ -284,22 +287,22 @@ export default function Home() {
 
       {analyzeData && (
         <div className="flex-none border-t border-border bg-background px-4 py-2 h-10">
-          <p className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground">
             {hoveredNodeInfo ? (
               <>
                 <span className="font-medium text-foreground">
                   {hoveredNodeInfo.name}
                 </span>
+                <span className="ml-2 text-muted-foreground">
+                  {formatBytes(hoveredNodeInfo.size)}
+                </span>
                 {(hoveredNodeInfo.server || hoveredNodeInfo.client) && (
-                  <span className="ml-2 text-xs">
+                  <span className="ml-2 inline-flex gap-1">
                     {hoveredNodeInfo.client && (
-                      <span className="text-primary">[client]</span>
-                    )}
-                    {hoveredNodeInfo.server && hoveredNodeInfo.client && (
-                      <span> </span>
+                      <Badge variant="client">client</Badge>
                     )}
                     {hoveredNodeInfo.server && (
-                      <span className="text-primary">[server]</span>
+                      <Badge variant="server">server</Badge>
                     )}
                   </span>
                 )}
@@ -307,7 +310,7 @@ export default function Home() {
             ) : (
               'Hover over a file to see details'
             )}
-          </p>
+          </div>
         </div>
       )}
     </main>
