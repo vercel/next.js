@@ -28,45 +28,13 @@ export interface DebugBuildPaths {
 
 /**
  * Check if a file path matches any of the debug build paths.
- *
- * @param filePath - The file path relative to the app/pages directory
- * @param debugPaths - Array of debug paths to match against
- * @returns true if the file matches any debug path
- *
- * @example
- * // Debug paths come from --debug-build-paths flag, e.g.:
- * // --debug-build-paths 'app/page.tsx,app/blog/[slug]/page.tsx'
- * // These get normalized to: ['/page.tsx', '/blog/[slug]/page.tsx']
- *
- * // The regex /\.[^/.]+$/ removes the file extension:
- * // - '\.'      matches a literal dot
- * // - '[^/.]+'  matches one or more chars that are NOT '/' or '.'
- * // - '$'       matches end of string
- * //
- * // Examples:
- * //   '/page.tsx'           → '/page'
- * //   '/blog/[slug]/page.tsx' → '/blog/[slug]/page'
- * //   '/dashboard/page.ts'  → '/dashboard/page'
- *
- * // Then startsWith checks if file is under the debug path directory:
- * //   filePath='/page.tsx', debugPath='/page.tsx'
- * //     → '/page.tsx'.startsWith('/page') → true
- * //
- * //   filePath='/blog/[slug]/page.tsx', debugPath='/blog/[slug]/page.tsx'
- * //     → '/blog/[slug]/page.tsx'.startsWith('/blog/[slug]/page') → true
- * //
- * //   filePath='/about/page.tsx', debugPath='/page.tsx'
- * //     → '/about/page.tsx'.startsWith('/page') → false
+ * Both filePath and debugPaths are resolved file paths from glob.
  */
 function fileMatchesDebugPaths(
   filePath: string,
   debugPaths: string[]
 ): boolean {
-  return debugPaths.some((debugPath) => {
-    // Remove file extension from debug path for directory-level matching
-    const debugPathWithoutExt = debugPath.replace(/\.[^/.]+$/, '')
-    return filePath.startsWith(debugPathWithoutExt)
-  })
+  return debugPaths.includes(filePath)
 }
 
 export async function runTypeCheck(
