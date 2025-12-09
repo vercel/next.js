@@ -29,8 +29,12 @@ export type { ResponseCookies }
 export type ReadonlyRequestCookies = Omit<
   RequestCookies,
   'set' | 'clear' | 'delete'
-> &
-  Pick<ResponseCookies, 'set' | 'delete'>
+> & {
+  set(name: string, value: string, cookie?: Partial<NextCookieOptions>): this
+  set(options: NextCookieOptions): this
+  delete(name: string): this
+  delete(options: ResponseCookie): this
+}
 
 export class RequestCookiesAdapter {
   public static seal(cookies: RequestCookies): ReadonlyRequestCookies {
@@ -64,9 +68,13 @@ export function getModifiedCookieValues(
   return modified
 }
 
+type NextCookieOptions = ResponseCookie & {
+  revalidate?: boolean
+}
+
 type SetCookieArgs =
-  | [key: string, value: string, cookie?: Partial<ResponseCookie>]
-  | [options: ResponseCookie]
+  | [key: string, value: string, cookie?: Partial<NextCookieOptions>]
+  | [options: NextCookieOptions]
 
 export function appendMutableCookies(
   headers: Headers,
@@ -112,10 +120,10 @@ export class MutableRequestCookiesAdapter {
 
     let modifiedValues: ResponseCookie[] = []
     const modifiedCookies = new Set<string>()
-    const updateResponseCookies = () => {
+    const updateResponseCookies = (shouldRevalidate = true) => {
       // TODO-APP: change method of getting workStore
       const workStore = workAsyncStorage.getStore()
-      if (workStore) {
+      if (workStore && shouldRevalidate) {
         workStore.pathWasRevalidated = true
       }
 
@@ -159,11 +167,37 @@ export class MutableRequestCookiesAdapter {
               modifiedCookies.add(
                 typeof args[0] === 'string' ? args[0] : args[0].name
               )
+
+              // Extract revalidate option and clean args for the underlying set call
+              let shouldRevalidate = true
+              let cleanArgs: SetCookieArgs
+
+              if (
+                args.length === 3 &&
+                args[2] &&
+                typeof args[2] === 'object' &&
+                'revalidate' in args[2]
+              ) {
+                shouldRevalidate = args[2].revalidate !== false
+                const { revalidate, ...cookieOptions } = args[2]
+                cleanArgs = [args[0], args[1], cookieOptions] as SetCookieArgs
+              } else if (
+                args.length === 1 &&
+                typeof args[0] === 'object' &&
+                'revalidate' in args[0]
+              ) {
+                shouldRevalidate = args[0].revalidate !== false
+                const { revalidate, ...cookieOptions } = args[0]
+                cleanArgs = [cookieOptions as ResponseCookie] as SetCookieArgs
+              } else {
+                cleanArgs = args
+              }
+
               try {
-                target.set(...args)
+                target.set(...cleanArgs)
                 return wrappedCookies
               } finally {
-                updateResponseCookies()
+                updateResponseCookies(shouldRevalidate)
               }
             }
 
@@ -192,7 +226,30 @@ export function createCookiesWithMutableAccessCheck(
         case 'set':
           return function (...args: SetCookieArgs) {
             ensureCookiesAreStillMutable(requestStore, 'cookies().set')
-            target.set(...args)
+
+            // Extract revalidate option and clean args for the underlying set call
+            let cleanArgs: SetCookieArgs
+
+            if (
+              args.length === 3 &&
+              args[2] &&
+              typeof args[2] === 'object' &&
+              'revalidate' in args[2]
+            ) {
+              const { revalidate, ...cookieOptions } = args[2]
+              cleanArgs = [args[0], args[1], cookieOptions] as SetCookieArgs
+            } else if (
+              args.length === 1 &&
+              typeof args[0] === 'object' &&
+              'revalidate' in args[0]
+            ) {
+              const { revalidate, ...cookieOptions } = args[0]
+              cleanArgs = [cookieOptions as ResponseCookie] as SetCookieArgs
+            } else {
+              cleanArgs = args
+            }
+
+            target.set(...cleanArgs)
             return wrappedCookies
           }
 
