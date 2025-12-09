@@ -1395,6 +1395,88 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         Ok(None)
     }
 
+    pub fn batch_get<K: QueryKey>(
+        &self,
+        family: usize,
+        keys: &[K],
+    ) -> Result<Vec<Option<ArcSlice<u8>>>> {
+        debug_assert!(family < FAMILIES, "Family index out of bounds");
+        let mut cells: Vec<(u64, usize, Option<LookupValue>)> = Vec::with_capacity(keys.len());
+        for (index, key) in keys.iter().enumerate() {
+            let hash = hash_key(key);
+            cells.push((hash, index, None));
+        }
+        cells.sort_by_key(|(hash, _, _)| *hash);
+        let inner = self.inner.read();
+        for meta in inner.meta_files.iter().rev() {
+            for (hash, index, result) in cells.iter_mut() {
+                if result.is_some() {
+                    continue;
+                }
+                let key = &keys[*index];
+                match meta.lookup(
+                    family as u32,
+                    *hash,
+                    key,
+                    &self.amqf_cache,
+                    &self.key_block_cache,
+                    &self.value_block_cache,
+                )? {
+                    MetaLookupResult::FamilyMiss => {
+                        #[cfg(feature = "stats")]
+                        self.stats.miss_family.fetch_add(1, Ordering::Relaxed);
+                    }
+                    MetaLookupResult::RangeMiss => {
+                        #[cfg(feature = "stats")]
+                        self.stats.miss_range.fetch_add(1, Ordering::Relaxed);
+                    }
+                    MetaLookupResult::QuickFilterMiss => {
+                        #[cfg(feature = "stats")]
+                        self.stats.miss_amqf.fetch_add(1, Ordering::Relaxed);
+                    }
+                    MetaLookupResult::SstLookup(sst_result) => match sst_result {
+                        SstLookupResult::Found(found) => {
+                            *result = Some(found);
+                        }
+                        SstLookupResult::NotFound => {
+                            #[cfg(feature = "stats")]
+                            self.stats.miss_key.fetch_add(1, Ordering::Relaxed);
+                        }
+                    },
+                }
+            }
+        }
+        let mut results = vec![None; keys.len()];
+        for (hash, index, result) in cells {
+            if let Some(result) = result {
+                inner.accessed_key_hashes[family].insert(hash);
+                let result = match result {
+                    LookupValue::Deleted => {
+                        #[cfg(feature = "stats")]
+                        self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
+                        None
+                    }
+                    LookupValue::Slice { value } => {
+                        #[cfg(feature = "stats")]
+                        self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
+                        Some(value)
+                    }
+                    LookupValue::Blob { sequence_number } => {
+                        #[cfg(feature = "stats")]
+                        self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
+                        let blob = self.read_blob(sequence_number)?;
+                        Some(blob)
+                    }
+                };
+                results[index] = result;
+            } else {
+                #[cfg(feature = "stats")]
+                self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+        Ok(results)
+    }
+
     /// Returns database statistics.
     #[cfg(feature = "stats")]
     pub fn statistics(&self) -> Statistics {
