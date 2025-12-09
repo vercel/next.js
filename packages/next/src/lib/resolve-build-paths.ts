@@ -7,6 +7,60 @@ import isError from './is-error'
 
 const glob = promisify(globOriginal)
 
+/**
+ * Escapes bracket expressions in a glob pattern that correspond to existing
+ * Next.js dynamic route directories.
+ *
+ * Next.js uses brackets for dynamic routes (e.g., [slug], [...params], [[...catchAll]]),
+ * but glob treats brackets as character classes. This function escapes brackets
+ * that match actual directory names so glob treats them literally.
+ *
+ * Given directory structure: app/blog/[slug]/page.tsx
+ *   Input:  "app/blog/[slug]/__STAR____STAR__/page.tsx"
+ *   Output: "app/blog/\[slug\]/__STAR____STAR__/page.tsx"
+ *   (where __STAR__ represents asterisk - brackets escaped, glob preserved)
+ *
+ * Bracket that doesn't exist as directory is left as glob character class:
+ *   Input:  "app/[a-z]/page.tsx"  (no [a-z] directory)
+ *   Output: "app/[a-z]/page.tsx"  (unchanged, treated as char class)
+ */
+function escapeExistingBracketDirs(
+  pattern: string,
+  projectDir: string
+): string {
+  // Match bracket expressions: [name], [...name], [[...name]]
+  const bracketRegex = /\[\[?\.\.\.[^\]]+\]?\]|\[[^\]]+\]/g
+
+  let result = pattern
+  let match: RegExpExecArray | null
+  const replacements: Array<{ from: string; to: string; index: number }> = []
+
+  while ((match = bracketRegex.exec(pattern)) !== null) {
+    const bracketExpr = match[0]
+    const matchIndex = match.index
+
+    // Get the path prefix up to and including this bracket expression
+    const prefixEnd = matchIndex + bracketExpr.length
+    const pathPrefix = pattern.slice(0, prefixEnd)
+
+    // Check if this path exists as a literal directory
+    const fullPath = path.join(projectDir, pathPrefix)
+    if (fs.existsSync(fullPath)) {
+      // Escape the brackets for glob
+      const escaped = bracketExpr.replace(/\[/g, '\\[').replace(/\]/g, '\\]')
+      replacements.push({ from: bracketExpr, to: escaped, index: matchIndex })
+    }
+  }
+
+  // Apply replacements in reverse order to preserve indices
+  for (let i = replacements.length - 1; i >= 0; i--) {
+    const { from, to, index } = replacements[i]
+    result = result.slice(0, index) + to + result.slice(index + from.length)
+  }
+
+  return result
+}
+
 interface ResolvedBuildPaths {
   appPaths: string[]
   pagePaths: string[]
@@ -34,13 +88,25 @@ export async function resolveBuildPaths(
       continue
     }
 
+    // Check if the path exists as a literal file first
+    // This handles paths with special characters like [slug] in Next.js dynamic routes
+    const literalPath = path.join(projectDir, trimmed)
+    if (fs.existsSync(literalPath) && !fs.statSync(literalPath).isDirectory()) {
+      categorizeAndAddPath(trimmed, appPaths, pagePaths)
+      continue
+    }
+
     // Detect if pattern is glob pattern (contains glob special chars)
     const isGlobPattern = /[*?[\]{}!]/.test(trimmed)
 
     if (isGlobPattern) {
       try {
+        // Escape brackets that correspond to existing Next.js dynamic route directories
+        // e.g., "app/blog/[slug]/**/page.tsx" → "app/blog/\[slug\]/**/page.tsx"
+        const escapedPattern = escapeExistingBracketDirs(trimmed, projectDir)
+
         // Resolve glob pattern
-        const matches = (await glob(trimmed, {
+        const matches = (await glob(escapedPattern, {
           cwd: projectDir,
         })) as string[]
 

@@ -40,6 +40,26 @@ describe('debug-build-paths', () => {
       // Should not build app routes
       expect(buildResult.cliOutput).not.toContain('Route (app)')
     })
+
+    it('should build dynamic route with literal [slug] path', async () => {
+      // Test that literal paths with brackets work without escaping
+      // The path is checked for file existence before being treated as glob
+      const buildResult = await next.build({
+        args: ['--debug-build-paths', 'app/blog/[slug]/page.tsx'],
+      })
+      expect(buildResult.exitCode).toBe(0)
+      expect(buildResult.cliOutput).toBeDefined()
+
+      // Should build only the blog/[slug] route
+      expect(buildResult.cliOutput).toContain('Route (app)')
+      expect(buildResult.cliOutput).toContain('/blog/[slug]')
+      // Should not build other app routes
+      expect(buildResult.cliOutput).not.toMatch(/○ \/\n/)
+      expect(buildResult.cliOutput).not.toContain('○ /about')
+      expect(buildResult.cliOutput).not.toContain('○ /dashboard')
+      // Should not build pages routes
+      expect(buildResult.cliOutput).not.toContain('Route (pages)')
+    })
   })
 
   describe('glob pattern matching', () => {
@@ -74,6 +94,28 @@ describe('debug-build-paths', () => {
       expect(buildResult.cliOutput).toContain('Route (app)')
       expect(buildResult.cliOutput).toContain('/blog/[slug]')
       // Should not build other app routes (check for exact route, not substring)
+      expect(buildResult.cliOutput).not.toMatch(/○ \/\n/)
+      expect(buildResult.cliOutput).not.toContain('○ /about')
+      expect(buildResult.cliOutput).not.toContain('○ /dashboard')
+      // Should not build pages routes
+      expect(buildResult.cliOutput).not.toContain('Route (pages)')
+    })
+
+    it('should match hybrid pattern with literal [slug] and glob **', async () => {
+      // Test pattern: app/blog/[slug]/**/page.tsx
+      // [slug] should be treated as literal directory (exists on disk)
+      // ** should be treated as glob (match any depth)
+      const buildResult = await next.build({
+        args: ['--debug-build-paths', 'app/blog/[slug]/**/page.tsx'],
+      })
+      expect(buildResult.exitCode).toBe(0)
+      expect(buildResult.cliOutput).toBeDefined()
+
+      // Should build both blog/[slug] and blog/[slug]/comments routes
+      expect(buildResult.cliOutput).toContain('Route (app)')
+      expect(buildResult.cliOutput).toContain('/blog/[slug]')
+      expect(buildResult.cliOutput).toContain('/blog/[slug]/comments')
+      // Should not build other app routes
       expect(buildResult.cliOutput).not.toMatch(/○ \/\n/)
       expect(buildResult.cliOutput).not.toContain('○ /about')
       expect(buildResult.cliOutput).not.toContain('○ /dashboard')
