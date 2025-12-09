@@ -16,7 +16,7 @@ fn main() -> Result<()> {
         bail!("The provided path does not exist: {}", path.display());
     }
 
-    let db: TurboPersistence<SerialScheduler> = TurboPersistence::open_read_only(path)?;
+    let db: TurboPersistence<SerialScheduler, 0> = TurboPersistence::open_read_only(path)?;
     let meta_info = db
         .meta_info()
         .context("Failed to retrieve meta information")?;
@@ -34,12 +34,14 @@ fn main() -> Result<()> {
             amqf_size,
             amqf_entries,
             sst_size,
+            flags,
             key_compression_dictionary_size,
             block_count,
         } in meta_file.entries
         {
             println!(
-                "  SST {sequence_number:08}.sst: {min_hash:016x} - {max_hash:016x} (p = 1/{})",
+                "  SST {sequence_number:08}.sst: {flags} {min_hash:016x} - {max_hash:016x} (p = \
+                 1/{})",
                 u64::MAX / (max_hash - min_hash + 1)
             );
             println!("    AMQF {amqf_entries} entries = {} KiB", amqf_size / 1024);

@@ -21,6 +21,7 @@ use crate::{
     compression::compress_into_buffer,
     constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
     key::StoreKey,
+    meta_file::MetaEntryFlags,
     meta_file_builder::MetaFileBuilder,
     parallel_scheduler::ParallelScheduler,
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, write_static_stored_file},
@@ -267,8 +268,11 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
 
     /// Finishes the write batch by returning the new sequence number and the new SST files. This
     /// writes all outstanding thread local data to disk.
-    #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn finish(&mut self) -> Result<FinishResult> {
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) fn finish(
+        &mut self,
+        get_accessed_key_hashes: impl Fn(u32) -> qfilter::Filter + Send + Sync,
+    ) -> Result<FinishResult> {
         let mut new_blob_files = Vec::new();
 
         // First, we flush all thread local collectors to the global collectors.
@@ -343,7 +347,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
             },
         )?;
 
-        // Not we need to write the new meta files.
+        // Now we need to write the new meta files.
         let new_meta_collectors = [(); FAMILIES].map(|_| Mutex::new(Vec::new()));
         let meta_collectors = replace(&mut self.meta_collectors, new_meta_collectors);
         let keys_written = AtomicU64::new(0);
@@ -366,6 +370,8 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
                         builder.add(seq, sst);
                     }
                     keys_written.fetch_add(entries, Ordering::Relaxed);
+                    let accessed_key_hashes = get_accessed_key_hashes(family);
+                    builder.set_used_key_hashes_amqf(accessed_key_hashes);
                     let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
                     let file = builder.write(&self.db_path, seq)?;
                     Ok((seq, file))
@@ -415,7 +421,9 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
         let path = self.db_path.join(format!("{seq:08}.sst"));
         let (meta, file) = self
             .parallel_scheduler
-            .block_in_place(|| write_static_stored_file(entries, total_key_size, &path))
+            .block_in_place(|| {
+                write_static_stored_file(entries, total_key_size, &path, MetaEntryFlags::FRESH)
+            })
             .with_context(|| format!("Unable to write SST file {seq:08}.sst"))?;
 
         #[cfg(feature = "verify_sst_content")]

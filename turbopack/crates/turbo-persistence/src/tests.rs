@@ -109,20 +109,21 @@ fn full_cycle() -> Result<()> {
     type TestCases = Vec<(
         &'static str,
         Box<dyn Fn(&mut WriteBatch<Vec<u8>, RayonParallelScheduler, 16>) -> Result<()>>,
-        Box<dyn Fn(&TurboPersistence<RayonParallelScheduler>) -> Result<()>>,
+        Box<dyn Fn(&TurboPersistence<RayonParallelScheduler, 16>) -> Result<()>>,
     )>;
 
     fn test_case(
         test_cases: &mut TestCases,
         name: &'static str,
         write: impl Fn(&mut WriteBatch<Vec<u8>, RayonParallelScheduler, 16>) -> Result<()> + 'static,
-        read: impl Fn(&TurboPersistence<RayonParallelScheduler>) -> Result<()> + 'static,
+        read: impl Fn(&TurboPersistence<RayonParallelScheduler, 16>) -> Result<()> + 'static,
     ) {
         test_cases.push((
             name,
             Box::new(write)
                 as Box<dyn Fn(&mut WriteBatch<Vec<u8>, RayonParallelScheduler, 16>) -> Result<()>>,
-            Box::new(read) as Box<dyn Fn(&TurboPersistence<RayonParallelScheduler>) -> Result<()>>,
+            Box::new(read)
+                as Box<dyn Fn(&TurboPersistence<RayonParallelScheduler, 16>) -> Result<()>>,
         ));
     }
 
@@ -506,7 +507,7 @@ fn persist_changes() -> Result<()> {
         }
         Ok(())
     }
-    fn check(db: &TurboPersistence<RayonParallelScheduler>, key: u8, value: u8) -> Result<()> {
+    fn check(db: &TurboPersistence<RayonParallelScheduler, 1>, key: u8, value: u8) -> Result<()> {
         for i in 0..READ_COUNT {
             // read every 10th item
             let i = i * 10;
@@ -519,11 +520,11 @@ fn persist_changes() -> Result<()> {
     }
 
     {
-        let db = TurboPersistence::open_with_parallel_scheduler(
+        let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
             path.to_path_buf(),
             RayonParallelScheduler,
         )?;
-        let b = db.write_batch::<_, 1>()?;
+        let b = db.write_batch()?;
         put(&b, 1, 11)?;
         put(&b, 2, 21)?;
         put(&b, 3, 31)?;
@@ -538,11 +539,11 @@ fn persist_changes() -> Result<()> {
 
     println!("---");
     {
-        let db = TurboPersistence::open_with_parallel_scheduler(
+        let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
             path.to_path_buf(),
             RayonParallelScheduler,
         )?;
-        let b = db.write_batch::<_, 1>()?;
+        let b = db.write_batch()?;
         put(&b, 1, 12)?;
         put(&b, 2, 22)?;
         db.commit_write_batch(b)?;
@@ -555,11 +556,11 @@ fn persist_changes() -> Result<()> {
     }
 
     {
-        let db = TurboPersistence::open_with_parallel_scheduler(
+        let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
             path.to_path_buf(),
             RayonParallelScheduler,
         )?;
-        let b = db.write_batch::<_, 1>()?;
+        let b = db.write_batch()?;
         put(&b, 1, 13)?;
         db.commit_write_batch(b)?;
 
@@ -638,7 +639,7 @@ fn partial_compaction() -> Result<()> {
         }
         Ok(())
     }
-    fn check(db: &TurboPersistence<RayonParallelScheduler>, key: u8, value: u8) -> Result<()> {
+    fn check(db: &TurboPersistence<RayonParallelScheduler, 1>, key: u8, value: u8) -> Result<()> {
         for i in 0..READ_COUNT {
             // read every 10th item
             let i = i * 10;
@@ -655,11 +656,11 @@ fn partial_compaction() -> Result<()> {
         println!("--- Iteration {i} ---");
         println!("Add more entries");
         {
-            let db = TurboPersistence::open_with_parallel_scheduler(
+            let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
                 path.to_path_buf(),
                 RayonParallelScheduler,
             )?;
-            let b = db.write_batch::<_, 1>()?;
+            let b = db.write_batch()?;
             put(&b, i, i)?;
             put(&b, i + 1, i)?;
             put(&b, i + 2, i)?;
@@ -677,7 +678,7 @@ fn partial_compaction() -> Result<()> {
 
         println!("Compaction");
         {
-            let db = TurboPersistence::open_with_parallel_scheduler(
+            let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
                 path.to_path_buf(),
                 RayonParallelScheduler,
             )?;
@@ -701,7 +702,7 @@ fn partial_compaction() -> Result<()> {
 
         println!("Restore check");
         {
-            let db = TurboPersistence::open_with_parallel_scheduler(
+            let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
                 path.to_path_buf(),
                 RayonParallelScheduler,
             )?;
@@ -742,7 +743,7 @@ fn merge_file_removal() -> Result<()> {
         }
         Ok(())
     }
-    fn check(db: &TurboPersistence<RayonParallelScheduler>, key: u8, value: u32) -> Result<()> {
+    fn check(db: &TurboPersistence<RayonParallelScheduler, 1>, key: u8, value: u32) -> Result<()> {
         for i in 0..READ_COUNT {
             // read every 10th item
             let i = i * 10;
@@ -760,11 +761,11 @@ fn merge_file_removal() -> Result<()> {
 
     {
         println!("--- Init ---");
-        let db = TurboPersistence::open_with_parallel_scheduler(
+        let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
             path.to_path_buf(),
             RayonParallelScheduler,
         )?;
-        let b = db.write_batch::<_, 1>()?;
+        let b = db.write_batch()?;
         for j in 0..=255 {
             put(&b, j, 0)?;
         }
@@ -779,11 +780,11 @@ fn merge_file_removal() -> Result<()> {
         let i = i * 37;
         println!("Add more entries");
         {
-            let db = TurboPersistence::open_with_parallel_scheduler(
+            let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
                 path.to_path_buf(),
                 RayonParallelScheduler,
             )?;
-            let b = db.write_batch::<_, 1>()?;
+            let b = db.write_batch()?;
             for j in iter_bits(i) {
                 println!("Put {j} = {i}");
                 expected_values[j as usize] = i;
@@ -800,7 +801,7 @@ fn merge_file_removal() -> Result<()> {
 
         println!("Compaction");
         {
-            let db = TurboPersistence::open_with_parallel_scheduler(
+            let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
                 path.to_path_buf(),
                 RayonParallelScheduler,
             )?;
@@ -821,7 +822,7 @@ fn merge_file_removal() -> Result<()> {
 
         println!("Restore check");
         {
-            let db = TurboPersistence::open_with_parallel_scheduler(
+            let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
                 path.to_path_buf(),
                 RayonParallelScheduler,
             )?;
