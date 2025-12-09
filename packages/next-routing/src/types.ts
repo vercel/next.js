@@ -40,6 +40,7 @@ export type MiddlewareResult = {
 
 export type ResolveRoutesParams = {
   url: URL
+  buildId: string
   basePath: string
   requestBody: ReadableStream
   headers: Headers
@@ -63,10 +64,8 @@ export type ResolveRoutesParams = {
     onMatch: Array<Route>
     fallback: Array<Route>
   }
+  shouldNormalizeNextData?: boolean
   invokeMiddleware: (ctx: MiddlewareContext) => Promise<MiddlewareResult>
-  normalizeNextData?: {
-    buildId: string
-  }
 }
 
 export type ResolveRoutesResult = {

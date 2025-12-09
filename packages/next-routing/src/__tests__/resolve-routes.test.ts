@@ -16,6 +16,7 @@ function createBaseParams(
 ): ResolveRoutesParams {
   return {
     url: new URL('https://example.com/'),
+    buildId: 'BUILD_ID',
     basePath: '',
     requestBody: createReadableStream(),
     headers: new Headers(),

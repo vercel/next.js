@@ -200,7 +200,8 @@ function checkDynamicRoutes(
   headers: Headers,
   onMatchRoutes: Route[],
   basePath: string,
-  normalizeNextData?: { buildId: string },
+  buildId: string,
+  shouldNormalizeNextData?: boolean,
   isDataUrl?: boolean
 ): {
   matched: boolean
@@ -209,8 +210,8 @@ function checkDynamicRoutes(
 } {
   // Denormalize before checking dynamic routes if this was originally a data URL
   let checkUrl = url
-  if (isDataUrl && normalizeNextData) {
-    checkUrl = denormalizeNextDataUrl(url, basePath, normalizeNextData.buildId)
+  if (isDataUrl && shouldNormalizeNextData) {
+    checkUrl = denormalizeNextDataUrl(url, basePath, buildId)
   }
 
   for (const route of dynamicRoutes) {
@@ -258,7 +259,8 @@ export async function resolveRoutes(
     pathnames,
     routes,
     invokeMiddleware,
-    normalizeNextData,
+    shouldNormalizeNextData,
+    buildId,
     i18n,
   } = params
 
@@ -268,16 +270,12 @@ export async function resolveRoutes(
 
   // Check if the original URL is a data URL and normalize if so
   let isDataUrl = false
-  if (normalizeNextData) {
-    const dataPrefix = `${basePath}/_next/data/${normalizeNextData.buildId}/`
+  if (shouldNormalizeNextData) {
+    const dataPrefix = `${basePath}/_next/data/${buildId}/`
     isDataUrl = initialUrl.pathname.startsWith(dataPrefix)
 
     if (isDataUrl) {
-      currentUrl = normalizeNextDataUrl(
-        currentUrl,
-        basePath,
-        normalizeNextData.buildId
-      )
+      currentUrl = normalizeNextDataUrl(currentUrl, basePath, buildId)
     }
   }
 
@@ -399,12 +397,8 @@ export async function resolveRoutes(
   currentUrl = beforeMiddlewareResult.url
 
   // Denormalize before invoking middleware if this was originally a data URL
-  if (isDataUrl && normalizeNextData) {
-    currentUrl = denormalizeNextDataUrl(
-      currentUrl,
-      basePath,
-      normalizeNextData.buildId
-    )
+  if (isDataUrl && shouldNormalizeNextData) {
+    currentUrl = denormalizeNextDataUrl(currentUrl, basePath, buildId)
   }
 
   // Invoke middleware
@@ -447,12 +441,8 @@ export async function resolveRoutes(
   }
 
   // Normalize again after middleware if this was originally a data URL
-  if (isDataUrl && normalizeNextData) {
-    currentUrl = normalizeNextDataUrl(
-      currentUrl,
-      basePath,
-      normalizeNextData.buildId
-    )
+  if (isDataUrl && shouldNormalizeNextData) {
+    currentUrl = normalizeNextDataUrl(currentUrl, basePath, buildId)
   }
 
   // Process beforeFiles routes
@@ -480,12 +470,8 @@ export async function resolveRoutes(
   currentUrl = beforeFilesResult.url
 
   // Denormalize before checking pathnames if this was originally a data URL
-  if (isDataUrl && normalizeNextData) {
-    currentUrl = denormalizeNextDataUrl(
-      currentUrl,
-      basePath,
-      normalizeNextData.buildId
-    )
+  if (isDataUrl && shouldNormalizeNextData) {
+    currentUrl = denormalizeNextDataUrl(currentUrl, basePath, buildId)
   }
 
   // Check if pathname matches any provided pathnames (pathnames are in denormalized form)
@@ -531,12 +517,8 @@ export async function resolveRoutes(
   }
 
   // Normalize again before processing afterFiles if this was originally a data URL
-  if (isDataUrl && normalizeNextData) {
-    currentUrl = normalizeNextDataUrl(
-      currentUrl,
-      basePath,
-      normalizeNextData.buildId
-    )
+  if (isDataUrl && shouldNormalizeNextData) {
+    currentUrl = normalizeNextDataUrl(currentUrl, basePath, buildId)
   }
 
   // Process afterFiles routes
@@ -590,7 +572,8 @@ export async function resolveRoutes(
         currentHeaders,
         routes.onMatch,
         basePath,
-        normalizeNextData,
+        buildId,
+        shouldNormalizeNextData,
         isDataUrl
       )
       if (dynamicResult.matched && dynamicResult.result) {
@@ -604,12 +587,8 @@ export async function resolveRoutes(
       // If no dynamic route matched, check static pathname
       // Denormalize before checking if this was originally a data URL
       let pathnameCheckUrl = currentUrl
-      if (isDataUrl && normalizeNextData) {
-        pathnameCheckUrl = denormalizeNextDataUrl(
-          currentUrl,
-          basePath,
-          normalizeNextData.buildId
-        )
+      if (isDataUrl && shouldNormalizeNextData) {
+        pathnameCheckUrl = denormalizeNextDataUrl(currentUrl, basePath, buildId)
       }
 
       matchedPath = matchesPathname(pathnameCheckUrl.pathname, pathnames)
@@ -709,7 +688,8 @@ export async function resolveRoutes(
         currentHeaders,
         routes.onMatch,
         basePath,
-        normalizeNextData,
+        buildId,
+        shouldNormalizeNextData,
         isDataUrl
       )
       if (dynamicResult.matched && dynamicResult.result) {
@@ -723,12 +703,8 @@ export async function resolveRoutes(
       // If no dynamic route matched, check static pathname
       // Denormalize before checking if this was originally a data URL
       let pathnameCheckUrl = currentUrl
-      if (isDataUrl && normalizeNextData) {
-        pathnameCheckUrl = denormalizeNextDataUrl(
-          currentUrl,
-          basePath,
-          normalizeNextData.buildId
-        )
+      if (isDataUrl && shouldNormalizeNextData) {
+        pathnameCheckUrl = denormalizeNextDataUrl(currentUrl, basePath, buildId)
       }
 
       matchedPath = matchesPathname(pathnameCheckUrl.pathname, pathnames)

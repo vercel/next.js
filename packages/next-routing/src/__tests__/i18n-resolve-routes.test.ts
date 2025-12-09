@@ -3,6 +3,7 @@ import type { ResolveRoutesParams } from '../types'
 
 describe('resolveRoutes with i18n', () => {
   const baseParams: Omit<ResolveRoutesParams, 'url' | 'headers'> = {
+    buildId: 'BUILD_ID',
     basePath: '',
     requestBody: new ReadableStream(),
     pathnames: ['/en/about', '/fr/about', '/de/about', '/about'],
@@ -186,12 +187,13 @@ describe('resolveRoutes with i18n', () => {
     it('should not handle locale for _next/data routes', async () => {
       const result = await resolveRoutes({
         ...baseParams,
+        buildId: 'build123',
         url: new URL('http://example.com/_next/data/build123/about.json'),
         headers: new Headers({
           'accept-language': 'fr',
         }),
         i18n: i18nConfig,
-        normalizeNextData: { buildId: 'build123' },
+        shouldNormalizeNextData: true,
       })
 
       // Should not redirect for _next/data routes
