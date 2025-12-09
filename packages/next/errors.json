@@ -969,5 +969,6 @@
   "968": "Invariant: getNextConfigEdge must only be called in edge runtime",
   "969": "Invariant: nextConfig couldn't be loaded",
   "970": "process.env.NEXT_DEPLOYMENT_ID is missing but runtimeServerDeploymentId is enabled",
-  "971": "The NEXT_DEPLOYMENT_ID environment variable value \"%s\" does not match the provided deploymentId \"%s\" in the config."
+  "971": "The NEXT_DEPLOYMENT_ID environment variable value \"%s\" does not match the provided deploymentId \"%s\" in the config.",
+  "972": "Failed to resolve pattern \"%s\": %s"
 }
