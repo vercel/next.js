@@ -179,7 +179,8 @@ function filterUserFrames(frames: StackFrame[]): StackFrame[] {
 export async function handleInsightsReport(
   report: InsightsReport,
   distDir: string,
-  projectDir: string
+  projectDir: string,
+  cacheComponents: boolean = false
 ): Promise<void> {
   const route = new URL(report.pageUrl).pathname
   const debug =
@@ -536,7 +537,12 @@ export async function handleInsightsReport(
     LOW: '🟢',
   }
 
-  console.log(`
+  // Generate different prompts based on cacheComponents config
+  let aiInsights: string
+
+  if (!cacheComponents) {
+    // When cache components are NOT enabled, add force-dynamic directive
+    aiInsights = `
 ${'─'.repeat(80)}
 
 ${severityEmoji[severity]} Severity: ${severity}
@@ -551,7 +557,7 @@ CAUSE:
   Client components can only fetch after mounting. Dependent fetches wait for
   the full React commit cycle.
 
-FIX: Use Server Components
+FIX: Use Server Components with force-dynamic
 
 EXAMPLE:
 
@@ -581,8 +587,12 @@ EXAMPLE:
     )
   }
 
-  // AFTER: Server Component (✅ FAST)
+  // AFTER: Server Component with force-dynamic (✅ FAST)
   // app/user/[userId]/page.tsx
+
+  // Add this directive at the top of the file to ensure dynamic rendering
+  export const dynamic = 'force-dynamic';
+
   export default async function UserPage({ params }) {
     const userPromise = fetch(\`/api/user/\${params.userId}\`)
       .then(r => r.json())
@@ -621,9 +631,15 @@ EXAMPLE:
     return posts.map(post => <Post key={post.id} post={post} />)
   }
 
+IMPORTANT: When migrating to Server Components without cache components enabled:
+  - Add \`export const dynamic = 'force-dynamic';\` at the top of your page file
+  - This makes all fetches dynamic by default, so no need for \`{ cache: 'no-store' }\`
+
 If you need client interactivity, fetch on server and pass promises:
 
   // Server component
+  export const dynamic = 'force-dynamic';
+
   export default function UserPage({ params }) {
     const userPromise = fetch(\`/api/user/\${params.userId}\`).then(r => r.json())
     const postsPromise = userPromise.then(user =>
@@ -650,5 +666,186 @@ If you need client interactivity, fetch on server and pass promises:
   }
 
 ${'═'.repeat(80)}
-`)
+`
+  } else {
+    // When cache components ARE enabled, ensure top-level prerendering capability
+    aiInsights = `
+${'─'.repeat(80)}
+
+${severityEmoji[severity]} Severity: ${severity}
+   Waterfall depth: ${maxDepth} level(s)
+   Total fetches: ${totalFetches} (${parallelCount} parallel, ${totalFetches - parallelCount} serial)
+
+PROBLEM:
+  Client components fetch sequentially: fetch completes → commit → re-render → next fetch.
+  Each level adds network latency to Time To Interactive.
+
+CAUSE:
+  Client components can only fetch after mounting. Dependent fetches wait for
+  the full React commit cycle.
+
+FIX: Use Server Components with Cache Components
+
+With cache components enabled, you can optimize by moving data fetching to the server
+and ensuring the top-level of your page can be prerendered.
+
+EXAMPLE:
+
+  // BEFORE: Client Component Waterfall (❌ SLOW)
+  'use client'
+  function UserProfile({ userId }) {
+    const [user, setUser] = useState(null)
+    const [posts, setPosts] = useState(null)
+
+    useEffect(() => {
+      fetch(\`/api/user/\${userId}\`).then(r => r.json()).then(setUser)
+    }, [userId])
+
+    useEffect(() => {
+      if (user) { // ⚠️  Must wait for user before fetching posts
+        fetch(\`/api/posts?userId=\${user.id}\`).then(r => r.json()).then(setPosts)
+      }
+    }, [user])
+
+    if (!user) return <Skeleton />
+    return (
+      <div>
+        <h1>{user.name}</h1>  {/* Static after user loads */}
+        <Bio bio={user.bio} />  {/* Static after user loads */}
+        {!posts ? <Spinner /> : <PostList posts={posts} />}
+      </div>
+    )
+  }
+
+  // AFTER: Server Component with Cache Components (✅ FAST)
+  // app/user/[userId]/page.tsx
+  export default async function UserPage({ params }) {
+    // These will be cached by default with cache components enabled
+    const userPromise = fetch(\`/api/user/\${params.userId}\`)
+      .then(r => r.json())
+
+    // Chain dependent data
+    const postsPromise = userPromise.then(user =>
+      fetch(\`/api/posts?userId=\${user.id}\`).then(r => r.json())
+    )
+
+    return (
+      <div>
+        {/* Top-level content without I/O - enables prerendering */}
+        <Header />
+        <StaticSidebar />
+
+        {/* Dynamic content in Suspense boundaries */}
+        <Suspense fallback={<Skeleton />}>
+          <UserProfile userPromise={userPromise} postsPromise={postsPromise} />
+        </Suspense>
+      </div>
+    )
+  }
+
+  async function UserProfile({ userPromise, postsPromise }) {
+    const user = await userPromise
+
+    return (
+      <div>
+        <h1>{user.name}</h1>
+        <Bio bio={user.bio} />
+        <Suspense fallback={<Spinner />}>
+          <PostList postsPromise={postsPromise} />
+        </Suspense>
+      </div>
+    )
+  }
+
+  async function PostList({ postsPromise }) {
+    const posts = await postsPromise
+    return posts.map(post => <Post key={post.id} post={post} />)
+  }
+
+IMPORTANT: With cache components enabled:
+  1. After removing all Suspense boundaries, the remaining shell must be synchronously renderable
+  2. This means NO async/await outside Suspense - the static shell cannot wait for I/O
+  3. All async data fetching must happen inside components wrapped by Suspense
+  4. The static shell can only contain: JSX, props, synchronous computations
+
+BAD (no static shell - blocks on I/O):
+  export default async function Page() {
+    const data = await fetch('/api/data').then(r => r.json()) // ❌ await blocks rendering
+    return (
+      <div>
+        <Header />
+        <div>{data.content}</div>
+      </div>
+    )
+  }
+
+ALSO BAD (async but no Suspense boundary):
+  export default function Page() {
+    const dataPromise = fetch('/api/data').then(r => r.json())
+
+    return (
+      <div>
+        <Header />
+        <DynamicContent dataPromise={dataPromise} /> {/* ❌ No Suspense boundary */}
+      </div>
+    )
+  }
+
+GOOD (static shell with Suspense for async content):
+  export default function Page() {
+    return (
+      <div>
+        <Header /> {/* ✅ Static shell - renders immediately */}
+        <Navigation />
+        <Suspense fallback={<Loading />}>
+          <DynamicContent /> {/* Async content inside Suspense */}
+        </Suspense>
+      </div>
+    )
+  }
+
+  async function DynamicContent() {
+    const data = await fetch('/api/data').then(r => r.json())
+    return <div>{data.content}</div>
+  }
+
+If you need client interactivity, fetch on server and pass promises:
+
+  // Server component
+  export default function UserPage({ params }) {
+    const userPromise = fetch(\`/api/user/\${params.userId}\`).then(r => r.json())
+    const postsPromise = userPromise.then(user =>
+      fetch(\`/api/posts?userId=\${user.id}\`).then(r => r.json())
+    )
+
+    return (
+      <div>
+        <StaticHeader /> {/* ✅ Static top-level content */}
+        <ClientProfile userPromise={userPromise} postsPromise={postsPromise} />
+      </div>
+    )
+  }
+
+  'use client'
+  import { use } from 'react'
+
+  export function ClientProfile({ userPromise, postsPromise }) {
+    const user = use(userPromise)
+    const [expanded, setExpanded] = useState(false)
+    return (
+      <div>
+        <h1 onClick={() => setExpanded(!expanded)}>{user.name}</h1>
+        {expanded && <Bio bio={user.bio} />}
+        <Suspense fallback={<Spinner />}>
+          <Posts postsPromise={postsPromise} />
+        </Suspense>
+      </div>
+    )
+  }
+
+${'═'.repeat(80)}
+`
+  }
+
+  console.log(aiInsights)
 }

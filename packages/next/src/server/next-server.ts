@@ -1326,7 +1326,12 @@ export default class NextNodeServer extends BaseServer<
               const report = JSON.parse(body)
               const { handleInsightsReport } =
                 require('./lib/insights-handler') as typeof import('./lib/insights-handler')
-              handleInsightsReport(report, this.distDir, this.dir)
+              handleInsightsReport(
+                report,
+                this.distDir,
+                this.dir,
+                this.nextConfig.cacheComponents ?? false
+              )
               rawRes.statusCode = 200
               rawRes.setHeader('Content-Type', 'application/json')
               rawRes.end(JSON.stringify({ ok: true }))
