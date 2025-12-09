@@ -21980,6 +21980,22 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/standalone-mode/runtimeServerDeploymentId/index.test.ts": {
+    "passed": [
+      "standalone mode: runtimeServerDeploymentId it should load api/pages-route",
+      "standalone mode: runtimeServerDeploymentId it should load api/pages-route-edge",
+      "standalone mode: runtimeServerDeploymentId it should load app-page",
+      "standalone mode: runtimeServerDeploymentId it should load app-page-edge",
+      "standalone mode: runtimeServerDeploymentId it should load app-route",
+      "standalone mode: runtimeServerDeploymentId it should load app-route-edge",
+      "standalone mode: runtimeServerDeploymentId it should load pages-page",
+      "standalone mode: runtimeServerDeploymentId it should load pages-page-edge"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/standalone-mode/tracing-side-effects-false/tracing-side-effects-false.test.ts": {
     "passed": [
       "standalone mode - tracing-side-effects-false should trace sideeffect imports even when sideEffects is false"
