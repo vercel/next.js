@@ -14,7 +14,7 @@ The `cacheLife` option allows you to define **custom cache profiles** when using
 
 ## Usage
 
-To define a profile, enable the [`cacheComponents` flag](/docs/app/api-reference/config/next-config-js/cacheComponents) and add the cache profile in the `cacheLife` object in the `next.config.js` file. For example, a `blog` profile:
+To define a profile, enable the [`cacheComponents` flag](/docs/app/api-reference/config/next-config-js/cacheComponents) and add the cache profile in the `cacheLife` object in the Next.js config file. For example, a `blog` profile:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -33,8 +33,11 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.js" switcher
-module.exports = {
+```js filename="next.config.mjs" switcher
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
   cacheComponents: true,
   cacheLife: {
     blog: {
@@ -44,6 +47,8 @@ module.exports = {
     },
   },
 }
+
+export default nextConfig
 ```
 
 You can now use this custom `blog` configuration in your component or function as follows:

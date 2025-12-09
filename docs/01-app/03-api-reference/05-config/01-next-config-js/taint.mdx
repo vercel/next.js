@@ -25,15 +25,17 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.js" switcher
-/** @type {import('next').NextConfig} */
+```js filename="next.config.mjs" switcher
+/**
+ * @type {import('next').NextConfig}
+ */
 const nextConfig = {
   experimental: {
     taint: true,
   },
 }
 
-module.exports = nextConfig
+export default nextConfig
 ```
 
 > **Warning:** Do not rely on the taint API as your only mechanism to prevent exposing sensitive data to the client. See our [security recommendations](/blog/security-nextjs-server-components-actions).
@@ -92,7 +94,7 @@ function getUserDetails(id) {
 
 We can still access individual fields from the tainted `userDetails` object.
 
-```tsx filename="app/contact/page.tsx switcher
+```tsx filename="app/contact/page.tsx" switcher
 export async function ContactPage({
   params,
 }: {
@@ -110,7 +112,7 @@ export async function ContactPage({
 }
 ```
 
-```jsx filename="app/contact/page.js switcher
+```jsx filename="app/contact/page.js" switcher
 export async function ContactPage({ params }) {
   const { id } = await params
   const userDetails = await getUserDetails(id)
@@ -126,7 +128,7 @@ export async function ContactPage({ params }) {
 
 Now, passing the entire object to the Client Component will throw an error.
 
-```tsx switcher
+```tsx filename="app/contact/page.tsx" switcher
 export async function ContactPage({
   params,
 }: {
@@ -139,7 +141,7 @@ export async function ContactPage({
 }
 ```
 
-```jsx switcher
+```jsx filename="app/contact/page.js" switcher
 export async function ContactPage({ params }) {
   const { id } = await params
   const userDetails = await getUserDetails(id)
@@ -155,7 +157,7 @@ In this case, we can access the server configuration by awaiting calls to `confi
 
 We can taint the `config.SERVICE_API_KEY` value.
 
-```ts switcher
+```ts filename="app/dashboard/page.tsx" switcher
 import { experimental_taintUniqueValue } from 'react'
 
 function getSystemConfig(): SystemConfig {
@@ -171,7 +173,7 @@ function getSystemConfig(): SystemConfig {
 }
 ```
 
-```js switcher
+```js filename="app/dashboard/page.js" switcher
 import { experimental_taintUniqueValue } from 'react'
 
 function getSystemConfig() {
@@ -189,7 +191,7 @@ function getSystemConfig() {
 
 We can still access other properties of the `systemConfig` object.
 
-```tsx
+```tsx filename="app/dashboard/page.tsx"
 export async function Dashboard() {
   const systemConfig = await getSystemConfig()
 
@@ -199,7 +201,7 @@ export async function Dashboard() {
 
 However, passing `SERVICE_API_KEY` to `ClientDashboard` throws an error.
 
-```tsx
+```tsx filename="app/dashboard/page.tsx"
 export async function Dashboard() {
   const systemConfig = await getSystemConfig()
   // Someone makes a mistake in a PR
@@ -213,7 +215,7 @@ Note that, even though, `systemConfig.SERVICE_API_KEY` is reassigned to a new va
 
 Whereas, a value derived from a tainted unique value, will be exposed to the client.
 
-```tsx
+```tsx filename="app/dashboard/page.tsx"
 export async function Dashboard() {
   const systemConfig = await getSystemConfig()
   // Someone makes a mistake in a PR

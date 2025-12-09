@@ -11,12 +11,23 @@ It is expected to be used in conjunction with [`use cache`](/docs/app/api-refere
 
 ## Usage
 
-To enable the `cacheComponents` flag, set it to `true` in your `next.config.ts` file:
+To enable the `cacheComponents` flag, set it to `true` in your Next.js config file:
 
-```ts filename="next.config.ts"
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  cacheComponents: true,
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.mjs" switcher
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
   cacheComponents: true,
 }
 

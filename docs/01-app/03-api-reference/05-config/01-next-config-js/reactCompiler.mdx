@@ -19,7 +19,7 @@ To use it, install the `babel-plugin-react-compiler`:
 npm install -D babel-plugin-react-compiler
 ```
 
-Then, add `reactCompiler` option in `next.config.js`:
+Then, add `reactCompiler` option in your Next.js config file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -31,13 +31,15 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.js" switcher
-/** @type {import('next').NextConfig} */
+```js filename="next.config.mjs" switcher
+/**
+ * @type {import('next').NextConfig}
+ */
 const nextConfig = {
   reactCompiler: true,
 }
 
-module.exports = nextConfig
+export default nextConfig
 ```
 
 ## Annotations
@@ -56,15 +58,17 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.js" switcher
-/** @type {import('next').NextConfig} */
+```js filename="next.config.mjs" switcher
+/**
+ * @type {import('next').NextConfig}
+ */
 const nextConfig = {
   reactCompiler: {
     compilationMode: 'annotation',
   },
 }
 
-module.exports = nextConfig
+export default nextConfig
 ```
 
 Then, you can annotate specific components or hooks with the `"use memo"` directive from React to opt-in:

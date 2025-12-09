@@ -6,29 +6,31 @@ version: experimental
 
 CSS Chunking is a strategy used to improve the performance of your web application by splitting and re-ordering CSS files into chunks. This allows you to load only the CSS that is needed for a specific route, instead of loading all the application's CSS at once.
 
-You can control how CSS files are chunked using the `experimental.cssChunking` option in your `next.config.js` file:
+You can control how CSS files are chunked using the `experimental.cssChunking` option in your Next.js config file:
 
-```tsx filename="next.config.ts" switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
-const nextConfig = {
+const nextConfig: NextConfig = {
   experimental: {
     cssChunking: true, // default
   },
-} satisfies NextConfig
+}
 
 export default nextConfig
 ```
 
-```js filename="next.config.js" switcher
-/** @type {import('next').NextConfig} */
+```js filename="next.config.mjs" switcher
+/**
+ * @type {import('next').NextConfig}
+ */
 const nextConfig = {
   experimental: {
     cssChunking: true, // default
   },
 }
 
-module.exports = nextConfig
+export default nextConfig
 ```
 
 ## Options

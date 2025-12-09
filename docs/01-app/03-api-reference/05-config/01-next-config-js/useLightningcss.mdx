@@ -22,15 +22,17 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.js" switcher
-/** @type {import('next').NextConfig} */
+```js filename="next.config.mjs" switcher
+/**
+ * @type {import('next').NextConfig}
+ */
 const nextConfig = {
   experimental: {
     useLightningcss: true, // disables PostCSS on webpack
   },
 }
 
-module.exports = nextConfig
+export default nextConfig
 ```
 
 ## Version History

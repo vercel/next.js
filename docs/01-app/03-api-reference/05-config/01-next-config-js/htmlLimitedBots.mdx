@@ -15,10 +15,15 @@ const config: NextConfig = {
 export default config
 ```
 
-```js filename="next.config.js" switcher
-module.exports = {
+```js filename="next.config.mjs" switcher
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
   htmlLimitedBots: /MySpecialBot|MyAnotherSpecialBot|SimpleCrawler/,
 }
+
+export default nextConfig
 ```
 
 ## Default list
