@@ -80,6 +80,11 @@ on:
         type: string
         default: ''
 
+      browser:
+        description: 'Browser to use for tests'
+        required: false
+        type: string
+        default: 'chromium'
 env:
   NAPI_CLI_VERSION: 2.18.4
   TURBO_VERSION: 2.5.5
@@ -266,10 +271,7 @@ jobs:
         run: pnpm install
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      - run: pnpm playwright install-deps
-        if: ${{ inputs.skipInstallBuild != 'yes' }}
-
-      - run: pnpm playwright install chromium
+      - run: pnpm playwright install --with-deps ${{ inputs.browser }}
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - run: pnpm dlx turbo@${TURBO_VERSION} run get-test-timings -- --build ${{ github.sha }}
