@@ -11,6 +11,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt, WriteBytesExt};
+use either::Either;
 use jiff::Timestamp;
 use memmap2::Mmap;
 use parking_lot::{Mutex, RwLock};
@@ -27,6 +28,8 @@ use crate::{
         KEY_BLOCK_CACHE_SIZE, MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE,
         VALUE_BLOCK_CACHE_SIZE,
     },
+    converting_iter::ConvertingIter,
+    dedupe_iter::DedupeIter,
     key::{StoreKey, hash_key},
     lookup_entry::{LookupEntry, LookupValue},
     merge_iter::MergeIter,
@@ -129,7 +132,7 @@ pub struct TurboPersistence<S: ParallelScheduler> {
 }
 
 /// The inner state of the database.
-struct Inner {
+pub(crate) struct Inner {
     /// The list of meta files in the database. This is used to derive the SST files.
     meta_files: Vec<MetaFile>,
     /// The current sequence number for the database.
@@ -282,6 +285,10 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
         for entry in entries {
             let entry = entry?;
             let path = entry.path();
+            let file_name = path.file_name();
+            if file_name.is_some_and(|s| s.as_encoded_bytes().starts_with(b".")) {
+                continue;
+            }
             if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
                 let seq: u32 = path
                     .file_stem()
@@ -328,17 +335,12 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                             // ignore blobs and sst, they are read when needed
                         }
                         _ => {
-                            if !path
-                                .file_name()
-                                .is_some_and(|s| s.as_encoded_bytes().starts_with(b"."))
-                            {
-                                bail!("Unexpected file in persistence directory: {:?}", path);
-                            }
+                            bail!("Unexpected file in persistence directory: {:?}", path);
                         }
                     }
                 }
             } else {
-                match path.file_stem().and_then(|s| s.to_str()) {
+                match file_name.and_then(|s| s.to_str()) {
                     Some("CURRENT") => {
                         // Already read
                     }
@@ -346,12 +348,7 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                         // Ignored, write-only
                     }
                     _ => {
-                        if !path
-                            .file_name()
-                            .is_some_and(|s| s.as_encoded_bytes().starts_with(b"."))
-                        {
-                            bail!("Unexpected file in persistence directory: {:?}", path);
-                        }
+                        bail!("Unexpected file in persistence directory: {:?}", path);
                     }
                 }
             }
@@ -379,7 +376,7 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
 
     /// Reads and decompresses a blob file. This is not backed by any cache.
     #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
-    fn read_blob(&self, seq: u32) -> Result<ArcSlice<u8>> {
+    pub(crate) fn read_blob(&self, seq: u32) -> Result<ArcSlice<u8>> {
         let path = self.path.join(format!("{seq:08}.blob"));
         let mmap = unsafe { Mmap::map(&File::open(&path)?)? };
         #[cfg(unix)]
@@ -400,6 +397,11 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
     /// Returns true if the database is empty.
     pub fn is_empty(&self) -> bool {
         self.inner.read().meta_files.is_empty()
+    }
+
+    /// Returns true if the database is opened in read-only mode.
+    pub fn is_read_only(&self) -> bool {
+        self.read_only
     }
 
     /// Starts a new WriteBatch for the database. Only a single write operation is allowed at a
@@ -1354,6 +1356,60 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                 }
             })
             .collect())
+    }
+
+    /// Iterates over all key-value pairs in the specified family.
+    /// If `include_overwritten` is false, only the latest value for each key is returned.
+    /// If `include_overwritten` is true, all values including overwritten ones are returned.
+    pub fn iter(
+        &self,
+        family: usize,
+        include_overwritten: bool,
+    ) -> Result<crate::iter::FamilyIter<'_, S>> {
+        let guard = self.inner.read();
+        let family = family as u32;
+
+        // SAFETY: We create a raw pointer to access the guard's data while we still own the guard.
+        // The guard will be stored in FamilyIter alongside the iterators that borrow from it,
+        // ensuring the data remains valid for the lifetime of the iterators.
+        // This is safe because:
+        // 1. The guard protects the data from being modified while we iterate
+        // 2. The guard is stored in the same struct as the iterators, so it outlives them
+        // 3. We never access the data through the raw pointer after the guard is dropped
+        let guard_ptr = &*guard as *const Inner;
+        let mut sst_iters = Vec::new();
+
+        for meta_file in unsafe { &(*guard_ptr).meta_files } {
+            if meta_file.family() != family {
+                continue;
+            }
+            for entry in meta_file.entries() {
+                let sst = entry.sst(meta_file)?;
+                let iter = sst.iter(&self.key_block_cache, &self.value_block_cache)?;
+                sst_iters.push(iter);
+            }
+        }
+
+        // Create merge iterator
+        let merge_iter = MergeIter::new(sst_iters.into_iter())?;
+
+        // Wrap in converting iterator
+        let converting_iter = ConvertingIter {
+            inner: merge_iter,
+            db: self,
+        };
+
+        // Conditionally wrap in DedupeIter based on include_overwritten
+        let inner = if include_overwritten {
+            Either::Left(converting_iter)
+        } else {
+            Either::Right(DedupeIter::new(converting_iter))
+        };
+
+        Ok(crate::iter::FamilyIter {
+            _guard: guard,
+            inner,
+        })
     }
 
     /// Shuts down the database. This will print statistics if the `print_stats` feature is enabled.

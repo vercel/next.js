@@ -1,5 +1,7 @@
 use std::{
     cmp::max,
+    fs::OpenOptions,
+    io::BufWriter,
     path::PathBuf,
     sync::Arc,
     thread::available_parallelism,
@@ -11,7 +13,9 @@ use parking_lot::Mutex;
 use turbo_persistence::{
     ArcSlice, CompactConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
 };
-use turbo_tasks::{JoinHandle, message_queue::TimingEvent, spawn, turbo_tasks};
+use turbo_tasks::{
+    JoinHandle, message_queue::TimingEvent, registry::iter_functions, spawn, turbo_tasks,
+};
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
@@ -41,7 +45,19 @@ pub struct TurboKeyValueDatabase {
 
 impl TurboKeyValueDatabase {
     pub fn new(versioned_path: PathBuf, is_ci: bool, is_short_session: bool) -> Result<Self> {
+        let mappings_path = versioned_path.join(".functions.map");
         let db = Arc::new(TurboPersistence::open(versioned_path)?);
+        if db.is_empty() && !db.is_read_only() {
+            let mappings_file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(mappings_path)?;
+            let mut mappings_file = BufWriter::new(mappings_file);
+            for (id, func) in iter_functions() {
+                use std::io::Write;
+                writeln!(mappings_file, "{} {}", *id as u32, func.global_name())?;
+            }
+        }
         Ok(Self {
             db: db.clone(),
             compact_join_handle: Mutex::new(None),

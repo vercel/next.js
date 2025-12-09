@@ -6,7 +6,11 @@ license = "MIT"
 
 [dependencies]
 anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+pot = "3.0.0"
+rustc-hash = { workspace = true }
 turbo-persistence = { workspace = true }
+twox-hash = { workspace = true }
 
 [lints]
 workspace = true

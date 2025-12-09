@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::BinaryHeap};
+use std::{cmp::Ordering, collections::BinaryHeap, mem::replace};
 
 use anyhow::Result;
 
@@ -40,7 +40,7 @@ impl<'l, T: Iterator<Item = Result<LookupEntry<'l>>>> Ord for ActiveIterator<'l,
 /// An iterator that merges multiple sorted iterators into a single sorted iterator. Internal it
 /// uses an heap of iterators to iterate them in order.
 pub struct MergeIter<'l, T: Iterator<Item = Result<LookupEntry<'l>>>> {
-    heap: BinaryHeap<ActiveIterator<'l, T>>,
+    heap: BinaryHeap<Box<ActiveIterator<'l, T>>>,
 }
 
 impl<'l, T: Iterator<Item = Result<LookupEntry<'l>>>> MergeIter<'l, T> {
@@ -49,7 +49,7 @@ impl<'l, T: Iterator<Item = Result<LookupEntry<'l>>>> MergeIter<'l, T> {
         for (order, mut iter) in iters.enumerate() {
             if let Some(entry) = iter.next() {
                 let entry = entry?;
-                heap.push(ActiveIterator { iter, order, entry });
+                heap.push(Box::new(ActiveIterator { iter, order, entry }));
             }
         }
         Ok(Self { heap })
@@ -60,20 +60,16 @@ impl<'l, T: Iterator<Item = Result<LookupEntry<'l>>>> Iterator for MergeIter<'l,
     type Item = Result<LookupEntry<'l>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let ActiveIterator {
-            mut iter,
-            order,
-            entry,
-        } = self.heap.pop()?;
-        match iter.next() {
-            None => {}
+        let mut active_iter = self.heap.pop()?;
+        let entry = match active_iter.iter.next() {
+            None => active_iter.entry,
             Some(Err(e)) => return Some(Err(e)),
-            Some(Ok(next)) => self.heap.push(ActiveIterator {
-                iter,
-                order,
-                entry: next,
-            }),
-        }
+            Some(Ok(next)) => {
+                let entry = replace(&mut active_iter.entry, next);
+                self.heap.push(active_iter);
+                entry
+            }
+        };
         Some(Ok(entry))
     }
 }

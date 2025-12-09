@@ -9154,7 +9154,11 @@ name = "turbo-persistence-tools"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap",
+ "pot",
+ "rustc-hash 2.1.1",
  "turbo-persistence",
+ "twox-hash 2.1.0",
 ]
 
 [[package]]

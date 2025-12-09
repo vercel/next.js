@@ -117,6 +117,13 @@ impl<T: RegistryItem> Registry<T> {
             ))
         }
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = (T::Id, &'static T)> + '_ {
+        self.id_to_item
+            .iter()
+            .enumerate()
+            .map(|(i, &item)| (T::Id::from(NonZeroU16::new((i + 1) as u16).unwrap()), item))
+    }
 }
 
 static FUNCTIONS: Lazy<Registry<NativeFunction>> = Lazy::new(|| {
@@ -137,6 +144,10 @@ pub fn get_function_id(func: &'static NativeFunction) -> FunctionId {
 
 pub fn validate_function_id(id: FunctionId) -> Option<Error> {
     FUNCTIONS.validate_id(id)
+}
+
+pub fn iter_functions() -> impl Iterator<Item = (FunctionId, &'static NativeFunction)> {
+    FUNCTIONS.iter()
 }
 
 static VALUES: Lazy<Registry<ValueType>> = Lazy::new(|| {

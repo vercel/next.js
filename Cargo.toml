@@ -285,6 +285,7 @@ debug = true
 
 [workspace.dependencies]
 # Workspace crates
+next-swc-napi = { path = "crates/napi" }
 next-api = { path = "crates/next-api" }
 next-build = { path = "crates/next-build" }
 next-core = { path = "crates/next-core" }

@@ -238,6 +238,10 @@ impl NativeFunction {
         }
     }
 
+    pub fn global_name(&self) -> &'static str {
+        self.global_name
+    }
+
     pub fn span(&'static self, persistence: TaskPersistence, reason: TaskExecutionReason) -> Span {
         let flags = match persistence {
             TaskPersistence::Persistent => "",

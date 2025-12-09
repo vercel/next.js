@@ -143,6 +143,19 @@ fn full_cycle() -> Result<()> {
             assert_eq!(db.get(0, &[42u8, 42])?, None);
             assert_eq!(db.get(0, &[1u8])?, None);
             assert_eq!(db.get(0, &[255u8])?, None);
+
+            // Test iter() with deduplication - basic smoke test
+            let mut count = 0;
+            for entry_result in db.iter(0, false)? {
+                let entry = entry_result?;
+                count += 1;
+                // Basic validation - entries should have data
+                assert!(!entry.key.is_empty());
+                assert!(!entry.value.is_empty());
+            }
+            // Should have at least the 90 entries from this test
+            assert!(count >= 90, "Expected at least 90 entries, got {}", count);
+
             Ok(())
         },
     );
@@ -165,6 +178,16 @@ fn full_cycle() -> Result<()> {
             assert_eq!(db.get(0, &[42u8, 42])?, None);
             assert_eq!(db.get(0, &[1u8])?, None);
             assert_eq!(db.get(0, &[255u8])?, None);
+
+            // Test iter() - basic smoke test
+            let mut count = 0;
+            for entry_result in db.iter(0, false)? {
+                entry_result?;
+                count += 1;
+            }
+            // Should have at least 90 entries
+            assert!(count >= 90, "Expected at least 90 entries, got {}", count);
+
             Ok(())
         },
     );
@@ -186,6 +209,115 @@ fn full_cycle() -> Result<()> {
             assert!(db.get(8, &[8u8, 8])?.is_none());
             assert!(db.get(8, &[0u8])?.is_none());
             assert!(db.get(8, &[255u8])?.is_none());
+
+            // Test iter() on each family - basic smoke test
+            // In standalone run, each family should have 1 entry
+            // In "All" run, family 0 may have entries from other tests
+            for family in 0..16 {
+                let mut count = 0;
+                let mut found_expected_entry = false;
+                for entry_result in db.iter(family, false)? {
+                    let entry = entry_result?;
+                    count += 1;
+                    // Check if this is the entry from this specific test
+                    if entry.key.len() == 1
+                        && entry.key[0] == family as u8
+                        && entry.value.len() == 1
+                        && entry.value[0] == family as u8
+                    {
+                        found_expected_entry = true;
+                    }
+                }
+                assert!(count >= 1, "Expected at least 1 entry in family {}", family);
+                assert!(
+                    found_expected_entry,
+                    "Expected to find entry for family {}",
+                    family
+                );
+            }
+
+            Ok(())
+        },
+    );
+
+    test_case(
+        &mut test_cases,
+        "Overwrites with iter",
+        |batch| {
+            // Write same keys multiple times
+            for round in 0..5u8 {
+                for i in 10..20u8 {
+                    batch.put(0, vec![i], vec![round, i].into())?;
+                }
+                unsafe { batch.flush(0)? };
+            }
+            Ok(())
+        },
+        |db| {
+            // Verify latest values
+            for i in 10..20u8 {
+                let Some(value) = db.get(0, &[i])? else {
+                    panic!("Value not found for key {}", i);
+                };
+                assert_eq!(
+                    &*value,
+                    &[4u8, i],
+                    "Expected latest round (4) for key {}",
+                    i
+                );
+            }
+
+            // Test iter with deduplication - should only get latest values
+            // Count entries that match this test's pattern
+            let mut count_from_this_test = 0;
+            for entry_result in db.iter(0, false)? {
+                let entry = entry_result?;
+                // Only validate entries from this specific test
+                if entry.key.len() == 1 && entry.value.len() == 2 {
+                    let key = entry.key[0];
+                    if (10..20).contains(&key) {
+                        count_from_this_test += 1;
+                        assert_eq!(entry.value[0], 4u8, "Expected round 4 for key {}", key);
+                        assert_eq!(entry.value[1], key);
+                    }
+                }
+            }
+            assert_eq!(
+                count_from_this_test, 10,
+                "Expected 10 deduplicated entries from this test"
+            );
+
+            // Test iter with all entries - count entries from this test only
+            let mut count_from_this_test_all = 0;
+            let mut max_round_seen = 0u8;
+            for entry_result in db.iter(0, true)? {
+                let entry = entry_result?;
+                // Only count entries from this specific test
+                if entry.key.len() == 1 && entry.value.len() == 2 {
+                    let key = entry.key[0];
+                    if (10..20).contains(&key) {
+                        count_from_this_test_all += 1;
+                        let round = entry.value[0];
+                        assert!(round < 5, "Round should be 0-4");
+                        assert_eq!(entry.value[1], key);
+                        max_round_seen = max_round_seen.max(round);
+                    }
+                }
+            }
+            // We should have at least 10 entries (one per key), possibly up to 50 before compaction
+            assert!(
+                count_from_this_test_all >= 10 && count_from_this_test_all <= 50,
+                "Expected between 10-50 entries from this test, got {}",
+                count_from_this_test_all
+            );
+            // If we only have 10 entries, they should all be round 4 (after compaction)
+            if count_from_this_test_all == 10 {
+                assert_eq!(
+                    max_round_seen, 4,
+                    "After compaction, only latest round should remain"
+                );
+            }
+
             Ok(())
         },
     );
