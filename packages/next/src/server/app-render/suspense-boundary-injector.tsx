@@ -57,9 +57,43 @@ const panelScript = `
       }
     };
 
+    // Match dynamic accesses to their enclosing suspense boundary
+    function matchDynamicToBoundary(boundaries, dynamicAccesses) {
+      var boundaryReasons = {}; // boundaryId -> [expressions]
+
+      dynamicAccesses.forEach(function(api) {
+        if (!api.frames.length) return;
+        var apiPath = api.frames.map(function(f) { return f.componentName; }).join('/');
+
+        // Find the boundary whose path is a prefix of the api path (nearest ancestor)
+        var bestMatch = null;
+        var bestMatchLen = 0;
+
+        boundaries.forEach(function(b) {
+          if (!b.frames.length) return;
+          var boundaryPath = b.frames.map(function(f) { return f.componentName; }).join('/');
+
+          // Check if boundary path is prefix of api path (or equal)
+          if (apiPath.indexOf(boundaryPath) === 0 && boundaryPath.length > bestMatchLen) {
+            bestMatch = b.id;
+            bestMatchLen = boundaryPath.length;
+          }
+        });
+
+        if (bestMatch) {
+          if (!boundaryReasons[bestMatch]) boundaryReasons[bestMatch] = [];
+          if (boundaryReasons[bestMatch].indexOf(api.expression) === -1) {
+            boundaryReasons[bestMatch].push(api.expression);
+          }
+        }
+      });
+
+      return boundaryReasons;
+    }
+
     // Build tree from boundaries and dynamic accesses
-    function buildTree(boundaries, dynamicAccesses) {
-      var root = { name: 'Root', children: {}, boundaries: [], apis: [] };
+    function buildTree(boundaries, dynamicAccesses, boundaryReasons) {
+      var root = { name: 'Root', children: {}, boundaries: [], apis: [], reasons: [] };
 
       // Add boundaries to tree
       boundaries.forEach(function(b) {
@@ -70,11 +104,15 @@ const panelScript = `
         path.forEach(function(frame) {
           var name = frame.componentName;
           if (!node.children[name]) {
-            node.children[name] = { name: name, children: {}, boundaries: [], apis: [], frame: frame };
+            node.children[name] = { name: name, children: {}, boundaries: [], apis: [], reasons: [], frame: frame };
           }
           node = node.children[name];
         });
         node.boundaries.push(b);
+        // Attach reasons to this boundary node
+        if (boundaryReasons[b.id]) {
+          node.reasons = node.reasons.concat(boundaryReasons[b.id]);
+        }
       });
 
       // Add dynamic APIs to tree
@@ -85,7 +123,7 @@ const panelScript = `
         path.forEach(function(frame) {
           var name = frame.componentName;
           if (!node.children[name]) {
-            node.children[name] = { name: name, children: {}, boundaries: [], apis: [], frame: frame };
+            node.children[name] = { name: name, children: {}, boundaries: [], apis: [], reasons: [], frame: frame };
           }
           node = node.children[name];
         });
@@ -106,10 +144,10 @@ const panelScript = `
 
       if (depth > 0) {
         var hasSuspense = node.boundaries.length > 0;
-        var hasApis = node.apis.length > 0;
+        var hasReasons = node.reasons && node.reasons.length > 0;
 
         html += '<div style="border-bottom:1px solid #f5f5f5;">';
-        html += '<div onclick="window.__sp.toggle(\\'' + path + '\\')" style="padding:8px 12px 8px ' + (12 + indent) + 'px;cursor:pointer;display:flex;align-items:center;gap:6px;">';
+        html += '<div onclick="window.__sp.toggle(\\'' + path + '\\')" style="padding:8px 12px 8px ' + (12 + indent) + 'px;cursor:pointer;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">';
 
         if (hasChildren) {
           html += '<span style="color:#999;font-size:9px;width:10px;">' + (isExpanded ? '▼' : '▶') + '</span>';
@@ -122,10 +160,8 @@ const panelScript = `
         if (hasSuspense) {
           html += '<span style="background:#e8e8e8;color:#666;padding:1px 6px;border-radius:3px;font-size:10px;">suspense</span>';
         }
-        if (hasApis) {
-          var apiNames = [];
-          node.apis.forEach(function(a) { if (apiNames.indexOf(a.expression) === -1) apiNames.push(a.expression); });
-          html += '<span style="color:#888;font-size:11px;margin-left:auto;">' + apiNames.join(', ') + '</span>';
+        if (hasReasons) {
+          html += '<span style="color:#c41e3a;font-size:11px;margin-left:auto;">← ' + node.reasons.join(', ') + '</span>';
         }
 
         html += '</div></div>';
@@ -146,7 +182,8 @@ const panelScript = `
       var sp = window.__sp;
 
       if (sp.isOpen) {
-        var tree = buildTree(boundaries, dynamicAccesses);
+        var boundaryReasons = matchDynamicToBoundary(boundaries, dynamicAccesses);
+        var tree = buildTree(boundaries, dynamicAccesses, boundaryReasons);
         var treeHtml = '';
         Object.keys(tree.children).forEach(function(key) {
           treeHtml += renderNode(tree.children[key], 1, key);

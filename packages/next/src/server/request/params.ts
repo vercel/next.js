@@ -30,6 +30,8 @@ import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
+import { trackDynamicAPIAccess } from '../app-render/suspense-boundary-collector'
+import React from 'react'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 import { RenderStage } from '../app-render/staged-rendering'
@@ -526,6 +528,20 @@ function instrumentParamsPromiseWithDevWarnings(
         ) {
           const expression = describeStringPropertyAccess('params', prop)
           warnForSyncAccess(workStore.route, expression)
+        }
+      }
+      // Track when params are awaited for suspense profiling
+      if (prop === 'then') {
+        const originalThen = target.then.bind(target)
+        return function (
+          onfulfilled?: ((value: Params) => any) | null,
+          onrejected?: ((reason: any) => any) | null
+        ) {
+          const ownerStack = React.captureOwnerStack
+            ? React.captureOwnerStack()
+            : null
+          trackDynamicAPIAccess('`params`', ownerStack)
+          return originalThen(onfulfilled, onrejected)
         }
       }
       return ReflectAdapter.get(target, prop, receiver)

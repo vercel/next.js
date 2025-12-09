@@ -1,5 +1,7 @@
 import type { NonStaticRenderStage } from './app-render/staged-rendering'
 import type { RequestStore } from './app-render/work-unit-async-storage.external'
+import React from 'react'
+import { trackDynamicAPIAccess } from './app-render/suspense-boundary-collector'
 
 export function isHangingPromiseRejectionError(
   err: unknown
@@ -41,6 +43,13 @@ export function makeHangingPromise<T>(
   route: string,
   expression: string
 ): Promise<T> {
+  // Track the dynamic access for suspense profiling
+  const ownerStack =
+    process.env.NODE_ENV !== 'production' && React.captureOwnerStack
+      ? React.captureOwnerStack()
+      : null
+  trackDynamicAPIAccess(expression, ownerStack)
+
   if (signal.aborted) {
     return Promise.reject(new HangingPromiseRejectionError(route, expression))
   } else {
