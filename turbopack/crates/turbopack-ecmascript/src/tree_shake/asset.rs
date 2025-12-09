@@ -4,7 +4,10 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
+    chunk::{
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset, MergeableModule,
+        MergeableModules, MergeableModulesExposed,
+    },
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
@@ -20,7 +23,7 @@ use super::{
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
     EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptModuleContentOptions,
-    EcmascriptParsable,
+    EcmascriptOptions, EcmascriptParsable, MergedEcmascriptModule,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     parse::ParseResult,
     references::{
@@ -430,4 +433,23 @@ async fn only_effects(
     }
 
     Ok(*module)
+}
+
+#[turbo_tasks::value_impl]
+impl MergeableModule for EcmascriptModulePartAsset {
+    #[turbo_tasks::function]
+    async fn merge(
+        &self,
+        modules: Vc<MergeableModulesExposed>,
+        entry_points: Vc<MergeableModules>,
+    ) -> Result<Vc<Box<dyn ChunkableModule>>> {
+        Ok(Vc::upcast(
+            *MergedEcmascriptModule::new(
+                modules,
+                entry_points,
+                EcmascriptOptions::default().resolved_cell(),
+            )
+            .await?,
+        ))
+    }
 }
