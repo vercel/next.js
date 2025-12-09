@@ -70,6 +70,11 @@ use crate::{
     },
 };
 
+/// Threshold for parallelizing making dependent tasks dirty.
+/// If the number of dependent tasks exceeds this threshold,
+/// the operation will be parallelized.
+const DEPENDENT_TASKS_DIRTY_PARALLIZATION_THRESHOLD: usize = 10000;
+
 const SNAPSHOT_REQUESTED_BIT: usize = 1 << (usize::BITS - 1);
 
 /// Configurable idle timeout for snapshot persistence.
@@ -2238,7 +2243,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             span.record("result", "marked dirty");
         }
 
-        if output_dependent_tasks.len() > 1024 {
+        if output_dependent_tasks.len() > DEPENDENT_TASKS_DIRTY_PARALLIZATION_THRESHOLD {
             let chunk_size = good_chunk_size(output_dependent_tasks.len());
             let chunks = into_chunks(output_dependent_tasks.to_vec(), chunk_size);
             let _ = scope_and_block(chunks.len(), |scope| {
