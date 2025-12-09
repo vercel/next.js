@@ -25,7 +25,7 @@ export function getRouteMatcher({
     const decode = (param: string) => {
       try {
         return decodeURIComponent(param)
-      } catch (e: any) {
+      } catch {
         const encodedParam = encodeURIComponent(param)
         try {
           return decodeURIComponent(encodedParam)
