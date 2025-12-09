@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import { SpecialModule } from '@/lib/types'
 import { getSpecialModuleType } from '@/lib/utils'
+import { Badge } from './ui/badge'
 
 interface SidebarProps {
   sidebarWidth: number
@@ -121,14 +122,16 @@ export function Sidebar({
           analyzeData.source(selectedSourceIndex) &&
           (specialModuleType === SpecialModule.POLYFILL_MODULE ||
             specialModuleType === SpecialModule.POLYFILL_NOMODULE) && (
-            <div className="flex items-center gap-2">
-              <dt className="inline-flex items-center rounded-md bg-polyfill/10 dark:bg-polyfill/30 px-2 py-1 text-xs font-medium text-polyfill dark:text-polyfill-foreground ring-1 ring-inset ring-polyfill/20 shrink-0">
-                Polyfill
-              </dt>
-              <dd className="text-xs text-muted-foreground">
-                Next.js built-in polyfills
-              </dd>
-            </div>
+            <dl>
+              <div className="flex items-center gap-2">
+                <dt className="inline-flex items-center">
+                  <Badge variant="polyfill">Polyfill</Badge>
+                </dt>
+                <dd className="text-xs text-muted-foreground">
+                  Next.js built-in polyfills
+                </dd>
+              </div>
+            </dl>
           )}
 
         {selectedSourceIndex != null &&
