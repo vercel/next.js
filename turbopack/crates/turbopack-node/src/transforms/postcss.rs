@@ -1,11 +1,14 @@
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use indoc::formatdoc;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Completions, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, Vc,
-    fxindexmap, trace::TraceRawVcs,
+    Completion, Completions, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt,
+    Vc, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     File, FileContent, FileSystemEntryType, FileSystemPath, json::parse_json_with_source_context,
@@ -444,6 +447,52 @@ impl GenerateSourceMap for PostCssTransformedAsset {
     }
 }
 
+#[turbo_tasks::function]
+async fn config_contains_only_tailwind(config_path: FileSystemPath) -> Result<Vc<bool>> {
+    #[derive(Deserialize)]
+    struct PostCssConfig {
+        plugins: FxIndexMap<String, Value>,
+    }
+
+    if !matches!(config_path.extension_ref(), Some("json" | "postcssrc")) {
+        // We can only parse JSON statically
+        return Ok(Vc::cell(false));
+    }
+
+    let FileContent::Content(config) = &*config_path.read().await? else {
+        return Ok(Vc::cell(false));
+    };
+    let Ok(config): serde_json::Result<PostCssConfig> = serde_json::from_reader(config.read())
+    else {
+        // Silently ignore parse errors
+        return Ok(Vc::cell(false));
+    };
+
+    // Tailwind 4: `@tailwindcss/postcss`
+    // Tailwind 3: `tailwindcss`
+    Ok(Vc::cell(config.plugins.keys().all(|v| {
+        v == "@tailwindcss/postcss" || v == "tailwindcss"
+    })))
+}
+
+// Whether the PostCSS transform can be skipped, as none of the enabled plugins would effect the
+// source in any way.
+//
+// In particular, if Tailwind is the only PostCSS plugin and the CSS doesn't contain any tailwind
+// specific directives, then there is no need to execute the transform.
+async fn skip_transform(config_path: FileSystemPath, source: &str) -> Result<bool> {
+    if !*config_contains_only_tailwind(config_path).await? {
+        return Ok(false);
+    }
+
+    // Tailwind 4: `@import "tailwindcss"`
+    // Tailwind 3: `@tailwind`
+    static TAILWIND_REGEX: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"@tailwind|tailwindcss").unwrap());
+
+    Ok(!TAILWIND_REGEX.is_match(source))
+}
+
 #[turbo_tasks::value_impl]
 impl PostCssTransformedAsset {
     #[turbo_tasks::function]
@@ -488,6 +537,15 @@ impl PostCssTransformedAsset {
             .cell());
         };
         let content = content.content().to_str()?;
+
+        if skip_transform(config_path.clone(), &content).await? {
+            return Ok(ProcessPostCssResult {
+                content: self.source.content().to_resolved().await?,
+                assets: Vec::new(),
+            }
+            .cell());
+        }
+
         let evaluate_context = self.evaluate_context;
         let source_map = self.source_map;
 
