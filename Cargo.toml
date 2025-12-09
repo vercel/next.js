@@ -422,6 +422,7 @@ napi = { version = "2", default-features = false, features = [
   "napi5",
   "compat-mode",
 ] }
+nohash-hasher = "0.2.0"
 notify = "8.1.0"
 once_cell = "1.17.1"
 owo-colors = "4.2.2"
