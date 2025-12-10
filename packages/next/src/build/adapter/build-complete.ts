@@ -301,6 +301,7 @@ type DynamicRouteItem = {
 
 type Route = {
   // regex as string can have named or un-named matches
+  source?: string
   sourceRegex: string
   // destination can have matches to replace in destination
   // keyed by $1 for un-named and $name for named
@@ -1653,22 +1654,24 @@ export async function handleBuildComplete({
         destination: converted.dest || route.destination,
         has: route.has,
         missing: route.missing,
-      }
+      } satisfies Route
     }
 
     try {
       Log.info(`Running onBuildComplete from ${adapterMod.name}`)
 
-      const combinedDynamicRoutes: Route[] = [
+      const combinedDynamicRoutes = [
         ...dynamicDataRoutes,
         ...dynamicSegmentRoutes,
         ...dynamicRoutes,
-      ]
+      ] satisfies Route[]
+
       const rewrites = {
         beforeFiles: routesManifest.rewrites.beforeFiles.map(buildRewriteItem),
         afterFiles: routesManifest.rewrites.afterFiles.map(buildRewriteItem),
         fallback: routesManifest.rewrites.fallback.map(buildRewriteItem),
       }
+
       const redirects = routesManifest.redirects.map((route) => {
         const converted = convertRedirects([route], 307)[0]
         let dest = 'headers' in converted && converted.headers?.Location
@@ -1678,12 +1681,13 @@ export async function handleBuildComplete({
           source: route.source,
           sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
           destination: dest || route.destination,
-          statusCode: converted.status || getRedirectStatus(route),
+          status: converted.status || getRedirectStatus(route),
           has: route.has,
           missing: route.missing,
           priority: route.internal || undefined,
-        }
+        } satisfies Route
       })
+
       const headers = routesManifest.headers.map((route) => {
         const converted = convertHeaders([route])[0]
         const regex = converted.src || route.regex
@@ -1695,7 +1699,7 @@ export async function handleBuildComplete({
           has: route.has,
           missing: route.missing,
           priority: route.internal || undefined,
-        }
+        } satisfies Route
       })
 
       await adapterMod.onBuildComplete({
