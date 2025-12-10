@@ -62,6 +62,7 @@ import {
   getAccessFallbackErrorTypeByStatus,
   getAccessFallbackHTTPStatus,
   isHTTPAccessFallbackError,
+  HTTP_ERROR_FALLBACK_ERROR_CODE,
 } from '../../client/components/http-access-fallback/http-access-fallback'
 import {
   getURLFromRedirectError,
@@ -2824,18 +2825,76 @@ async function renderToStream(
           // We have a complete HTML Document in the prerender but we need to
           // still include the new server component render because it was not included
           // in the static prelude.
-          const inlinedReactServerDataStream = createInlinedDataReadableStream(
-            reactServerResult.tee(),
-            nonce,
-            formState
-          )
 
-          // End the span since there's no async rendering in this path
-          if (renderSpan.isRecording()) renderSpan.end()
-          return chainStreams(
-            inlinedReactServerDataStream,
-            createDocumentClosingStream()
-          )
+          // We need to consume the RSC stream first to check for HTTP access fallback
+          // errors (like notFound()). If such an error is thrown inside a Suspense
+          // boundary, we can't just send RSC data - we need to do a full dynamic
+          // render to properly display the error page.
+          const rscStream = reactServerResult.consume()
+          const reader = rscStream.getReader()
+          const chunks: Uint8Array[] = []
+
+          // Consume the entire RSC stream to detect any errors
+          try {
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              if (value) chunks.push(value)
+            }
+          } finally {
+            reader.releaseLock()
+          }
+
+          // Check if any HTTP access fallback errors were thrown during RSC rendering
+          let hasHTTPAccessFallbackError = false
+          for (const digest of reactServerErrorsByDigest.keys()) {
+            if (digest.startsWith(HTTP_ERROR_FALLBACK_ERROR_CODE)) {
+              hasHTTPAccessFallbackError = true
+              // Set the appropriate status code
+              const httpError = reactServerErrorsByDigest.get(digest)
+              if (httpError && isHTTPAccessFallbackError(httpError)) {
+                res.statusCode = getAccessFallbackHTTPStatus(httpError)
+                metadata.statusCode = res.statusCode
+              }
+              break
+            }
+          }
+
+          // Helper to create a stream from buffered chunks
+          const createBufferedStream = () =>
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                for (const chunk of chunks) {
+                  controller.enqueue(chunk)
+                }
+                controller.close()
+              },
+            })
+
+          // If we have an HTTP access fallback error, we need to do a full dynamic
+          // render to properly display the not-found/forbidden/unauthorized page.
+          // Fall through to the regular dynamic render path below.
+          if (!hasHTTPAccessFallbackError) {
+            // No errors - create a stream from the buffered chunks and send it
+            const inlinedReactServerDataStream = createInlinedDataReadableStream(
+              createBufferedStream(),
+              nonce,
+              formState
+            )
+
+            // End the span since there's no async rendering in this path
+            if (renderSpan.isRecording()) renderSpan.end()
+            return chainStreams(
+              inlinedReactServerDataStream,
+              createDocumentClosingStream()
+            )
+          }
+
+          // We have an HTTP access fallback error - replace reactServerResult with
+          // a new one created from the buffered chunks so the regular dynamic render
+          // path can use it.
+          reactServerResult = new ReactServerResult(createBufferedStream())
+          // Fall through to regular dynamic render for HTTP access fallback errors
         } else if (postponedState) {
           // We assume we have dynamic HTML requiring a resume render to complete
           const { postponed, preludeState } =

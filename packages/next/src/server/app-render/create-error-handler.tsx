@@ -8,6 +8,7 @@ import { isAbortError } from '../pipe-readable'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import { isNextRouterError } from '../../client/components/is-next-router-error'
+import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback/http-access-fallback'
 import { isPrerenderInterruptedError } from './dynamic-rendering'
 import { getProperError } from '../../lib/is-error'
 import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
@@ -68,6 +69,15 @@ export function createReactServerErrorHandler(
     const digest = getDigestForWellKnownError(thrownValue)
 
     if (digest) {
+      // Store HTTP access fallback errors so they can be detected
+      // in DynamicState.DATA mode (where we need to fall back to full
+      // dynamic render if notFound/forbidden/unauthorized was thrown)
+      if (
+        isHTTPAccessFallbackError(thrownValue) &&
+        !reactServerErrors.has(digest)
+      ) {
+        reactServerErrors.set(digest, thrownValue as DigestedError)
+      }
       return digest
     }
 

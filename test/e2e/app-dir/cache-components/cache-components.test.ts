@@ -64,6 +64,56 @@ describe('cache-components', () => {
     }
   })
 
+  it('should handle not-found thrown in a Suspense boundary', async () => {
+    // This tests that notFound() works correctly when thrown inside a Suspense
+    // boundary during streaming. The not-found page should be rendered properly
+    // without "Connection closed" errors.
+    const browser = await next.browser('/cases/not-found-suspense')
+
+    // Wait for the not-found component to appear
+    const notFoundText = await browser
+      .waitForElementByCss('#not-found-component')
+      .text()
+    expect(notFoundText).toBe('Not Found from Suspense!')
+
+    // Check that there are no console errors about "Connection closed"
+    const logs = await browser.log()
+    const connectionClosedErrors = logs.filter(
+      (log: { message: string }) =>
+        log.message.includes('Connection closed') ||
+        log.message.includes('client-side exception')
+    )
+    expect(connectionClosedErrors).toHaveLength(0)
+  })
+
+  it('should handle not-found with async component in layout Suspense boundary', async () => {
+    // This tests the exact reproduction case from the issue:
+    // - notFound() called directly in page
+    // - Async component wrapped in Suspense in layout
+    // - cacheComponents: true
+    // The not-found page should render and the async component should also render.
+    const browser = await next.browser('/cases/not-found-with-layout-suspense')
+
+    // Wait for the not-found component to appear
+    const notFoundHeading = await browser
+      .waitForElementByCss('#not-found-heading')
+      .text()
+    expect(notFoundHeading).toBe('404 - Page Not Found')
+
+    // The async component in the layout should also render
+    const asyncData = await browser.waitForElementByCss('#async-data').text()
+    expect(asyncData).toBe('Data: Fetched Data')
+
+    // Check that there are no console errors about "Connection closed"
+    const logs = await browser.log()
+    const connectionClosedErrors = logs.filter(
+      (log: { message: string }) =>
+        log.message.includes('Connection closed') ||
+        log.message.includes('client-side exception')
+    )
+    expect(connectionClosedErrors).toHaveLength(0)
+  })
+
   it('should prerender pages that render in a microtask', async () => {
     let $ = await next.render$('/cases/microtask', {})
     if (isNextDev) {
