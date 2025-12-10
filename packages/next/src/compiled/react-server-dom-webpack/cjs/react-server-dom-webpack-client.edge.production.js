@@ -315,13 +315,23 @@ function processReply(
             pendingParts--;
           }
       }
+      parentReference = writtenObjects.get(value);
       if ("function" === typeof value.then) {
+        if (void 0 !== parentReference)
+          if (modelRoot === value) modelRoot = null;
+          else return parentReference;
         null === formData && (formData = new FormData());
         pendingParts++;
         var promiseId = nextPartId++;
+        key = "$@" + promiseId.toString(16);
+        writtenObjects.set(value, key);
         value.then(function (partValue) {
           try {
-            var partJSON$28 = serializeModel(partValue, promiseId);
+            var previousReference = writtenObjects.get(partValue);
+            var partJSON$28 =
+              void 0 !== previousReference
+                ? JSON.stringify(previousReference)
+                : serializeModel(partValue, promiseId);
             partValue = formData;
             partValue.append(formFieldPrefix + promiseId, partJSON$28);
             pendingParts--;
@@ -330,9 +340,8 @@ function processReply(
             reject(reason);
           }
         }, reject);
-        return "$@" + promiseId.toString(16);
+        return key;
       }
-      parentReference = writtenObjects.get(value);
       if (void 0 !== parentReference)
         if (modelRoot === value) modelRoot = null;
         else return parentReference;
@@ -453,7 +462,7 @@ function processReply(
           null === formData && (formData = new FormData()),
           (parentReference = nextPartId++),
           formData.set(formFieldPrefix + parentReference, key),
-          "$F" + parentReference.toString(16)
+          "$h" + parentReference.toString(16)
         );
       if (
         void 0 !== temporaryReferences &&
@@ -1092,7 +1101,7 @@ function parseModelString(response, parentObject, key, value) {
         return getChunk(response, parentObject);
       case "S":
         return Symbol.for(value.slice(2));
-      case "F":
+      case "h":
         return (
           (value = value.slice(2)),
           getOutlinedModel(
