@@ -783,5 +783,8 @@
   "782": "Failed to find the root directory of the project. This is a bug in Next.js.",
   "783": "Client Max Body Size must be a valid number (bytes) or filesize format string (e.g., \"5mb\")",
   "784": "Client Max Body Size must be larger than 0 bytes",
-  "785": "Request body exceeded %s"
+  "785": "Request body exceeded %s",
+  "786": "Server Actions are not enabled for this application. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
+  "787": "Failed to find Server Action. This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
+  "788": "Failed to find Server Action%s. This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action"
 }
