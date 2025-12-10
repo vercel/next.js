@@ -9,6 +9,7 @@ export type PanelStateKind =
   | 'preferences'
   | 'route-type'
   | 'segment-explorer'
+  | 'suspense-profiler'
   | 'panel-selector'
 
 export const PanelRouterContext = createContext<{

@@ -6,7 +6,14 @@ import {
   RouteInfoBody,
 } from '../components/errors/dev-tools-indicator/dev-tools-info/route-info'
 import { PageSegmentTree } from '../components/overview/segment-explorer'
+import { SuspenseProfiler } from '../components/overview/suspense-profiler'
 import { DevToolsHeader } from '../components/errors/dev-tools-indicator/dev-tools-info/dev-tools-header'
+
+// Check if suspense boundary data exists in the DOM
+function hasSuspenseData(): boolean {
+  if (typeof document === 'undefined') return false
+  return document.getElementById('__NEXT_SUSPENSE_BOUNDARIES__') !== null
+}
 import { useDelayedRender } from '../hooks/use-delayed-render'
 import {
   MENU_CURVE,
@@ -112,6 +119,16 @@ const MenuPanel = () => {
             'data-segment-explorer': true,
           },
         },
+        isAppRouter &&
+          hasSuspenseData() && {
+            label: 'Suspense',
+            title: 'View suspense boundaries and dynamic API calls',
+            value: <ChevronRight />,
+            onClick: () => setPanel('suspense-profiler'),
+            attributes: {
+              'data-suspense-profiler': true,
+            },
+          },
         {
           label: 'Preferences',
           value: <GearIcon />,
@@ -240,6 +257,30 @@ export const PanelRouter = () => {
             header={<DevToolsHeader title="Route Info" />}
           >
             <PageSegmentTree page={state.page} />
+          </DynamicPanel>
+        </PanelRoute>
+      )}
+
+      {isAppRouter && (
+        <PanelRoute name="suspense-profiler">
+          <DynamicPanel
+            sharePanelSizeGlobally={false}
+            sharePanelPositionGlobally={false}
+            draggable
+            sizeConfig={{
+              kind: 'resizable',
+              maxHeight: '90vh',
+              maxWidth: '90vw',
+              minHeight: 200 / state.scale,
+              minWidth: 300 / state.scale,
+              initialSize: {
+                height: 400 / state.scale,
+                width: 400 / state.scale,
+              },
+            }}
+            header={<DevToolsHeader title="Suspense Profiler" />}
+          >
+            <SuspenseProfiler />
           </DynamicPanel>
         </PanelRoute>
       )}

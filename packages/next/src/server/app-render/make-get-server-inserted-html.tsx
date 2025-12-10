@@ -12,7 +12,6 @@ import { RedirectStatusCode } from '../../client/components/redirect-status-code
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import type { ClientTraceDataEntry } from '../lib/trace/tracer'
 import { SuspenseBoundaryScript } from './suspense-boundary-injector'
-import { getSuspenseBoundaries } from './suspense-boundary-collector'
 
 export function makeGetServerInsertedHTML({
   polyfills,
@@ -28,6 +27,7 @@ export function makeGetServerInsertedHTML({
   basePath: string
 }) {
   let flushedErrorMetaTagsUntilIndex = 0
+  let suspenseBoundaryScriptFlushed = false
 
   // These only need to be rendered once, they'll be set to empty arrays once flushed.
   let polyfillTags = polyfills.map((polyfill) => {
@@ -75,21 +75,23 @@ export function makeGetServerInsertedHTML({
 
     const serverInsertedHTML = renderServerInsertedHTML()
 
+    // Suspense boundary script should only be rendered once (on first flush).
+    // Boundaries are registered during React render, before streaming starts.
+    const shouldRenderSuspenseScript = !suspenseBoundaryScriptFlushed
+    if (shouldRenderSuspenseScript) {
+      suspenseBoundaryScriptFlushed = true
+    }
+
     // Skip React rendering if we know the content is empty.
-    // Note: We can't skip when suspense profiling might be active since
-    // SuspenseBoundaryScript may have data to inject.
     if (
       polyfillTags.length === 0 &&
       traceMetaTags.length === 0 &&
       errorMetaTags.length === 0 &&
+      !shouldRenderSuspenseScript &&
       Array.isArray(serverInsertedHTML) &&
       serverInsertedHTML.length === 0
     ) {
-      // Check if there are any suspense boundaries to inject
-      const boundaries = getSuspenseBoundaries()
-      if (boundaries.length === 0) {
-        return ''
-      }
+      return ''
     }
 
     const stream = await renderToReadableStream(
@@ -98,7 +100,7 @@ export function makeGetServerInsertedHTML({
         {serverInsertedHTML}
         {traceMetaTags}
         {errorMetaTags}
-        <SuspenseBoundaryScript />
+        {shouldRenderSuspenseScript && <SuspenseBoundaryScript />}
       </>,
       {
         // Larger chunk because this isn't sent over the network.

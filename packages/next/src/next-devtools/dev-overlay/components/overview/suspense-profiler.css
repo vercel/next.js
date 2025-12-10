@@ -1,0 +1,275 @@
+.suspense-profiler {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-size: var(--size-14);
+}
+
+.suspense-profiler-header {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  background-color: var(--color-background-200);
+  gap: 12px;
+  border-bottom: 1px solid var(--color-gray-400);
+}
+
+.suspense-profiler-header-title {
+  font-size: var(--size-14);
+  font-weight: 500;
+  color: var(--color-gray-1000);
+  line-height: 20px;
+}
+
+.suspense-profiler-stats {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.suspense-profiler-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--size-12);
+  color: var(--color-gray-800);
+}
+
+.suspense-profiler-stat-value {
+  font-weight: 600;
+  color: var(--color-gray-1000);
+}
+
+.suspense-profiler-content {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 0;
+}
+
+.suspense-profiler-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-gray-800);
+  font-size: var(--size-14);
+}
+
+.suspense-profiler-node-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.suspense-profiler-node-row:hover {
+  background-color: var(--color-background-200);
+}
+
+.suspense-profiler-toggle {
+  width: 12px;
+  color: var(--color-gray-700);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.suspense-profiler-toggle-placeholder {
+  width: 12px;
+  flex-shrink: 0;
+}
+
+.suspense-profiler-name {
+  font-weight: 500;
+  color: var(--color-gray-1000);
+}
+
+.suspense-profiler-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: var(--size-11);
+  font-weight: 500;
+}
+
+.suspense-profiler-badge--suspense {
+  background-color: var(--color-blue-300);
+  color: var(--color-blue-900);
+}
+
+.suspense-profiler-status {
+  margin-left: auto;
+  font-size: var(--size-12);
+  color: var(--color-gray-700);
+}
+
+.suspense-profiler-status--ok {
+  color: var(--color-green-900);
+}
+
+.suspense-profiler-insights-btn {
+  margin-left: auto;
+  padding: 4px 10px;
+  background: var(--color-background-100);
+  border: 1px solid var(--color-gray-400);
+  border-radius: 4px;
+  font-size: var(--size-12);
+  color: var(--color-gray-1000);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.suspense-profiler-insights-btn:hover {
+  background: var(--color-gray-200);
+}
+
+/* Dynamic API row */
+.suspense-profiler-api-row {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  gap: 8px;
+}
+
+.suspense-profiler-api-code {
+  font-family: var(--font-mono);
+  font-size: var(--size-12);
+  background: var(--color-gray-200);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--color-gray-1000);
+}
+
+.suspense-profiler-collapse-btn {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: var(--color-gray-200);
+  border: none;
+  border-radius: 4px;
+  font-size: var(--size-12);
+  color: var(--color-gray-700);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.suspense-profiler-collapse-btn:hover {
+  background: var(--color-gray-300);
+}
+
+.suspense-profiler-collapse-placeholder {
+  width: 16px;
+  flex-shrink: 0;
+}
+
+.suspense-profiler-layers-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  margin-left: 6px;
+  font-size: var(--size-11);
+  font-weight: 600;
+  color: var(--color-amber-900);
+  background: var(--color-amber-200);
+  border-radius: 8px;
+}
+
+/* Component trace */
+.suspense-profiler-trace {
+  padding: 4px 12px 8px;
+}
+
+.suspense-profiler-trace-item {
+  font-size: var(--size-12);
+  color: var(--color-gray-700);
+  padding: 2px 0;
+  font-family: var(--font-mono);
+}
+
+.suspense-profiler-trace-item::before {
+  content: '└ ';
+  color: var(--color-gray-500);
+}
+
+/* Modal */
+.suspense-profiler-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100000;
+}
+
+.suspense-profiler-modal {
+  background: var(--color-background-100);
+  padding: 16px;
+  border-radius: 8px;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow: auto;
+  font-size: var(--size-13);
+  white-space: pre-wrap;
+  color: var(--color-gray-1000);
+  border: 1px solid var(--color-gray-400);
+}
+
+.suspense-profiler-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-gray-400);
+}
+
+.suspense-profiler-modal-title {
+  font-weight: 600;
+  font-size: var(--size-14);
+}
+
+.suspense-profiler-modal-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--color-gray-700);
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.suspense-profiler-modal-close:hover {
+  color: var(--color-gray-1000);
+}
+
+.suspense-profiler-modal-content {
+  font-family: var(--font-mono);
+  font-size: var(--size-12);
+  line-height: 1.5;
+}
+
+.suspense-profiler-modal-copy {
+  margin-top: 12px;
+  padding: 8px 16px;
+  background: var(--color-gray-1000);
+  color: var(--color-background-100);
+  border: none;
+  border-radius: 6px;
+  font-size: var(--size-14);
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+}
+
+.suspense-profiler-modal-copy:hover {
+  opacity: 0.9;
+}
