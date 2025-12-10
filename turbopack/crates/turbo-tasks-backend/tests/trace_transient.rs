@@ -2,25 +2,25 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
-use turbo_tasks_testing::{Registration, register, run_without_cache_check};
+use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
 
 static REGISTRATION: Registration = register!();
 
 const EXPECTED_TRACE: &str = "\
-Adder::add_method (read cell of type turbo-tasks@TODO::::primitives::u64)
+Adder::add_method (read cell of type turbo-tasks@turbo_tasks::primitives::u64)
   self:
-    Adder::new (read cell of type turbo-tasks-backend@TODO::::Adder)
+    Adder::new (read cell of type turbo-tasks-backend@trace_transient::Adder)
       args:
-        unknown transient task (read cell of type turbo-tasks@TODO::::primitives::unit)
+        unknown transient task (read cell of type turbo-tasks@turbo_tasks::primitives::())
   args:
-    unknown transient task (read cell of type turbo-tasks@TODO::::primitives::u16)
-    unknown transient task (read cell of type turbo-tasks@TODO::::primitives::u32)";
+    unknown transient task (read cell of type turbo-tasks@turbo_tasks::primitives::u16)
+    unknown transient task (read cell of type turbo-tasks@turbo_tasks::primitives::u32)";
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trace_transient() {
-    let result = run_without_cache_check(&REGISTRATION, async {
+    let result = run_once_without_cache_check(&REGISTRATION, async {
         read_incorrect_task_input_operation(IncorrectTaskInput(
             Adder::new(Vc::cell(()))
                 .add_method(Vc::cell(2), Vc::cell(3))
@@ -50,6 +50,7 @@ impl Adder {
 
     #[turbo_tasks::function]
     async fn add_method(&self, arg1: ResolvedVc<u16>, arg2: ResolvedVc<u32>) -> Result<Vc<u64>> {
+        let _ = self; // Make sure unused argument filtering doesn't remove the arg
         Ok(Vc::cell(u64::from(*arg1.await?) + u64::from(*arg2.await?)))
     }
 }
@@ -61,9 +62,7 @@ async fn read_incorrect_task_input_operation(value: IncorrectTaskInput) -> Resul
 
 /// Has an intentionally incorrect `TaskInput` implementation, representing some code that the debug
 /// tracing might be particularly useful with.
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
-)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode, NonLocalValue)]
 struct IncorrectTaskInput(ResolvedVc<u64>);
 
 impl TaskInput for IncorrectTaskInput {

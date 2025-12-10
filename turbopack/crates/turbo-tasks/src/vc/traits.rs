@@ -22,6 +22,8 @@ pub unsafe trait VcValueType: ShrinkToFit + Sized + Send + Sync + 'static {
 
     /// Returns the type id of the value type.
     fn get_value_type_id() -> ValueTypeId;
+
+    fn has_serialization() -> bool;
 }
 
 /// A trait implemented on all values trait object references that can be put
@@ -46,6 +48,18 @@ pub trait VcValueTrait: NonLocalValue + Send + Sync + 'static {
 /// The implementor of this trait must ensure that `Self` implements the
 /// trait `T`.
 pub unsafe trait Upcast<T>
+where
+    T: VcValueTrait + ?Sized,
+{
+}
+
+/// A speialization of [`Upcast`] that ensures that the upcast is strict meaning that T !== Self
+///
+/// # Safety
+///
+/// The implementor of this trait must ensure that `Self` implements the
+/// trait `T` and that `Self` is not equal to `T`.
+pub unsafe trait UpcastStrict<T>: Upcast<T>
 where
     T: VcValueTrait + ?Sized,
 {

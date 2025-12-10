@@ -25,6 +25,6 @@ pub(crate) async fn next_js_file_path(path: RcStr) -> Result<Vc<FileSystemPath>>
 #[turbo_tasks::function]
 pub(crate) async fn next_asset(path: RcStr) -> Result<Vc<Box<dyn Source>>> {
     Ok(Vc::upcast(FileSource::new(
-        next_js_file_path(path).await?.clone_value(),
+        next_js_file_path(path).owned().await?,
     )))
 }

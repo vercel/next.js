@@ -55,9 +55,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Module,
@@ -98,7 +96,6 @@
             ),
         ],
         span: 71..78,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -205,9 +202,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Module,
@@ -248,7 +243,6 @@
             ),
         ],
         span: 187..194,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -300,9 +294,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Module,
@@ -343,7 +335,6 @@
             ),
         ],
         span: 245..252,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -395,9 +386,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Module,
@@ -438,7 +427,6 @@
             ),
         ],
         span: 300..307,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -490,9 +478,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Module,
@@ -533,7 +519,6 @@
             ),
         ],
         span: 356..363,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -585,9 +570,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Module,
@@ -628,7 +611,6 @@
             ),
         ],
         span: 413..420,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -680,9 +662,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Module,
@@ -726,7 +706,6 @@
             ),
         ],
         span: 488..495,
-        in_try: false,
     },
     Call {
         func: FreeVar(

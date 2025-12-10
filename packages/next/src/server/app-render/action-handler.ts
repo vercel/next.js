@@ -39,6 +39,7 @@ import {
 import { getModifiedCookieValues } from '../web/spec-extension/adapters/request-cookies'
 
 import {
+  JSON_CONTENT_TYPE_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
@@ -48,7 +49,10 @@ import { warn } from '../../build/output/log'
 import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { fromNodeOutgoingHttpHeaders } from '../web/utils'
-import { selectWorkerForForwarding } from './action-utils'
+import {
+  selectWorkerForForwarding,
+  type ServerModuleMap,
+} from './manifests-singleton'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { synchronizeMutableCookies } from '../async-storage/request-store'
@@ -58,6 +62,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import { executeRevalidates } from '../revalidation-utils'
 import { getRequestMeta } from '../request-meta'
 import { setCacheBustingSearchParam } from '../../client/components/router-reducer/set-cache-busting-search-param'
+import { getServerModuleMap } from './manifests-singleton'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -247,7 +252,7 @@ async function createForwardedActionResponse(
     console.error(`failed to forward action response`, err)
   }
 
-  return RenderResult.fromStatic('{}')
+  return RenderResult.fromStatic('{}', JSON_CONTENT_TYPE_HEADER)
 }
 
 /**
@@ -260,11 +265,27 @@ async function createForwardedActionResponse(
 function getAppRelativeRedirectUrl(
   basePath: string,
   host: Host,
-  redirectUrl: string
+  redirectUrl: string,
+  currentPathname?: string
 ): URL | null {
-  if (redirectUrl.startsWith('/') || redirectUrl.startsWith('.')) {
-    // Make sure we are appending the basePath to relative URLS
+  if (redirectUrl.startsWith('/')) {
+    // Absolute path - just add basePath
     return new URL(`${basePath}${redirectUrl}`, 'http://n')
+  } else if (redirectUrl.startsWith('.')) {
+    // Relative path - resolve relative to current pathname
+    let base = currentPathname || '/'
+    // Ensure the base path ends with a slash so relative resolution works correctly
+    // e.g., "./subpage" from "/subdir" should resolve to "/subdir/subpage"
+    // not "/subpage"
+    if (!base.endsWith('/')) {
+      base = base + '/'
+    }
+    const resolved = new URL(redirectUrl, `http://n${base}`)
+    // Include basePath in the final URL
+    return new URL(
+      `${basePath}${resolved.pathname}${resolved.search}${resolved.hash}`,
+      'http://n'
+    )
   }
 
   const parsedRedirectUrl = new URL(redirectUrl)
@@ -287,7 +308,8 @@ async function createRedirectRenderResult(
   redirectUrl: string,
   redirectType: RedirectType,
   basePath: string,
-  workStore: WorkStore
+  workStore: WorkStore,
+  currentPathname?: string
 ) {
   res.setHeader('x-action-redirect', `${redirectUrl};${redirectType}`)
 
@@ -299,7 +321,8 @@ async function createRedirectRenderResult(
   const appRelativeRedirectUrl = getAppRelativeRedirectUrl(
     basePath,
     originalHost,
-    redirectUrl
+    redirectUrl,
+    currentPathname
   )
 
   if (appRelativeRedirectUrl) {
@@ -327,7 +350,7 @@ async function createRedirectRenderResult(
     if (workStore.pendingRevalidatedTags) {
       forwardedHeaders.set(
         NEXT_CACHE_REVALIDATED_TAGS_HEADER,
-        workStore.pendingRevalidatedTags.join(',')
+        workStore.pendingRevalidatedTags.map((item) => item.tag).join(',')
       )
       forwardedHeaders.set(
         NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
@@ -389,7 +412,7 @@ async function createRedirectRenderResult(
     }
   }
 
-  return RenderResult.fromStatic('')
+  return RenderResult.EMPTY
 }
 
 // Used to compare Host header and Origin header.
@@ -453,15 +476,6 @@ export function parseHostHeader(
       : undefined
 }
 
-type ServerModuleMap = Record<
-  string,
-  {
-    id: string
-    chunks: string[]
-    name: string
-  }
->
-
 type ServerActionsConfig = {
   bodySizeLimit?: SizeLimit
   allowedOrigins?: string[]
@@ -484,7 +498,6 @@ export async function handleAction({
   req,
   res,
   ComponentMod,
-  serverModuleMap,
   generateFlight,
   workStore,
   requestStore,
@@ -495,7 +508,6 @@ export async function handleAction({
   req: BaseNextRequest
   res: BaseNextResponse
   ComponentMod: AppPageModule
-  serverModuleMap: ServerModuleMap
   generateFlight: GenerateFlight
   workStore: WorkStore
   requestStore: RequestStore
@@ -504,7 +516,8 @@ export async function handleAction({
   metadata: AppPageRenderResultMetadata
 }): Promise<HandleActionResult> {
   const contentType = req.headers['content-type']
-  const { serverActionsManifest, page } = ctx.renderOpts
+  const { page } = ctx.renderOpts
+  const serverModuleMap = getServerModuleMap()
 
   const {
     actionId,
@@ -532,9 +545,10 @@ export async function handleAction({
   // When running actions the default is no-store, you can still `cache: 'force-cache'`
   workStore.fetchCache = 'default-no-store'
 
+  const originHeader = req.headers['origin']
   const originDomain =
-    typeof req.headers['origin'] === 'string'
-      ? new URL(req.headers['origin']).host
+    typeof originHeader === 'string' && originHeader !== 'null'
+      ? new URL(originHeader).host
       : undefined
   const host = parseHostHeader(req.headers)
 
@@ -597,8 +611,9 @@ export async function handleAction({
           type: 'done',
           result: await generateFlight(req, ctx, requestStore, {
             actionResult: promise,
-            // We didn't execute an action, so no revalidations could have occurred. We can skip rendering the page.
-            skipFlight: true,
+            // We didn't execute an action, so no revalidations could have
+            // occurred. We can skip rendering the page.
+            skipPageRendering: true,
             temporaryReferences,
           }),
         }
@@ -619,11 +634,7 @@ export async function handleAction({
   const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
 
   if (actionId) {
-    const forwardedWorker = selectWorkerForForwarding(
-      actionId,
-      page,
-      serverActionsManifest
-    )
+    const forwardedWorker = selectWorkerForForwarding(actionId, page)
 
     // If forwardedWorker is truthy, it means there isn't a worker for the action
     // in the current handler, so we forward the request to a worker that has the action.
@@ -655,7 +666,7 @@ export async function handleAction({
     res.statusCode = 404
     return {
       type: 'done',
-      result: RenderResult.fromStatic('Server action not found.'),
+      result: RenderResult.fromStatic('Server action not found.', 'text/plain'),
     }
   }
 
@@ -664,7 +675,7 @@ export async function handleAction({
       { isAction: true },
       async (): Promise<HandleActionResult> => {
         // We only use these for fetch actions -- MPA actions handle them inside `decodeAction`.
-        let actionModId: string | undefined
+        let actionModId: string | number | undefined
         let boundActionArguments: unknown[] = []
 
         if (
@@ -709,16 +720,16 @@ export async function handleAction({
                 // Only warn if it's a server action, otherwise skip for other post requests
                 warnBadServerActionRequest()
 
-                const actionReturnedState =
-                  await executeActionAndPrepareForRender(
-                    action as () => Promise<unknown>,
-                    [],
-                    workStore,
-                    requestStore
-                  )
+                const { actionResult } = await executeActionAndPrepareForRender(
+                  action as () => Promise<unknown>,
+                  [],
+                  workStore,
+                  requestStore,
+                  actionWasForwarded
+                )
 
                 const formState = await decodeFormState(
-                  actionReturnedState,
+                  actionResult,
                   formData,
                   serverModuleMap
                 )
@@ -903,16 +914,16 @@ export async function handleAction({
                 // Only warn if it's a server action, otherwise skip for other post requests
                 warnBadServerActionRequest()
 
-                const actionReturnedState =
-                  await executeActionAndPrepareForRender(
-                    action as () => Promise<unknown>,
-                    [],
-                    workStore,
-                    requestStore
-                  )
+                const { actionResult } = await executeActionAndPrepareForRender(
+                  action as () => Promise<unknown>,
+                  [],
+                  workStore,
+                  requestStore,
+                  actionWasForwarded
+                )
 
                 const formState = await decodeFormState(
-                  actionReturnedState,
+                  actionResult,
                   formData,
                   serverModuleMap
                 )
@@ -1002,27 +1013,32 @@ export async function handleAction({
             actionId!
           ]
 
-        const returnVal = await executeActionAndPrepareForRender(
-          actionHandler,
-          boundActionArguments,
-          workStore,
-          requestStore
-        ).finally(() => {
-          addRevalidationHeader(res, { workStore, requestStore })
-        })
+        const { actionResult, skipPageRendering } =
+          await executeActionAndPrepareForRender(
+            actionHandler,
+            boundActionArguments,
+            workStore,
+            requestStore,
+            actionWasForwarded
+          ).finally(() => {
+            addRevalidationHeader(res, { workStore, requestStore })
+          })
 
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {
-          const actionResult = await generateFlight(req, ctx, requestStore, {
-            actionResult: Promise.resolve(returnVal),
-            // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
-            skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,
-            temporaryReferences,
-          })
-
           return {
             type: 'done',
-            result: actionResult,
+            result: await generateFlight(req, ctx, requestStore, {
+              actionResult: Promise.resolve(actionResult),
+              skipPageRendering,
+              temporaryReferences,
+              // If we skip page rendering, we need to ensure pending
+              // revalidates are awaited before closing the response. Otherwise,
+              // this will be done after rendering the page.
+              waitUntil: skipPageRendering
+                ? executeRevalidates(workStore)
+                : undefined,
+            }),
           }
         } else {
           // TODO: this shouldn't be reachable, because all non-fetch codepaths return early.
@@ -1051,7 +1067,8 @@ export async function handleAction({
             redirectUrl,
             redirectType,
             ctx.renderOpts.basePath,
-            workStore
+            workStore,
+            requestStore.url.pathname
           ),
         }
       }
@@ -1060,7 +1077,7 @@ export async function handleAction({
       res.setHeader('Location', redirectUrl)
       return {
         type: 'done',
-        result: RenderResult.fromStatic(''),
+        result: RenderResult.EMPTY,
       }
     } else if (isHTTPAccessFallbackError(err)) {
       res.statusCode = getAccessFallbackHTTPStatus(err)
@@ -1080,7 +1097,7 @@ export async function handleAction({
         return {
           type: 'done',
           result: await generateFlight(req, ctx, requestStore, {
-            skipFlight: false,
+            skipPageRendering: false,
             actionResult: promise,
             temporaryReferences,
           }),
@@ -1117,8 +1134,10 @@ export async function handleAction({
         type: 'done',
         result: await generateFlight(req, ctx, requestStore, {
           actionResult: promise,
-          // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
-          skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,
+          // If the page was not revalidated, or if the action was forwarded
+          // from another worker, we can skip rendering the page.
+          skipPageRendering:
+            !workStore.pathWasRevalidated || actionWasForwarded,
           temporaryReferences,
         }),
       }
@@ -1135,29 +1154,45 @@ async function executeActionAndPrepareForRender<
   action: TFn,
   args: Parameters<TFn>,
   workStore: WorkStore,
-  requestStore: RequestStore
-): Promise<Awaited<ReturnType<TFn>>> {
+  requestStore: RequestStore,
+  actionWasForwarded: boolean
+): Promise<{
+  actionResult: Awaited<ReturnType<TFn>>
+  skipPageRendering: boolean
+}> {
   requestStore.phase = 'action'
+  let skipPageRendering = actionWasForwarded
+
   try {
-    return await workUnitAsyncStorage.run(requestStore, () =>
+    const actionResult = await workUnitAsyncStorage.run(requestStore, () =>
       action.apply(null, args)
     )
+
+    // If the page was not revalidated, or if the action was forwarded from
+    // another worker, we can skip rendering the page.
+    skipPageRendering ||= !workStore.pathWasRevalidated
+
+    return { actionResult, skipPageRendering }
   } finally {
-    requestStore.phase = 'render'
+    if (!skipPageRendering) {
+      requestStore.phase = 'render'
 
-    // When we switch to the render phase, cookies() will return
-    // `workUnitStore.cookies` instead of `workUnitStore.userspaceMutableCookies`.
-    // We want the render to see any cookie writes that we performed during the action,
-    // so we need to update the immutable cookies to reflect the changes.
-    synchronizeMutableCookies(requestStore)
+      // When we switch to the render phase, cookies() will return
+      // `workUnitStore.cookies` instead of
+      // `workUnitStore.userspaceMutableCookies`. We want the render to see any
+      // cookie writes that we performed during the action, so we need to update
+      // the immutable cookies to reflect the changes.
+      synchronizeMutableCookies(requestStore)
 
-    // The server action might have toggled draft mode, so we need to reflect
-    // that in the work store to be up-to-date for subsequent rendering.
-    workStore.isDraftMode = requestStore.draftMode.isEnabled
+      // The server action might have toggled draft mode, so we need to reflect
+      // that in the work store to be up-to-date for subsequent rendering.
+      workStore.isDraftMode = requestStore.draftMode.isEnabled
 
-    // If the action called revalidateTag/revalidatePath, then that might affect data used by the subsequent render,
-    // so we need to make sure all revalidations are applied before that
-    await executeRevalidates(workStore)
+      // If the action called revalidateTag/revalidatePath, then that might
+      // affect data used by the subsequent render, so we need to make sure all
+      // revalidations are applied before that.
+      await executeRevalidates(workStore)
+    }
   }
 }
 
@@ -1169,7 +1204,7 @@ async function executeActionAndPrepareForRender<
 function getActionModIdOrError(
   actionId: string | null,
   serverModuleMap: ServerModuleMap
-): string {
+): string | number {
   // if we're missing the action ID header, we can't do any further processing
   if (!actionId) {
     throw new InvariantError("Missing 'next-action' header.")

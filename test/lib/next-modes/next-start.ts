@@ -4,11 +4,13 @@ import { NextInstance } from './base'
 import spawn from 'cross-spawn'
 import { Span } from 'next/dist/trace'
 import stripAnsi from 'strip-ansi'
+import { quote as shellQuote } from 'shell-quote'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
   private _cliOutput: string = ''
-  private spawnOpts: import('child_process').SpawnOptions
+
+  private _prerenderFinishedTimeMS: number | null = null
 
   public get buildId() {
     return this._buildId
@@ -44,35 +46,9 @@ export class NextStartInstance extends NextInstance {
     }
 
     this._cliOutput = ''
-    this.spawnOpts = {
-      cwd: this.testDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
-      env: {
-        ...process.env,
-        ...this.env,
-        NODE_ENV: this.env.NODE_ENV || ('' as any),
-        ...(this.forcedPort
-          ? {
-              PORT: this.forcedPort,
-            }
-          : {
-              PORT: '0',
-            }),
-        __NEXT_TEST_MODE: 'e2e',
-      },
-    }
+    const spawnOpts = this.getSpawnOpts()
 
-    let buildArgs = ['pnpm', 'next', 'build']
     let startArgs = ['pnpm', 'next', 'start']
-
-    if (this.buildCommand) {
-      buildArgs = this.buildCommand.split(' ')
-    }
-
-    if (this.buildArgs) {
-      buildArgs.push(...this.buildArgs)
-    }
 
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
@@ -84,23 +60,17 @@ export class NextStartInstance extends NextInstance {
 
     if (process.env.NEXT_SKIP_ISOLATE) {
       // without isolation yarn can't be used and pnpm must be used instead
-      if (buildArgs[0] === 'yarn') {
-        buildArgs[0] = 'pnpm'
-      }
       if (startArgs[0] === 'yarn') {
         startArgs[0] = 'pnpm'
       }
     }
 
     if (!options.skipBuild) {
-      console.log('running', buildArgs.join(' '))
+      const buildArgs = this.getBuildArgs()
+      console.log('running', shellQuote(buildArgs))
       await new Promise<void>((resolve, reject) => {
         try {
-          this.childProcess = spawn(
-            buildArgs[0],
-            buildArgs.slice(1),
-            this.spawnOpts
-          )
+          this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
           this.handleStdio(this.childProcess)
           this.childProcess.on('exit', (code, signal) => {
             this.childProcess = undefined
@@ -112,8 +82,21 @@ export class NextStartInstance extends NextInstance {
               )
             else resolve()
           })
+          const prerenderedCallback = (msg: string) => {
+            const colorStrippedMsg = stripAnsi(msg)
+            // This stage happens after all prerenders have finished.
+            const prerenderFinishedPattern = /Finalizing page optimization/
+            if (prerenderFinishedPattern.test(colorStrippedMsg)) {
+              this._prerenderFinishedTimeMS = performance.now()
+              this.off('stdout', prerenderedCallback)
+            }
+          }
+          this.on('stdout', prerenderedCallback)
         } catch (err) {
-          require('console').error(`Failed to run ${buildArgs.join(' ')}`, err)
+          require('console').error(
+            `Failed to run ${shellQuote(buildArgs)}`,
+            err
+          )
           setTimeout(() => process.exit(1), 0)
         }
       })
@@ -132,24 +115,22 @@ export class NextStartInstance extends NextInstance {
       ).trim()
     }
 
-    console.log('running', startArgs.join(' '))
+    console.log('running', shellQuote(startArgs))
     await new Promise<void>((resolve, reject) => {
       try {
-        this.childProcess = spawn(
-          startArgs[0],
-          startArgs.slice(1),
-          this.spawnOpts
-        )
+        this.childProcess = spawn(startArgs[0], startArgs.slice(1), spawnOpts)
         this.handleStdio(this.childProcess)
 
         this.childProcess.on('close', (code, signal) => {
-          if (this.isStopping) return
+          this.childProcess = undefined
           if (code || signal) {
-            require('console').error(
-              `next start exited unexpectedly with code/signal ${
-                code || signal
-              }`
-            )
+            let message = `next start exited unexpectedly with code/signal ${
+              code || signal
+            }`
+            if (!this.isStopping) {
+              require('console').error(message)
+            }
+            reject(new Error(message))
           }
         })
 
@@ -178,56 +159,75 @@ export class NextStartInstance extends NextInstance {
         }
         this.on('stdout', readyCb)
       } catch (err) {
-        require('console').error(`Failed to run ${startArgs.join(' ')}`, err)
+        require('console').error(`Failed to run ${shellQuote(startArgs)}`, err)
         setTimeout(() => process.exit(1), 0)
       }
     })
   }
 
-  public async build(
-    options: { env?: Record<string, string>; args?: string[] } = {}
-  ) {
-    this.spawnOpts = {
+  private getBuildArgs(args?: string[]) {
+    let buildArgs = ['pnpm', 'next', 'build']
+
+    if (this.buildCommand) {
+      buildArgs = this.buildCommand.split(' ')
+    }
+
+    if (this.buildArgs) {
+      buildArgs.push(...this.buildArgs)
+    }
+
+    if (args) {
+      buildArgs.push(...args)
+    }
+
+    if (process.env.NEXT_SKIP_ISOLATE) {
+      // without isolation yarn can't be used and pnpm must be used instead
+      if (buildArgs[0] === 'yarn') {
+        buildArgs[0] = 'pnpm'
+      }
+    }
+
+    return buildArgs
+  }
+
+  private getSpawnOpts(
+    env?: Record<string, string>
+  ): import('child_process').SpawnOptions {
+    return {
       cwd: this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
       env: {
         ...process.env,
         ...this.env,
-        ...options.env,
-        NODE_ENV: '' as any,
-        PORT: this.forcedPort || '0',
+        ...env,
+        NODE_ENV: this.env.NODE_ENV || ('' as any),
+        PORT: this.forcedPort ?? '0',
         __NEXT_TEST_MODE: 'e2e',
       },
     }
-    return new Promise<{
+  }
+
+  public async build(
+    options: { env?: Record<string, string>; args?: string[] } = {}
+  ) {
+    if (this.childProcess) {
+      throw new Error(
+        `can not run export while server is running, use next.stop() first`
+      )
+    }
+
+    let result = await new Promise<{
       exitCode: NodeJS.Signals | number | null
       cliOutput: string
     }>((resolve) => {
       const curOutput = this._cliOutput.length
-      const buildArgs = ['pnpm', 'next', 'build']
+      const spawnOpts = this.getSpawnOpts(options.env)
+      const buildArgs = this.getBuildArgs(options.args)
 
-      if (this.buildArgs) {
-        buildArgs.push(...this.buildArgs)
-      }
+      console.log('running', shellQuote(buildArgs))
 
-      if (options.args) {
-        buildArgs.push(...options.args)
-      }
-
-      if (this.childProcess) {
-        throw new Error(
-          `can not run export while server is running, use next.stop() first`
-        )
-      }
-
-      console.log('running', buildArgs.join(' '))
-
-      this.childProcess = spawn(
-        buildArgs[0],
-        buildArgs.slice(1),
-        this.spawnOpts
-      )
+      this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
       this.handleStdio(this.childProcess)
 
       this.childProcess.on('exit', (code, signal) => {
@@ -238,5 +238,42 @@ export class NextStartInstance extends NextInstance {
         })
       })
     })
+
+    this._buildId = (
+      await fs
+        .readFile(
+          path.join(
+            this.testDir,
+            this.nextConfig?.distDir || '.next',
+            'BUILD_ID'
+          ),
+          'utf8'
+        )
+        .catch(() => '')
+    ).trim()
+
+    return result
+  }
+
+  public async waitForMinPrerenderAge(minAgeMS: number): Promise<void> {
+    if (this._prerenderFinishedTimeMS === null) {
+      throw new Error(
+        'Could not determine when prerender finished. ' +
+          `Cannot guarantee a minimum prerender age of ${minAgeMS}ms.`
+      )
+    }
+
+    const prerenderAge = performance.now() - this._prerenderFinishedTimeMS
+    const minWaitTime = minAgeMS - prerenderAge
+    if (minWaitTime > 0) {
+      console.log(
+        'Need to wait %dms to guarantee prerender age of %dms',
+        minWaitTime,
+        minAgeMS
+      )
+      await new Promise((resolve) => {
+        setTimeout(resolve, minWaitTime)
+      })
+    }
   }
 }

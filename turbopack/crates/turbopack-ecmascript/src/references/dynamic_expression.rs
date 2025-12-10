@@ -1,22 +1,47 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use swc_core::quote;
 use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbopack_core::chunk::ChunkingContext;
 
-use super::AstPath;
 use crate::{
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
+    references::AstPath,
 };
 
-#[derive(PartialEq, Eq, TraceRawVcs, Serialize, Deserialize, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    ValueDebugFormat,
+    NonLocalValue,
+    Hash,
+    Debug,
+    Encode,
+    Decode,
+)]
 enum DynamicExpressionType {
     Promise,
     Normal,
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    ValueDebugFormat,
+    NonLocalValue,
+    Debug,
+    Hash,
+    Encode,
+    Decode,
+)]
 pub struct DynamicExpression {
     path: AstPath,
     ty: DynamicExpressionType,

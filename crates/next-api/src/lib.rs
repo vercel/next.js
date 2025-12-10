@@ -3,6 +3,7 @@
 #![feature(arbitrary_self_types_pointers)]
 #![feature(impl_trait_in_assoc_type)]
 
+pub mod analyze;
 mod app;
 mod client_references;
 mod dynamic_imports;
@@ -13,18 +14,14 @@ mod instrumentation;
 mod loadable_manifest;
 mod middleware;
 mod module_graph;
+pub mod next_server_nft;
 mod nft_json;
 pub mod operation;
 mod pages;
 pub mod paths;
 pub mod project;
 pub mod route;
+pub mod routes_hashes_manifest;
 mod server_actions;
 mod versioned_content_map;
 mod webpack_stats;
-
-pub fn register() {
-    next_core::register();
-    turbopack_nodejs::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}

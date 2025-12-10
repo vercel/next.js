@@ -12,11 +12,14 @@ import {
   decrypt,
   encrypt,
   getActionEncryptionKey,
-  getClientReferenceManifestForRsc,
-  getServerModuleMap,
   stringToUint8Array,
 } from './encryption-utils'
 import {
+  getClientReferenceManifest,
+  getServerModuleMap,
+} from './manifests-singleton'
+import {
+  getCacheSignal,
   getPrerenderResumeDataCache,
   getRenderResumeDataCache,
   workUnitAsyncStorage,
@@ -28,6 +31,17 @@ const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
+
+const filterStackFrame =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .filterStackFrameDEV
+    : undefined
+const findSourceMapURL =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .findSourceMapURLDEV
+    : undefined
 
 /**
  * Decrypt the serialized string with the action id as the salt.
@@ -95,12 +109,11 @@ enum ReadStatus {
 export const encryptActionBoundArgs = React.cache(
   async function encryptActionBoundArgs(actionId: string, ...args: any[]) {
     const workUnitStore = workUnitAsyncStorage.getStore()
-    const cacheSignal =
-      workUnitStore?.type === 'prerender'
-        ? workUnitStore.cacheSignal
-        : undefined
+    const cacheSignal = workUnitStore
+      ? getCacheSignal(workUnitStore)
+      : undefined
 
-    const { clientModules } = getClientReferenceManifestForRsc()
+    const { clientModules } = getClientReferenceManifest()
 
     // Create an error before any asynchronous calls, to capture the original
     // call stack in case we need it when the serialization errors.
@@ -109,10 +122,9 @@ export const encryptActionBoundArgs = React.cache(
 
     let didCatchError = false
 
-    const hangingInputAbortSignal =
-      workUnitStore?.type === 'prerender'
-        ? createHangingInputAbortSignal(workUnitStore)
-        : undefined
+    const hangingInputAbortSignal = workUnitStore
+      ? createHangingInputAbortSignal(workUnitStore)
+      : undefined
 
     let readStatus = ReadStatus.Ready
     function startReadOnce() {
@@ -144,6 +156,7 @@ export const encryptActionBoundArgs = React.cache(
     // Using Flight to serialize the args into a string.
     const serialized = await streamToString(
       renderToReadableStream(args, clientModules, {
+        filterStackFrame,
         signal: hangingInputAbortSignal,
         onError(err) {
           if (hangingInputAbortSignal?.aborted) {
@@ -220,9 +233,7 @@ export async function decryptActionBoundArgs(
   let decrypted: string | undefined
 
   if (workUnitStore) {
-    const cacheSignal =
-      workUnitStore.type === 'prerender' ? workUnitStore.cacheSignal : undefined
-
+    const cacheSignal = getCacheSignal(workUnitStore)
     const prerenderResumeDataCache = getPrerenderResumeDataCache(workUnitStore)
     const renderResumeDataCache = getRenderResumeDataCache(workUnitStore)
 
@@ -241,7 +252,7 @@ export async function decryptActionBoundArgs(
   }
 
   const { edgeRscModuleMapping, rscModuleMapping } =
-    getClientReferenceManifestForRsc()
+    getClientReferenceManifest()
 
   // Using Flight to deserialize the args from the string.
   const deserialized = await createFromReadableStream(
@@ -249,24 +260,37 @@ export async function decryptActionBoundArgs(
       start(controller) {
         controller.enqueue(textEncoder.encode(decrypted))
 
-        if (workUnitStore?.type === 'prerender') {
-          // Explicitly don't close the stream here (until prerendering is
-          // complete) so that hanging promises are not rejected.
-          if (workUnitStore.renderSignal.aborted) {
-            controller.close()
-          } else {
-            workUnitStore.renderSignal.addEventListener(
-              'abort',
-              () => controller.close(),
-              { once: true }
-            )
-          }
-        } else {
-          controller.close()
+        switch (workUnitStore?.type) {
+          case 'prerender':
+          case 'prerender-runtime':
+            // Explicitly don't close the stream here (until prerendering is
+            // complete) so that hanging promises are not rejected.
+            if (workUnitStore.renderSignal.aborted) {
+              controller.close()
+            } else {
+              workUnitStore.renderSignal.addEventListener(
+                'abort',
+                () => controller.close(),
+                { once: true }
+              )
+            }
+            break
+          case 'prerender-client':
+          case 'prerender-ppr':
+          case 'prerender-legacy':
+          case 'request':
+          case 'cache':
+          case 'private-cache':
+          case 'unstable-cache':
+          case undefined:
+            return controller.close()
+          default:
+            workUnitStore satisfies never
         }
       },
     }),
     {
+      findSourceMapURL,
       serverConsumerManifest: {
         // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
         // to be added to the current execution. Instead, we'll wait for any ClientReference

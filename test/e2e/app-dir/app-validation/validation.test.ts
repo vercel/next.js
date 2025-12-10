@@ -16,13 +16,13 @@ describe('app dir - validation', () => {
     const stateTree2 = JSON.stringify(['', {}])
 
     const headers1 = {
-      RSC: '1',
-      'Next-Router-State-Tree': stateTree1,
+      rsc: '1',
+      'next-router-state-tree': stateTree1,
     }
 
     const headers2 = {
-      RSC: '1',
-      'Next-Router-State-Tree': stateTree2,
+      rsc: '1',
+      'next-router-state-tree': stateTree2,
     }
 
     const url1 = new URL('/', 'http://localhost')

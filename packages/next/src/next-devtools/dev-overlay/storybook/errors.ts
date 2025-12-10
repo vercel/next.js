@@ -15,16 +15,16 @@ const sourceStackFrame = {
   file: 'app/page.tsx',
   methodName: 'Home',
   arguments: [],
-  lineNumber: 2,
-  column: 9,
+  line1: 2,
+  column1: 9,
 }
 
 const originalStackFrame = {
   file: 'app/page.tsx',
   methodName: 'Home',
   arguments: [],
-  lineNumber: 2,
-  column: 9,
+  line1: 2,
+  column1: 9,
   ignored: false,
 }
 
@@ -33,16 +33,16 @@ const frame = {
     file: './app/page.tsx',
     methodName: 'MyComponent',
     arguments: [],
-    lineNumber: 10,
-    column: 5,
+    line1: 10,
+    column1: 5,
     ignored: false,
   },
   sourceStackFrame: {
     file: './app/page.tsx',
     methodName: 'MyComponent',
     arguments: [],
-    lineNumber: 10,
-    column: 5,
+    line1: 10,
+    column1: 5,
   },
   originalCodeFrame: 'export default function MyComponent() {',
   error: false,
@@ -62,22 +62,13 @@ export const errors: SupportedErrorEvent[] = [
     error: Object.assign(new Error('First error message'), {
       __NEXT_ERROR_CODE: 'E001',
     }),
-    componentStackFrames: [
-      {
-        file: 'app/page.tsx',
-        component: 'Home',
-        lineNumber: 10,
-        column: 5,
-        canOpenInEditor: true,
-      },
-    ],
     frames: [
       {
         file: 'app/page.tsx',
         methodName: 'Home',
         arguments: [],
-        lineNumber: 10,
-        column: 5,
+        line1: 10,
+        column1: 5,
       },
     ],
     type: 'runtime',

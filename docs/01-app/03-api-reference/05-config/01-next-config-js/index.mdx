@@ -37,7 +37,7 @@ const nextConfig = {
 export default nextConfig
 ```
 
-> **Good to know**: `next.config` with the `.cjs`, `.cts`, or `.mts` extensions are currently **not** supported.
+> **Good to know**: `next.config` with the `.cjs` or `.cts` extensions are currently **not** supported.
 
 ## Configuration as a Function
 
@@ -125,7 +125,7 @@ Starting in Next.js 15.1, the `next/experimental/testing/server` package contain
 
 The `unstable_getResponseFromNextConfig` function runs the [`headers`](/docs/app/api-reference/config/next-config-js/headers), [`redirects`](/docs/app/api-reference/config/next-config-js/redirects), and [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites) functions from `next.config.js` with the provided request information and returns `NextResponse` with the results of the routing.
 
-> The response from `unstable_getResponseFromNextConfig` only considers `next.config.js` fields and does not consider middleware or filesystem routes, so the result in production may be different than the unit test.
+> The response from `unstable_getResponseFromNextConfig` only considers `next.config.js` fields and does not consider proxy or filesystem routes, so the result in production may be different than the unit test.
 
 ```js
 import {

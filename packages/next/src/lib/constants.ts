@@ -1,5 +1,8 @@
 import type { ServerRuntime } from '../types'
 
+export const TEXT_PLAIN_CONTENT_TYPE_HEADER = 'text/plain'
+export const HTML_CONTENT_TYPE_HEADER = 'text/html; charset=utf-8'
+export const JSON_CONTENT_TYPE_HEADER = 'application/json; charset=utf-8'
 export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
 export const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
 
@@ -8,7 +11,6 @@ export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
 export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
   'x-prerender-revalidate-if-generated'
 
-export const RSC_PREFETCH_SUFFIX = '.prefetch.rsc'
 export const RSC_SEGMENTS_DIR_SUFFIX = '.segments'
 export const RSC_SEGMENT_SUFFIX = '.segment.rsc'
 export const RSC_SUFFIX = '.rsc'
@@ -42,6 +44,10 @@ export const INFINITE_CACHE = 0xfffffffe
 // Patterns to detect middleware files
 export const MIDDLEWARE_FILENAME = 'middleware'
 export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`
+
+// Patterns to detect proxy files (replacement for middleware)
+export const PROXY_FILENAME = 'proxy'
+export const PROXY_LOCATION_REGEXP = `(?:src/)?${PROXY_FILENAME}`
 
 // Pattern to detect instrumentation hooks file
 export const INSTRUMENTATION_HOOK_FILENAME = 'instrumentation'
@@ -96,6 +102,8 @@ export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
   experimentalEdge: 'experimental-edge',
   nodejs: 'nodejs',
 }
+
+export const WEB_SOCKET_MAX_RECONNECTIONS = 12
 
 /**
  * The names of the webpack layers. These layers are the primitives for the

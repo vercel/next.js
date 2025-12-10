@@ -3,6 +3,7 @@ export default async function handler(req, res) {
   // make sure to use trusted value for revalidating
   let revalidated = false
   try {
+    console.log('API: Called res.revalidate for ', req.query.pathname)
     await res.revalidate(req.query.pathname, {
       unstable_onlyGenerated: !!req.query.onlyGenerated,
     })

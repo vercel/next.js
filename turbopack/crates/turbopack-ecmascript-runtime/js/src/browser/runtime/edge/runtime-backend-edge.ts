@@ -18,72 +18,6 @@ type ChunkRunner = {
 }
 
 let BACKEND: RuntimeBackend
-
-type ExternalRequire = (
-  id: DependencySpecifier,
-  thunk: () => any,
-  esm?: boolean
-) => Exports | EsmNamespaceObject
-type ExternalImport = (
-  id: DependencySpecifier
-) => Promise<Exports | EsmNamespaceObject>
-
-interface TurbopackEdgeContext extends TurbopackBaseContext<Module> {
-  x: ExternalRequire
-  y: ExternalImport
-}
-
-function augmentContext(
-  context: TurbopackBaseContext<Module>
-): TurbopackEdgeContext {
-  const nodejsContext = context as TurbopackEdgeContext
-  nodejsContext.x = externalRequire
-  nodejsContext.y = externalImport
-  return nodejsContext
-}
-
-async function loadWebAssembly(
-  source: SourceInfo,
-  chunkPath: ChunkPath,
-  edgeModule: () => WebAssembly.Module,
-  imports: WebAssembly.Imports
-): Promise<Exports> {
-  const module = await loadWebAssemblyModule(source, chunkPath, edgeModule)
-
-  return await WebAssembly.instantiate(module, imports)
-}
-
-function getFileStem(path: string): string {
-  const fileName = path.split('/').pop()!
-
-  const stem = fileName.split('.').shift()!
-
-  if (stem === '') {
-    return fileName
-  }
-
-  return stem
-}
-
-async function loadWebAssemblyModule(
-  _source: SourceInfo,
-  chunkPath: ChunkPath,
-  edgeModule: () => WebAssembly.Module
-): Promise<WebAssembly.Module> {
-  let module
-  try {
-    module = edgeModule()
-  } catch (_e) {}
-
-  if (!module) {
-    throw new Error(
-      `dynamically loading WebAssembly is not supported in this runtime as global was not injected for chunk '${chunkPath}'`
-    )
-  }
-
-  return module
-}
-
 ;(() => {
   BACKEND = {
     // The "none" runtime expects all chunks within the same chunk group to be
@@ -117,8 +51,29 @@ async function loadWebAssemblyModule(
       }
     },
 
-    loadChunk(_chunkUrl, _source) {
+    loadChunkCached(_sourceType: SourceType, _chunkUrl: ChunkUrl) {
       throw new Error('chunk loading is not supported')
+    },
+
+    async loadWebAssembly(
+      _sourceType: SourceType,
+      _sourceData: SourceData,
+      chunkPath: ChunkPath,
+      edgeModule: () => WebAssembly.Module,
+      imports: WebAssembly.Imports
+    ): Promise<Exports> {
+      const module = await loadEdgeWasm(chunkPath, edgeModule)
+
+      return await WebAssembly.instantiate(module, imports)
+    },
+
+    async loadWebAssemblyModule(
+      _sourceType: SourceType,
+      _sourceData: SourceData,
+      chunkPath: ChunkPath,
+      edgeModule: () => WebAssembly.Module
+    ): Promise<WebAssembly.Module> {
+      return loadEdgeWasm(chunkPath, edgeModule)
     },
   }
 
@@ -189,7 +144,25 @@ async function loadWebAssemblyModule(
     chunkPath: ChunkPath
   ) {
     for (const moduleId of runtimeModuleIds) {
-      getOrInstantiateRuntimeModule(moduleId, chunkPath)
+      getOrInstantiateRuntimeModule(chunkPath, moduleId)
     }
+  }
+
+  async function loadEdgeWasm(
+    chunkPath: ChunkPath,
+    edgeModule: () => WebAssembly.Module
+  ): Promise<WebAssembly.Module> {
+    let module
+    try {
+      module = edgeModule()
+    } catch (_e) {}
+
+    if (!module) {
+      throw new Error(
+        `dynamically loading WebAssembly is not supported in this runtime as global was not injected for chunk '${chunkPath}'`
+      )
+    }
+
+    return module
   }
 })()

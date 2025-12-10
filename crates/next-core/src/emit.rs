@@ -1,13 +1,11 @@
 use anyhow::Result;
 use tracing::Instrument;
-use turbo_tasks::{
-    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, Vc,
-    graph::{AdjacencyMap, GraphTraversal},
-};
+use turbo_tasks::{TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::{FileSystemPath, rebase};
 use turbopack_core::{
     asset::Asset,
-    output::{OutputAsset, OutputAssets},
+    output::{ExpandedOutputAssets, OutputAsset, OutputAssets},
+    reference::all_assets_from_entries,
 };
 
 /// Emits all assets transitively reachable from the given chunks, that are
@@ -40,7 +38,7 @@ pub async fn emit_all_assets(
 /// path.
 #[turbo_tasks::function]
 pub async fn emit_assets(
-    assets: Vc<OutputAssets>,
+    assets: Vc<ExpandedOutputAssets>,
     node_root: FileSystemPath,
     client_relative_path: FileSystemPath,
     client_output_path: FileSystemPath,
@@ -55,7 +53,7 @@ pub async fn emit_assets(
             let client_output_path = client_output_path.clone();
 
             async move {
-                let path = asset.path().await?.clone_value();
+                let path = asset.path().owned().await?;
                 let span = tracing::info_span!("emit asset", name = %path.value_to_string().await?);
                 async move {
                     Ok(if path.is_inside_ref(&node_root) {
@@ -88,7 +86,7 @@ async fn emit(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
         .content()
         .resolve()
         .await?
-        .write(asset.path().await?.clone_value())
+        .write(asset.path().owned().await?)
         .as_side_effect()
         .await?;
     Ok(())
@@ -100,9 +98,9 @@ async fn emit_rebase(
     from: FileSystemPath,
     to: FileSystemPath,
 ) -> Result<()> {
-    let path = rebase(asset.path().await?.clone_value(), from, to)
-        .await?
-        .clone_value();
+    let path = rebase(asset.path().owned().await?, from, to)
+        .owned()
+        .await?;
     let content = asset.content();
     content
         .resolve()
@@ -111,35 +109,4 @@ async fn emit_rebase(
         .as_side_effect()
         .await?;
     Ok(())
-}
-
-/// Walks the asset graph from multiple assets and collect all referenced
-/// assets.
-#[turbo_tasks::function]
-pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<OutputAssets>> {
-    Ok(Vc::cell(
-        AdjacencyMap::new()
-            .skip_duplicates()
-            .visit(entries.await?.iter().copied(), get_referenced_assets)
-            .await
-            .completed()?
-            .into_inner()
-            .into_postorder_topological()
-            .collect::<FxIndexSet<_>>()
-            .into_iter()
-            .collect(),
-    ))
-}
-
-/// Computes the list of all chunk children of a given chunk.
-async fn get_referenced_assets(
-    asset: ResolvedVc<Box<dyn OutputAsset>>,
-) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>> + Send> {
-    Ok(asset
-        .references()
-        .await?
-        .iter()
-        .copied()
-        .collect::<Vec<_>>()
-        .into_iter())
 }

@@ -49,7 +49,7 @@ export class ImageResponse extends Response {
       'cache-control':
         process.env.NODE_ENV === 'development'
           ? 'no-cache, no-store'
-          : 'public, immutable, no-transform, max-age=31536000',
+          : 'public, max-age=0, must-revalidate',
     })
     if (options.headers) {
       const newHeaders = new Headers(options.headers)

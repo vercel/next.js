@@ -20,7 +20,7 @@ pub struct IssueCollector {
 }
 
 impl IssueCollector {
-    pub async fn emit(self) -> Result<()> {
+    pub async fn emit(self, loose_errors: bool) -> Result<()> {
         let issues = {
             let mut inner = self.inner.lock();
             take(&mut inner.emitted_issues)
@@ -28,7 +28,11 @@ impl IssueCollector {
 
         for issue in issues {
             AnalyzeIssue::new(
-                issue.severity,
+                if loose_errors && issue.severity <= IssueSeverity::Error {
+                    IssueSeverity::Warning
+                } else {
+                    issue.severity
+                },
                 issue.source.ident(),
                 Vc::cell(issue.title),
                 issue.message.cell(),

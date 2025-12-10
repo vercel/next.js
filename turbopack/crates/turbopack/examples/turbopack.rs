@@ -12,7 +12,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ReadConsistency, TurboTasks, UpdateInfo, Vc, util::FormatDuration};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
-use turbopack::{emit_with_completion, register};
+use turbopack::emit_assets_into_dir;
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
     compile_time_info::CompileTimeInfo,
@@ -21,13 +21,12 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     rebase::RebasedAsset,
+    reference::all_assets_from_entry,
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    register();
-
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions::default(),
         noop_backing_storage(),
@@ -37,7 +36,7 @@ async fn main() -> Result<()> {
     let task = tt.spawn_root_task(|| {
         Box::pin(async {
             let root: RcStr = current_dir().unwrap().to_str().unwrap().into();
-            let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.into(), root, vec![]);
+            let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.into(), root);
             disk_fs.await?.start_watching(None).await?;
 
             // Smart Pointer cast
@@ -56,7 +55,7 @@ async fn main() -> Result<()> {
                 ResolveOptionsContext {
                     enable_typescript: true,
                     enable_react: true,
-                    enable_node_modules: Some(fs.root().await?.clone_value()),
+                    enable_node_modules: Some(fs.root().owned().await?),
                     custom_conditions: vec![rcstr!("development")],
                     ..Default::default()
                 }
@@ -70,7 +69,8 @@ async fn main() -> Result<()> {
                 )
                 .module();
             let rebased = RebasedAsset::new(module, input, output.clone());
-            emit_with_completion(Vc::upcast(rebased), output).await?;
+            let assets = all_assets_from_entry(Vc::upcast(rebased));
+            emit_assets_into_dir(assets, output).await?;
 
             anyhow::Ok::<Vc<()>>(Default::default())
         })

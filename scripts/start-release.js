@@ -11,13 +11,17 @@ async function main() {
   const semverType = args[args.indexOf('--semver-type') + 1]
   const isCanary = releaseType === 'canary'
   const isReleaseCandidate = releaseType === 'release-candidate'
+  const isBeta = releaseType === 'beta'
 
   if (
     releaseType !== 'stable' &&
     releaseType !== 'canary' &&
-    releaseType !== 'release-candidate'
+    releaseType !== 'release-candidate' &&
+    releaseType !== 'beta'
   ) {
-    console.log(`Invalid release type ${releaseType}, must be stable or canary`)
+    console.log(
+      `Invalid release type ${releaseType}, must be stable, canary, release-candidate, or beta`
+    )
     return
   }
   if (!isCanary && !SEMVER_TYPES.includes(semverType)) {
@@ -71,7 +75,9 @@ async function main() {
       ? `pnpm lerna version ${preleaseType} --preid canary --force-publish -y && pnpm release --pre --skip-questions --show-url`
       : isReleaseCandidate
         ? `pnpm lerna version ${preleaseType} --preid rc --force-publish -y && pnpm release --pre --skip-questions --show-url`
-        : `pnpm lerna version ${semverType} --force-publish -y`,
+        : isBeta
+          ? `pnpm lerna version ${preleaseType} --preid beta --force-publish -y && pnpm release --pre --skip-questions --show-url`
+          : `pnpm lerna version ${semverType} --force-publish -y`,
     {
       stdio: 'pipe',
       shell: true,

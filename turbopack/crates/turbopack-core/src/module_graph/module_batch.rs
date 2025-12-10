@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -24,11 +25,25 @@ use crate::{
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum ModuleOrBatch {
     Module(ResolvedVc<Box<dyn Module>>),
     Batch(ResolvedVc<ModuleBatch>),
     None(usize),
+}
+
+impl ModuleOrBatch {
+    pub async fn ident_strings(self) -> Result<IdentStrings> {
+        Ok(match self {
+            ModuleOrBatch::Module(module) => {
+                IdentStrings::Single(module.ident().to_string().owned().await?)
+            }
+            ModuleOrBatch::Batch(batch) => IdentStrings::Multiple(batch.ident_strings().await?),
+            ModuleOrBatch::None(_) => IdentStrings::None,
+        })
+    }
 }
 
 #[derive(
@@ -43,6 +58,8 @@ pub enum ModuleOrBatch {
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum ChunkableModuleOrBatch {
     Module(ResolvedVc<Box<dyn ChunkableModule>>),
@@ -62,7 +79,7 @@ impl ChunkableModuleOrBatch {
     pub async fn ident_strings(self) -> Result<IdentStrings> {
         Ok(match self {
             ChunkableModuleOrBatch::Module(module) => {
-                IdentStrings::Single(module.ident().to_string().await?)
+                IdentStrings::Single(module.ident().to_string().owned().await?)
             }
             ChunkableModuleOrBatch::Batch(batch) => {
                 IdentStrings::Multiple(batch.ident_strings().await?)
@@ -84,7 +101,7 @@ impl From<ChunkableModuleOrBatch> for ModuleOrBatch {
 
 pub enum IdentStrings {
     None,
-    Single(ReadRef<RcStr>),
+    Single(RcStr),
     Multiple(ReadRef<Vec<RcStr>>),
 }
 

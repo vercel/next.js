@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   getStackFramesContent,
   toggleCollapseCallStackFrames,
 } from 'next-test-utils'
@@ -12,7 +12,7 @@ describe('error-ignored-frames', () => {
 
   it('should be able to collapse ignored frames in server component', async () => {
     const browser = await next.browser('/')
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
 
     const defaultStack = await getStackFramesContent(browser)
     expect(defaultStack).toMatchInlineSnapshot(`"at Page (app/page.tsx (2:9))"`)
@@ -29,7 +29,7 @@ describe('error-ignored-frames', () => {
 
   it('should be able to collapse ignored frames in client component', async () => {
     const browser = await next.browser('/client')
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
 
     const defaultStack = await getStackFramesContent(browser)
     expect(defaultStack).toMatchInlineSnapshot(
@@ -48,13 +48,13 @@ describe('error-ignored-frames', () => {
 
   it('should be able to collapse ignored frames in interleaved call stack', async () => {
     const browser = await next.browser('/interleaved')
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
 
     const defaultStack = await getStackFramesContent(browser)
     if (isTurbopack) {
       expect(defaultStack).toMatchInlineSnapshot(`
        "at <unknown> (app/interleaved/page.tsx (7:11))
-       at Page (app/interleaved/page.tsx (6:35))"
+       at Page (app/interleaved/page.tsx (6:36))"
       `)
     } else {
       expect(defaultStack).toMatchInlineSnapshot(`
@@ -75,7 +75,7 @@ describe('error-ignored-frames', () => {
 
   it('should be able to collapse pages router ignored frames', async () => {
     const browser = await next.browser('/pages')
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
 
     const defaultStack = await getStackFramesContent(browser)
     expect(defaultStack).toMatchInlineSnapshot(

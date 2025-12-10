@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use swc_core::{
     ecma::ast::{Expr, ExprOrSpread, NewExpr},
@@ -23,11 +24,10 @@ use turbopack_core::{
     },
 };
 
-use super::base::ReferencedAsset;
 use crate::{
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
+    references::{AstPath, esm::base::ReferencedAsset},
     runtime_functions::{
         TURBOPACK_RELATIVE_URL, TURBOPACK_REQUIRE, TURBOPACK_RESOLVE_MODULE_ID_PATH,
     },
@@ -49,6 +49,8 @@ use crate::{
     TraceRawVcs,
     TaskInput,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum UrlRewriteBehavior {
     /// Omits base, resulting in a relative URL.
@@ -146,7 +148,19 @@ impl IntoCodeGenReference for UrlAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    ValueDebugFormat,
+    NonLocalValue,
+    Hash,
+    Debug,
+    Encode,
+    Decode,
+)]
 pub struct UrlAssetReferenceCodeGen {
     reference: ResolvedVc<UrlAssetReference>,
     path: AstPath,
@@ -192,7 +206,7 @@ impl UrlAssetReferenceCodeGen {
                     ReferencedAsset::Some(asset) => {
                         // We rewrite the first `new URL()` arguments to be a require() of the chunk
                         // item, which exports the static asset path to the linked file.
-                        let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
+                        let id = asset.chunk_item_id(chunking_context).await?;
 
                         visitors.push(create_visitor!(self.path, visit_mut_expr, |new_expr: &mut Expr| {
                             let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
@@ -257,7 +271,7 @@ impl UrlAssetReferenceCodeGen {
                     ReferencedAsset::Some(asset) => {
                         // We rewrite the first `new URL()` arguments to be a require() of the
                         // chunk item, which returns the asset path as its exports.
-                        let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
+                        let id = asset.chunk_item_id(chunking_context).await?;
 
                         // If there's a rewrite to the base url, then the current rendering
                         // environment should able to resolve the asset path

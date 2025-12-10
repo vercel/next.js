@@ -1,4 +1,5 @@
 use anyhow::Result;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
@@ -9,13 +10,31 @@ use crate::{
     source::Source,
 };
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value]
 pub struct ModuleIssue {
     pub ident: ResolvedVc<AssetIdent>,
     pub title: ResolvedVc<StyledString>,
     pub description: ResolvedVc<StyledString>,
     // TODO(PACK-4879): make this mandatory and drop `ident`
     pub source: Option<IssueSource>,
+}
+#[turbo_tasks::value_impl]
+impl ModuleIssue {
+    #[turbo_tasks::function]
+    pub fn new(
+        ident: ResolvedVc<AssetIdent>,
+        title: RcStr,
+        description: RcStr,
+        source: Option<IssueSource>,
+    ) -> Vc<Self> {
+        ModuleIssue {
+            ident,
+            title: StyledString::Text(title).resolved_cell(),
+            description: StyledString::Text(description).resolved_cell(),
+            source,
+        }
+        .cell()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -50,7 +69,7 @@ impl Issue for ModuleIssue {
 pub async fn emit_unknown_module_type_error(source: Vc<Box<dyn Source>>) -> Result<()> {
     ModuleIssue {
         ident: source.ident().to_resolved().await?,
-        title: StyledString::Text("Unknown module type".into()).resolved_cell(),
+        title: StyledString::Text(rcstr!("Unknown module type")).resolved_cell(),
         description: StyledString::Text(
             r"This module doesn't have an associated type. Use a known file extension, or register a loader for it.
 

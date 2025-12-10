@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::Result;
 use async_trait::async_trait;
+use bincode::{Decode, Encode};
 use indexmap::IndexMap;
 use rustc_hash::{FxBuildHasher, FxHasher};
 use serde::{Deserialize, Serialize};
@@ -23,7 +24,17 @@ use turbo_tasks::{NonLocalValue, OperationValue, ValueDefault, Vc, trace::TraceR
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 #[derive(
-    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, OperationValue,
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum EmotionLabelKind {
@@ -70,6 +81,7 @@ pub struct EmotionTransformConfig {
     pub sourcemap: Option<bool>,
     pub label_format: Option<String>,
     pub auto_label: Option<EmotionLabelKind>,
+    #[bincode(with_serde)]
     pub import_map: Option<IndexMap<RcStr, EmotionImportMapValue, FxBuildHasher>>,
 }
 
@@ -102,15 +114,12 @@ impl EmotionTransformer {
             enabled: Some(true),
             sourcemap: config.sourcemap,
             label_format: config.label_format.as_deref().map(From::from),
-            auto_label: if let Some(auto_label) = config.auto_label.as_ref() {
-                match auto_label {
-                    EmotionLabelKind::Always => Some(true),
-                    EmotionLabelKind::Never => Some(false),
-                    // [TODO]: this is not correct coerece, need to be fixed
-                    EmotionLabelKind::DevOnly => None,
-                }
-            } else {
-                None
+            auto_label: match config.auto_label.as_ref() {
+                Some(EmotionLabelKind::Always) => Some(true),
+                Some(EmotionLabelKind::Never) => Some(false),
+                // [TODO]: this is not correct (doesn't take current mode into account)
+                Some(EmotionLabelKind::DevOnly) => None,
+                None => None,
             },
             import_map: config.import_map.as_ref().map(|map| {
                 map.iter()

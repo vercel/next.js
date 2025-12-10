@@ -9,6 +9,8 @@ import { fileURLToPath } from 'url'
 function getAbsolutePath(value: string): any {
   return dirname(require.resolve(join(value, 'package.json')))
 }
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
 
 const config: StorybookConfig = {
   stories: ['../src/next-devtools/**/*.stories.tsx'],
@@ -35,9 +37,9 @@ const config: StorybookConfig = {
       },
     },
   }),
-  webpackFinal: async (config) => {
+  webpackFinal: async (webpackConfig) => {
     // Find and override CSS rule to use the devtool style injection
-    const cssRule = config.module?.rules?.find((rule) => {
+    const cssRule = webpackConfig.module?.rules?.find((rule) => {
       if (typeof rule !== 'object' || !rule) return false
       if ('test' in rule && rule.test instanceof RegExp) {
         return rule.test.test('.css')
@@ -75,7 +77,7 @@ const config: StorybookConfig = {
       }
     }
 
-    return config
+    return webpackConfig
   },
 }
 

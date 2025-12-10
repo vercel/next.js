@@ -1,9 +1,10 @@
-use std::{mem::take, sync::LazyLock};
+use std::mem::take;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    atoms::Atom,
+    atoms::{Atom, atom},
     base::SwcComments,
     common::{
         DUMMY_SP, Span, Spanned,
@@ -31,14 +32,26 @@ use crate::{
     utils::AstPathRange,
 };
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
-
+#[derive(
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    ValueDebugFormat,
+    NonLocalValue,
+    Debug,
+    Hash,
+    Encode,
+    Decode,
+)]
 pub struct Unreachable {
     range: AstPathRange,
 }
 
-static UNREACHABLE_ATOM: LazyLock<Atom> = LazyLock::new(|| "TURBOPACK unreachable".into());
-
+fn unreachable_atom() -> Atom {
+    atom!("TURBOPACK unreachable")
+}
 struct UnreachableModifier {
     comments: SwcComments,
 }
@@ -51,7 +64,7 @@ impl AstModifier for UnreachableModifier {
 
         *node = Expr::Lit(Lit::Str(Str {
             span,
-            value: UNREACHABLE_ATOM.clone(),
+            value: unreachable_atom().into(),
             raw: None,
         }));
     }
@@ -66,7 +79,7 @@ impl AstModifier for UnreachableModifier {
             Comment {
                 kind: CommentKind::Line,
                 span: DUMMY_SP,
-                text: UNREACHABLE_ATOM.clone(),
+                text: unreachable_atom(),
             },
         );
 
@@ -113,7 +126,7 @@ impl UnreachableRangeModifier {
                 Comment {
                     kind: CommentKind::Line,
                     span: DUMMY_SP,
-                    text: UNREACHABLE_ATOM.clone(),
+                    text: unreachable_atom(),
                 },
             );
 

@@ -22,14 +22,13 @@ import { exec } from 'child_process'
 import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import {
-  RESTART_EXIT_CODE,
-  getFormattedDebugAddress,
-  getNodeDebugType,
-} from './utils'
+import { RESTART_EXIT_CODE } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
-import { CONFIG_FILES } from '../../shared/lib/constants'
+import {
+  CONFIG_FILES,
+  PHASE_DEVELOPMENT_SERVER,
+} from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
@@ -58,13 +57,14 @@ async function getProcessIdUsingPort(port: number): Promise<string | null> {
       // Use lsof on Unix-like systems (macOS, Linux)
       if (process.platform !== 'win32') {
         exec(
-          `lsof -ti:${port}`,
+          `lsof -ti:${port} -sTCP:LISTEN`,
           { signal: processLookupController.signal },
           (error, stdout) => {
             if (error) {
               handleError(error)
               return
             }
+            // `-sTCP` will ensure there's only one port, clean up output
             const pid = stdout.trim()
             resolve(pid || null)
           }
@@ -79,11 +79,18 @@ async function getProcessIdUsingPort(port: number): Promise<string | null> {
               handleError(error)
               return
             }
-            const lines = stdout.trim().split('\n')
-            if (lines.length > 0) {
-              const parts = lines[0].trim().split(/\s+/)
-              const pid = parts[parts.length - 1]
-              resolve(pid || null)
+            // Clean up output and extract PID
+            const cleanOutput = stdout.replace(/\s+/g, ' ').trim()
+            if (cleanOutput) {
+              const lines = cleanOutput.split('\n')
+              const firstLine = lines[0].trim()
+              if (firstLine) {
+                const parts = firstLine.split(' ')
+                const pid = parts[parts.length - 1]
+                resolve(pid || null)
+              } else {
+                resolve(null)
+              }
             } else {
               resolve(null)
             }
@@ -296,8 +303,6 @@ export async function startServer(
 
   await new Promise<void>((resolve) => {
     server.on('listening', async () => {
-      const nodeDebugType = getNodeDebugType()
-
       const addr = server.address()
       const actualHostname = formatHostname(
         typeof addr === 'object'
@@ -337,13 +342,6 @@ export async function startServer(
 
       const appUrl = `${protocol}://${formattedHostname}:${port}`
 
-      if (nodeDebugType) {
-        const formattedDebugAddress = getFormattedDebugAddress()
-        Log.info(
-          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at ${formattedDebugAddress}.`
-        )
-      }
-
       // Store the selected port to:
       // - expose it to render workers
       // - re-use it for automatic dev server restarts with a randomly selected port
@@ -359,22 +357,25 @@ export async function startServer(
       // Only load env and config in dev to for logging purposes
       let envInfo: string[] | undefined
       let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
-      if (isDev) {
-        const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
-        envInfo = startServerInfo.envInfo
-        experimentalFeatures = startServerInfo.experimentalFeatures
-      }
-      logStartInfo({
-        networkUrl,
-        appUrl,
-        envInfo,
-        experimentalFeatures,
-        maxExperimentalFeatures: 3,
-      })
-
-      Log.event(`Starting...`)
-
+      let cacheComponents: boolean | undefined
       try {
+        if (isDev) {
+          const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
+          envInfo = startServerInfo.envInfo
+          cacheComponents = startServerInfo.cacheComponents
+          experimentalFeatures = startServerInfo.experimentalFeatures
+        }
+        logStartInfo({
+          networkUrl,
+          appUrl,
+          envInfo,
+          experimentalFeatures,
+          cacheComponents,
+          logBundler: isDev,
+        })
+
+        Log.event(`Starting...`)
+
         let cleanupStarted = false
         let closeUpgraded: (() => void) | null = null
         const cleanup = () => {
@@ -407,6 +408,27 @@ export async function startServer(
               nextServer?.close().catch(console.error),
               cleanupListeners?.runAll().catch(console.error),
             ])
+
+            // Flush telemetry if this is a dev server
+            if (isDev) {
+              try {
+                const { traceGlobals } =
+                  require('../../trace/shared') as typeof import('../../trace/shared')
+                const telemetry = traceGlobals.get('telemetry') as
+                  | InstanceType<
+                      typeof import('../../telemetry/storage').Telemetry
+                    >
+                  | undefined
+                if (telemetry) {
+                  // Use flushDetached to avoid blocking process exit
+                  // Each process writes to a unique file (_events_${pid}.json)
+                  // to avoid race conditions with the parent process
+                  telemetry.flushDetached('dev', dir)
+                }
+              } catch (_) {
+                // Ignore telemetry errors during cleanup
+              }
+            }
 
             debug('start-server process cleanup finished')
             process.exit(0)
@@ -454,10 +476,10 @@ export async function startServer(
 
         Log.event(`Ready in ${formatDurationText}`)
 
-        if (process.env.TURBOPACK) {
+        if (process.env.TURBOPACK && isDev) {
           await validateTurboNextConfig({
             dir: serverOptions.dir,
-            isDev: true,
+            configPhase: PHASE_DEVELOPMENT_SERVER,
           })
         }
       } catch (err) {

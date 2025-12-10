@@ -1,6 +1,5 @@
 #![feature(min_specialization)]
 #![feature(trait_alias)]
-#![feature(array_chunks)]
 #![feature(iter_intersperse)]
 #![feature(str_split_remainder)]
 #![feature(arbitrary_self_types)]
@@ -300,14 +299,4 @@ impl DevServerBuilder {
             }),
         }
     }
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_bytes::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_cli_utils::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

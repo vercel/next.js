@@ -228,7 +228,18 @@ describe('require-cast-to-import ESLint rule', () => {
         ],
         output: `const lodash = (require('underscore') as typeof import('underscore'))`,
       },
-
+      // ❌ Mismatched sources - template literal
+      {
+        code: `const lodash = require(\`lodash\`) as typeof import('underscore')`,
+        filename: 'test.ts',
+        errors: [
+          {
+            messageId: 'mismatchedSource',
+            data: { requireSource: 'lodash', importSource: 'underscore' },
+          },
+        ],
+        output: `const lodash = (require('underscore') as typeof import('underscore'))`,
+      },
       // ❌ Scoped packages - missing cast
       {
         code: `const types = require('@types/node')`,

@@ -1,7 +1,16 @@
 import { parse } from 'next/dist/compiled/stacktrace-parser'
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 
 const regexNextStatic = /\/_next(\/static\/.+)/
+
+export interface StackFrame {
+  file: string | null
+  methodName: string
+  arguments: string[]
+  /** 1-based */
+  line1: number | null
+  /** 1-based */
+  column1: number | null
+}
 
 export function parseStack(
   stack: string,
@@ -40,6 +49,12 @@ export function parseStack(
         }
       }
     } catch {}
-    return frame
+    return {
+      file: frame.file,
+      line1: frame.lineNumber,
+      column1: frame.column,
+      methodName: frame.methodName,
+      arguments: frame.arguments,
+    }
   })
 }

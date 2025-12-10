@@ -10,11 +10,7 @@ use turbopack_core::{
     raw_module::RawModule,
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
-    resolve::{
-        ModuleResolveResult,
-        origin::{ResolveOrigin, ResolveOriginExt},
-        parse::Request,
-    },
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
     source::Source,
 };
 // TODO remove this
@@ -49,6 +45,11 @@ impl Module for TsConfigModuleAsset {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let mut references = Vec::new();
         let configs = read_tsconfigs(
@@ -56,8 +57,7 @@ impl Module for TsConfigModuleAsset {
             self.source,
             apply_cjs_specific_options(
                 self.origin
-                    .resolve_options(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined))
-                    .await?,
+                    .resolve_options(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
             ),
         )
         .await?;
@@ -160,7 +160,7 @@ impl Module for TsConfigModuleAsset {
                     TsConfigTypesReference::new(
                         *self.origin,
                         Request::module(
-                            name,
+                            name.into(),
                             RcStr::default().into(),
                             RcStr::default(),
                             RcStr::default(),
@@ -205,7 +205,13 @@ impl CompilerReference {
 impl ModuleReference for CompilerReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        cjs_resolve(*self.origin, *self.request, None, false)
+        cjs_resolve(
+            *self.origin,
+            *self.request,
+            CommonJsReferenceSubType::Undefined,
+            None,
+            false,
+        )
     }
 }
 
@@ -238,9 +244,7 @@ impl ModuleReference for TsExtendsReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-            RawModule::new(*ResolvedVc::upcast(self.config))
-                .to_resolved()
-                .await?,
+            RawModule::new(*self.config).to_resolved().await?,
         )))
     }
 }
@@ -281,7 +285,13 @@ impl TsNodeRequireReference {
 impl ModuleReference for TsNodeRequireReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        cjs_resolve(*self.origin, *self.request, None, false)
+        cjs_resolve(
+            *self.origin,
+            *self.request,
+            CommonJsReferenceSubType::Undefined,
+            None,
+            false,
+        )
     }
 }
 

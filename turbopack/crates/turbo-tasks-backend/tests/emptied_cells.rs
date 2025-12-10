@@ -8,15 +8,13 @@ use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn recompute() {
     run(&REGISTRATION, || async {
-        let input = ChangingInput {
-            state: State::new(1),
-        }
-        .cell();
+        let input = get_state().resolve().await?;
+        input.await?.state.set(0);
         let output = compute(input);
-        assert_eq!(*output.await?, 1);
+        assert_eq!(*output.strongly_consistent().await?, 0);
 
         println!("changing input");
         input.await?.state.set(10);
@@ -42,6 +40,14 @@ async fn recompute() {
     })
     .await
     .unwrap();
+}
+
+#[turbo_tasks::function]
+fn get_state() -> Vc<ChangingInput> {
+    ChangingInput {
+        state: State::new(0),
+    }
+    .cell()
 }
 
 #[turbo_tasks::value]

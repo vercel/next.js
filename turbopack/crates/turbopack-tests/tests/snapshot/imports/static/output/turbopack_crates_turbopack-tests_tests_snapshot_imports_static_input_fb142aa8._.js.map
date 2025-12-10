@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/static/input/index.js"],"sourcesContent":["import img from \"./vercel.svg\";\nconsole.log(img);\n"],"names":[],"mappings":";AAAA;;AACA,QAAQ,GAAG,CAAC,0MAAG"}}]
+}

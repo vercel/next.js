@@ -7,6 +7,7 @@ edition = "2024"
 
 [dev-dependencies]
 anyhow = { workspace = true }
+bincode = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
 trybuild = { version = "1.0.104" }
@@ -14,5 +15,5 @@ turbo-tasks = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }
+[lints]
+workspace = true

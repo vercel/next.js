@@ -26,5 +26,3 @@ swc_core = { workspace = true, features = [
   "common_sourcemap",
 ] }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

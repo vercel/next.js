@@ -77,18 +77,18 @@ Create an `mdx-components.tsx` (or `.js`) file in the root of your project to de
 ```tsx filename="mdx-components.tsx" switcher
 import type { MDXComponents } from 'mdx/types'
 
-export function useMDXComponents(components: MDXComponents): MDXComponents {
-  return {
-    ...components,
-  }
+const components: MDXComponents = {}
+
+export function useMDXComponents(): MDXComponents {
+  return components
 }
 ```
 
 ```js filename="mdx-components.js" switcher
-export function useMDXComponents(components) {
-  return {
-    ...components,
-  }
+const components = {}
+
+export function useMDXComponents() {
+  return components
 }
 ```
 
@@ -357,21 +357,22 @@ import Image, { ImageProps } from 'next/image'
 // React component you want, including inline styles,
 // components from other libraries, and more.
 
-export function useMDXComponents(components: MDXComponents): MDXComponents {
-  return {
-    // Allows customizing built-in components, e.g. to add styling.
-    h1: ({ children }) => (
-      <h1 style={{ color: 'red', fontSize: '48px' }}>{children}</h1>
-    ),
-    img: (props) => (
-      <Image
-        sizes="100vw"
-        style={{ width: '100%', height: 'auto' }}
-        {...(props as ImageProps)}
-      />
-    ),
-    ...components,
-  }
+const components = {
+  // Allows customizing built-in components, e.g. to add styling.
+  h1: ({ children }) => (
+    <h1 style={{ color: 'red', fontSize: '48px' }}>{children}</h1>
+  ),
+  img: (props) => (
+    <Image
+      sizes="100vw"
+      style={{ width: '100%', height: 'auto' }}
+      {...(props as ImageProps)}
+    />
+  ),
+} satisfies MDXComponents
+
+export function useMDXComponents(): MDXComponents {
+  return components
 }
 ```
 
@@ -383,21 +384,18 @@ import Image from 'next/image'
 // React component you want, including inline styles,
 // components from other libraries, and more.
 
-export function useMDXComponents(components) {
-  return {
-    // Allows customizing built-in components, e.g. to add styling.
-    h1: ({ children }) => (
-      <h1 style={{ color: 'red', fontSize: '48px' }}>{children}</h1>
-    ),
-    img: (props) => (
-      <Image
-        sizes="100vw"
-        style={{ width: '100%', height: 'auto' }}
-        {...props}
-      />
-    ),
-    ...components,
-  }
+const components = {
+  // Allows customizing built-in components, e.g. to add styling.
+  h1: ({ children }) => (
+    <h1 style={{ color: 'red', fontSize: '48px' }}>{children}</h1>
+  ),
+  img: (props) => (
+    <Image sizes="100vw" style={{ width: '100%', height: 'auto' }} {...props} />
+  ),
+}
+
+export function useMDXComponents() {
+  return components
 }
 ```
 
@@ -727,8 +725,18 @@ const nextConfig = {
 
 const withMDX = createMDX({
   options: {
-    remarkPlugins: [],
-    rehypePlugins: [['rehype-katex', { strict: true, throwOnError: true }]],
+    remarkPlugins: [
+      // Without options
+      'remark-gfm',
+      // With options
+      ['remark-toc', { heading: 'The Table' }],
+    ],
+    rehypePlugins: [
+      // Without options
+      'rehype-slug',
+      // With options
+      ['rehype-katex', { strict: true, throwOnError: true }],
+    ],
   },
 })
 
@@ -737,7 +745,7 @@ export default withMDX(nextConfig)
 
 > **Good to know**:
 >
-> remark and rehype plugins without serializable options cannot be used yet with [Turbopack](/docs/app/api-reference/turbopack), due to [inability to pass JavaScript functions to Rust](https://github.com/vercel/next.js/issues/71819#issuecomment-2461802968)
+> remark and rehype plugins without serializable options cannot be used yet with [Turbopack](/docs/app/api-reference/turbopack), because JavaScript functions can't be passed to Rust.
 
 ## Remote MDX
 

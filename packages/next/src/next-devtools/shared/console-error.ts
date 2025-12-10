@@ -3,7 +3,7 @@ const digestSym = Symbol.for('next.console.error.digest')
 
 // Represent non Error shape unhandled promise rejections or console.error errors.
 // Those errors will be captured and displayed in Error Overlay.
-export type ConsoleError = Error & {
+type ConsoleError = Error & {
   [digestSym]: 'NEXT_CONSOLE_ERROR'
   environmentName: string
 }

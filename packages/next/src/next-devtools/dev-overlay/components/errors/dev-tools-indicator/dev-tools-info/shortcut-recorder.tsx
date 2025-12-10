@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
+import type { JSX } from 'react'
+import { useState, useRef } from 'react'
 import { css } from '../../../../utils/css'
 
 const SUCCESS_SHOW_DELAY_MS = 180
@@ -13,6 +14,7 @@ export function ShortcutRecorder({
   value: string[] | null
   onChange: (value: string | null) => void
 }) {
+  const [pristine, setPristine] = useState(true)
   const [show, setShow] = useState(false)
   const [keys, setKeys] = useState<string[]>(value ?? [])
   const [success, setSuccess] = useState<boolean>(false)
@@ -30,6 +32,13 @@ export function ShortcutRecorder({
       setShow(true)
     }
 
+    // Reset current shortcut on first key press
+    // if this is a fresh recording session
+    if (pristine) {
+      setKeys([])
+      setPristine(false)
+    }
+
     function handleValidation(next: string[]) {
       timeoutRef.current = window.setTimeout(() => {
         setSuccess(true)
@@ -40,15 +49,24 @@ export function ShortcutRecorder({
       }, SUCCESS_SHOW_DELAY_MS)
     }
 
-    if (keys.length === 3) return
-
     e.preventDefault()
     e.stopPropagation()
 
     setKeys((prev) => {
       // Don't add duplicate keys
-      if (prev.includes(e.key)) return prev
+      if (prev.includes(e.code) || prev.includes(e.key)) return prev
 
+      /**
+       * Why are we using `e.code` for non-modifier keys?
+       *
+       * Consider this keybind: Alt + L
+       *
+       * If we capture `e.key` here then it will correspond to an awkward symbol (¬)
+       * because pressing Alt + L creates this symbol.
+       *
+       * While `e.code` will give us `KeyL` as the value which we also later use in
+       * `useShortcuts()` to match the keybind correctly without relying on modifier symbols.
+       */
       // Handle non-modifier keys (action keys)
       if (!modifierKeys.includes(e.key)) {
         // Replace existing non-modifier key if present
@@ -57,12 +75,12 @@ export function ShortcutRecorder({
         )
         if (existingNonModifierIndex !== -1) {
           const next = [...prev]
-          next[existingNonModifierIndex] = e.key
+          next[existingNonModifierIndex] = e.code
           handleValidation(next)
           return next
         }
         // Add new non-modifier key at the end
-        const next = [...prev, e.key]
+        const next = [...prev, e.code]
         handleValidation(next)
         return next
       }
@@ -108,6 +126,7 @@ export function ShortcutRecorder({
   function onBlur() {
     setSuccess(false)
     setShow(false)
+    setPristine(true)
   }
 
   function onStart() {
@@ -240,28 +259,62 @@ function Kbd({ children }: { children: string }) {
   }
   const key = renderKey(children)
   const isSymbol = typeof key === 'string' ? key.length === 1 : false
-  return <kbd data-symbol={isSymbol}>{key}</kbd>
+  return <kbd data-symbol={isSymbol}>{parseKeyCode(key)}</kbd>
+}
+
+function parseKeyCode(code: string | JSX.Element) {
+  if (typeof code !== 'string') return code
+
+  // Map common KeyboardEvent.code values to their corresponding key values
+  const codeToKeyMap: Record<string, string> = {
+    Minus: '-',
+    Equal: '=',
+    BracketLeft: '[',
+    BracketRight: ']',
+    Backslash: '\\',
+    Semicolon: ';',
+    Quote: "'",
+    Comma: ',',
+    Period: '.',
+    Backquote: '`',
+    Space: ' ',
+    Slash: '/',
+    IntlBackslash: '\\',
+    // Add more as needed
+  }
+
+  if (codeToKeyMap[code]) {
+    return codeToKeyMap[code]
+  }
+
+  // Handle KeyA-Z, Digit0-9, Numpad0-9, NumpadAdd, etc.
+  if (/^Key([A-Z])$/.test(code)) {
+    return code.replace(/^Key/, '')
+  }
+  if (/^Digit([0-9])$/.test(code)) {
+    return code.replace(/^Digit/, '')
+  }
+  if (/^Numpad([0-9])$/.test(code)) {
+    return code.replace(/^Numpad/, '')
+  }
+  if (code === 'NumpadAdd') return '+'
+  if (code === 'NumpadSubtract') return '-'
+  if (code === 'NumpadMultiply') return '*'
+  if (code === 'NumpadDivide') return '/'
+  if (code === 'NumpadDecimal') return '.'
+  if (code === 'NumpadEnter') return 'Enter'
+
+  return code
 }
 
 function MetaKey() {
-  // u00A0 = &nbsp;
-  const [label, setLabel] = useState('\u00A0')
-
-  const apple = isApple()
-
-  useEffect(() => {
-    // Meta is Command on Apple devices, otherwise Control
-    if (apple === true) {
-      setLabel('⌘')
-    }
-
-    // Explicitly say "Ctrl" instead of the symbol "⌃"
-    // because most Windows/Linux laptops do not print the symbol
-    // Other keyboard-intensive apps like Linear do this
-    if (apple === false) {
-      setLabel('Ctrl')
-    }
-  }, [apple])
+  const label = isApple()
+    ? // Meta is Command on Apple devices, otherwise Control
+      '⌘'
+    : // Explicitly say "Ctrl" instead of the symbol "⌃"
+      // because most Windows/Linux laptops do not print the symbol
+      // Other keyboard-intensive apps like Linear do this
+      'Ctrl'
 
   return (
     <span style={{ minWidth: '1em', display: 'inline-block' }}>{label}</span>
@@ -434,21 +487,20 @@ export const SHORTCUT_RECORDER_STYLES = css`
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 function testPlatform(re: RegExp): boolean | undefined {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Checking on an unusual environment.
-  return typeof window !== 'undefined' && window.navigator != null
+  return window.navigator != null
     ? re.test(window.navigator.platform)
     : undefined
 }
 
-export function isMac(): boolean | undefined {
+function isMac(): boolean | undefined {
   return testPlatform(/^Mac/)
 }
 
-export function isIPhone(): boolean | undefined {
+function isIPhone(): boolean | undefined {
   return testPlatform(/^iPhone/)
 }
 
-export function isIPad(): boolean | undefined {
+function isIPad(): boolean | undefined {
   return (
     testPlatform(/^iPad/) ||
     // iPadOS 13 lies and says it's a Mac, but we can distinguish by detecting touch support.
@@ -456,10 +508,6 @@ export function isIPad(): boolean | undefined {
   )
 }
 
-export function isIOS(): boolean | undefined {
-  return isIPhone() || isIPad()
-}
-
-export function isApple(): boolean | undefined {
+function isApple(): boolean | undefined {
   return isMac() || isIPhone() || isIPad()
 }

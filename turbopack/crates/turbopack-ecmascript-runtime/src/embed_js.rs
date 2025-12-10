@@ -28,7 +28,7 @@ pub async fn embed_static_code(
 ) -> Result<Vc<Code>> {
     Ok(StaticEcmascriptCode::new(
         asset_context,
-        embed_file_path(path).await?.clone_value(),
+        embed_file_path(path).owned().await?,
         generate_source_map,
     )
     .code())

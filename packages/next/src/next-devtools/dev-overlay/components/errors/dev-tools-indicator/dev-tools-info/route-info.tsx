@@ -1,10 +1,11 @@
-import type { HTMLProps } from 'react'
-import type { DevToolsInfoPropsCore } from './dev-tools-info'
-import { DevToolsInfo } from './dev-tools-info'
+import type { ComponentProps } from 'react'
 
-function StaticRouteContent({ routerType }: { routerType: 'pages' | 'app' }) {
+function StaticRouteContent({
+  routerType,
+  ...props
+}: { routerType: 'pages' | 'app' } & ComponentProps<'div'>) {
   return (
-    <article className="dev-tools-info-article">
+    <article className="dev-tools-info-article" {...props}>
       <p className="dev-tools-info-paragraph">
         The path{' '}
         <code className="dev-tools-info-code">{window.location.pathname}</code>{' '}
@@ -37,9 +38,12 @@ function StaticRouteContent({ routerType }: { routerType: 'pages' | 'app' }) {
   )
 }
 
-function DynamicRouteContent({ routerType }: { routerType: 'pages' | 'app' }) {
+function DynamicRouteContent({
+  routerType,
+  ...props
+}: { routerType: 'pages' | 'app' } & ComponentProps<'div'>) {
   return (
-    <article className="dev-tools-info-article">
+    <article className="dev-tools-info-article" {...props}>
       <p className="dev-tools-info-paragraph">
         The path{' '}
         <code className="dev-tools-info-code">{window.location.pathname}</code>{' '}
@@ -95,7 +99,7 @@ function DynamicRouteContent({ routerType }: { routerType: 'pages' | 'app' }) {
   )
 }
 
-const learnMoreLink = {
+export const learnMoreLink = {
   pages: {
     static:
       'https://nextjs.org/docs/pages/building-your-application/rendering/static-site-generation',
@@ -110,34 +114,17 @@ const learnMoreLink = {
   },
 } as const
 
-export function RouteInfo({
-  routeType,
+export function RouteInfoBody({
   routerType,
+  isStaticRoute,
   ...props
 }: {
-  routeType: 'Static' | 'Dynamic'
   routerType: 'pages' | 'app'
-} & DevToolsInfoPropsCore &
-  HTMLProps<HTMLDivElement>) {
-  const isStaticRoute = routeType === 'Static'
-
-  const learnMore = isStaticRoute
-    ? learnMoreLink[routerType].static
-    : learnMoreLink[routerType].dynamic
-
-  return (
-    <DevToolsInfo
-      title={`${routeType} Route`}
-      learnMoreLink={learnMore}
-      {...props}
-    >
-      {isStaticRoute ? (
-        <StaticRouteContent routerType={routerType} />
-      ) : (
-        <DynamicRouteContent routerType={routerType} />
-      )}
-    </DevToolsInfo>
+  isStaticRoute: boolean
+} & ComponentProps<'div'>) {
+  return isStaticRoute ? (
+    <StaticRouteContent routerType={routerType} {...props} />
+  ) : (
+    <DynamicRouteContent routerType={routerType} {...props} />
   )
 }
-
-export const DEV_TOOLS_INFO_ROUTE_INFO_STYLES = ``

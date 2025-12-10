@@ -1,14 +1,21 @@
 export {}
 
 type ReactServerRequests = Array<{
+  type: 'performance' | 'console'
   name: string
   properties: any
+  startTime: number
+  endTime: number
 }>
 
 declare global {
   interface Window {
     reactServerRequests: {
-      getSnapshot(): ReactServerRequests
+      /** For tests */
+      getSnapshot: () => Array<
+        Omit<ReactServerRequests[number], 'startTime' | 'endTime' | 'type'>
+      >
+      getStoreSnapshot(): ReactServerRequests
       subscribe(callback: () => void): () => void
     }
   }
@@ -26,6 +33,19 @@ const listeners = new Set<() => void>()
 window.reactServerRequests = {
   getSnapshot: () => {
     return reactServerRequests
+      .filter((request) => {
+        const isRegisterTrackRequest =
+          request.type === 'console' &&
+          request.name === undefined &&
+          request.startTime === 0.001 &&
+          request.endTime === 0.001
+
+        return !isRegisterTrackRequest
+      })
+      .map(({ startTime, endTime, type, ...rest }) => rest)
+  },
+  getStoreSnapshot: () => {
+    return reactServerRequests
   },
   subscribe: (callback) => {
     listeners.add(callback)
@@ -33,6 +53,28 @@ window.reactServerRequests = {
       listeners.delete(callback)
     }
   },
+}
+
+const originalConsoleTimeStamp = console.timeStamp
+console.timeStamp = (...args: any) => {
+  originalConsoleTimeStamp.apply(console, args)
+  const [name, startTime, endTime, track] = args
+
+  if (track === 'Server Requests ⚛') {
+    const isRegisterTrackRequest = startTime === 0.001 && endTime === 0.001
+    if (!isRegisterTrackRequest) {
+      reactServerRequests.push({
+        type: 'console',
+        name: name ?? '',
+        properties: [],
+        startTime,
+        endTime,
+      })
+      for (const listener of listeners) {
+        listener()
+      }
+    }
+  }
 }
 
 // We're trying to mock how the Chrome DevTools performance panel will display
@@ -45,8 +87,11 @@ new PerformanceObserver((entries) => {
   for (const entry of entries.getEntries()) {
     if (entry.detail?.devtools?.track === 'Server Requests ⚛') {
       newRequests.push({
+        type: 'performance',
         name: entry.name,
         properties: entry.detail.devtools.properties,
+        startTime: entry.startTime,
+        endTime: entry.startTime + entry.duration,
       })
     }
   }

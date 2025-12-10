@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, bail};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     chunk::EvaluatableAsset,
@@ -31,7 +32,7 @@ pub fn route_bootstrap(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct BootstrapConfig(FxIndexMap<String, String>);
+pub struct BootstrapConfig(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, String>);
 
 #[turbo_tasks::value_impl]
 impl BootstrapConfig {
@@ -75,14 +76,14 @@ pub async fn bootstrap(
             Vc::upcast(VirtualSource::new(
                 asset.ident().path().await?.join("bootstrap-config.ts")?,
                 AssetContent::file(
-                    File::from(
+                    FileContent::Content(File::from(
                         config
                             .iter()
                             .map(|(k, v)| format!("export const {} = {};\n", k, StringifyJs(v)))
                             .collect::<Vec<_>>()
                             .join(""),
-                    )
-                    .into(),
+                    ))
+                    .cell(),
                 ),
             )),
             ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
@@ -92,8 +93,8 @@ pub async fn bootstrap(
         .await?;
 
     let mut inner_assets = inner_assets.owned().await?;
-    inner_assets.insert("ENTRY".into(), asset);
-    inner_assets.insert("BOOTSTRAP_CONFIG".into(), config_asset);
+    inner_assets.insert(rcstr!("ENTRY"), asset);
+    inner_assets.insert(rcstr!("BOOTSTRAP_CONFIG"), config_asset);
 
     let asset = asset_context
         .process(

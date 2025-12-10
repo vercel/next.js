@@ -126,6 +126,10 @@ export function createWebpackAliases({
     'styled-jsx/style$': defaultOverrides['styled-jsx/style'],
     'styled-jsx$': defaultOverrides['styled-jsx'],
 
+    'next/dist/compiled/next-devtools': isClient
+      ? 'next/dist/compiled/next-devtools'
+      : 'next/dist/next-devtools/dev-overlay.shim.js',
+
     ...customAppAliases,
     ...customDocumentAliases,
 
@@ -234,6 +238,7 @@ export function createAppRouterApiAliases(isServerOnlyLayer: boolean) {
 
   if (isServerOnlyLayer) {
     mapping['navigation'] = 'next/dist/api/navigation.react-server'
+    mapping['link'] = 'next/dist/client/app-dir/link.react-server'
   }
 
   const aliasMap: Record<string, string> = {}

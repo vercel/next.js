@@ -13,6 +13,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+bincode = { workspace = true }
 bytes = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true }
@@ -21,6 +22,3 @@ turbo-tasks = { workspace = true }
 
 [dev-dependencies]
 serde_test = "1.0.157"
-
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

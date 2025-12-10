@@ -2,7 +2,7 @@
 //!
 //! Registered hooks are called in an arbitrary order.
 //!
-//! This is used inside `turbo-tasks-backend` to invalidate the persistent cache if a panic occurs
+//! This is used inside `turbo-tasks-backend` to invalidate the filesystem cache if a panic occurs
 //! anywhere inside of Turbopack. That panic hook must be dynamically registered as it contains a
 //! reference to the database.
 //!

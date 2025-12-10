@@ -6,7 +6,7 @@ describe('swcPlugins', () => {
       files: __dirname,
       skipDeployment: true,
       dependencies: {
-        '@swc/plugin-react-remove-properties': '7.0.2',
+        '@swc/plugin-react-remove-properties': '11.1.0',
       },
     })
     if (skipped) return

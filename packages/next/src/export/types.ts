@@ -1,8 +1,10 @@
 import type { RenderOptsPartial as AppRenderOptsPartial } from '../server/app-render/types'
 import type { RenderOptsPartial as PagesRenderOptsPartial } from '../server/render'
-import type { LoadComponentsReturnType } from '../server/load-components'
+import type {
+  GenericComponentMod,
+  LoadComponentsReturnType,
+} from '../server/load-components'
 import type { OutgoingHttpHeaders } from 'http'
-import type AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { CacheControl } from '../server/lib/cache-control'
 import type { NextEnabledDirectories } from '../server/base-server'
@@ -13,14 +15,7 @@ import type {
 import type { FetchMetrics } from '../server/base-http'
 import type { RouteMetadata } from './routes/types'
 import type { RenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
-
-export interface AmpValidation {
-  page: string
-  result: {
-    errors: AmpHtmlValidator.ValidationError[]
-    warnings: AmpHtmlValidator.ValidationError[]
-  }
-}
+import type { StaticWorker } from '../build'
 
 export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
   path: string
@@ -36,7 +31,7 @@ export interface ExportPagesInput {
   pagesDataDir: string
   renderOpts: WorkerRenderOptsPartial
   nextConfig: NextConfigComplete
-  cacheMaxMemorySize: NextConfigComplete['cacheMaxMemorySize'] | undefined
+  cacheMaxMemorySize: NextConfigComplete['cacheMaxMemorySize']
   fetchCache: boolean | undefined
   cacheHandler: string | undefined
   fetchCacheKeyPrefix: string | undefined
@@ -51,10 +46,8 @@ export interface ExportPageInput {
   outDir: string
   pagesDataDir: string
   renderOpts: WorkerRenderOptsPartial
-  ampValidatorPath?: string
   trailingSlash?: boolean
   buildExport?: boolean
-  serverRuntimeConfig: { [key: string]: any }
   subFolders?: boolean
   optimizeCss: any
   disableOptimizedLoading: any
@@ -69,7 +62,6 @@ export interface ExportPageInput {
 
 export type ExportRouteResult =
   | {
-      ampValidations?: AmpValidation[]
       cacheControl: CacheControl
       metadata?: Partial<RouteMetadata>
       ssgNotFound?: boolean
@@ -97,10 +89,12 @@ export type ExportPagesResult = {
 export type WorkerRenderOptsPartial = PagesRenderOptsPartial &
   AppRenderOptsPartial
 
-export type WorkerRenderOpts = WorkerRenderOptsPartial &
-  LoadComponentsReturnType
+export type WorkerRenderOpts<
+  NextModule extends GenericComponentMod = GenericComponentMod,
+> = WorkerRenderOptsPartial & LoadComponentsReturnType<NextModule>
 
 export interface ExportAppOptions {
+  staticWorker?: StaticWorker
   outdir: string
   enabledDirectories: NextEnabledDirectories
   silent?: boolean
@@ -112,6 +106,7 @@ export interface ExportAppOptions {
   nextConfig?: NextConfigComplete
   hasOutdirFromCli?: boolean
   numWorkers: number
+  appDirOnly: boolean
 }
 
 export type ExportPageMetadata = {

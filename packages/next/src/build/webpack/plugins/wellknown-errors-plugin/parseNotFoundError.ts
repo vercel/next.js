@@ -57,7 +57,7 @@ async function getSourceFrame(
   input: any,
   fileName: any,
   compilation: any
-): Promise<{ frame: string; lineNumber: string; column: string }> {
+): Promise<{ frame: string; line1: string; column1: string }> {
   try {
     const loc =
       input.loc || input.dependencies.map((d: any) => d.loc).filter(Boolean)[0]
@@ -83,21 +83,21 @@ async function getSourceFrame(
           arguments: [],
           file: fileName,
           methodName: '',
-          lineNumber: loc.start.line,
+          line1: loc.start.line,
           // loc is 0-based but columns in stack frames are 1-based.
-          column: (loc.start.column ?? 0) + 1,
+          column1: (loc.start.column ?? 0) + 1,
         },
       })
 
       return {
         frame: result?.originalCodeFrame ?? '',
-        lineNumber: result?.originalStackFrame?.lineNumber?.toString() ?? '',
-        column: result?.originalStackFrame?.column?.toString() ?? '',
+        line1: result?.originalStackFrame?.line1?.toString() ?? '',
+        column1: result?.originalStackFrame?.column1?.toString() ?? '',
       }
     }
   } catch {}
 
-  return { frame: '', lineNumber: '', column: '' }
+  return { frame: '', line1: '', column1: '' }
 }
 
 function getFormattedFileName(
@@ -141,7 +141,7 @@ export async function getNotFoundError(
   }
 
   try {
-    const { frame, lineNumber, column } = await getSourceFrame(
+    const { frame, line1, column1 } = await getSourceFrame(
       input,
       fileName,
       compilation
@@ -181,8 +181,8 @@ export async function getNotFoundError(
     const formattedFileName = getFormattedFileName(
       fileName,
       module,
-      lineNumber,
-      column
+      line1,
+      column1
     )
 
     return new SimpleWebpackError(formattedFileName, message)

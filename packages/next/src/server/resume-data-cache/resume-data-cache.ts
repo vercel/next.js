@@ -100,7 +100,8 @@ type ResumeStoreSerialized = {
  * 'null' if empty
  */
 export async function stringifyResumeDataCache(
-  resumeDataCache: RenderResumeDataCache | PrerenderResumeDataCache
+  resumeDataCache: RenderResumeDataCache | PrerenderResumeDataCache,
+  isCacheComponentsEnabled: boolean
 ): Promise<string> {
   if (process.env.NEXT_RUNTIME === 'edge') {
     throw new InvariantError(
@@ -116,7 +117,10 @@ export async function stringifyResumeDataCache(
         fetch: Object.fromEntries(Array.from(resumeDataCache.fetch.entries())),
         cache: Object.fromEntries(
           (
-            await serializeUseCacheCacheStore(resumeDataCache.cache.entries())
+            await serializeUseCacheCacheStore(
+              resumeDataCache.cache.entries(),
+              isCacheComponentsEnabled
+            )
           ).filter(
             (entry): entry is [string, UseCacheCacheStoreSerialized] =>
               entry !== null

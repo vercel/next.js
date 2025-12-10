@@ -3,20 +3,25 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, Vc, trace::TraceRawVcs};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[derive(Debug, Clone, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs, Encode, Decode,
+)]
 struct TaskReferenceSpec {
     task: u16,
     read: bool,
     read_strongly_consistent: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs, Encode, Decode,
+)]
 struct TaskSpec {
     references: Vec<TaskReferenceSpec>,
 }
@@ -24,10 +29,10 @@ struct TaskSpec {
 #[turbo_tasks::value(transparent)]
 struct TasksSpec(Vec<TaskSpec>);
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn graph_bug() {
     // see https://github.com/vercel/next.js/pull/79451
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let spec = vec![
             TaskSpec {
                 references: vec![

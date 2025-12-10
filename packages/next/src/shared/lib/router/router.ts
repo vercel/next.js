@@ -1,4 +1,3 @@
-// tslint:disable:no-console
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../../server/config'
 import type { MittEmitter } from '../mitt'
@@ -41,9 +40,10 @@ import { isLocalURL } from './utils/is-local-url'
 import { isBot } from './utils/is-bot'
 import { omit } from './utils/omit'
 import { interpolateAs } from './utils/interpolate-as'
-import { handleSmoothScroll } from './utils/handle-smooth-scroll'
+import { disableSmoothScrollDuringRouteTransition } from './utils/disable-smooth-scroll'
 import type { Params } from '../../../server/request/params'
 import { MATCHED_PATH_HEADER } from '../../../lib/constants'
+import { getDeploymentId } from '../deployment-id'
 
 let resolveRewrites: typeof import('./utils/resolve-rewrites').default
 if (process.env.__NEXT_HAS_REWRITES) {
@@ -423,8 +423,7 @@ const manualScrollRestoration =
   !!(function () {
     try {
       let v = '__next'
-      // eslint-disable-next-line no-sequences
-      return sessionStorage.setItem(v, v), sessionStorage.removeItem(v), true
+      return (sessionStorage.setItem(v, v), sessionStorage.removeItem(v), true)
     } catch (n) {}
   })()
 
@@ -499,15 +498,14 @@ function fetchNextData({
   unstable_skipClientCache,
 }: FetchNextDataParams): Promise<FetchDataOutput> {
   const { href: cacheKey } = new URL(dataHref, window.location.href)
+  const deploymentId = getDeploymentId()
   const getData = (params?: { method?: 'HEAD' | 'GET' }) =>
     fetchRetry(dataHref, isServerRender ? 3 : 1, {
       headers: Object.assign(
         {} as HeadersInit,
         isPrefetch ? { purpose: 'prefetch' } : {},
         isPrefetch && hasMiddleware ? { 'x-middleware-prefetch': '1' } : {},
-        process.env.NEXT_DEPLOYMENT_ID
-          ? { 'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID }
-          : {}
+        deploymentId ? { 'x-deployment-id': deploymentId } : {}
       ),
       method: params?.method ?? 'GET',
     })
@@ -2286,7 +2284,7 @@ export default class Router implements BaseRouter {
   scrollToHash(as: string): void {
     const [, hash = ''] = as.split('#', 2)
 
-    handleSmoothScroll(
+    disableSmoothScrollDuringRouteTransition(
       () => {
         // Scroll to top if the hash is just `#` with no value or `#top`
         // To mirror browsers

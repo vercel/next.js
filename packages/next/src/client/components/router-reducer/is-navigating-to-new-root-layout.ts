@@ -1,4 +1,4 @@
-import type { FlightRouterState } from '../../../server/app-render/types'
+import type { FlightRouterState } from '../../../shared/lib/app-router-types'
 
 export function isNavigatingToNewRootLayout(
   currentTree: FlightRouterState,

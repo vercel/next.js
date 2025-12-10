@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::{DUMMY_SP, util::take::Take},
@@ -23,12 +24,14 @@ use turbopack_core::{
 };
 use turbopack_resolve::ecmascript::esm_resolve;
 
-use super::super::pattern_mapping::{PatternMapping, ResolveType};
 use crate::{
     analyzer::imports::ImportAnnotations,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
+    references::{
+        AstPath,
+        pattern_mapping::{PatternMapping, ResolveType},
+    },
 };
 
 #[turbo_tasks::value]
@@ -121,7 +124,19 @@ impl IntoCodeGenReference for EsmAsyncAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    ValueDebugFormat,
+    NonLocalValue,
+    Hash,
+    Debug,
+    Encode,
+    Decode,
+)]
 pub struct EsmAsyncAssetReferenceCodeGen {
     path: AstPath,
     reference: ResolvedVc<EsmAsyncAssetReference>,
@@ -137,7 +152,7 @@ impl EsmAsyncAssetReferenceCodeGen {
         let pm = PatternMapping::resolve_request(
             *reference.request,
             *reference.origin,
-            Vc::upcast(chunking_context),
+            chunking_context,
             self.reference.resolve_reference(),
             if matches!(
                 *chunking_context.environment().chunk_loading().await?,

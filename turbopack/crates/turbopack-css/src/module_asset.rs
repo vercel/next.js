@@ -1,6 +1,6 @@
 use std::{fmt::Write, sync::Arc};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use indoc::formatdoc;
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
@@ -18,10 +18,11 @@ use turbopack_core::{
     },
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
-    source::Source,
+    source::{OptionSource, Source},
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -72,6 +73,11 @@ impl Module for ModuleCssAsset {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         // The inner reference must come last so it is loaded as the last in the
         // resulting css. @import or composes references must be loaded first so
@@ -88,7 +94,7 @@ impl Module for ModuleCssAsset {
             .copied()
             .chain(
                 match *self
-                    .inner(ReferenceType::Css(CssReferenceSubType::Internal))
+                    .inner(ReferenceType::Css(CssReferenceSubType::Inner))
                     .try_into_module()
                     .await?
                 {
@@ -110,8 +116,8 @@ impl Module for ModuleCssAsset {
 #[turbo_tasks::value_impl]
 impl Asset for ModuleCssAsset {
     #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("CSS module asset has no contents")
+    fn content(&self) -> Vc<AssetContent> {
+        self.source.content()
     }
 }
 
@@ -157,7 +163,9 @@ enum ModuleCssClass {
 /// 3. class3: [Local("exported_class3), Import("class4", "./other.module.css")]
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-struct ModuleCssClasses(FxIndexMap<String, Vec<ModuleCssClass>>);
+struct ModuleCssClasses(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, Vec<ModuleCssClass>>,
+);
 
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
@@ -288,6 +296,9 @@ struct ModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for ModuleChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
@@ -296,7 +307,7 @@ impl ChunkItem for ModuleChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(*self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -368,9 +379,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                         let placeable: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>> =
                             ResolvedVc::upcast(css_module);
 
-                        let module_id = placeable
-                            .chunk_item_id(Vc::upcast(*self.chunking_context))
-                            .await?;
+                        let module_id = placeable.chunk_item_id(*self.chunking_context).await?;
                         let module_id = StringifyJs(&*module_id);
                         let original_name = StringifyJs(&original_name);
                         exported_class_names

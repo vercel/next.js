@@ -4,9 +4,10 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertNoRedbox,
+  waitForNoRedbox,
   check,
   fetchViaHTTP,
+  getClientBuildManifestLoaderChunkUrlPath,
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
@@ -66,7 +67,7 @@ describe('basePath', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -107,15 +108,6 @@ describe('basePath', () => {
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
-  it('should respect basePath in amphtml link rel', async () => {
-    const html = await renderViaHTTP(next.url, `${basePath}/amp-hybrid`)
-    const $ = cheerio.load(html)
-    const expectedAmpHtmlUrl = isNextDev
-      ? `${basePath}/amp-hybrid?amp=1`
-      : `${basePath}/amp-hybrid.amp`
-    expect($('link[rel=amphtml]').first().attr('href')).toBe(expectedAmpHtmlUrl)
-  })
-
   if (!isNextDev) {
     if (!isNextDeploy) {
       it('should add basePath to routes-manifest', async () => {
@@ -124,19 +116,22 @@ describe('basePath', () => {
         )
         expect(routesManifest.basePath).toBe(basePath)
       })
-    }
 
-    it('should prefetch pages correctly when manually called', async () => {
-      const browser = await webdriver(next.url, `${basePath}/other-page`)
-      await browser.eval('window.next.router.prefetch("/gssp")')
+      it('should prefetch pages correctly when manually called', async () => {
+        const browser = await webdriver(next.url, `${basePath}/other-page`)
+        await browser.eval('window.next.router.prefetch("/gssp")')
 
-      await check(
-        async () => {
+        let chunk = getClientBuildManifestLoaderChunkUrlPath(
+          next.testDir,
+          '/gssp'
+        )
+
+        await check(async () => {
           const links = await browser.elementsByCss('link[rel=prefetch]')
 
           for (const link of links) {
             const href = await link.getAttribute('href')
-            if (href.includes('gssp')) {
+            if (href.includes(chunk)) {
               return true
             }
           }
@@ -145,54 +140,60 @@ describe('basePath', () => {
 
           for (const script of scripts) {
             const src = await script.getAttribute('src')
-            if (src.includes('gssp')) {
+            if (src.includes(chunk)) {
               return true
             }
           }
           return false
-        },
-        {
-          test(result) {
-            return result === true
-          },
-        }
-      )
-    })
+        }, true)
+      })
 
-    it('should prefetch pages correctly in viewport with <Link>', async () => {
-      const browser = await webdriver(next.url, `${basePath}/hello`)
-      await browser.eval('window.next.router.prefetch("/gssp")')
+      it('should prefetch pages correctly in viewport with <Link>', async () => {
+        const browser = await webdriver(next.url, `${basePath}/hello`)
+        await browser.eval('window.next.router.prefetch("/gssp")')
 
-      await check(async () => {
-        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
-        hrefs.sort()
+        await check(async () => {
+          const hrefs = await browser.eval(
+            `Object.keys(window.next.router.sdc)`
+          )
+          hrefs.sort()
 
-        assert.deepEqual(
-          hrefs.map((href) =>
-            new URL(href).pathname.replace(/\/_next\/data\/[^/]+/, '')
-          ),
-          [
-            `${basePath}/gsp.json`,
-            `${basePath}/index.json`,
-            // `${basePath}/index/index.json`,
-          ]
-        )
+          assert.deepEqual(
+            hrefs.map((href) =>
+              new URL(href).pathname.replace(/\/_next\/data\/[^/]+/, '')
+            ),
+            [
+              `${basePath}/gsp.json`,
+              `${basePath}/index.json`,
+              // `${basePath}/index/index.json`,
+            ]
+          )
 
-        const prefetches = await browser.eval(
-          `[].slice.call(document.querySelectorAll("link[rel=prefetch]")).map((e) => new URL(e.href).pathname)`
-        )
-        expect(prefetches).toContainEqual(
-          expect.stringMatching(/\/gsp-?([^./]+)?\.js/)
-        )
-        expect(prefetches).toContainEqual(
-          expect.stringMatching(/\/gssp-?([^./]+)?\.js/)
-        )
-        expect(prefetches).toContainEqual(
-          expect.stringMatching(/\/other-page-?([^./]+)?\.js/)
-        )
-        return 'yes'
-      }, 'yes')
-    })
+          let chunkGsp = getClientBuildManifestLoaderChunkUrlPath(
+            next.testDir,
+            '/gsp'
+          )
+          let chunkGssp = getClientBuildManifestLoaderChunkUrlPath(
+            next.testDir,
+            '/gssp'
+          )
+          let chunkOtherPage = getClientBuildManifestLoaderChunkUrlPath(
+            next.testDir,
+            '/other-page'
+          )
+
+          const prefetches = await browser.eval(
+            `[].slice.call(document.querySelectorAll("link[rel=prefetch]")).map((e) => new URL(e.href).pathname)`
+          )
+          expect(prefetches).toContainEqual(expect.stringContaining(chunkGsp))
+          expect(prefetches).toContainEqual(expect.stringContaining(chunkGssp))
+          expect(prefetches).toContainEqual(
+            expect.stringContaining(chunkOtherPage)
+          )
+          return 'yes'
+        }, 'yes')
+      })
+    }
   }
 
   it('should serve public file with basePath correctly', async () => {
@@ -527,7 +528,7 @@ describe('basePath', () => {
       expect(await browser.eval('window.location.search')).toBe('?query=true')
 
       if (isNextDev) {
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
       }
     } finally {
       await browser.close()
@@ -551,7 +552,7 @@ describe('basePath', () => {
       expect(await browser.eval('window.location.search')).toBe('?query=true')
 
       if (isNextDev) {
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
       }
     } finally {
       await browser.close()

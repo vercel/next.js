@@ -1,9 +1,10 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkType,
 };
+use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use crate::version::{VersionedAssetContent, VersionedContent};
 
@@ -43,9 +44,10 @@ impl AssetContent {
         let this = self.await?;
         match &*this {
             AssetContent::File(content) => Ok(content.parse_json()),
-            AssetContent::Redirect { .. } => {
-                Ok(FileJsonContent::unparsable("a redirect can't be parsed as json").cell())
-            }
+            AssetContent::Redirect { .. } => Ok(FileJsonContent::unparsable(rcstr!(
+                "a redirect can't be parsed as json"
+            ))
+            .cell()),
         }
     }
 
@@ -81,9 +83,10 @@ impl AssetContent {
         let this = self.await?;
         match &*this {
             AssetContent::File(content) => Ok(content.parse_json_with_comments()),
-            AssetContent::Redirect { .. } => {
-                Ok(FileJsonContent::unparsable("a redirect can't be parsed as json").cell())
-            }
+            AssetContent::Redirect { .. } => Ok(FileJsonContent::unparsable(rcstr!(
+                "a redirect can't be parsed as json"
+            ))
+            .cell()),
         }
     }
 
@@ -107,5 +110,19 @@ impl AssetContent {
             }
         }
         Ok(())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn hash(&self) -> Result<Vc<u64>> {
+        match self {
+            AssetContent::File(content) => Ok(content.hash()),
+            AssetContent::Redirect { target, link_type } => {
+                use turbo_tasks_hash::DeterministicHash;
+                let mut hasher = Xxh3Hash64Hasher::new();
+                target.deterministic_hash(&mut hasher);
+                link_type.deterministic_hash(&mut hasher);
+                Ok(Vc::cell(hasher.finish()))
+            }
+        }
     }
 }

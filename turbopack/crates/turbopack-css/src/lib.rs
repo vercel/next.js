@@ -16,6 +16,7 @@ pub(crate) mod references;
 pub(crate) mod util;
 
 pub use asset::CssModuleAsset;
+use bincode::{Decode, Encode};
 pub use module_asset::ModuleCssAsset;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
@@ -38,6 +39,8 @@ use crate::references::import::ImportAssetReference;
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum CssModuleAssetType {
     /// Default parsing mode.
@@ -45,12 +48,4 @@ pub enum CssModuleAssetType {
     Default,
     /// The CSS is parsed as CSS modules.
     Module,
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

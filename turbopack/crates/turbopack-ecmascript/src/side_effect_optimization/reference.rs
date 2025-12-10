@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
@@ -14,22 +15,34 @@ use turbopack_core::{
     },
     module::Module,
     reference::ModuleReference,
-    resolve::{ExportUsage, ModulePart, ModuleResolveResult},
+    resolve::{BindingUsage, ExportUsage, ImportUsage, ModulePart, ModuleResolveResult},
 };
 
-use super::{
-    facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
-};
 use crate::{
     ScopeHoistingContext,
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     references::esm::base::{ReferencedAsset, ReferencedAssetIdent},
     runtime_functions::TURBOPACK_IMPORT,
+    side_effect_optimization::{
+        facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
+    },
     utils::module_id_to_lit,
 };
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, NonLocalValue, TraceRawVcs)]
+#[derive(
+    Debug,
+    Clone,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+    TraceRawVcs,
+    Encode,
+    Decode,
+)]
 enum EcmascriptModulePartReferenceMode {
     Synthesize,
     Normal,
@@ -54,6 +67,13 @@ impl EcmascriptModulePartReference {
         part: ModulePart,
         export_usage: ResolvedVc<ExportUsage>,
     ) -> Vc<Self> {
+        debug_assert!(matches!(
+            part,
+            ModulePart::Locals
+                | ModulePart::Facade
+                | ModulePart::RenamedExport { .. }
+                | ModulePart::RenamedNamespace { .. }
+        ));
         EcmascriptModulePartReference {
             module,
             part,
@@ -104,14 +124,12 @@ impl ModuleReference for EcmascriptModulePartReference {
                         };
                         Vc::upcast::<Box<dyn Module>>(EcmascriptModuleLocalsModule::new(*module))
                     }
-                    ModulePart::Exports
-                    | ModulePart::Evaluation
-                    | ModulePart::Facade
+                    ModulePart::Facade
                     | ModulePart::RenamedExport { .. }
                     | ModulePart::RenamedNamespace { .. } => Vc::upcast(
                         EcmascriptModuleFacadeModule::new(*self.module, self.part.clone()),
                     ),
-                    ModulePart::Export(..) | ModulePart::Internal(..) => {
+                    _ => {
                         bail!(
                             "Unexpected ModulePart \"{}\" for EcmascriptModulePartReference",
                             self.part
@@ -139,8 +157,12 @@ impl ChunkableModuleReference for EcmascriptModulePartReference {
     }
 
     #[turbo_tasks::function]
-    fn export_usage(&self) -> Vc<ExportUsage> {
-        *self.export_usage
+    async fn binding_usage(&self) -> Result<Vc<BindingUsage>> {
+        Ok(BindingUsage {
+            import: ImportUsage::SideEffects,
+            export: self.export_usage.owned().await?,
+        }
+        .cell())
     }
 }
 
@@ -173,25 +195,17 @@ impl EcmascriptModulePartReference {
             ));
         }
 
-        if merged_index.is_some() && matches!(*this.export_usage.await?, ExportUsage::Evaluation) {
+        let export_usage = this.export_usage.await?;
+        if merged_index.is_some() && matches!(*export_usage, ExportUsage::Evaluation) {
             // No need to import, the module was already executed and is available in the same scope
             // hoisting group (unless it's a namespace import)
         } else {
             let ident = referenced_asset
                 .get_ident(
                     chunking_context,
-                    match &this.part {
-                        ModulePart::Export(export)
-                        | ModulePart::RenamedExport {
-                            original_export: export,
-                            ..
-                        }
-                        | ModulePart::RenamedNamespace { export } => Some(export.clone()),
-                        ModulePart::Internal(_)
-                        | ModulePart::Locals
-                        | ModulePart::Exports
-                        | ModulePart::Facade
-                        | ModulePart::Evaluation => None,
+                    match &*export_usage {
+                        ExportUsage::Named(export) => Some(export.clone()),
+                        ExportUsage::All | ExportUsage::Evaluation => None,
                     },
                     scope_hoisting_context,
                 )
@@ -207,7 +221,7 @@ impl EcmascriptModulePartReference {
                     let key = sym.as_str().into();
                     let name = Ident::new(sym.into(), DUMMY_SP, ctxt.unwrap_or_default());
 
-                    let id = module.chunk_item_id(Vc::upcast(chunking_context)).await?;
+                    let id = module.chunk_item_id(chunking_context).await?;
 
                     result.push(CodeGenerationHoistedStmt::new(
                         key,

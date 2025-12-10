@@ -6,9 +6,14 @@ use turbopack::module_options::ModuleRule;
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 use super::get_ecma_transform_rule;
+use crate::next_shared::transforms::EcmascriptTransformStage;
 
 pub fn get_next_track_dynamic_imports_transform_rule(mdx_rs: bool) -> ModuleRule {
-    get_ecma_transform_rule(Box::new(NextTrackDynamicImports {}), mdx_rs, false)
+    get_ecma_transform_rule(
+        Box::new(NextTrackDynamicImports {}),
+        mdx_rs,
+        EcmascriptTransformStage::Postprocess,
+    )
 }
 
 #[derive(Debug)]

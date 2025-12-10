@@ -23,9 +23,9 @@
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import type {
   WorkUnitStore,
-  RequestStore,
   PrerenderStoreLegacy,
   PrerenderStoreModern,
+  PrerenderStoreModernRuntime,
 } from '../app-render/work-unit-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
@@ -33,15 +33,22 @@ import React from 'react'
 
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import {
+  getRuntimeStagePromise,
+  throwForMissingRequestStore,
+  workUnitAsyncStorage,
+} from './work-unit-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
   OUTLET_BOUNDARY_NAME,
-} from '../../lib/metadata/metadata-constants'
+  ROOT_LAYOUT_BOUNDARY_NAME,
+} from '../../lib/framework/boundary-constants'
 import { scheduleOnNextTick } from '../../lib/scheduler'
+import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -71,7 +78,6 @@ export type DynamicTrackingState = {
    */
   readonly dynamicAccesses: Array<DynamicAccess>
 
-  syncDynamicExpression: undefined | string
   syncDynamicErrorWithStack: null | Error
 }
 
@@ -79,6 +85,7 @@ export type DynamicTrackingState = {
 export type DynamicValidationState = {
   hasSuspenseAboveBody: boolean
   hasDynamicMetadata: boolean
+  dynamicMetadata: null | Error
   hasDynamicViewport: boolean
   hasAllowedDynamic: boolean
   dynamicErrors: Array<Error>
@@ -90,7 +97,6 @@ export function createDynamicTrackingState(
   return {
     isDebugDynamicAccesses,
     dynamicAccesses: [],
-    syncDynamicExpression: undefined,
     syncDynamicErrorWithStack: null,
   }
 }
@@ -99,6 +105,7 @@ export function createDynamicValidationState(): DynamicValidationState {
   return {
     hasSuspenseAboveBody: false,
     hasDynamicMetadata: false,
+    dynamicMetadata: null,
     hasDynamicViewport: false,
     hasAllowedDynamic: false,
     dynamicErrors: [],
@@ -124,14 +131,23 @@ export function markCurrentScopeAsDynamic(
   expression: string
 ): void {
   if (workUnitStore) {
-    if (
-      workUnitStore.type === 'cache' ||
-      workUnitStore.type === 'unstable-cache'
-    ) {
-      // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
-      // creates a cache boundary. This is subtly different from reading a dynamic data source which is
-      // forbidden inside a cache scope.
-      return
+    switch (workUnitStore.type) {
+      case 'cache':
+      case 'unstable-cache':
+        // Inside cache scopes, marking a scope as dynamic has no effect,
+        // because the outer cache scope creates a cache boundary. This is
+        // subtly different from reading a dynamic data source, which is
+        // forbidden inside a cache scope.
+        return
+      case 'private-cache':
+        // A private cache scope is already dynamic by definition.
+        return
+      case 'prerender-legacy':
+      case 'prerender-ppr':
+      case 'request':
+        break
+      default:
+        workUnitStore satisfies never
     }
   }
 
@@ -147,53 +163,38 @@ export function markCurrentScopeAsDynamic(
   }
 
   if (workUnitStore) {
-    if (workUnitStore.type === 'prerender-ppr') {
-      postponeWithTracking(
-        store.route,
-        expression,
-        workUnitStore.dynamicTracking
-      )
-    } else if (workUnitStore.type === 'prerender-legacy') {
-      workUnitStore.revalidate = 0
+    switch (workUnitStore.type) {
+      case 'prerender-ppr':
+        return postponeWithTracking(
+          store.route,
+          expression,
+          workUnitStore.dynamicTracking
+        )
+      case 'prerender-legacy':
+        workUnitStore.revalidate = 0
 
-      // We aren't prerendering but we are generating a static page. We need to bail out of static generation
-      const err = new DynamicServerError(
-        `Route ${store.route} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
-      )
-      store.dynamicUsageDescription = expression
-      store.dynamicUsageStack = err.stack
+        // We aren't prerendering, but we are generating a static page. We need
+        // to bail out of static generation.
+        const err = new DynamicServerError(
+          `Route ${store.route} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+        )
+        store.dynamicUsageDescription = expression
+        store.dynamicUsageStack = err.stack
 
-      throw err
-    } else if (
-      process.env.NODE_ENV === 'development' &&
-      workUnitStore &&
-      workUnitStore.type === 'request'
-    ) {
-      workUnitStore.usedDynamic = true
+        throw err
+      case 'request':
+        if (process.env.NODE_ENV !== 'production') {
+          workUnitStore.usedDynamic = true
+        }
+        break
+      default:
+        workUnitStore satisfies never
     }
   }
 }
 
 /**
- * This function communicates that some dynamic path parameter was read. This
- * differs from the more general `trackDynamicDataAccessed` in that it is will
- * not error when `dynamic = "error"` is set.
- *
- * @param store The static generation store
- * @param expression The expression that was accessed dynamically
- */
-export function trackFallbackParamAccessed(
-  store: WorkStore,
-  expression: string
-): void {
-  const prerenderStore = workUnitAsyncStorage.getStore()
-  if (!prerenderStore || prerenderStore.type !== 'prerender-ppr') return
-
-  postponeWithTracking(store.route, expression, prerenderStore.dynamicTracking)
-}
-
-/**
- * This function is meant to be used when prerendering without dynamicIO or PPR.
+ * This function is meant to be used when prerendering without cacheComponents or PPR.
  * When called during a build it will cause Next.js to consider the route as dynamic.
  *
  * @internal
@@ -223,34 +224,31 @@ export function throwToInterruptStaticGeneration(
  *
  * @internal
  */
-export function trackDynamicDataInDynamicRender(
-  _store: WorkStore,
-  workUnitStore: void | WorkUnitStore
-) {
-  if (workUnitStore) {
-    if (
-      workUnitStore.type === 'cache' ||
-      workUnitStore.type === 'unstable-cache'
-    ) {
-      // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
-      // creates a cache boundary. This is subtly different from reading a dynamic data source which is
+export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
+  switch (workUnitStore.type) {
+    case 'cache':
+    case 'unstable-cache':
+      // Inside cache scopes, marking a scope as dynamic has no effect,
+      // because the outer cache scope creates a cache boundary. This is
+      // subtly different from reading a dynamic data source, which is
       // forbidden inside a cache scope.
       return
-    }
-    // TODO: it makes no sense to have these work unit store types during a dev render.
-    if (
-      workUnitStore.type === 'prerender' ||
-      workUnitStore.type === 'prerender-client' ||
-      workUnitStore.type === 'prerender-legacy'
-    ) {
-      workUnitStore.revalidate = 0
-    }
-    if (
-      process.env.NODE_ENV === 'development' &&
-      workUnitStore.type === 'request'
-    ) {
-      workUnitStore.usedDynamic = true
-    }
+    case 'private-cache':
+      // A private cache scope is already dynamic by definition.
+      return
+    case 'prerender':
+    case 'prerender-runtime':
+    case 'prerender-legacy':
+    case 'prerender-ppr':
+    case 'prerender-client':
+      break
+    case 'request':
+      if (process.env.NODE_ENV !== 'production') {
+        workUnitStore.usedDynamic = true
+      }
+      break
+    default:
+      workUnitStore satisfies never
   }
 }
 
@@ -292,27 +290,18 @@ export function abortOnSynchronousPlatformIOAccess(
   // called the sync IO expression in the first place.
   if (dynamicTracking) {
     if (dynamicTracking.syncDynamicErrorWithStack === null) {
-      dynamicTracking.syncDynamicExpression = expression
       dynamicTracking.syncDynamicErrorWithStack = errorWithStack
     }
   }
 }
 
-export function trackSynchronousPlatformIOAccessInDev(
-  requestStore: RequestStore
-): void {
-  // We don't actually have a controller to abort but we do the semantic equivalent by
-  // advancing the request store out of prerender mode
-  requestStore.prerenderPhase = false
-}
-
 /**
- * use this function when prerendering with dynamicIO. If we are doing a
+ * use this function when prerendering with cacheComponents. If we are doing a
  * prospective prerender we don't actually abort because we want to discover
  * all caches for the shell. If this is the actual prerender we do abort.
  *
  * This function accepts a prerenderStore but the caller should ensure we're
- * actually running in dynamicIO mode.
+ * actually running in cacheComponents mode.
  *
  * @internal
  */
@@ -337,7 +326,6 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
     const dynamicTracking = prerenderStore.dynamicTracking
     if (dynamicTracking) {
       if (dynamicTracking.syncDynamicErrorWithStack === null) {
-        dynamicTracking.syncDynamicExpression = expression
         dynamicTracking.syncDynamicErrorWithStack = errorWithStack
       }
     }
@@ -346,10 +334,6 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
     `Route ${route} needs to bail out of prerendering at this point because it used ${expression}.`
   )
 }
-
-// For now these implementations are the same so we just reexport
-export const trackSynchronousRequestDataAccessInDev =
-  trackSynchronousPlatformIOAccessInDev
 
 /**
  * This component will call `React.postpone` that throws the postponed error.
@@ -515,15 +499,9 @@ function assertPostpone() {
  * This is a bit of a hack to allow us to abort a render using a Postpone instance instead of an Error which changes React's
  * abort semantics slightly.
  */
-export function createPostponedAbortSignal(reason: string): AbortSignal {
-  assertPostpone()
+export function createRenderInBrowserAbortSignal(): AbortSignal {
   const controller = new AbortController()
-  // We get our hands on a postpone instance by calling postpone and catching the throw
-  try {
-    React.unstable_postpone(reason)
-  } catch (x: unknown) {
-    controller.abort(x)
-  }
+  controller.abort(new BailoutToCSRError('Render in Browser'))
   return controller.signal
 }
 
@@ -533,27 +511,55 @@ export function createPostponedAbortSignal(reason: string): AbortSignal {
  * case we need to abort the encoding of arguments since they'll never complete.
  */
 export function createHangingInputAbortSignal(
-  workUnitStore: PrerenderStoreModern
-): AbortSignal {
-  const controller = new AbortController()
+  workUnitStore: WorkUnitStore
+): AbortSignal | undefined {
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-runtime':
+      const controller = new AbortController()
 
-  if (workUnitStore.cacheSignal) {
-    // If we have a cacheSignal it means we're in a prospective render. If the input
-    // we're waiting on is coming from another cache, we do want to wait for it so that
-    // we can resolve this cache entry too.
-    workUnitStore.cacheSignal.inputReady().then(() => {
-      controller.abort()
-    })
-  } else {
-    // Otherwise we're in the final render and we should already have all our caches
-    // filled. We might still be waiting on some microtasks so we wait one tick before
-    // giving up. When we give up, we still want to render the content of this cache
-    // as deeply as we can so that we can suspend as deeply as possible in the tree
-    // or not at all if we don't end up waiting for the input.
-    scheduleOnNextTick(() => controller.abort())
+      if (workUnitStore.cacheSignal) {
+        // If we have a cacheSignal it means we're in a prospective render. If
+        // the input we're waiting on is coming from another cache, we do want
+        // to wait for it so that we can resolve this cache entry too.
+        workUnitStore.cacheSignal.inputReady().then(() => {
+          controller.abort()
+        })
+      } else {
+        // Otherwise we're in the final render and we should already have all
+        // our caches filled.
+        // If the prerender uses stages, we have wait until the runtime stage,
+        // at which point all runtime inputs will be resolved.
+        // (otherwise, a runtime prerender might consider `cookies()` hanging
+        //  even though they'd resolve in the next task.)
+        //
+        // We might still be waiting on some microtasks so we
+        // wait one tick before giving up. When we give up, we still want to
+        // render the content of this cache as deeply as we can so that we can
+        // suspend as deeply as possible in the tree or not at all if we don't
+        // end up waiting for the input.
+        const runtimeStagePromise = getRuntimeStagePromise(workUnitStore)
+        if (runtimeStagePromise) {
+          runtimeStagePromise.then(() =>
+            scheduleOnNextTick(() => controller.abort())
+          )
+        } else {
+          scheduleOnNextTick(() => controller.abort())
+        }
+      }
+
+      return controller.signal
+    case 'prerender-client':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'request':
+    case 'cache':
+    case 'private-cache':
+    case 'unstable-cache':
+      return undefined
+    default:
+      workUnitStore satisfies never
   }
-
-  return controller.signal
 }
 
 export function annotateDynamicAccess(
@@ -573,40 +579,128 @@ export function annotateDynamicAccess(
 
 export function useDynamicRouteParams(expression: string) {
   const workStore = workAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workStore && workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'prerender-client':
+      case 'prerender': {
+        const fallbackParams = workUnitStore.fallbackRouteParams
 
-  if (
-    workStore &&
-    workStore.isStaticGeneration &&
-    workStore.fallbackRouteParams &&
-    workStore.fallbackRouteParams.size > 0
-  ) {
-    // There are fallback route params, we should track these as dynamic
-    // accesses.
-    const workUnitStore = workUnitAsyncStorage.getStore()
-    if (workUnitStore) {
-      // We're prerendering with dynamicIO or PPR or both
-      if (workUnitStore.type === 'prerender-client') {
-        // We are in a prerender with dynamicIO semantics
-        // We are going to hang here and never resolve. This will cause the currently
-        // rendering component to effectively be a dynamic hole
-        React.use(makeHangingPromise(workUnitStore.renderSignal, expression))
-      } else if (workUnitStore.type === 'prerender-ppr') {
-        // We're prerendering with PPR
-        postponeWithTracking(
-          workStore.route,
-          expression,
-          workUnitStore.dynamicTracking
-        )
-      } else if (workUnitStore.type === 'prerender-legacy') {
-        throwToInterruptStaticGeneration(expression, workStore, workUnitStore)
+        if (fallbackParams && fallbackParams.size > 0) {
+          // We are in a prerender with cacheComponents semantics. We are going to
+          // hang here and never resolve. This will cause the currently
+          // rendering component to effectively be a dynamic hole.
+          React.use(
+            makeHangingPromise(
+              workUnitStore.renderSignal,
+              workStore.route,
+              expression
+            )
+          )
+        }
+        break
       }
+      case 'prerender-ppr': {
+        const fallbackParams = workUnitStore.fallbackRouteParams
+        if (fallbackParams && fallbackParams.size > 0) {
+          return postponeWithTracking(
+            workStore.route,
+            expression,
+            workUnitStore.dynamicTracking
+          )
+        }
+        break
+      }
+      case 'prerender-runtime':
+        throw new InvariantError(
+          `\`${expression}\` was called during a runtime prerender. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+        )
+      case 'cache':
+      case 'private-cache':
+        throw new InvariantError(
+          `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+        )
+      case 'prerender-legacy':
+      case 'request':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
     }
   }
 }
 
+export function useDynamicSearchParams(expression: string) {
+  const workStore = workAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
+  if (!workStore) {
+    // We assume pages router context and just return
+    return
+  }
+
+  if (!workUnitStore) {
+    throwForMissingRequestStore(expression)
+  }
+
+  switch (workUnitStore.type) {
+    case 'prerender-client': {
+      React.use(
+        makeHangingPromise(
+          workUnitStore.renderSignal,
+          workStore.route,
+          expression
+        )
+      )
+      break
+    }
+    case 'prerender-legacy':
+    case 'prerender-ppr': {
+      if (workStore.forceStatic) {
+        return
+      }
+      throw new BailoutToCSRError(expression)
+    }
+    case 'prerender':
+    case 'prerender-runtime':
+      throw new InvariantError(
+        `\`${expression}\` was called from a Server Component. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+      )
+    case 'cache':
+    case 'unstable-cache':
+    case 'private-cache':
+      throw new InvariantError(
+        `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+      )
+    case 'request':
+      return
+    default:
+      workUnitStore satisfies never
+  }
+}
+
 const hasSuspenseRegex = /\n\s+at Suspense \(<anonymous>\)/
-const hasSuspenseAfterBodyOrHtmlRegex =
-  /\n\s+at (?:body|html) \(<anonymous>\)[\s\S]*?\n\s+at Suspense \(<anonymous>\)/
+
+// Common implicit body tags that React will treat as body when placed directly in html
+const bodyAndImplicitTags =
+  'body|div|main|section|article|aside|header|footer|nav|form|p|span|h1|h2|h3|h4|h5|h6'
+
+// Detects when RootLayoutBoundary (our framework marker component) appears
+// after Suspense in the component stack, indicating the root layout is wrapped
+// within a Suspense boundary. Ensures no body/html/implicit-body components are in between.
+//
+// Example matches:
+//   at Suspense (<anonymous>)
+//   at __next_root_layout_boundary__ (<anonymous>)
+//
+// Or with other components in between (but not body/html/implicit-body):
+//   at Suspense (<anonymous>)
+//   at SomeComponent (<anonymous>)
+//   at __next_root_layout_boundary__ (<anonymous>)
+const hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex = new RegExp(
+  `\\n\\s+at Suspense \\(<anonymous>\\)(?:(?!\\n\\s+at (?:${bodyAndImplicitTags}) \\(<anonymous>\\))[\\s\\S])*?\\n\\s+at ${ROOT_LAYOUT_BOUNDARY_NAME} \\([^\\n]*\\)`
+)
+
 const hasMetadataRegex = new RegExp(
   `\\n\\s+at ${METADATA_BOUNDARY_NAME}[\\n\\s]`
 )
@@ -630,9 +724,14 @@ export function trackAllowedDynamicAccess(
   } else if (hasViewportRegex.test(componentStack)) {
     dynamicValidation.hasDynamicViewport = true
     return
-  } else if (hasSuspenseAfterBodyOrHtmlRegex.test(componentStack)) {
-    // This prerender has a Suspense boundary above the body which
-    // effectively opts the page into allowing 100% dynamic rendering
+  } else if (
+    hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex.test(
+      componentStack
+    )
+  ) {
+    // For Suspense within body, the prelude wouldn't be empty so it wouldn't violate the empty static shells rule.
+    // But if you have Suspense above body, the prelude is empty but we allow that because having Suspense
+    // is an explicit signal from the user that they acknowledge the empty shell and want dynamic rendering.
     dynamicValidation.hasAllowedDynamic = true
     dynamicValidation.hasSuspenseAboveBody = true
     return
@@ -648,7 +747,109 @@ export function trackAllowedDynamicAccess(
     )
     return
   } else {
-    const message = `Route "${workStore.route}": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense`
+    const message =
+      `Route "${workStore.route}": Uncached data was accessed outside of ` +
+      '<Suspense>. This delays the entire page from rendering, resulting in a ' +
+      'slow user experience. Learn more: ' +
+      'https://nextjs.org/docs/messages/blocking-route'
+    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    dynamicValidation.dynamicErrors.push(error)
+    return
+  }
+}
+
+export function trackDynamicHoleInRuntimeShell(
+  workStore: WorkStore,
+  componentStack: string,
+  dynamicValidation: DynamicValidationState,
+  clientDynamic: DynamicTrackingState
+) {
+  if (hasOutletRegex.test(componentStack)) {
+    // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
+    return
+  } else if (hasMetadataRegex.test(componentStack)) {
+    const message = `Route "${workStore.route}": Uncached data or \`connection()\` was accessed inside \`generateMetadata\`. Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
+    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    dynamicValidation.dynamicMetadata = error
+    return
+  } else if (hasViewportRegex.test(componentStack)) {
+    const message = `Route "${workStore.route}": Uncached data or \`connection()\` was accessed inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
+    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    dynamicValidation.dynamicErrors.push(error)
+    return
+  } else if (
+    hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex.test(
+      componentStack
+    )
+  ) {
+    // For Suspense within body, the prelude wouldn't be empty so it wouldn't violate the empty static shells rule.
+    // But if you have Suspense above body, the prelude is empty but we allow that because having Suspense
+    // is an explicit signal from the user that they acknowledge the empty shell and want dynamic rendering.
+    dynamicValidation.hasAllowedDynamic = true
+    dynamicValidation.hasSuspenseAboveBody = true
+    return
+  } else if (hasSuspenseRegex.test(componentStack)) {
+    // this error had a Suspense boundary above it so we don't need to report it as a source
+    // of disallowed
+    dynamicValidation.hasAllowedDynamic = true
+    return
+  } else if (clientDynamic.syncDynamicErrorWithStack) {
+    // This task was the task that called the sync error.
+    dynamicValidation.dynamicErrors.push(
+      clientDynamic.syncDynamicErrorWithStack
+    )
+    return
+  } else {
+    const message = `Route "${workStore.route}": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route`
+    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    dynamicValidation.dynamicErrors.push(error)
+    return
+  }
+}
+
+export function trackDynamicHoleInStaticShell(
+  workStore: WorkStore,
+  componentStack: string,
+  dynamicValidation: DynamicValidationState,
+  clientDynamic: DynamicTrackingState
+) {
+  if (hasOutletRegex.test(componentStack)) {
+    // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
+    return
+  } else if (hasMetadataRegex.test(componentStack)) {
+    const message = `Route "${workStore.route}": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateMetadata\` or you have file-based metadata such as icons that depend on dynamic params segments. Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
+    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    dynamicValidation.dynamicMetadata = error
+    return
+  } else if (hasViewportRegex.test(componentStack)) {
+    const message = `Route "${workStore.route}": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
+    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    dynamicValidation.dynamicErrors.push(error)
+    return
+  } else if (
+    hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex.test(
+      componentStack
+    )
+  ) {
+    // For Suspense within body, the prelude wouldn't be empty so it wouldn't violate the empty static shells rule.
+    // But if you have Suspense above body, the prelude is empty but we allow that because having Suspense
+    // is an explicit signal from the user that they acknowledge the empty shell and want dynamic rendering.
+    dynamicValidation.hasAllowedDynamic = true
+    dynamicValidation.hasSuspenseAboveBody = true
+    return
+  } else if (hasSuspenseRegex.test(componentStack)) {
+    // this error had a Suspense boundary above it so we don't need to report it as a source
+    // of disallowed
+    dynamicValidation.hasAllowedDynamic = true
+    return
+  } else if (clientDynamic.syncDynamicErrorWithStack) {
+    // This task was the task that called the sync error.
+    dynamicValidation.dynamicErrors.push(
+      clientDynamic.syncDynamicErrorWithStack
+    )
+    return
+  } else {
+    const message = `Route "${workStore.route}": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route`
     const error = createErrorWithComponentOrOwnerStack(message, componentStack)
     dynamicValidation.dynamicErrors.push(error)
     return
@@ -669,7 +870,9 @@ function createErrorWithComponentOrOwnerStack(
       : null
 
   const error = new Error(message)
-  error.stack = error.name + ': ' + message + (ownerStack ?? componentStack)
+  // TODO go back to owner stack here if available. This is temporarily using componentStack to get the right
+  //
+  error.stack = error.name + ': ' + message + (ownerStack || componentStack)
   return error
 }
 
@@ -679,7 +882,10 @@ export enum PreludeState {
   Errored = 2,
 }
 
-function logDisallowedDynamicError(workStore: WorkStore, error: Error): void {
+export function logDisallowedDynamicError(
+  workStore: WorkStore,
+  error: Error
+): void {
   console.error(error)
 
   if (!workStore.dev) {
@@ -701,8 +907,11 @@ export function throwIfDisallowedDynamic(
   dynamicValidation: DynamicValidationState,
   serverDynamic: DynamicTrackingState
 ): void {
-  if (workStore.invalidDynamicUsageError) {
-    logDisallowedDynamicError(workStore, workStore.invalidDynamicUsageError)
+  if (serverDynamic.syncDynamicErrorWithStack) {
+    logDisallowedDynamicError(
+      workStore,
+      serverDynamic.syncDynamicErrorWithStack
+    )
     throw new StaticGenBailoutError()
   }
 
@@ -712,17 +921,6 @@ export function throwIfDisallowedDynamic(
       // by including a Suspense boundary above the body. In this case
       // a lack of a shell is not considered disallowed so we simply return
       return
-    }
-
-    if (serverDynamic.syncDynamicErrorWithStack) {
-      // There is no shell and the server did something sync dynamic likely
-      // leading to an early termination of the prerender before the shell
-      // could be completed. We terminate the build/validating render.
-      logDisallowedDynamicError(
-        workStore,
-        serverDynamic.syncDynamicErrorWithStack
-      )
-      throw new StaticGenBailoutError()
     }
 
     // We didn't have any sync bailouts but there may be user code which
@@ -768,4 +966,59 @@ export function throwIfDisallowedDynamic(
       throw new StaticGenBailoutError()
     }
   }
+}
+
+export function getStaticShellDisallowedDynamicReasons(
+  workStore: WorkStore,
+  prelude: PreludeState,
+  dynamicValidation: DynamicValidationState
+): Array<Error> {
+  if (dynamicValidation.hasSuspenseAboveBody) {
+    // This route has opted into allowing fully dynamic rendering
+    // by including a Suspense boundary above the body. In this case
+    // a lack of a shell is not considered disallowed so we simply return
+    return []
+  }
+
+  if (prelude !== PreludeState.Full) {
+    // We didn't have any sync bailouts but there may be user code which
+    // blocked the root. We would have captured these during the prerender
+    // and can log them here and then terminate the build/validating render
+    const dynamicErrors = dynamicValidation.dynamicErrors
+    if (dynamicErrors.length > 0) {
+      return dynamicErrors
+    }
+
+    if (prelude === PreludeState.Empty) {
+      // If we ever get this far then we messed up the tracking of invalid dynamic.
+      // We still adhere to the constraint that you must produce a shell but invite the
+      // user to report this as a bug in Next.js.
+      return [
+        new InvariantError(
+          `Route "${workStore.route}" did not produce a static shell and Next.js was unable to determine a reason.`
+        ),
+      ]
+    }
+  } else {
+    // We have a prelude but we might still have dynamic metadata without any other dynamic access
+    if (
+      dynamicValidation.hasAllowedDynamic === false &&
+      dynamicValidation.dynamicErrors.length === 0 &&
+      dynamicValidation.dynamicMetadata
+    ) {
+      return [dynamicValidation.dynamicMetadata]
+    }
+  }
+  // We had a non-empty prelude and there are no dynamic holes
+  return []
+}
+
+export function delayUntilRuntimeStage<T>(
+  prerenderStore: PrerenderStoreModernRuntime,
+  result: Promise<T>
+): Promise<T> {
+  if (prerenderStore.runtimeStagePromise) {
+    return prerenderStore.runtimeStagePromise.then(() => result)
+  }
+  return result
 }

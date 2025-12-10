@@ -16,6 +16,7 @@ const meta: Meta<typeof Errors> = {
 export default meta
 type Story = StoryObj<typeof Errors>
 
+// todo: update the stories to be wrapped in context providers necessary, instead of passing props directly, before they expected props
 export const Default: Story = {
   args: {
     getSquashedHydrationErrorDetails: () => null,
@@ -69,20 +70,6 @@ export const WithHydrationWarning: Story = {
 -     <p> hello world and welcome to my amazing website with lots of content hello world and welcome to my amazing website with lots of content </p>
 +     <div> hello world and welcome to my amazing website with lots of content hello world and welcome to my amazing website with lots of content </div>`,
           },
-          componentStackFrames: [
-            {
-              component: 'MyComponent',
-              file: 'app/page.tsx',
-              lineNumber: 10,
-              columnNumber: 5,
-            },
-            {
-              component: 'ParentComponent',
-              file: 'app/layout.tsx',
-              lineNumber: 20,
-              columnNumber: 3,
-            },
-          ],
         }),
         frames: () =>
           Promise.resolve([
@@ -91,12 +78,14 @@ export const WithHydrationWarning: Story = {
               reason: 'First error message',
               external: false,
               ignored: false,
+              originalStackFrame: null,
+              originalCodeFrame: null,
               sourceStackFrame: {
                 file: 'app/page.tsx',
                 methodName: 'Home',
                 arguments: [],
-                lineNumber: 10,
-                column: 5,
+                line1: 10,
+                column1: 5,
               },
             },
           ]),

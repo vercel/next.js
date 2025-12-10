@@ -50,6 +50,8 @@ export function generateViewport({ params }) {
 }
 ```
 
+In TypeScript, the `params` argument can be typed via [`PageProps<'/route'>`](/docs/app/api-reference/file-conventions/page#page-props-helper) or [`LayoutProps<'/route'>`](/docs/app/api-reference/file-conventions/layout#layout-props-helper) depending on where `generateViewport` is defined.
+
 ```jsx filename="layout.js | page.js" switcher
 export function generateViewport({ params }) {
   return {

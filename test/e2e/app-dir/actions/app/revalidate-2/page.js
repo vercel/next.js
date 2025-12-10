@@ -1,4 +1,4 @@
-import { unstable_expireTag } from 'next/cache'
+import { updateTag } from 'next/cache'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
 
@@ -26,7 +26,7 @@ export default async function Page() {
           id="revalidate-tag"
           formAction={async () => {
             'use server'
-            unstable_expireTag('thankyounext')
+            updateTag('thankyounext')
           }}
         >
           revalidate thankyounext
@@ -34,7 +34,9 @@ export default async function Page() {
       </form>
       <p>
         random cookie:{' '}
-        <span id="random-cookie">{JSON.stringify(randomCookie)}</span>
+        <span id="random-cookie">
+          {JSON.stringify({ cookie: randomCookie })}
+        </span>
       </p>
     </>
   )

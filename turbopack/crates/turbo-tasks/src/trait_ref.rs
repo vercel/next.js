@@ -1,7 +1,6 @@
 use std::{fmt::Debug, future::Future, marker::PhantomData};
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
 
 use crate::{
     Vc, VcValueTrait,
@@ -57,38 +56,6 @@ impl<T> std::hash::Hash for TraitRef<T> {
     }
 }
 
-impl<T> Serialize for TraitRef<T> {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.shared_reference.serialize(serializer)
-    }
-}
-
-impl<'de, T> Deserialize<'de> for TraitRef<T> {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Ok(Self {
-            shared_reference: TypedSharedReference::deserialize(deserializer)?,
-            _t: PhantomData,
-        })
-    }
-}
-
-// This is a workaround for https://github.com/rust-lang/rust-analyzer/issues/19971
-// that ensures type inference keeps working with ptr_metadata.
-
-#[cfg(rust_analyzer)]
-impl<U> std::ops::Deref for TraitRef<Box<U>>
-where
-    U: ?Sized,
-    Box<U>: VcValueTrait,
-{
-    type Target = U;
-
-    fn deref(&self) -> &Self::Target {
-        unimplemented!("only exists for rust-analyzer type inference")
-    }
-}
-
-#[cfg(not(rust_analyzer))]
 impl<U> std::ops::Deref for TraitRef<Box<U>>
 where
     Box<U>: VcValueTrait<ValueTrait = U>,
@@ -99,12 +66,11 @@ where
     fn deref(&self) -> &Self::Target {
         // This lookup will fail if the value type stored does not actually implement the trait,
         // which implies a bug in either the registry code or the macro code.
-        let metadata =
-            <Box<U> as VcValueTrait>::get_impl_vtables().get(self.shared_reference.type_id);
-        let downcast_ptr = std::ptr::from_raw_parts(
+        let downcast_ptr = <Box<U> as VcValueTrait>::get_impl_vtables().cast(
+            self.shared_reference.type_id,
             self.shared_reference.reference.0.as_ptr() as *const (),
-            metadata,
         );
+        // SAFETY: the pointer is derived from an Arc
         unsafe { &*downcast_ptr }
     }
 }
@@ -175,6 +141,8 @@ where
     type Future = ReadVcFuture<T, VcValueTraitCast<T>>;
 
     fn into_trait_ref(self) -> Self::Future {
-        self.node.into_read().into()
+        self.node
+            .into_read_with_unknown_is_serializable_cell_content()
+            .into()
     }
 }

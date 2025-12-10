@@ -1,5 +1,6 @@
 use std::ops::RangeInclusive;
 
+use rustc_hash::FxHashMap;
 use smallvec::{SmallVec, smallvec};
 
 use crate::compaction::interval_map::IntervalMap;
@@ -12,6 +13,12 @@ pub trait Compactable {
 
     /// The size of the compactable database segment in bytes.
     fn size(&self) -> u64;
+
+    /// The category of the compactable. Overlap between different categories is not considered for
+    /// compaction.
+    fn category(&self) -> u8 {
+        0
+    }
 }
 
 fn is_overlapping(a: &RangeInclusive<u64>, b: &RangeInclusive<u64>) -> bool {
@@ -37,6 +44,7 @@ fn extend_range(a: &mut RangeInclusive<u64>, b: &RangeInclusive<u64>) -> bool {
     extended
 }
 
+#[cfg(test)]
 #[derive(Debug)]
 pub struct CompactableMetrics {
     /// The total coverage of the compactables.
@@ -53,6 +61,7 @@ pub struct CompactableMetrics {
 }
 
 /// Computes metrics about the compactables.
+#[cfg(test)]
 pub fn compute_metrics<T: Compactable>(
     compactables: &[T],
     full_range: RangeInclusive<u64>,
@@ -104,6 +113,7 @@ pub fn compute_metrics<T: Compactable>(
 }
 
 /// Configuration for the compaction algorithm.
+#[derive(Clone)]
 pub struct CompactConfig {
     /// The minimum number of files to merge at once.
     pub min_merge_count: usize,
@@ -135,8 +145,8 @@ impl Default for CompactConfig {
             optimal_merge_count: 8,
             max_merge_count: 32,
             max_merge_bytes: 500 * MB,
-            min_merge_duplication_bytes: MB,
-            optimal_merge_duplication_bytes: 10 * MB,
+            min_merge_duplication_bytes: 50 * MB,
+            optimal_merge_duplication_bytes: 100 * MB,
             max_merge_segment_count: 8,
         }
     }
@@ -154,7 +164,7 @@ impl DuplicationInfo {
     /// Get a value in the range `0..=u64` that represents the estimated amount of duplication
     /// across the given range. The units are arbitrary, but linear.
     fn duplication(&self, range: &RangeInclusive<u64>) -> u64 {
-        if self.total_size == 0 {
+        if self.max_size == self.total_size {
             return 0;
         }
         // the maximum numerator value is `u64::MAX + 1`
@@ -166,6 +176,7 @@ impl DuplicationInfo {
     }
 
     /// The estimated size (in bytes) of a database segment containing `range` keys.
+    #[cfg(test)]
     fn size(&self, range: &RangeInclusive<u64>) -> u64 {
         if self.total_size == 0 {
             return 0;
@@ -189,20 +200,26 @@ impl DuplicationInfo {
     }
 }
 
-fn total_duplication_size(duplication: &IntervalMap<Option<DuplicationInfo>>) -> u64 {
+fn total_duplication_size(duplication: &IntervalMap<FxHashMap<u8, DuplicationInfo>>) -> u64 {
     duplication
         .iter()
-        .flat_map(|(range, info)| Some((range, info.as_ref()?)))
-        .map(|(range, info)| info.duplication(&range))
+        .map(|(range, info)| {
+            info.values()
+                .map(|info| info.duplication(&range))
+                .sum::<u64>()
+        })
         .sum()
 }
 
 type MergeSegments = Vec<SmallVec<[usize; 1]>>;
 
+/// Computes the set of merge segments that should be run to compact the given compactables.
+///
+/// Returns both the mergeable segments and the actual number of merge segments that were created.
 pub fn get_merge_segments<T: Compactable>(
     compactables: &[T],
     config: &CompactConfig,
-) -> MergeSegments {
+) -> (MergeSegments, usize) {
     // Process all compactables in reverse order.
     // For each compactable, find the smallest set of compactables that overlaps with it and matches
     // the conditions.
@@ -232,13 +249,22 @@ pub fn get_merge_segments<T: Compactable>(
             // We have reached the maximum number of merge jobs, so we stop here.
             break;
         }
-        let mut current_range = start_compactable.range();
+        let start_compactable_range = start_compactable.range();
+        let start_compactable_size = start_compactable.size();
+        let start_compactable_category = start_compactable.category();
+        let mut current_range = start_compactable_range.clone();
 
         // We might need to restart the search if we need to extend the range.
         'search: loop {
             let mut current_set = smallvec![start_index];
-            let mut current_size = start_compactable.size();
-            let mut duplication = IntervalMap::<Option<DuplicationInfo>>::new();
+            let mut current_size = start_compactable_size;
+            let mut duplication = IntervalMap::<FxHashMap<u8, DuplicationInfo>>::new();
+            duplication.update(start_compactable_range.clone(), |dup_info| {
+                dup_info
+                    .entry(start_compactable_category)
+                    .or_default()
+                    .add(start_compactable_size, &start_compactable_range);
+            });
             let mut current_skip = 0;
 
             // We will capture compactables in the current_range until we find a optimal merge
@@ -258,7 +284,7 @@ pub fn get_merge_segments<T: Compactable>(
                     continue 'outer;
                 }
 
-                // If we are limited by size or count, we might also crate a merge segment if it's
+                // If we are limited by size or count, we might also create a merge segment if it's
                 // within the limits.
                 let valid_merge_job = current_set.len() >= config.min_merge_count
                     && duplication_size >= config.min_merge_duplication_bytes;
@@ -326,8 +352,9 @@ pub fn get_merge_segments<T: Compactable>(
                 // set.
                 current_set.push(next_index);
                 current_size += size;
+                let category = compactable.category();
                 duplication.update(range.clone(), |dup_info| {
-                    dup_info.get_or_insert_default().add(size, &range);
+                    dup_info.entry(category).or_default().add(size, &range);
                 });
             }
         }
@@ -360,7 +387,7 @@ pub fn get_merge_segments<T: Compactable>(
         true
     });
 
-    merge_segments
+    (merge_segments, real_merge_segments)
 }
 
 #[cfg(test)]
@@ -397,7 +424,7 @@ mod tests {
             .into_iter()
             .map(|range| TestCompactable { range, size: 100 })
             .collect::<Vec<_>>();
-        let jobs = get_merge_segments(&compactables, config);
+        let (jobs, _) = get_merge_segments(&compactables, config);
         jobs.into_iter()
             .map(|job| job.into_iter().collect())
             .collect()
@@ -608,11 +635,11 @@ mod tests {
                 min_merge_count: 2,
                 optimal_merge_count: 4,
                 max_merge_bytes: 5000,
-                min_merge_duplication_bytes: 200,
-                optimal_merge_duplication_bytes: 500,
+                min_merge_duplication_bytes: 500,
+                optimal_merge_duplication_bytes: 1000,
                 max_merge_segment_count: 4,
             };
-            let jobs = get_merge_segments(&containers, &config);
+            let (jobs, _) = get_merge_segments(&containers, &config);
             if !jobs.is_empty() {
                 println!("{jobs:?}");
 
@@ -622,13 +649,16 @@ mod tests {
 
                 let new_metrics = compute_metrics(&containers, 0..=KEY_RANGE);
                 println!(
-                    "Compaction done: coverage: {} ({}), overlap: {} ({}), duplication: {} ({})",
+                    "Compaction done: coverage: {} ({}), overlap: {} ({}), duplication: {} ({}), \
+                     duplicated_size: {} ({})",
                     new_metrics.coverage,
                     new_metrics.coverage - metrics.coverage,
                     new_metrics.overlap,
                     new_metrics.overlap - metrics.overlap,
                     new_metrics.duplication,
-                    new_metrics.duplication - metrics.duplication
+                    new_metrics.duplication - metrics.duplication,
+                    new_metrics.duplicated_size,
+                    (new_metrics.duplicated_size as f32) - metrics.duplicated_size as f32,
                 );
             } else {
                 println!("No compaction needed");
@@ -652,7 +682,7 @@ mod tests {
         println!("Number of compactions: {number_of_compactions}");
 
         let metrics = compute_metrics(&containers, 0..=KEY_RANGE);
-        assert!(number_of_compactions < 40);
+        assert!(number_of_compactions < 30);
         assert!(containers.len() < 30);
         assert!(metrics.duplication < 0.5);
     }

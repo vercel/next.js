@@ -22,10 +22,6 @@ declare namespace NodeJS {
     // TODO: Should be optional and possibly undefined
     readonly NODE_ENV: 'development' | 'production' | 'test'
   }
-
-  interface RequestInit extends globalThis.RequestInit {
-    next?: NextFetchRequestConfig | undefined
-  }
 }
 
 declare module '*.module.css' {

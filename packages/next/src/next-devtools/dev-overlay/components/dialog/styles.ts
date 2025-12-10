@@ -41,36 +41,6 @@ export const styles = css`
     outline: 0;
   }
 
-  [data-nextjs-dialog],
-  [data-nextjs-dialog] * {
-    &::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-      border-radius: 0 0 1rem 1rem;
-      margin-bottom: 1rem;
-    }
-
-    &::-webkit-scrollbar-button {
-      display: none;
-    }
-
-    &::-webkit-scrollbar-track {
-      border-radius: 0 0 1rem 1rem;
-      background-color: var(--color-background-100);
-    }
-
-    &::-webkit-scrollbar-thumb {
-      border-radius: 1rem;
-      background-color: var(--color-gray-500);
-    }
-  }
-
-  /* Place overflow: hidden on this so we can break out from [data-nextjs-dialog] */
-  [data-nextjs-dialog-sizer] {
-    overflow: hidden;
-    border-radius: inherit;
-  }
-
   [data-nextjs-dialog-backdrop] {
     opacity: 0;
     transition: opacity var(--transition-duration) var(--timing-overlay);

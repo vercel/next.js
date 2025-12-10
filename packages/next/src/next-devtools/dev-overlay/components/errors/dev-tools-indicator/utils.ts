@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useEffectEvent } from 'react'
 
 export function useFocusTrap(
   rootRef: React.RefObject<HTMLElement | null>,
@@ -6,6 +6,13 @@ export function useFocusTrap(
   active: boolean,
   onOpenFocus?: () => void
 ) {
+  const fireOpenFocus = useEffectEvent((rootNode: HTMLElement | null) => {
+    if (onOpenFocus) {
+      onOpenFocus()
+    } else {
+      rootNode?.focus()
+    }
+  })
   useEffect(() => {
     let rootNode: HTMLElement | null = null
 
@@ -35,11 +42,7 @@ export function useFocusTrap(
       // Grab this on next tick to ensure the content is mounted
       rootNode = rootRef.current
       if (active) {
-        if (onOpenFocus) {
-          onOpenFocus()
-        } else {
-          rootNode?.focus()
-        }
+        fireOpenFocus(rootNode)
         rootNode?.addEventListener('keydown', onTab)
       } else {
         const activeElement = getActiveElement(rootNode)
@@ -56,8 +59,7 @@ export function useFocusTrap(
       clearTimeout(id)
       rootNode?.removeEventListener('keydown', onTab)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active])
+  }, [active, rootRef, triggerRef])
 }
 
 export function getActiveElement(node: HTMLElement | null) {
@@ -80,18 +82,20 @@ function getFocusableNodes(node: HTMLElement): [HTMLElement, HTMLElement] | [] {
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-export function useClickOutside(
+// TODO: split up escape and click outside logic
+export function useClickOutsideAndEscape(
   rootRef: React.RefObject<HTMLElement | null>,
   triggerRef: React.RefObject<HTMLButtonElement | null>,
   active: boolean,
-  close: () => void
+  close: (reason: 'escape' | 'outside') => void,
+  ownerDocument?: Document
 ) {
   useEffect(() => {
     if (!active) {
       return
     }
 
-    const ownerDocument = rootRef.current?.ownerDocument
+    const ownerDocumentEl = ownerDocument || rootRef.current?.ownerDocument
 
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as HTMLElement
@@ -99,40 +103,49 @@ export function useClickOutside(
         return
       }
 
+      const cushion = 10
+
       if (
         !(rootRef.current?.getBoundingClientRect()
-          ? event.clientX >= rootRef.current.getBoundingClientRect()!.left &&
-            event.clientX <= rootRef.current.getBoundingClientRect()!.right &&
-            event.clientY >= rootRef.current.getBoundingClientRect()!.top &&
-            event.clientY <= rootRef.current.getBoundingClientRect()!.bottom
+          ? event.clientX >=
+              rootRef.current.getBoundingClientRect()!.left - cushion &&
+            event.clientX <=
+              rootRef.current.getBoundingClientRect()!.right + cushion &&
+            event.clientY >=
+              rootRef.current.getBoundingClientRect()!.top - cushion &&
+            event.clientY <=
+              rootRef.current.getBoundingClientRect()!.bottom + cushion
           : false) &&
         !(triggerRef.current?.getBoundingClientRect()
-          ? event.clientX >= triggerRef.current.getBoundingClientRect()!.left &&
+          ? event.clientX >=
+              triggerRef.current.getBoundingClientRect()!.left - cushion &&
             event.clientX <=
-              triggerRef.current.getBoundingClientRect()!.right &&
-            event.clientY >= triggerRef.current.getBoundingClientRect()!.top &&
-            event.clientY <= triggerRef.current.getBoundingClientRect()!.bottom
+              triggerRef.current.getBoundingClientRect()!.right + cushion &&
+            event.clientY >=
+              triggerRef.current.getBoundingClientRect()!.top - cushion &&
+            event.clientY <=
+              triggerRef.current.getBoundingClientRect()!.bottom + cushion
           : false)
       ) {
-        close()
+        close('outside')
       }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        close()
+        close('escape')
       }
     }
 
-    ownerDocument?.addEventListener('mousedown', handleClickOutside)
-    ownerDocument?.addEventListener('keydown', handleKeyDown)
+    ownerDocumentEl?.addEventListener('mousedown', handleClickOutside)
+
+    ownerDocumentEl?.addEventListener('keydown', handleKeyDown)
 
     return () => {
-      ownerDocument?.removeEventListener('mousedown', handleClickOutside)
-      ownerDocument?.removeEventListener('keydown', handleKeyDown)
+      ownerDocumentEl?.removeEventListener('mousedown', handleClickOutside)
+      ownerDocumentEl?.removeEventListener('keydown', handleKeyDown)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active])
+  }, [active, close, ownerDocument, rootRef, triggerRef])
 }
 
 //////////////////////////////////////////////////////////////////////////////////////

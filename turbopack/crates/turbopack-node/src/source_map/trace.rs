@@ -1,6 +1,12 @@
 use std::{borrow::Cow, fmt::Display};
 
-use anyhow::Result;
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 use serde::{Deserialize, Serialize};
 use turbopack_core::source_map::{SourceMap, Token};
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
@@ -74,6 +80,30 @@ impl Display for StackFrame<'_> {
     }
 }
 
+impl Encode for StackFrame<'_> {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self.file.encode(encoder)?;
+        self.line.encode(encoder)?;
+        self.column.encode(encoder)?;
+        self.name.encode(encoder)?;
+        Ok(())
+    }
+}
+
+// needs a manual implementation because the derive macro doesn't handle the lifetime correctly
+impl<Context> Decode<Context> for StackFrame<'_> {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(Self {
+            file: Decode::decode(decoder)?,
+            line: Decode::decode(decoder)?,
+            column: Decode::decode(decoder)?,
+            name: Decode::decode(decoder)?,
+        })
+    }
+}
+
+impl_borrow_decode!(StackFrame<'_>);
+
 /// The result of performing a source map trace.
 #[derive(Debug)]
 pub enum TraceResult {
@@ -91,16 +121,14 @@ pub enum TraceResult {
 /// memory hog, it'd be so much faster if we could just directly access
 /// the individual sections of the JS file's map without the
 /// serialization.
-pub async fn trace_source_map(
+pub fn trace_source_map(
     map: &SourceMap,
     line: u32,
     column: u32,
     name: Option<&str>,
-) -> Result<TraceResult> {
-    let token = map
-        .lookup_token(line.saturating_sub(1), column.saturating_sub(1))
-        .await?;
-    let result = match token {
+) -> TraceResult {
+    let token = map.lookup_token(line.saturating_sub(1), column.saturating_sub(1));
+    match token {
         Token::Original(t) => TraceResult::Found(StackFrame {
             file: Cow::Owned(t.original_file.into_owned()),
             line: Some(t.original_line.saturating_add(1)),
@@ -113,7 +141,5 @@ pub async fn trace_source_map(
                 .map(Cow::Owned),
         }),
         _ => TraceResult::NotFound,
-    };
-
-    Ok(result)
+    }
 }

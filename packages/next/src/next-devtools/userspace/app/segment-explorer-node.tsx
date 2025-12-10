@@ -13,6 +13,12 @@ import { useLayoutEffect } from 'react'
 import { dispatcher } from 'next/dist/compiled/next-devtools'
 import { notFound } from '../../../client/components/not-found'
 
+export type SegmentBoundaryType =
+  | 'not-found'
+  | 'error'
+  | 'loading'
+  | 'global-error'
+
 export const SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE =
   'NEXT_DEVTOOLS_SIMULATED_ERROR'
 
@@ -20,7 +26,7 @@ export type SegmentNodeState = {
   type: string
   pagePath: string
   boundaryType: string | null
-  setBoundaryType: (type: 'error' | 'not-found' | 'loading' | null) => void
+  setBoundaryType: (type: SegmentBoundaryType | null) => void
 }
 
 function SegmentTrieNode({
@@ -111,17 +117,17 @@ export function SegmentViewNode({
 }
 
 const SegmentStateContext = createContext<{
-  boundaryType: 'not-found' | 'error' | 'loading' | null
-  setBoundaryType: (type: 'not-found' | 'error' | 'loading' | null) => void
+  boundaryType: SegmentBoundaryType | null
+  setBoundaryType: (type: SegmentBoundaryType | null) => void
 }>({
   boundaryType: null,
   setBoundaryType: () => {},
 })
 
 export function SegmentStateProvider({ children }: { children: ReactNode }) {
-  const [boundaryType, setBoundaryType] = useState<
-    'not-found' | 'error' | 'loading' | null
-  >(null)
+  const [boundaryType, setBoundaryType] = useState<SegmentBoundaryType | null>(
+    null
+  )
 
   const [errorBoundaryKey, setErrorBoundaryKey] = useState(0)
   const reloadBoundary = useCallback(
@@ -130,7 +136,7 @@ export function SegmentStateProvider({ children }: { children: ReactNode }) {
   )
 
   const setBoundaryTypeAndReload = useCallback(
-    (type: 'not-found' | 'error' | 'loading' | null) => {
+    (type: SegmentBoundaryType | null) => {
       if (type === null) {
         reloadBoundary()
       }

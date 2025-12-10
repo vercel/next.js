@@ -2,7 +2,7 @@ import isError from '../../../../lib/is-error'
 import { isNextRouterError } from '../../../../client/components/is-next-router-error'
 import { handleConsoleError } from './use-error-handler'
 import { parseConsoleArgs } from '../../../../client/lib/console'
-import { forwardErrorLog, isTerminalLoggingEnabled } from '../forward-logs'
+import { forwardErrorLog } from '../forward-logs'
 
 export const originConsoleError = globalThis.console.error
 
@@ -37,9 +37,7 @@ export function patchConsoleError() {
           args
         )
       }
-      if (isTerminalLoggingEnabled) {
-        forwardErrorLog(args)
-      }
+      forwardErrorLog(args)
 
       originConsoleError.apply(window.console, args)
     }

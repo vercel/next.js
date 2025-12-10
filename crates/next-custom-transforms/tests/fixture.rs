@@ -6,7 +6,6 @@ use std::{
 
 use bytes_str::BytesStr;
 use next_custom_transforms::transforms::{
-    amp_attributes::amp_attributes,
     cjs_optimizer::cjs_optimizer,
     debug_fn_name::debug_fn_name,
     dynamic::{next_dynamic, NextDynamicMode},
@@ -15,7 +14,6 @@ use next_custom_transforms::transforms::{
     next_ssg::next_ssg,
     optimize_barrel::optimize_barrel,
     optimize_server_react::{self, optimize_server_react},
-    page_config::page_config_test,
     pure::pure_magic,
     react_server_components::server_components,
     server_actions::{self, server_actions, ServerActionsMode},
@@ -31,7 +29,7 @@ use swc_core::{
     common::{comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
     ecma::{
         ast::Pass,
-        parser::{EsSyntax, Syntax},
+        parser::{EsSyntax, Syntax, TsSyntax},
         transforms::{
             base::resolver,
             react::jsx,
@@ -50,18 +48,6 @@ fn syntax() -> Syntax {
         import_attributes: true,
         ..Default::default()
     })
-}
-
-#[fixture("tests/fixture/amp/**/input.js")]
-fn amp_attributes_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| amp_attributes(),
-        &input,
-        &output,
-        Default::default(),
-    );
 }
 
 #[fixture("tests/fixture/next-dynamic/**/input.js")]
@@ -388,18 +374,6 @@ fn next_ssg_fixture(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/page-config/**/input.js")]
-fn page_config_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| page_config_test(),
-        &input,
-        &output,
-        Default::default(),
-    );
-}
-
 #[fixture("tests/fixture/relay/**/input.ts*")]
 fn relay_no_artifact_dir_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
@@ -477,7 +451,7 @@ fn react_server_components_typescript(input: PathBuf) {
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: true,
-                    dynamic_io_enabled: false,
+                    cache_components_enabled: false,
                     use_cache_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
@@ -497,19 +471,39 @@ fn react_server_components_typescript(input: PathBuf) {
 fn react_server_components_fixture(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
+    let filename = FileName::Real(PathBuf::from("/some-project/src/some-file.js"));
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
         &|tr| {
-            server_components(
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
-                Config::WithOptions(Options {
-                    is_react_server_layer,
-                    dynamic_io_enabled: false,
-                    use_cache_enabled: false,
-                }),
-                tr.comments.as_ref().clone(),
-                None,
+            (
+                // The transforms are intentionally declared in the same order as in
+                // crates/next-custom-transforms/src/chain_transforms.rs
+                server_components(
+                    filename.clone().into(),
+                    Config::WithOptions(Options {
+                        is_react_server_layer,
+                        cache_components_enabled: false,
+                        use_cache_enabled: false,
+                    }),
+                    tr.comments.as_ref().clone(),
+                    None,
+                ),
+                server_actions(
+                    &filename,
+                    None,
+                    server_actions::Config {
+                        is_react_server_layer,
+                        is_development: true,
+                        use_cache_enabled: true,
+                        hash_salt: "".into(),
+                        cache_kinds: FxHashSet::default(),
+                    },
+                    tr.comments.as_ref().clone(),
+                    tr.cm.clone(),
+                    Default::default(),
+                    ServerActionsMode::Webpack,
+                ),
             )
         },
         &input,
@@ -540,10 +534,16 @@ fn next_font_loaders_fixture(input: PathBuf) {
 
 #[fixture("tests/fixture/server-actions/**/input.*")]
 fn server_actions_fixture(input: PathBuf) {
-    let (input_syntax, extension) = if input.extension() == Some("ts".as_ref()) {
-        (Syntax::Typescript(Default::default()), "ts")
-    } else {
-        (syntax(), "js")
+    let (input_syntax, extension) = match input.extension().and_then(|e| e.to_str()) {
+        Some("ts") => (Syntax::Typescript(Default::default()), "ts"),
+        Some("tsx") => (
+            Syntax::Typescript(TsSyntax {
+                tsx: true,
+                ..Default::default()
+            }),
+            "tsx",
+        ),
+        _ => (syntax(), "js"),
     };
 
     let output = input.parent().unwrap().join(format!("output.{extension}"));

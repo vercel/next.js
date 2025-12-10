@@ -5,14 +5,26 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, State, TaskInput, Vc, trace::TraceRawVcs};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, Hash, NonLocalValue, Serialize, Deserialize, TraceRawVcs, TaskInput,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    NonLocalValue,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    TaskInput,
+    Encode,
+    Decode,
 )]
 pub struct TaskReferenceSpec {
     task: u16,
@@ -22,7 +34,18 @@ pub struct TaskReferenceSpec {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, Hash, NonLocalValue, Serialize, Deserialize, TraceRawVcs, TaskInput,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    NonLocalValue,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    TaskInput,
+    Encode,
+    Decode,
 )]
 pub struct TaskSpec {
     references: Vec<TaskReferenceSpec>,
@@ -33,9 +56,9 @@ pub struct TaskSpec {
 #[turbo_tasks::value(transparent)]
 struct Iteration(State<usize>);
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn graph_bug() {
-    run(&REGISTRATION, move || async move {
+    run_once(&REGISTRATION, move || async move {
         let spec = vec![
             TaskSpec {
                 references: vec![TaskReferenceSpec {

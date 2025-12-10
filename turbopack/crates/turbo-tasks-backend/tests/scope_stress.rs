@@ -8,7 +8,7 @@ use turbo_tasks_testing::{Registration, register, run_with_tt};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn rectangle_stress() -> Result<()> {
     let size = std::env::var("TURBOPACK_TEST_RECTANGLE_STRESS_SIZE")
         .map(|size| size.parse().unwrap())

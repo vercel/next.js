@@ -1,4 +1,5 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
@@ -6,18 +7,24 @@ use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::Trace
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
-use super::{ChunkableModule, EvaluatableAssets, availability_info::AvailabilityInfo};
 use crate::{
     asset::Asset,
-    chunk::{ChunkItem, ChunkType, ModuleId},
+    chunk::{
+        ChunkItem, ChunkType, ChunkableModule, EvaluatableAssets, ModuleId,
+        availability_info::AvailabilityInfo,
+    },
     environment::Environment,
     ident::AssetIdent,
     module::Module,
     module_graph::{
-        ModuleGraph, chunk_group_info::ChunkGroup, export_usage::ModuleExportUsageInfo,
+        ModuleGraph, binding_usage_info::ModuleExportUsage, chunk_group_info::ChunkGroup,
         module_batches::BatchingConfig,
     },
-    output::{OutputAsset, OutputAssets},
+    output::{
+        ExpandOutputAssetsInput, OutputAsset, OutputAssets, OutputAssetsReferences,
+        OutputAssetsWithReferenced, expand_output_assets,
+    },
+    reference::ModuleReference,
 };
 
 #[derive(
@@ -33,6 +40,8 @@ use crate::{
     TraceRawVcs,
     DeterministicHash,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum MangleType {
@@ -57,25 +66,14 @@ impl Default for MinifyType {
     }
 }
 
-#[derive(
-    Debug,
-    Default,
-    TaskInput,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    DeterministicHash,
-    NonLocalValue,
-)]
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Default, TaskInput, Clone, Copy, Hash, DeterministicHash)]
 pub enum SourceMapsType {
     /// Extracts source maps from input files and writes source maps for output files.
     #[default]
     Full,
+    /// Ignores existing input source maps, but writes source maps for output files.
+    Partial,
     /// Ignores the existence of source maps and does not write source maps for output files.
     None,
 }
@@ -93,6 +91,8 @@ pub enum SourceMapsType {
     TraceRawVcs,
     DeterministicHash,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum ChunkGroupType {
     Entry,
@@ -100,9 +100,119 @@ pub enum ChunkGroupType {
 }
 
 #[turbo_tasks::value(shared)]
+#[derive(Clone)]
 pub struct ChunkGroupResult {
     pub assets: ResolvedVc<OutputAssets>,
+    pub referenced_assets: ResolvedVc<OutputAssets>,
+    pub references: ResolvedVc<OutputAssetsReferences>,
     pub availability_info: AvailabilityInfo,
+}
+
+impl ChunkGroupResult {
+    pub fn empty() -> Vc<Self> {
+        ChunkGroupResult {
+            assets: ResolvedVc::cell(vec![]),
+            referenced_assets: ResolvedVc::cell(vec![]),
+            references: ResolvedVc::cell(vec![]),
+            availability_info: AvailabilityInfo::root(),
+        }
+        .cell()
+    }
+
+    pub fn empty_resolved() -> ResolvedVc<Self> {
+        ChunkGroupResult {
+            assets: ResolvedVc::cell(vec![]),
+            referenced_assets: ResolvedVc::cell(vec![]),
+            references: ResolvedVc::cell(vec![]),
+            availability_info: AvailabilityInfo::root(),
+        }
+        .resolved_cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkGroupResult {
+    #[turbo_tasks::function]
+    pub async fn output_assets_with_referenced(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        Ok(OutputAssetsWithReferenced {
+            assets: self.assets,
+            referenced_assets: self.referenced_assets,
+            references: self.references,
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn concatenate(&self, next: Vc<Self>) -> Result<Vc<Self>> {
+        let next = next.await?;
+        Ok(ChunkGroupResult {
+            assets: self.assets.concatenate(*next.assets).to_resolved().await?,
+            referenced_assets: self
+                .referenced_assets
+                .concatenate(*next.referenced_assets)
+                .to_resolved()
+                .await?,
+            references: self
+                .references
+                .concatenate(*next.references)
+                .to_resolved()
+                .await?,
+            availability_info: next.availability_info,
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn all_assets(&self) -> Result<Vc<OutputAssets>> {
+        Ok(Vc::cell(
+            expand_output_assets(
+                self.assets
+                    .await?
+                    .into_iter()
+                    .chain(self.referenced_assets.await?.into_iter())
+                    .copied()
+                    .map(ExpandOutputAssetsInput::Asset)
+                    .chain(
+                        self.references
+                            .await?
+                            .into_iter()
+                            .copied()
+                            .map(ExpandOutputAssetsInput::Reference),
+                    ),
+                false,
+            )
+            .await?,
+        ))
+    }
+
+    /// Returns only primary asset entries. Doesn't expand OutputAssets. Doesn't return referenced
+    /// assets.
+    #[turbo_tasks::function]
+    pub fn primary_assets(&self) -> Vc<OutputAssets> {
+        *self.assets
+    }
+
+    #[turbo_tasks::function]
+    pub async fn referenced_assets(&self) -> Result<Vc<OutputAssets>> {
+        Ok(Vc::cell(
+            expand_output_assets(
+                self.referenced_assets
+                    .await?
+                    .into_iter()
+                    .copied()
+                    .map(ExpandOutputAssetsInput::Asset)
+                    .chain(
+                        self.references
+                            .await?
+                            .into_iter()
+                            .copied()
+                            .map(ExpandOutputAssetsInput::Reference),
+                    ),
+                false,
+            )
+            .await?,
+        ))
+    }
 }
 
 #[turbo_tasks::value(shared)]
@@ -123,6 +233,8 @@ pub struct EntryChunkGroupResult {
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub struct ChunkingConfig {
     /// Try to avoid creating more than 1 chunk smaller than this size.
@@ -144,13 +256,22 @@ pub struct ChunkingConfig {
 #[turbo_tasks::value(transparent)]
 pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
 
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Copy, Hash, TaskInput, Default)]
+pub enum SourceMapSourceType {
+    AbsoluteFileUri,
+    RelativeUri,
+    #[default]
+    TurbopackUri,
+}
+
 /// A context for the chunking that influences the way chunks are created
 #[turbo_tasks::value_trait]
 pub trait ChunkingContext {
     #[turbo_tasks::function]
     fn name(self: Vc<Self>) -> Vc<RcStr>;
     #[turbo_tasks::function]
-    fn should_use_file_source_map_uris(self: Vc<Self>) -> Vc<bool>;
+    fn source_map_source_type(self: Vc<Self>) -> Vc<SourceMapSourceType>;
     /// The root path of the project
     #[turbo_tasks::function]
     fn root_path(self: Vc<Self>) -> Vc<FileSystemPath>;
@@ -181,6 +302,7 @@ pub trait ChunkingContext {
         self: Vc<Self>,
         asset: Option<Vc<Box<dyn Asset>>>,
         ident: Vc<AssetIdent>,
+        content_hashing_prefix: Option<RcStr>,
         extension: RcStr,
     ) -> Vc<FileSystemPath>;
 
@@ -194,14 +316,17 @@ pub trait ChunkingContext {
 
     /// Returns a URL (relative or absolute, depending on the asset prefix) to
     /// the static asset based on its `ident`.
+    /// The `tag` is an arbitrary string that can be used to distinguish
+    /// different usages of the same asset (e.g. different base paths).
     #[turbo_tasks::function]
-    fn asset_url(self: Vc<Self>, ident: FileSystemPath) -> Result<Vc<RcStr>>;
+    fn asset_url(self: Vc<Self>, ident: FileSystemPath, tag: Option<RcStr>) -> Result<Vc<RcStr>>;
 
     #[turbo_tasks::function]
     fn asset_path(
         self: Vc<Self>,
         content_hash: RcStr,
         original_asset_ident: Vc<AssetIdent>,
+        tag: Option<RcStr>,
     ) -> Vc<FileSystemPath>;
 
     #[turbo_tasks::function]
@@ -228,15 +353,36 @@ pub trait ChunkingContext {
         Vc::cell(false)
     }
 
+    /// Whether async modules should create an new availability boundary and therefore nested async
+    /// modules include less modules. Enabling this will lead to better optimized async chunks,
+    /// but it will require to compute all possible paths in the application, which might lead to
+    /// many combinations.
+    #[turbo_tasks::function]
+    fn is_nested_async_availability_enabled(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
     /// Whether to use `MergeableModule` to merge modules if possible.
     #[turbo_tasks::function]
     fn is_module_merging_enabled(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
     }
 
+    /// Whether to include information about the content of the chunk into the runtime, to allow
+    /// more incremental loading of individual chunk items.
+    #[turbo_tasks::function]
+    fn is_dynamic_chunk_content_loading_enabled(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
     #[turbo_tasks::function]
     fn minify_type(self: Vc<Self>) -> Vc<MinifyType> {
         MinifyType::NoMinify.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn should_use_absolute_url_references(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
     }
 
     #[turbo_tasks::function]
@@ -278,6 +424,7 @@ pub trait ChunkingContext {
         evaluatable_assets: Vc<EvaluatableAssets>,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
+        extra_referenced_assets: Vc<OutputAssets>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<EntryChunkGroupResult>>;
 
@@ -300,7 +447,17 @@ pub trait ChunkingContext {
     async fn module_export_usage(
         self: Vc<Self>,
         module: Vc<Box<dyn Module>>,
-    ) -> Result<Vc<ModuleExportUsageInfo>>;
+    ) -> Result<Vc<ModuleExportUsage>>;
+
+    #[turbo_tasks::function]
+    async fn is_reference_unused(
+        self: Vc<Self>,
+        reference: Vc<Box<dyn ModuleReference>>,
+    ) -> Result<Vc<bool>>;
+
+    /// Returns whether debug IDs are enabled for this chunking context.
+    #[turbo_tasks::function]
+    fn debug_ids_enabled(self: Vc<Self>) -> Vc<bool>;
 }
 
 pub trait ChunkingContextExt {
@@ -318,7 +475,7 @@ pub trait ChunkingContextExt {
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
-    ) -> Vc<OutputAssets>
+    ) -> Vc<OutputAssetsWithReferenced>
     where
         Self: Send;
 
@@ -328,7 +485,7 @@ pub trait ChunkingContextExt {
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
-    ) -> Vc<OutputAssets>
+    ) -> Vc<OutputAssetsWithReferenced>
     where
         Self: Send;
 
@@ -338,6 +495,7 @@ pub trait ChunkingContextExt {
         evaluatable_assets: Vc<EvaluatableAssets>,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
+        extra_referenced_assets: Vc<OutputAssets>,
         availability_info: AvailabilityInfo,
     ) -> Vc<Box<dyn OutputAsset>>
     where
@@ -349,6 +507,7 @@ pub trait ChunkingContextExt {
         evaluatable_assets: Vc<EvaluatableAssets>,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
+        extra_referenced_assets: Vc<OutputAssets>,
     ) -> Vc<EntryChunkGroupResult>
     where
         Self: Send;
@@ -359,6 +518,7 @@ pub trait ChunkingContextExt {
         evaluatable_assets: Vc<EvaluatableAssets>,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
+        extra_referenced_assets: Vc<OutputAssets>,
     ) -> Vc<Box<dyn OutputAsset>>
     where
         Self: Send;
@@ -369,7 +529,14 @@ pub trait ChunkingContextExt {
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
-    ) -> Vc<OutputAssets>
+    ) -> Vc<OutputAssetsWithReferenced>
+    where
+        Self: Send;
+
+    /// Computes the relative path from the chunk output root to the project root.
+    ///
+    /// This is used to compute relative paths for source maps in certain configurations.
+    fn relative_path_from_chunk_root_to_project_root(self: Vc<Self>) -> Vc<RcStr>
     where
         Self: Send;
 }
@@ -381,7 +548,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<ChunkGroupResult> {
-        self.chunk_group(ident, chunk_group, module_graph, AvailabilityInfo::Root)
+        self.chunk_group(ident, chunk_group, module_graph, AvailabilityInfo::root())
     }
 
     fn root_chunk_group_assets(
@@ -389,8 +556,13 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
-    ) -> Vc<OutputAssets> {
-        root_chunk_group_assets(Vc::upcast(self), ident, chunk_group, module_graph)
+    ) -> Vc<OutputAssetsWithReferenced> {
+        root_chunk_group_assets(
+            Vc::upcast_non_strict(self),
+            ident,
+            chunk_group,
+            module_graph,
+        )
     }
 
     fn evaluated_chunk_group_assets(
@@ -399,9 +571,9 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
-    ) -> Vc<OutputAssets> {
+    ) -> Vc<OutputAssetsWithReferenced> {
         evaluated_chunk_group_assets(
-            Vc::upcast(self),
+            Vc::upcast_non_strict(self),
             ident,
             chunk_group,
             module_graph,
@@ -415,14 +587,16 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         evaluatable_assets: Vc<EvaluatableAssets>,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
+        extra_referenced_assets: Vc<OutputAssets>,
         availability_info: AvailabilityInfo,
     ) -> Vc<Box<dyn OutputAsset>> {
         entry_chunk_group_asset(
-            Vc::upcast(self),
+            Vc::upcast_non_strict(self),
             path,
             evaluatable_assets,
             module_graph,
             extra_chunks,
+            extra_referenced_assets,
             availability_info,
         )
     }
@@ -433,13 +607,15 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         evaluatable_assets: Vc<EvaluatableAssets>,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
+        extra_referenced_assets: Vc<OutputAssets>,
     ) -> Vc<EntryChunkGroupResult> {
         self.entry_chunk_group(
             path,
             evaluatable_assets,
             module_graph,
             extra_chunks,
-            AvailabilityInfo::Root,
+            extra_referenced_assets,
+            AvailabilityInfo::root(),
         )
     }
 
@@ -449,14 +625,16 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         evaluatable_assets: Vc<EvaluatableAssets>,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
+        extra_referenced_assets: Vc<OutputAssets>,
     ) -> Vc<Box<dyn OutputAsset>> {
         entry_chunk_group_asset(
-            Vc::upcast(self),
+            Vc::upcast_non_strict(self),
             path,
             evaluatable_assets,
             module_graph,
             extra_chunks,
-            AvailabilityInfo::Root,
+            extra_referenced_assets,
+            AvailabilityInfo::root(),
         )
     }
 
@@ -466,42 +644,86 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
-    ) -> Vc<OutputAssets> {
+    ) -> Vc<OutputAssetsWithReferenced> {
         chunk_group_assets(
-            Vc::upcast(self),
+            Vc::upcast_non_strict(self),
             ident,
             chunk_group,
             module_graph,
             availability_info,
         )
     }
+
+    fn relative_path_from_chunk_root_to_project_root(self: Vc<Self>) -> Vc<RcStr> {
+        relative_path_from_chunk_root_to_project_root(Vc::upcast_non_strict(self))
+    }
 }
 
 #[turbo_tasks::function]
-async fn root_chunk_group_assets(
+async fn relative_path_from_chunk_root_to_project_root(
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+) -> Result<Vc<RcStr>> {
+    // Example,
+    //   project root: /project/root
+    //   output root: /project/root/dist
+    //   chunk root path: /project/root/dist/ssr/chunks
+    //   output_root_to_chunk_root: ../
+    //
+    // Example2,
+    //   project root: /project/root
+    //   output root: /project/out
+    //   chunk root path: /project/out/ssr/chunks
+    //   output_root_to_chunk_root: ../root
+    //
+    // From that we want to return  ../../../root to get from a path in `chunks` to a path in the
+    // project root.
+
+    let chunk_root_path = chunking_context.chunk_root_path().await?;
+    let output_root = chunking_context.output_root().await?;
+    let chunk_to_output_root = chunk_root_path.get_relative_path_to(&output_root);
+    let Some(chunk_to_output_root) = chunk_to_output_root else {
+        bail!(
+            "expected chunk_root_path: {chunk_root_path} to be inside of output_root: \
+             {output_root}",
+            chunk_root_path = chunk_root_path.value_to_string().await?,
+            output_root = output_root.value_to_string().await?
+        );
+    };
+    let output_root_to_chunk_root_path = chunking_context.output_root_to_root_path().await?;
+
+    // Note we cannot use `normalize_path` here since it rejects paths that start with `../`
+    Ok(Vc::cell(
+        format!(
+            "{}/{}",
+            chunk_to_output_root, output_root_to_chunk_root_path
+        )
+        .into(),
+    ))
+}
+
+#[turbo_tasks::function]
+fn root_chunk_group_assets(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     ident: Vc<AssetIdent>,
     chunk_group: ChunkGroup,
     module_graph: Vc<ModuleGraph>,
-) -> Result<Vc<OutputAssets>> {
-    Ok(*chunking_context
+) -> Vc<OutputAssetsWithReferenced> {
+    chunking_context
         .root_chunk_group(ident, chunk_group, module_graph)
-        .await?
-        .assets)
+        .output_assets_with_referenced()
 }
 
 #[turbo_tasks::function]
-async fn evaluated_chunk_group_assets(
+fn evaluated_chunk_group_assets(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     ident: Vc<AssetIdent>,
     chunk_group: ChunkGroup,
     module_graph: Vc<ModuleGraph>,
     availability_info: AvailabilityInfo,
-) -> Result<Vc<OutputAssets>> {
-    Ok(*chunking_context
+) -> Vc<OutputAssetsWithReferenced> {
+    chunking_context
         .evaluated_chunk_group(ident, chunk_group, module_graph, availability_info)
-        .await?
-        .assets)
+        .output_assets_with_referenced()
 }
 
 #[turbo_tasks::function]
@@ -511,6 +733,7 @@ async fn entry_chunk_group_asset(
     evaluatable_assets: Vc<EvaluatableAssets>,
     module_graph: Vc<ModuleGraph>,
     extra_chunks: Vc<OutputAssets>,
+    extra_referenced_assets: Vc<OutputAssets>,
     availability_info: AvailabilityInfo,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
     Ok(*chunking_context
@@ -519,6 +742,7 @@ async fn entry_chunk_group_asset(
             evaluatable_assets,
             module_graph,
             extra_chunks,
+            extra_referenced_assets,
             availability_info,
         )
         .await?
@@ -526,15 +750,14 @@ async fn entry_chunk_group_asset(
 }
 
 #[turbo_tasks::function]
-async fn chunk_group_assets(
+fn chunk_group_assets(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     ident: Vc<AssetIdent>,
     chunk_group: ChunkGroup,
     module_graph: Vc<ModuleGraph>,
     availability_info: AvailabilityInfo,
-) -> Result<Vc<OutputAssets>> {
-    Ok(*chunking_context
+) -> Vc<OutputAssetsWithReferenced> {
+    chunking_context
         .chunk_group(ident, chunk_group, module_graph, availability_info)
-        .await?
-        .assets)
+        .output_assets_with_referenced()
 }

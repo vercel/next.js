@@ -1,8 +1,8 @@
 use anyhow::Result;
 use rustc_hash::FxHashSet;
 use serde::Serialize;
-use tracing::{Level, instrument};
-use turbo_rcstr::RcStr;
+use tracing::instrument;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexmap,
 };
@@ -11,10 +11,10 @@ use turbopack_core::{
     chunk::{Chunk, ChunkItem, ChunkItemExt, ModuleId},
     module::Module,
     module_graph::ModuleGraph,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
 };
 
-#[instrument(level = Level::INFO, skip_all)]
+#[instrument(level = "info", name = "generate webpack stats", skip_all)]
 pub async fn generate_webpack_stats<I>(
     module_graph: Vc<ModuleGraph>,
     entry_name: RcStr,
@@ -38,7 +38,7 @@ where
         let mut queue = entry_assets.clone();
         while let Some(asset) = queue.pop() {
             if visited.insert(asset) {
-                let references = asset.references().await?;
+                let references = asset.references().all_assets().await?;
                 asset_children.insert(asset, references.clone());
                 queue.extend(references);
             }
@@ -56,18 +56,18 @@ where
     };
 
     let asset_reasons = {
-        let module_graph = module_graph.await?;
+        let module_graph = module_graph.read_graphs().await?;
         let mut edges = vec![];
-        module_graph
-            .traverse_all_edges_unordered(|(parent_node, r), current| {
+        module_graph.traverse_all_edges_unordered(|parent, current| {
+            if let Some((parent_node, r)) = parent {
                 edges.push((
-                    parent_node.module,
-                    RcStr::from(format!("{}: {}", r.chunking_type, r.export)),
-                    current.module,
+                    parent_node,
+                    RcStr::from(format!("{}: {}", r.chunking_type, r.binding_usage.export)),
+                    current,
                 ));
-                Ok(())
-            })
-            .await?;
+            }
+            Ok(())
+        })?;
 
         let edges = edges
             .into_iter()
@@ -94,7 +94,7 @@ where
     };
 
     for asset in entry_assets {
-        let path = RcStr::from(normalize_client_path(&asset.path().await?.path));
+        let path = normalize_client_path(&asset.path().await?.path);
 
         let Some(asset_len) = *asset.size_bytes().await? else {
             continue;
@@ -108,7 +108,7 @@ where
                 parents: if let Some(parents) = asset_parents.get(&asset) {
                     parents
                         .iter()
-                        .map(async |c| Ok(normalize_client_path(&c.path().await?.path).into()))
+                        .map(async |c| Ok(normalize_client_path(&c.path().await?.path)))
                         .try_join()
                         .await?
                 } else {
@@ -117,7 +117,7 @@ where
                 children: if let Some(children) = asset_children.get(&asset) {
                     children
                         .iter()
-                        .map(async |c| Ok(normalize_client_path(&c.path().await?.path).into()))
+                        .map(async |c| Ok(normalize_client_path(&c.path().await?.path)))
                         .try_join()
                         .await?
                 } else {
@@ -132,7 +132,7 @@ where
         }
 
         assets.push(WebpackStatsAsset {
-            ty: "asset".into(),
+            ty: rcstr!("asset"),
             name: path.clone(),
             chunk_names: vec![path],
             size: asset_len,
@@ -191,7 +191,7 @@ where
     })
 }
 
-fn normalize_client_path(path: &str) -> String {
+fn normalize_client_path(path: &str) -> RcStr {
     let next_re = regex::Regex::new(r"^_next/").unwrap();
     next_re.replace(path, ".next/").into()
 }

@@ -1,9 +1,9 @@
-use std::{collections::HashMap, mem::take};
+use std::mem::take;
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueDefault, Vc, fxindexset};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueDefault, Vc, fxindexset};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath, FileSystemPathOption};
 use turbopack_core::{
     asset::Asset,
@@ -21,7 +21,7 @@ use turbopack_core::{
             ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
             ResolveOptions,
         },
-        origin::{ResolveOrigin, ResolveOriginExt},
+        origin::ResolveOrigin,
         parse::Request,
         pattern::Pattern,
         resolve,
@@ -255,7 +255,7 @@ async fn try_join_base_url(
     base_url: RcStr,
 ) -> Result<Vc<FileSystemPathOption>> {
     Ok(Vc::cell(
-        source.ident().path().await?.parent().try_join(&base_url)?,
+        source.ident().path().await?.parent().try_join(&base_url),
     ))
 }
 
@@ -267,7 +267,7 @@ pub async fn tsconfig_resolve_options(
     let configs = read_tsconfigs(
         tsconfig.read(),
         ResolvedVc::upcast(FileSource::new(tsconfig.clone()).to_resolved().await?),
-        node_cjs_resolve_options(tsconfig.root().await?.clone_value()),
+        node_cjs_resolve_options(tsconfig.root().owned().await?),
     )
     .await?;
 
@@ -282,19 +282,19 @@ pub async fn tsconfig_resolve_options(
     })
     .await?
     {
-        (*base_url.await?).clone()
+        base_url.owned().await?
     } else {
         None
     };
 
-    let mut all_paths = HashMap::new();
+    let mut all_paths = FxIndexMap::default();
     for (content, source) in configs.iter().rev() {
         if let FileJsonContent::Content(json) = &*content.await?
             && let JsonValue::Object(paths) = &json["compilerOptions"]["paths"]
         {
             let mut context_dir = source.ident().path().await?.parent();
             if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str()
-                && let Some(new_context) = context_dir.try_join(base_url)?
+                && let Some(new_context) = context_dir.try_join(base_url)
             {
                 context_dir = new_context;
             };
@@ -321,7 +321,7 @@ pub async fn tsconfig_resolve_options(
                         })
                         .collect();
                     all_paths.insert(
-                        key.to_string(),
+                        RcStr::from(key.as_str()),
                         ImportMapping::primary_alternatives(entries, Some(context_dir.clone())),
                     );
                 } else {
@@ -417,7 +417,7 @@ pub async fn type_resolve(
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined);
     let context_path = origin.origin_path().await?.parent();
-    let options = origin.resolve_options(ty.clone()).await?;
+    let options = origin.resolve_options(ty.clone());
     let options = apply_typescript_types_options(options);
     let types_request = if let Request::Module {
         module: m,
@@ -426,13 +426,15 @@ pub async fn type_resolve(
         fragment: _,
     } = &*request.await?
     {
-        let m = if let Some(stripped) = m.strip_prefix('@') {
-            stripped.replace('/', "__").into()
+        let mut m = if let Some(mut stripped) = m.strip_prefix("@")? {
+            stripped.replace_constants(&|c| Some(Pattern::Constant(c.replace("/", "__").into())));
+            stripped
         } else {
             m.clone()
         };
+        m.push_front(rcstr!("@types/").into());
         Some(Request::module(
-            format!("@types/{m}").into(),
+            m,
             p.clone(),
             RcStr::default(),
             RcStr::default(),
@@ -470,16 +472,7 @@ pub async fn type_resolve(
             .asset_context()
             .process_resolve_result(result, ty.clone()),
     );
-    handle_resolve_error(
-        result,
-        ty,
-        origin.origin_path().await?.clone_value(),
-        request,
-        options,
-        false,
-        None,
-    )
-    .await
+    handle_resolve_error(result, ty, origin, request, options, false, None).await
 }
 
 #[turbo_tasks::function]
@@ -527,7 +520,7 @@ async fn apply_typescript_types_options(
     for conditions in get_condition_maps(&mut resolve_options) {
         conditions.insert(rcstr!("types"), ConditionValue::Set);
     }
-    Ok(resolve_options.into())
+    Ok(resolve_options.cell())
 }
 
 #[turbo_tasks::value_impl]

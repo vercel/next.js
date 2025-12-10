@@ -4,20 +4,9 @@ import path from 'path'
 import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 import type { TraceEvent } from '../types'
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const localEndpoint = {
-  serviceName: 'nextjs',
-  ipv4: '127.0.0.1',
-  port: 9411,
-}
-
-type Event = TraceEvent & {
-  localEndpoint?: typeof localEndpoint
-}
-
 // Batch events as zipkin allows for multiple events to be sent in one go
-export function batcher(reportEvents: (evts: Event[]) => Promise<void>) {
-  const events: Event[] = []
+export function batcher(reportEvents: (evts: TraceEvent[]) => Promise<void>) {
+  const events: TraceEvent[] = []
   // Promise queue to ensure events are always sent on flushAll
   const queue = new Set()
   return {
@@ -28,7 +17,7 @@ export function batcher(reportEvents: (evts: Event[]) => Promise<void>) {
         events.length = 0
       }
     },
-    report: (event: Event) => {
+    report: (event: TraceEvent) => {
       events.push(event)
 
       if (events.length > 100) {
@@ -108,7 +97,7 @@ class RotatingWriteStream {
   }
 }
 
-const reportToLocalHost = (event: TraceEvent) => {
+function reportToJson(event: TraceEvent) {
   const distDir = traceGlobals.get('distDir')
   const phase = traceGlobals.get('phase')
   if (!distDir || !phase) {
@@ -116,7 +105,7 @@ const reportToLocalHost = (event: TraceEvent) => {
   }
 
   if (!batch) {
-    batch = batcher(async (events: Event[]) => {
+    batch = batcher(async (events: TraceEvent[]) => {
       if (!writeStream) {
         await fs.promises.mkdir(distDir, { recursive: true })
         const file = path.join(distDir, 'trace')
@@ -152,5 +141,5 @@ export default {
           }
         })
       : undefined,
-  report: reportToLocalHost,
+  report: reportToJson,
 }

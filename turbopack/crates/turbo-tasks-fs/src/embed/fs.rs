@@ -31,7 +31,7 @@ impl FileSystem for EmbeddedFileSystem {
             None => return Ok(FileContent::NotFound.cell()),
         };
 
-        Ok(File::from(file.contents()).into())
+        Ok(FileContent::Content(File::from(file.contents())).cell())
     }
 
     #[turbo_tasks::function]

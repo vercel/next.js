@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
-import { createRouterAct } from '../router-act'
+import { createRouterAct } from 'router-act'
+import { waitFor } from 'next-test-utils'
 
 describe('segment cache (basic tests)', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -92,7 +93,11 @@ describe('segment cache (basic tests)', () => {
     )
   })
 
-  it('navigate to page with lazily-generated (not at build time) static param', async () => {
+  // TODO(cache-components): With `cacheComponents` enabled, this test is outdated, because
+  // we no longer put the param values in the prefetched RSC response. You'd have to opt into runtime
+  // prefetching for this test to pass until we ship the optimization that would mark this as fully static
+  // if you don't reference any dynamic params in the server components.
+  it.skip('navigate to page with lazily-generated (not at build time) static param', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/lazily-generated-params', {
       beforePageLoad(page) {
@@ -370,5 +375,41 @@ describe('segment cache (basic tests)', () => {
       // No additional requests were required, because everything was prefetched
       'no-requests'
     )
+  })
+
+  it('does not cause infinite loop with cacheLife("seconds")', async () => {
+    let requestCount = 0
+
+    const browser = await next.browser('/cache-life-seconds-test', {
+      beforePageLoad(page) {
+        page.on('request', (request) => {
+          const url = request.url()
+          if (url.includes('/cache-life-seconds') && url.includes('_rsc')) {
+            requestCount++
+          }
+        })
+      },
+    })
+
+    // Reveal the link to trigger a prefetch
+    const reveal = await browser.elementByCss('input[type="checkbox"]')
+    await reveal.click()
+
+    // Wait for the link to appear
+    const link = await browser.elementByCss('a[href="/cache-life-seconds"]')
+
+    // Give the prefetch a moment to potentially start looping
+    await waitFor(500)
+
+    // Check that we haven't made excessive requests during prefetch
+    expect(requestCount).toBeLessThan(10)
+
+    // Now navigate to the page to ensure it works correctly
+    await link.click()
+
+    // Wait for the page to load
+    const page = await browser.elementById('cache-life-seconds-page')
+    const content = await page.textContent()
+    expect(content).toContain('Cache Life Seconds Page')
   })
 })

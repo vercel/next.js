@@ -4,7 +4,10 @@ use anyhow::Result;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 use turbopack_core::{
     diagnostics::DiagnosticExt,
     file_source::FileSource,
@@ -13,6 +16,7 @@ use turbopack_core::{
     resolve::{
         ExternalTraced, ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
         parse::Request,
+        pattern::Pattern,
         plugin::{
             AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin,
             BeforeResolvePluginCondition,
@@ -39,7 +43,7 @@ static FEATURE_MODULES: LazyLock<FxHashMap<&'static str, Vec<&'static str>>> =
                     "/font/local",
                 ],
             ),
-            ("@next", vec!["/font/google", "/font/local"]),
+            ("@next/font", vec!["/google", "/local"]),
         ])
     });
 
@@ -60,7 +64,7 @@ impl Issue for InvalidImportModuleIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Resolve.into()
+        IssueStage::Resolve.cell()
     }
 
     #[turbo_tasks::function]
@@ -158,7 +162,7 @@ pub(crate) fn get_invalid_client_only_resolve_plugin(
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
         root,
-        "client-only".into(),
+        rcstr!("client-only"),
         vec![
             "'client-only' cannot be imported from a Server Component module. It should only be \
              used from a Client Component."
@@ -175,7 +179,7 @@ pub(crate) fn get_invalid_server_only_resolve_plugin(
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
         root,
-        "server-only".into(),
+        rcstr!("server-only"),
         vec![
             "'server-only' cannot be imported from a Client Component module. It should only be \
              used from a Server Component."
@@ -190,7 +194,7 @@ pub(crate) fn get_invalid_styled_jsx_resolve_plugin(
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
         root,
-        "styled-jsx".into(),
+        rcstr!("styled-jsx"),
         vec![
             "'client-only' cannot be imported from a Server Component module. It should only be \
              used from a Client Component."
@@ -221,8 +225,11 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
         Ok(AfterResolvePluginCondition::new(
-            self.project_path.root().await?.clone_value(),
-            Glob::new("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js".into()),
+            self.project_path.root().owned().await?,
+            Glob::new(
+                rcstr!("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js"),
+                GlobOptions::default(),
+            ),
         ))
     }
 
@@ -247,6 +254,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
                 name: specifier.clone(),
                 ty: ExternalType::CommonJs,
                 traced: ExternalTraced::Traced,
+                target: None,
             },
         ))))
     }
@@ -275,8 +283,11 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
         Ok(AfterResolvePluginCondition::new(
-            self.root.root().await?.clone_value(),
-            Glob::new("**/next/dist/**/*.shared-runtime.js".into()),
+            self.root.root().owned().await?,
+            Glob::new(
+                rcstr!("**/next/dist/**/*.shared-runtime.js"),
+                GlobOptions::default(),
+            ),
         ))
     }
 
@@ -358,7 +369,7 @@ impl BeforeResolvePlugin for ModuleFeatureReportResolvePlugin {
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         if let Request::Module {
-            module,
+            module: Pattern::Constant(module),
             path,
             query: _,
             fragment: _,
@@ -400,8 +411,11 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
         Ok(AfterResolvePluginCondition::new(
-            self.root.root().await?.clone_value(),
-            Glob::new("**/next/dist/esm/**/*.shared-runtime.js".into()),
+            self.root.root().owned().await?,
+            Glob::new(
+                rcstr!("**/next/dist/esm/**/*.shared-runtime.js"),
+                GlobOptions::default(),
+            ),
         ))
     }
 

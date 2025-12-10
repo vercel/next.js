@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox } from 'next-test-utils'
+import { waitForNoRedbox } from 'next-test-utils'
 
 describe('hmr-parallel-routes', () => {
   const { next } = nextTestSetup({
@@ -15,7 +15,7 @@ describe('hmr-parallel-routes', () => {
       content.replace('Bar Page', 'Bar Page Updated')
     )
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
 
     expect(await browser.elementByCss('#bar').text()).toBe('Bar Page Updated')
 
@@ -23,7 +23,7 @@ describe('hmr-parallel-routes', () => {
       content.replace('Foo Page', 'Foo Page Updated')
     )
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
 
     expect(await browser.elementByCss('#foo').text()).toBe('Foo Page Updated')
   })

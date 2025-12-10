@@ -1,7 +1,8 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::environment::Environment;
@@ -102,12 +103,16 @@ macro_rules! free_var_references {
 // TODO: replace with just a `serde_json::Value`
 // https://linear.app/vercel/issue/WEB-1641/compiletimedefinevalue-should-just-use-serde-jsonvalue
 #[turbo_tasks::value]
-#[derive(Debug, Clone, Hash, TaskInput)]
+#[derive(Debug, Clone, Hash)]
 pub enum CompileTimeDefineValue {
+    Null,
     Bool(bool),
+    Number(RcStr),
     String(RcStr),
-    JSON(RcStr),
+    Array(Vec<CompileTimeDefineValue>),
+    Object(Vec<(RcStr, CompileTimeDefineValue)>),
     Undefined,
+    Evaluate(RcStr),
 }
 
 impl From<bool> for CompileTimeDefineValue {
@@ -136,12 +141,21 @@ impl From<&str> for CompileTimeDefineValue {
 
 impl From<serde_json::Value> for CompileTimeDefineValue {
     fn from(value: serde_json::Value) -> Self {
-        Self::JSON(value.to_string().into())
+        match value {
+            serde_json::Value::Null => Self::Null,
+            serde_json::Value::Bool(b) => Self::Bool(b),
+            serde_json::Value::Number(n) => Self::Number(n.to_string().into()),
+            serde_json::Value::String(s) => Self::String(s.into()),
+            serde_json::Value::Array(a) => Self::Array(a.into_iter().map(|i| i.into()).collect()),
+            serde_json::Value::Object(m) => {
+                Self::Object(m.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
+            }
+        }
     }
 }
 
 #[turbo_tasks::value]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, PartialOrd, Ord)]
 pub enum DefinableNameSegment {
     Name(RcStr),
     TypeOf,
@@ -167,12 +181,16 @@ impl From<String> for DefinableNameSegment {
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-pub struct CompileTimeDefines(pub FxIndexMap<Vec<DefinableNameSegment>, CompileTimeDefineValue>);
+pub struct CompileTimeDefines(
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub  FxIndexMap<Vec<DefinableNameSegment>, CompileTimeDefineValue>,
+);
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
 pub struct CompileTimeDefinesIndividual(
-    pub FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<CompileTimeDefineValue>>,
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub  FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<CompileTimeDefineValue>>,
 );
 
 impl IntoIterator for CompileTimeDefines {
@@ -193,16 +211,32 @@ impl CompileTimeDefines {
 
     #[turbo_tasks::function]
     pub fn individual(&self) -> Vc<CompileTimeDefinesIndividual> {
-        Vc::cell(
+        let mut map: FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<CompileTimeDefineValue>> =
             self.0
                 .iter()
                 .map(|(key, value)| (key.clone(), value.clone().resolved_cell()))
-                .collect(),
-        )
+                .collect();
+
+        // Sort keys to make order as deterministic as possible
+        map.sort_keys();
+
+        Vc::cell(map)
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
 pub enum InputRelativeConstant {
     // The project relative directory name of the source file
     DirName,
@@ -236,6 +270,11 @@ impl From<String> for FreeVarReference {
         Self::Value(value.into())
     }
 }
+impl From<RcStr> for FreeVarReference {
+    fn from(value: RcStr) -> Self {
+        Self::Value(value.into())
+    }
+}
 
 impl From<&str> for FreeVarReference {
     fn from(value: &str) -> Self {
@@ -251,16 +290,35 @@ impl From<CompileTimeDefineValue> for FreeVarReference {
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-pub struct FreeVarReferences(pub FxIndexMap<Vec<DefinableNameSegment>, FreeVarReference>);
+pub struct FreeVarReferences(
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub  FxIndexMap<Vec<DefinableNameSegment>, FreeVarReference>,
+);
+
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
+pub struct FreeVarReferenceVcs(
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub  FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<FreeVarReference>>,
+);
 
 /// A map from the last element (the member prop) to a map of the rest of the name to the value.
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
 pub struct FreeVarReferencesIndividual(
-    pub  FxIndexMap<
-        DefinableNameSegment,
-        FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<FreeVarReference>>,
-    >,
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub  FxIndexMap<DefinableNameSegment, FreeVarReferenceVcs>,
 );
 
 #[turbo_tasks::value_impl]
@@ -272,18 +330,21 @@ impl FreeVarReferences {
 
     #[turbo_tasks::function]
     pub fn individual(&self) -> Vc<FreeVarReferencesIndividual> {
-        let mut result: FxIndexMap<
-            DefinableNameSegment,
-            FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<FreeVarReference>>,
-        > = FxIndexMap::default();
+        let mut result: FxIndexMap<DefinableNameSegment, FreeVarReferenceVcs> =
+            FxIndexMap::default();
 
         for (key, value) in &self.0 {
             let (last_key, key) = key.split_last().unwrap();
             result
                 .entry(last_key.clone())
                 .or_default()
+                .0
                 .insert(key.to_vec(), value.clone().resolved_cell());
         }
+
+        // Sort keys to make order as deterministic as possible
+        result.sort_keys();
+        result.iter_mut().for_each(|(_, inner)| inner.0.sort_keys());
 
         Vc::cell(result)
     }
@@ -366,6 +427,7 @@ impl CompileTimeInfoBuilder {
 
 #[cfg(test)]
 mod test {
+    use turbo_rcstr::rcstr;
     use turbo_tasks::FxIndexMap;
 
     use crate::compile_time_info::{DefinableNameSegment, FreeVarReference, FreeVarReferences};
@@ -377,20 +439,26 @@ mod test {
                 FOO = "bar",
                 FOO = false,
                 Buffer = FreeVarReference::EcmaScriptModule {
-                    request: "node:buffer".into(),
+                    request: rcstr!("node:buffer"),
                     lookup_path: None,
-                    export: Some("Buffer".into()),
+                    export: Some(rcstr!("Buffer")),
                 },
             ),
             FreeVarReferences(FxIndexMap::from_iter(vec![
-                (vec!["FOO".into()], FreeVarReference::Value("bar".into())),
-                (vec!["FOO".into()], FreeVarReference::Value(false.into())),
                 (
-                    vec!["Buffer".into()],
+                    vec![rcstr!("FOO").into()],
+                    FreeVarReference::Value(rcstr!("bar").into())
+                ),
+                (
+                    vec![rcstr!("FOO").into()],
+                    FreeVarReference::Value(false.into())
+                ),
+                (
+                    vec![rcstr!("Buffer").into()],
                     FreeVarReference::EcmaScriptModule {
-                        request: "node:buffer".into(),
+                        request: rcstr!("node:buffer"),
                         lookup_path: None,
-                        export: Some("Buffer".into()),
+                        export: Some(rcstr!("Buffer")),
                     }
                 ),
             ]))
@@ -407,21 +475,34 @@ mod test {
             ),
             FreeVarReferences(FxIndexMap::from_iter(vec![
                 (
-                    vec!["x".into(), DefinableNameSegment::TypeOf],
-                    FreeVarReference::Value("a".into())
-                ),
-                (
-                    vec!["x".into(), "y".into(), DefinableNameSegment::TypeOf],
-                    FreeVarReference::Value("b".into())
+                    vec![rcstr!("x").into(), DefinableNameSegment::TypeOf],
+                    FreeVarReference::Value(rcstr!("a").into())
                 ),
                 (
                     vec![
-                        "x".into(),
-                        "y".into(),
-                        "z".into(),
+                        rcstr!("x").into(),
+                        rcstr!("y").into(),
                         DefinableNameSegment::TypeOf
                     ],
-                    FreeVarReference::Value("c".into())
+                    FreeVarReference::Value(rcstr!("b").into())
+                ),
+                (
+                    vec![
+                        rcstr!("x").into(),
+                        rcstr!("y").into(),
+                        rcstr!("z").into(),
+                        DefinableNameSegment::TypeOf
+                    ],
+                    FreeVarReference::Value(rcstr!("b").into())
+                ),
+                (
+                    vec![
+                        rcstr!("x").into(),
+                        rcstr!("y").into(),
+                        rcstr!("z").into(),
+                        DefinableNameSegment::TypeOf
+                    ],
+                    FreeVarReference::Value(rcstr!("c").into())
                 )
             ]))
         );

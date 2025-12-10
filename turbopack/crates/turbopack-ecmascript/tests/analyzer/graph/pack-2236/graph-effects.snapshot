@@ -48,9 +48,7 @@
         span: 95..113,
     },
     FreeVar {
-        var: FreeVar(
-            "EdgeRuntime",
-        ),
+        var: "EdgeRuntime",
         ast_path: [
             Program(
                 Module,
@@ -100,7 +98,6 @@
             ),
         ],
         span: 102..113,
-        in_try: false,
     },
     Conditional {
         condition: Binary(
@@ -124,9 +121,7 @@
             then: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "require",
-                        ),
+                        var: "require",
                         ast_path: [
                             Program(
                                 Module,
@@ -173,7 +168,6 @@
                             ),
                         ],
                         span: 132..139,
-                        in_try: false,
                     },
                     Call {
                         func: FreeVar(
@@ -311,7 +305,6 @@
                             ),
                         ],
                         span: 153..165,
-                        in_try: false,
                     },
                 ],
                 range: Exact(
@@ -385,6 +378,5 @@
             ),
         ],
         span: 95..165,
-        in_try: false,
     },
 ]
