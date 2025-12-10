@@ -3,30 +3,20 @@
 import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
-import { ImportChain } from '@/components/import-chain'
 import { ErrorState } from '@/components/error-state'
 import {
   RouteTypeahead,
   type RouteTypeaheadRef,
 } from '@/components/route-typeahead'
+import { Sidebar } from '@/components/sidebar'
 import { TreemapVisualizer } from '@/components/treemap-visualizer'
 
 import { Input } from '@/components/ui/input'
-import { Skeleton, TreemapSkeleton } from '@/components/ui/skeleton'
+import { TreemapSkeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
-import { SpecialModule } from '@/lib/types'
-import { getSpecialModuleType, fetchStrict } from '@/lib/utils'
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`
-  if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
-}
+import { fetchStrict } from '@/lib/utils'
 
 export default function Home() {
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null)
@@ -153,11 +143,6 @@ export default function Home() {
   const isAnyLoading = isAnalyzeLoading || isModulesLoading
   const rootSourceIndex = getRootSourceIndex(analyzeData)
 
-  const specialModuleType = getSpecialModuleType(
-    analyzeData,
-    selectedSourceIndex
-  )
-
   return (
     <main
       className="h-screen flex flex-col bg-background"
@@ -250,24 +235,15 @@ export default function Home() {
               aria-label="Resize sidebar"
             />
 
-            <div
-              className="flex-none bg-muted border-l border-border overflow-y-auto"
-              style={{ width: `${sidebarWidth}%` }}
-            >
-              <div className="flex-1 p-3 space-y-4 overflow-y-auto">
-                <h2 className="text-xs font-semibold mb-2 text-foreground">
-                  Selected Source
-                </h2>
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-5/6" />
-                <div className="mt-4 space-y-2">
-                  <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-3 w-4/5" />
-                </div>
-              </div>
-            </div>
+            <Sidebar
+              sidebarWidth={sidebarWidth}
+              analyzeData={null}
+              modulesData={null}
+              selectedSourceIndex={null}
+              moduleDepthMap={new Map()}
+              environmentFilter={environmentFilter}
+              isLoading={true}
+            />
           </>
         ) : analyzeData ? (
           <>
@@ -294,86 +270,14 @@ export default function Home() {
               aria-label="Resize sidebar"
             />
 
-            <div
-              className="flex-none bg-muted border-l border-border overflow-y-auto"
-              style={{ width: `${sidebarWidth}%` }}
-            >
-              <div className="flex-1 p-3 space-y-4 overflow-y-auto">
-                <h2 className="text-xs font-semibold mb-2 text-foreground">
-                  Selected Source
-                </h2>
-
-                {selectedSourceIndex != null &&
-                  analyzeData.source(selectedSourceIndex) && (
-                    <>
-                      <dl className="space-y-2">
-                        <div>
-                          <dt className="text-xs text-muted-foreground inline">
-                            Output Size:{' '}
-                          </dt>
-                          <dd className="text-xs text-muted-foreground inline">
-                            {formatBytes(
-                              analyzeData.getSourceOutputSize(
-                                selectedSourceIndex
-                              )
-                            )}
-                          </dd>
-                        </div>
-                        {(specialModuleType === SpecialModule.POLYFILL_MODULE ||
-                          specialModuleType ===
-                            SpecialModule.POLYFILL_NOMODULE) && (
-                          <div className="flex items-center gap-2">
-                            <dt className="inline-flex items-center rounded-md bg-polyfill/10 dark:bg-polyfill/30 px-2 py-1 text-xs font-medium text-polyfill dark:text-polyfill-foreground ring-1 ring-inset ring-polyfill/20 shrink-0">
-                              Polyfill
-                            </dt>
-                            <dd className="text-xs text-muted-foreground">
-                              Next.js built-in polyfills
-                              {specialModuleType ===
-                              SpecialModule.POLYFILL_NOMODULE ? (
-                                <>
-                                  . <code>polyfill-nomodule.js</code> is only
-                                  sent to legacy browsers.
-                                </>
-                              ) : null}
-                            </dd>
-                          </div>
-                        )}
-                      </dl>
-                      {modulesData && (
-                        <ImportChain
-                          key={selectedSourceIndex}
-                          startFileId={selectedSourceIndex}
-                          analyzeData={analyzeData}
-                          modulesData={modulesData}
-                          depthMap={moduleDepthMap}
-                          environmentFilter={environmentFilter}
-                        />
-                      )}
-                      {(() => {
-                        const chunks =
-                          analyzeData.sourceChunks(selectedSourceIndex)
-                        if (chunks.length > 0) {
-                          return (
-                            <div className="mt-2">
-                              <p className="text-xs font-semibold text-foreground">
-                                Output Chunks:
-                              </p>
-                              <ul className="text-xs text-muted-foreground font-mono mt-1 space-y-1">
-                                {chunks.map((chunk) => (
-                                  <li key={chunk} className="break-all">
-                                    {chunk}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )
-                        }
-                        return null
-                      })()}
-                    </>
-                  )}
-              </div>
-            </div>
+            <Sidebar
+              sidebarWidth={sidebarWidth}
+              analyzeData={analyzeData ?? null}
+              modulesData={modulesData ?? null}
+              selectedSourceIndex={selectedSourceIndex}
+              moduleDepthMap={moduleDepthMap}
+              environmentFilter={environmentFilter}
+            />
           </>
         ) : null}
       </div>
