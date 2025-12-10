@@ -871,5 +871,8 @@
   "870": "refresh can only be called from within a Server Action. See more info here: https://nextjs.org/docs/app/api-reference/functions/refresh",
   "871": "Image with src \"%s\" is using a query string which is not configured in images.localPatterns.\\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns",
   "872": "updateTag can only be called from within a Server Action. To invalidate cache tags in Route Handlers or other contexts, use revalidateTag instead. See more info here: https://nextjs.org/docs/app/api-reference/functions/updateTag",
-  "873": "Invalid profile provided \"%s\" must be configured under cacheLife in next.config or be \"max\""
+  "873": "Invalid profile provided \"%s\" must be configured under cacheLife in next.config or be \"max\"",
+  "874": "Server Actions are not enabled for this application. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
+  "875": "Failed to find Server Action. This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
+  "876": "Failed to find Server Action%s. This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action"
 }
