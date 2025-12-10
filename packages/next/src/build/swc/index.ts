@@ -21,7 +21,8 @@ import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
 import type { PageExtensions } from '../page-extensions-type'
 import type { __ApiPreviewProps } from '../../server/api-utils'
 
-const nextVersion = process.env.__NEXT_VERSION as string
+// locked version as binaries are locked
+const nextVersion = '14.2.33'
 
 const ArchName = arch()
 const PlatformName = platform()
