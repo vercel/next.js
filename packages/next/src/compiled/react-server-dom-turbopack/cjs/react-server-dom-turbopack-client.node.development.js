@@ -12,16 +12,6 @@
 "production" !== process.env.NODE_ENV &&
   (function () {
     function _defineProperty(obj, key, value) {
-      a: if ("object" == typeof key && key) {
-        var e = key[Symbol.toPrimitive];
-        if (void 0 !== e) {
-          key = e.call(key, "string");
-          if ("object" != typeof key) break a;
-          throw new TypeError("@@toPrimitive must return a primitive value.");
-        }
-        key = String(key);
-      }
-      key = "symbol" == typeof key ? key : key + "";
       key in obj
         ? Object.defineProperty(obj, key, {
             value: value,
@@ -535,13 +525,23 @@
                 pendingParts--;
               }
           }
+          parentReference = writtenObjects.get(value);
           if ("function" === typeof value.then) {
+            if (void 0 !== parentReference)
+              if (modelRoot === value) modelRoot = null;
+              else return parentReference;
             null === formData && (formData = new FormData());
             pendingParts++;
             var promiseId = nextPartId++;
+            key = "$@" + promiseId.toString(16);
+            writtenObjects.set(value, key);
             value.then(function (partValue) {
               try {
-                var _partJSON3 = serializeModel(partValue, promiseId);
+                var previousReference = writtenObjects.get(partValue);
+                var _partJSON3 =
+                  void 0 !== previousReference
+                    ? JSON.stringify(previousReference)
+                    : serializeModel(partValue, promiseId);
                 partValue = formData;
                 partValue.append(formFieldPrefix + promiseId, _partJSON3);
                 pendingParts--;
@@ -550,9 +550,8 @@
                 reject(reason);
               }
             }, reject);
-            return "$@" + promiseId.toString(16);
+            return key;
           }
-          parentReference = writtenObjects.get(value);
           if (void 0 !== parentReference)
             if (modelRoot === value) modelRoot = null;
             else return parentReference;
@@ -710,7 +709,7 @@
               null === formData && (formData = new FormData()),
               (parentReference = nextPartId++),
               formData.set(formFieldPrefix + parentReference, key),
-              "$F" + parentReference.toString(16)
+              "$h" + parentReference.toString(16)
             );
           if (
             void 0 !== temporaryReferences &&
@@ -1648,7 +1647,7 @@
             return getChunk(response, parentObject);
           case "S":
             return Symbol.for(value.slice(2));
-          case "F":
+          case "h":
             return (
               (value = value.slice(2)),
               getOutlinedModel(
