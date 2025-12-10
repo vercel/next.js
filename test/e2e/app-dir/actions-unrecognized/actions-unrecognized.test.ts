@@ -182,10 +182,9 @@ describe('unrecognized server actions', () => {
             }
 
             if (!isNextDeploy) {
-              // FIXME: For an MPA action, the logs currently show the error thrown by React instead of our custom message with a link to a docs page.
               await retry(async () =>
                 expect(getLogs()).toInclude(
-                  `Error: Could not find the module "decafc0ffeebad01" in the React Server Manifest. This is probably a bug in the React Server Components bundler`
+                  `Error: Failed to find Server Action. This request might be from an older or newer deployment`
                 )
               )
             }

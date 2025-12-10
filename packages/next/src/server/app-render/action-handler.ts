@@ -745,6 +745,13 @@ export async function handleAction({
             const formData = await req.request.formData()
             if (isFetchAction) {
               // A fetch action with a multipart body.
+
+              try {
+                actionModId = getActionModIdOrError(actionId, serverModuleMap)
+              } catch (err) {
+                return handleUnrecognizedFetchAction(err)
+              }
+
               boundActionArguments = await decodeReply(
                 formData,
                 serverModuleMap,
@@ -753,6 +760,14 @@ export async function handleAction({
             } else {
               // Multipart POST, but not a fetch action.
               // Potentially an MPA action, we have to try decoding it to check.
+              if (areAllActionIdsValid(formData, serverModuleMap) === false) {
+                // TODO: This can be from skew or manipulated input. We should handle this case
+                // more gracefully but this preserves the prior behavior where decodeAction would throw instead.
+                throw new Error(
+                  `Failed to find Server Action. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
+                )
+              }
+
               const action = await decodeAction(formData, serverModuleMap)
               if (typeof action === 'function') {
                 // an MPA action.
@@ -890,6 +905,12 @@ export async function handleAction({
             if (isFetchAction) {
               // A fetch action with a multipart body.
 
+              try {
+                actionModId = getActionModIdOrError(actionId, serverModuleMap)
+              } catch (err) {
+                return handleUnrecognizedFetchAction(err)
+              }
+
               const busboy = (
                 require('next/dist/compiled/busboy') as typeof import('next/dist/compiled/busboy')
               )({
@@ -937,7 +958,19 @@ export async function handleAction({
                 }),
                 duplex: 'half',
               })
+
               const formData = await fakeRequest.formData()
+
+              if (areAllActionIdsValid(formData, serverModuleMap) === false) {
+                // TODO: This can be from skew or manipulated input. We should handle this case
+                // more gracefully but this preserves the prior behavior where decodeAction would throw instead.
+                throw new Error(
+                  `Failed to find Server Action. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
+                )
+              }
+
+              // TODO: Refactor so it is harder to accidentally decode an action before you have validated that the
+              // action referred to is available.
               const action = await decodeAction(formData, serverModuleMap)
               if (typeof action === 'function') {
                 // an MPA action.
@@ -1018,13 +1051,6 @@ export async function handleAction({
 
         // / -> fire action -> POST / -> appRender1 -> modId for the action file
         // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
-
-        try {
-          actionModId =
-            actionModId ?? getActionModIdOrError(actionId, serverModuleMap)
-        } catch (err) {
-          return handleUnrecognizedFetchAction(err)
-        }
 
         const actionMod = (await ComponentMod.__next_app__.require(
           actionModId
@@ -1249,4 +1275,111 @@ function getActionNotFoundError(actionId: string | null): Error {
   return new Error(
     `Failed to find Server Action${actionId ? ` "${actionId}"` : ''}. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
   )
+}
+
+const $ACTION_ = '$ACTION_'
+const $ACTION_REF_ = '$ACTION_REF_'
+const $ACTION_ID_ = '$ACTION_ID_'
+const ACTION_ID_EXPECTED_LENGTH = 42
+
+/**
+ * This function mirrors logic inside React's decodeAction and should be kept in sync with that.
+ * It pre-parses the FormData to ensure that any action IDs referred to are actual action IDs for
+ * this Next.js application.
+ */
+function areAllActionIdsValid(
+  mpaFormData: FormData,
+  serverModuleMap: ServerModuleMap
+): boolean {
+  let hasAtLeastOneAction = false
+  // Before we attempt to decode the payload for a possible MPA action, assert that all
+  // action IDs are valid IDs. If not we should disregard the payload
+  for (let key of mpaFormData.keys()) {
+    if (!key.startsWith($ACTION_)) {
+      // not a relevant field
+      continue
+    }
+
+    if (key.startsWith($ACTION_ID_)) {
+      // No Bound args case
+      if (isInvalidActionIdFieldName(key, serverModuleMap)) {
+        return false
+      }
+
+      hasAtLeastOneAction = true
+    } else if (key.startsWith($ACTION_REF_)) {
+      // Bound args case
+      const actionDescriptorField =
+        $ACTION_ + key.slice($ACTION_REF_.length) + ':0'
+      const actionFields = mpaFormData.getAll(actionDescriptorField)
+      if (actionFields.length !== 1) {
+        return false
+      }
+      const actionField = actionFields[0]
+      if (typeof actionField !== 'string') {
+        return false
+      }
+
+      if (isInvalidStringActionDescriptor(actionField, serverModuleMap)) {
+        return false
+      }
+      hasAtLeastOneAction = true
+    }
+  }
+  return hasAtLeastOneAction
+}
+
+const ACTION_DESCRIPTOR_ID_PREFIX = '{"id":"'
+function isInvalidStringActionDescriptor(
+  actionDescriptor: string,
+  serverModuleMap: ServerModuleMap
+): unknown {
+  if (actionDescriptor.startsWith(ACTION_DESCRIPTOR_ID_PREFIX) === false) {
+    return true
+  }
+
+  const from = ACTION_DESCRIPTOR_ID_PREFIX.length
+  const to = from + ACTION_ID_EXPECTED_LENGTH
+
+  // We expect actionDescriptor to be '{"id":"<actionId>",...}'
+  const actionId = actionDescriptor.slice(from, to)
+  if (
+    actionId.length !== ACTION_ID_EXPECTED_LENGTH ||
+    actionDescriptor[to] !== '"'
+  ) {
+    return true
+  }
+
+  const entry = serverModuleMap[actionId]
+
+  if (entry == null) {
+    return true
+  }
+
+  return false
+}
+
+function isInvalidActionIdFieldName(
+  actionIdFieldName: string,
+  serverModuleMap: ServerModuleMap
+): boolean {
+  // The field name must always start with $ACTION_ID_ but since it is
+  // the id is extracted from the key of the field we have already validated
+  // this before entering this function
+  if (
+    actionIdFieldName.length !==
+    $ACTION_ID_.length + ACTION_ID_EXPECTED_LENGTH
+  ) {
+    // this field name has too few or too many characters
+    return true
+  }
+
+  const actionId = actionIdFieldName.slice($ACTION_ID_.length)
+  const entry = serverModuleMap[actionId]
+
+  if (entry == null) {
+    return true
+  }
+
+  return false
 }
