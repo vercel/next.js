@@ -1756,7 +1756,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       closed.resolve,
       function onResponseSizeUpdate(totalBytesReceivedSoFar) {
         // When processing a dynamic response, we don't know how large each
-        // individual segment is, so approximate by assiging each segment
+        // individual segment is, so approximate by assigning each segment
         // the average of the total response size.
         if (fulfilledEntries === null) {
           // Haven't received enough data yet to know which segments

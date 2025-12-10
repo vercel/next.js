@@ -278,7 +278,7 @@ async function printVerboseInfo() {
       scripts: {
         default: async () => {
           // Node.js diagnostic report contains basic information, i.e OS version, CPU architecture, etc.
-          // Only collect few addtional details here.
+          // Only collect few additional details here.
           const isWsl =
             require('next/dist/compiled/is-wsl') as typeof import('next/dist/compiled/is-wsl')
           const ciInfo =

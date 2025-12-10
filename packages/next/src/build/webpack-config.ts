@@ -1183,7 +1183,7 @@ export default async function getBaseWebpackConfig(
           // and all other chunk depend on them so there is no
           // duplication that need to be pulled out.
           chunks: isRspack
-            ? // using a function here causes noticable slowdown
+            ? // using a function here causes noticeable slowdown
               // in rspack
               /^(?!(polyfills|main|pages\/_app)$).*$/
             : (chunk: any) =>

@@ -168,7 +168,7 @@ const enum PrefetchTaskExitStatus {
 
 /**
  * Prefetch tasks are processed in two phases: first the route tree is fetched,
- * then the segments. We use this to priortize tasks that have not yet fetched
+ * then the segments. We use this to prioritize tasks that have not yet fetched
  * the route tree.
  */
 const enum PrefetchPhase {
@@ -296,7 +296,7 @@ export function reschedulePrefetchTask(
   // task. This is essentially the same as canceling the task and scheduling
   // a new one, except it reuses the original object.
   //
-  // The primary use case is to increase the priority of a Link-initated
+  // The primary use case is to increase the priority of a Link-initiated
   // prefetch on hover.
 
   // Un-cancel the task, in case it was previously canceled.
@@ -1038,7 +1038,7 @@ function diffRouteTreeAgainstCurrent(
             // Only routes that include a loading boundary can be prefetched in
             // this way.
             //
-            // This is simlar to a "full" prefetch, but we're much more
+            // This is similar to a "full" prefetch, but we're much more
             // conservative about which segments to include in the request.
             //
             // The server will only render up to the first loading boundary
@@ -1134,10 +1134,10 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
   // This function is similar to pingRouteTreeAndIncludeDynamicData, except the
   // server is only going to return a minimal loading state — it will stop
   // rendering at the first loading boundary. Whereas a Full prefetch is
-  // intentionally aggressive and tries to pretfetch all the data that will be
+  // intentionally aggressive and tries to prefetch all the data that will be
   // needed for a navigation, a LoadingBoundary prefetch is much more
   // conservative. For example, it will omit from the request tree any segment
-  // that is already cached, regardles of whether it's partial or full. By
+  // that is already cached, regardless of whether it's partial or full. By
   // contrast, a Full prefetch will refetch partial segments.
 
   // "inside-shared-layout" tells the server where to start looking for a

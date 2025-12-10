@@ -164,14 +164,14 @@ const postcssNextFontPlugin = ({
 
       // Add CSS class that defines a variable with the font families
       if (variable) {
-        const varialbeRule = new postcss.Rule({ selector: '.variable' })
-        varialbeRule.nodes = [
+        const variableRule = new postcss.Rule({ selector: '.variable' })
+        variableRule.nodes = [
           new postcss.Declaration({
             prop: variable,
             value: formattedFontFamilies,
           }),
         ]
-        root.nodes.push(varialbeRule)
+        root.nodes.push(variableRule)
       }
 
       // Export @font-face values as is
