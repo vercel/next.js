@@ -1905,6 +1905,11 @@ function enforceExperimentalFeatures(
     config.insights = true
   }
 
+  // Enable suspense profiling when insights is enabled (either via CLI or config)
+  if (config.insights) {
+    config.experimental.suspenseProfiling = true
+  }
+
   // TODO: Remove this once we've made Cache Components the default.
   if (
     process.env.__NEXT_CACHE_COMPONENTS === 'true' &&
