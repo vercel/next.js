@@ -568,3 +568,93 @@ describe('resolveRoutes - fallback', () => {
     expect(result.matchedPathname).toBe('/fallback-final')
   })
 })
+
+describe('resolveRoutes - routes without destination', () => {
+  it('should process routes with headers only', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/headers-only'),
+      routes: {
+        beforeMiddleware: [
+          {
+            sourceRegex: '^/headers-only$',
+            headers: {
+              'x-custom-header': 'value',
+            },
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/headers-only'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedHeaders?.get('x-custom-header')).toBe('value')
+    expect(result.matchedPathname).toBe('/headers-only')
+  })
+
+  it('should process routes with status only', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/status-only'),
+      routes: {
+        beforeMiddleware: [
+          {
+            sourceRegex: '^/status-only$',
+            status: 418,
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/status-only'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.status).toBe(418)
+    expect(result.matchedPathname).toBe('/status-only')
+  })
+
+  it('should process multiple routes without destination in sequence', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/multi'),
+      routes: {
+        beforeMiddleware: [
+          {
+            sourceRegex: '^/multi$',
+            headers: {
+              'x-header-1': '1',
+            },
+          },
+          {
+            sourceRegex: '^/multi$',
+            headers: {
+              'x-header-2': '2',
+            },
+            status: 200,
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/multi'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedHeaders?.get('x-header-1')).toBe('1')
+    expect(result.resolvedHeaders?.get('x-header-2')).toBe('2')
+    expect(result.status).toBe(200)
+    expect(result.matchedPathname).toBe('/multi')
+  })
+})

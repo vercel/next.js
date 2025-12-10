@@ -1674,13 +1674,12 @@ export async function handleBuildComplete({
 
       const redirects = routesManifest.redirects.map((route) => {
         const converted = convertRedirects([route], 307)[0]
-        let dest = 'headers' in converted && converted.headers?.Location
         const regex = converted.src || route.regex
 
         return {
           source: route.source,
           sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
-          destination: dest || route.destination,
+          headers: 'headers' in converted ? converted.headers || {} : {},
           status: converted.status || getRedirectStatus(route),
           has: route.has,
           missing: route.missing,

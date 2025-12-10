@@ -72,57 +72,74 @@ function processRoutes(
     status: number
   }
   stopped: boolean
+  status?: number
 } {
   let currentUrl = url
+  let currentStatus: number | undefined
 
   for (const route of routes) {
     const match = matchRoute(route, currentUrl, headers)
 
-    if (match.matched && match.destination) {
-      // Check if route has redirect status and Location/Refresh header
-      if (
-        isRedirectStatus(route.status) &&
-        route.headers &&
-        hasRedirectHeaders(route.headers)
-      ) {
-        const redirectUrl = isExternalDestination(match.destination)
-          ? new URL(match.destination)
-          : applyDestination(currentUrl, match.destination)
-
-        return {
-          url: currentUrl,
-          redirect: {
-            url: redirectUrl,
-            status: route.status!,
-          },
-          stopped: true,
+    if (match.matched) {
+      if (route.headers) {
+        for (const [key, value] of Object.entries(route.headers)) {
+          headers.set(key, value)
         }
       }
 
-      // Check if it's an external rewrite
-      if (isExternalDestination(match.destination)) {
-        return {
-          url: currentUrl,
-          externalRewrite: new URL(match.destination),
-          stopped: true,
-        }
+      if (route.status) {
+        currentStatus = route.status
       }
 
-      // Apply the destination to update the URL
-      currentUrl = applyDestination(currentUrl, match.destination)
+      if (match.destination) {
+        // Check if route has redirect status and Location/Refresh header
+        if (
+          isRedirectStatus(route.status) &&
+          route.headers &&
+          hasRedirectHeaders(route.headers)
+        ) {
+          const redirectUrl = isExternalDestination(match.destination)
+            ? new URL(match.destination)
+            : applyDestination(currentUrl, match.destination)
 
-      // Check if origin changed (external rewrite)
-      if (currentUrl.origin !== initialOrigin) {
-        return {
-          url: currentUrl,
-          externalRewrite: currentUrl,
-          stopped: true,
+          return {
+            url: currentUrl,
+            redirect: {
+              url: redirectUrl,
+              status: route.status!,
+            },
+            stopped: true,
+            status: currentStatus,
+          }
+        }
+
+        // Check if it's an external rewrite
+        if (isExternalDestination(match.destination)) {
+          return {
+            url: currentUrl,
+            externalRewrite: new URL(match.destination),
+            stopped: true,
+            status: currentStatus,
+          }
+        }
+
+        // Apply the destination to update the URL
+        currentUrl = applyDestination(currentUrl, match.destination)
+
+        // Check if origin changed (external rewrite)
+        if (currentUrl.origin !== initialOrigin) {
+          return {
+            url: currentUrl,
+            externalRewrite: currentUrl,
+            stopped: true,
+            status: currentStatus,
+          }
         }
       }
     }
   }
 
-  return { url: currentUrl, stopped: false }
+  return { url: currentUrl, stopped: false, status: currentStatus }
 }
 
 /**
@@ -264,6 +281,7 @@ export async function resolveRoutes(
 
   let currentUrl = new URL(initialUrl.toString())
   let currentHeaders = new Headers(initialHeaders)
+  let currentStatus: number | undefined
   const initialOrigin = initialUrl.origin
 
   // Check if the original URL is a data URL and normalize if so
@@ -378,10 +396,15 @@ export async function resolveRoutes(
     initialOrigin
   )
 
+  if (beforeMiddlewareResult.status) {
+    currentStatus = beforeMiddlewareResult.status
+  }
+
   if (beforeMiddlewareResult.redirect) {
     return {
       redirect: beforeMiddlewareResult.redirect,
       resolvedHeaders: currentHeaders,
+      status: currentStatus,
     }
   }
 
@@ -389,6 +412,7 @@ export async function resolveRoutes(
     return {
       externalRewrite: beforeMiddlewareResult.externalRewrite,
       resolvedHeaders: currentHeaders,
+      status: currentStatus,
     }
   }
 
@@ -434,6 +458,7 @@ export async function resolveRoutes(
       return {
         externalRewrite: currentUrl,
         resolvedHeaders: currentHeaders,
+        status: currentStatus,
       }
     }
   }
@@ -451,10 +476,15 @@ export async function resolveRoutes(
     initialOrigin
   )
 
+  if (beforeFilesResult.status) {
+    currentStatus = beforeFilesResult.status
+  }
+
   if (beforeFilesResult.redirect) {
     return {
       redirect: beforeFilesResult.redirect,
       resolvedHeaders: currentHeaders,
+      status: currentStatus,
     }
   }
 
@@ -462,6 +492,7 @@ export async function resolveRoutes(
     return {
       externalRewrite: beforeFilesResult.externalRewrite,
       resolvedHeaders: currentHeaders,
+      status: currentStatus,
     }
   }
 
@@ -501,6 +532,7 @@ export async function resolveRoutes(
             matchedPathname: matchedPath,
             routeMatches: match.params,
             resolvedHeaders: finalHeaders,
+            status: currentStatus,
           }
         }
       }
@@ -511,6 +543,7 @@ export async function resolveRoutes(
     return {
       matchedPathname: matchedPath,
       resolvedHeaders: finalHeaders,
+      status: currentStatus,
     }
   }
 
@@ -523,78 +556,101 @@ export async function resolveRoutes(
   for (const route of routes.afterFiles) {
     const match = matchRoute(route, currentUrl, currentHeaders)
 
-    if (match.matched && match.destination) {
-      // Check if route has redirect status and Location/Refresh header
-      if (
-        isRedirectStatus(route.status) &&
-        route.headers &&
-        hasRedirectHeaders(route.headers)
-      ) {
-        const redirectUrl = isExternalDestination(match.destination)
-          ? new URL(match.destination)
-          : applyDestination(currentUrl, match.destination)
-
-        return {
-          redirect: {
-            url: redirectUrl,
-            status: route.status!,
-          },
-          resolvedHeaders: currentHeaders,
+    if (match.matched) {
+      if (route.headers) {
+        for (const [key, value] of Object.entries(route.headers)) {
+          currentHeaders.set(key, value)
         }
       }
 
-      // Check if it's an external rewrite
-      if (isExternalDestination(match.destination)) {
-        return {
-          externalRewrite: new URL(match.destination),
-          resolvedHeaders: currentHeaders,
+      if (route.status) {
+        currentStatus = route.status
+      }
+
+      if (match.destination) {
+        // Check if route has redirect status and Location/Refresh header
+        if (
+          isRedirectStatus(route.status) &&
+          route.headers &&
+          hasRedirectHeaders(route.headers)
+        ) {
+          const redirectUrl = isExternalDestination(match.destination)
+            ? new URL(match.destination)
+            : applyDestination(currentUrl, match.destination)
+
+          return {
+            redirect: {
+              url: redirectUrl,
+              status: route.status!,
+            },
+            resolvedHeaders: currentHeaders,
+            status: currentStatus,
+          }
         }
-      }
 
-      // Apply destination
-      currentUrl = applyDestination(currentUrl, match.destination)
-
-      // Check if origin changed
-      if (currentUrl.origin !== initialOrigin) {
-        return {
-          externalRewrite: currentUrl,
-          resolvedHeaders: currentHeaders,
+        // Check if it's an external rewrite
+        if (isExternalDestination(match.destination)) {
+          return {
+            externalRewrite: new URL(match.destination),
+            resolvedHeaders: currentHeaders,
+            status: currentStatus,
+          }
         }
-      }
 
-      // First check dynamic routes to extract route matches
-      const dynamicResult = checkDynamicRoutes(
-        routes.dynamicRoutes,
-        currentUrl,
-        pathnames,
-        currentHeaders,
-        routes.onMatch,
-        basePath,
-        buildId,
-        shouldNormalizeNextData,
-        isDataUrl
-      )
-      if (dynamicResult.matched && dynamicResult.result) {
-        // Reset URL to the denormalized version if it matched
-        if (dynamicResult.resetUrl) {
-          currentUrl = dynamicResult.resetUrl
+        // Apply destination
+        currentUrl = applyDestination(currentUrl, match.destination)
+
+        // Check if origin changed
+        if (currentUrl.origin !== initialOrigin) {
+          return {
+            externalRewrite: currentUrl,
+            resolvedHeaders: currentHeaders,
+            status: currentStatus,
+          }
         }
-        return dynamicResult.result
-      }
 
-      // If no dynamic route matched, check static pathname
-      // Denormalize before checking if this was originally a data URL
-      let pathnameCheckUrl = currentUrl
-      if (isDataUrl && shouldNormalizeNextData) {
-        pathnameCheckUrl = denormalizeNextDataUrl(currentUrl, basePath, buildId)
-      }
+        // First check dynamic routes to extract route matches
+        const dynamicResult = checkDynamicRoutes(
+          routes.dynamicRoutes,
+          currentUrl,
+          pathnames,
+          currentHeaders,
+          routes.onMatch,
+          basePath,
+          buildId,
+          shouldNormalizeNextData,
+          isDataUrl
+        )
+        if (dynamicResult.matched && dynamicResult.result) {
+          // Reset URL to the denormalized version if it matched
+          if (dynamicResult.resetUrl) {
+            currentUrl = dynamicResult.resetUrl
+          }
+          return { ...dynamicResult.result, status: currentStatus }
+        }
 
-      matchedPath = matchesPathname(pathnameCheckUrl.pathname, pathnames)
-      if (matchedPath) {
-        const finalHeaders = applyOnMatchHeaders(routes.onMatch, currentHeaders)
-        return {
-          matchedPathname: matchedPath,
-          resolvedHeaders: finalHeaders,
+        // If no dynamic route matched, check static pathname
+        // Denormalize before checking if this was originally a data URL
+        let pathnameCheckUrl = currentUrl
+        if (isDataUrl && shouldNormalizeNextData) {
+          pathnameCheckUrl = denormalizeNextDataUrl(
+            currentUrl,
+            basePath,
+            buildId
+          )
+        }
+
+        matchedPath = matchesPathname(pathnameCheckUrl.pathname, pathnames)
+        if (matchedPath) {
+          const finalHeaders = applyOnMatchHeaders(
+            routes.onMatch,
+            currentHeaders
+          )
+          return {
+            matchedPathname: matchedPath,
+            resolvedHeaders: finalHeaders,
+            status: currentStatus,
+          }
         }
       }
     }
@@ -629,6 +685,7 @@ export async function resolveRoutes(
             matchedPathname: matchedPath,
             routeMatches: match.params,
             resolvedHeaders: finalHeaders,
+            status: currentStatus,
           }
         }
       }
@@ -639,78 +696,101 @@ export async function resolveRoutes(
   for (const route of routes.fallback) {
     const match = matchRoute(route, currentUrl, currentHeaders)
 
-    if (match.matched && match.destination) {
-      // Check if route has redirect status and Location/Refresh header
-      if (
-        isRedirectStatus(route.status) &&
-        route.headers &&
-        hasRedirectHeaders(route.headers)
-      ) {
-        const redirectUrl = isExternalDestination(match.destination)
-          ? new URL(match.destination)
-          : applyDestination(currentUrl, match.destination)
-
-        return {
-          redirect: {
-            url: redirectUrl,
-            status: route.status!,
-          },
-          resolvedHeaders: currentHeaders,
+    if (match.matched) {
+      if (route.headers) {
+        for (const [key, value] of Object.entries(route.headers)) {
+          currentHeaders.set(key, value)
         }
       }
 
-      // Check if it's an external rewrite
-      if (isExternalDestination(match.destination)) {
-        return {
-          externalRewrite: new URL(match.destination),
-          resolvedHeaders: currentHeaders,
+      if (route.status) {
+        currentStatus = route.status
+      }
+
+      if (match.destination) {
+        // Check if route has redirect status and Location/Refresh header
+        if (
+          isRedirectStatus(route.status) &&
+          route.headers &&
+          hasRedirectHeaders(route.headers)
+        ) {
+          const redirectUrl = isExternalDestination(match.destination)
+            ? new URL(match.destination)
+            : applyDestination(currentUrl, match.destination)
+
+          return {
+            redirect: {
+              url: redirectUrl,
+              status: route.status!,
+            },
+            resolvedHeaders: currentHeaders,
+            status: currentStatus,
+          }
         }
-      }
 
-      // Apply destination
-      currentUrl = applyDestination(currentUrl, match.destination)
-
-      // Check if origin changed
-      if (currentUrl.origin !== initialOrigin) {
-        return {
-          externalRewrite: currentUrl,
-          resolvedHeaders: currentHeaders,
+        // Check if it's an external rewrite
+        if (isExternalDestination(match.destination)) {
+          return {
+            externalRewrite: new URL(match.destination),
+            resolvedHeaders: currentHeaders,
+            status: currentStatus,
+          }
         }
-      }
 
-      // First check dynamic routes to extract route matches
-      const dynamicResult = checkDynamicRoutes(
-        routes.dynamicRoutes,
-        currentUrl,
-        pathnames,
-        currentHeaders,
-        routes.onMatch,
-        basePath,
-        buildId,
-        shouldNormalizeNextData,
-        isDataUrl
-      )
-      if (dynamicResult.matched && dynamicResult.result) {
-        // Reset URL to the denormalized version if it matched
-        if (dynamicResult.resetUrl) {
-          currentUrl = dynamicResult.resetUrl
+        // Apply destination
+        currentUrl = applyDestination(currentUrl, match.destination)
+
+        // Check if origin changed
+        if (currentUrl.origin !== initialOrigin) {
+          return {
+            externalRewrite: currentUrl,
+            resolvedHeaders: currentHeaders,
+            status: currentStatus,
+          }
         }
-        return dynamicResult.result
-      }
 
-      // If no dynamic route matched, check static pathname
-      // Denormalize before checking if this was originally a data URL
-      let pathnameCheckUrl = currentUrl
-      if (isDataUrl && shouldNormalizeNextData) {
-        pathnameCheckUrl = denormalizeNextDataUrl(currentUrl, basePath, buildId)
-      }
+        // First check dynamic routes to extract route matches
+        const dynamicResult = checkDynamicRoutes(
+          routes.dynamicRoutes,
+          currentUrl,
+          pathnames,
+          currentHeaders,
+          routes.onMatch,
+          basePath,
+          buildId,
+          shouldNormalizeNextData,
+          isDataUrl
+        )
+        if (dynamicResult.matched && dynamicResult.result) {
+          // Reset URL to the denormalized version if it matched
+          if (dynamicResult.resetUrl) {
+            currentUrl = dynamicResult.resetUrl
+          }
+          return { ...dynamicResult.result, status: currentStatus }
+        }
 
-      matchedPath = matchesPathname(pathnameCheckUrl.pathname, pathnames)
-      if (matchedPath) {
-        const finalHeaders = applyOnMatchHeaders(routes.onMatch, currentHeaders)
-        return {
-          matchedPathname: matchedPath,
-          resolvedHeaders: finalHeaders,
+        // If no dynamic route matched, check static pathname
+        // Denormalize before checking if this was originally a data URL
+        let pathnameCheckUrl = currentUrl
+        if (isDataUrl && shouldNormalizeNextData) {
+          pathnameCheckUrl = denormalizeNextDataUrl(
+            currentUrl,
+            basePath,
+            buildId
+          )
+        }
+
+        matchedPath = matchesPathname(pathnameCheckUrl.pathname, pathnames)
+        if (matchedPath) {
+          const finalHeaders = applyOnMatchHeaders(
+            routes.onMatch,
+            currentHeaders
+          )
+          return {
+            matchedPathname: matchedPath,
+            resolvedHeaders: finalHeaders,
+            status: currentStatus,
+          }
         }
       }
     }
@@ -719,5 +799,6 @@ export async function resolveRoutes(
   // No match found
   return {
     resolvedHeaders: currentHeaders,
+    status: currentStatus,
   }
 }
