@@ -2253,42 +2253,6 @@ export declare function B612_Mono<
   adjustFontFallback?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
-export declare function BBH_Sans_Bartle<
-  T extends CssVariable | undefined = undefined,
->(options: {
-  weight: '400' | Array<'400'>
-  style?: 'normal' | Array<'normal'>
-  display?: Display
-  variable?: T
-  preload?: boolean
-  fallback?: string[]
-  adjustFontFallback?: boolean
-  subsets?: Array<'latin'>
-}): T extends undefined ? NextFont : NextFontWithVariable
-export declare function BBH_Sans_Bogle<
-  T extends CssVariable | undefined = undefined,
->(options: {
-  weight: '400' | Array<'400'>
-  style?: 'normal' | Array<'normal'>
-  display?: Display
-  variable?: T
-  preload?: boolean
-  fallback?: string[]
-  adjustFontFallback?: boolean
-  subsets?: Array<'latin'>
-}): T extends undefined ? NextFont : NextFontWithVariable
-export declare function BBH_Sans_Hegarty<
-  T extends CssVariable | undefined = undefined,
->(options: {
-  weight: '400' | Array<'400'>
-  style?: 'normal' | Array<'normal'>
-  display?: Display
-  variable?: T
-  preload?: boolean
-  fallback?: string[]
-  adjustFontFallback?: boolean
-  subsets?: Array<'latin'>
-}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function BIZ_UDGothic<
   T extends CssVariable | undefined = undefined,
 >(options: {
@@ -9062,6 +9026,7 @@ export declare function Google_Sans_Flex<
   T extends CssVariable | undefined = undefined,
 >(options?: {
   weight?:
+    | '1'
     | '100'
     | '200'
     | '300'
@@ -9074,6 +9039,7 @@ export declare function Google_Sans_Flex<
     | '1000'
     | 'variable'
     | Array<
+        | '1'
         | '100'
         | '200'
         | '300'
