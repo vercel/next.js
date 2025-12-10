@@ -37,7 +37,10 @@ export function computeActiveEntries(
     moduleIndex < modulesData.moduleCount();
     moduleIndex++
   ) {
-    const ident = modulesData.module(moduleIndex)!.ident
+    const ident = modulesData.module(moduleIndex)?.ident
+    if (ident == null) {
+      continue
+    }
 
     if (
       potentialEntryDependents.some((entryIdent) => ident.includes(entryIdent))
