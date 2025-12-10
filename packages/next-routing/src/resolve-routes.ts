@@ -44,11 +44,9 @@ function matchRoute(
   }
 
   // Replace placeholders in destination
-  const destination = replaceDestination(
-    route.destination,
-    regexMatches,
-    hasResult.captures
-  )
+  const destination = route.destination
+    ? replaceDestination(route.destination, regexMatches, hasResult.captures)
+    : undefined
 
   return {
     matched: true,

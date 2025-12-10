@@ -25,7 +25,7 @@ describe('adapter-config', () => {
 
     const {
       outputs,
-      routes,
+      routing,
       config,
       ...ctx
     }: Parameters<NextAdapter['onBuildComplete']>[0] = await next.readJSON(
@@ -204,11 +204,14 @@ describe('adapter-config', () => {
       }
     }
 
-    expect(routes).toEqual({
+    expect(routing).toEqual({
+      beforeMiddleware: expect.toBeArray(),
+      beforeFiles: expect.toBeArray(),
+      afterFiles: expect.toBeArray(),
       dynamicRoutes: expect.toBeArray(),
-      rewrites: expect.toBeObject(),
-      redirects: expect.toBeArray(),
-      headers: expect.toBeArray(),
+      onMatch: expect.toBeArray(),
+      fallback: expect.toBeArray(),
+      shouldNormalizeNextData: expect.toBeBoolean(),
     })
   })
 })

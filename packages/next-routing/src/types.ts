@@ -15,7 +15,7 @@ export type Route = {
   sourceRegex: string
   // destination can have matches to replace in destination
   // keyed by $1 for un-named and $name for named
-  destination: string
+  destination?: string
   headers?: Record<string, string>
   has?: RouteHas[]
   missing?: RouteHas[]
