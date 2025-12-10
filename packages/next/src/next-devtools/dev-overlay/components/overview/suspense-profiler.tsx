@@ -1,10 +1,13 @@
 import './suspense-profiler.css'
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import type {
   SuspenseBoundaryData,
   SuspenseBoundaryInfo,
   DynamicAPIAccess,
+  StackFrame,
 } from '../../../../server/app-render/suspense-boundary-injector'
+import type { StackFrame as DevToolsStackFrame } from '../../../server/shared'
+import { getOriginalStackFrames } from '../../../shared/stack-frame'
 
 // Read suspense boundary data from the DOM (injected by server)
 function getSuspenseDataFromDOM(): SuspenseBoundaryData | null {
@@ -20,10 +23,46 @@ function getSuspenseDataFromDOM(): SuspenseBoundaryData | null {
   }
 }
 
+// Convert our StackFrame to DevTools StackFrame format
+function toDevToolsFrame(frame: StackFrame): DevToolsStackFrame {
+  return {
+    file: frame.fileName,
+    methodName: frame.componentName,
+    arguments: [],
+    line1: frame.lineNumber,
+    column1: frame.columnNumber,
+  }
+}
+
+// Source-mapped frame info
+interface SourceMappedFrame {
+  componentName: string
+  fileName: string | null
+  lineNumber: number | null
+  columnNumber: number | null
+  ignored: boolean
+}
+
 interface DynamicReason {
   expression: string
   layersBetween: number
   componentsBetween: string[]
+  framesBetween: StackFrame[]
+  callFrame: StackFrame | null // The frame where the dynamic API was called
+}
+
+function formatSourceMappedTooltip(frame: SourceMappedFrame | null): string {
+  if (!frame) return ''
+  const parts: string[] = [frame.componentName]
+  if (frame.fileName) {
+    const loc = frame.lineNumber
+      ? frame.columnNumber
+        ? `${frame.fileName}:${frame.lineNumber}:${frame.columnNumber}`
+        : `${frame.fileName}:${frame.lineNumber}`
+      : frame.fileName
+    parts.push(loc)
+  }
+  return parts.join('\n')
 }
 
 function matchDynamicToBoundary(
@@ -67,6 +106,9 @@ function matchDynamicToBoundary(
     if (bestMatch) {
       const layersBetween = apiNames.length - bestBoundaryLen
       const componentsBetween = apiNames.slice(bestBoundaryLen)
+      const framesBetween = apiFrames.slice(bestBoundaryLen)
+      // The call frame is the first frame in the original (non-reversed) list
+      const callFrame = api.frames.length > 0 ? api.frames[0] : null
 
       if (!boundaryReasons[bestMatch]) boundaryReasons[bestMatch] = []
 
@@ -82,6 +124,8 @@ function matchDynamicToBoundary(
           expression: api.expression,
           layersBetween,
           componentsBetween,
+          framesBetween,
+          callFrame,
         })
       }
     }
@@ -100,7 +144,7 @@ function generatePrompt(
   let prompt = `I have a React component structure where a Suspense boundary in "${suspenseComponent}" wraps dynamic API calls that are nested deep in the component tree. This causes more content than necessary to show loading states.\n\n`
   prompt += 'Current structure:\n'
   for (const r of deepReasons) {
-    prompt += `- ${r.expression}() is called ${r.layersBetween} layers deep: ${r.componentsBetween.join(' > ')}\n`
+    prompt += `- ${r.expression} is called ${r.layersBetween} layers deep: ${r.componentsBetween.join(' > ')}\n`
   }
   prompt +=
     '\nPlease help me move the Suspense boundary closer to the dynamic API calls to minimize the loading state area. Show me the refactored code.'
@@ -113,15 +157,19 @@ function DynamicAPIRow({
   depth,
   expandedTraces,
   onToggleTrace,
+  getSourceMapped,
 }: {
   reason: DynamicReason
   depth: number
   expandedTraces: Record<string, boolean>
   onToggleTrace: (key: string) => void
+  getSourceMapped: (frame: StackFrame | null) => SourceMappedFrame | null
 }) {
   const traceKey = `${reason.expression}-${reason.componentsBetween.join('-')}`
   const isTraceExpanded = expandedTraces[traceKey]
   const hasNestedLayers = reason.layersBetween > 0
+  const mappedCallFrame = getSourceMapped(reason.callFrame)
+  const callTooltip = formatSourceMappedTooltip(mappedCallFrame)
 
   return (
     <div>
@@ -139,8 +187,8 @@ function DynamicAPIRow({
         ) : (
           <span className="suspense-profiler-collapse-placeholder" />
         )}
-        <code className="suspense-profiler-api-code">
-          {reason.expression}()
+        <code className="suspense-profiler-api-code" title={callTooltip}>
+          {reason.expression}
           {hasNestedLayers && (
             <span className="suspense-profiler-layers-badge">
               {reason.layersBetween}
@@ -153,11 +201,21 @@ function DynamicAPIRow({
           className="suspense-profiler-trace"
           style={{ paddingLeft: `${12 + depth * 16 + 16}px` }}
         >
-          {reason.componentsBetween.map((comp, i) => (
-            <div key={i} className="suspense-profiler-trace-item">
-              {comp}
-            </div>
-          ))}
+          {reason.framesBetween
+            .map((frame) => getSourceMapped(frame))
+            .filter(
+              (mapped): mapped is SourceMappedFrame =>
+                !!mapped && !mapped.ignored
+            )
+            .map((mappedFrame, i) => (
+              <div
+                key={i}
+                className="suspense-profiler-trace-item"
+                title={formatSourceMappedTooltip(mappedFrame)}
+              >
+                {mappedFrame.componentName}
+              </div>
+            ))}
         </div>
       )}
     </div>
@@ -173,6 +231,7 @@ function SuspenseBoundaryRow({
   onToggle,
   onToggleTrace,
   onShowInsights,
+  getSourceMapped,
 }: {
   boundary: SuspenseBoundaryInfo
   reasons: DynamicReason[]
@@ -182,9 +241,12 @@ function SuspenseBoundaryRow({
   onToggle: () => void
   onToggleTrace: (key: string) => void
   onShowInsights: (prompt: string) => void
+  getSourceMapped: (frame: StackFrame | null) => SourceMappedFrame | null
 }) {
-  const componentName =
-    boundary.frames.length > 0 ? boundary.frames[0].componentName : 'Unknown'
+  const boundaryFrame = boundary.frames.length > 0 ? boundary.frames[0] : null
+  const mappedFrame = getSourceMapped(boundaryFrame)
+  const componentName = mappedFrame?.componentName || 'Unknown'
+  const boundaryTooltip = formatSourceMappedTooltip(mappedFrame)
 
   const hasReasons = reasons.length > 0
   const deepReasons = reasons.filter((r) => r.layersBetween > 0)
@@ -206,7 +268,9 @@ function SuspenseBoundaryRow({
           <span className="suspense-profiler-toggle-placeholder" />
         )}
 
-        <span className="suspense-profiler-name">{componentName}</span>
+        <span className="suspense-profiler-name" title={boundaryTooltip}>
+          {componentName}
+        </span>
 
         <span className="suspense-profiler-badge suspense-profiler-badge--suspense">
           suspense
@@ -239,6 +303,7 @@ function SuspenseBoundaryRow({
             depth={depth + 1}
             expandedTraces={expandedTraces}
             onToggleTrace={onToggleTrace}
+            getSourceMapped={getSourceMapped}
           />
         ))}
     </div>
@@ -290,6 +355,9 @@ export function SuspenseProfiler() {
     {}
   )
   const [insightsPrompt, setInsightsPrompt] = useState<string | null>(null)
+  const [sourceMappedFrames, setSourceMappedFrames] = useState<
+    Map<string, SourceMappedFrame>
+  >(new Map())
 
   // Read data from DOM on mount
   const data = useMemo(() => getSuspenseDataFromDOM(), [])
@@ -298,6 +366,85 @@ export function SuspenseProfiler() {
   const dynamicAccesses = useMemo(
     () => data?.dynamicAccesses || [],
     [data?.dynamicAccesses]
+  )
+
+  // Collect all unique frames and fetch source maps
+  useEffect(() => {
+    const allFrames: StackFrame[] = []
+    for (const b of boundaries) {
+      allFrames.push(...b.frames)
+    }
+    for (const api of dynamicAccesses) {
+      allFrames.push(...api.frames)
+    }
+
+    // Dedupe by file+line+col
+    const uniqueFrames: StackFrame[] = []
+    const seen = new Set<string>()
+    for (const f of allFrames) {
+      const key = `${f.fileName}:${f.lineNumber}:${f.columnNumber}`
+      if (!seen.has(key) && f.fileName) {
+        seen.add(key)
+        uniqueFrames.push(f)
+      }
+    }
+
+    if (uniqueFrames.length === 0) return
+
+    // Convert to DevTools format and fetch
+    const devToolsFrames = uniqueFrames.map(toDevToolsFrame)
+    getOriginalStackFrames(devToolsFrames, 'server', true)
+      .then((originalFrames) => {
+        const newMap = new Map<string, SourceMappedFrame>()
+        for (let i = 0; i < uniqueFrames.length; i++) {
+          const original = uniqueFrames[i]
+          const mapped = originalFrames[i]
+          const key = `${original.fileName}:${original.lineNumber}:${original.columnNumber}`
+
+          if (!mapped.error && mapped.originalStackFrame) {
+            newMap.set(key, {
+              componentName:
+                mapped.originalStackFrame.methodName || original.componentName,
+              fileName: mapped.originalStackFrame.file,
+              lineNumber: mapped.originalStackFrame.line1,
+              columnNumber: mapped.originalStackFrame.column1,
+              ignored: mapped.ignored || mapped.external,
+            })
+          } else {
+            // Keep original if source map failed
+            newMap.set(key, {
+              componentName: original.componentName,
+              fileName: original.fileName,
+              lineNumber: original.lineNumber,
+              columnNumber: original.columnNumber,
+              ignored: mapped.ignored || mapped.external,
+            })
+          }
+        }
+        setSourceMappedFrames(newMap)
+      })
+      .catch(() => {
+        // On error, just use original frames
+      })
+  }, [boundaries, dynamicAccesses])
+
+  // Helper to get source-mapped frame
+  const getSourceMapped = useCallback(
+    (frame: StackFrame | null): SourceMappedFrame | null => {
+      if (!frame) return null
+      const key = `${frame.fileName}:${frame.lineNumber}:${frame.columnNumber}`
+      const mapped = sourceMappedFrames.get(key)
+      if (mapped) return mapped
+      // Return original frame with ignored=false as default
+      return {
+        componentName: frame.componentName,
+        fileName: frame.fileName,
+        lineNumber: frame.lineNumber,
+        columnNumber: frame.columnNumber,
+        ignored: false,
+      }
+    },
+    [sourceMappedFrames]
   )
 
   // Match all boundaries, then merge reasons by component path
@@ -347,6 +494,16 @@ export function SuspenseProfiler() {
     }
   }, [boundaries, allBoundaryReasons])
 
+  // Filter out ignored/external boundaries
+  const visibleBoundaries = useMemo(() => {
+    return uniqueBoundaries.filter((b) => {
+      if (b.frames.length === 0) return true
+      const frame = b.frames[0]
+      const mapped = getSourceMapped(frame)
+      return mapped && !mapped.ignored
+    })
+  }, [uniqueBoundaries, getSourceMapped])
+
   const handleToggle = useCallback((id: string) => {
     setExpanded((prev) => ({
       ...prev,
@@ -394,10 +551,10 @@ export function SuspenseProfiler() {
       </div>
 
       <div className="suspense-profiler-content">
-        {uniqueBoundaries.length === 0 ? (
+        {visibleBoundaries.length === 0 ? (
           <div className="suspense-profiler-empty">No boundaries detected</div>
         ) : (
-          uniqueBoundaries.map((boundary) => (
+          visibleBoundaries.map((boundary) => (
             <SuspenseBoundaryRow
               key={boundary.id}
               boundary={boundary}
@@ -408,6 +565,7 @@ export function SuspenseProfiler() {
               onToggle={() => handleToggle(boundary.id)}
               onToggleTrace={handleToggleTrace}
               onShowInsights={handleShowInsights}
+              getSourceMapped={getSourceMapped}
             />
           ))
         )}
