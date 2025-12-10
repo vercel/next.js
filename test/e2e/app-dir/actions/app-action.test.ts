@@ -802,10 +802,11 @@ describe('app-dir action handling', () => {
       await next.fetch('/server', {
         method: 'POST',
         headers: {
-          'content-type': 'application/x-www-form-urlencoded',
+          'content-type': 'multipart/form-data',
           'next-action': 'abc123',
         },
-        body: 'foo=bar',
+        // @ts-ignore
+        body: new FormData().append('foo', 'bar'),
       })
 
       await retry(async () =>

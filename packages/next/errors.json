@@ -670,5 +670,7 @@
   "669": "Invariant: --turbopack is set but the build used Webpack",
   "670": "Invariant: --turbopack is not set but the build used Turbopack. Add --turbopack to \"next start\".",
   "671": "Specified images.remotePatterns must have protocol \"http\" or \"https\" received \"%s\".",
-  "672": "Expected `telemetry` to be set in globals"
+  "672": "Expected `telemetry` to be set in globals",
+  "673": "Failed to find Server Action. This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
+  "674": "Failed to find Server Action%s. This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action"
 }
