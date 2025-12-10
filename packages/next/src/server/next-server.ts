@@ -273,6 +273,7 @@ export default class NextNodeServer extends BaseServer<
   protected internalWaitUntil: WaitUntil | undefined
   private isDev: boolean
   private sriEnabled: boolean
+  private insightsSessionId?: string
 
   constructor(options: Options) {
     // Initialize super class
@@ -348,6 +349,37 @@ export default class NextNodeServer extends BaseServer<
       this.prepare().catch((err) => {
         console.error('Failed to prepare server', err)
       })
+    }
+
+    // Initialize insights session for insights builds
+    // TODO: Only enable for insights builds once we figure out how to persist
+    // the insights flag from build time to runtime (same issue as ingest endpoint)
+    if (true) {
+      const {
+        generateSessionId,
+        ensureInsightsDirectorySync,
+        getInsightsFilePath,
+      } =
+        require('./lib/insights-storage') as typeof import('./lib/insights-storage')
+      const { startInsightsServer } =
+        require('./lib/insights-server') as typeof import('./lib/insights-server')
+
+      this.insightsSessionId = generateSessionId()
+      ensureInsightsDirectorySync(this.distDir)
+      const insightsFile = getInsightsFilePath(
+        this.distDir,
+        this.insightsSessionId
+      )
+      console.log(`[insights] Enabled (writing insights to ${insightsFile})`)
+
+      // Start insights server
+      startInsightsServer(this.distDir)
+        .then(({ port }) => {
+          console.log(`[insights] Report available at http://localhost:${port}`)
+        })
+        .catch((err) => {
+          console.error('[insights] Failed to start insights server:', err)
+        })
     }
 
     // when using compile mode static env isn't inlined so we
@@ -1330,7 +1362,8 @@ export default class NextNodeServer extends BaseServer<
                 report,
                 this.distDir,
                 this.dir,
-                this.nextConfig.cacheComponents ?? false
+                this.nextConfig.cacheComponents ?? false,
+                this.insightsSessionId!
               )
               rawRes.statusCode = 200
               rawRes.setHeader('Content-Type', 'application/json')

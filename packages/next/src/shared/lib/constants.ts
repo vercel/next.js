@@ -205,3 +205,7 @@ export const SYSTEM_ENTRYPOINTS = new Set<string>([
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
 ])
+
+// Insights-related constants
+export const INSIGHTS_DIRECTORY = 'insights'
+export const INSIGHTS_FILE_PREFIX = 'insights-'

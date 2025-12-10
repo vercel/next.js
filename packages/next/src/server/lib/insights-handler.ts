@@ -1,6 +1,9 @@
 import fsPromises from 'fs/promises'
 import { join, dirname } from 'path'
 import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
+import type { Insight, InsightSeverity } from './insights-types'
+import { appendInsight } from './insights-storage'
+import { broadcastInsight } from './insights-server'
 
 type StackFrame = {
   functionName: string
@@ -175,17 +178,16 @@ function filterUserFrames(frames: StackFrame[]): StackFrame[] {
 /**
  * Handle insights waterfall detection report from the client.
  * Receives raw timing data and performs all analysis server-side.
+ * Optionally stores insights to NDJSON file if sessionId is provided.
  */
 export async function handleInsightsReport(
   report: InsightsReport,
   distDir: string,
   projectDir: string,
-  cacheComponents: boolean = false
+  cacheComponents: boolean = false,
+  sessionId: string
 ): Promise<void> {
   const route = new URL(report.pageUrl).pathname
-  const debug =
-    new URL(report.pageUrl).searchParams.has('__debug_waterfall') ||
-    process.env.DEBUG_WATERFALL === '1'
 
   // Configuration for analysis
   const PROXIMITY_THRESHOLD = 100 // ms to consider events causally related
@@ -219,34 +221,31 @@ export async function handleInsightsReport(
 
   // No fetches - nothing to analyze
   if (report.fetchEvents.length === 0) {
-    console.log(`✅ No waterfall detected on ${route} (no client fetches)`)
     return
   }
 
-  // Debug: Print raw data
-  if (debug) {
-    console.log('')
-    console.log('═'.repeat(80))
-    console.log(`WATERFALL DETECTION DEBUG for ${route}`)
-    console.log('═'.repeat(80))
-    console.log('')
-    console.log('Configuration:')
-    console.log(`  PROXIMITY_THRESHOLD: ${PROXIMITY_THRESHOLD}ms`)
-    console.log(`  PARALLEL_THRESHOLD: ${PARALLEL_THRESHOLD}ms`)
-    console.log('')
-    console.log('Raw Fetch Events:')
-    report.fetchEvents.forEach((f) => {
-      console.log(
-        `  [${f.id}] ${f.url} | start: ${f.startTime.toFixed(1)}ms | end: ${f.endTime.toFixed(1)}ms | delay: ${f.artificialDelay}ms`
-      )
-    })
-    console.log('')
-    console.log('Raw Commit Events:')
-    report.commitEvents.forEach((c, i) => {
-      console.log(`  [${i}] time: ${c.time.toFixed(1)}ms`)
-    })
-    console.log('')
-  }
+  // Collect debug info into array (always, stored optionally)
+  const debugLines: string[] = []
+  debugLines.push('═'.repeat(80))
+  debugLines.push(`WATERFALL DETECTION DEBUG for ${route}`)
+  debugLines.push('═'.repeat(80))
+  debugLines.push('')
+  debugLines.push('Configuration:')
+  debugLines.push(`  PROXIMITY_THRESHOLD: ${PROXIMITY_THRESHOLD}ms`)
+  debugLines.push(`  PARALLEL_THRESHOLD: ${PARALLEL_THRESHOLD}ms`)
+  debugLines.push('')
+  debugLines.push('Raw Fetch Events:')
+  report.fetchEvents.forEach((f) => {
+    debugLines.push(
+      `  [${f.id}] ${f.url} | start: ${f.startTime.toFixed(1)}ms | end: ${f.endTime.toFixed(1)}ms | delay: ${f.artificialDelay}ms`
+    )
+  })
+  debugLines.push('')
+  debugLines.push('Raw Commit Events:')
+  report.commitEvents.forEach((c, i) => {
+    debugLines.push(`  [${i}] time: ${c.time.toFixed(1)}ms`)
+  })
+  debugLines.push('')
 
   // Step 1: Identify fetches that triggered a React commit
   // (fetch.endTime → commit.time within threshold)
@@ -291,19 +290,17 @@ export async function handleInsightsReport(
     }
   }
 
-  if (debug) {
-    console.log('Fetch Batches (parallel groups):')
-    fetchBatches.forEach((batch, i) => {
-      const urls = batch.map((f) => f.url).join(', ')
-      console.log(`  Batch ${i}: ${batch.length} fetch(es) - ${urls}`)
-    })
-    console.log('')
-    console.log(
-      'Fetches that triggered commits:',
-      Array.from(fetchesWithCommits)
-    )
-    console.log('')
-  }
+  // Continue debug info
+  debugLines.push('Fetch Batches (parallel groups):')
+  fetchBatches.forEach((batch, i) => {
+    const urls = batch.map((f) => f.url).join(', ')
+    debugLines.push(`  Batch ${i}: ${batch.length} fetch(es) - ${urls}`)
+  })
+  debugLines.push('')
+  debugLines.push(
+    `Fetches that triggered commits: [${Array.from(fetchesWithCommits).join(', ')}]`
+  )
+  debugLines.push('')
 
   // Step 3: Build waterfall tree
   // Build a tree where each node represents fetches, and edges represent causal relationships
@@ -401,107 +398,38 @@ export async function handleInsightsReport(
   // (root) with no fetches is not a waterfall
   const treeHasWaterfall = rootNodes.length > 0
 
-  if (debug) {
-    console.log('Detected Waterfall Tree:')
-    if (rootNodes.length === 0 || !treeHasWaterfall) {
-      console.log('  (none)')
-    } else {
-      const printTree = (node: FetchNode, indent: string = '  ') => {
-        if (node.isParallelGroup && node.parallelFetches) {
-          console.log(
-            `${indent}[Parallel Group: ${node.parallelFetches.length} fetches]`
-          )
-          node.parallelFetches.forEach((f) => {
-            console.log(`${indent}  - [${f.id}] ${f.url}`)
-          })
-        } else {
-          console.log(`${indent}[${node.fetch.id}] ${node.fetch.url}`)
-        }
-        node.children.forEach((child) => printTree(child, indent + '  '))
-      }
-      rootNodes.forEach((root, i) => {
-        console.log(`  Tree ${i + 1}:`)
-        printTree(root, '    ')
-      })
-    }
-    console.log('')
-    console.log('═'.repeat(80))
-    console.log('')
-  }
-
-  // Step 4: Determine result and output
-  const parallelBatches = fetchBatches.filter((b) => b.length > 1)
-  const hasParallelBatches = parallelBatches.length > 0
-
-  // No waterfall detected
-  if (!treeHasWaterfall) {
-    if (hasParallelBatches) {
-      console.log(`✅ No waterfall detected on ${route}`)
-      parallelBatches.forEach((batch, i) => {
-        console.log(`   Parallel fetch group ${i + 1}:`)
-        batch.forEach((f) => {
-          const location = getLocation(f.parsedFrames)
-          console.log(`     - ${f.url}`)
-          console.log(`       at ${location}`)
+  // Debug: waterfall tree
+  debugLines.push('Detected Waterfall Tree:')
+  if (rootNodes.length === 0 || !treeHasWaterfall) {
+    debugLines.push('  (none)')
+  } else {
+    const printTree = (node: FetchNode, indent: string = '  ') => {
+      if (node.isParallelGroup && node.parallelFetches) {
+        debugLines.push(
+          `${indent}[Parallel Group: ${node.parallelFetches.length} fetches]`
+        )
+        node.parallelFetches.forEach((f) => {
+          debugLines.push(`${indent}  - [${f.id}] ${f.url}`)
         })
-      })
-    } else {
-      console.log(`✅ No waterfall detected on ${route}`)
+      } else {
+        debugLines.push(`${indent}[${node.fetch.id}] ${node.fetch.url}`)
+      }
+      node.children.forEach((child) => printTree(child, indent + '  '))
     }
+    rootNodes.forEach((root, i) => {
+      debugLines.push(`  Tree ${i + 1}:`)
+      printTree(root, '    ')
+    })
+  }
+  debugLines.push('')
+  debugLines.push('═'.repeat(80))
+
+  // No waterfall detected - nothing to store
+  if (!treeHasWaterfall) {
     return
   }
 
-  // Waterfall detected - detailed output
-  console.log('')
-  console.log('═'.repeat(80))
-  console.log(`🚨 WATERFALL DETECTED on ${route}`)
-  console.log('═'.repeat(80))
-  console.log('')
-
-  // Recursive function to print tree with proper formatting
-  const printTreeOutput = (
-    node: FetchNode,
-    depth: number = 0,
-    prefix: string = ''
-  ) => {
-    if (node.isParallelGroup && node.parallelFetches) {
-      // Parallel group
-      if (depth > 0) console.log(`${prefix}↓`)
-      node.parallelFetches.forEach((f, idx) => {
-        const location = getLocation(f.parsedFrames)
-        const isLast = idx === node.parallelFetches!.length - 1
-        const bullet = node.parallelFetches!.length > 1 ? '├─' : '└─'
-        console.log(`${prefix}${isLast ? '└─' : bullet} ${f.url} (${location})`)
-      })
-    } else {
-      // Single fetch
-      if (depth > 0) console.log(`${prefix}↓`)
-      const location = getLocation(node.fetch.parsedFrames)
-      console.log(`${prefix}└─ ${node.fetch.url} (${location})`)
-    }
-
-    // Print children
-    if (node.children.length > 0) {
-      const childPrefix = prefix + '   '
-      node.children.forEach((child) => {
-        printTreeOutput(child, depth + 1, childPrefix)
-      })
-    }
-  }
-
-  rootNodes.forEach((root, idx) => {
-    if (rootNodes.length > 1 && idx > 0) {
-      console.log('')
-      console.log('─'.repeat(80))
-      console.log('')
-    }
-    if (rootNodes.length > 1) {
-      console.log(`Path ${idx + 1}:`)
-    }
-    printTreeOutput(root)
-  })
-
-  // Calculate severity
+  // Calculate severity first (needed for output)
   const getTotalDepth = (node: FetchNode): number => {
     if (node.children.length === 0) return 1
     return 1 + Math.max(...node.children.map(getTotalDepth))
@@ -536,6 +464,57 @@ export async function handleInsightsReport(
     MEDIUM: '🟡',
     LOW: '🟢',
   }
+
+  // Build tree output as string
+  const outputLines: string[] = []
+
+  outputLines.push('')
+  outputLines.push('═'.repeat(80))
+  outputLines.push(`🚨 WATERFALL DETECTED on ${route}`)
+  outputLines.push('═'.repeat(80))
+  outputLines.push('')
+
+  // Recursive function to build tree output
+  const buildTreeOutput = (
+    node: FetchNode,
+    depth: number = 0,
+    prefix: string = ''
+  ) => {
+    if (node.isParallelGroup && node.parallelFetches) {
+      if (depth > 0) outputLines.push(`${prefix}↓`)
+      node.parallelFetches.forEach((f, idx) => {
+        const location = getLocation(f.parsedFrames)
+        const isLast = idx === node.parallelFetches!.length - 1
+        const bullet = node.parallelFetches!.length > 1 ? '├─' : '└─'
+        outputLines.push(
+          `${prefix}${isLast ? '└─' : bullet} ${f.url} (${location})`
+        )
+      })
+    } else {
+      if (depth > 0) outputLines.push(`${prefix}↓`)
+      const location = getLocation(node.fetch.parsedFrames)
+      outputLines.push(`${prefix}└─ ${node.fetch.url} (${location})`)
+    }
+
+    if (node.children.length > 0) {
+      const childPrefix = prefix + '   '
+      node.children.forEach((child) => {
+        buildTreeOutput(child, depth + 1, childPrefix)
+      })
+    }
+  }
+
+  rootNodes.forEach((root, idx) => {
+    if (rootNodes.length > 1 && idx > 0) {
+      outputLines.push('')
+      outputLines.push('─'.repeat(80))
+      outputLines.push('')
+    }
+    if (rootNodes.length > 1) {
+      outputLines.push(`Path ${idx + 1}:`)
+    }
+    buildTreeOutput(root)
+  })
 
   // Generate different prompts based on cacheComponents config
   let aiInsights: string
@@ -847,5 +826,33 @@ ${'═'.repeat(80)}
 `
   }
 
-  console.log(aiInsights)
+  // Build full output body
+  outputLines.push(aiInsights)
+  const fullOutput = outputLines.join('\n')
+
+  // Create stable ID based on route and fetch URLs
+  const fetchUrls = report.fetchEvents.map((f) => f.url).sort()
+  const idHash = Buffer.from(route + fetchUrls.join(','))
+    .toString('base64')
+    .slice(0, 8)
+  const insightId = `waterfall-${route.replace(/\//g, '-').slice(1) || 'root'}-${idHash}`
+
+  const insight: Insight = {
+    id: insightId,
+    type: 'waterfall',
+    severity: severity.toLowerCase() as InsightSeverity,
+    route,
+    timestamp: new Date().toISOString(),
+    body: fullOutput,
+    debug: debugLines.join('\n'),
+  }
+
+  try {
+    await appendInsight(distDir, sessionId, insight)
+    // Broadcast to connected SSE clients
+    broadcastInsight(insight)
+    console.log(`[insights] New insight appended`)
+  } catch (error) {
+    console.error('[insights] Failed to store insight:', error)
+  }
 }
