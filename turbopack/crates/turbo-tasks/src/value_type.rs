@@ -1,26 +1,20 @@
 use std::{
-    any::{Any, type_name},
     fmt::{self, Debug, Display, Formatter},
     hash::Hash,
 };
 
 use auto_hash_map::{AutoMap, AutoSet};
-use bincode::{
-    Decode, Encode,
-    error::{DecodeError, EncodeError},
-};
+use bincode::{Decode, Encode};
 use tracing::Span;
-use turbo_bincode::{TurboBincodeDecoder, TurboBincodeEncoder};
+use turbo_bincode::{AnyDecodeFn, AnyEncodeFn};
 
 use crate::{
-    RawVc, SharedReference, VcValueType, id::TraitTypeId, macro_helpers::NativeFunction, registry,
-    task::shared_reference::TypedSharedReference, vc::VcCellMode,
+    RawVc, SharedReference, VcValueType, id::TraitTypeId, macro_helpers::NativeFunction,
+    magic_any::any_as_encode, registry, task::shared_reference::TypedSharedReference,
+    vc::VcCellMode,
 };
 
 type RawCellFactoryFn = fn(TypedSharedReference) -> RawVc;
-
-type AnyEncodeFn = fn(&dyn Any, &mut TurboBincodeEncoder<'_>) -> Result<(), EncodeError>;
-type AnyDecodeFn = fn(&mut TurboBincodeDecoder<'_>) -> Result<SharedReference, DecodeError>;
 
 // TODO this type need some refactoring when multiple languages are added to
 // turbo-task In this case a trait_method might be of a different function type.
@@ -42,7 +36,7 @@ pub struct ValueType {
     trait_methods: AutoMap<&'static TraitMethod, &'static NativeFunction>,
 
     /// Functions to convert to write the type to a buffer or read it from a buffer.
-    pub bincode: Option<(AnyEncodeFn, AnyDecodeFn)>,
+    pub bincode: Option<(AnyEncodeFn, AnyDecodeFn<SharedReference>)>,
 
     /// An implementation of
     /// [`VcCellMode::raw_cell`][crate::vc::VcCellMode::raw_cell].
@@ -89,16 +83,6 @@ impl Display for ValueType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str(self.name)
     }
-}
-
-pub fn any_as_encode<T: Any>(this: &dyn Any) -> &T {
-    if let Some(enc) = this.downcast_ref::<T>() {
-        return enc;
-    }
-    unreachable!(
-        "any_as_encode::<{}> called with invalid type",
-        type_name::<T>()
-    );
 }
 
 pub trait ManualEncodeWrapper: Encode {
@@ -171,7 +155,7 @@ impl ValueType {
     // Helper for other constructor functions
     fn new_inner<T: VcValueType>(
         global_name: &'static str,
-        bincode: Option<(AnyEncodeFn, AnyDecodeFn)>,
+        bincode: Option<(AnyEncodeFn, AnyDecodeFn<SharedReference>)>,
     ) -> Self {
         Self {
             name: std::any::type_name::<T>(),

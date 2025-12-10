@@ -109,6 +109,8 @@ pub(crate) enum PatternMapping {
     TraceRawVcs,
     TaskInput,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub(crate) enum ResolveType {
     AsyncChunkLoader,

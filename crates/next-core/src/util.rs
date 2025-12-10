@@ -59,7 +59,18 @@ pub fn defines(define_env: &FxIndexMap<RcStr, Option<RcStr>>) -> CompileTimeDefi
 }
 
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, Serialize, Deserialize, TraceRawVcs,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    TaskInput,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    Encode,
+    Decode,
 )]
 pub enum PathType {
     PagesPage,
@@ -243,12 +254,12 @@ pub enum MiddlewareMatcherKind {
 
 /// Loads a next.js template, replaces `replacements` and `injections` and makes
 /// sure there are none left over.
-pub async fn load_next_js_template(
-    template_path: &str,
+pub async fn load_next_js_template<'b>(
+    template_path: &'b str,
     project_path: FileSystemPath,
-    replacements: &[(&str, &str)],
-    injections: &[(&str, &str)],
-    imports: &[(&str, Option<&str>)],
+    replacements: impl IntoIterator<Item = (&'b str, &'b str)>,
+    injections: impl IntoIterator<Item = (&'b str, &'b str)>,
+    imports: impl IntoIterator<Item = (&'b str, Option<&'b str>)>,
 ) -> Result<Vc<Box<dyn Source>>> {
     let template_path = virtual_next_js_template_path(project_path.clone(), template_path).await?;
 
@@ -261,9 +272,9 @@ pub async fn load_next_js_template(
         &content,
         &template_path.path,
         &package_root.path,
-        replacements.iter().copied(),
-        injections.iter().copied(),
-        imports.iter().copied(),
+        replacements,
+        injections,
+        imports,
     )?;
 
     let file = File::from(content);

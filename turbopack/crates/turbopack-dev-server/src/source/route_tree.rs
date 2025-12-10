@@ -14,7 +14,18 @@ use crate::source::{GetContentSourceContent, GetContentSourceContents};
 /// The type of the route. This will decide about the remaining segments of the
 /// route after the base.
 #[derive(
-    TaskInput, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+    TaskInput,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum RouteType {
     Exact,

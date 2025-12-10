@@ -209,10 +209,6 @@ pub struct ProjectOptions {
     pub current_node_js_version: RcStr,
 }
 
-#[derive(
-    Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue,
-)]
-#[serde(rename_all = "camelCase")]
 pub struct PartialProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.

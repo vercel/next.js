@@ -13,10 +13,14 @@ use auto_hash_map::AutoMap;
 use bincode::{
     Decode, Encode,
     error::{DecodeError, EncodeError},
+    impl_borrow_decode,
 };
 use rustc_hash::FxHasher;
 use tracing::Span;
-use turbo_bincode::{TurboBincodeDecoder, TurboBincodeEncoder};
+use turbo_bincode::{
+    TurboBincodeDecode, TurboBincodeDecoder, TurboBincodeEncode, TurboBincodeEncoder,
+    impl_decode_for_turbo_bincode_decode, impl_encode_for_turbo_bincode_encode,
+};
 use turbo_rcstr::RcStr;
 
 use crate::{
@@ -77,6 +81,38 @@ impl CachedTaskType {
     }
 }
 
+impl TurboBincodeEncode for CachedTaskType {
+    fn encode(&self, encoder: &mut TurboBincodeEncoder) -> Result<(), EncodeError> {
+        Encode::encode(&registry::get_function_id(self.native_fn), encoder)?;
+
+        let (encode_arg_any, _) = self.native_fn.arg_meta.bincode;
+        Encode::encode(&self.this, encoder)?;
+        encode_arg_any(&*self.arg, encoder)?;
+
+        Ok(())
+    }
+}
+
+impl<Context> TurboBincodeDecode<Context> for CachedTaskType {
+    fn decode(decoder: &mut TurboBincodeDecoder) -> Result<Self, DecodeError> {
+        let native_fn = registry::get_native_function(Decode::decode(decoder)?);
+
+        let (_, decode_arg_any) = native_fn.arg_meta.bincode;
+        let this = Decode::decode(decoder)?;
+        let arg = decode_arg_any(decoder)?;
+
+        Ok(Self {
+            native_fn,
+            this,
+            arg,
+        })
+    }
+}
+
+impl_encode_for_turbo_bincode_encode!(CachedTaskType);
+impl_decode_for_turbo_bincode_decode!(CachedTaskType);
+impl_borrow_decode!(CachedTaskType);
+
 // Manual implementation is needed because of a borrow issue with `Box<dyn Trait>`:
 // https://github.com/rust-lang/rust/issues/31740
 impl PartialEq for CachedTaskType {
@@ -99,126 +135,6 @@ impl Hash for CachedTaskType {
 impl Display for CachedTaskType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.get_name())
-    }
-}
-
-mod ser {
-    use bincode::{
-        de::{Decoder, read::Reader},
-        enc::Encoder,
-    };
-    use serde::{Deserialize, Deserializer, Serialize, Serializer, ser::SerializeSeq};
-
-    use super::*;
-
-    const POT_CONFIG: pot::Config = pot::Config::new().compatibility(pot::Compatibility::V4);
-
-    struct FunctionAndArgBorrowed<'a> {
-        native_fn: &'static NativeFunction,
-        arg: &'a dyn MagicAny,
-    }
-    struct FunctionAndArgOwned {
-        native_fn: &'static NativeFunction,
-        arg: Box<dyn MagicAny>,
-    }
-
-    impl Serialize for FunctionAndArgBorrowed<'_> {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            let Self { native_fn, arg } = self;
-            let mut state = serializer.serialize_seq(Some(2))?;
-            state.serialize_element(&registry::get_function_id(native_fn))?;
-            let arg = *arg;
-            let arg = native_fn.arg_meta.as_serialize(arg);
-            state.serialize_element(arg)?;
-            state.end()
-        }
-    }
-
-    impl<'de> Deserialize<'de> for FunctionAndArgOwned {
-        fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-            struct Visitor;
-            impl<'de> serde::de::Visitor<'de> for Visitor {
-                type Value = FunctionAndArgOwned;
-
-                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                    write!(formatter, "a valid FunctionAndArgOwned")
-                }
-
-                fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-                where
-                    A: serde::de::SeqAccess<'de>,
-                {
-                    let fn_id = seq
-                        .next_element()?
-                        .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-                    let native_fn = registry::get_native_function(fn_id);
-                    let seed = native_fn.arg_meta.deserialization_seed();
-                    let arg = seq
-                        .next_element_seed(seed)?
-                        .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-                    Ok(FunctionAndArgOwned { native_fn, arg })
-                }
-            }
-            deserializer.deserialize_seq(Visitor)
-        }
-    }
-
-    // HACK: We don't yet require `TaskInput: Encode + Decode`, so use a pot serializer for the
-    // function arguments, and bincode for everything else.
-    impl Encode for CachedTaskType {
-        fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-            struct BincodeWriterWrapper<W: bincode::enc::write::Writer>(W);
-            impl<W: bincode::enc::write::Writer> std::io::Write for BincodeWriterWrapper<W> {
-                fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-                    self.write_all(buf)?;
-                    Ok(buf.len())
-                }
-                fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
-                    self.0.write(buf).map_err(std::io::Error::other)
-                }
-                fn flush(&mut self) -> std::io::Result<()> {
-                    Ok(())
-                }
-            }
-            let function_and_arg = FunctionAndArgBorrowed {
-                native_fn: self.native_fn,
-                arg: &*self.arg,
-            };
-            POT_CONFIG
-                .serialize_into(
-                    &function_and_arg,
-                    &mut BincodeWriterWrapper(encoder.writer()),
-                )
-                .map_err(|e| EncodeError::OtherString(e.to_string()))?;
-            Encode::encode(&self.this, encoder)
-        }
-    }
-
-    impl<Context> Decode<Context> for CachedTaskType {
-        fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-            struct BincodeReaderWrapper<R: Reader>(R);
-            impl<R: Reader> std::io::Read for BincodeReaderWrapper<R> {
-                fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-                    self.read_exact(buf)?;
-                    Ok(buf.len())
-                }
-                fn read_exact(&mut self, buf: &mut [u8]) -> std::io::Result<()> {
-                    self.0.read(buf).map_err(std::io::Error::other)
-                }
-            }
-            let FunctionAndArgOwned { native_fn, arg } = POT_CONFIG
-                .deserialize_from(BincodeReaderWrapper(decoder.reader()))
-                .map_err(|e| DecodeError::OtherString(e.to_string()))?;
-            let this: Option<RawVc> = Decode::decode(decoder)?;
-            Ok(CachedTaskType {
-                native_fn,
-                this,
-                arg,
-            })
-        }
     }
 }
 

@@ -1,4 +1,7 @@
-import type { NextConfigComplete } from '../server/config-shared'
+import type {
+  NextConfigComplete,
+  NextConfigRuntime,
+} from '../server/config-shared'
 import type { ExperimentalPPRConfig } from '../server/lib/experimental/ppr'
 import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
@@ -1211,7 +1214,7 @@ export async function copyTracedFiles(
   pageKeys: readonly string[],
   appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
-  serverConfig: NextConfigComplete,
+  serverConfig: NextConfigRuntime,
   middlewareManifest: MiddlewareManifest,
   hasNodeMiddleware: boolean,
   hasInstrumentationHook: boolean,

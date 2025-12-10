@@ -123,6 +123,8 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
     ValueDebugFormat,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 enum EndpointSelector {
     RoutePageHtml(RcStr),
