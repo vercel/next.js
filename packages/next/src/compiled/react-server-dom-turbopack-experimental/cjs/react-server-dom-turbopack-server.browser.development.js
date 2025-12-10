@@ -3637,8 +3637,12 @@ Chunk.prototype.then = function (resolve, reject) {
         var inspectedValue = chunk.value; // Recursively check if the value is itself a ReactPromise and if so if it points
         // back to itself. This helps catch recursive thenables early error.
 
+        var cycleProtection = 0;
+
         while (inspectedValue instanceof Chunk) {
-          if (inspectedValue === chunk) {
+          cycleProtection++;
+
+          if (inspectedValue === chunk || cycleProtection > 1000) {
             if (typeof reject === 'function') {
               reject(new Error('Cannot have cyclic thenables.'));
             }
