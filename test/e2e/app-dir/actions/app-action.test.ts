@@ -519,7 +519,6 @@ createNextDescribe(
       await next.fetch('/server', {
         method: 'POST',
         headers: {
-          'content-type': 'application/x-www-form-urlencoded',
           'next-action': 'abc123',
         },
         body: 'foo=bar',
