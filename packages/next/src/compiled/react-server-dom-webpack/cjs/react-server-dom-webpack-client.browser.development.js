@@ -89,6 +89,9 @@ function isAsyncImport(metadata) {
   return metadata.length === 4;
 }
 
+// $FlowFixMe[method-unbinding]
+var hasOwnProperty = Object.prototype.hasOwnProperty;
+
 function resolveClientReference(bundlerConfig, metadata) {
   if (bundlerConfig) {
     var moduleExports = bundlerConfig[metadata[ID]];
@@ -218,7 +221,11 @@ function requireModule(metadata) {
     return moduleExports.__esModule ? moduleExports.default : moduleExports;
   }
 
-  return moduleExports[metadata[NAME]];
+  if (hasOwnProperty.call(moduleExports, metadata[NAME])) {
+    return moduleExports[metadata[NAME]];
+  }
+
+  return undefined;
 }
 
 var chunkMap = new Map();
@@ -785,7 +792,7 @@ function serializePromiseID(id) {
 }
 
 function serializeServerReferenceID(id) {
-  return '$F' + id.toString(16);
+  return '$h' + id.toString(16);
 }
 
 function serializeSymbolReference(name) {
@@ -793,7 +800,6 @@ function serializeSymbolReference(name) {
 }
 
 function serializeFormDataReference(id) {
-  // Why K? F is "Function". D is "Date". What else?
   return '$K' + id.toString(16);
 }
 
@@ -1597,7 +1603,7 @@ function parseModelString(response, parentObject, key, value) {
           return Symbol.for(value.slice(2));
         }
 
-      case 'F':
+      case 'h':
         {
           // Server Reference
           var _id2 = parseInt(value.slice(2), 16);

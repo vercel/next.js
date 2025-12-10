@@ -282,6 +282,13 @@ function bind() {
   return newFn;
 }
 
+var serverReferenceToString = {
+  value: function () {
+    return 'function () { [omitted code] }';
+  },
+  configurable: true,
+  writable: true
+};
 function registerServerReference(reference, id, exportName) {
   return Object.defineProperties(reference, {
     $$typeof: {
@@ -298,7 +305,8 @@ function registerServerReference(reference, id, exportName) {
     bind: {
       value: bind,
       configurable: true
-    }
+    },
+    toString: serverReferenceToString
   });
 }
 var PROMISE_PROTOTYPE = Promise.prototype;
@@ -2112,7 +2120,7 @@ function serializePromiseID(id) {
 }
 
 function serializeServerReferenceID(id) {
-  return '$F' + id.toString(16);
+  return '$h' + id.toString(16);
 }
 
 function serializeSymbolReference(name) {
@@ -3550,6 +3558,9 @@ function isAsyncImport(metadata) {
   return metadata.length === 4;
 }
 
+// $FlowFixMe[method-unbinding]
+var hasOwnProperty = Object.prototype.hasOwnProperty;
+
 function resolveServerReference(bundlerConfig, id) {
   var name = '';
   var resolvedModuleData = bundlerConfig[id];
@@ -3673,7 +3684,11 @@ function requireModule(metadata) {
     return moduleExports.__esModule ? moduleExports.default : moduleExports;
   }
 
-  return moduleExports[metadata[NAME]];
+  if (hasOwnProperty.call(moduleExports, metadata[NAME])) {
+    return moduleExports[metadata[NAME]];
+  }
+
+  return undefined;
 }
 
 function loadChunk(filename) {
@@ -3710,7 +3725,31 @@ Chunk.prototype.then = function (resolve, reject) {
 
   switch (chunk.status) {
     case INITIALIZED:
-      resolve(chunk.value);
+      if (typeof resolve === 'function') {
+        var inspectedValue = chunk.value; // Recursively check if the value is itself a ReactPromise and if so if it points
+        // back to itself. This helps catch recursive thenables early error.
+
+        while (inspectedValue instanceof Chunk) {
+          if (inspectedValue === chunk) {
+            if (typeof reject === 'function') {
+              reject(new Error('Cannot have cyclic thenables.'));
+            }
+
+            return;
+          }
+
+          if (inspectedValue.status === INITIALIZED) {
+            inspectedValue = inspectedValue.value;
+          } else {
+            // If this is lazily resolved, pending or blocked, it'll eventually become
+            // initialized and break the loop. Rejected also breaks it.
+            break;
+          }
+        }
+
+        resolve(chunk.value);
+      }
+
       break;
 
     case PENDING:
@@ -4015,7 +4054,7 @@ function parseModelString(response, parentObject, key, value) {
           return Symbol.for(value.slice(2));
         }
 
-      case 'F':
+      case 'h':
         {
           // Server Reference
           var _id = parseInt(value.slice(2), 16); // TODO: Just encode this in the reference inline instead of as a model.
@@ -4328,7 +4367,11 @@ function decodeReplyFromBusboy(busboyStream, turbopackMap) {
       // we queue any fields we receive until the previous file is done.
       queuedFields.push(name, value);
     } else {
-      resolveField(response, name, value);
+      try {
+        resolveField(response, name, value);
+      } catch (error) {
+        busboyStream.destroy(error);
+      }
     }
   });
   busboyStream.on('file', function (name, value, _ref) {
@@ -4337,7 +4380,8 @@ function decodeReplyFromBusboy(busboyStream, turbopackMap) {
         mimeType = _ref.mimeType;
 
     if (encoding.toLowerCase() === 'base64') {
-      throw new Error("React doesn't accept base64 encoded file uploads because we don't expect " + "form data passed from a browser to ever encode data that way. If that's " + 'the wrong assumption, we can easily fix it.');
+      busboyStream.destroy(new Error("React doesn't accept base64 encoded file uploads because we don't expect " + "form data passed from a browser to ever encode data that way. If that's " + 'the wrong assumption, we can easily fix it.'));
+      return;
     }
 
     pendingFiles++;
@@ -4346,16 +4390,20 @@ function decodeReplyFromBusboy(busboyStream, turbopackMap) {
       resolveFileChunk(response, file, chunk);
     });
     value.on('end', function () {
-      resolveFileComplete(response, name, file);
-      pendingFiles--;
+      try {
+        resolveFileComplete(response, name, file);
+        pendingFiles--;
 
-      if (pendingFiles === 0) {
-        // Release any queued fields
-        for (var i = 0; i < queuedFields.length; i += 2) {
-          resolveField(response, queuedFields[i], queuedFields[i + 1]);
+        if (pendingFiles === 0) {
+          // Release any queued fields
+          for (var i = 0; i < queuedFields.length; i += 2) {
+            resolveField(response, queuedFields[i], queuedFields[i + 1]);
+          }
+
+          queuedFields.length = 0;
         }
-
-        queuedFields.length = 0;
+      } catch (error) {
+        busboyStream.destroy(error);
       }
     });
   });

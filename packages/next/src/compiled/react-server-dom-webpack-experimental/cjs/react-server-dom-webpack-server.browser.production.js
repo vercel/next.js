@@ -179,6 +179,11 @@ function bind() {
   return newFn;
 }
 
+const serverReferenceToString = {
+  value: () => 'function () { [omitted code] }',
+  configurable: true,
+  writable: true
+};
 function registerServerReference(reference, id, exportName) {
   return Object.defineProperties(reference, {
     $$typeof: {
@@ -195,7 +200,8 @@ function registerServerReference(reference, id, exportName) {
     bind: {
       value: bind,
       configurable: true
-    }
+    },
+    toString: serverReferenceToString
   });
 }
 const PROMISE_PROTOTYPE = Promise.prototype;
@@ -1687,7 +1693,7 @@ function serializePromiseID(id) {
 }
 
 function serializeServerReferenceID(id) {
-  return '$F' + id.toString(16);
+  return '$h' + id.toString(16);
 }
 
 function serializeSymbolReference(name) {
@@ -2704,6 +2710,9 @@ function isAsyncImport(metadata) {
   return metadata.length === 4;
 }
 
+// $FlowFixMe[method-unbinding]
+const hasOwnProperty = Object.prototype.hasOwnProperty;
+
 function resolveServerReference(bundlerConfig, id) {
   let name = '';
   let resolvedModuleData = bundlerConfig[id];
@@ -2829,7 +2838,11 @@ function requireModule(metadata) {
     return moduleExports.__esModule ? moduleExports.default : moduleExports;
   }
 
-  return moduleExports[metadata[NAME]];
+  if (hasOwnProperty.call(moduleExports, metadata[NAME])) {
+    return moduleExports[metadata[NAME]];
+  }
+
+  return undefined;
 }
 
 const chunkMap = new Map();
@@ -2885,7 +2898,31 @@ Chunk.prototype.then = function (resolve, reject) {
 
   switch (chunk.status) {
     case INITIALIZED:
-      resolve(chunk.value);
+      if (typeof resolve === 'function') {
+        let inspectedValue = chunk.value; // Recursively check if the value is itself a ReactPromise and if so if it points
+        // back to itself. This helps catch recursive thenables early error.
+
+        while (inspectedValue instanceof Chunk) {
+          if (inspectedValue === chunk) {
+            if (typeof reject === 'function') {
+              reject(new Error('Cannot have cyclic thenables.'));
+            }
+
+            return;
+          }
+
+          if (inspectedValue.status === INITIALIZED) {
+            inspectedValue = inspectedValue.value;
+          } else {
+            // If this is lazily resolved, pending or blocked, it'll eventually become
+            // initialized and break the loop. Rejected also breaks it.
+            break;
+          }
+        }
+
+        resolve(chunk.value);
+      }
+
       break;
 
     case PENDING:
@@ -3143,7 +3180,7 @@ function parseModelString(response, parentObject, key, value) {
           return Symbol.for(value.slice(2));
         }
 
-      case 'F':
+      case 'h':
         {
           // Server Reference
           const id = parseInt(value.slice(2), 16); // TODO: Just encode this in the reference inline instead of as a model.
