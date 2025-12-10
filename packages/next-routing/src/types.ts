@@ -31,6 +31,7 @@ export type MiddlewareContext = {
 export type MiddlewareResult = {
   bodySent?: boolean
   requestHeaders?: Headers
+  responseHeaders?: Headers
   redirect?: {
     url: URL
     status: number

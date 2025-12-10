@@ -15,3 +15,4 @@ export {
   getAcceptLanguageLocale,
   getCookieLocale,
 } from './i18n'
+export { responseToMiddlewareResult } from './middleware'
