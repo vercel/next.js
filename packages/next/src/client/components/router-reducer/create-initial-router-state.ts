@@ -99,8 +99,25 @@ export function createInitialRouterState({
       (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??
       null,
     previousNextUrl: null,
+    suspended: null,
     debugInfo: null,
   }
 
   return initialState
+}
+
+export function cloneAppRouterState(state: AppRouterState): AppRouterState {
+  return {
+    tree: state.tree,
+    navigationId: state.navigationId,
+    cache: state.cache,
+    pushRef: state.pushRef,
+    focusAndScrollRef: state.focusAndScrollRef,
+    canonicalUrl: state.canonicalUrl,
+    renderedSearch: state.renderedSearch,
+    nextUrl: state.nextUrl,
+    previousNextUrl: state.previousNextUrl,
+    suspended: state.suspended,
+    debugInfo: state.debugInfo,
+  }
 }

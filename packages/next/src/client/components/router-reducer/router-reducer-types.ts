@@ -35,7 +35,6 @@ export interface Mutable {
   shouldScroll?: boolean
   preserveCustomHistoryState?: boolean
   onlyHashChange?: boolean
-  collectedDebugInfo?: Array<unknown>
 }
 
 export interface ServerActionMutable extends Mutable {
@@ -105,7 +104,7 @@ export interface ServerActionAction {
  */
 export interface NavigateAction {
   type: typeof ACTION_NAVIGATE
-  url: URL
+  url: URL | null
   isExternalUrl: boolean
   navigateType: 'push' | 'replace'
   shouldScroll: boolean
@@ -254,7 +253,21 @@ export type AppRouterState = {
    */
   previousNextUrl: string | null
 
+  /**
+   * When not null, prevents React from committing this state. The top-level
+   * AppRouter component will suspend during render.
+   */
+  suspended: null | SuspendedState
+
   debugInfo: Array<unknown> | null
+}
+
+export type SuspendedState = {
+  /**
+   * True if there was a refresh while the router was suspended. The
+   * continuation must refresh the dynamic data.
+   */
+  needsRefresh: boolean
 }
 
 export type ReadonlyReducerState = Readonly<AppRouterState>

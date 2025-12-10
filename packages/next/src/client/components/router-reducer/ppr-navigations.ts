@@ -1073,6 +1073,53 @@ export function spawnDynamicRequests(
   voidPromise.then(noop, noop)
 }
 
+export async function spawnBlockingNavigationToUnknownRoute(
+  currentNavigationId: number,
+  url: URL,
+  nextUrl: string | null,
+  currentFlightRouterState: FlightRouterState,
+  needsRefresh: boolean,
+  shouldScroll: boolean,
+  navigateType: 'push' | 'replace'
+): Promise<void> {
+  const result = await fetchUnknownRoute(
+    url,
+    currentFlightRouterState,
+    nextUrl,
+    needsRefresh
+  )
+  if (result === null || result.seed === null) {
+    // The SPA navigation failed. Fall back to an MPA navigation.
+    const isHardRetry = true
+    const retryUrl = result !== null ? result.url : url
+    dispatchRetryDueToTreeMismatch(
+      currentNavigationId,
+      isHardRetry,
+      retryUrl,
+      null,
+      shouldScroll
+    )
+    return
+  }
+
+  // Ping the router to try navigating again, using the response from
+  // the server. This is a continuation, so it will only proceed if there was
+  // no newer navigation in the meantime.
+  dispatchAppRouterAction({
+    type: ACTION_NAVIGATE,
+    url: result.url,
+    // The existence of a `seed` implies that this is not an external URL,
+    // because otherwise we wouldn't have been able to decode the response into
+    // usable Flight data.
+    isExternalUrl: false,
+    shouldScroll,
+    navigateType,
+    shouldRefreshDynamicData: needsRefresh,
+    seed: result.seed,
+    continuationId: currentNavigationId,
+  })
+}
+
 // The id of the last navigation that resulted in a tree mismatch. If the
 // same navigation mismatches twice in a row, we will fall back to an MPA
 // navigation, to prevent a retry loop.
@@ -1221,12 +1268,76 @@ function dispatchRetryDueToTreeMismatch(
   })
 }
 
+// Used to request all the dynamic data for a route, rather than just a subset,
+// e.g. during a refresh or a revalidation. Typically this gets constructed
+// during the normal flow when diffing the route tree, but for an unprefetched
+// navigation, where we don't know the structure of the target route, we use
+// this instead.
+export const DynamicRequestTreeForEntireRoute: FlightRouterState = [
+  '',
+  {},
+  null,
+  'refetch',
+]
+
+async function fetchUnknownRoute(
+  url: URL,
+  currentTree: FlightRouterState,
+  nextUrl: string | null,
+  shouldRefreshDynamicData: boolean
+) {
+  try {
+    // This is called when the route tree is missing on navigation. When this
+    // happens (and when we can't construct an "optimistic" tree based on known
+    // routes), we're blocked from updating the router until we get a response
+    // from the server.
+    //
+    // To avoid an additional roundtrip, we'll also fetch the data in the same
+    // request. This may unecessarily render segments that we already have in
+    // the cache, but this is more desirable than a network waterfall. We can
+    // still render from cache once the tree resolves in the first chunk of the
+    // response stream.
+    const result = await fetchServerResponse(url, {
+      flightRouterState: shouldRefreshDynamicData
+        ? DynamicRequestTreeForEntireRoute
+        : currentTree,
+      nextUrl,
+    })
+    if (typeof result === 'string') {
+      // fetchServerResponse will return an href to indicate that the SPA
+      // navigation failed. For example, if the server triggered a hard
+      // redirect, or the fetch request errored. Initiate an MPA navigation
+      // to the given href.
+      return {
+        url: new URL(result, location.origin),
+        seed: null,
+      }
+    }
+    const seed = convertServerPatchToFullTree(
+      currentTree,
+      result.flightData,
+      result.renderedSearch,
+      result.debugInfo
+    )
+    return {
+      url: new URL(result.canonicalUrl, location.origin),
+      seed,
+    }
+  } catch {
+    // This shouldn't happen because fetchServerResponse's entire body is
+    // wrapped in a try/catch. If it does, though, it implies the server failed
+    // to respond with any tree at all. So we must fall back to
+    // an MPA navigation.
+    return null
+  }
+}
+
 async function fetchMissingDynamicData(
   task: NavigationTask,
   dynamicRequestTree: FlightRouterState,
   url: URL,
   nextUrl: string | null
-): Promise<{ url: URL; seed: NavigationSeed | null } | null> {
+) {
   try {
     const result = await fetchServerResponse(url, {
       flightRouterState: dynamicRequestTree,
@@ -1245,14 +1356,15 @@ async function fetchMissingDynamicData(
     const seed = convertServerPatchToFullTree(
       task.route,
       result.flightData,
-      result.renderedSearch
+      result.renderedSearch,
+      result.debugInfo
     )
     writeDynamicDataIntoNavigationTask(
       task,
       seed.tree,
       seed.data,
       seed.head,
-      result.debugInfo
+      seed.debugInfo
     )
     return {
       url: new URL(result.canonicalUrl, location.origin),

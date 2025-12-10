@@ -6,7 +6,7 @@ export const enum NavigationResultTag {
   MPA,
   Success,
   NoOp,
-  Async,
+  Suspended,
 }
 
 /**

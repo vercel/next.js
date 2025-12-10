@@ -9,14 +9,13 @@ import type {
   LoadingModuleData,
 } from '../../../shared/lib/app-router-types'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
-import { fetchServerResponse } from '../router-reducer/fetch-server-response'
 import {
   startPPRNavigation,
   spawnDynamicRequests,
+  spawnBlockingNavigationToUnknownRoute,
   type NavigationTask,
   type NavigationRequestAccumulation,
 } from '../router-reducer/ppr-navigations'
-import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import {
   EntryStatus,
   readRouteCacheEntry,
@@ -32,31 +31,38 @@ import { NavigationResultTag } from './types'
 
 type MPANavigationResult = {
   tag: NavigationResultTag.MPA
-  data: string
+  navigationId: number
+  data: {
+    href: string
+    navigateType: 'push' | 'replace'
+  }
 }
 
 type SuccessfulNavigationResult = {
   tag: NavigationResultTag.Success
+  navigationId: number
   data: {
     flightRouterState: FlightRouterState
     cacheNode: CacheNode
     canonicalUrl: string
     renderedSearch: string
     scrollableSegments: Array<FlightSegmentPath> | null
+    navigateType: 'push' | 'replace'
     shouldScroll: boolean
     hash: string
   }
 }
 
-type AsyncNavigationResult = {
-  tag: NavigationResultTag.Async
-  data: Promise<MPANavigationResult | SuccessfulNavigationResult>
+type BlockingNavigationResult = {
+  tag: NavigationResultTag.Suspended
+  navigationId: number
+  data: boolean
 }
 
 export type NavigationResult =
   | MPANavigationResult
   | SuccessfulNavigationResult
-  | AsyncNavigationResult
+  | BlockingNavigationResult
 
 /**
  * Navigate to a new URL, using the Segment Cache to construct a response.
@@ -67,39 +73,50 @@ export type NavigationResult =
  * stream in any missing data.
  */
 export function navigate(
-  navigationId: number,
+  currentNavigationId: number,
   url: URL,
   currentUrl: URL,
+  currentCanonicalUrl: string,
+  currentRenderedSearch: string,
   currentCacheNode: CacheNode | null,
   currentFlightRouterState: FlightRouterState,
-  nextUrl: string | null,
-  shouldRefreshDynamicData: boolean,
-  shouldScroll: boolean,
-  accumulation: { collectedDebugInfo?: Array<unknown> }
+  currentNextUrl: string | null,
+  previousNextUrl: string | null,
+  needsRefresh: boolean,
+  requestedNavigateType: 'push' | 'replace',
+  shouldScroll: boolean
 ): NavigationResult {
-  const now = Date.now()
-  const href = url.href
-
   // We special case navigations to the exact same URL as the current location.
   // It's a common UI pattern for apps to refresh when you click a link to the
-  // current page. So when this happens, we refresh the dynamic data in the page
-  // segments.
+  // current page. So when this happens, we refresh the dynamic data in the
+  // page segments.
   //
-  // Note that this does not apply if the any part of the hash or search query
-  // has changed. This might feel a bit weird but it makes more sense when you
-  // consider that the way to trigger this behavior is to click the same link
-  // multiple times.
+  // We model refresh() this way, too, except refresh() also refreshes the
+  // shared layouts. (TODO: We should probably make same-page navigations
+  // refresh the shared layouts, too.)
   //
-  // TODO: We should probably refresh the *entire* route when this case occurs,
-  // not just the page segments. Essentially treating it the same as a refresh()
-  // triggered by an action, which is the more explicit way of modeling the UI
-  // pattern described above.
-  //
-  // Also note that this only refreshes the dynamic data, not static/ cached
-  // data. If the page segment is fully static and prefetched, the request is
-  // skipped. (This is also how refresh() works.)
-  const isSamePageNavigation = href === currentUrl.href
+  // Note that this doesn't have a 1:1 correspondence with `needsRefresh`. You
+  // can refresh the page and change the URL simultaneously, hence the more
+  // specific name here.
+  const isSamePageNavigation = url.href === currentUrl.href
 
+  // If this is a same-page navigation (including refreshes), then don't assign
+  // a new navigation id.
+  let navigationId
+  let navigateType: 'push' | 'replace'
+  let nextUrl
+  if (isSamePageNavigation) {
+    navigationId = currentNavigationId
+    navigateType = 'replace'
+    nextUrl = previousNextUrl
+  } else {
+    navigationId = currentNavigationId + 1
+    navigateType = requestedNavigateType
+    nextUrl = currentNextUrl
+  }
+
+  const now = Date.now()
+  const href = url.href
   const cacheKey = createCacheKey(href, nextUrl)
   const route = readRouteCacheEntry(now, cacheKey)
   if (route !== null && route.status === EntryStatus.Fulfilled) {
@@ -133,7 +150,40 @@ export function navigate(
       isPrefetchHeadPartial,
       newCanonicalUrl,
       renderedSearch,
-      shouldRefreshDynamicData,
+      needsRefresh,
+      navigateType,
+      shouldScroll
+    )
+  }
+
+  if (isSamePageNavigation) {
+    // This is a refresh of the current page, but we don't have a matching
+    // route tree in the cache. Rather than fetch the route tree from the
+    // server again, we can use the current route tree stored in state.
+    // TODO: This check can be moved to navigateToSeededRoute once we've also
+    // combined it with navigateUsingPrefetchedRouteTree. That will allow us to
+    // remove most of the duplication that currently exists in this file. At
+    // that point we can probably combine this file with navigate-reducer.
+    const refreshSeed: NavigationSeed = {
+      tree: currentFlightRouterState,
+      renderedSearch: currentRenderedSearch,
+      data: null,
+      head: null,
+      debugInfo: null,
+    }
+    return navigateToSeededRoute(
+      now,
+      currentNavigationId,
+      currentUrl,
+      currentCanonicalUrl,
+      refreshSeed,
+      currentUrl,
+      currentCacheNode,
+      currentFlightRouterState,
+      needsRefresh,
+      requestedNavigateType,
+      currentNextUrl,
+      previousNextUrl,
       shouldScroll
     )
   }
@@ -178,61 +228,88 @@ export function navigate(
         isPrefetchHeadPartial,
         newCanonicalUrl,
         newRenderedSearch,
-        shouldRefreshDynamicData,
+        needsRefresh,
+        navigateType,
         shouldScroll
       )
     }
   }
 
-  // There's no matching prefetch for this route in the cache.
-  let collectedDebugInfo = accumulation.collectedDebugInfo ?? []
-  if (accumulation.collectedDebugInfo === undefined) {
-    collectedDebugInfo = accumulation.collectedDebugInfo = []
-  }
+  spawnBlockingNavigationToUnknownRoute(
+    currentNavigationId,
+    url,
+    nextUrl,
+    currentFlightRouterState,
+    needsRefresh,
+    shouldScroll,
+    navigateType
+  )
+
   return {
-    tag: NavigationResultTag.Async,
-    data: navigateDynamicallyWithNoPrefetch(
-      navigationId,
-      now,
-      url,
-      currentUrl,
-      nextUrl,
-      currentCacheNode,
-      currentFlightRouterState,
-      shouldRefreshDynamicData,
-      shouldScroll,
-      collectedDebugInfo
-    ),
+    tag: NavigationResultTag.Suspended,
+    navigationId: currentNavigationId,
+    data: needsRefresh,
   }
 }
 
 export function navigateToSeededRoute(
   now: number,
-  navigationId: number,
+  currentNavigationId: number,
   url: URL,
   canonicalUrl: string,
   navigationSeed: NavigationSeed,
   currentUrl: URL,
   currentCacheNode: CacheNode | null,
   currentFlightRouterState: FlightRouterState,
-  shouldRefreshDynamicData: boolean,
-  nextUrl: string | null,
+  needsRefresh: boolean,
+  requestedNavigateType: 'push' | 'replace',
+  currentNextUrl: string | null,
+  previousNextUrl: string | null,
   shouldScroll: boolean
-): SuccessfulNavigationResult | MPANavigationResult {
+): SuccessfulNavigationResult | MPANavigationResult | BlockingNavigationResult {
   // A version of navigate() that accepts the target route tree as an argument
   // rather than reading it from the prefetch cache.
+
+  // We special case navigations to the exact same URL as the current location.
+  // It's a common UI pattern for apps to refresh when you click a link to the
+  // current page. So when this happens, we refresh the dynamic data in the
+  // page segments.
+  //
+  // We model refresh() this way, too, except refresh() also refreshes the
+  // shared layouts. (TODO: We should probably make same-page navigations
+  // refresh the shared layouts, too.)
+  //
+  // Note that this doesn't have a 1:1 correspondence with `needsRefresh`. You
+  // can refresh the page and change the URL simultaneously, hence the more
+  // specific name here.
+  const isSamePageNavigation = url.href === currentUrl.href
+
+  // If this is a same-page navigation (including refreshes), then don't assign
+  // a new navigation id.
+  let navigationId
+  let navigateType: 'push' | 'replace'
+  let nextUrl
+  if (isSamePageNavigation) {
+    navigationId = currentNavigationId
+    navigateType = 'replace'
+    nextUrl = previousNextUrl
+  } else {
+    navigationId = currentNavigationId + 1
+    navigateType = requestedNavigateType
+    nextUrl = currentNextUrl
+  }
+
   const accumulation: NavigationRequestAccumulation = {
     scrollableSegments: null,
     separateRefreshUrls: null,
   }
-  const isSamePageNavigation = url.href === currentUrl.href
   const task = startPPRNavigation(
     now,
     currentUrl,
     currentCacheNode,
     currentFlightRouterState,
     navigationSeed.tree,
-    shouldRefreshDynamicData,
+    needsRefresh,
     navigationSeed.data,
     navigationSeed.head,
     null,
@@ -255,17 +332,23 @@ export function navigateToSeededRoute(
     }
     return navigationTaskToResult(
       task,
+      navigationId,
       canonicalUrl,
       navigationSeed.renderedSearch,
       accumulation.scrollableSegments,
       shouldScroll,
+      navigateType,
       url.hash
     )
   }
   // Could not perform a SPA navigation. Revert to a full-page (MPA) navigation.
   return {
     tag: NavigationResultTag.MPA,
-    data: canonicalUrl,
+    navigationId,
+    data: {
+      href: canonicalUrl,
+      navigateType,
+    },
   }
 }
 
@@ -284,15 +367,18 @@ function navigateUsingPrefetchedRouteTree(
   isPrefetchHeadPartial: boolean,
   canonicalUrl: string,
   renderedSearch: string,
-  shouldRefreshDynamicData: boolean,
+  needsRefresh: boolean,
+  navigateType: 'push' | 'replace',
   shouldScroll: boolean
-): SuccessfulNavigationResult | MPANavigationResult {
+): SuccessfulNavigationResult | MPANavigationResult | BlockingNavigationResult {
   // Recursively construct a prefetch tree by reading from the Segment Cache. To
   // maintain compatibility, we output the same data structures as the old
   // prefetching implementation: FlightRouterState and CacheNodeSeedData.
   // TODO: Eventually updateCacheNodeOnNavigation (or the equivalent) should
   // read from the Segment Cache directly. It's only structured this way for now
   // so we can share code with the old prefetching implementation.
+  // TODO: The duplication between this function and navigateToSeededRoute
+  // is only temporary. We're mid-refactor.
   const accumulation: NavigationRequestAccumulation = {
     scrollableSegments: null,
     separateRefreshUrls: null,
@@ -305,7 +391,7 @@ function navigateUsingPrefetchedRouteTree(
     currentCacheNode,
     currentFlightRouterState,
     prefetchFlightRouterState,
-    shouldRefreshDynamicData,
+    needsRefresh,
     seedData,
     seedHead,
     prefetchSeedData,
@@ -328,36 +414,46 @@ function navigateUsingPrefetchedRouteTree(
     }
     return navigationTaskToResult(
       task,
+      navigationId,
       canonicalUrl,
       renderedSearch,
       accumulation.scrollableSegments,
       shouldScroll,
+      navigateType,
       url.hash
     )
   }
   // Could not perform a SPA navigation. Revert to a full-page (MPA) navigation.
   return {
     tag: NavigationResultTag.MPA,
-    data: canonicalUrl,
+    navigationId,
+    data: {
+      href: canonicalUrl,
+      navigateType,
+    },
   }
 }
 
 function navigationTaskToResult(
   task: NavigationTask,
+  navigationId: number,
   canonicalUrl: string,
   renderedSearch: string,
   scrollableSegments: Array<FlightSegmentPath> | null,
   shouldScroll: boolean,
+  navigateType: 'push' | 'replace',
   hash: string
 ): SuccessfulNavigationResult | MPANavigationResult {
   return {
     tag: NavigationResultTag.Success,
+    navigationId,
     data: {
       flightRouterState: task.route,
       cacheNode: task.node,
       canonicalUrl,
       renderedSearch,
       scrollableSegments,
+      navigateType,
       shouldScroll,
       hash,
     },
@@ -492,105 +588,19 @@ function readHeadSnapshotFromCache(
   return { rsc, isPartial }
 }
 
-// Used to request all the dynamic data for a route, rather than just a subset,
-// e.g. during a refresh or a revalidation. Typically this gets constructed
-// during the normal flow when diffing the route tree, but for an unprefetched
-// navigation, where we don't know the structure of the target route, we use
-// this instead.
-const DynamicRequestTreeForEntireRoute: FlightRouterState = [
-  '',
-  {},
-  null,
-  'refetch',
-]
-
-async function navigateDynamicallyWithNoPrefetch(
-  navigationId: number,
-  now: number,
-  url: URL,
-  currentUrl: URL,
-  nextUrl: string | null,
-  currentCacheNode: CacheNode | null,
-  currentFlightRouterState: FlightRouterState,
-  shouldRefreshDynamicData: boolean,
-  shouldScroll: boolean,
-  collectedDebugInfo: Array<unknown>
-): Promise<MPANavigationResult | SuccessfulNavigationResult> {
-  // Runs when a navigation happens but there's no cached prefetch we can use.
-  // Don't bother to wait for a prefetch response; go straight to a full
-  // navigation that contains both static and dynamic data in a single stream.
-  // (This is unlike the old navigation implementation, which instead blocks
-  // the dynamic request until a prefetch request is received.)
-  //
-  // To avoid duplication of logic, we're going to pretend that the tree
-  // returned by the dynamic request is, in fact, a prefetch tree. Then we can
-  // use the same server response to write the actual data into the CacheNode
-  // tree. So it's the same flow as the "happy path" (prefetch, then
-  // navigation), except we use a single server response for both stages.
-
-  // TODO: This results in an promise-wrapped reducer state. Refactor to use the
-  // "continuation" mechanism, instead of blocking the reducer.
-  const promiseForDynamicServerResponse = fetchServerResponse(url, {
-    flightRouterState: shouldRefreshDynamicData
-      ? DynamicRequestTreeForEntireRoute
-      : currentFlightRouterState,
-    nextUrl,
-  })
-  const result = await promiseForDynamicServerResponse
-  if (typeof result === 'string') {
-    // This is an MPA navigation.
-    const newUrl = result
-    return {
-      tag: NavigationResultTag.MPA,
-      data: newUrl,
-    }
-  }
-
-  const {
-    flightData,
-    canonicalUrl,
-    renderedSearch,
-    debugInfo: debugInfoFromResponse,
-  } = result
-  if (debugInfoFromResponse !== null) {
-    collectedDebugInfo.push(...debugInfoFromResponse)
-  }
-
-  // Since the response format of dynamic requests and prefetches is slightly
-  // different, we'll need to massage the data a bit. Create FlightRouterState
-  // tree that simulates what we'd receive as the result of a prefetch.
-  const navigationSeed = convertServerPatchToFullTree(
-    currentFlightRouterState,
-    flightData,
-    renderedSearch
-  )
-
-  return navigateToSeededRoute(
-    now,
-    navigationId,
-    url,
-    createHrefFromUrl(canonicalUrl),
-    navigationSeed,
-    currentUrl,
-    currentCacheNode,
-    currentFlightRouterState,
-    shouldRefreshDynamicData,
-    nextUrl,
-    shouldScroll
-  )
-}
-
 export type NavigationSeed = {
   tree: FlightRouterState
   renderedSearch: string
   data: CacheNodeSeedData | null
   head: HeadData | null
+  debugInfo: Array<unknown> | null
 }
 
 export function convertServerPatchToFullTree(
   currentTree: FlightRouterState,
   flightData: Array<NormalizedFlightData>,
-  renderedSearch: string
+  renderedSearch: string,
+  debugInfo: Array<unknown> | null
 ): NavigationSeed {
   // During a client navigation or prefetch, the server sends back only a patch
   // for the parts of the tree that have changed.
@@ -642,6 +652,7 @@ export function convertServerPatchToFullTree(
     data: baseData,
     renderedSearch,
     head,
+    debugInfo,
   }
 }
 

@@ -7,6 +7,7 @@ import type {
   ReducerActions,
   ReducerState,
 } from './router-reducer/router-reducer-types'
+import { unresolvedThenable } from './unresolved-thenable'
 
 // The app router state lives outside of React, so we can import the dispatch
 // method directly wherever we need it, rather than passing it around via props
@@ -88,7 +89,39 @@ export function useActionQueue(
     return state
   }, [state])
 
-  return isThenable(stateWithDebugInfo)
+  const resolvedState = isThenable(stateWithDebugInfo)
     ? use(stateWithDebugInfo)
     : stateWithDebugInfo
+
+  if (resolvedState.suspended !== null) {
+    // The router is in a suspended state. Suspend indefinitely to prevent
+    // the transition from committing.
+    //
+    // This happens in cases where a navigation is requested but we don't know
+    // (and can't make an informed guess) what the target route will be. So
+    // we must wait for the server to respond before updating the router.
+    //
+    // The reason we suspend is to ensure the navigation is entangled with
+    // any React Transition updates that occured within the same scope. For
+    // example, optimistic updates should not revent until the router
+    // finishes navigating.
+    //
+    // Note that we're not unwrapping any particular promise here. Instead we
+    // rely on a future state update to un-suspend the router. Because all
+    // router updates are made to the same state queue, they will always be
+    // entangled together. This is the same trick we use to suspend segments
+    // when a navigation fails with missing data: indefinitely suspend ->
+    // wait for subsequent router update.
+    //
+    // Semantically this should be identical to unwrapping a promise that
+    // resolves to the eventual router state.
+    // TODO: To make this more straightforward and less clever, we should
+    // literally unwrap a promise that resolves to the next state. Need to
+    // refactor the router queue so that dispatching an action doesn't always
+    // produce a new React update. Will wait for the remaining reducers to
+    // be rewritten first.
+    use(unresolvedThenable) as never
+  }
+
+  return resolvedState
 }

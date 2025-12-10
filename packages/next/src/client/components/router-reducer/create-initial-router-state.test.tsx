@@ -121,6 +121,7 @@ describe('createInitialRouterState', () => {
       previousNextUrl: null,
       debugInfo: null,
       navigationId: 0,
+      suspended: null,
     }
 
     expect(state).toMatchObject(expected)

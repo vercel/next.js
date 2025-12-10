@@ -81,7 +81,12 @@ export function handleMutable(
       : state.tree,
     nextUrl,
     previousNextUrl: previousNextUrl,
-    debugInfo: mutable.collectedDebugInfo ?? null,
+    debugInfo: null,
     navigationId: state.navigationId,
+
+    // NOTE: This is intentionally handled outside of handleMutable in all the
+    // places where it matters. Once the remaining reducers are rewritten we'll
+    // get rid of handleMutable.
+    suspended: null,
   }
 }

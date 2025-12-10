@@ -7,7 +7,7 @@ import type {
   Mutable,
   NavigateAction,
   ReadonlyReducerState,
-  ReducerState,
+  AppRouterState,
 } from '../router-reducer-types'
 import { handleMutable } from '../handle-mutable'
 
@@ -19,6 +19,7 @@ import {
 } from '../../segment-cache/navigation'
 import { NavigationResultTag } from '../../segment-cache/types'
 import { getStaleTimeMs } from '../../segment-cache/cache'
+import { cloneAppRouterState } from '../create-initial-router-state'
 
 // These values are set by `define-env-plugin` (based on `nextConfig.experimental.staleTimes`)
 // and default to 5 minutes (static) / 0 seconds (dynamic)
@@ -70,19 +71,26 @@ export function generateSegmentsFromPatch(
 }
 
 export function handleNavigationResult(
-  navigationId: number,
   url: URL,
   state: ReadonlyReducerState,
   mutable: Mutable,
-  pendingPush: boolean,
+  asyncDebugInfo: Array<unknown> | null,
   result: NavigationResult
-): ReducerState {
+): AppRouterState {
+  // TODO: This result type is no longer necessary. Split each branch into a
+  // separate functions and call them from each place that's currently
+  // returning a NavigationResult.
   switch (result.tag) {
     case NavigationResultTag.MPA: {
       // Perform an MPA navigation.
-      const newUrl = result.data
-      const newState = handleExternalUrl(state, mutable, newUrl, pendingPush)
-      newState.navigationId = navigationId
+      const newState = handleExternalUrl(
+        state,
+        mutable,
+        result.data.href,
+        state.pushRef.pendingPush || result.data.navigateType === 'push'
+      )
+      newState.navigationId = result.navigationId
+      newState.suspended = null
       return newState
     }
     case NavigationResultTag.Success: {
@@ -126,27 +134,18 @@ export function handleNavigationResult(
       // account for reducer actions being replayed by useReducer, but since we
       // no longer run these "reducers" during the render phase, we can get rid
       // of the extra indirection.
-      newState.navigationId = navigationId
+      newState.navigationId = result.navigationId
+      newState.suspended = null
+      newState.debugInfo = asyncDebugInfo
+
+      newState.pushRef.pendingPush =
+        newState.pushRef.pendingPush || result.data.navigateType === 'push'
+
       return newState
     }
-    case NavigationResultTag.Async: {
-      return result.data.then(
-        (asyncResult) =>
-          handleNavigationResult(
-            navigationId,
-            url,
-            state,
-            mutable,
-            pendingPush,
-            asyncResult
-          ),
-        // If the navigation failed, return the current state.
-        // TODO: This matches the current behavior but we need to do something
-        // better here if the network fails.
-        () => {
-          return state
-        }
-      )
+    case NavigationResultTag.Suspended: {
+      const needsRefresh = result.data
+      return handleSuspendedNavigation(state, needsRefresh)
     }
     default: {
       result satisfies never
@@ -155,10 +154,30 @@ export function handleNavigationResult(
   }
 }
 
+export function handleSuspendedNavigation(
+  state: ReadonlyReducerState,
+  needsRefresh: boolean
+): AppRouterState {
+  // Attempted to navigate to an unknown route. The router is blocked until
+  // the server responds, or until there's another navigation.
+  //
+  // Return a suspended version of the current state. This will prevent
+  // any entangled transition updates from committing in the meantime.
+  const alreadySuspended = state.suspended
+  const nextState = cloneAppRouterState(state)
+  nextState.suspended = {
+    needsRefresh:
+      needsRefresh ||
+      // Check if an existing suspended navigation already requested a refresh
+      (alreadySuspended !== null && alreadySuspended.needsRefresh),
+  }
+  return nextState
+}
+
 export function navigateReducer(
   state: ReadonlyReducerState,
   action: NavigateAction
-): ReducerState {
+): AppRouterState {
   // Before proceeding, check whether this is a "continuation" navigation.
   //
   // A continuation navigation is an async navigation that occurs as a result of
@@ -177,41 +196,30 @@ export function navigateReducer(
   // by the user should always take precedence.
   const continuationId = action.continuationId
   const currentNavigationId = state.navigationId
+  if (continuationId === null || continuationId === currentNavigationId) {
+    // This is either a new navigation, or a continuation of the current one.
+    // Proceed with the navigation.
 
-  if (continuationId === null) {
-    // This is not a continuation. Assign a new navigation id.
-    const newNavigationId = currentNavigationId + 1
+    // If this was a continuation, we need to transfer the debug info from the
+    // Flight response so the latency is properly accounted for in the React
+    // DevTools.
+    const asyncDebugInfo = action.seed !== null ? action.seed.debugInfo : null
+
     return continueNavigationReducer(
       state,
-      newNavigationId,
       action.url,
       action.navigateType,
       action.isExternalUrl,
       action.shouldScroll,
+      action.seed,
       action.shouldRefreshDynamicData,
-      action.seed
-    )
-  }
-
-  // This is a continuation of an earlier navigation.
-  if (continuationId === currentNavigationId) {
-    // This is still the most recent navigation. Continue.
-    return continueNavigationReducer(
-      state,
-      continuationId,
-      action.url,
-      action.navigateType,
-      action.isExternalUrl,
-      action.shouldScroll,
-      action.shouldRefreshDynamicData,
-      action.seed
+      asyncDebugInfo
     )
   }
 
   // The continuation navigation was superseded by a newer navigation. Do not
   // proceed with the continuation. However, we may need to perform a refresh.
-  const shouldRefreshDynamicData = action.shouldRefreshDynamicData
-  if (!shouldRefreshDynamicData) {
+  if (!action.shouldRefreshDynamicData) {
     // There's nothing to update. Return the previous state.
     return state
   }
@@ -220,87 +228,153 @@ export function navigateReducer(
   // indicated to us that there is stale or missing dynamic data in the
   // tree. Trigger a refresh of the current tree to ensure it's consistent.
   // This is semantically similar to a Server Action refresh().
-  const currentUrl = new URL(state.canonicalUrl, location.origin)
-  const navigateType = 'replace'
-  const isExternalUrl = false
-  const seed = null
+  const refreshUrl = null
+  const refreshNavigateType = 'replace'
+  const refreshShouldScroll = true
+  const refreshIsExternalUrl = false
+  const refreshSeed = null
+  const refreshShouldRefreshDynamicData = true
+  const asyncDebugInfo = null
   return continueNavigationReducer(
     state,
-    currentNavigationId,
-    currentUrl,
-    navigateType,
-    isExternalUrl,
-    action.shouldScroll,
-    shouldRefreshDynamicData,
-    seed
+    refreshUrl,
+    refreshNavigateType,
+    refreshIsExternalUrl,
+    refreshShouldScroll,
+    refreshSeed,
+    refreshShouldRefreshDynamicData,
+    asyncDebugInfo
   )
 }
 
 function continueNavigationReducer(
   state: ReadonlyReducerState,
-  navigationId: number,
-  url: URL,
+  requestedUrl: URL | null,
   navigateType: 'push' | 'replace',
   isExternalUrl: boolean,
   shouldScroll: boolean,
+  seed: NavigationSeed | null,
   shouldRefreshDynamicData: boolean,
-  seed: NavigationSeed | null
+  asyncDebugInfo: Array<unknown> | null
 ) {
   // Everything from this point is the same whether this is a continuation or
   // a new navigation.
   const mutable: Mutable = {}
-  const href = createHrefFromUrl(url)
-  const pendingPush = navigateType === 'push'
-
   mutable.preserveCustomHistoryState = false
-  mutable.pendingPush = pendingPush
 
+  // Check if the router is currently suspended, and if so, if there's a
+  // pending refresh.
+  let needsRefresh = false
+  const suspended = state.suspended
+  if (suspended === null) {
+    // The router is not currently suspended. Only refresh if the current
+    // navigation has requested it.
+    needsRefresh = shouldRefreshDynamicData
+  } else {
+    const didRefreshWhileSuspended = suspended.needsRefresh
+    needsRefresh = didRefreshWhileSuspended || shouldRefreshDynamicData
+    if (didRefreshWhileSuspended) {
+      // There's been a refresh since navigation request was made. Drop the
+      // segment data we just received from the server. We can still use the
+      // route tree, though.
+      if (seed !== null) {
+        seed = {
+          tree: seed.tree,
+          renderedSearch: seed.renderedSearch,
+          data: null,
+          head: null,
+          debugInfo: asyncDebugInfo,
+        }
+      }
+    }
+  }
+
+  // Check if this is a refresh. A refresh is almost identical to a same-page
+  // navigation, but it must never supersede any pending navigation. Whereas
+  // a same-page navigation effectively cancels any previous navigation.
+  const currentCanonicalUrl = state.canonicalUrl
+  const currentUrl = new URL(currentCanonicalUrl, location.origin)
+  let url = requestedUrl
+  if (url === null) {
+    // If no URL is provided by the action, this is a refresh.
+    if (suspended !== null) {
+      // A refresh canot proceed while the router is suspended, because we
+      // don't know what the next route will be. Remain suspended until the
+      // pending navigation resumes.
+      return handleRefreshWhileSuspended(state)
+    }
+    // Otherwise, proceed with the refresh. We model this the same as a
+    // navigation to the current URL.
+    url = currentUrl
+  }
+
+  const canonicalUrl = createHrefFromUrl(url)
   if (isExternalUrl) {
-    return handleExternalUrl(state, mutable, url.toString(), pendingPush)
+    return handleExternalUrl(
+      state,
+      mutable,
+      canonicalUrl,
+      navigateType === 'push'
+    )
   }
 
   // Handles case where `<meta http-equiv="refresh">` tag is present,
   // which will trigger an MPA navigation.
   if (document.getElementById('__next-page-redirect')) {
-    return handleExternalUrl(state, mutable, href, pendingPush)
+    return handleExternalUrl(
+      state,
+      mutable,
+      canonicalUrl,
+      navigateType === 'push'
+    )
   }
 
   // Temporary glue code between the router reducer and the new navigation
   // implementation. Eventually we'll rewrite the router reducer to a
   // state machine.
-  const currentUrl = new URL(state.canonicalUrl, location.origin)
+  const currentNavigationId = state.navigationId
   const result =
     seed !== null
       ? navigateToSeededRoute(
           Date.now(),
-          navigationId,
+          currentNavigationId,
           url,
-          createHrefFromUrl(url),
+          canonicalUrl,
           seed,
           currentUrl,
           state.cache,
           state.tree,
-          shouldRefreshDynamicData,
+          needsRefresh,
+          navigateType,
           state.nextUrl,
+          state.previousNextUrl,
           shouldScroll
         )
       : navigateUsingSegmentCache(
-          navigationId,
+          currentNavigationId,
           url,
           currentUrl,
+          currentCanonicalUrl,
+          state.renderedSearch,
           state.cache,
           state.tree,
           state.nextUrl,
-          shouldRefreshDynamicData,
-          shouldScroll,
-          mutable
+          state.previousNextUrl,
+          needsRefresh,
+          navigateType,
+          shouldScroll
         )
-  return handleNavigationResult(
-    navigationId,
-    url,
-    state,
-    mutable,
-    pendingPush,
-    result
-  )
+  return handleNavigationResult(url, state, mutable, asyncDebugInfo, result)
+}
+
+export function handleRefreshWhileSuspended(state: ReadonlyReducerState) {
+  // A refresh was requested, but the router is currently suspended by a
+  // blocking navigation. We can't refresh yet because we don't know what the
+  // next route will be. Set `needsRefresh` to true to force the next
+  // navigation to refresh the dynamic data.
+  const clone = cloneAppRouterState(state)
+  clone.suspended = {
+    needsRefresh: true,
+  }
+  return clone
 }
