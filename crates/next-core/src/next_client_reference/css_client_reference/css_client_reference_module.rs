@@ -1,7 +1,7 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbopack::css::chunk::CssChunkPlaceable;
+use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkGroupType, ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
@@ -9,7 +9,9 @@ use turbopack_core::{
     module::Module,
     reference::{ModuleReference, ModuleReferences},
     resolve::ModuleResolveResult,
+    source::OptionSource,
 };
+use turbopack_css::chunk::CssChunkPlaceable;
 
 /// A [`CssClientReferenceModule`] is a marker module used to indicate which
 /// client reference should appear in the client reference manifest.
@@ -41,6 +43,11 @@ impl Module for CssClientReferenceModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let CssClientReferenceModule { client_module, .. } = &*self.await?;
 
@@ -55,9 +62,14 @@ impl Module for CssClientReferenceModule {
 #[turbo_tasks::value_impl]
 impl Asset for CssClientReferenceModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
-        // The client reference asset only serves as a marker asset.
-        bail!("CssClientReferenceModule has no content")
+    fn content(&self) -> Vc<AssetContent> {
+        AssetContent::File(
+            FileContent::Content(
+                "// This is a marker module for Next.js client CSS references.".into(),
+            )
+            .resolved_cell(),
+        )
+        .cell()
     }
 }
 

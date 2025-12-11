@@ -60,12 +60,7 @@ program
   )
   .argument(
     '[revision]',
-    'Specify the target Next.js version using an NPM dist tag (e.g. "latest", "canary", "rc") or an exact version number (e.g. "15.0.0").',
-    packageJson.version.includes('-canary.')
-      ? 'canary'
-      : packageJson.version.includes('-rc.')
-        ? 'rc'
-        : 'latest'
+    'Specify the upgrade type ("patch", "minor", "major"), an NPM dist tag (e.g. "latest", "canary", "rc"), or an exact version (e.g. "15.0.0"). Defaults to "minor".'
   )
   .usage('[revision] [options]')
   .option('--verbose', 'Verbose output', false)

@@ -9,6 +9,7 @@ import type { CacheLife } from '../use-cache/cache-life'
 // Share the instance module in the next-shared layer
 import { workAsyncStorageInstance } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
 import type { LazyResult } from '../lib/lazy-result'
+import type { DigestedError } from './create-error-handler'
 
 export interface WorkStore {
   readonly isStaticGeneration: boolean
@@ -66,7 +67,10 @@ export interface WorkStore {
    * Tags that were revalidated during the current request. They need to be sent
    * to cache handlers to propagate their revalidation.
    */
-  pendingRevalidatedTags?: string[]
+  pendingRevalidatedTags?: Array<{
+    tag: string
+    profile?: string | { stale?: number; revalidate?: number; expire?: number }
+  }>
 
   /**
    * Tags that were previously revalidated (e.g. by a redirecting server action)
@@ -111,6 +115,8 @@ export interface WorkStore {
     fn: (...args: TArgs) => R,
     ...args: TArgs
   ) => R
+
+  reactServerErrorsByDigest: Map<string, DigestedError>
 }
 
 export type WorkAsyncStorage = AsyncLocalStorage<WorkStore>

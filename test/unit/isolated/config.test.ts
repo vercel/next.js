@@ -38,7 +38,7 @@ describe('config', () => {
 
   it('Should assign object defaults deeply to user config', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
-    expect(config.distDir).toEqual('.next')
+    expect(config.distDir.replace(/\\/g, '/')).toEqual('.next/dev')
     expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
   })
 
@@ -100,6 +100,60 @@ describe('config', () => {
     ).rejects.toThrow(
       /Configuring Next.js via .+ is not supported. Please replace the file with 'next.config.js'/
     )
+  })
+
+  it('Should throw an error when sassOptions.functions is used with Turbopack', async () => {
+    const originalTurbopack = process.env.TURBOPACK
+    process.env.TURBOPACK = '1'
+
+    try {
+      await expect(async () => {
+        // Use a unique directory to avoid cache conflicts
+        await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>-turbopack-test', {
+          customConfig: {
+            sassOptions: {
+              functions: {
+                'get($keys)': function (keys) {
+                  return 'test'
+                },
+              },
+            },
+          },
+        })
+      }).rejects.toThrow(
+        /The "sassOptions\.functions" option is not supported when using Turbopack/
+      )
+    } finally {
+      if (originalTurbopack === undefined) {
+        delete process.env.TURBOPACK
+      } else {
+        process.env.TURBOPACK = originalTurbopack
+      }
+    }
+  })
+
+  it('Should allow sassOptions.functions when not using Turbopack', async () => {
+    const originalTurbopack = process.env.TURBOPACK
+    delete process.env.TURBOPACK
+
+    try {
+      const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+        customConfig: {
+          sassOptions: {
+            functions: {
+              'get($keys)': function (keys) {
+                return 'test'
+              },
+            },
+          },
+        },
+      })
+      expect((config as any).sassOptions.functions).toBeDefined()
+    } finally {
+      if (originalTurbopack !== undefined) {
+        process.env.TURBOPACK = originalTurbopack
+      }
+    }
   })
 
   it('Should not throw an error when two versions of next.config.js are present', async () => {

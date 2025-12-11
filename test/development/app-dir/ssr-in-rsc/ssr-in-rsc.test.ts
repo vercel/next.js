@@ -1,8 +1,7 @@
-/* eslint-disable jest/no-standalone-expect -- rule does not understand testGateWebpack */
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   getRedboxDescription,
   getRedboxSource,
 } from 'next-test-utils'
@@ -41,7 +40,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/app-code/react-dom-server-browser-explicit'
     )
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     if (isTurbopack) {
       expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
         "{
@@ -109,7 +108,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/app-code/react-dom-server-edge-explicit'
     )
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     if (isTurbopack) {
       expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
         "{
@@ -259,7 +258,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/app-code/react-dom-server-node-explicit'
     )
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
@@ -269,7 +268,7 @@ describe('react-dom/server in React Server environment', () => {
         expect(redbox).toMatchInlineSnapshot(`
           {
             "description": "Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
-            "source": "app/exports/app-code/react-dom-server-node-explicit/page.js (1:1) @ {module evaluation}
+            "source": "app/exports/app-code/react-dom-server-node-explicit/page.js (1:1) @ module evaluation
 
           > 1 | import * as ReactDOMServerNode from 'react-dom/server.node'
               | ^
@@ -282,7 +281,7 @@ describe('react-dom/server in React Server environment', () => {
         expect(redbox).toMatchInlineSnapshot(`
          {
            "description": "react-dom/server is not supported in React Server Components.",
-           "source": "app/exports/app-code/react-dom-server-node-explicit/page.js (1:1) @ {module evaluation}
+           "source": "app/exports/app-code/react-dom-server-node-explicit/page.js (1:1) @ module evaluation
 
          > 1 | import * as ReactDOMServerNode from 'react-dom/server.node'
              | ^
@@ -316,7 +315,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/app-code/react-dom-server-node-implicit'
     )
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
@@ -399,7 +398,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/library-code/react-dom-server-browser-explicit'
     )
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
@@ -409,7 +408,7 @@ describe('react-dom/server in React Server environment', () => {
         expect(redbox).toMatchInlineSnapshot(`
           {
             "description": "Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
-            "source": "internal-pkg/server.node.js (1:1) @ {module evaluation}
+            "source": "internal-pkg/server.node.js (1:1) @ module evaluation
 
           > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
               | ^
@@ -422,7 +421,7 @@ describe('react-dom/server in React Server environment', () => {
         expect(redbox).toMatchInlineSnapshot(`
          {
            "description": "react-dom/server is not supported in React Server Components.",
-           "source": "internal-pkg/server.node.js (1:1) @ {module evaluation}
+           "source": "internal-pkg/server.node.js (1:1) @ module evaluation
 
          > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
              | ^
@@ -456,7 +455,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/library-code/react-dom-server-edge-explicit'
     )
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     if (isTurbopack) {
       expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
         "{
@@ -528,7 +527,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/library-code/react-dom-server-edge-implicit'
     )
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     if (isTurbopack) {
       expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
         "{
@@ -600,7 +599,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/library-code/react-dom-server-node-explicit'
     )
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
@@ -610,7 +609,7 @@ describe('react-dom/server in React Server environment', () => {
         expect(redbox).toMatchInlineSnapshot(`
          {
            "description": "Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
-           "source": "internal-pkg/server.node.js (1:1) @ {module evaluation}
+           "source": "internal-pkg/server.node.js (1:1) @ module evaluation
 
          > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
              | ^
@@ -623,7 +622,7 @@ describe('react-dom/server in React Server environment', () => {
         expect(redbox).toMatchInlineSnapshot(`
          {
            "description": "react-dom/server is not supported in React Server Components.",
-           "source": "internal-pkg/server.node.js (1:1) @ {module evaluation}
+           "source": "internal-pkg/server.node.js (1:1) @ module evaluation
 
          > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
              | ^
@@ -657,7 +656,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/library-code/react-dom-server-node-implicit'
     )
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
@@ -668,7 +667,7 @@ describe('react-dom/server in React Server environment', () => {
         expect(redbox).toMatchInlineSnapshot(`
           {
             "description": "Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
-            "source": "internal-pkg/server.node.js (1:1) @ {module evaluation}
+            "source": "internal-pkg/server.node.js (1:1) @ module evaluation
 
           > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
               | ^
@@ -681,7 +680,7 @@ describe('react-dom/server in React Server environment', () => {
         expect(redbox).toMatchInlineSnapshot(`
          {
            "description": "react-dom/server is not supported in React Server Components.",
-           "source": "internal-pkg/server.node.js (1:1) @ {module evaluation}
+           "source": "internal-pkg/server.node.js (1:1) @ module evaluation
 
          > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
              | ^

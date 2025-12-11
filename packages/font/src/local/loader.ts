@@ -1,5 +1,4 @@
 // @ts-ignore
-// eslint-disable-next-line import/no-extraneous-dependencies
 let fontFromBuffer: any
 try {
   // eslint-disable-next-line @next/internal/typechecked-require -- Module created during build.

@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, fxindexmap, trace::TraceRawVcs};
@@ -26,6 +27,8 @@ use super::source_asset::StructuredImageFileSource;
     NonLocalValue,
     Serialize,
     Deserialize,
+    Encode,
+    Decode,
 )]
 pub enum BlurPlaceholderMode {
     /// Do not generate a blur placeholder at all.
@@ -56,7 +59,9 @@ impl StructuredImageModuleType {
         blur_placeholder_mode: BlurPlaceholderMode,
         module_asset_context: ResolvedVc<ModuleAssetContext>,
     ) -> Result<Vc<Box<dyn Module>>> {
-        let static_asset = StaticUrlJsModule::new(*source).to_resolved().await?;
+        let static_asset = StaticUrlJsModule::new(*source, Some(rcstr!("client")))
+            .to_resolved()
+            .await?;
         Ok(module_asset_context
             .process(
                 Vc::upcast(

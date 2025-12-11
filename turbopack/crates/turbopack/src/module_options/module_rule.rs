@@ -1,5 +1,7 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -12,7 +14,9 @@ use turbopack_wasm::source::WebAssemblySourceType;
 
 use super::{CustomModuleType, RuleCondition, match_mode::MatchMode};
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode,
+)]
 pub struct ModuleRule {
     condition: RuleCondition,
     effects: Vec<ModuleRuleEffect>,
@@ -138,8 +142,14 @@ pub enum ModuleType {
         ty: CssModuleAssetType,
         environment: Option<ResolvedVc<Environment>>,
     },
-    StaticUrlJs,
-    StaticUrlCss,
+    StaticUrlJs {
+        /// The tag that is passed to ChunkingContext::asset_url
+        tag: Option<RcStr>,
+    },
+    StaticUrlCss {
+        /// The tag that is passed to ChunkingContext::asset_url
+        tag: Option<RcStr>,
+    },
     InlinedBytesJs,
     WebAssembly {
         source_ty: WebAssemblySourceType,

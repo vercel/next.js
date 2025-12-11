@@ -24,7 +24,6 @@ env:
   RUST_LOG: 'off'
   TURBO_TEAM: 'vercel'
   TURBO_CACHE: 'remote:rw'
-  TURBO_TOKEN: ${{ secrets.HOSTED_TURBO_TOKEN }}
 
 jobs:
   benchmark-small-apps:

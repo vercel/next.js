@@ -28,7 +28,7 @@ macro_rules! impl_write_number {
 /// runs.
 ///
 /// Note that the default [`std::hash::Hash`] trait used by Rust allows for hashing that differs
-/// across process runs, so it is not suitable for persistent caching with turbo-tasks.
+/// across process runs, so it is not suitable for filesystem cache with turbo-tasks.
 ///
 /// It's very important that `Vc`s never implement this, since they cannot be deterministic. The
 /// value that they wrap, however, can implement the trait.
@@ -41,7 +41,7 @@ pub trait DeterministicHash {
 /// Signals the implementor can safely hash in a replicatable way across platforms and process runs.
 ///
 /// Note that the default [`std::hash::Hash`] trait used by Rust allows for hashing that differs
-/// across process runs, so it is not suitable for persistent caching with turbo-tasks.
+/// across process runs, so it is not suitable for filesystem cache with turbo-tasks.
 pub trait DeterministicHasher {
     fn finish(&self) -> u64;
     fn write_bytes(&mut self, bytes: &[u8]);

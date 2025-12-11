@@ -1,4 +1,5 @@
 import { warnOnce } from './utils/warn-once'
+import { getDeploymentId } from './deployment-id'
 import { getImageBlurSvg } from './image-blur-svg'
 import { imageConfigDefault } from './image-config'
 import type {
@@ -230,6 +231,11 @@ function generateImgAttrs({
   loader,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
+    const deploymentId = getDeploymentId()
+    if (src.startsWith('/') && !src.startsWith('//') && deploymentId) {
+      const sep = src.includes('?') ? '&' : '?'
+      src = `${src}${sep}dpl=${deploymentId}`
+    }
     return { src, srcSet: undefined, sizes: undefined }
   }
 
@@ -558,18 +564,6 @@ export function getImgProps(
       warnOnce(
         `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities [${config.qualities.join(', ')}]. Please update your config to [${[...config.qualities, qualityInt].sort().join(', ')}].` +
           `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
-      )
-    }
-    if (
-      src.startsWith('/') &&
-      src.includes('?') &&
-      (!config?.localPatterns?.length ||
-        (config.localPatterns.length === 1 &&
-          config.localPatterns[0].pathname === '/_next/static/media/**'))
-    ) {
-      warnOnce(
-        `Image with src "${src}" is using a query string which is not configured in images.localPatterns. This config will be required starting in Next.js 16.` +
-          `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns`
       )
     }
     if (placeholder === 'blur' && !blurDataURL) {

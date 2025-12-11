@@ -4,7 +4,7 @@ nav_title: Content Security Policy
 description: Learn how to set a Content Security Policy (CSP) for your Next.js application.
 related:
   links:
-    - app/api-reference/file-conventions/middleware
+    - app/api-reference/file-conventions/proxy
     - app/api-reference/functions/headers
 ---
 
@@ -31,18 +31,18 @@ CSP can block both inline and external scripts to prevent attacks. A nonce lets 
 
 If an attacker wanted to load a script into your page, they'd need to guess the nonce value. That's why the nonce must be unpredictable and unique for every request.
 
-### Adding a nonce with Middleware
+### Adding a nonce with Proxy
 
-[Middleware](/docs/app/api-reference/file-conventions/middleware) enables you to add headers and generate nonces before the page renders.
+[Proxy](/docs/app/api-reference/file-conventions/proxy) enables you to add headers and generate nonces before the page renders.
 
-Every time a page is viewed, a fresh nonce should be generated. This means that you **must use [dynamic rendering](/docs/app/getting-started/partial-prerendering#dynamic-rendering) to add nonces**.
+Every time a page is viewed, a fresh nonce should be generated. This means that you **must use [dynamic rendering](/docs/app/guides/caching#dynamic-rendering) to add nonces**.
 
 For example:
 
-```ts filename="middleware.ts" switcher
+```ts filename="proxy.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
   const cspHeader = `
     default-src 'self';
@@ -83,10 +83,10 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-```js filename="middleware.js" switcher
+```js filename="proxy.js" switcher
 import { NextResponse } from 'next/server'
 
-export function middleware(request) {
+export function proxy(request) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
   const cspHeader = `
     default-src 'self';
@@ -126,11 +126,11 @@ export function middleware(request) {
 }
 ```
 
-By default, Middleware runs on all requests. You can filter Middleware to run on specific paths using a [`matcher`](/docs/app/api-reference/file-conventions/middleware#matcher).
+By default, Proxy runs on all requests. You can filter Proxy to run on specific paths using a [`matcher`](/docs/app/api-reference/file-conventions/proxy#matcher).
 
 We recommend ignoring matching prefetches (from `next/link`) and static assets that don't need the CSP header.
 
-```ts filename="middleware.ts" switcher
+```ts filename="proxy.ts" switcher
 export const config = {
   matcher: [
     /*
@@ -151,7 +151,7 @@ export const config = {
 }
 ```
 
-```js filename="middleware.js" switcher
+```js filename="proxy.js" switcher
 export const config = {
   matcher: [
     /*
@@ -178,7 +178,7 @@ To use a nonce, your page must be **dynamically rendered**. This is because Next
 
 Here’s how nonce support works in a dynamically rendered page:
 
-1. **Middleware generates a nonce**: Your middleware creates a unique nonce for the request, adds it to your `Content-Security-Policy` header, and also sets it in a custom `x-nonce` header.
+1. **Proxy generates a nonce**: Your proxy creates a unique nonce for the request, adds it to your `Content-Security-Policy` header, and also sets it in a custom `x-nonce` header.
 2. **Next.js extracts the nonce**: During rendering, Next.js parses the `Content-Security-Policy` header and extracts the nonce using the `'nonce-{value}'` pattern.
 3. **Nonce is applied automatically**: Next.js attaches the nonce to:
    - Framework scripts (React, Next.js runtime)
@@ -478,7 +478,7 @@ module.exports = nextConfig
 
 When SRI is enabled, you can continue using your existing CSP policies. SRI works independently by adding `integrity` attributes to your assets:
 
-> **Good to know**: For dynamic rendering scenarios, you can still generate nonces with middleware if needed, combining both SRI integrity attributes and nonce-based CSP approaches.
+> **Good to know**: For dynamic rendering scenarios, you can still generate nonces with proxy if needed, combining both SRI integrity attributes and nonce-based CSP approaches.
 
 ```js filename="next.config.js"
 const cspHeader = `
@@ -540,8 +540,8 @@ CSP implementation differs between development and production environments:
 
 In development, you will need to enable `'unsafe-eval'` to support APIs that provide additional debugging information:
 
-```ts filename="middleware.ts" switcher
-export function middleware(request: NextRequest) {
+```ts filename="proxy.ts" switcher
+export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
   const isDev = process.env.NODE_ENV === 'development'
 
@@ -558,12 +558,12 @@ export function middleware(request: NextRequest) {
     upgrade-insecure-requests;
 `
 
-  // Rest of middleware implementation
+  // Rest of proxy implementation
 }
 ```
 
-```js filename="middleware.js" switcher
-export function middleware(request) {
+```js filename="proxy.js" switcher
+export function proxy(request) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
   const isDev = process.env.NODE_ENV === 'development'
 
@@ -580,7 +580,7 @@ export function middleware(request) {
     upgrade-insecure-requests;
 `
 
-  // Rest of middleware implementation
+  // Rest of proxy implementation
 }
 ```
 
@@ -588,7 +588,7 @@ export function middleware(request) {
 
 Common issues in production:
 
-- **Nonce not applied**: Ensure your middleware runs on all necessary routes
+- **Nonce not applied**: Ensure your proxy runs on all necessary routes
 - **Static assets blocked**: Verify your CSP allows Next.js static assets
 - **Third-party scripts**: Add necessary domains to your CSP policy
 
@@ -689,7 +689,7 @@ export default function App({ Component, pageProps }) {
 
 Update your CSP to allow third-party domains:
 
-```ts filename="middleware.ts" switcher
+```ts filename="proxy.ts" switcher
 const cspHeader = `
   default-src 'self';
   script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://www.googletagmanager.com;
@@ -698,7 +698,7 @@ const cspHeader = `
 `
 ```
 
-```js filename="middleware.js" switcher
+```js filename="proxy.js" switcher
 const cspHeader = `
   default-src 'self';
   script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://www.googletagmanager.com;

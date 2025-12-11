@@ -1,17 +1,20 @@
 use std::collections::BTreeMap;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::{ModuleReferences, SingleChunkableModuleReference},
     resolve::ExportUsage,
+    source::OptionSource,
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -52,6 +55,11 @@ impl Module for NextDynamicEntryModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![ResolvedVc::upcast(
             SingleChunkableModuleReference::new(
@@ -68,8 +76,12 @@ impl Module for NextDynamicEntryModule {
 #[turbo_tasks::value_impl]
 impl Asset for NextDynamicEntryModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("Next.js Server Component module has no content")
+    fn content(&self) -> Vc<AssetContent> {
+        AssetContent::File(
+            FileContent::Content("// This is a marker module for Next.js dynamic.".into())
+                .resolved_cell(),
+        )
+        .cell()
     }
 }
 
@@ -130,6 +142,9 @@ struct NextDynamicEntryChunkItem {
     module_graph: ResolvedVc<ModuleGraph>,
     inner: ResolvedVc<NextDynamicEntryModule>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for NextDynamicEntryChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for NextDynamicEntryChunkItem {

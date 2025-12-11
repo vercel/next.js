@@ -1,6 +1,7 @@
 use std::future::IntoFuture;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
@@ -50,7 +51,16 @@ struct BatchChunkItemsWithInfo(
 );
 
 #[derive(
-    Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, ValueDebugFormat,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    ValueDebugFormat,
+    Encode,
+    Decode,
 )]
 enum ChunkItemOrBatchWithInfo {
     ChunkItem {
@@ -399,8 +409,8 @@ struct SplitContext<'a> {
 
 /// Creates a chunk with the given `chunk_items. `key` should be unique.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(key = display(key)))]
-async fn make_chunk<'l>(
-    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
+async fn make_chunk(
+    chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
     batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
     key: &mut String,
     split_context: &mut SplitContext<'_>,

@@ -4,22 +4,8 @@ import {
   isInterceptionRouteAppPath,
 } from '../shared/lib/router/utils/interception-routes'
 import type { Rewrite } from './load-custom-routes'
-import { safePathToRegexp } from '../shared/lib/router/utils/route-match-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
-
-// a function that converts normalised paths (e.g. /foo/[bar]/[baz]) to the format expected by pathToRegexp (e.g. /foo/:bar/:baz)
-function toPathToRegexpPath(path: string): string {
-  return path.replace(/\[\[?([^\]]+)\]\]?/g, (_, capture) => {
-    // path-to-regexp only supports word characters, so we replace any non-word characters with underscores
-    const paramName = capture.replace(/\W+/g, '_')
-
-    // handle catch-all segments (e.g. /foo/bar/[...baz] or /foo/bar/[[...baz]])
-    if (capture.startsWith('...')) {
-      return `:${capture.slice(3)}*`
-    }
-    return ':' + paramName
-  })
-}
+import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 
 export function generateInterceptionRoutesRewrites(
   appPaths: string[],
@@ -32,30 +18,42 @@ export function generateInterceptionRoutesRewrites(
       const { interceptingRoute, interceptedRoute } =
         extractInterceptionRouteInformation(appPath)
 
-      const normalizedInterceptingRoute = `${
-        interceptingRoute !== '/' ? toPathToRegexpPath(interceptingRoute) : ''
-      }/(.*)?`
+      const destination = getNamedRouteRegex(basePath + appPath, {
+        prefixRouteKeys: true,
+      })
 
-      const normalizedInterceptedRoute = toPathToRegexpPath(interceptedRoute)
-      const normalizedAppPath = toPathToRegexpPath(appPath)
+      const header = getNamedRouteRegex(interceptingRoute, {
+        prefixRouteKeys: true,
+        reference: destination.reference,
+      })
 
-      // pathToRegexp returns a regex that matches the path, but we need to
-      // convert it to a string that can be used in a header value
-      // to the format that Next/the proxy expects
-      let interceptingRouteRegex = safePathToRegexp(normalizedInterceptingRoute)
-        .toString()
-        .slice(2, -3)
+      const source = getNamedRouteRegex(basePath + interceptedRoute, {
+        prefixRouteKeys: true,
+        reference: header.reference,
+      })
+
+      const headerRegex = header.namedRegex
+        // Strip ^ and $ anchors since matchHas() will add them automatically
+        .replace(/^\^/, '')
+        .replace(/\$$/, '')
+        // Replace matching the `/` with matching any route segment.
+        .replace(/^\/\(\?:\/\)\?$/, '/.*')
+        // Replace the optional trailing with slash capture group with one that
+        // will match any descendants.
+        .replace(/\(\?:\/\)\?$/, '(?:/.*)?')
 
       rewrites.push({
-        source: `${basePath}${normalizedInterceptedRoute}`,
-        destination: `${basePath}${normalizedAppPath}`,
+        source: source.pathToRegexpPattern,
+        destination: destination.pathToRegexpPattern,
         has: [
           {
             type: 'header',
             key: NEXT_URL,
-            value: interceptingRouteRegex,
+            value: headerRegex,
           },
         ],
+        internal: true,
+        regex: source.namedRegex,
       })
     }
   }

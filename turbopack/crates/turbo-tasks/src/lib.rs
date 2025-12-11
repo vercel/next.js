@@ -33,7 +33,6 @@
 #![feature(error_generic_member_access)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![feature(new_zeroed_alloc)]
 #![feature(never_type)]
 #![feature(downcast_unchecked)]
 #![feature(ptr_metadata)]
@@ -67,7 +66,6 @@ mod once_map;
 mod output;
 pub mod panic_hooks;
 pub mod parallel;
-pub mod persisted_graph;
 pub mod primitives;
 mod raw_vc;
 mod read_options;
@@ -93,47 +91,51 @@ use std::hash::BuildHasherDefault;
 
 pub use anyhow::{Error, Result};
 use auto_hash_map::AutoSet;
-pub use capture_future::TurboTasksPanic;
-pub use collectibles::CollectiblesSource;
-pub use completion::{Completion, Completions};
-pub use display::ValueToString;
-pub use effect::{ApplyEffectsContext, Effects, apply_effects, effect, get_effects};
-pub use id::{
-    ExecutionId, LocalTaskId, SessionId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId,
-};
-pub use invalidation::{
-    InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator, get_invalidator,
-};
-pub use join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt};
-pub use key_value_pair::KeyValuePair;
-pub use magic_any::MagicAny;
-pub use manager::{
-    CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks, TurboTasksApi,
-    TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo, dynamic_call, emit, mark_finished,
-    mark_root, mark_session_dependent, mark_stateful, prevent_gc, run, run_once,
-    run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope,
-};
-pub use output::OutputContent;
-pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
-pub use read_options::ReadCellOptions;
-pub use read_ref::ReadRef;
 use rustc_hash::FxHasher;
-pub use serialization_invalidation::SerializationInvalidator;
 pub use shrink_to_fit::ShrinkToFit;
-pub use spawn::{
-    JoinHandle, block_for_future, block_in_place, spawn, spawn_blocking, spawn_thread,
-};
-pub use state::{State, TransientState};
-pub use task::{SharedReference, TypedSharedReference, task_input::TaskInput};
-pub use task_execution_reason::TaskExecutionReason;
-pub use trait_ref::{IntoTraitRef, TraitRef};
 pub use turbo_tasks_macros::{TaskInput, function, value_impl};
-pub use value::{TransientInstance, TransientValue};
-pub use value_type::{TraitMethod, TraitType, ValueType};
-pub use vc::{
-    Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
-    Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead,
-    VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
+
+pub use crate::{
+    capture_future::TurboTasksPanic,
+    collectibles::CollectiblesSource,
+    completion::{Completion, Completions},
+    display::ValueToString,
+    effect::{ApplyEffectsContext, Effects, apply_effects, effect, get_effects},
+    id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
+    invalidation::{
+        InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
+        get_invalidator,
+    },
+    join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt},
+    key_value_pair::KeyValuePair,
+    magic_any::MagicAny,
+    manager::{
+        CurrentCellRef, ReadConsistency, ReadTracking, TaskPersistence, TurboTasks, TurboTasksApi,
+        TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo, dynamic_call, emit,
+        mark_finished, mark_root, mark_session_dependent, mark_stateful, prevent_gc, run, run_once,
+        run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope,
+    },
+    output::OutputContent,
+    raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError},
+    read_options::{ReadCellOptions, ReadOutputOptions},
+    read_ref::ReadRef,
+    serialization_invalidation::SerializationInvalidator,
+    spawn::{JoinHandle, block_for_future, block_in_place, spawn, spawn_blocking, spawn_thread},
+    state::{State, TransientState},
+    task::{
+        SharedReference, TypedSharedReference,
+        task_input::{EitherTaskInput, TaskInput},
+    },
+    task_execution_reason::TaskExecutionReason,
+    trait_ref::{IntoTraitRef, TraitRef},
+    value::{TransientInstance, TransientValue},
+    value_type::{TraitMethod, TraitType, ValueType},
+    vc::{
+        Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
+        Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellNewMode,
+        VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType,
+        VcValueTypeCast,
+    },
 };
 
 pub type SliceMap<K, V> = Box<[(K, V)]>;
@@ -190,7 +192,7 @@ macro_rules! fxindexset {
 /// ```
 /// # #![feature(arbitrary_self_types)]
 //  # #![feature(arbitrary_self_types_pointers)]
-/// #[turbo_tasks::value(transparent, into = "shared")]
+/// #[turbo_tasks::value(transparent, shared)]
 /// struct Foo(Vec<u32>);
 /// ```
 ///
@@ -200,7 +202,7 @@ macro_rules! fxindexset {
 /// by setting the [`VcValueType::CellMode`] associated type.
 ///
 /// - **`"new"`:** Always overrides the value in the cell, invalidating all dependent tasks.
-/// - **`"shared"` *(default)*:** Compares with the existing value in the cell, before overriding it.
+/// - **`"compare"` *(default)*:** Compares with the existing value in the cell, before overriding it.
 ///   Requires the value to implement [`Eq`].
 ///
 /// Avoiding unnecessary invalidation is important to reduce downstream recomputation of tasks that
@@ -212,35 +214,15 @@ macro_rules! fxindexset {
 ///
 /// ## `eq = "..."`
 ///
-/// By default, we `#[derive(PartialEq, Eq)]`. [`Eq`] is required by `cell = "shared"`. This
+/// By default, we `#[derive(PartialEq, Eq)]`. [`Eq`] is required by `cell = "compare"`. This
 /// argument allows overriding that default implementation behavior.
 ///
 /// - **`"manual"`:** Prevents deriving [`Eq`] and [`PartialEq`] so you can do it manually.
 ///
-/// ## `into = "..."`
-///
-/// This macro always implements a `.cell()` method on your type with the signature:
-///
-/// ```ignore
-/// /// Wraps the value in a cell.
-/// fn cell(self) -> Vc<Self>;
-/// ```
-///
-/// This argument controls the visibility of the `.cell()` method, as well as whether a
-/// [`From<T> for Vc<T>`][From] implementation is generated.
-///
-/// - **`"new"` or `"shared"`:** Exposes both `.cell()` and [`From`]/[`Into`] implementations. Both
-///   of these values (`"new"` or `"shared"`) do the same thing (for legacy reasons).
-/// - **`"none"` *(default)*:** Makes `.cell()` private and prevents implementing [`From`]/[`Into`].
-///
-/// You should use the default value of `"none"` when providing your own public constructor methods.
-///
-/// The naming of this field and it's values are due to legacy reasons.
-///
 /// ## `serialization = "..."`
 ///
 /// Affects serialization via [`serde::Serialize`] and [`serde::Deserialize`]. Serialization is
-/// required for persistent caching of tasks to disk.
+/// required for filesystem cache of tasks.
 ///
 /// - **`"auto"` *(default)*:** Derives the serialization traits and enables serialization.
 /// - **`"custom"`:** Prevents deriving the serialization traits, but still enables serialization
@@ -249,8 +231,7 @@ macro_rules! fxindexset {
 ///
 /// ## `shared`
 ///
-/// Sets both `cell = "shared"` *(already the default)* and `into = "shared"`, exposing the
-/// `.cell()` method and adding a [`From`]/[`Into`] implementation.
+/// Makes the `cell()` method public so everyone can use it.
 ///
 /// ## `transparent`
 ///

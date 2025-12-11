@@ -6,7 +6,7 @@ import escapeRegex from 'escape-string-regexp'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   check,
   fetchViaHTTP,
   getBrowserBodyText,
@@ -371,19 +371,19 @@ describe('Prerender', () => {
 
   const navigateTest = (isDev = false) => {
     it('should navigate between pages successfully', async () => {
-      const toBuild = [
-        '/',
-        '/another',
-        '/something',
-        '/normal',
-        '/blog/post-1',
-        '/blog/post-1/comment-1',
-        '/catchall/first',
+      // TODO: Compiling this many pages in parallel hits some race condition
+      // causing "SyntaxError: Unexpected non-whitespace character after JSON at position 614"
+      // which persists throughout Next.js Server instance lifetime.
+      // Compiling in batches to avoid that unknown bug.
+      const toBuildBatches = [
+        ['/', '/another', '/something', '/normal'],
+        ['/blog/post-1', '/blog/post-1/comment-1', '/catchall/first'],
       ]
 
-      await waitFor(2500)
-
-      await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
+      for (const toBuild of toBuildBatches) {
+        // eslint-disable-next-line no-loop-func -- we're not accessing `next` after the loop was exited.
+        await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
+      }
 
       const browser = await webdriver(next.url, '/')
       let text = await browser.elementByCss('p').text()
@@ -412,7 +412,6 @@ describe('Prerender', () => {
       await goFromAnotherToHome()
 
       // Client-side SSG data caching test
-      // eslint-disable-next-line no-lone-blocks
       {
         // Let revalidation period lapse
         await waitFor(2000)
@@ -773,13 +772,9 @@ describe('Prerender', () => {
       const browser = await webdriver(next.url, '/')
       await browser.eval('window.beforeClick = "abc"')
       await browser.elementByCss('#broken-post').click()
-      expect(
-        await check(() => browser.eval('window.beforeClick'), {
-          test(v) {
-            return v !== 'abc'
-          },
-        })
-      ).toBe(true)
+      await retry(async () => {
+        expect(await browser.eval('window.beforeClick')).not.toEqual('abc')
+      })
     })
 
     it('should SSR dynamic page with brackets in param as object', async () => {
@@ -907,13 +902,9 @@ describe('Prerender', () => {
         const browser = await webdriver(next.url, '/')
         await browser.eval('window.beforeClick = "abc"')
         await browser.elementByCss('#broken-at-first-post').click()
-        expect(
-          await check(() => browser.eval('window.beforeClick'), {
-            test(v) {
-              return v !== 'abc'
-            },
-          })
-        ).toBe(true)
+        await retry(async () => {
+          expect(await browser.eval('window.beforeClick')).not.toEqual('abc')
+        })
 
         const text = await browser.elementByCss('#params').text()
         expect(text).toMatch(/post.*?post-999/)
@@ -1357,7 +1348,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )
@@ -1373,7 +1364,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )

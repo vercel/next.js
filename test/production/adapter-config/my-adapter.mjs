@@ -5,6 +5,7 @@ import fs from 'fs'
 const myAdapter = {
   name: 'my-custom-adapter',
   modifyConfig: (config, { phase }) => {
+    if (process.env.NODE_ENV !== 'production') return config
     if (typeof phase !== 'string') {
       throw new Error(`invalid phase value provided to modifyConfig ${phase}`)
     }

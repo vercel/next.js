@@ -1,15 +1,21 @@
 use std::ops::Deref;
 
+use bincode::{Decode, Encode};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use turbo_tasks::{
     NonLocalValue,
     debug::ValueDebugFormat,
     trace::{TraceRawVcs, TraceRawVcsContext},
 };
 
-#[derive(Clone, Debug, ValueDebugFormat, Serialize, Deserialize)]
-pub struct TracedDiGraph<N, E>(pub DiGraph<N, E>);
+#[derive(Clone, Debug, ValueDebugFormat, Serialize, Deserialize, Encode, Decode)]
+#[bincode(
+    encode_bounds = "N: Serialize, E: Serialize",
+    decode_bounds = "N: DeserializeOwned, E: DeserializeOwned",
+    borrow_decode_bounds = "N: Deserialize<'__de>, E: Deserialize<'__de>"
+)]
+pub struct TracedDiGraph<N, E>(#[bincode(with_serde)] pub DiGraph<N, E>);
 impl<N, E> Default for TracedDiGraph<N, E> {
     fn default() -> Self {
         Self(Default::default())

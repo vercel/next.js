@@ -86,6 +86,8 @@
     "pg": "^7.11.0",
     "phantomjs-prebuilt": "^2.1.16",
     "pixelmatch": "^5.3.0",
+    "pino": "^10.1.0",
+    "pino-pretty": "^13.1.2",
     "playwright-core": "^1.17.1",
     "polyfill-library": "3.93.0",
     "prismjs": "^1.25.0",

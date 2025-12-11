@@ -58,7 +58,7 @@ export function runTests(
             ' '
           )}`
         },
-        buildCommand: `yarn next build --no-lint`,
+        buildCommand: `yarn next build`,
         startCommand: (global as any).isNextDev
           ? `yarn next`
           : `yarn next start`,

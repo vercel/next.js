@@ -155,10 +155,6 @@ mod tests {
 
     #[test]
     fn test_encode() {
-        assert_eq!(
-            mangle("module evaluation"),
-            "__TURBOPACK__module__evaluation__"
-        );
         assert_eq!(mangle("Hello World"), "__TURBOPACK__Hello__World__");
         assert_eq!(mangle("Hello_World"), "__TURBOPACK__Hello_World__");
         assert_eq!(mangle("Hello__World"), "__TURBOPACK__Hello_$5f$World__");
@@ -180,10 +176,6 @@ mod tests {
 
     #[test]
     fn test_decode() {
-        assert_eq!(
-            unmangle("__TURBOPACK__module__evaluation__"),
-            "module evaluation"
-        );
         assert_eq!(unmangle("__TURBOPACK__Hello__World__"), "Hello World");
         assert_eq!(unmangle("__TURBOPACK__Hello_World__"), "Hello_World");
         assert_eq!(unmangle("__TURBOPACK__Hello_$5f$World__"), "Hello__World");

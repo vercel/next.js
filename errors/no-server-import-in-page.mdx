@@ -2,24 +2,24 @@
 title: No Server Import In Page
 ---
 
-> Prevent usage of `next/server` outside of `middleware.js`.
+> Prevent usage of `next/server` outside of `proxy.js`.
 
 ## Why This Error Occurred
 
-`next/server` was imported outside of `middleware.{js,ts}`.
+`next/server` was imported outside of `proxy.{js,ts}`.
 
 ## Possible Ways to Fix It
 
-Only import and use `next/server` in a file located within the project root directory: `middleware.{js,ts}`.
+Only import and use `next/server` in a file located within the project root directory: `proxy.{js,ts}`.
 
-```ts filename="middleware.ts"
+```ts filename="proxy.ts"
 import type { NextFetchEvent, NextRequest } from 'next/server'
 
-export function middleware(req: NextRequest, ev: NextFetchEvent) {
+export function proxy(req: NextRequest, ev: NextFetchEvent) {
   return new Response('Hello, world!')
 }
 ```
 
 ## Useful Links
 
-- [Middleware](/docs/pages/api-reference/file-conventions/middleware)
+- [Proxy](/docs/pages/api-reference/file-conventions/proxy)

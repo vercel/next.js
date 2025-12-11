@@ -4,6 +4,13 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 use bytes::Bytes as CBytes;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -31,6 +38,22 @@ impl<'de> Deserialize<'de> for Bytes {
         Ok(Bytes(bytes.into_vec().into()))
     }
 }
+
+impl Encode for Bytes {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self[..].encode(encoder)
+    }
+}
+
+impl<Context> Decode<Context> for Bytes {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        // bincode uses the same encoding for slices and vecs
+        // https://docs.rs/bincode/latest/bincode/spec/index.html#linear-collections-vec-arrays-etc
+        Ok(Bytes(CBytes::from(Vec::<u8>::decode(decoder)?)))
+    }
+}
+
+impl_borrow_decode!(Bytes);
 
 impl Deref for Bytes {
     type Target = CBytes;
@@ -93,6 +116,16 @@ mod tests {
     fn serde() {
         let s = Bytes::from("test");
         assert_tokens(&s, &[Token::Bytes(b"test")])
+    }
+
+    #[test]
+    fn bincode() {
+        let s = Bytes::from("test");
+        let c = bincode::config::standard();
+        let decoded: Bytes = bincode::decode_from_slice(&bincode::encode_to_vec(&s, c).unwrap(), c)
+            .unwrap()
+            .0;
+        assert_eq!(decoded, s);
     }
 
     #[test]

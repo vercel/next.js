@@ -14,6 +14,9 @@ export function renderCssResource(
   ctx: AppRenderContext,
   preloadCallbacks?: PreloadCallbacks
 ) {
+  const {
+    componentMod: { createElement },
+  } = ctx
   return entryCssFiles.map((entryCssFile, index) => {
     // `Precedence` is an opt-in signal for React to handle resource
     // loading and deduplication, etc. It's also used as the key to sort
@@ -37,16 +40,15 @@ export function renderCssResource(
     )}${getAssetQueryString(ctx, true)}`
 
     if (entryCssFile.inlined && !ctx.parsedRequestHeaders.isRSCRequest) {
-      return (
-        <style
-          key={index}
-          nonce={ctx.nonce}
-          // @ts-ignore
-          precedence={precedence}
-          href={fullHref}
-        >
-          {entryCssFile.content}
-        </style>
+      return createElement(
+        'style',
+        {
+          key: index,
+          nonce: ctx.nonce,
+          precedence: precedence,
+          href: fullHref,
+        },
+        entryCssFile.content
       )
     }
 
@@ -58,16 +60,13 @@ export function renderCssResource(
       )
     })
 
-    return (
-      <link
-        key={index}
-        rel="stylesheet"
-        href={fullHref}
-        // @ts-ignore
-        precedence={precedence}
-        crossOrigin={ctx.renderOpts.crossOrigin}
-        nonce={ctx.nonce}
-      />
-    )
+    return createElement('link', {
+      key: index,
+      rel: 'stylesheet',
+      href: fullHref,
+      precedence: precedence,
+      crossOrigin: ctx.renderOpts.crossOrigin,
+      nonce: ctx.nonce,
+    })
   })
 }

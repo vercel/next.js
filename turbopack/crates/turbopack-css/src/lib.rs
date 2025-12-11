@@ -16,6 +16,7 @@ pub(crate) mod references;
 pub(crate) mod util;
 
 pub use asset::CssModuleAsset;
+use bincode::{Decode, Encode};
 pub use module_asset::ModuleCssAsset;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
@@ -38,6 +39,8 @@ use crate::references::import::ImportAssetReference;
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum CssModuleAssetType {
     /// Default parsing mode.

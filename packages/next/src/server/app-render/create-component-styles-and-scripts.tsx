@@ -1,4 +1,3 @@
-import React from 'react'
 import { interopDefault } from './interop-default'
 import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import type { AppRenderContext } from './app-render'
@@ -19,8 +18,10 @@ export async function createComponentStylesAndScripts({
   injectedJS: Set<string>
   ctx: AppRenderContext
 }): Promise<[React.ComponentType<any>, React.ReactNode, React.ReactNode]> {
+  const {
+    componentMod: { createElement },
+  } = ctx
   const { styles: entryCssFiles, scripts: jsHrefs } = getLinkAndScriptTags(
-    ctx.clientReferenceManifest,
     filePath,
     injectedCSS,
     injectedJS
@@ -29,15 +30,13 @@ export async function createComponentStylesAndScripts({
   const styles = renderCssResource(entryCssFiles, ctx)
 
   const scripts = jsHrefs
-    ? jsHrefs.map((href, index) => (
-        <script
-          src={`${ctx.assetPrefix}/_next/${encodeURIPath(
-            href
-          )}${getAssetQueryString(ctx, true)}`}
-          async={true}
-          key={`script-${index}`}
-        />
-      ))
+    ? jsHrefs.map((href, index) =>
+        createElement('script', {
+          src: `${ctx.assetPrefix}/_next/${encodeURIPath(href)}${getAssetQueryString(ctx, true)}`,
+          async: true,
+          key: `script-${index}`,
+        })
+      )
     : null
 
   const Comp = interopDefault(await getComponent())

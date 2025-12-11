@@ -29,6 +29,6 @@ async function Runtime() {
   )
 }
 
-const getCachedParams = unstable_cache(async () => {
+const getCachedParams = unstable_cache(async function uncachedGetParams() {
   return { lang: await lang(), locale: await locale() }
 })

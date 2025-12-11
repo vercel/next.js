@@ -4,6 +4,8 @@ import fs from 'fs'
 import {
   satisfies as satisfiesVersionRange,
   compare as compareVersions,
+  major,
+  minor,
 } from 'semver'
 import { execSync } from 'child_process'
 import path from 'path'
@@ -60,23 +62,52 @@ async function loadHighestNPMVersionMatching(query: string) {
   return versionOrVersions
 }
 
-function endMessage() {
+function endMessage(targetNextVersion: string) {
   console.log()
-  console.log(
-    pc.white(
-      pc.bold(
-        `Please review the local changes and read the Next.js 15 migration guide to complete the migration.`
+  if (major(targetNextVersion) === 15) {
+    console.log(
+      pc.white(
+        pc.bold(
+          `Please review the local changes and read the Next.js 15 migration guide to complete the migration.`
+        )
       )
     )
-  )
-  console.log(
-    pc.underline(
-      'https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15'
+    console.log(
+      pc.underline(
+        'https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15'
+      )
     )
-  )
+  }
 }
 
 const cwd = process.cwd()
+
+/**
+ * Resolves semantic version keywords (patch, minor, major) to npm version queries.
+ * - patch: latest patch within current minor (e.g., 15.0.x -> 15.0.y)
+ * - minor: latest minor within current major (e.g., 15.0.x -> 15.1.x)
+ * - major: latest stable version (equivalent to "latest")
+ */
+function resolveSemanticRevision(
+  revision: string,
+  installedVersion: string
+): string {
+  const installedMajor = major(installedVersion)
+  const installedMinor = minor(installedVersion)
+
+  switch (revision) {
+    case 'patch':
+      // ~15.0.0 matches >=15.0.0 <15.1.0
+      return `~${installedMajor}.${installedMinor}.0`
+    case 'minor':
+      // ^15.0.0 matches >=15.0.0 <16.0.0
+      return `^${installedMajor}.0.0`
+    case 'major':
+      return 'latest'
+    default:
+      return revision
+  }
+}
 
 export async function runUpgrade(
   revision: string | undefined,
@@ -86,18 +117,53 @@ export async function runUpgrade(
   const appPackageJsonPath = path.resolve(cwd, 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
 
+  const installedNextVersion = getInstalledNextVersion()
+
+  // Resolve semantic keywords to npm version queries
+  const resolvedRevision = resolveSemanticRevision(
+    revision ?? 'minor',
+    installedNextVersion
+  )
+
+  if (options.verbose) {
+    console.log(`  Resolved upgrade target: ${resolvedRevision}`)
+  }
+
   let targetNextPackageJson: {
     version: string
     peerDependencies: Record<string, string>
   }
 
   try {
+    // First, find the highest matching version
+    const versionsJSON = execSync(
+      `npm --silent view "next@${resolvedRevision}" --json --field version`,
+      { encoding: 'utf-8' }
+    )
+    const versionOrVersions = JSON.parse(versionsJSON)
+    let targetVersion: string
+    if (Array.isArray(versionOrVersions)) {
+      versionOrVersions.sort(compareVersions)
+      targetVersion = versionOrVersions[versionOrVersions.length - 1]
+    } else {
+      targetVersion = versionOrVersions
+    }
+
+    if (options.verbose) {
+      console.log(`  Target version: ${targetVersion}`)
+    }
+
+    // Then fetch the full package info for that specific version
     const targetNextPackage = execSync(
-      `npm --silent view "next@${revision}" --json`,
+      `npm --silent view "next@${targetVersion}" --json`,
       { encoding: 'utf-8' }
     )
     targetNextPackageJson = JSON.parse(targetNextPackage)
-  } catch {}
+  } catch (e) {
+    if (options.verbose) {
+      console.error('  Error fetching package info:', e)
+    }
+  }
 
   const validRevision =
     targetNextPackageJson !== null &&
@@ -106,11 +172,9 @@ export async function runUpgrade(
     'peerDependencies' in targetNextPackageJson
   if (!validRevision) {
     throw new BadInput(
-      `Invalid revision provided: "${revision}". Please provide a valid Next.js version or dist-tag (e.g. "latest", "canary", "rc", or "15.0.0").\nCheck available versions at https://www.npmjs.com/package/next?activeTab=versions.`
+      `Invalid revision provided: "${revision ?? 'minor'}" (resolved to "${resolvedRevision}"). Please provide a valid Next.js version, dist-tag (e.g. "latest", "canary", "rc"), or upgrade type ("patch", "minor", "major").\nCheck available versions at https://www.npmjs.com/package/next?activeTab=versions.`
     )
   }
-
-  const installedNextVersion = getInstalledNextVersion()
 
   const targetNextVersion = targetNextPackageJson.version
 
@@ -118,14 +182,14 @@ export async function runUpgrade(
     console.log(
       `${pc.green('✓')} Current Next.js version is already on the target version "v${targetNextVersion}".`
     )
-    endMessage()
+    endMessage(targetNextVersion)
     return
   }
   if (compareVersions(installedNextVersion, targetNextVersion) > 0) {
     console.log(
       `${pc.green('✓')} Current Next.js version is higher than the target version "v${targetNextVersion}".`
     )
-    endMessage()
+    endMessage(targetNextVersion)
     return
   }
 
@@ -185,7 +249,10 @@ export async function runUpgrade(
         `react@${targetNextPackageJson.peerDependencies['react']}`
       )
 
-  if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
+  if (
+    compareVersions(targetNextVersion, '15.0.0-canary') >= 0 &&
+    compareVersions(targetNextVersion, '16.0.0-canary') < 0
+  ) {
     await suggestTurbopack(appPackageJson, targetNextVersion)
   }
 
@@ -197,7 +264,7 @@ export async function runUpgrade(
 
   let shouldRunReactCodemods = false
   let shouldRunReactTypesCodemods = false
-  let execCommand = 'npx'
+  let execCommand = 'npx --yes'
   // The following React codemods are for React 19
   if (
     !shouldStayOnReact18 &&
@@ -207,13 +274,7 @@ export async function runUpgrade(
     shouldRunReactCodemods = await suggestReactCodemods()
     shouldRunReactTypesCodemods = await suggestReactTypesCodemods()
 
-    const execCommandMap = {
-      yarn: 'yarn dlx',
-      pnpm: 'pnpx',
-      bun: 'bunx',
-      npm: 'npx',
-    }
-    execCommand = execCommandMap[packageManager]
+    execCommand = getNpxCommand(packageManager)
   }
 
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
@@ -361,7 +422,7 @@ export async function runUpgrade(
 
   warnDependenciesOutOfRange(appPackageJson, versionMapping)
 
-  endMessage()
+  endMessage(targetNextVersion)
 }
 
 function getInstalledNextVersion(): string {
@@ -733,4 +794,20 @@ function warnDependenciesOutOfRange(
       })
     })
   }
+}
+
+function getNpxCommand(pkgManager: PackageManager) {
+  let command = 'npx --yes'
+  if (pkgManager === 'pnpm') {
+    command = 'pnpm --silent dlx'
+  } else if (pkgManager === 'yarn') {
+    try {
+      execSync('yarn dlx --help', { stdio: 'ignore', cwd })
+      command = 'yarn --quiet dlx'
+    } catch {}
+  } else if (pkgManager === 'bun') {
+    command = 'bunx'
+  }
+
+  return command
 }

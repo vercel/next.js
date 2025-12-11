@@ -119,7 +119,7 @@ describe('log-file', () => {
       await retry(async () => {
         const newLogContent = getNewLogContent()
         expect(newLogContent).toMatchInlineSnapshot(`
-         "[xx:xx:xx.xxx] Browser LOG     Client: Complex circular object: {"name":"test","data":{"nested":{"value":42,"items":[1,2,3]},"parent":"[Circular]"},"metadata":{"name":"safe stringify","version":"1.0.0"}}
+         "[xx:xx:xx.xxx] Browser LOG     Client: Complex circular object: {"data":{"nested":{"items":[1,2,3],"value":42},"parent":"[Circular]"},"metadata":{"name":"safe stringify","version":"1.0.0"},"name":"test"}
          [xx:xx:xx.xxx] Browser ERROR   Client: This is an error message from client component
          [xx:xx:xx.xxx] Browser WARN    Client: This is a warning message from client component
          "

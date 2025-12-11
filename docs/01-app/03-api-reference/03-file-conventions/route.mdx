@@ -106,7 +106,7 @@ export async function GET(request, { params }) {
 
 You can type the Route Handler context using `RouteContext` to get strongly typed `params` from a route literal. `RouteContext` is a globally available helper.
 
-```ts filename="app/users/[id]/route.ts" switcher
+```ts filename="app/users/[id]/route.ts"
 import type { NextRequest } from 'next/server'
 
 export async function GET(_req: NextRequest, ctx: RouteContext<'/users/[id]'>) {
@@ -546,7 +546,7 @@ export async function GET(request) {
 
 > **Good to know**:
 >
-> - To add CORS headers to multiple Route Handlers, you can use [Middleware](/docs/app/api-reference/file-conventions/middleware#cors) or the [`next.config.js` file](/docs/app/api-reference/config/next-config-js/headers#cors).
+> - To add CORS headers to multiple Route Handlers, you can use [Proxy](/docs/app/api-reference/file-conventions/proxy#cors) or the [`next.config.js` file](/docs/app/api-reference/config/next-config-js/headers#cors).
 
 ### Webhooks
 

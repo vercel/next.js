@@ -71,18 +71,9 @@ pub async fn get_sass_loader_rules(
     }
 
     let sass_options = next_config.sass_config().await?;
-    let Some(mut sass_options) = sass_options.as_object().cloned() else {
+    let Some(sass_options) = sass_options.as_object() else {
         bail!("sass_options must be an object");
     };
-
-    // TODO: Remove this once we upgrade to sass-loader 16
-    let silence_deprecations = if let Some(v) = sass_options.get("silenceDeprecations") {
-        v.clone()
-    } else {
-        serde_json::json!(["legacy-js-api"])
-    };
-
-    sass_options.insert("silenceDeprecations".into(), silence_deprecations);
 
     // additionalData is a loader option but Next.js has it under `sassOptions` in
     // `next.config.js`

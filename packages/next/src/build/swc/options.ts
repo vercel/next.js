@@ -92,7 +92,7 @@ function getBaseSWCOptions({
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
   isCacheComponents?: boolean
-  cacheHandlers?: ExperimentalConfig['cacheHandlers']
+  cacheHandlers?: NextConfig['cacheHandlers']
   useCacheEnabled?: boolean
   trackDynamicImports?: boolean
 }) {
@@ -205,9 +205,7 @@ function getBaseSWCOptions({
     },
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
     ...(!isReactServerLayer && {
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       emotion: getEmotionOptions(compilerOptions?.emotion, development),
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       styledComponents: getStyledComponentsOptions(
         compilerOptions?.styledComponents,
         development
@@ -414,7 +412,7 @@ export function getLoaderSWCOptions({
   serverComponents?: boolean
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
-  cacheHandlers: ExperimentalConfig['cacheHandlers']
+  cacheHandlers: NextConfig['cacheHandlers']
   useCacheEnabled?: boolean
   trackDynamicImports?: boolean
 }) {

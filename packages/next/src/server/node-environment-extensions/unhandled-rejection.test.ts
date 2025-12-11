@@ -61,7 +61,7 @@ type WorkerResult = {
   stderr: string
   uhr: Array<UHRReport>
   count: Array<CountReport>
-  errorLog: Array<ErrorLogReport>
+  errorLog: Array<string>
   data: Record<string, unknown>
   messages: Array<ReportableResult>
 }
@@ -104,7 +104,7 @@ export function runWorkerCode(fn: Function): Promise<WorkerResult> {
     const messages: Array<ReportableResult> = []
     const uhr: Array<UHRReport> = []
     const count: Array<CountReport> = []
-    const errorLog: Array<ErrorLogReport> = []
+    const errorLog: Array<string> = []
     const data = {} as Record<string, unknown>
     let stderr = ''
 
@@ -166,7 +166,7 @@ describe('unhandled-rejection filter', () => {
 
     it('should not install filter when disabled', async () => {
       async function testForWorker() {
-        process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER = 'disabled'
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = 'disabled'
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
         reportResult({
@@ -185,7 +185,7 @@ describe('unhandled-rejection filter', () => {
 
     it('should install filter rejections when environment variable is enabled', async () => {
       async function testForWorker() {
-        process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER = 'enabled'
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = 'enabled'
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
         reportResult({
@@ -204,7 +204,7 @@ describe('unhandled-rejection filter', () => {
 
     it('should install filter rejections when environment variable is enabled in debug mode', async () => {
       async function testForWorker() {
-        process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER = 'debug'
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = 'debug'
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
         reportResult({
@@ -220,12 +220,121 @@ describe('unhandled-rejection filter', () => {
         expect.arrayContaining([expect.objectContaining({ count: 1 })])
       )
     })
+
+    it('should warn once when you uninstall the filter with removeListener', async () => {
+      async function testForWorker() {
+        const originalWarn = console.warn
+        console.warn = (...args: Array<any>) => {
+          reportResult({ type: 'error-log', message: args.join(' ') })
+          originalWarn(...args)
+        }
+
+        require('next/dist/server/node-environment-extensions/unhandled-rejection')
+
+        const filterListener = process.listeners('unhandledRejection')[0]
+        process.removeListener('unhandledRejection', filterListener)
+        process.removeListener('unhandledRejection', filterListener)
+        process.removeAllListeners()
+      }
+
+      const { errorLog, exitCode } = await runWorkerCode(testForWorker)
+      expect(exitCode).toBe(0)
+      expect(errorLog).toMatchInlineSnapshot(`
+       [
+         "[Next.js Unhandled Rejection Filter]: Uninstalling filter because \`process.removeListener('unhandledRejection', listener)\` was called with the filter listener. Uninstalling this filter is not recommended and will cause you to observe 'unhandledRejection' events related to intentionally aborted prerenders.
+
+       You can silence warnings related to this behavior by running Next.js with \`NEXT_UNHANDLED_REJECTION_FILTER=silent\` environment variable.
+
+       You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED_REJECTION_FILTER=debug\` environment variable.",
+       ]
+      `)
+    })
+
+    it('should warn once when you uninstall the filter with off', async () => {
+      async function testForWorker() {
+        const originalWarn = console.warn
+        console.warn = (...args: Array<any>) => {
+          reportResult({ type: 'error-log', message: args.join(' ') })
+          originalWarn(...args)
+        }
+
+        require('next/dist/server/node-environment-extensions/unhandled-rejection')
+
+        const filterListener = process.listeners('unhandledRejection')[0]
+        process.off('unhandledRejection', filterListener)
+        process.off('unhandledRejection', filterListener)
+        process.removeAllListeners()
+      }
+
+      const { errorLog, exitCode } = await runWorkerCode(testForWorker)
+      expect(exitCode).toBe(0)
+      expect(errorLog).toMatchInlineSnapshot(`
+       [
+         "[Next.js Unhandled Rejection Filter]: Uninstalling filter because \`process.removeListener('unhandledRejection', listener)\` was called with the filter listener. Uninstalling this filter is not recommended and will cause you to observe 'unhandledRejection' events related to intentionally aborted prerenders.
+
+       You can silence warnings related to this behavior by running Next.js with \`NEXT_UNHANDLED_REJECTION_FILTER=silent\` environment variable.
+
+       You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED_REJECTION_FILTER=debug\` environment variable.",
+       ]
+      `)
+    })
+
+    it('should warn once when you uninstall the filter with removeAllListeners', async () => {
+      async function testForWorker() {
+        const originalWarn = console.warn
+        console.warn = (...args: Array<any>) => {
+          reportResult({ type: 'error-log', message: args.join(' ') })
+          originalWarn(...args)
+        }
+
+        require('next/dist/server/node-environment-extensions/unhandled-rejection')
+
+        const filterListener = process.listeners('unhandledRejection')[0]
+        process.removeAllListeners()
+        process.off('unhandledRejection', filterListener)
+        process.removeListener('unhandledRejection', filterListener)
+      }
+
+      const { errorLog, exitCode } = await runWorkerCode(testForWorker)
+      expect(exitCode).toBe(0)
+      expect(errorLog).toMatchInlineSnapshot(`
+       [
+         "[Next.js Unhandled Rejection Filter]: Uninstalling filter because \`process.removeAllListeners()\` was called. Uninstalling this filter is not recommended and will cause you to observe 'unhandledRejection' events related to intentionally aborted prerenders.
+
+       You can silence warnings related to this behavior by running Next.js with \`NEXT_UNHANDLED_REJECTION_FILTER=silent\` environment variable.
+
+       You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED_REJECTION_FILTER=debug\` environment variable.",
+       ]
+      `)
+    })
+
+    it('does not warn when environment variable is set to silent mode', async () => {
+      async function testForWorker() {
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = 'silent'
+        const originalWarn = console.warn
+        console.warn = (...args: Array<any>) => {
+          reportResult({ type: 'error-log', message: args.join(' ') })
+          originalWarn(...args)
+        }
+
+        require('next/dist/server/node-environment-extensions/unhandled-rejection')
+
+        const filterListener = process.listeners('unhandledRejection')[0]
+        process.removeAllListeners()
+        process.off('unhandledRejection', filterListener)
+        process.removeListener('unhandledRejection', filterListener)
+      }
+
+      const { errorLog, exitCode } = await runWorkerCode(testForWorker)
+      expect(exitCode).toBe(0)
+      expect(errorLog).toMatchInlineSnapshot(`[]`)
+    })
   })
 
   describe('filtering functionality', () => {
     it('should suppress rejections from aborted prerender contexts', async () => {
       async function testForWorker() {
-        process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER = '1'
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = '1'
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
         const {
@@ -293,7 +402,7 @@ describe('unhandled-rejection filter', () => {
 
     it('should suppress rejections from aborted prerender-client contexts', async () => {
       async function testForWorker() {
-        process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER = '1'
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = '1'
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
         const {
@@ -361,7 +470,7 @@ describe('unhandled-rejection filter', () => {
 
     it('should suppress rejections from aborted prerender-runtime contexts', async () => {
       async function testForWorker() {
-        process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER = '1'
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = '1'
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
         const {
@@ -429,7 +538,7 @@ describe('unhandled-rejection filter', () => {
 
     it('should pass through rejections from non-aborted prerender contexts', async () => {
       async function testForWorker() {
-        process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER = '1'
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = '1'
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
         const {
@@ -472,7 +581,7 @@ describe('unhandled-rejection filter', () => {
 
     it('should call console.error when no handlers are present', async () => {
       async function testForWorker() {
-        process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER = '1'
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = '1'
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
         console.error = (...args: Array<any>) => {
@@ -493,7 +602,7 @@ describe('unhandled-rejection filter', () => {
   describe('process method interception', () => {
     it('should handle process.once listeners correctly', async () => {
       async function testForWorker() {
-        process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER = 'enabled'
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = 'enabled'
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
         let callCount = 0
@@ -528,7 +637,7 @@ describe('unhandled-rejection filter', () => {
 
     it('should handle process.removeListener correctly', async () => {
       async function testForWorker() {
-        process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER = 'enabled'
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = 'enabled'
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
         const handler1 = (reason: unknown) => {
@@ -598,7 +707,7 @@ describe('unhandled-rejection filter', () => {
 
     it('should uninstall filter when removeAllListeners() is called without arguments', async () => {
       async function testForWorker() {
-        process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER = 'enabled'
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = 'enabled'
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
         const {
@@ -660,7 +769,7 @@ describe('unhandled-rejection filter', () => {
 
     it('should not uninstall filter when removeAllListeners("unhandledRejection") is called', async () => {
       async function testForWorker() {
-        process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER = 'enabled'
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = 'enabled'
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
         const {
@@ -719,7 +828,7 @@ describe('unhandled-rejection filter', () => {
       // an event is emitted will be invoked regardless of whether there are mutations to the listeners
       // during event handling.
       async function testForWorker() {
-        process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER = 'enabled'
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = 'enabled'
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
         const onceHandler = (reason: unknown) => {
@@ -825,7 +934,7 @@ describe('unhandled-rejection filter', () => {
         const originalToStrings = originalMethods.map((m) => m.toString())
         const originalNames = originalMethods.map((m) => m.name)
 
-        process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER = 'enabled'
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = 'enabled'
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
         const patchedMethods = [
@@ -885,7 +994,7 @@ describe('unhandled-rejection filter', () => {
   describe('error handling in handlers', () => {
     it('should handle errors thrown by user handlers gracefully', async () => {
       async function testForWorker() {
-        process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER = 'enabled'
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = 'enabled'
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
         const {
@@ -929,7 +1038,7 @@ describe('unhandled-rejection filter', () => {
           reportResult({ type: 'uhr', reason: `existing: ${String(reason)}` })
         })
 
-        process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER = 'enabled'
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = 'enabled'
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
         const {
@@ -971,7 +1080,7 @@ describe('unhandled-rejection filter', () => {
           reportResult({ type: 'uhr', reason: `existing: ${String(reason)}` })
         })
 
-        process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER = 'enabled'
+        process.env.NEXT_UNHANDLED_REJECTION_FILTER = 'enabled'
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
         process.removeAllListeners('unhandledRejection')

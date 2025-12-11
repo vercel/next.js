@@ -1,8 +1,7 @@
 /* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
 
-const WARNING_MESSAGE =
-  'ERROR: This build is using Turbopack, with a `webpack` config and no `turbopack` config. This may be a mistake'
+const WARNING_MESSAGE = `ERROR: This build is using Turbopack, with a \`webpack\` config and no \`turbopack\` config.`
 
 const itif = (condition: boolean) => (condition ? it : it.skip)
 
@@ -89,11 +88,7 @@ export default function Page() {
             'next.config.js': `
             module.exports = {
               turbopack: {
-                rules: {
-                  '*.foo': {
-                    loaders: ['foo-loader']
-                  }
-                }
+               
               },
               webpack: (config) => {
                 return config

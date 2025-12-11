@@ -114,12 +114,29 @@ export type ReadyCacheNode = {
 
 export type DynamicParamTypes =
   | 'catchall'
-  | 'catchall-intercepted'
+  | 'catchall-intercepted-(..)(..)'
+  | 'catchall-intercepted-(.)'
+  | 'catchall-intercepted-(..)'
+  | 'catchall-intercepted-(...)'
   | 'optional-catchall'
   | 'dynamic'
-  | 'dynamic-intercepted'
+  | 'dynamic-intercepted-(..)(..)'
+  | 'dynamic-intercepted-(.)'
+  | 'dynamic-intercepted-(..)'
+  | 'dynamic-intercepted-(...)'
 
-export type DynamicParamTypesShort = 'c' | 'ci' | 'oc' | 'd' | 'di'
+export type DynamicParamTypesShort =
+  | 'c'
+  | 'ci(..)(..)'
+  | 'ci(.)'
+  | 'ci(..)'
+  | 'ci(...)'
+  | 'oc'
+  | 'd'
+  | 'di(..)(..)'
+  | 'di(.)'
+  | 'di(..)'
+  | 'di(...)'
 
 export type Segment =
   | string
@@ -221,7 +238,6 @@ export type FlightSegmentPath =
  * likely change.
  */
 export type CacheNodeSeedData = [
-  segment: Segment,
   node: React.ReactNode | null,
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
@@ -262,6 +278,8 @@ export type InitialRSCPayload = {
   b: string
   /** initialCanonicalUrlParts */
   c: string[]
+  /** initialRenderedSearch */
+  q: string
   /** couldBeIntercepted */
   i: boolean
   /** initialFlightData */
@@ -270,8 +288,6 @@ export type InitialRSCPayload = {
   m: Set<string> | undefined
   /** GlobalError */
   G: [React.ComponentType<any>, React.ReactNode | undefined]
-  /** postponed */
-  s: boolean
   /** prerendered */
   S: boolean
 }
@@ -284,6 +300,8 @@ export type NavigationFlightResponse = {
   f: FlightData
   /** prerendered */
   S: boolean
+  /** runtimePrefetch - [isPartial, staleTime]. Only present in runtime prefetch responses. */
+  rp?: [boolean, number]
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null

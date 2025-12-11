@@ -1,5 +1,6 @@
 import type { ImageLoaderPropsWithConfig } from './image-config'
 import { findClosestQuality } from './find-closest-quality'
+import { getDeploymentId } from './deployment-id'
 
 function defaultLoader({
   config,
@@ -7,6 +8,19 @@ function defaultLoader({
   width,
   quality,
 }: ImageLoaderPropsWithConfig): string {
+  if (
+    src.startsWith('/') &&
+    src.includes('?') &&
+    config.localPatterns?.length === 1 &&
+    config.localPatterns[0].pathname === '**' &&
+    config.localPatterns[0].search === ''
+  ) {
+    throw new Error(
+      `Image with src "${src}" is using a query string which is not configured in images.localPatterns.` +
+        `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns`
+    )
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     const missingValues = []
 
@@ -81,10 +95,9 @@ function defaultLoader({
 
   const q = findClosestQuality(quality, config)
 
+  let deploymentId = getDeploymentId()
   return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${q}${
-    src.startsWith('/_next/static/media/') && process.env.NEXT_DEPLOYMENT_ID
-      ? `&dpl=${process.env.NEXT_DEPLOYMENT_ID}`
-      : ''
+    src.startsWith('/') && deploymentId ? `&dpl=${deploymentId}` : ''
   }`
 }
 

@@ -14,6 +14,7 @@ import type {
   SegmentTrieData,
 } from '../../../shared/lib/mcp-page-metadata-types'
 import type { SegmentTrieNode } from '../../../next-devtools/dev-overlay/segment-explorer-trie'
+import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
 
 export function registerGetPageMetadataTool(
   server: McpServer,
@@ -28,6 +29,9 @@ export function registerGetPageMetadataTool(
       inputSchema: {},
     },
     async (_request) => {
+      // Track telemetry
+      mcpTelemetryTracker.recordToolCall('mcp/get_page_metadata')
+
       try {
         const connectionCount = getActiveConnectionCount()
         if (connectionCount === 0) {
@@ -59,16 +63,17 @@ export function registerGetPageMetadataTool(
           }
         }
 
-        const metadataByUrl = new Map<string, PageMetadata>()
+        const sessionMetadata: Array<{ url: string; metadata: PageMetadata }> =
+          []
         for (const response of responses) {
           if (response.data) {
             // TODO: Add other metadata for the current page render here. Currently, we only have segment trie data.
             const pageMetadata = convertSegmentTrieToPageMetadata(response.data)
-            metadataByUrl.set(response.url, pageMetadata)
+            sessionMetadata.push({ url: response.url, metadata: pageMetadata })
           }
         }
 
-        if (metadataByUrl.size === 0) {
+        if (sessionMetadata.length === 0) {
           return {
             content: [
               {
@@ -79,7 +84,7 @@ export function registerGetPageMetadataTool(
           }
         }
 
-        const output = formatPageMetadata(metadataByUrl)
+        const output = formatPageMetadata(sessionMetadata)
 
         return {
           content: [
@@ -145,10 +150,12 @@ function convertSegmentTrieToPageMetadata(data: SegmentTrieData): PageMetadata {
   }
 }
 
-function formatPageMetadata(metadataByUrl: Map<string, PageMetadata>): string {
-  let output = `# Page metadata from ${metadataByUrl.size} browser session(s)\n\n`
+function formatPageMetadata(
+  sessionMetadata: Array<{ url: string; metadata: PageMetadata }>
+): string {
+  let output = `# Page metadata from ${sessionMetadata.length} browser session(s)\n\n`
 
-  for (const [url, metadata] of metadataByUrl) {
+  for (const { url, metadata } of sessionMetadata) {
     let displayUrl = url
     try {
       const urlObj = new URL(url)

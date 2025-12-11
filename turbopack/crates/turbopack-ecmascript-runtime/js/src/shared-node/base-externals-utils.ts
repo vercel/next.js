@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 /// <reference path="../shared/runtime-utils.ts" />
 
 /// A 'base' utilities to support runtime can have externals.

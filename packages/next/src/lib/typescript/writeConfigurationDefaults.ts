@@ -4,7 +4,9 @@ import * as CommentJson from 'next/dist/compiled/comment-json'
 import semver from 'next/dist/compiled/semver'
 import os from 'os'
 import type { CompilerOptions } from 'typescript'
+import { getTypeDefinitionGlobPatterns } from './type-paths'
 import * as Log from '../../build/output/log'
+import { defaultConfig } from '../../server/config-shared'
 
 type DesiredCompilerOptionsShape = {
   [K in keyof CompilerOptions]:
@@ -187,7 +189,8 @@ export async function writeConfigurationDefaults(
   isFirstTimeSetup: boolean,
   hasAppDir: boolean,
   distDir: string,
-  hasPagesDir: boolean
+  hasPagesDir: boolean,
+  isolatedDevBuild: boolean | undefined
 ): Promise<void> {
   if (isFirstTimeSetup) {
     writeFileSync(tsConfigPath, '{}' + os.EOL)
@@ -262,30 +265,41 @@ export async function writeConfigurationDefaults(
         )
       }
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _: never = check
     }
   }
 
-  const nextAppTypes = `${distDir}/types/**/*.ts`
+  const resolvedIsolatedDevBuild =
+    isolatedDevBuild === undefined
+      ? defaultConfig.experimental.isolatedDevBuild
+      : isolatedDevBuild
+
+  // Get type definition glob patterns using shared utility to ensure consistency
+  // with other TypeScript infrastructure (e.g., runTypeCheck.ts)
+  const nextAppTypes = getTypeDefinitionGlobPatterns(
+    distDir,
+    resolvedIsolatedDevBuild
+  )
 
   if (!('include' in userTsConfig)) {
     userTsConfig.include = hasAppDir
-      ? ['next-env.d.ts', nextAppTypes, '**/*.mts', '**/*.ts', '**/*.tsx']
+      ? ['next-env.d.ts', ...nextAppTypes, '**/*.mts', '**/*.ts', '**/*.tsx']
       : ['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
     suggestedActions.push(
       cyan('include') +
         ' was set to ' +
         bold(
           hasAppDir
-            ? `['next-env.d.ts', '${nextAppTypes}', '**/*.mts', '**/*.ts', '**/*.tsx']`
+            ? `['next-env.d.ts', ${nextAppTypes.map((type) => `'${type}'`).join(', ')}, '**/*.mts', '**/*.ts', '**/*.tsx']`
             : `['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']`
         )
     )
   } else if (hasAppDir) {
     const missingFromResolved = []
-    if (!userTsConfig.include.includes(nextAppTypes)) {
-      missingFromResolved.push(nextAppTypes)
+    for (const type of nextAppTypes) {
+      if (!userTsConfig.include.includes(type)) {
+        missingFromResolved.push(type)
+      }
     }
 
     if (missingFromResolved.length > 0) {
