@@ -796,11 +796,11 @@ export async function fetchInternalImage(
 ): Promise<ImageUpstream> {
   try {
     // Coerce HEAD to GET to avoid issues with the image optimizer
-    const method = _req.method === 'HEAD' ? 'GET' : _req.method
+    const method = !_req.method || _req.method === 'HEAD' ? 'GET' : _req.method
 
     const mocked = createRequestResponseMocks({
       url: href,
-      method: method || 'GET',
+      method,
       socket: _req.socket,
     })
 
