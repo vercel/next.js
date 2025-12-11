@@ -314,13 +314,23 @@ function processReply(
             pendingParts--;
           }
       }
+      parentReference = writtenObjects.get(value);
       if ("function" === typeof value.then) {
+        if (void 0 !== parentReference)
+          if (modelRoot === value) modelRoot = null;
+          else return parentReference;
         null === formData && (formData = new FormData());
         pendingParts++;
         var promiseId = nextPartId++;
+        key = "$@" + promiseId.toString(16);
+        writtenObjects.set(value, key);
         value.then(function (partValue) {
           try {
-            var partJSON$27 = serializeModel(partValue, promiseId);
+            var previousReference = writtenObjects.get(partValue);
+            var partJSON$27 =
+              void 0 !== previousReference
+                ? JSON.stringify(previousReference)
+                : serializeModel(partValue, promiseId);
             partValue = formData;
             partValue.append(formFieldPrefix + promiseId, partJSON$27);
             pendingParts--;
@@ -329,9 +339,8 @@ function processReply(
             reject(reason);
           }
         }, reject);
-        return "$@" + promiseId.toString(16);
+        return key;
       }
-      parentReference = writtenObjects.get(value);
       if (void 0 !== parentReference)
         if (modelRoot === value) modelRoot = null;
         else return parentReference;
@@ -455,7 +464,7 @@ function processReply(
           null === formData && (formData = new FormData()),
           (parentReference = nextPartId++),
           formData.set(formFieldPrefix + parentReference, key),
-          "$F" + parentReference.toString(16)
+          "$h" + parentReference.toString(16)
         );
       if (
         void 0 !== temporaryReferences &&
@@ -739,12 +748,12 @@ function readChunk(chunk) {
       throw chunk.reason;
   }
 }
-function wakeChunk(response, listeners, value) {
+function wakeChunk(response, listeners, value, chunk) {
   for (var i = 0; i < listeners.length; i++) {
     var listener = listeners[i];
     "function" === typeof listener
       ? listener(value)
-      : fulfillReference(response, listener, value);
+      : fulfillReference(response, listener, value, chunk);
   }
 }
 function rejectChunk(response, listeners, error) {
@@ -784,7 +793,7 @@ function wakeChunkIfInitialized(
 ) {
   switch (chunk.status) {
     case "fulfilled":
-      wakeChunk(response, resolveListeners, chunk.value);
+      wakeChunk(response, resolveListeners, chunk.value, chunk);
       break;
     case "blocked":
       for (var i = 0; i < resolveListeners.length; i++) {
@@ -793,7 +802,7 @@ function wakeChunkIfInitialized(
           var cyclicHandler = resolveBlockedCycle(chunk, listener);
           if (null !== cyclicHandler)
             switch (
-              (fulfillReference(response, listener, cyclicHandler.value),
+              (fulfillReference(response, listener, cyclicHandler.value, chunk),
               resolveListeners.splice(i, 1),
               i--,
               null !== rejectListeners &&
@@ -802,7 +811,7 @@ function wakeChunkIfInitialized(
               chunk.status)
             ) {
               case "fulfilled":
-                wakeChunk(response, resolveListeners, chunk.value);
+                wakeChunk(response, resolveListeners, chunk.value, chunk);
                 return;
               case "rejected":
                 null !== rejectListeners &&
@@ -878,6 +887,7 @@ function resolveModuleChunk(response, chunk, value) {
       rejectListeners = chunk.reason;
     chunk.status = "resolved_module";
     chunk.value = value;
+    chunk.reason = null;
     null !== resolveListeners &&
       (initializeModuleChunk(chunk),
       wakeChunkIfInitialized(
@@ -940,8 +950,11 @@ function reportGlobalError(weakResponse, error) {
   weakResponse._closed = !0;
   weakResponse._closedReason = error;
   weakResponse._chunks.forEach(function (chunk) {
-    "pending" === chunk.status &&
-      triggerErrorOnChunk(weakResponse, chunk, error);
+    "pending" === chunk.status
+      ? triggerErrorOnChunk(weakResponse, chunk, error)
+      : "fulfilled" === chunk.status &&
+        null !== chunk.reason &&
+        chunk.reason.error(error);
   });
 }
 function createLazyChunkWrapper(chunk) {
@@ -958,109 +971,120 @@ function getChunk(response, id) {
   return chunk;
 }
 function fulfillReference(response, reference, value) {
-  for (
-    var handler = reference.handler,
-      parentObject = reference.parentObject,
-      key = reference.key,
-      map = reference.map,
-      path = reference.path,
-      i = 1;
-    i < path.length;
-    i++
-  ) {
+  var handler = reference.handler,
+    parentObject = reference.parentObject,
+    key = reference.key,
+    map = reference.map,
+    path = reference.path;
+  try {
+    for (var i = 1; i < path.length; i++) {
+      for (
+        ;
+        "object" === typeof value &&
+        null !== value &&
+        value.$$typeof === REACT_LAZY_TYPE;
+
+      ) {
+        var referencedChunk = value._payload;
+        if (referencedChunk === handler.chunk) value = handler.value;
+        else {
+          switch (referencedChunk.status) {
+            case "resolved_model":
+              initializeModelChunk(referencedChunk);
+              break;
+            case "resolved_module":
+              initializeModuleChunk(referencedChunk);
+          }
+          switch (referencedChunk.status) {
+            case "fulfilled":
+              value = referencedChunk.value;
+              continue;
+            case "blocked":
+              var cyclicHandler = resolveBlockedCycle(
+                referencedChunk,
+                reference
+              );
+              if (null !== cyclicHandler) {
+                value = cyclicHandler.value;
+                continue;
+              }
+            case "pending":
+              path.splice(0, i - 1);
+              null === referencedChunk.value
+                ? (referencedChunk.value = [reference])
+                : referencedChunk.value.push(reference);
+              null === referencedChunk.reason
+                ? (referencedChunk.reason = [reference])
+                : referencedChunk.reason.push(reference);
+              return;
+            case "halted":
+              return;
+            default:
+              rejectReference(
+                response,
+                reference.handler,
+                referencedChunk.reason
+              );
+              return;
+          }
+        }
+      }
+      value = value[path[i]];
+    }
     for (
       ;
       "object" === typeof value &&
       null !== value &&
       value.$$typeof === REACT_LAZY_TYPE;
 
-    )
-      if (((value = value._payload), value === handler.chunk))
-        value = handler.value;
+    ) {
+      var referencedChunk$43 = value._payload;
+      if (referencedChunk$43 === handler.chunk) value = handler.value;
       else {
-        switch (value.status) {
+        switch (referencedChunk$43.status) {
           case "resolved_model":
-            initializeModelChunk(value);
+            initializeModelChunk(referencedChunk$43);
             break;
           case "resolved_module":
-            initializeModuleChunk(value);
+            initializeModuleChunk(referencedChunk$43);
         }
-        switch (value.status) {
+        switch (referencedChunk$43.status) {
           case "fulfilled":
-            value = value.value;
+            value = referencedChunk$43.value;
             continue;
-          case "blocked":
-            var cyclicHandler = resolveBlockedCycle(value, reference);
-            if (null !== cyclicHandler) {
-              value = cyclicHandler.value;
-              continue;
-            }
-          case "pending":
-            path.splice(0, i - 1);
-            null === value.value
-              ? (value.value = [reference])
-              : value.value.push(reference);
-            null === value.reason
-              ? (value.reason = [reference])
-              : value.reason.push(reference);
-            return;
-          case "halted":
-            return;
-          default:
-            rejectReference(response, reference.handler, value.reason);
-            return;
         }
+        break;
       }
-    value = value[path[i]];
+    }
+    var mappedValue = map(response, value, parentObject, key);
+    parentObject[key] = mappedValue;
+    "" === key && null === handler.value && (handler.value = mappedValue);
+    if (
+      parentObject[0] === REACT_ELEMENT_TYPE &&
+      "object" === typeof handler.value &&
+      null !== handler.value &&
+      handler.value.$$typeof === REACT_ELEMENT_TYPE
+    ) {
+      var element = handler.value;
+      switch (key) {
+        case "3":
+          element.props = mappedValue;
+      }
+    }
+  } catch (error) {
+    rejectReference(response, reference.handler, error);
+    return;
   }
-  for (
-    ;
-    "object" === typeof value &&
-    null !== value &&
-    value.$$typeof === REACT_LAZY_TYPE;
-
-  )
-    if (((reference = value._payload), reference === handler.chunk))
-      value = handler.value;
-    else {
-      switch (reference.status) {
-        case "resolved_model":
-          initializeModelChunk(reference);
-          break;
-        case "resolved_module":
-          initializeModuleChunk(reference);
-      }
-      switch (reference.status) {
-        case "fulfilled":
-          value = reference.value;
-          continue;
-      }
-      break;
-    }
-  map = map(response, value, parentObject, key);
-  parentObject[key] = map;
-  "" === key && null === handler.value && (handler.value = map);
-  if (
-    parentObject[0] === REACT_ELEMENT_TYPE &&
-    "object" === typeof handler.value &&
-    null !== handler.value &&
-    handler.value.$$typeof === REACT_ELEMENT_TYPE
-  )
-    switch (((parentObject = handler.value), key)) {
-      case "3":
-        parentObject.props = map;
-    }
   handler.deps--;
   0 === handler.deps &&
-    ((key = handler.chunk),
-    null !== key &&
-      "blocked" === key.status &&
-      ((parentObject = key.value),
-      (key.status = "fulfilled"),
-      (key.value = handler.value),
-      (key.reason = handler.reason),
-      null !== parentObject &&
-        wakeChunk(response, parentObject, handler.value)));
+    ((reference = handler.chunk),
+    null !== reference &&
+      "blocked" === reference.status &&
+      ((value = reference.value),
+      (reference.status = "fulfilled"),
+      (reference.value = handler.value),
+      (reference.reason = handler.reason),
+      null !== value && wakeChunk(response, value, handler.value, reference)));
 }
 function rejectReference(response, handler, error) {
   handler.errored ||
@@ -1178,7 +1202,9 @@ function loadServerReference(response, metaData, parentObject, key) {
           ((boundArgs = resolvedValue.value),
           (resolvedValue.status = "fulfilled"),
           (resolvedValue.value = handler.value),
-          null !== boundArgs && wakeChunk(response, boundArgs, handler.value)));
+          (resolvedValue.reason = null),
+          null !== boundArgs &&
+            wakeChunk(response, boundArgs, handler.value, resolvedValue)));
     },
     function (error) {
       if (!handler.errored) {
@@ -1383,7 +1409,7 @@ function parseModelString(response, parentObject, key, value) {
         );
       case "S":
         return Symbol.for(value.slice(2));
-      case "F":
+      case "h":
         return (
           (value = value.slice(2)),
           getOutlinedModel(
@@ -1530,12 +1556,13 @@ function resolveStream(response, id, stream, controller) {
       (chunk.status = "fulfilled"),
       (chunk.value = stream),
       (chunk.reason = controller),
-      null !== id && wakeChunk(response, id, chunk.value))
+      null !== id && wakeChunk(response, id, chunk.value, chunk))
     : ((response = new ReactPromise("fulfilled", stream, controller)),
       chunks.set(id, response));
 }
 function startReadableStream(response, id, type) {
-  var controller = null;
+  var controller = null,
+    closed = !1;
   type = new ReadableStream({
     type: type,
     start: function (c) {
@@ -1585,24 +1612,27 @@ function startReadableStream(response, id, type) {
       }
     },
     close: function () {
-      if (null === previousBlockedChunk) controller.close();
-      else {
-        var blockedChunk = previousBlockedChunk;
-        previousBlockedChunk = null;
-        blockedChunk.then(function () {
-          return controller.close();
-        });
-      }
+      if (!closed)
+        if (((closed = !0), null === previousBlockedChunk)) controller.close();
+        else {
+          var blockedChunk = previousBlockedChunk;
+          previousBlockedChunk = null;
+          blockedChunk.then(function () {
+            return controller.close();
+          });
+        }
     },
     error: function (error) {
-      if (null === previousBlockedChunk) controller.error(error);
-      else {
-        var blockedChunk = previousBlockedChunk;
-        previousBlockedChunk = null;
-        blockedChunk.then(function () {
-          return controller.error(error);
-        });
-      }
+      if (!closed)
+        if (((closed = !0), null === previousBlockedChunk))
+          controller.error(error);
+        else {
+          var blockedChunk = previousBlockedChunk;
+          previousBlockedChunk = null;
+          blockedChunk.then(function () {
+            return controller.error(error);
+          });
+        }
     }
   });
 }
@@ -1656,6 +1686,7 @@ function startAsyncIterable(response, id, iterator) {
             rejectListeners = chunk.reason;
           chunk.status = "fulfilled";
           chunk.value = { done: !1, value: value };
+          chunk.reason = null;
           null !== resolveListeners &&
             wakeChunkIfInitialized(
               response,
@@ -1682,36 +1713,46 @@ function startAsyncIterable(response, id, iterator) {
         nextWriteIndex++;
       },
       close: function (value) {
-        closed = !0;
-        nextWriteIndex === buffer.length
-          ? (buffer[nextWriteIndex] = createResolvedIteratorResultChunk(
+        if (!closed)
+          for (
+            closed = !0,
+              nextWriteIndex === buffer.length
+                ? (buffer[nextWriteIndex] = createResolvedIteratorResultChunk(
+                    response,
+                    value,
+                    !0
+                  ))
+                : resolveIteratorResultChunk(
+                    response,
+                    buffer[nextWriteIndex],
+                    value,
+                    !0
+                  ),
+              nextWriteIndex++;
+            nextWriteIndex < buffer.length;
+
+          )
+            resolveIteratorResultChunk(
               response,
-              value,
-              !0
-            ))
-          : resolveIteratorResultChunk(
-              response,
-              buffer[nextWriteIndex],
-              value,
+              buffer[nextWriteIndex++],
+              '"$undefined"',
               !0
             );
-        for (nextWriteIndex++; nextWriteIndex < buffer.length; )
-          resolveIteratorResultChunk(
-            response,
-            buffer[nextWriteIndex++],
-            '"$undefined"',
-            !0
-          );
       },
       error: function (error) {
-        closed = !0;
-        for (
-          nextWriteIndex === buffer.length &&
-          (buffer[nextWriteIndex] = new ReactPromise("pending", null, null));
-          nextWriteIndex < buffer.length;
+        if (!closed)
+          for (
+            closed = !0,
+              nextWriteIndex === buffer.length &&
+                (buffer[nextWriteIndex] = new ReactPromise(
+                  "pending",
+                  null,
+                  null
+                ));
+            nextWriteIndex < buffer.length;
 
-        )
-          triggerErrorOnChunk(response, buffer[nextWriteIndex++], error);
+          )
+            triggerErrorOnChunk(response, buffer[nextWriteIndex++], error);
       }
     }
   );
