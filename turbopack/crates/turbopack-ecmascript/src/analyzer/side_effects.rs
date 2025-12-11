@@ -49,6 +49,16 @@ use turbopack_core::module::ModuleSideEffects;
 
 use crate::utils::unparen;
 
+/// Macro to check if side effects have been detected and return early if so.
+/// This makes the early-return pattern more explicit and reduces boilerplate.
+macro_rules! check_side_effects {
+    ($self:expr) => {
+        if $self.has_side_effects {
+            return;
+        }
+    };
+}
+
 /// Known pure built-in functions organized by object (e.g., Math, Object, Array).
 ///
 /// These are JavaScript built-in functions that are known to be side-effect free.
@@ -294,6 +304,21 @@ impl<'a> SideEffectVisitor<'a> {
         self.has_side_effects = true;
     }
 
+    /// Temporarily set `will_invoke_fn_exprs` to the given value, execute the closure,
+    /// then restore the original value.
+    ///
+    /// This is useful when analyzing code that may invoke function expressions passed as
+    /// arguments (e.g., callbacks to pure functions like `array.map(fn)`).
+    fn with_will_invoke_fn_exprs<F>(&mut self, value: bool, f: F)
+    where
+        F: FnOnce(&mut Self),
+    {
+        let old_value = self.will_invoke_fn_exprs;
+        self.will_invoke_fn_exprs = value;
+        f(self);
+        self.will_invoke_fn_exprs = old_value;
+    }
+
     /// Check if a span has a `/*#__PURE__*/` or `/*@__PURE__*/` annotation.
     fn is_pure_annotated(&self, span: swc_core::common::Span) -> bool {
         self.comments.has_flag(span.lo, "PURE")
@@ -433,45 +458,33 @@ impl<'a> Visit for SideEffectVisitor<'a> {
     noop_visit_type!();
     // If we've already found side effects, skip further visitation
     fn visit_program(&mut self, program: &Program) {
-        if self.has_side_effects {
-            return;
-        }
+        check_side_effects!(self);
         program.visit_children_with(self);
     }
 
     fn visit_module(&mut self, module: &Module) {
-        if self.has_side_effects {
-            return;
-        }
+        check_side_effects!(self);
 
         // Only check top-level module items
         for item in &module.body {
-            if self.has_side_effects {
-                return;
-            }
+            check_side_effects!(self);
             item.visit_with(self);
         }
     }
 
     fn visit_script(&mut self, script: &Script) {
-        if self.has_side_effects {
-            return;
-        }
+        check_side_effects!(self);
 
         // Only check top-level statements
         for stmt in &script.body {
-            if self.has_side_effects {
-                return;
-            }
+            check_side_effects!(self);
             stmt.visit_with(self);
         }
     }
 
     // Module declarations (imports/exports) need special handling
     fn visit_module_decl(&mut self, decl: &ModuleDecl) {
-        if self.has_side_effects {
-            return;
-        }
+        check_side_effects!(self);
 
         match decl {
             // Import statements may have side effects, which could require full graph analysis
@@ -556,9 +569,7 @@ impl<'a> Visit for SideEffectVisitor<'a> {
 
     // Statement-level detection
     fn visit_stmt(&mut self, stmt: &Stmt) {
-        if self.has_side_effects {
-            return;
-        }
+        check_side_effects!(self);
 
         match stmt {
             // Expression statements need checking
@@ -591,9 +602,7 @@ impl<'a> Visit for SideEffectVisitor<'a> {
     }
 
     fn visit_var_declarator(&mut self, var_decl: &VarDeclarator) {
-        if self.has_side_effects {
-            return;
-        }
+        check_side_effects!(self);
 
         // Check the pattern (for default values in destructuring)
         var_decl.name.visit_with(self);
@@ -606,9 +615,7 @@ impl<'a> Visit for SideEffectVisitor<'a> {
 
     // Expression-level detection
     fn visit_expr(&mut self, expr: &Expr) {
-        if self.has_side_effects {
-            return;
-        }
+        check_side_effects!(self);
 
         match expr {
             // Pure expressions
@@ -622,9 +629,9 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 // Function expressions are pure (don't execute until called)
                 if self.will_invoke_fn_exprs {
                     // assume that any nested function expressions will not be invoked.
-                    self.will_invoke_fn_exprs = false;
-                    expr.visit_children_with(self);
-                    self.will_invoke_fn_exprs = true;
+                    self.with_will_invoke_fn_exprs(false, |this| {
+                        expr.visit_children_with(this);
+                    });
                 }
             }
             Expr::Class(class_expr) => {
@@ -699,10 +706,9 @@ impl<'a> Visit for SideEffectVisitor<'a> {
 
                     // Check all arguments
                     // Assume that any function expressions in the arguments will be invoked.
-                    let old_will_invoke_fn_exprs = self.will_invoke_fn_exprs;
-                    self.will_invoke_fn_exprs = true;
-                    call.args.visit_children_with(self);
-                    self.will_invoke_fn_exprs = old_will_invoke_fn_exprs;
+                    self.with_will_invoke_fn_exprs(true, |this| {
+                        call.args.visit_children_with(this);
+                    });
                 } else if self.is_require_or_import(&call.callee) {
                     self.has_imports = true;
                     // It would be weird to have a side effect in a require(...) statement, but not
@@ -717,10 +723,9 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 // Check for /*#__PURE__*/ annotation or known pure constructor
                 if self.is_pure_annotated(new.span) || self.is_known_pure_constructor(&new.callee) {
                     // Pure constructor, but still need to check arguments
-                    let old_will_invoke_fn_exprs = self.will_invoke_fn_exprs;
-                    self.will_invoke_fn_exprs = true;
-                    new.args.visit_children_with(self);
-                    self.will_invoke_fn_exprs = old_will_invoke_fn_exprs;
+                    self.with_will_invoke_fn_exprs(true, |this| {
+                        new.args.visit_children_with(this);
+                    });
                 } else {
                     // Unknown constructor calls are considered to have side effects
                     self.mark_side_effect();
@@ -793,9 +798,7 @@ impl<'a> Visit for SideEffectVisitor<'a> {
     }
 
     fn visit_opt_chain_base(&mut self, base: &OptChainBase) {
-        if self.has_side_effects {
-            return;
-        }
+        check_side_effects!(self);
 
         match base {
             OptChainBase::Member(member) => {
@@ -811,9 +814,7 @@ impl<'a> Visit for SideEffectVisitor<'a> {
     }
 
     fn visit_prop_or_spread(&mut self, prop: &PropOrSpread) {
-        if self.has_side_effects {
-            return;
-        }
+        check_side_effects!(self);
 
         match prop {
             PropOrSpread::Spread(spread) => {
@@ -826,9 +827,7 @@ impl<'a> Visit for SideEffectVisitor<'a> {
     }
 
     fn visit_prop(&mut self, prop: &Prop) {
-        if self.has_side_effects {
-            return;
-        }
+        check_side_effects!(self);
 
         match prop {
             Prop::KeyValue(kv) => {
@@ -858,9 +857,7 @@ impl<'a> Visit for SideEffectVisitor<'a> {
     }
 
     fn visit_prop_name(&mut self, prop_name: &PropName) {
-        if self.has_side_effects {
-            return;
-        }
+        check_side_effects!(self);
 
         match prop_name {
             PropName::Computed(computed) => {
@@ -874,9 +871,7 @@ impl<'a> Visit for SideEffectVisitor<'a> {
     }
 
     fn visit_class(&mut self, class: &Class) {
-        if self.has_side_effects {
-            return;
-        }
+        check_side_effects!(self);
 
         // Check decorators - they execute at definition time
         for decorator in &class.decorators {
@@ -895,9 +890,7 @@ impl<'a> Visit for SideEffectVisitor<'a> {
     }
 
     fn visit_class_member(&mut self, member: &ClassMember) {
-        if self.has_side_effects {
-            return;
-        }
+        check_side_effects!(self);
 
         match member {
             // Static blocks execute at class definition time
@@ -999,9 +992,7 @@ impl<'a> Visit for SideEffectVisitor<'a> {
     }
 
     fn visit_pat(&mut self, pat: &Pat) {
-        if self.has_side_effects {
-            return;
-        }
+        check_side_effects!(self);
 
         match pat {
             // Object patterns with default values need checking
