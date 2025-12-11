@@ -48,7 +48,7 @@ type RawWasmBindings = typeof import('./generated-wasm') & {
   default?(): Promise<typeof import('./generated-wasm')>
 }
 
-const nextVersion = process.env.__NEXT_VERSION as string
+const nextVersion = '15.6.0-canary.58'
 
 const ArchName = arch()
 const PlatformName = platform()
