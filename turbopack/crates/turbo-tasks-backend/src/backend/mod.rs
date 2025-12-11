@@ -2235,9 +2235,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         debug_assert!(!new_children.is_empty());
 
         let mut queue = AggregationUpdateQueue::new();
-        for &child_id in new_children {
-            let child_task = ctx.task(child_id, TaskDataCategory::Meta);
+        ctx.for_each_task_meta(new_children.iter().copied(), |child_task, ctx| {
             if !child_task.has_key(&CachedDataItemKey::Output {}) {
+                let child_id = child_task.id();
                 make_task_dirty_internal(
                     child_task,
                     child_id,
@@ -2248,7 +2248,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     ctx,
                 );
             }
-        }
+        });
 
         queue.execute(ctx);
     }
