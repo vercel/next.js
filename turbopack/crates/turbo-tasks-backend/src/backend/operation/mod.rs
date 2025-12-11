@@ -430,37 +430,24 @@ where
         let backend = self.backend;
         #[cfg(debug_assertions)]
         let active_task_locks = self.active_task_locks.clone();
-        #[cfg(debug_assertions)]
-        let task_ids = task_ids.into_iter().collect::<Vec<_>>();
-        #[cfg(debug_assertions)]
-        let input_count = task_ids.len();
-        #[cfg(debug_assertions)]
-        let mut count = 0;
-        self.prepare_tasks_with_callback(task_ids, true, |this, task_id, category, task| {
+        self.prepare_tasks_with_callback(task_ids, true, |this, task_id, _category, task| {
             // The prepare_tasks_with_callback already increased the active_task_locks count and
             // checked for concurrent access but it will also decrement it again, so we
             // need to increase it again here as Drop will decrement it
             #[cfg(debug_assertions)]
             active_task_locks.fetch_add(1, Ordering::AcqRel);
 
-            #[cfg(debug_assertions)]
-            {
-                count += 1;
-            }
-
             let guard: TaskGuardImpl<'_, B> = TaskGuardImpl {
                 task,
                 task_id,
                 backend,
                 #[cfg(debug_assertions)]
-                category,
+                category: _category,
                 #[cfg(debug_assertions)]
                 active_task_locks: active_task_locks.clone(),
             };
             func(guard, this);
         });
-        #[cfg(debug_assertions)]
-        debug_assert_eq!(count, input_count);
     }
 
     fn is_once_task(&self, task_id: TaskId) -> bool {
