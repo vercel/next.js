@@ -1952,13 +1952,9 @@ impl AggregationUpdateQueue {
 
                 let has_data = !data.is_empty();
                 if has_data || !is_active {
-                    for upper_id in upper_ids.iter() {
-                        // add data to upper
-                        let mut upper = ctx.task(
-                            *upper_id,
-                            // For performance reasons this should stay `Meta` and not `All`
-                            TaskDataCategory::Meta,
-                        );
+                    // add data to upper
+                    // For performance reasons this should stay `Meta` and not `All`
+                    ctx.for_each_task_meta(upper_ids.iter().copied(), |mut upper, ctx| {
                         if has_data {
                             let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                             if !diff.is_empty() {
@@ -1979,7 +1975,7 @@ impl AggregationUpdateQueue {
                                 is_active = true;
                             }
                         }
-                    }
+                    });
                 }
                 if !children.is_empty() {
                     self.push(
