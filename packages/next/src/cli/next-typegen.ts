@@ -57,13 +57,14 @@ const nextTypegen = async (
   await verifyTypeScriptSetup({
     dir: baseDir,
     distDir: nextConfig.distDir,
-    intentDirs: [pagesDir, appDir].filter(Boolean) as string[],
     typeCheckPreflight: false,
     tsconfigPath: nextConfig.typescript.tsconfigPath,
     disableStaticImages: nextConfig.images.disableStaticImages,
     hasAppDir: !!appDir,
     hasPagesDir: !!pagesDir,
     isolatedDevBuild: nextConfig.experimental.isolatedDevBuild,
+    appDir: appDir || undefined,
+    pagesDir: pagesDir || undefined,
   })
 
   console.log('Generating route types...')
