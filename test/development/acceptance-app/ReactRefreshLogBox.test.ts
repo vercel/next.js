@@ -1506,7 +1506,7 @@ describe('ReactRefreshLogBox app', () => {
          "description": "  ╰─▶   × Error: RspackResolver(NotFound("./boom.css"))",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "<FIXME-project-root>/node_modules/.pnpm/next@file+..+next-repo-9c6e97679f5c3553d3ec04ec28ac7e5aca39fe6dbd50a0b00e66ae89d134f775+packa_kefuxcpyzen6dvrrroklci3grq/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[15].oneOf[10].use[2]!<FIXME-project-root>/node_modules/.pnpm/next@file+..+next-repo-9c6e97679f5c3553d3ec04ec28ac7e5aca39fe6dbd50a0b00e66ae89d134f775+packa_kefuxcpyzen6dvrrroklci3grq/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[15].oneOf[10].use[3]!<FIXME-project-root>/app/styles2.css
+         "source": "<FIXME-project-root>/app/styles2.css
          ╰─▶   × Error: RspackResolver(NotFound("./boom.css"))",
          "stack": [],
        }
