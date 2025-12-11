@@ -717,11 +717,10 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 // Check for /*#__PURE__*/ annotation or known pure constructor
                 if self.is_pure_annotated(new.span) || self.is_known_pure_constructor(&new.callee) {
                     // Pure constructor, but still need to check arguments
-                    if let Some(args) = &new.args {
-                        for arg in args {
-                            arg.expr.visit_with(self);
-                        }
-                    }
+                    let old_will_invoke_fn_exprs = self.will_invoke_fn_exprs;
+                    self.will_invoke_fn_exprs = true;
+                    new.args.visit_children_with(self);
+                    self.will_invoke_fn_exprs = old_will_invoke_fn_exprs;
                 } else {
                     // Unknown constructor calls are considered to have side effects
                     self.mark_side_effect();
@@ -1523,6 +1522,10 @@ mod tests {
         no_side_effects!(test_new_error, "const e = new Error('message');");
 
         no_side_effects!(test_new_promise, "const p = new Promise(() => {});");
+        side_effects!(
+            test_new_promise_effectful,
+            "const p = new Promise(() => {console.log('hello')});"
+        );
 
         no_side_effects!(test_new_array, "const arr = new Array(10);");
 
