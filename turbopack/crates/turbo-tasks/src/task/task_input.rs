@@ -307,13 +307,14 @@ where
     V: TaskInput + 'static,
 {
     async fn resolve_input(&self) -> Result<Self> {
-        let mut new_entries = Vec::new();
+        let mut new_entries = Vec::with_capacity(self.len());
         for (k, v) in self {
             new_entries.push((
                 TaskInput::resolve_input(k).await?,
                 TaskInput::resolve_input(v).await?,
             ));
         }
+        // note: resolving might deduplicate `Vc`s in keys
         Ok(Self::from(new_entries))
     }
 
@@ -333,11 +334,11 @@ where
     T: TaskInput + Ord + 'static,
 {
     async fn resolve_input(&self) -> Result<Self> {
-        let mut new_set = Vec::new();
+        let mut new_set = Vec::with_capacity(self.len());
         for value in self {
             new_set.push(TaskInput::resolve_input(value).await?);
         }
-        Ok(Self::from(new_set))
+        Ok(Self::from_iter(new_set))
     }
 
     fn is_resolved(&self) -> bool {
