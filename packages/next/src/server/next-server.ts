@@ -1303,65 +1303,6 @@ export default class NextNodeServer extends BaseServer<
     const handler = super.getRequestHandler()
 
     return async (req, res, parsedUrl) => {
-      const url = req.url || ''
-      const pathname = url.split('?')[0]
-
-      if (
-        // process.env.__NEXT_INSIGHTS_BUILD && // TODO figure out why DCE sets this to false even in INSIGHTS build?
-        pathname === '/__nextjs_insights_ingest'
-      ) {
-        const rawRes =
-          res instanceof NodeNextResponse ? res.originalResponse : res
-        const rawReq =
-          req instanceof NodeNextRequest ? req.originalRequest : req
-
-        // Handle POST request with waterfall report
-        if (rawReq.method === 'POST') {
-          let body = ''
-          rawReq.on('data', (chunk: Buffer) => {
-            body += chunk.toString()
-          })
-          rawReq.on('end', async () => {
-            try {
-              const report = JSON.parse(body)
-              const { handleInsightsReport } =
-                require('./lib/insights-handler') as typeof import('./lib/insights-handler')
-              handleInsightsReport(
-                report,
-                this.distDir,
-                this.dir,
-                this.nextConfig.cacheComponents ?? false
-              )
-              rawRes.statusCode = 200
-              rawRes.setHeader('Content-Type', 'application/json')
-              rawRes.end(JSON.stringify({ ok: true }))
-            } catch (e) {
-              console.error('Error processing insights report:', e)
-              rawRes.statusCode = 400
-              rawRes.setHeader('Content-Type', 'application/json')
-              rawRes.end(
-                JSON.stringify({
-                  ok: false,
-                  error: e instanceof Error ? e.message : 'Invalid JSON',
-                })
-              )
-            }
-          })
-          return
-        }
-
-        // Handle GET request (for testing)
-        rawRes.statusCode = 200
-        rawRes.setHeader('Content-Type', 'application/json')
-        rawRes.end(
-          JSON.stringify({
-            ok: true,
-            message: 'Insights ingest endpoint ready',
-          })
-        )
-        return
-      }
-
       return handler(this.normalizeReq(req), this.normalizeRes(res), parsedUrl)
     }
   }

@@ -243,7 +243,14 @@ async function sendRawData() {
   }
 
   try {
-    await originalFetch('/__nextjs_insights_ingest', {
+    // Route ID is injected at build time to avoid collisions with user routes
+    // The route is created at /{routeId} as a real app route
+    const routeId = process.env.__NEXT_INSIGHTS_ROUTE
+    if (!routeId) {
+      console.warn('[Insights] No insights route configured')
+      return
+    }
+    await originalFetch(`/${routeId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

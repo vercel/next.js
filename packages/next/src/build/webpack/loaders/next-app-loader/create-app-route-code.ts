@@ -37,7 +37,15 @@ export async function createAppRouteCode({
 
   // This, when used with the resolver will give us the pathname to the built
   // route handler file.
-  let resolvedPagePath = await resolveAppRoute(routePath)
+  let resolvedPagePath: string | undefined
+
+  // Check if this is an absolute path (built-in route like insights)
+  if (path.isAbsolute(routePath)) {
+    resolvedPagePath = routePath
+  } else {
+    resolvedPagePath = await resolveAppRoute(routePath)
+  }
+
   if (!resolvedPagePath) {
     throw new Error(
       `Invariant: could not resolve page path for ${name} at ${routePath}`
@@ -47,12 +55,18 @@ export async function createAppRouteCode({
   // If this is a metadata route file, then we need to use the metadata-loader
   // for the route to ensure that the route is generated.
   const fileBaseName = path.parse(resolvedPagePath).name
-  const appDirRelativePath = resolvedPagePath.slice(appDir.length)
-  const isMetadataEntryFile = isMetadataRouteFile(
-    appDirRelativePath,
-    DEFAULT_METADATA_ROUTE_EXTENSIONS,
-    true
-  )
+  // For built-in routes (absolute paths not under appDir), skip metadata check
+  const isBuiltinRoute = !resolvedPagePath.startsWith(appDir)
+  const appDirRelativePath = isBuiltinRoute
+    ? resolvedPagePath
+    : resolvedPagePath.slice(appDir.length)
+  const isMetadataEntryFile =
+    !isBuiltinRoute &&
+    isMetadataRouteFile(
+      appDirRelativePath,
+      DEFAULT_METADATA_ROUTE_EXTENSIONS,
+      true
+    )
   if (isMetadataEntryFile) {
     const { ext } = getFilenameAndExtension(resolvedPagePath)
     const isDynamicRouteExtension = pageExtensions.includes(ext)

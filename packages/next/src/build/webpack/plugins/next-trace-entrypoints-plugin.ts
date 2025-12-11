@@ -19,6 +19,7 @@ import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'
 import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
+import { isAppBuiltinServerRoute } from '../../utils'
 import { getCompilationSpan } from '../utils'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
@@ -236,18 +237,28 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         )
 
         if (entrypoint.name.startsWith('app/') && this.appDir) {
-          const appDirRelativeEntryPath =
+          const entryAbsolutePath =
             this.buildTraceContext.entriesTrace?.absolutePathByEntryName[
               entrypoint.name
-            ]?.replace(this.appDir, '')
+            ]
+
+          const appDirRelativeEntryPath = entryAbsolutePath?.replace(
+            this.appDir,
+            ''
+          )
 
           const entryIsStaticMetadataRoute =
             appDirRelativeEntryPath &&
             isMetadataRouteFile(appDirRelativeEntryPath, [], true)
 
+          // Check if this is a built-in server route (e.g., insights ingest route)
+          // These routes don't have client reference manifests.
+          const entryIsBuiltinServerRoute =
+            entryAbsolutePath && isAppBuiltinServerRoute(entryAbsolutePath)
+
           // Include the client reference manifest in the trace, but not for
-          // static metadata routes, for which we don't generate those.
-          if (!entryIsStaticMetadataRoute) {
+          // static metadata routes or built-in server routes, for which we don't generate those.
+          if (!entryIsStaticMetadataRoute && !entryIsBuiltinServerRoute) {
             entryFiles.add(
               nodePath.join(
                 outputPath,
@@ -364,6 +375,11 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                           ) {
                             entryModMap.set(absolutePath, entryMod)
                             entryNameMap.set(absolutePath, name)
+                            absolutePathByEntryName.set(name, absolutePath)
+                          } else if (isAppBuiltinServerRoute(absolutePath)) {
+                            // Built-in server routes (e.g., insights) need to be tracked
+                            // in absolutePathByEntryName so we can skip generating
+                            // client reference manifests for them.
                             absolutePathByEntryName.set(name, absolutePath)
                           }
                         }

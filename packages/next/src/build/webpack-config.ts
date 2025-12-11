@@ -92,7 +92,7 @@ import {
 import { getRspackCore } from '../shared/lib/get-rspack'
 import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
 import getWebpackBundler from '../shared/lib/get-webpack-bundler'
-import type { NextBuildContext } from './build-context'
+import { NextBuildContext } from './build-context'
 import type { RootParamsLoaderOpts } from './webpack/loaders/next-root-params-loader'
 import type { InvalidImportLoaderOpts } from './webpack/loaders/next-invalid-import-error-loader'
 import { defaultOverrides } from '../server/require-hook'
@@ -2031,6 +2031,7 @@ export default async function getBaseWebpackConfig(
           middlewareMatchers,
           omitNonDeterministic: isCompileMode,
           rewrites,
+          insightsRouteId: NextBuildContext.insightsRouteId,
         })
       ),
       isClient &&

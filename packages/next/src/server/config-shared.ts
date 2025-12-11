@@ -1154,7 +1154,6 @@ export interface NextConfig {
   /**
    * Enable insights build with source maps and no minification.
    * This is set automatically when using `next build --insights`.
-   * @internal
    */
   insights?: boolean
 

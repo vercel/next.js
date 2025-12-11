@@ -437,6 +437,7 @@ export function createDefineEnv({
   hasRewrites,
   middlewareMatchers,
   rewrites,
+  insightsRouteId,
 }: Omit<
   DefineEnvOptions,
   'isClient' | 'isNodeOrEdgeCompilation' | 'isEdgeServer' | 'isNodeServer'
@@ -463,6 +464,7 @@ export function createDefineEnv({
         isNodeServer: variant === 'nodejs',
         middlewareMatchers,
         rewrites,
+        insightsRouteId,
       })
     )
   }

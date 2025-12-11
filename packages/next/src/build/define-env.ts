@@ -39,6 +39,7 @@ export interface DefineEnvOptions {
     afterFiles: Rewrite[]
     fallback: Rewrite[]
   }
+  insightsRouteId?: string
 }
 
 interface DefineEnv {
@@ -111,6 +112,7 @@ export function getDefineEnv({
   middlewareMatchers,
   omitNonDeterministic,
   rewrites,
+  insightsRouteId,
 }: DefineEnvOptions): SerializedDefineEnv {
   const nextPublicEnv = getNextPublicEnvironmentVariables()
   const nextConfigEnv = getNextConfigEnv(config)
@@ -349,6 +351,7 @@ export function getDefineEnv({
     'process.env.__NEXT_TRANSITION_INDICATOR':
       config.experimental.transitionIndicator ?? false,
     'process.env.__NEXT_INSIGHTS_BUILD': config.insights ?? false,
+    'process.env.__NEXT_INSIGHTS_ROUTE': insightsRouteId ?? '',
   }
 
   const userDefines = config.compiler?.define ?? {}

@@ -97,4 +97,5 @@ export const NextBuildContext: Partial<{
   debugPrerender: boolean
   analyze: boolean
   insights: boolean
+  insightsRouteId: string
 }> = {}

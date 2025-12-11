@@ -1436,9 +1436,22 @@ export function isReservedPage(page: string) {
 }
 
 export function isAppBuiltinPage(page: string) {
-  return /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/]builtin[\\/]/.test(
-    page
+  return (
+    // Client-side builtin pages (e.g., not-found, error)
+    /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/]builtin[\\/]/.test(
+      page
+    ) ||
+    // Server-side builtin routes (e.g., insights ingest route)
+    isAppBuiltinServerRoute(page)
   )
+}
+
+/**
+ * Check if a page path is a built-in server-only route (e.g., insights ingest route).
+ * These routes should not be compiled by the client compiler.
+ */
+export function isAppBuiltinServerRoute(page: string) {
+  return /next[\\/]dist[\\/](esm[\\/])?server[\\/]insights[\\/]/.test(page)
 }
 
 export function isCustomErrorPage(page: string) {

@@ -44,6 +44,7 @@ import {
   isProxyFile,
   isInstrumentationHookFile,
   isInstrumentationHookFilename,
+  isAppBuiltinServerRoute,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
@@ -451,6 +452,7 @@ export async function createPagesMapping({
   pagesDir,
   appDir,
   appDirOnly,
+  insightsRouteId,
 }: {
   isDev: boolean
   pageExtensions: PageExtensions
@@ -459,6 +461,7 @@ export async function createPagesMapping({
   pagesDir: string | undefined
   appDir: string | undefined
   appDirOnly: boolean
+  insightsRouteId?: string
 }): Promise<MappedPages> {
   const isAppRoute = pagesType === 'app'
 
@@ -540,6 +543,12 @@ export async function createPagesMapping({
         ...(hasAppGlobalError && {
           [UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY]: require.resolve(
             'next/dist/client/components/builtin/app-error'
+          ),
+        }),
+        // Add insights ingest route if enabled
+        ...(insightsRouteId && {
+          [`/${insightsRouteId}/route`]: require.resolve(
+            'next/dist/server/insights/insights-ingest-route'
           ),
         }),
         ...pages,
@@ -917,14 +926,19 @@ export async function createEntrypoints(
       const isInstrumentation =
         isInstrumentationHookFile(page) && pagesType === PAGE_TYPES.ROOT
 
+      // Check if this is a built-in server-only route (e.g., insights ingest route)
+      // These routes should not be compiled by the client compiler
+      const isBuiltinServerRoute = isAppBuiltinServerRoute(pageFilePath)
+
       runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
         pageType: pagesType,
         onClient: () => {
-          if (isServerComponent || isInsideAppDir) {
+          if (isServerComponent || isInsideAppDir || isBuiltinServerRoute) {
             // We skip the initial entries for server component pages and let the
             // server compiler inject them instead.
+            // We also skip built-in server routes since they should only run on the server.
           } else {
             client[clientBundlePath] = getClientEntry({
               absolutePagePath,

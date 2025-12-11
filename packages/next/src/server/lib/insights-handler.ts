@@ -1,6 +1,8 @@
 import fsPromises from 'fs/promises'
 import { join, dirname } from 'path'
-import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
+// Use the pure-JS source-map library (not source-map08 which requires WASM)
+// This works better when bundled into app built-in routes
+import { SourceMapConsumer } from 'next/dist/compiled/source-map'
 
 type StackFrame = {
   functionName: string
@@ -102,45 +104,41 @@ export async function resolveSourceMapFrame(
     const sourceMap = JSON.parse(sourceMapContent)
     const consumer = await new SourceMapConsumer(sourceMap)
 
-    try {
-      const original = consumer.originalPositionFor({
-        line: frame.lineNumber,
-        column: frame.columnNumber,
-      })
+    const original = consumer.originalPositionFor({
+      line: frame.lineNumber,
+      column: frame.columnNumber,
+    })
 
-      if (original.source) {
-        // Convert source paths to absolute file paths
-        // Uses same patterns as hot-reloader-turbopack.ts and webpack-module-path.ts
-        let resolvedFileName = original.source
+    if (original.source) {
+      // Convert source paths to absolute file paths
+      // Uses same patterns as hot-reloader-turbopack.ts and webpack-module-path.ts
+      let resolvedFileName = original.source
 
-        // Turbopack: turbopack:///[project]/path/to/file.tsx -> /absolute/path/to/file.tsx
-        // Same pattern as hot-reloader-turbopack.ts:162
-        resolvedFileName = resolvedFileName.replace(
-          /turbopack:\/\/\/\[project\]/,
-          projectDir
-        )
+      // Turbopack: turbopack:///[project]/path/to/file.tsx -> /absolute/path/to/file.tsx
+      // Same pattern as hot-reloader-turbopack.ts:162
+      resolvedFileName = resolvedFileName.replace(
+        /turbopack:\/\/\/\[project\]/,
+        projectDir
+      )
 
-        // Webpack: webpack://app/./path -> ./path, webpack://_N_E/./path -> ./path
-        // Same pattern as webpack-module-path.ts
-        resolvedFileName = resolvedFileName
-          .replace(/^webpack-internal:\/\/\/(\([\w-]+\)\/)?/, '')
-          .replace(/^(webpack:\/\/\/|webpack:\/\/(_N_E\/)?)(\([\w-]+\)\/)?/, '')
+      // Webpack: webpack://app/./path -> ./path, webpack://_N_E/./path -> ./path
+      // Same pattern as webpack-module-path.ts
+      resolvedFileName = resolvedFileName
+        .replace(/^webpack-internal:\/\/\/(\([\w-]+\)\/)?/, '')
+        .replace(/^(webpack:\/\/\/|webpack:\/\/(_N_E\/)?)(\([\w-]+\)\/)?/, '')
 
-        // Convert relative paths to absolute
-        if (resolvedFileName.startsWith('./')) {
-          resolvedFileName = join(projectDir, resolvedFileName.slice(2))
-        }
-
-        return {
-          functionName: original.name || frame.functionName,
-          fileName: resolvedFileName,
-          lineNumber: original.line || frame.lineNumber,
-          columnNumber: original.column || frame.columnNumber,
-          raw: frame.raw,
-        }
+      // Convert relative paths to absolute
+      if (resolvedFileName.startsWith('./')) {
+        resolvedFileName = join(projectDir, resolvedFileName.slice(2))
       }
-    } finally {
-      consumer.destroy()
+
+      return {
+        functionName: original.name || frame.functionName,
+        fileName: resolvedFileName,
+        lineNumber: original.line || frame.lineNumber,
+        columnNumber: original.column || frame.columnNumber,
+        raw: frame.raw,
+      }
     }
   } catch {
     // Return original frame on any error
@@ -217,9 +215,9 @@ export async function handleInsightsReport(
     return `${filePath}:${topFrame.lineNumber}`
   }
 
-  // No fetches - nothing to analyze
+  // No fetches - no waterfall possible
   if (report.fetchEvents.length === 0) {
-    console.log(`✅ No waterfall detected on ${route} (no client fetches)`)
+    console.log(`[Insights] ✅ NO WATERFALL on ${route}`)
     return
   }
 
@@ -430,75 +428,55 @@ export async function handleInsightsReport(
   }
 
   // Step 4: Determine result and output
-  const parallelBatches = fetchBatches.filter((b) => b.length > 1)
-  const hasParallelBatches = parallelBatches.length > 0
-
   // No waterfall detected
   if (!treeHasWaterfall) {
-    if (hasParallelBatches) {
-      console.log(`✅ No waterfall detected on ${route}`)
-      parallelBatches.forEach((batch, i) => {
-        console.log(`   Parallel fetch group ${i + 1}:`)
-        batch.forEach((f) => {
-          const location = getLocation(f.parsedFrames)
-          console.log(`     - ${f.url}`)
-          console.log(`       at ${location}`)
-        })
-      })
-    } else {
-      console.log(`✅ No waterfall detected on ${route}`)
-    }
+    console.log(`[Insights] ✅ NO WATERFALL on ${route}`)
     return
   }
 
-  // Waterfall detected - detailed output
-  console.log('')
-  console.log('═'.repeat(80))
-  console.log(`🚨 WATERFALL DETECTED on ${route}`)
-  console.log('═'.repeat(80))
-  console.log('')
-
-  // Recursive function to print tree with proper formatting
-  const printTreeOutput = (
+  // Recursive function to build tree string
+  const buildTreeString = (
     node: FetchNode,
     depth: number = 0,
     prefix: string = ''
-  ) => {
+  ): string => {
+    let result = ''
     if (node.isParallelGroup && node.parallelFetches) {
       // Parallel group
-      if (depth > 0) console.log(`${prefix}↓`)
+      if (depth > 0) result += `${prefix}↓\n`
       node.parallelFetches.forEach((f, idx) => {
         const location = getLocation(f.parsedFrames)
         const isLast = idx === node.parallelFetches!.length - 1
         const bullet = node.parallelFetches!.length > 1 ? '├─' : '└─'
-        console.log(`${prefix}${isLast ? '└─' : bullet} ${f.url} (${location})`)
+        result += `${prefix}${isLast ? '└─' : bullet} ${f.url} (${location})\n`
       })
     } else {
       // Single fetch
-      if (depth > 0) console.log(`${prefix}↓`)
+      if (depth > 0) result += `${prefix}↓\n`
       const location = getLocation(node.fetch.parsedFrames)
-      console.log(`${prefix}└─ ${node.fetch.url} (${location})`)
+      result += `${prefix}└─ ${node.fetch.url} (${location})\n`
     }
 
-    // Print children
+    // Build children
     if (node.children.length > 0) {
       const childPrefix = prefix + '   '
       node.children.forEach((child) => {
-        printTreeOutput(child, depth + 1, childPrefix)
+        result += buildTreeString(child, depth + 1, childPrefix)
       })
     }
+    return result
   }
 
+  // Build tree string
+  let treeOutput = ''
   rootNodes.forEach((root, idx) => {
     if (rootNodes.length > 1 && idx > 0) {
-      console.log('')
-      console.log('─'.repeat(80))
-      console.log('')
+      treeOutput += `\n${'─'.repeat(80)}\n\n`
     }
     if (rootNodes.length > 1) {
-      console.log(`Path ${idx + 1}:`)
+      treeOutput += `Path ${idx + 1}:\n`
     }
-    printTreeOutput(root)
+    treeOutput += buildTreeString(root)
   })
 
   // Calculate severity
@@ -847,5 +825,10 @@ ${'═'.repeat(80)}
 `
   }
 
-  console.log(aiInsights)
+  // Build final output with informative first line for Vercel log list view
+  const serialCount = totalFetches - parallelCount
+  const firstLine = `[Insights] ${severityEmoji[severity]} WATERFALL DETECTED on ${route} | Severity: ${severity} | Depth: ${maxDepth} | Fetches: ${totalFetches} (${parallelCount} parallel, ${serialCount} serial)`
+  const fullOutput = `${firstLine}\n${treeOutput}${aiInsights}`
+
+  console.log(fullOutput)
 }

@@ -79,6 +79,7 @@ import {
   FUNCTIONS_CONFIG_MANIFEST,
   DYNAMIC_CSS_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
+  INSIGHTS_MANIFEST,
 } from '../shared/lib/constants'
 import {
   UNDERSCORE_NOT_FOUND_ROUTE,
@@ -541,6 +542,18 @@ async function writePrerenderManifest(
   await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
 }
 
+export interface InsightsManifest {
+  enabled: boolean
+  routeId: string
+}
+
+async function writeInsightsManifest(
+  distDir: string,
+  manifest: InsightsManifest
+): Promise<void> {
+  await writeManifest(path.join(distDir, INSIGHTS_MANIFEST), manifest)
+}
+
 async function writeClientSsgManifest(
   prerenderManifest: DeepReadonly<PrerenderManifest>,
   {
@@ -915,6 +928,10 @@ export default async function build(
     NextBuildContext.noMangling = noMangling
     NextBuildContext.debugPrerender = debugPrerender
     NextBuildContext.insights = insights
+    // Generate a random route ID for insights builds to avoid collisions with user routes
+    NextBuildContext.insightsRouteId = insights
+      ? Math.random().toString(36).substring(2, 10)
+      : ''
 
     await nextBuildSpan.traceAsyncFn(async () => {
       // attempt to load global env values so they are available in next.config.js
@@ -1326,6 +1343,7 @@ export default async function build(
               pagesDir,
               appDir,
               appDirOnly,
+              insightsRouteId: NextBuildContext.insightsRouteId,
             })
           )
 
@@ -3996,6 +4014,14 @@ export default async function build(
           dynamicRoutes: {},
           preview: previewProps,
           notFoundRoutes: [],
+        })
+      }
+
+      // Write insights manifest if insights build is enabled
+      if (insights && NextBuildContext.insightsRouteId) {
+        await writeInsightsManifest(distDir, {
+          enabled: true,
+          routeId: NextBuildContext.insightsRouteId,
         })
       }
 
