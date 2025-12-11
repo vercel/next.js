@@ -834,14 +834,14 @@ export function createPatchedFetcher(
                 const incrementalCacheConfig:
                   | SetIncrementalFetchCacheContext
                   | undefined = isCacheableRevalidate
-                    ? {
+                  ? {
                       fetchCache: true,
                       fetchUrl,
                       fetchIdx,
                       tags,
                       isImplicitBuildTimeCache,
                     }
-                    : undefined
+                  : undefined
 
                 switch (workUnitStore?.type) {
                   case 'prerender':
@@ -907,13 +907,13 @@ export function createPatchedFetcher(
             const entry = workStore.isOnDemandRevalidate
               ? null
               : await incrementalCache.get(cacheKey, {
-                kind: IncrementalCacheKind.FETCH,
-                revalidate: finalRevalidate,
-                fetchUrl,
-                fetchIdx,
-                tags,
-                softTags: implicitTags?.tags,
-              })
+              kind: IncrementalCacheKind.FETCH,
+              revalidate: finalRevalidate,
+              fetchUrl,
+              fetchIdx,
+              tags,
+              softTags: implicitTags?.tags,
+            })
 
             if (hasNoExplicitCacheConfig && workUnitStore) {
               switch (workUnitStore.type) {
@@ -1183,7 +1183,7 @@ export function createPatchedFetcher(
   patched.__nextPatched = true as const
   patched.__nextGetStaticStore = () => workAsyncStorage
   patched._nextOriginalFetch = originFetch
-    ; (globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = true
+  ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = true
 
   // Assign the function name also as a name property, so that it's preserved
   // even when mangling is enabled.
