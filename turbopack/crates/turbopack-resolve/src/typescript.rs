@@ -2,6 +2,7 @@ use std::mem::take;
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
+use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueDefault, Vc, fxindexset};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath, FileSystemPathOption};
@@ -478,12 +479,11 @@ pub async fn type_resolve(
 #[turbo_tasks::function]
 pub async fn as_typings_result(result: Vc<ModuleResolveResult>) -> Result<Vc<ModuleResolveResult>> {
     let mut result = result.owned().await?;
-    result.primary = IntoIterator::into_iter(take(&mut result.primary))
-        .map(|(mut k, v)| {
-            k.conditions.insert("types".to_string(), true);
-            (k, v)
-        })
-        .collect();
+    let mut primary = Box::<[_]>::from(take(&mut result.primary));
+    for (request_key, _v) in &mut primary {
+        request_key.conditions.insert("types".to_string(), true);
+    }
+    result.primary = FrozenMap::from_overlapping_vec(primary.into_vec());
     Ok(result.cell())
 }
 

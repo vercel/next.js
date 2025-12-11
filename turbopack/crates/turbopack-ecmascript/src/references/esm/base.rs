@@ -9,6 +9,7 @@ use swc_core::{
     },
     quote,
 };
+use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
@@ -434,10 +435,10 @@ impl ModuleReference for EsmAssetReference {
                     .await?
                 {
                     return Ok(ModuleResolveResult {
-                        primary: Box::new([(
+                        primary: FrozenMap::from_unique_sorted_box(Box::new([(
                             RequestKey::default(),
                             ModuleResolveResultItem::Ignore,
-                        )]),
+                        )])),
                         affecting_sources: Default::default(),
                     }
                     .cell());

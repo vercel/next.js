@@ -12,10 +12,11 @@ use bincode::{Decode, Encode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
+use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, SliceMap, TaskInput,
-    TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 use turbo_unix_path::normalize_request;
@@ -170,7 +171,7 @@ impl ExportUsage {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
-    pub primary: SliceMap<RequestKey, ModuleResolveResultItem>,
+    pub primary: FrozenMap<RequestKey, ModuleResolveResultItem>,
     /// Affecting sources are other files that influence the resolve result.  For example,
     /// traversed symlinks
     pub affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
@@ -194,8 +195,10 @@ impl ModuleResolveResult {
         module: ResolvedVc<Box<dyn Module>>,
     ) -> ResolvedVc<Self> {
         ModuleResolveResult {
-            primary: vec![(request_key, ModuleResolveResultItem::Module(module))]
-                .into_boxed_slice(),
+            primary: FrozenMap::from_unique_sorted_box(Box::from([(
+                request_key,
+                ModuleResolveResultItem::Module(module),
+            )])),
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -206,11 +209,10 @@ impl ModuleResolveResult {
         output_asset: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> ResolvedVc<Self> {
         ModuleResolveResult {
-            primary: vec![(
+            primary: FrozenMap::from_unique_sorted_box(Box::from([(
                 request_key,
                 ModuleResolveResultItem::OutputAsset(output_asset),
-            )]
-            .into_boxed_slice(),
+            )])),
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -220,10 +222,11 @@ impl ModuleResolveResult {
         modules: impl IntoIterator<Item = (RequestKey, ResolvedVc<Box<dyn Module>>)>,
     ) -> ResolvedVc<Self> {
         ModuleResolveResult {
-            primary: modules
-                .into_iter()
-                .map(|(k, v)| (k, ModuleResolveResultItem::Module(v)))
-                .collect(),
+            primary: FrozenMap::from_overlapping_iter(
+                modules
+                    .into_iter()
+                    .map(|(k, v)| (k, ModuleResolveResultItem::Module(v))),
+            ),
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -234,10 +237,11 @@ impl ModuleResolveResult {
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> ResolvedVc<Self> {
         ModuleResolveResult {
-            primary: modules
-                .into_iter()
-                .map(|(k, v)| (k, ModuleResolveResultItem::Module(v)))
-                .collect(),
+            primary: FrozenMap::from_overlapping_iter(
+                modules
+                    .into_iter()
+                    .map(|(k, v)| (k, ModuleResolveResultItem::Module(v))),
+            ),
             affecting_sources: affecting_sources.into_boxed_slice(),
         }
         .resolved_cell()
@@ -276,14 +280,14 @@ impl ModuleResolveResult {
 }
 
 pub struct ModuleResolveResultBuilder {
-    pub primary: FxIndexMap<RequestKey, ModuleResolveResultItem>,
+    pub primary: BTreeMap<RequestKey, ModuleResolveResultItem>,
     pub affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
 }
 
 impl From<ModuleResolveResultBuilder> for ModuleResolveResult {
     fn from(v: ModuleResolveResultBuilder) -> Self {
         ModuleResolveResult {
-            primary: v.primary.into_iter().collect(),
+            primary: FrozenMap::from(v.primary),
             affecting_sources: v.affecting_sources.into_boxed_slice(),
         }
     }
@@ -291,7 +295,7 @@ impl From<ModuleResolveResultBuilder> for ModuleResolveResult {
 impl From<ModuleResolveResult> for ModuleResolveResultBuilder {
     fn from(v: ModuleResolveResult) -> Self {
         ModuleResolveResultBuilder {
-            primary: IntoIterator::into_iter(v.primary).collect(),
+            primary: v.primary.into_iter().collect(),
             affecting_sources: v.affecting_sources.into_vec(),
         }
     }
@@ -470,7 +474,7 @@ pub enum ResolveResultItem {
 /// A primary factor is the actual request string, but there are
 /// other factors like exports conditions that can affect resolting and become
 /// part of the key (assuming the condition is unknown at compile time)
-#[derive(Clone, Debug, Default, Hash, TaskInput)]
+#[derive(Clone, Debug, Default, Hash, PartialOrd, Ord, TaskInput)]
 #[turbo_tasks::value]
 pub struct RequestKey {
     pub request: Option<RcStr>,
@@ -510,7 +514,7 @@ impl RequestKey {
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub struct ResolveResult {
-    pub primary: SliceMap<RequestKey, ResolveResultItem>,
+    pub primary: FrozenMap<RequestKey, ResolveResultItem>,
     /// Affecting sources are other files that influence the resolve result.  For example,
     /// traversed symlinks
     pub affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
@@ -608,7 +612,7 @@ impl ResolveResult {
         result: ResolveResultItem,
     ) -> ResolvedVc<Self> {
         ResolveResult {
-            primary: vec![(request_key, result)].into_boxed_slice(),
+            primary: FrozenMap::from_unique_sorted_box(Box::from([(request_key, result)])),
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -620,7 +624,7 @@ impl ResolveResult {
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> ResolvedVc<Self> {
         ResolveResult {
-            primary: vec![(request_key, result)].into_boxed_slice(),
+            primary: FrozenMap::from_unique_sorted_box(Box::new([(request_key, result)])),
             affecting_sources: affecting_sources.into_boxed_slice(),
         }
         .resolved_cell()
@@ -632,7 +636,10 @@ impl ResolveResult {
 
     fn source_with_key(request_key: RequestKey, source: ResolvedVc<Box<dyn Source>>) -> Self {
         ResolveResult {
-            primary: vec![(request_key, ResolveResultItem::Source(source))].into_boxed_slice(),
+            primary: FrozenMap::from_unique_sorted_box(Box::new([(
+                request_key,
+                ResolveResultItem::Source(source),
+            )])),
             affecting_sources: Default::default(),
         }
     }
@@ -643,7 +650,10 @@ impl ResolveResult {
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Self {
         ResolveResult {
-            primary: vec![(request_key, ResolveResultItem::Source(source))].into_boxed_slice(),
+            primary: FrozenMap::from_unique_sorted_box(Box::new([(
+                request_key,
+                ResolveResultItem::Source(source),
+            )])),
             affecting_sources: affecting_sources.into_boxed_slice(),
         }
     }
@@ -666,44 +676,46 @@ impl ResolveResult {
         AF: Future<Output = Result<ModuleResolveResultItem>>,
     {
         Ok(ModuleResolveResult {
-            primary: self
-                .primary
-                .iter()
-                .map(|(request, item)| {
-                    let asset_fn = &source_fn;
-                    let request = request.clone();
-                    let item = item.clone();
-                    async move {
-                        Ok((
-                            request,
-                            match item {
-                                ResolveResultItem::Source(source) => asset_fn(source).await?,
-                                ResolveResultItem::External {
-                                    name,
-                                    ty,
-                                    traced,
-                                    target,
-                                } => {
-                                    if traced == ExternalTraced::Traced || target.is_some() {
-                                        // Should use map_primary_items instead
-                                        bail!("map_module doesn't handle traced externals");
+            primary: FrozenMap::from_unique_sorted_box(
+                self.primary
+                    .iter()
+                    .map(|(request, item)| {
+                        let asset_fn = &source_fn;
+                        let request = request.clone();
+                        let item = item.clone();
+                        async move {
+                            Ok((
+                                request,
+                                match item {
+                                    ResolveResultItem::Source(source) => asset_fn(source).await?,
+                                    ResolveResultItem::External {
+                                        name,
+                                        ty,
+                                        traced,
+                                        target,
+                                    } => {
+                                        if traced == ExternalTraced::Traced || target.is_some() {
+                                            // Should use map_primary_items instead
+                                            bail!("map_module doesn't handle traced externals");
+                                        }
+                                        ModuleResolveResultItem::External { name, ty }
                                     }
-                                    ModuleResolveResultItem::External { name, ty }
-                                }
-                                ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
-                                ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
-                                ResolveResultItem::Error(e) => ModuleResolveResultItem::Error(e),
-                                ResolveResultItem::Custom(u8) => {
-                                    ModuleResolveResultItem::Custom(u8)
-                                }
-                            },
-                        ))
-                    }
-                })
-                .try_join()
-                .await?
-                .into_iter()
-                .collect(),
+                                    ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
+                                    ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
+                                    ResolveResultItem::Error(e) => {
+                                        ModuleResolveResultItem::Error(e)
+                                    }
+                                    ResolveResultItem::Custom(u8) => {
+                                        ModuleResolveResultItem::Custom(u8)
+                                    }
+                                },
+                            ))
+                        }
+                    })
+                    .try_join()
+                    .await?
+                    .into_boxed_slice(),
+            ),
             affecting_sources: self.affecting_sources.clone(),
         })
     }
@@ -714,39 +726,34 @@ impl ResolveResult {
         AF: Future<Output = Result<ModuleResolveResultItem>>,
     {
         Ok(ModuleResolveResult {
-            primary: self
-                .primary
-                .iter()
-                .map(|(request, item)| {
-                    let asset_fn = &item_fn;
-                    let request = request.clone();
-                    let item = item.clone();
-                    async move { Ok((request, asset_fn(item).await?)) }
-                })
-                .try_join()
-                .await?
-                .into_iter()
-                .collect(),
+            primary: FrozenMap::from_unique_sorted_box(
+                self.primary
+                    .iter()
+                    .map(|(request, item)| {
+                        let asset_fn = &item_fn;
+                        let request = request.clone();
+                        let item = item.clone();
+                        async move { Ok((request, asset_fn(item).await?)) }
+                    })
+                    .try_join()
+                    .await?
+                    .into_boxed_slice(),
+            ),
             affecting_sources: self.affecting_sources.clone(),
         })
     }
 
-    /// Returns a new [ResolveResult] where all [RequestKey]s are set to the
-    /// passed `request`.
+    /// Returns a new [ResolveResult] where all [RequestKey]s are set to the passed `request`.
     fn with_request_ref(&self, request: RcStr) -> Self {
-        let new_primary = self
-            .primary
-            .iter()
-            .map(|(k, v)| {
-                (
-                    RequestKey {
-                        request: Some(request.clone()),
-                        conditions: k.conditions.clone(),
-                    },
-                    v.clone(),
-                )
-            })
-            .collect();
+        let new_primary = FrozenMap::from_overlapping_iter(self.primary.iter().map(|(k, v)| {
+            (
+                RequestKey {
+                    request: Some(request.clone()),
+                    conditions: k.conditions.clone(),
+                },
+                v.clone(),
+            )
+        }));
         ResolveResult {
             primary: new_primary,
             affecting_sources: self.affecting_sources.clone(),
@@ -754,30 +761,25 @@ impl ResolveResult {
     }
 
     pub fn add_conditions(&mut self, conditions: impl IntoIterator<Item = (RcStr, bool)>) {
-        let mut primary = std::mem::take(&mut self.primary);
+        let mut primary = <Box<[_]>>::from(std::mem::take(&mut self.primary)).into_vec();
         for (k, v) in conditions {
             for (key, _) in primary.iter_mut() {
                 key.conditions.insert(k.to_string(), v);
             }
         }
-        // Deduplicate
-        self.primary = IntoIterator::into_iter(primary)
-            .collect::<FxIndexMap<_, _>>()
-            .into_iter()
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
+        self.primary = FrozenMap::from_overlapping_vec(primary);
     }
 }
 
 struct ResolveResultBuilder {
-    primary: FxIndexMap<RequestKey, ResolveResultItem>,
+    primary: BTreeMap<RequestKey, ResolveResultItem>,
     affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
 }
 
 impl From<ResolveResultBuilder> for ResolveResult {
     fn from(v: ResolveResultBuilder) -> Self {
         ResolveResult {
-            primary: v.primary.into_iter().collect(),
+            primary: FrozenMap::from(v.primary),
             affecting_sources: v.affecting_sources.into_boxed_slice(),
         }
     }
@@ -785,7 +787,7 @@ impl From<ResolveResultBuilder> for ResolveResult {
 impl From<ResolveResult> for ResolveResultBuilder {
     fn from(v: ResolveResult) -> Self {
         ResolveResultBuilder {
-            primary: IntoIterator::into_iter(v.primary).collect(),
+            primary: v.primary.into_iter().collect(),
             affecting_sources: v.affecting_sources.into_vec(),
         }
     }
@@ -937,23 +939,19 @@ impl ResolveResult {
         old_request_key: RcStr,
         request_key: RequestKey,
     ) -> Result<Vc<Self>> {
-        let new_primary = self
-            .primary
-            .iter()
-            .filter_map(|(k, v)| {
-                let remaining = k.request.as_ref()?.strip_prefix(&*old_request_key)?;
-                Some((
-                    RequestKey {
-                        request: request_key
-                            .request
-                            .as_ref()
-                            .map(|r| format!("{r}{remaining}").into()),
-                        conditions: request_key.conditions.clone(),
-                    },
-                    v.clone(),
-                ))
-            })
-            .collect();
+        let new_primary = FrozenMap::from_unique_iter(self.primary.iter().filter_map(|(k, v)| {
+            let remaining = k.request.as_ref()?.strip_prefix(&*old_request_key)?;
+            Some((
+                RequestKey {
+                    request: request_key
+                        .request
+                        .as_ref()
+                        .map(|r| format!("{r}{remaining}").into()),
+                    conditions: request_key.conditions.clone(),
+                },
+                v.clone(),
+            ))
+        }));
         Ok(ResolveResult {
             primary: new_primary,
             affecting_sources: self.affecting_sources.clone(),
@@ -966,20 +964,16 @@ impl ResolveResult {
     /// without the prefix, but if there are still some, they are discarded.
     #[turbo_tasks::function]
     fn with_stripped_request_key_prefix(&self, prefix: RcStr) -> Result<Vc<Self>> {
-        let new_primary = self
-            .primary
-            .iter()
-            .filter_map(|(k, v)| {
-                let remaining = k.request.as_ref()?.strip_prefix(&*prefix)?;
-                Some((
-                    RequestKey {
-                        request: Some(remaining.into()),
-                        conditions: k.conditions.clone(),
-                    },
-                    v.clone(),
-                ))
-            })
-            .collect();
+        let new_primary = FrozenMap::from_unique_iter(self.primary.iter().filter_map(|(k, v)| {
+            let remaining = k.request.as_ref()?.strip_prefix(&*prefix)?;
+            Some((
+                RequestKey {
+                    request: Some(remaining.into()),
+                    conditions: k.conditions.clone(),
+                },
+                v.clone(),
+            ))
+        }));
         Ok(ResolveResult {
             primary: new_primary,
             affecting_sources: self.affecting_sources.clone(),
@@ -1000,23 +994,19 @@ impl ResolveResult {
         let old_request_key = &*old_request_key.await?;
         let request_key = &*request_key.await?;
 
-        let new_primary = self
-            .primary
-            .iter()
-            .map(|(k, v)| {
-                (
-                    RequestKey {
-                        request: k
-                            .request
-                            .as_ref()
-                            .and_then(|r| old_request_key.match_apply_template(r, request_key))
-                            .map(Into::into),
-                        conditions: k.conditions.clone(),
-                    },
-                    v.clone(),
-                )
-            })
-            .collect();
+        let new_primary = FrozenMap::from_overlapping_iter(self.primary.iter().map(|(k, v)| {
+            (
+                RequestKey {
+                    request: k
+                        .request
+                        .as_ref()
+                        .and_then(|r| old_request_key.match_apply_template(r, request_key))
+                        .map(Into::into),
+                    conditions: k.conditions.clone(),
+                },
+                v.clone(),
+            )
+        }));
         Ok(ResolveResult {
             primary: new_primary,
             affecting_sources: self.affecting_sources.clone(),
@@ -1028,19 +1018,15 @@ impl ResolveResult {
     /// passed `request`.
     #[turbo_tasks::function]
     fn with_request(&self, request: RcStr) -> Vc<Self> {
-        let new_primary = self
-            .primary
-            .iter()
-            .map(|(k, v)| {
-                (
-                    RequestKey {
-                        request: Some(request.clone()),
-                        conditions: k.conditions.clone(),
-                    },
-                    v.clone(),
-                )
-            })
-            .collect();
+        let new_primary = FrozenMap::from_unique_iter(self.primary.iter().map(|(k, v)| {
+            (
+                RequestKey {
+                    request: Some(request.clone()),
+                    conditions: k.conditions.clone(),
+                },
+                v.clone(),
+            )
+        }));
         ResolveResult {
             primary: new_primary,
             affecting_sources: self.affecting_sources.clone(),
@@ -1766,7 +1752,7 @@ async fn handle_after_resolve_plugins(
     affecting_sources.append(&mut new_affecting_sources);
 
     Ok(ResolveResult {
-        primary: new_primary.into_iter().collect(),
+        primary: FrozenMap::from(new_primary),
         affecting_sources: affecting_sources.into_boxed_slice(),
     }
     .cell())
