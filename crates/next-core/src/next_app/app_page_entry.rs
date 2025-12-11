@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
-use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
+use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -76,7 +76,7 @@ pub async fn get_app_page_entry(
     let source = load_next_js_template(
         "app-page.js",
         project_root.clone(),
-        &[
+        [
             ("VAR_DEFINITION_PAGE", &*page.to_string()),
             ("VAR_DEFINITION_PATHNAME", &pathname),
             (
@@ -88,12 +88,12 @@ pub async fn get_app_page_entry(
                 },
             ),
         ],
-        &[
+        [
             ("tree", &*loader_tree_code),
             ("__next_app_require__", &TURBOPACK_REQUIRE.bound()),
             ("__next_app_load_chunk__", &TURBOPACK_LOAD.bound()),
         ],
-        &[],
+        [],
     )
     .await?;
 
@@ -106,7 +106,7 @@ pub async fn get_app_page_entry(
     let file = File::from(result.build());
     let source = VirtualSource::new_with_ident(
         source.ident().with_query(RcStr::from(format!("?{query}"))),
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     let mut rsc_entry = module_asset_context
@@ -122,7 +122,6 @@ pub async fn get_app_page_entry(
             project_root.clone(),
             rsc_entry,
             page,
-            next_config,
         );
     };
 
@@ -141,22 +140,15 @@ async fn wrap_edge_page(
     project_root: FileSystemPath,
     entry: ResolvedVc<Box<dyn Module>>,
     page: AppPage,
-    next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_PAGE_ENTRY";
-
-    let next_config_val = &*next_config.await?;
 
     let source = load_next_js_template(
         "edge-ssr-app.js",
         project_root.clone(),
-        &[("VAR_USERLAND", INNER), ("VAR_PAGE", &page.to_string())],
-        &[
-            // TODO do we really need to pass the entire next config here?
-            // This is bad for invalidation as any config change will invalidate this
-            ("nextConfig", &*serde_json::to_string(next_config_val)?),
-        ],
-        &[("incrementalCacheHandler", None)],
+        [("VAR_USERLAND", INNER), ("VAR_PAGE", &page.to_string())],
+        [],
+        [("incrementalCacheHandler", None)],
     )
     .await?;
 

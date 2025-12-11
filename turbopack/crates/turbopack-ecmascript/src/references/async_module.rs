@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
@@ -16,17 +17,27 @@ use turbopack_core::{
     resolve::ExternalType,
 };
 
-use super::esm::base::ReferencedAsset;
 use crate::{
     ScopeHoistingContext,
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
+    references::esm::base::ReferencedAsset,
     utils::AstSyntaxContext,
 };
 
 /// Information needed for generating the async module wrapper for
 /// [EcmascriptChunkItem](crate::chunk::EcmascriptChunkItem)s.
 #[derive(
-    PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+    PartialEq,
+    Eq,
+    Default,
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct AsyncModuleOptions {
     pub has_top_level_await: bool,
@@ -83,7 +94,9 @@ impl OptionAsyncModule {
 /// The identifiers (and their corresponding syntax context) of all async modules referenced by the
 /// current module.
 #[turbo_tasks::value(transparent)]
-struct AsyncModuleIdents(FxIndexSet<(String, AstSyntaxContext)>);
+struct AsyncModuleIdents(
+    #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<(String, AstSyntaxContext)>,
+);
 
 async fn get_inherit_async_referenced_asset(
     r: ResolvedVc<Box<dyn ModuleReference>>,

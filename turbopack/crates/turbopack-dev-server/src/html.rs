@@ -1,11 +1,12 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use mime_guess::mime::TEXT_HTML_UTF_8;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -20,7 +21,18 @@ use turbopack_core::{
 };
 
 #[derive(
-    Clone, Debug, Deserialize, Eq, Hash, NonLocalValue, PartialEq, Serialize, TaskInput, TraceRawVcs,
+    Clone,
+    Debug,
+    Deserialize,
+    Eq,
+    Hash,
+    NonLocalValue,
+    PartialEq,
+    Serialize,
+    TaskInput,
+    TraceRawVcs,
+    Encode,
+    Decode,
 )]
 pub struct DevHtmlEntry {
     pub chunkable_module: ResolvedVc<Box<dyn ChunkableModule>>,
@@ -248,7 +260,7 @@ impl DevHtmlAssetContent {
         .into();
 
         Ok(AssetContent::file(
-            File::from(html).with_content_type(TEXT_HTML_UTF_8).into(),
+            FileContent::Content(File::from(html).with_content_type(TEXT_HTML_UTF_8)).cell(),
         ))
     }
 

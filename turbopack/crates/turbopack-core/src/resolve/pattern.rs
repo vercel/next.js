@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -1498,6 +1499,8 @@ impl ValueToString for Pattern {
     Deserialize,
     ValueDebugFormat,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum PatternMatch {
     File(RcStr, FileSystemPath),
@@ -1561,9 +1564,9 @@ pub async fn read_matches(
                     if last_segment.is_empty() {
                         // This means we don't have a last segment, so we just have a directory
                         let joined = if force_in_lookup_dir {
-                            lookup_dir.try_join_inside(parent_path)?
+                            lookup_dir.try_join_inside(parent_path)
                         } else {
-                            lookup_dir.try_join(parent_path)?
+                            lookup_dir.try_join(parent_path)
                         };
                         let Some(fs_path) = joined else {
                             continue;
@@ -1579,9 +1582,9 @@ pub async fn read_matches(
                         Entry::Occupied(e) => Some(e.into_mut()),
                         Entry::Vacant(e) => {
                             let path_option = if force_in_lookup_dir {
-                                lookup_dir.try_join_inside(parent_path)?
+                                lookup_dir.try_join_inside(parent_path)
                             } else {
-                                lookup_dir.try_join(parent_path)?
+                                lookup_dir.try_join(parent_path)
                             };
                             if let Some(path) = path_option {
                                 Some(e.insert((path.raw_read_dir().await?, path)))
@@ -1635,9 +1638,9 @@ pub async fn read_matches(
                     let subpath = &str[..=str.rfind('/').unwrap()];
                     if handled.insert(subpath) {
                         let joined = if force_in_lookup_dir {
-                            lookup_dir.try_join_inside(subpath)?
+                            lookup_dir.try_join_inside(subpath)
                         } else {
-                            lookup_dir.try_join(subpath)?
+                            lookup_dir.try_join(subpath)
                         };
                         let Some(fs_path) = joined else {
                             continue;

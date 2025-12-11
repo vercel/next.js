@@ -1,3 +1,6 @@
+import type { NextConfigComplete } from '../../server/config-shared'
+import type { __ApiPreviewProps } from '../../server/api-utils'
+
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/utils'
@@ -6,8 +9,7 @@ import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers } from '../utils'
 import { normalizePath } from '../../lib/normalize-path'
-import type { NextConfigComplete } from '../../server/config-shared'
-import type { __ApiPreviewProps } from '../../server/api-utils'
+import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 
 export type AnalyzeContext = {
   config: NextConfigComplete
@@ -25,7 +27,7 @@ export async function turbopackAnalyze(
 }> {
   await validateTurboNextConfig({
     dir: analyzeContext.dir,
-    isDev: false,
+    configPhase: PHASE_PRODUCTION_BUILD,
   })
 
   const { config, dir, distDir, noMangling } = analyzeContext

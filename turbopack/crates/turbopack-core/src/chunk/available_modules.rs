@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
@@ -24,6 +25,8 @@ use crate::{
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum AvailableModuleItem {
     Module(ResolvedVc<Box<dyn ChunkableModule>>),
@@ -61,7 +64,9 @@ impl From<ChunkableModuleOrBatch> for AvailableModuleItem {
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-pub struct AvailableModulesSet(FxIndexSet<AvailableModuleItem>);
+pub struct AvailableModulesSet(
+    #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<AvailableModuleItem>,
+);
 
 /// Allows to gather information about which assets are already available.
 /// Adding more roots will form a linked list like structure to allow caching

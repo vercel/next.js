@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use either::Either;
 use next_core::{get_next_package, next_server::get_tracing_compile_time_info};
 use serde::{Deserialize, Serialize};
@@ -10,7 +11,9 @@ use turbo_tasks::{
     NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, File, FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    DirectoryContent, DirectoryEntry, File, FileContent, FileSystemPath, glob::Glob,
+};
 use turbopack::externals_tracing_module_context;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -29,7 +32,18 @@ use crate::{
 };
 
 #[derive(
-    PartialEq, Eq, TraceRawVcs, NonLocalValue, Deserialize, Serialize, Debug, Clone, Hash, TaskInput,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Deserialize,
+    Serialize,
+    Debug,
+    Clone,
+    Hash,
+    TaskInput,
+    Encode,
+    Decode,
 )]
 enum ServerNftType {
     Minimal,
@@ -161,7 +175,9 @@ impl Asset for ServerNftJsonAsset {
           "files": server_output_assets
         });
 
-        Ok(AssetContent::file(File::from(json.to_string()).into()))
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(json.to_string())).cell(),
+        ))
     }
 }
 

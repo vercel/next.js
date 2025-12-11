@@ -223,15 +223,16 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
                                     name,
                                     if let Some(value) =
                                         replacements.get(&DefinableNameSegment::Name(name.into()))
-                                        && let Some((_, value)) = value.iter().find(|(path, _)| {
-                                            matches!(
-                                                path.as_slice(),
-                                                [
-                                                    DefinableNameSegment::Name(a),
-                                                    DefinableNameSegment::Name(b)
-                                                ] if a == "process" && b == "env"
-                                            )
-                                        })
+                                        && let Some((_, value)) =
+                                            value.0.iter().find(|(path, _)| {
+                                                matches!(
+                                                    path.as_slice(),
+                                                    [
+                                                        DefinableNameSegment::Name(a),
+                                                        DefinableNameSegment::Name(b)
+                                                    ] if a == "process" && b == "env"
+                                                )
+                                            })
                                     {
                                         let value = value.await?;
                                         let value = match &*value {
@@ -272,7 +273,8 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
             )
             .await?
             {
-                source_map.generate_source_map().owned().await?
+                let source_map = source_map.generate_source_map().await?;
+                source_map.as_content().map(|f| f.content().clone())
             } else {
                 None
             };

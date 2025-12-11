@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use either::Either;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
@@ -48,7 +49,10 @@ pub struct ModuleBatchesGraphEdge {
     pub module: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
-type EntriesList = FxIndexSet<ResolvedVc<Box<dyn Module>>>;
+#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, NonLocalValue, Encode, Decode)]
+struct EntriesList(
+    #[bincode(with = "turbo_bincode::indexset")] pub FxIndexSet<ResolvedVc<Box<dyn Module>>>,
+);
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct ModuleBatchesGraph {
@@ -61,6 +65,7 @@ pub struct ModuleBatchesGraph {
     //
     // This contains Vcs, but they are already contained in the graph, so no need to trace this.
     #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
     entries: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
     batch_groups: FxHashMap<ModuleOrBatch, ResolvedVc<ModuleBatchGroup>>,
 
@@ -92,7 +97,7 @@ impl ModuleBatchesGraph {
         chunk_group_info: &'l ChunkGroupInfo,
         idx: usize,
     ) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + 'l {
-        if let Some(ordered_entries) = self
+        if let Some(EntriesList(ordered_entries)) = self
             .ordered_entries
             .get(idx)
             .as_ref()
@@ -350,28 +355,30 @@ pub async fn compute_module_batches(
 
         // Walk the module graph and mark all modules that are boundary modules (referenced from a
         // different chunk group bitmap)
-        module_graph.traverse_all_edges_unordered(|(parent, ty), node| {
-            let std::collections::hash_set::Entry::Vacant(entry) =
-                pre_batches.boundary_modules.entry(node)
-            else {
-                // Already a boundary module, can skip check
-                return Ok(());
-            };
-            if ty.chunking_type.is_parallel() {
-                let parent_chunk_groups = chunk_group_info
-                    .module_chunk_groups
-                    .get(&parent)
-                    .context("all modules need to have chunk group info")?;
-                let chunk_groups = chunk_group_info
-                    .module_chunk_groups
-                    .get(&node)
-                    .context("all modules need to have chunk group info")?;
-                if parent_chunk_groups != chunk_groups {
-                    // This is a boundary module
+        module_graph.traverse_all_edges_unordered(|parent, node| {
+            if let Some((parent, ty)) = parent {
+                let std::collections::hash_set::Entry::Vacant(entry) =
+                    pre_batches.boundary_modules.entry(node)
+                else {
+                    // Already a boundary module, can skip check
+                    return Ok(());
+                };
+                if ty.chunking_type.is_parallel() {
+                    let parent_chunk_groups = chunk_group_info
+                        .module_chunk_groups
+                        .get(&parent)
+                        .context("all modules need to have chunk group info")?;
+                    let chunk_groups = chunk_group_info
+                        .module_chunk_groups
+                        .get(&node)
+                        .context("all modules need to have chunk group info")?;
+                    if parent_chunk_groups != chunk_groups {
+                        // This is a boundary module
+                        entry.insert();
+                    }
+                } else {
                     entry.insert();
                 }
-            } else {
-                entry.insert();
             }
             Ok(())
         })?;
@@ -444,13 +451,16 @@ pub async fn compute_module_batches(
                 .as_ref()
                 .map_or_else(
                     || Either::Left(chunk_group.entries()),
-                    |v| Either::Right(v.iter().copied()),
+                    |v| Either::Right(v.0.iter().copied()),
                 )
                 .map(|module| {
-                    let idx = *pre_batches.entries.get(&module).unwrap();
-                    (idx, 0)
+                    let idx = *pre_batches
+                        .entries
+                        .get(&module)
+                        .context("could not prebatch for module")?;
+                    Ok((idx, 0))
                 })
-                .collect::<Vec<_>>();
+                .collect::<Result<Vec<_>>>()?;
             stack.reverse();
             let mut visited = FxHashSet::default();
             while let Some((idx, mut pos)) = stack.pop() {
@@ -499,8 +509,8 @@ pub async fn compute_module_batches(
                     let idx = chunk_group_info
                         .chunk_group_keys
                         .get_index_of(&chunk_group_key)
-                        .unwrap();
-                    ordered_entries[idx] = Some(merged_modules);
+                        .context("could not find chunk group key for merged chunk group")?;
+                    ordered_entries[idx] = Some(EntriesList(merged_modules));
                 }
             }
         }
@@ -534,7 +544,9 @@ pub async fn compute_module_batches(
         let mut extracted_shared_items = 0;
         // Extract shared modules into separate batches
         for i in 0..parallel_module_to_pre_batch.len() {
-            let (&module, batches) = parallel_module_to_pre_batch.get_index(i).unwrap();
+            let (&module, batches) = parallel_module_to_pre_batch
+                .get_index(i)
+                .context("could not find parallel module to pre batch index")?;
             if batches.len() > 1 {
                 // Create a new batch for the shared modules
                 let batches_with_item_index = batches
@@ -543,10 +555,10 @@ pub async fn compute_module_batches(
                         let batch_items = &pre_batches.batches[idx].items;
                         let item_idx = batch_items
                             .get_index_of(&PreBatchItem::ParallelModule(module))
-                            .unwrap();
-                        (idx, item_idx)
+                            .context("could not find batch item index for parallel module")?;
+                        Ok((idx, item_idx))
                     })
-                    .collect::<Vec<_>>();
+                    .collect::<Result<Vec<_>>>()?;
                 let mut selected_items = 1;
                 fn get_item_at(
                     pre_batches: &PreBatches,
@@ -562,7 +574,10 @@ pub async fn compute_module_batches(
                         &pre_batches,
                         batches_with_item_index[0].0,
                         batches_with_item_index[0].1 + selected_items,
-                    ) && parallel_module_to_pre_batch.get(next_module).unwrap().len()
+                    ) && parallel_module_to_pre_batch
+                        .get(next_module)
+                        .context("could not find pre batch for parallel module")?
+                        .len()
                         == batches.len()
                         && batches_with_item_index[1..]
                             .iter()
@@ -600,7 +615,7 @@ pub async fn compute_module_batches(
                         if let PreBatchItem::ParallelModule(module) = item {
                             parallel_module_to_pre_batch
                                 .get_mut(module)
-                                .unwrap()
+                                .context("could not find pre batch for parallel module")?
                                 .clear();
                         }
                     }
@@ -622,7 +637,7 @@ pub async fn compute_module_batches(
                         if let PreBatchItem::ParallelModule(module) = item {
                             parallel_module_to_pre_batch
                                 .get_mut(module)
-                                .unwrap()
+                                .context("could not find pre batch for parallel module")?
                                 .clear();
                         }
                     }
@@ -850,7 +865,7 @@ pub async fn compute_module_batches(
                         let idx = pre_batches
                             .single_module_entries
                             .get_index_of(&module)
-                            .unwrap();
+                            .context("could not find single module entry index")?;
                         let idx = single_module_indices[idx];
                         graph.add_edge(
                             index,
@@ -880,7 +895,7 @@ pub async fn compute_module_batches(
                 let idx = pre_batches
                     .single_module_entries
                     .get_index_of(&module)
-                    .unwrap();
+                    .context("could not find single module entry index")?;
                 let idx = single_module_indices[idx];
                 entries.insert(module, idx);
             }

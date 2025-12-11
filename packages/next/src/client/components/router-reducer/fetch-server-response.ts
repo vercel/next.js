@@ -41,6 +41,7 @@ import {
   urlToUrlWithoutFlightMarker,
 } from '../../route-params'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
+import { getDeploymentId } from '../../../shared/lib/deployment-id'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -329,8 +330,9 @@ export async function createFetch<T>(
     headers['Next-Test-Fetch-Priority'] = fetchPriority
   }
 
-  if (process.env.NEXT_DEPLOYMENT_ID) {
-    headers['x-deployment-id'] = process.env.NEXT_DEPLOYMENT_ID
+  const deploymentId = getDeploymentId()
+  if (deploymentId) {
+    headers['x-deployment-id'] = deploymentId
   }
 
   if (process.env.NODE_ENV !== 'production') {

@@ -250,7 +250,7 @@ function loadChunkByUrlInternal(
       thenable,
       loadedChunk
     )
-    entry = thenable.then(resolve).catch((error) => {
+    entry = thenable.then(resolve).catch((cause) => {
       let loadReason: string
       switch (sourceType) {
         case SourceType.Runtime:
@@ -268,16 +268,14 @@ function loadChunkByUrlInternal(
             (sourceType) => `Unknown source type: ${sourceType}`
           )
       }
-      throw new Error(
+      let error = new Error(
         `Failed to load chunk ${chunkUrl} ${loadReason}${
-          error ? `: ${error}` : ''
+          cause ? `: ${cause}` : ''
         }`,
-        error
-          ? {
-              cause: error,
-            }
-          : undefined
+        cause ? { cause } : undefined
       )
+      error.name = 'ChunkLoadError'
+      throw error
     })
     instrumentedBackendLoadChunks.set(thenable, entry)
   }
@@ -326,7 +324,7 @@ function getWorkerBlobURL(chunks: ChunkPath[]): string {
   let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
 self.TURBOPACK_CHUNK_SUFFIX = ${JSON.stringify(CHUNK_SUFFIX)};
 self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
-importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c + self.TURBOPACK_CHUNK_SUFFIX).reverse());`
+importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`
   let blob = new Blob([bootstrap], { type: 'text/javascript' })
   return URL.createObjectURL(blob)
 }

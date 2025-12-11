@@ -1,6 +1,7 @@
 use std::mem::replace;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ValueToString, Vc, trace::TraceRawVcs};
@@ -11,14 +12,18 @@ use turbopack_core::{
     source_map::{GenerateSourceMap, OriginalToken, SourceMap, SyntheticToken, Token},
 };
 
-#[derive(Clone, Debug, Deserialize, Eq, NonLocalValue, PartialEq, Serialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, Deserialize, Eq, NonLocalValue, PartialEq, Serialize, TraceRawVcs, Encode, Decode,
+)]
 pub struct ChunkPartRange {
     pub line: u32,
     pub start_column: u32,
     pub end_column: u32,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, NonLocalValue, PartialEq, Serialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, Deserialize, Eq, NonLocalValue, PartialEq, Serialize, TraceRawVcs, Encode, Decode,
+)]
 pub struct ChunkPart {
     pub source: RcStr,
     pub real_size: u32,
@@ -47,10 +52,11 @@ pub async fn split_output_asset_into_parts(
     else {
         return self_mapped(asset, content).await;
     };
-    let Some(source_map) = &*generate_source_map.generate_source_map().await? else {
+    let source_map = generate_source_map.generate_source_map().await?;
+    let Some(source_map) = source_map.as_content() else {
         return self_mapped(asset, content).await;
     };
-    let Some(source_map) = SourceMap::new_from_rope(source_map)? else {
+    let Some(source_map) = SourceMap::new_from_rope(source_map.content())? else {
         return unaccounted(asset, content).await;
     };
 

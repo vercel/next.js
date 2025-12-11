@@ -1,6 +1,7 @@
 use std::{borrow::Cow, io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{Context, Result, anyhow, bail};
+use bincode::{Decode, Encode};
 use flate2::write::GzEncoder;
 use futures_util::TryFutureExt;
 use napi::{
@@ -51,7 +52,7 @@ use turbopack_core::{
     error::PrettyPrintError,
     issue::PlainIssue,
     output::{OutputAsset, OutputAssets},
-    source_map::{OptionStringifiedSourceMap, SourceMap, Token},
+    source_map::{SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
 };
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, ResourceIdentifier};
@@ -405,8 +406,14 @@ pub fn project_new(
     }
     let mut compress = Compression::None;
     if let Some(mut trace) = trace {
+        let internal_dir = PathBuf::from(&options.root_path)
+            .join(&options.project_path)
+            .join(&options.dist_dir);
+        let trace_file = internal_dir.join("trace-turbopack");
+
         println!("Turbopack tracing enabled with targets: {trace}");
         println!("  Note that this might have a small performance impact.");
+        println!("  Trace output will be written to {}", trace_file.display());
 
         trace = trace
             .split(",")
@@ -441,27 +448,20 @@ pub fn project_new(
 
         let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
 
-        let internal_dir = PathBuf::from(&options.root_path)
-            .join(&options.project_path)
-            .join(&options.dist_dir);
         std::fs::create_dir_all(&internal_dir)
             .context("Unable to create .next directory")
             .unwrap();
-        let trace_file;
         let (trace_writer, trace_writer_guard) = match compress {
             Compression::None => {
-                trace_file = internal_dir.join("trace-turbopack");
                 let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
                 TraceWriter::new(trace_writer)
             }
             Compression::GzipFast => {
-                trace_file = internal_dir.join("trace-turbopack");
                 let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
                 let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::fast());
                 TraceWriter::new(trace_writer)
             }
             Compression::GzipBest => {
-                trace_file = internal_dir.join("trace-turbopack");
                 let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
                 let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::best());
                 TraceWriter::new(trace_writer)
@@ -1529,6 +1529,8 @@ pub fn project_compilation_events_subscribe(
     Serialize,
     TaskInput,
     TraceRawVcs,
+    Encode,
+    Decode,
 )]
 pub struct StackFrame {
     pub is_server: bool,
@@ -1550,7 +1552,7 @@ pub struct OptionStackFrame(Option<StackFrame>);
 pub async fn get_source_map_rope(
     container: Vc<ProjectContainer>,
     source_url: RcStr,
-) -> Result<Vc<OptionStringifiedSourceMap>> {
+) -> Result<Vc<FileContent>> {
     let (file_path_sys, module) = match Url::parse(&source_url) {
         Ok(url) => match url.scheme() {
             "file" => {
@@ -1579,7 +1581,7 @@ pub async fn get_source_map_rope(
             Some(relative_path) => sys_to_unix(relative_path),
             None => {
                 // File doesn't exist within the dist dir
-                return Ok(OptionStringifiedSourceMap::none());
+                return Ok(FileContent::NotFound.cell());
             }
         };
 
@@ -1597,13 +1599,13 @@ pub async fn get_source_map_rope(
 
     let mut map = container.get_source_map(server_path, module.clone());
 
-    if map.await?.is_none() {
+    if !map.await?.is_content() {
         // If the chunk doesn't exist as a server chunk, try a client chunk.
         // TODO: Properly tag all server chunks and use the `isServer` query param.
         // Currently, this is inaccurate as it does not cover RSC server
         // chunks.
         map = container.get_source_map(client_path, module);
-        if map.await?.is_none() {
+        if !map.await?.is_content() {
             bail!("chunk/module '{}' is missing a sourcemap", source_url);
         }
     }
@@ -1615,7 +1617,7 @@ pub async fn get_source_map_rope(
 pub fn get_source_map_rope_operation(
     container: ResolvedVc<ProjectContainer>,
     file_path: RcStr,
-) -> Vc<OptionStringifiedSourceMap> {
+) -> Vc<FileContent> {
     get_source_map_rope(*container, file_path)
 }
 
@@ -1782,13 +1784,13 @@ pub async fn project_get_source_map(
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
         .run(async move {
-            let Some(map) = &*get_source_map_rope_operation(container, file_path)
+            let source_map = get_source_map_rope_operation(container, file_path)
                 .read_strongly_consistent()
-                .await?
-            else {
+                .await?;
+            let Some(map) = source_map.as_content() else {
                 return Ok(None);
             };
-            Ok(Some(map.to_str()?.to_string()))
+            Ok(Some(map.content().to_str()?.to_string()))
         })
         // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
         // source files may have changed or been deleted), so these probably aren't internal errors?

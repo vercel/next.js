@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -22,6 +23,7 @@ use crate::{
 /// This is needed to call `write_to_disk` which expects an `OperationVc<Endpoint>`.
 #[turbo_tasks::value(shared)]
 pub struct EntrypointsOperation {
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub routes: FxIndexMap<RcStr, RouteOperation>,
     pub middleware: Option<MiddlewareOperation>,
     pub instrumentation: Option<InstrumentationOperation>,
@@ -121,6 +123,8 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
     ValueDebugFormat,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 enum EndpointSelector {
     RoutePageHtml(RcStr),
@@ -148,7 +152,7 @@ async fn pick_endpoint(
     op: OperationVc<Entrypoints>,
     selector: EndpointSelector,
 ) -> Result<Vc<OptionEndpoint>> {
-    let endpoints = op.connect().strongly_consistent().await?;
+    let endpoints = op.read_strongly_consistent().await?;
     let endpoint = match selector {
         EndpointSelector::InstrumentationNodeJs => {
             endpoints.instrumentation.as_ref().map(|i| i.node_js)
@@ -204,13 +208,33 @@ async fn pick_endpoint(
     Ok(Vc::cell(endpoint))
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    PartialEq,
+    Eq,
+    ValueDebugFormat,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
 pub struct InstrumentationOperation {
     pub node_js: OperationVc<OptionEndpoint>,
     pub edge: OperationVc<OptionEndpoint>,
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    PartialEq,
+    Eq,
+    ValueDebugFormat,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
 pub struct MiddlewareOperation {
     pub endpoint: OperationVc<OptionEndpoint>,
     pub is_proxy: bool,
@@ -244,6 +268,8 @@ pub enum RouteOperation {
     Clone,
     Debug,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct AppPageRouteOperation {
     pub original_name: RcStr,

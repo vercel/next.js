@@ -4,13 +4,19 @@ use std::{
     marker::PhantomData,
 };
 
+use bincode::{Decode, Encode};
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use shrink_to_fit::ShrinkToFit;
 
 use crate::AutoMap;
 
-#[derive(Clone)]
+#[derive(Clone, Encode, Decode)]
+#[bincode(
+    encode_bounds = "K: Encode + Hash + Eq, H: BuildHasher + Default",
+    decode_bounds = "K: Decode<__Context> + Hash + Eq, H: BuildHasher + Default",
+    borrow_decode_bounds = "K: Decode<__Context> + Hash + Eq, H: BuildHasher + Default"
+)]
 pub struct AutoSet<K, H = BuildHasherDefault<FxHasher>, const I: usize = 0> {
     map: AutoMap<K, (), H, I>,
 }

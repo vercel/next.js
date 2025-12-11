@@ -14,6 +14,7 @@ use std::fmt::Display;
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -46,7 +47,7 @@ use crate::{
     },
     output::{OutputAssets, OutputAssetsReference},
     reference::ModuleReference,
-    resolve::ExportUsage,
+    resolve::BindingUsage,
 };
 
 /// A module id, which can be a number or string
@@ -159,6 +160,8 @@ impl MergeableModules {
     NonLocalValue,
     TaskInput,
     Hash,
+    Encode,
+    Decode,
 )]
 pub enum MergeableModuleExposure {
     // This module is only used from within the current group, and only individual exports are
@@ -265,6 +268,8 @@ pub trait OutputChunk: Asset {
     PartialEq,
     ValueDebugFormat,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum ChunkingType {
     /// The referenced module is placed in the same chunk group and is loaded in parallel.
@@ -416,8 +421,8 @@ pub trait ChunkableModuleReference: ModuleReference + ValueToString {
     }
 
     #[turbo_tasks::function]
-    fn export_usage(self: Vc<Self>) -> Vc<ExportUsage> {
-        ExportUsage::all()
+    fn binding_usage(self: Vc<Self>) -> Vc<BindingUsage> {
+        BindingUsage::all()
     }
 }
 
@@ -508,7 +513,18 @@ impl AsyncModuleInfo {
 }
 
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    TaskInput,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct ChunkItemWithAsyncModuleInfo {
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,

@@ -1,6 +1,12 @@
 use std::fmt::Display;
 
 use anyhow::{Result, bail};
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+};
 use regex::bytes::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
@@ -20,8 +26,8 @@ use crate::globset::parse;
 // Note: a/**/b does match a/b, so we need some special logic about path
 // separators
 
-#[turbo_tasks::value(eq = "manual")]
-#[derive(Debug, Clone)]
+#[turbo_tasks::value(eq = "manual", serialization = "custom")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(into = "GlobForm", try_from = "GlobForm")]
 pub struct Glob {
     glob: RcStr,
@@ -46,8 +52,37 @@ impl Display for Glob {
         write!(f, "Glob({})", self.glob)
     }
 }
+
+impl Encode for Glob {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self.glob.encode(encoder)?;
+        self.opts.encode(encoder)?;
+        Ok(())
+    }
+}
+
+impl<Context> Decode<Context> for Glob {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let glob = RcStr::decode(decoder)?;
+        let opts = GlobOptions::decode(decoder)?;
+        Glob::parse(glob, opts).map_err(|err| DecodeError::OtherString(err.to_string()))
+    }
+}
+
 #[derive(
-    Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash, Default, TaskInput, TraceRawVcs, Debug,
+    Serialize,
+    Deserialize,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Default,
+    TaskInput,
+    TraceRawVcs,
+    Debug,
+    Encode,
+    Decode,
 )]
 
 pub struct GlobOptions {

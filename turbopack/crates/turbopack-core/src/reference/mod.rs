@@ -1,9 +1,12 @@
 use std::collections::HashSet;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 
 use crate::{
@@ -14,7 +17,7 @@ use crate::{
         expand_output_assets,
     },
     raw_module::RawModule,
-    resolve::{ExportUsage, ModuleResolveResult, RequestKey},
+    resolve::{BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult, RequestKey},
 };
 pub mod source_map;
 
@@ -121,8 +124,12 @@ impl ChunkableModuleReference for SingleChunkableModuleReference {
     }
 
     #[turbo_tasks::function]
-    fn export_usage(&self) -> Vc<ExportUsage> {
-        *self.export
+    async fn binding_usage(&self) -> Result<Vc<BindingUsage>> {
+        Ok(BindingUsage {
+            import: ImportUsage::SideEffects,
+            export: self.export.owned().await?,
+        }
+        .cell())
     }
 }
 
@@ -287,8 +294,26 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
     Ok(Vc::cell(modules))
 }
 
+#[derive(
+    Clone,
+    Serialize,
+    Deserialize,
+    Eq,
+    PartialEq,
+    ValueDebugFormat,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
+pub struct ResolvedReference {
+    pub chunking_type: ChunkingType,
+    pub binding_usage: BindingUsage,
+    pub modules: Vec<ResolvedVc<Box<dyn Module>>>,
+}
+
 #[turbo_tasks::value(transparent)]
-pub struct ModulesWithRefData(Vec<(ChunkingType, ExportUsage, ReadRef<Modules>)>);
+pub struct ModulesWithRefData(Vec<(ResolvedVc<Box<dyn ModuleReference>>, ResolvedReference)>);
 
 /// Aggregates all primary [Module]s referenced by an [Module] via [ChunkableModuleReference]s.
 /// This does not include transitively referenced [Module]s, only includes
@@ -299,6 +324,7 @@ pub struct ModulesWithRefData(Vec<(ChunkingType, ExportUsage, ReadRef<Modules>)>
 pub async fn primary_chunkable_referenced_modules(
     module: ResolvedVc<Box<dyn Module>>,
     include_traced: bool,
+    include_binding_usage: bool,
 ) -> Result<Vc<ModulesWithRefData>> {
     let modules = module
         .references()
@@ -315,13 +341,23 @@ pub async fn primary_chunkable_referenced_modules(
 
                 let resolved = reference
                     .resolve_reference()
-                    .resolve()
                     .await?
-                    .primary_modules()
+                    .primary_modules_ref()
                     .await?;
-                let export = reference.export_usage().owned().await?;
+                let binding_usage = if include_binding_usage {
+                    reference.binding_usage().owned().await?
+                } else {
+                    BindingUsage::default()
+                };
 
-                return Ok(Some((chunking_type.clone(), export, resolved)));
+                return Ok(Some((
+                    ResolvedVc::upcast(reference),
+                    ResolvedReference {
+                        chunking_type: chunking_type.clone(),
+                        binding_usage,
+                        modules: resolved,
+                    },
+                )));
             }
             Ok(None)
         })
