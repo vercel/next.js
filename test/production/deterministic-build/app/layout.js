@@ -5,5 +5,3 @@ export default function Layout({ children }) {
     </html>
   )
 }
-
-export const dynamic = 'force-dynamic'
