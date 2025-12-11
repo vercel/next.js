@@ -23,6 +23,7 @@ import {
   readRouteCacheEntry,
   readSegmentCacheEntry,
   waitForSegmentCacheEntry,
+  waitForRouteCacheEntry,
   requestOptimisticRouteCacheEntry,
   type RouteTree,
   type FulfilledRouteCacheEntry,
@@ -152,6 +153,102 @@ export function navigate(
       shouldScroll,
       url.hash
     )
+  }
+
+  // Check if there's a pending prefetch in progress. If so, wait for it to complete
+  // before making a new request to avoid duplicate RSC requests.
+  if (route !== null && route.status === EntryStatus.Pending) {
+    let collectedDebugInfo = accumulation.collectedDebugInfo ?? []
+    if (accumulation.collectedDebugInfo === undefined) {
+      collectedDebugInfo = accumulation.collectedDebugInfo = []
+    }
+    // TypeScript narrows route to PendingRouteCacheEntry here due to the status check
+    return {
+      tag: NavigationResultTag.Async,
+      data: waitForRouteCacheEntry(route as any).then((fulfilledRoute) => {
+        if (
+          fulfilledRoute === null ||
+          fulfilledRoute.status !== EntryStatus.Fulfilled
+        ) {
+          // The prefetch was rejected or failed. Fall back to dynamic navigation.
+          return navigateDynamicallyWithNoPrefetch(
+            Date.now(),
+            url,
+            currentUrl,
+            nextUrl,
+            isSamePageNavigation,
+            currentCacheNode,
+            currentFlightRouterState,
+            shouldScroll,
+            url.hash,
+            collectedDebugInfo
+          )
+        }
+        // The prefetch completed successfully. Use the prefetched data.
+        const snapshot = readRenderSnapshotFromCache(
+          Date.now(),
+          fulfilledRoute,
+          fulfilledRoute.tree
+        )
+        const prefetchFlightRouterState = snapshot.flightRouterState
+        const prefetchSeedData = snapshot.seedData
+        const headSnapshot = readHeadSnapshotFromCache(
+          Date.now(),
+          fulfilledRoute
+        )
+        const prefetchHead = headSnapshot.rsc
+        const isPrefetchHeadPartial = headSnapshot.isPartial
+        const newCanonicalUrl = fulfilledRoute.canonicalUrl + url.hash
+        const renderedSearch = fulfilledRoute.renderedSearch
+
+        const navigationAccumulation: NavigationRequestAccumulation = {
+          scrollableSegments: [],
+          separateRefreshUrls: null,
+        }
+        const task = startPPRNavigation(
+          Date.now(),
+          currentUrl,
+          currentCacheNode,
+          currentFlightRouterState,
+          prefetchFlightRouterState,
+          prefetchSeedData,
+          prefetchHead,
+          isPrefetchHeadPartial,
+          isSamePageNavigation,
+          navigationAccumulation
+        )
+        if (task !== null) {
+          if (task.dynamicRequestTree !== null) {
+            listenForDynamicRequest(
+              url,
+              nextUrl,
+              task,
+              task.dynamicRequestTree,
+              null,
+              navigationAccumulation
+            )
+          }
+          return navigationTaskToResult(
+            task,
+            currentCacheNode,
+            newCanonicalUrl,
+            renderedSearch,
+            navigationAccumulation.scrollableSegments,
+            shouldScroll,
+            url.hash
+          )
+        }
+        // The server sent back an empty tree patch. There's nothing to update, except
+        // possibly the URL.
+        return {
+          tag: NavigationResultTag.NoOp,
+          data: {
+            canonicalUrl: newCanonicalUrl,
+            shouldScroll,
+          },
+        }
+      }),
+    }
   }
 
   // There was no matching route tree in the cache. Let's see if we can

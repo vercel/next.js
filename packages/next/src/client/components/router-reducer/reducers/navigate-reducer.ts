@@ -168,12 +168,17 @@ export function navigateReducer(
   // implementation. Eventually we'll rewrite the router reducer to a
   // state machine.
   const currentUrl = new URL(state.canonicalUrl, location.origin)
+  // If only search params changed (pathname is the same), don't pass nextUrl
+  // to prevent interception routes from being triggered when updating search params
+  // on a page that could be intercepted.
+  const nextUrlForRequest =
+    url.pathname === currentUrl.pathname ? null : state.nextUrl
   const result = navigateUsingSegmentCache(
     url,
     currentUrl,
     state.cache,
     state.tree,
-    state.nextUrl,
+    nextUrlForRequest,
     shouldScroll,
     mutable
   )

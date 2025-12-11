@@ -192,6 +192,7 @@ type PendingRouteCacheEntry = RouteCacheEntryShared & {
   tree: null
   metadata: null
   isPPREnabled: false
+  promise: null | PromiseWithResolvers<FulfilledRouteCacheEntry | null>
 }
 
 type RejectedRouteCacheEntry = RouteCacheEntryShared & {
@@ -447,6 +448,21 @@ export function waitForSegmentCacheEntry(
   return promiseWithResolvers.promise
 }
 
+export function waitForRouteCacheEntry(
+  pendingEntry: PendingRouteCacheEntry
+): Promise<FulfilledRouteCacheEntry | null> {
+  // Because the entry is pending, there's already a in-progress request.
+  // Attach a promise to the entry that will resolve when the server responds.
+  let promiseWithResolvers = pendingEntry.promise
+  if (promiseWithResolvers === null) {
+    promiseWithResolvers = pendingEntry.promise =
+      createPromiseWithResolvers<FulfilledRouteCacheEntry | null>()
+  } else {
+    // There's already a promise we can use
+  }
+  return promiseWithResolvers.promise
+}
+
 /**
  * Checks if an entry for a route exists in the cache. If so, it returns the
  * entry, If not, it adds an empty entry to the cache and returns it.
@@ -476,6 +492,7 @@ export function readOrCreateRouteCacheEntry(
     // Similarly, we don't yet know if the route supports PPR.
     isPPREnabled: false,
     renderedSearch: null,
+    promise: null,
 
     // Map-related fields
     ref: null,
@@ -903,6 +920,14 @@ function fulfillRouteCacheEntry(
     hasLoadingBoundary: HasLoadingBoundary.SubtreeHasNoLoadingBoundary,
     hasRuntimePrefetch: false,
   }
+  // Resolve any listeners that were waiting for this data.
+  let promiseToResolve: PromiseWithResolvers<FulfilledRouteCacheEntry | null> | null =
+    null
+  if (entry.status === EntryStatus.Pending) {
+    const pendingEntry = entry as PendingRouteCacheEntry
+    promiseToResolve = pendingEntry.promise
+  }
+
   const fulfilledEntry: FulfilledRouteCacheEntry = entry as any
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.tree = tree
@@ -912,6 +937,15 @@ function fulfillRouteCacheEntry(
   fulfilledEntry.canonicalUrl = canonicalUrl
   fulfilledEntry.renderedSearch = renderedSearch
   fulfilledEntry.isPPREnabled = isPPREnabled
+
+  if (promiseToResolve !== null) {
+    promiseToResolve.resolve(fulfilledEntry)
+    // Free the promise for garbage collection.
+    if (entry.status === EntryStatus.Pending) {
+      const pendingEntry = entry as PendingRouteCacheEntry
+      pendingEntry.promise = null
+    }
+  }
   pingBlockedTasks(entry)
   return fulfilledEntry
 }
@@ -945,6 +979,13 @@ function rejectRouteCacheEntry(
   const rejectedEntry: RejectedRouteCacheEntry = entry as any
   rejectedEntry.status = EntryStatus.Rejected
   rejectedEntry.staleAt = staleAt
+  // Resolve any listeners that were waiting for this data.
+  if (entry.promise !== null) {
+    // NOTE: We don't currently propagate the reason the prefetch was canceled
+    // but we could by accepting a `reason` argument.
+    entry.promise.resolve(null)
+    entry.promise = null
+  }
   pingBlockedTasks(entry)
 }
 

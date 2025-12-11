@@ -33,7 +33,7 @@ export async function createComponentStylesAndScripts({
     ? jsHrefs.map((href, index) =>
         createElement('script', {
           src: `${ctx.assetPrefix}/_next/${encodeURIPath(href)}${getAssetQueryString(ctx, true)}`,
-          async: true,
+          defer: true,
           key: `script-${index}`,
         })
       )

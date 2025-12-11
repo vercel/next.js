@@ -88,6 +88,8 @@ import { executeRevalidates } from '../../revalidation-utils'
 import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { createPrerenderResumeDataCache } from '../../resume-data-cache/resume-data-cache'
+import { isInterceptionRouteAppPath } from '../../../shared/lib/router/utils/interception-routes'
+import { getRequestMeta } from '../../request-meta'
 
 export class WrappedNextRouterError {
   constructor(
@@ -300,6 +302,56 @@ export class AppRouteRouteModule extends RouteModule<
     return this.methods[method]
   }
 
+  /**
+   * Checks if the route can be an intercepting route
+   * @param pathname - pathname to check
+   * @param projectDir - optional project directory for loading manifests
+   * @returns true if the route can be an intercepting route
+   */
+  private pathCouldBeIntercepted(
+    pathname: string,
+    projectDir?: string
+  ): boolean {
+    // Check if the route itself is an intercepting route
+    if (isInterceptionRouteAppPath(pathname)) {
+      return true
+    }
+
+    // Check through interceptionRoutePatterns if available
+    try {
+      // In edge runtime, manifests may be available through global variables
+      if (process.env.NEXT_RUNTIME === 'edge') {
+        const interceptionManifest = (globalThis as any)
+          .__INTERCEPTION_ROUTE_REWRITE_MANIFEST
+        if (interceptionManifest) {
+          const patterns = JSON.parse(interceptionManifest).map(
+            (rewrite: any) => new RegExp(rewrite.regex)
+          )
+          return patterns.some((regexp: RegExp) => regexp.test(pathname))
+        }
+      } else {
+        // In node runtime, we use loadManifests to get patterns
+        // loadManifests is now a protected method of the base class
+        // If projectDir is not provided, we use relativeProjectDir
+        const dir = projectDir || this.relativeProjectDir
+        if (dir) {
+          const manifests = this.loadManifests(this.definition.page, dir)
+          if (manifests && manifests.interceptionRoutePatterns) {
+            return manifests.interceptionRoutePatterns.some(
+              (regexp: RegExp) => {
+                return regexp.test(pathname)
+              }
+            )
+          }
+        }
+      }
+    } catch {
+      // If we failed to load manifests, we use only the basic check
+    }
+
+    return false
+  }
+
   private async do(
     handler: AppRouteHandlerFn,
     actionStore: ActionStore,
@@ -358,6 +410,45 @@ export class AppRouteRouteModule extends RouteModule<
             : userlandRevalidate
 
         if (cacheComponentsEnabled) {
+          // Check if the route can be an intercepting route
+          // Intercepting routes depend on the Next-URL header, which may be absent during prerender,
+          // so we skip prerender for such routes
+          const pathname = this.definition.pathname
+          const resolvedPathname = request.nextUrl.pathname
+
+          // Get projectDir for loading manifests (if available)
+          let projectDir: string | undefined
+          if (process.env.NEXT_RUNTIME !== 'edge') {
+            try {
+              const { join } =
+                require('node:path') as typeof import('node:path')
+              const relativeProjectDir =
+                getRequestMeta(request as any, 'relativeProjectDir') ||
+                this.relativeProjectDir
+              projectDir = join(process.cwd(), relativeProjectDir)
+            } catch {
+              // If we failed to get projectDir, we use undefined
+            }
+          }
+
+          // Check if the route can be an intercepting route
+          const couldBeIntercepted =
+            this.pathCouldBeIntercepted(pathname, projectDir) ||
+            this.pathCouldBeIntercepted(resolvedPathname, projectDir)
+
+          if (couldBeIntercepted) {
+            // Skip prerender for intercepting routes since they depend on the Next-URL header
+            // which may not be available during prerender
+            workStore.forceDynamic = true
+            if (workStore.isStaticGeneration) {
+              const err = new DynamicServerError(
+                'Route cannot be statically prerendered because it is an intercepting route or can be intercepted. Intercepting routes depend on the Next-URL header which may not be available during prerender.'
+              )
+              workStore.dynamicUsageDescription = err.message
+              workStore.dynamicUsageStack = err.stack
+              throw err
+            }
+          }
           /**
            * When we are attempting to statically prerender the GET handler of a route.ts module
            * and cacheComponents is on we follow a similar pattern to rendering.

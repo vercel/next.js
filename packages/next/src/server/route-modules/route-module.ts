@@ -172,7 +172,7 @@ export abstract class RouteModule<
     }
   }
 
-  private loadManifests(
+  protected loadManifests(
     srcPage: string,
     projectDir?: string
   ): {

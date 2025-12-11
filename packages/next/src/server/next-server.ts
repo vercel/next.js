@@ -34,6 +34,7 @@ import type { PagesModule } from './route-modules/pages/module.compiled'
 
 import fs from 'fs'
 import { join, relative } from 'path'
+import { pathToFileURL } from 'url'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { addRequestMeta, getRequestMeta, setRequestMeta } from './request-meta'
 import {
@@ -1561,6 +1562,26 @@ export default class NextNodeServer extends BaseServer<
     }
   }
 
+  /**
+   * Checks if the project is ESM-only (has "type": "module" in package.json)
+   */
+  private async isESMProject(): Promise<boolean> {
+    try {
+      const packageJsonPath = join(this.dir, 'package.json')
+      const packageJsonContent = await fs.promises.readFile(
+        packageJsonPath,
+        'utf8'
+      )
+      const packageJson = JSON.parse(packageJsonContent) as {
+        type?: string
+      }
+      return packageJson.type === 'module'
+    } catch {
+      // If we can't read package.json, assume it's not an ESM project
+      return false
+    }
+  }
+
   private async loadNodeMiddleware() {
     if (!process.env.NEXT_MINIMAL) {
       try {
@@ -1578,14 +1599,31 @@ export default class NextNodeServer extends BaseServer<
           this.renderOpts.dev ||
           functionsConfig?.functions?.['/_middleware']
         ) {
-          // if used with top level await, this will be a promise
-          return require(
-            join(
-              /* turbopackIgnore: true */ this.distDir,
-              'server',
-              'middleware.js'
-            )
+          const middlewarePath = join(
+            /* turbopackIgnore: true */ this.distDir,
+            'server',
+            'middleware.js'
           )
+
+          // Check if the project is ESM-only
+          const isESM = await this.isESMProject()
+
+          if (isESM) {
+            // For ESM projects, use dynamic import()
+            // Skip mapping to absolute url with pathToFileURL on windows if it's jest
+            // https://github.com/nodejs/node/issues/31710#issuecomment-587345749
+            const importPath =
+              process.platform === 'win32' && !process.env.JEST_WORKER_ID
+                ? pathToFileURL(middlewarePath).toString()
+                : middlewarePath
+
+            // if used with top level await, this will be a promise
+            return await import(importPath)
+          } else {
+            // For CJS projects, use require()
+            // if used with top level await, this will be a promise
+            return require(middlewarePath)
+          }
         }
       } catch (err) {
         if (

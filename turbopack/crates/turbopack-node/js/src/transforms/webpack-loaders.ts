@@ -155,8 +155,14 @@ const transform = (
   sourceMap: boolean
 ) => {
   return new Promise((resolve, reject) => {
+    // Normalize paths to ensure consistent path separators, especially important on Windows
+    // This helps sass-loader resolve imports correctly by ensuring paths are properly formatted
     const resource = pathResolve(contextDir, name)
     const resourceDir = dirname(resource)
+
+    // Normalize paths to use forward slashes for consistency across platforms
+    // This is important for sass-loader which may have issues with backslashes on Windows
+    const normalizedResource = path.normalize(resource).replace(/\\/g, '/')
 
     const loadersWithOptions = loaders.map((loader) =>
       typeof loader === 'string' ? { loader, options: {} } : loader
@@ -171,7 +177,7 @@ const transform = (
 
     runLoaders(
       {
-        resource: resource + query,
+        resource: normalizedResource + query,
         context: {
           _module: {
             // For debugging purpose, if someone find context is not full compatible to

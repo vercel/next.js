@@ -600,6 +600,14 @@ export default abstract class Server<
       const { originalPathname, segmentPath } = result
       parsedUrl.pathname = originalPathname
 
+      // Remove basePath from pathname if configured
+      if (this.nextConfig.basePath) {
+        parsedUrl.pathname = removePathPrefix(
+          parsedUrl.pathname,
+          this.nextConfig.basePath
+        )
+      }
+
       // Mark the request as a router prefetch request.
       req.headers[RSC_HEADER] = '1'
       req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
@@ -613,6 +621,14 @@ export default abstract class Server<
         parsedUrl.pathname,
         true
       )
+
+      // Remove basePath from pathname if configured
+      if (this.nextConfig.basePath) {
+        parsedUrl.pathname = removePathPrefix(
+          parsedUrl.pathname,
+          this.nextConfig.basePath
+        )
+      }
 
       // Mark the request as a RSC request.
       req.headers[RSC_HEADER] = '1'

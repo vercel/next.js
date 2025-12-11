@@ -63,3 +63,4 @@ test-timings.json
 
 # Storybook
 *storybook.log
+/.cursor/rules/project-rules.mdc

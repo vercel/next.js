@@ -45,4 +45,56 @@ describe('useReportWebVitals hook', () => {
       return 'success'
     }, 'success')
   })
+
+  it('should report LCP for idle users when page becomes hidden', async () => {
+    await next.fetch('/report-web-vitals')
+
+    const reportedMetrics: string[] = []
+    let lcpReported = false
+    let pageInstance: any = null
+
+    await next.browser('/report-web-vitals', {
+      beforePageLoad: (page) => {
+        pageInstance = page
+        page.route('https://example.vercel.sh/vitals', (route) => {
+          const body = route.request().postData()
+          if (body) {
+            const params = new URLSearchParams(body)
+            const metricName = params.get('name')
+            if (metricName) {
+              reportedMetrics.push(metricName)
+              if (metricName === 'LCP') {
+                lcpReported = true
+              }
+            }
+          }
+          route.fulfill()
+        })
+      },
+    })
+
+    // Wait for page to load and LCP element to be visible
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+
+    // Simulate page becoming hidden (visibilitychange event)
+    await pageInstance.evaluate(() => {
+      // Trigger visibilitychange event
+      Object.defineProperty(document, 'visibilityState', {
+        writable: true,
+        configurable: true,
+        value: 'hidden',
+      })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+
+    // Wait a bit for the event to be processed
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    // Check that LCP was reported
+    await check(async () => {
+      expect(lcpReported).toBe(true)
+      expect(reportedMetrics).toContain('LCP')
+      return 'success'
+    }, 'success')
+  })
 })

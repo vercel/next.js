@@ -947,6 +947,11 @@ export function throwIfDisallowedDynamic(
     }
 
     if (prelude === PreludeState.Empty) {
+      // Check if we have dynamic metadata that explains why the shell is empty
+      if (dynamicValidation.dynamicMetadata) {
+        logDisallowedDynamicError(workStore, dynamicValidation.dynamicMetadata)
+        throw new StaticGenBailoutError()
+      }
       // If we ever get this far then we messed up the tracking of invalid dynamic.
       // We still adhere to the constraint that you must produce a shell but invite the
       // user to report this as a bug in Next.js.
@@ -990,6 +995,10 @@ export function getStaticShellDisallowedDynamicReasons(
     }
 
     if (prelude === PreludeState.Empty) {
+      // Check if we have dynamic metadata that explains why the shell is empty
+      if (dynamicValidation.dynamicMetadata) {
+        return [dynamicValidation.dynamicMetadata]
+      }
       // If we ever get this far then we messed up the tracking of invalid dynamic.
       // We still adhere to the constraint that you must produce a shell but invite the
       // user to report this as a bug in Next.js.

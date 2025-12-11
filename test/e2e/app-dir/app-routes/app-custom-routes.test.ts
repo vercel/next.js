@@ -703,4 +703,18 @@ describe('app-custom-routes', () => {
       expect(cliOutput).not.toContain('Attempted import error')
     })
   })
+
+  describe('cookies in layout with basePath', () => {
+    it('should work correctly with cookies() in layout.tsx when basePath is configured', async () => {
+      const res = await next.fetch(basePath + '/test-layout-cookies', {
+        headers: {
+          cookie: 'test-cookie=test-value',
+        },
+      })
+
+      expect(res.status).toEqual(200)
+      const html = await res.text()
+      expect(html).toContain('test-value')
+    })
+  })
 })
