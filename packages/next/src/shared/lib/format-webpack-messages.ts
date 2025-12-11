@@ -61,7 +61,12 @@ function formatMessage(
 
     // TODO: Rspack currently doesn't populate moduleName correctly in some cases,
     // fall back to moduleIdentifier as a workaround
-    if (!message.moduleName && !message.file) {
+    if (
+      process.env.NEXT_RSPACK &&
+      !message.moduleName &&
+      !message.file &&
+      message.moduleIdentifier
+    ) {
       const parts = message.moduleIdentifier.split('!')
       message.moduleName = parts[parts.length - 1]
     }
