@@ -98,6 +98,7 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
     ) -> Result<Vec<Vec<CachedDataItem>>> {
         let mut results = Vec::with_capacity(task_ids.len());
         for &task_id in task_ids {
+            // TODO more efficient batch implementation
             let data = unsafe { self.lookup_data(tx, task_id, category)? };
             results.push(data);
         }

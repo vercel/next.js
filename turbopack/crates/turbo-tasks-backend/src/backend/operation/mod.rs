@@ -24,7 +24,7 @@ use crate::{
         TurboTasksBackendJob,
         storage::{SpecificTaskDataCategory, StorageWriteGuard, get, iter_many, remove},
     },
-    backing_storage::BackingStorage,
+    backing_storage::{BackingStorage, BackingStorageSealed},
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemType, CachedDataItemValue,
         CachedDataItemValueRef, CachedDataItemValueRefMut, Dirtyness,
@@ -50,6 +50,27 @@ pub trait ExecuteContext<'e>: Sized {
     where
         'e: 'l;
     fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl;
+    /// Prepares (as in fetches from persistent storage) a list of tasks.
+    /// The iterator should not have duplicates, as this would cause over-fetching.
+    fn prepare_tasks(
+        &mut self,
+        task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)> + Clone,
+    );
+    fn for_each_task(
+        &mut self,
+        task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
+        func: impl FnMut(Self::TaskGuardImpl, &mut Self),
+    );
+    fn for_each_task_meta(
+        &mut self,
+        task_ids: impl IntoIterator<Item = TaskId>,
+        func: impl FnMut(Self::TaskGuardImpl, &mut Self),
+    ) {
+        self.for_each_task(
+            task_ids.into_iter().map(|id| (id, TaskDataCategory::Meta)),
+            func,
+        )
+    }
     fn is_once_task(&self, task_id: TaskId) -> bool;
     fn task_pair(
         &mut self,
@@ -119,17 +140,12 @@ where
         }
     }
 
-    fn restore_task_data(
-        &mut self,
-        task_id: TaskId,
-        category: TaskDataCategory,
-    ) -> Vec<CachedDataItem> {
+    fn ensure_transaction(&mut self) -> bool {
         if matches!(self.transaction, TransactionState::None) {
             let check_backing_storage = self.backend.should_restore()
                 && self.backend.local_is_partial.load(Ordering::Acquire);
             if !check_backing_storage {
-                // If we don't need to restore, we can just return an empty vector
-                return Vec::new();
+                return false;
             }
             let tx = self.backend.backing_storage.start_read_transaction();
             let tx = tx.map(|tx| {
@@ -138,11 +154,19 @@ where
             });
             self.transaction = TransactionState::Owned(tx);
         }
-        let tx = match &self.transaction {
-            TransactionState::None => unreachable!(),
-            TransactionState::Borrowed(tx) => *tx,
-            TransactionState::Owned(tx) => tx.as_ref(),
-        };
+        true
+    }
+
+    fn restore_task_data(
+        &mut self,
+        task_id: TaskId,
+        category: TaskDataCategory,
+    ) -> Vec<CachedDataItem> {
+        if !self.ensure_transaction() {
+            // If we don't need to restore, we can just return an empty vector
+            return Vec::new();
+        }
+        let tx = self.get_tx();
         // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
         let result = unsafe {
             self.backend
@@ -158,6 +182,181 @@ where
                     e.context(format!("{category:?} for {task_name} ({task_id}))"))
                 )
             }
+        }
+    }
+
+    fn restore_task_data_batch(
+        &mut self,
+        task_ids: &[TaskId],
+        category: TaskDataCategory,
+    ) -> Vec<Vec<CachedDataItem>> {
+        if !self.ensure_transaction() {
+            // TODO this is an unnecessary allocation
+            // If we don't need to restore, we can just return an empty vector for each task
+            return vec![Vec::new(); task_ids.len()];
+        }
+        let tx = self.get_tx();
+        // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
+        let result = unsafe {
+            self.backend
+                .backing_storage
+                .batch_lookup_data(tx, task_ids, category)
+        };
+        match result {
+            Ok(result) => result,
+            Err(e) => {
+                panic!(
+                    "Failed to restore task data (corrupted database or bug): {:?}",
+                    e.context(format!(
+                        "{category:?} for batch of {} tasks",
+                        task_ids.len()
+                    ))
+                )
+            }
+        }
+    }
+
+    fn get_tx(&self) -> Option<&<B as BackingStorageSealed>::ReadTransaction<'tx>> {
+        let tx = match &self.transaction {
+            TransactionState::None => unreachable!(),
+            TransactionState::Borrowed(tx) => *tx,
+            TransactionState::Owned(tx) => tx.as_ref(),
+        };
+        tx
+    }
+
+    fn prepare_tasks_with_callback(
+        &mut self,
+        task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
+        call_prepared_task_callback_for_transient_tasks: bool,
+        mut prepared_task_callback: impl FnMut(
+            &mut Self,
+            TaskId,
+            TaskDataCategory,
+            StorageWriteGuard<'e>,
+        ),
+    ) {
+        let mut data_count = 0;
+        let mut meta_count = 0;
+        let mut all_count = 0;
+        let mut tasks = task_ids
+            .into_iter()
+            .filter(|&(id, category)| {
+                if id.is_transient() {
+                    if call_prepared_task_callback_for_transient_tasks {
+                        let mut task = self.backend.storage.access_mut(id);
+                        if !task.state().is_restored(category) {
+                            task.state_mut().set_restored(TaskDataCategory::All);
+                        }
+                        prepared_task_callback(self, id, category, task);
+                    }
+                    false
+                } else {
+                    true
+                }
+            })
+            .inspect(|(_, category)| match category {
+                TaskDataCategory::Data => data_count += 1,
+                TaskDataCategory::Meta => meta_count += 1,
+                TaskDataCategory::All => all_count += 1,
+            })
+            .map(|(id, category)| (id, category, None, None))
+            .collect::<Vec<_>>();
+        data_count += all_count;
+        meta_count += all_count;
+
+        let mut tasks_to_restore_for_data = Vec::with_capacity(data_count);
+        let mut tasks_to_restore_for_data_indicies = Vec::with_capacity(data_count);
+        let mut tasks_to_restore_for_meta = Vec::with_capacity(meta_count);
+        let mut tasks_to_restore_for_meta_indicies = Vec::with_capacity(meta_count);
+        for (i, &(task_id, category, _, _)) in tasks.iter().enumerate() {
+            #[cfg(debug_assertions)]
+            if self.active_task_locks.fetch_add(1, Ordering::AcqRel) != 0 {
+                panic!(
+                    "Concurrent task lock acquisition detected. This is not allowed and indicates \
+                     a bug. It can lead to deadlocks."
+                );
+            }
+
+            let task = self.backend.storage.access_mut(task_id);
+            let mut ready = true;
+            if matches!(category, TaskDataCategory::Data | TaskDataCategory::All)
+                && !task.state().is_restored(TaskDataCategory::Data)
+            {
+                tasks_to_restore_for_data.push(task_id);
+                tasks_to_restore_for_data_indicies.push(i);
+                ready = false;
+            }
+            if matches!(category, TaskDataCategory::Meta | TaskDataCategory::All)
+                && !task.state().is_restored(TaskDataCategory::Meta)
+            {
+                tasks_to_restore_for_meta.push(task_id);
+                tasks_to_restore_for_meta_indicies.push(i);
+                ready = false;
+            }
+            if ready {
+                prepared_task_callback(self, task_id, category, task);
+            }
+            #[cfg(debug_assertions)]
+            self.active_task_locks.fetch_sub(1, Ordering::AcqRel);
+        }
+        if tasks_to_restore_for_meta.is_empty() && tasks_to_restore_for_data.is_empty() {
+            return;
+        }
+
+        if !tasks_to_restore_for_data.is_empty() {
+            let data =
+                self.restore_task_data_batch(&tasks_to_restore_for_data, TaskDataCategory::Data);
+            data.into_iter()
+                .zip(tasks_to_restore_for_data_indicies.into_iter())
+                .for_each(|(items, idx)| {
+                    tasks[idx].2 = Some(items);
+                });
+        }
+        if !tasks_to_restore_for_meta.is_empty() {
+            let data =
+                self.restore_task_data_batch(&tasks_to_restore_for_meta, TaskDataCategory::Meta);
+            data.into_iter()
+                .zip(tasks_to_restore_for_meta_indicies.into_iter())
+                .for_each(|(items, idx)| {
+                    tasks[idx].3 = Some(items);
+                });
+        }
+
+        for (task_id, category, items_for_data, items_for_meta) in tasks {
+            if items_for_data.is_none() && items_for_meta.is_none() {
+                continue;
+            }
+            #[cfg(debug_assertions)]
+            if self.active_task_locks.fetch_add(1, Ordering::AcqRel) != 0 {
+                panic!(
+                    "Concurrent task lock acquisition detected. This is not allowed and indicates \
+                     a bug. It can lead to deadlocks."
+                );
+            }
+
+            let mut task = self.backend.storage.access_mut(task_id);
+            if let Some(items) = items_for_data
+                && !task.state().is_restored(TaskDataCategory::Data)
+            {
+                // TODO store items groups by type to be able to use extend here
+                for item in items {
+                    task.add(item);
+                }
+                task.state_mut().set_restored(TaskDataCategory::Data);
+            }
+            if let Some(items) = items_for_meta
+                && !task.state().is_restored(TaskDataCategory::Meta)
+            {
+                // TODO store items groups by type to be able to use extend here
+                for item in items {
+                    task.add(item);
+                }
+                task.state_mut().set_restored(TaskDataCategory::Meta);
+            }
+            prepared_task_callback(self, task_id, category, task);
+            #[cfg(debug_assertions)]
+            self.active_task_locks.fetch_sub(1, Ordering::AcqRel);
         }
     }
 }
@@ -218,6 +417,51 @@ where
             #[cfg(debug_assertions)]
             active_task_locks: self.active_task_locks.clone(),
         }
+    }
+
+    fn prepare_tasks(&mut self, task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>) {
+        self.prepare_tasks_with_callback(task_ids, false, |_, _, _, _| {});
+    }
+
+    fn for_each_task(
+        &mut self,
+        task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
+        mut func: impl FnMut(Self::TaskGuardImpl, &mut Self),
+    ) {
+        let backend = self.backend;
+        #[cfg(debug_assertions)]
+        let active_task_locks = self.active_task_locks.clone();
+        #[cfg(debug_assertions)]
+        let task_ids = task_ids.into_iter().collect::<Vec<_>>();
+        #[cfg(debug_assertions)]
+        let input_count = task_ids.len();
+        #[cfg(debug_assertions)]
+        let mut count = 0;
+        self.prepare_tasks_with_callback(task_ids, true, |this, task_id, category, task| {
+            // The prepare_tasks_with_callback already increased the active_task_locks count and
+            // checked for concurrent access but it will also decrement it again, so we
+            // need to increase it again here as Drop will decrement it
+            #[cfg(debug_assertions)]
+            active_task_locks.fetch_add(1, Ordering::AcqRel);
+
+            #[cfg(debug_assertions)]
+            {
+                count += 1;
+            }
+
+            let guard: TaskGuardImpl<'_, B> = TaskGuardImpl {
+                task,
+                task_id,
+                backend,
+                #[cfg(debug_assertions)]
+                category,
+                #[cfg(debug_assertions)]
+                active_task_locks: active_task_locks.clone(),
+            };
+            func(guard, this);
+        });
+        #[cfg(debug_assertions)]
+        debug_assert_eq!(count, input_count);
     }
 
     fn is_once_task(&self, task_id: TaskId) -> bool {
