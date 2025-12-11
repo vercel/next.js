@@ -1,18 +1,15 @@
 'use client'
 
 import type React from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
 import { ErrorState } from '@/components/error-state'
-import {
-  RouteTypeahead,
-  type RouteTypeaheadRef,
-} from '@/components/route-typeahead'
+import { FileSearch } from '@/components/file-search'
+import { RouteTypeahead } from '@/components/route-typeahead'
 import { Sidebar } from '@/components/sidebar'
 import { TreemapVisualizer } from '@/components/treemap-visualizer'
 
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
 import { TreemapSkeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
@@ -72,31 +69,27 @@ export default function Home() {
     client?: boolean
   } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchFocused, setSearchFocused] = useState(false)
-
-  const routeTypeaheadRef = useRef<RouteTypeaheadRef>(null)
-  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd+K or Ctrl+K to focus route filter
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        routeTypeaheadRef.current?.focus()
-      }
-      // / to focus search (only if not already in an input)
-      else if (
-        e.key === '/' &&
-        !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)
-      ) {
-        e.preventDefault()
-        searchInputRef.current?.focus()
+      // esc clears current treemap source selection
+      if (e.key === 'Escape') {
+        const activeElement = document.activeElement
+        const isInputFocused =
+          activeElement && ['INPUT', 'TEXTAREA'].includes(activeElement.tagName)
+
+        if (!isInputFocused) {
+          e.preventDefault()
+          const rootSourceIndex = getRootSourceIndex(analyzeData)
+          setSelectedSourceIndex(rootSourceIndex)
+          setFocusedSourceIndex(rootSourceIndex)
+        }
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [analyzeData])
 
   // Compute module depth map from active entries
   const moduleDepthMap = useMemo(() => {
@@ -155,7 +148,6 @@ export default function Home() {
       <div className="flex-none px-4 py-2 border-b border-border flex items-center gap-4">
         <div className="basis-1/3 flex">
           <RouteTypeahead
-            ref={routeTypeaheadRef}
             selectedRoute={selectedRoute}
             onRouteSelected={(route) => {
               setSelectedRoute(route)
@@ -196,27 +188,7 @@ export default function Home() {
                 <ToggleGroupItem value="asset">Asset</ToggleGroupItem>
               </ToggleGroup>
 
-              {!searchFocused && (
-                <div className="flex items-center gap-4 text-xs">
-                  <p className="text-muted-foreground">
-                    {
-                      analyzeData.source(focusedSourceIndex ?? rootSourceIndex)
-                        ?.path
-                    }
-                  </p>
-                </div>
-              )}
-
-              <Input
-                ref={searchInputRef}
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-                placeholder="Search files..."
-                className="w-48 focus:w-80 transition-all duration-200"
-              />
+              <FileSearch value={searchQuery} onChange={setSearchQuery} />
             </>
           )}
         </div>
