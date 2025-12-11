@@ -33,9 +33,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// There are a variety of constructors provided that can be more efficient if you know that your
 /// data is sorted and/or unique.
-#[derive(
-    Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode, Serialize, Deserialize,
-)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode, Serialize, Deserialize)]
 #[rustfmt::skip] // rustfmt breaks bincode's proc macro string processing
 #[bincode(
     decode_bounds = "K: Decode<__Context> + 'static, V: Decode<__Context> + 'static",
@@ -506,6 +504,13 @@ impl<K, V> FrozenMap<K, V> {
         Range {
             inner: slice.iter(),
         }
+    }
+}
+
+// Manual implementation because the derive would add unnecessary `K: Default, V: Default` bounds.
+impl<K, V> Default for FrozenMap<K, V> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -38,9 +38,7 @@ use crate::map::{self, FrozenMap};
 /// [`Vec`] or boxed slice. Because of limitations of the internal representation and Rust's memory
 /// layout rules, the most efficient way to convert from these data structures is via an
 /// [`Iterator`].
-#[derive(
-    Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode, Serialize, Deserialize,
-)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode, Serialize, Deserialize)]
 #[bincode(
     decode_bounds = "T: Decode<__Context> + 'static",
     borrow_decode_bounds = "T: BorrowDecode<'__de, __Context> + '__de"
@@ -305,6 +303,13 @@ impl<T> FrozenSet<T> {
         T: Ord,
     {
         other.is_subset(self)
+    }
+}
+
+// Manual implementation because the derive would add unnecessary `T: Default` bounds.
+impl<T> Default for FrozenSet<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
