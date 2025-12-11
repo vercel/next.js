@@ -2170,6 +2170,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) {
         debug_assert!(!output_dependent_tasks.is_empty());
 
+        if output_dependent_tasks.len() > 1 {
+            ctx.prepare_tasks(
+                output_dependent_tasks
+                    .iter()
+                    .map(|&id| (id, TaskDataCategory::All)),
+            );
+        }
+
         let mut queue = AggregationUpdateQueue::new();
         for dependent_task_id in output_dependent_tasks {
             #[cfg(feature = "trace_task_output_dependencies")]
