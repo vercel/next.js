@@ -6114,11 +6114,12 @@
         case "fulfilled":
           if ("function" === typeof resolve) {
             for (
-              var inspectedValue = this.value;
+              var inspectedValue = this.value, cycleProtection = 0;
               inspectedValue instanceof ReactPromise;
 
             ) {
-              if (inspectedValue === this) {
+              cycleProtection++;
+              if (inspectedValue === this || 1e3 < cycleProtection) {
                 "function" === typeof reject &&
                   reject(Error("Cannot have cyclic thenables."));
                 return;

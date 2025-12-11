@@ -149,4 +149,4 @@ exports.preloadModule = function (href, options) {
       });
     } else Internals.d.m(href);
 };
-exports.version = "19.3.0-experimental-80cb7a99-20251211";
+exports.version = "19.3.0-experimental-b45bb335-20251211";

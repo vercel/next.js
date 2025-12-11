@@ -19657,14 +19657,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2214 = React.version;
 if (
-  "19.3.0-experimental-80cb7a99-20251211" !==
+  "19.3.0-experimental-b45bb335-20251211" !==
   isomorphicReactPackageVersion$jscomp$inline_2214
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2214,
-      "19.3.0-experimental-80cb7a99-20251211"
+      "19.3.0-experimental-b45bb335-20251211"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19686,10 +19686,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2917 = {
   bundleType: 0,
-  version: "19.3.0-experimental-80cb7a99-20251211",
+  version: "19.3.0-experimental-b45bb335-20251211",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-80cb7a99-20251211"
+  reconcilerVersion: "19.3.0-experimental-b45bb335-20251211"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2918 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -19796,4 +19796,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-experimental-80cb7a99-20251211";
+exports.version = "19.3.0-experimental-b45bb335-20251211";
