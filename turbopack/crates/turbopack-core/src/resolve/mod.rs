@@ -2253,7 +2253,7 @@ async fn resolve_relative_request(
     // A small tree to 'undo' the set of modifications we make to patterns, ensuring that we produce
     // correct request keys
     #[derive(Eq, PartialEq, Clone, Hash, Debug)]
-    enum PatternModification {
+    enum RequestKeyTransform {
         /// A leaf node for 'no change'
         None,
         /// We added a fragment to the request and thus need to potentially remove it when matching
@@ -2265,7 +2265,7 @@ async fn resolve_relative_request(
             ext: RcStr,
             /// This modification can be composed with others
             /// In reality just `None' or `AddedFragment``
-            next: Vec<PatternModification>,
+            next: Vec<RequestKeyTransform>,
         },
         ReplacedExtension {
             /// The extension that was replaced, to figure out the original you need to query
@@ -2273,14 +2273,14 @@ async fn resolve_relative_request(
             ext: RcStr,
             /// This modification can be composed with others
             /// In just [AddedExtension], [None] or [AddedFragment]
-            next: Vec<PatternModification>,
+            next: Vec<RequestKeyTransform>,
         },
     }
 
-    impl PatternModification {
+    impl RequestKeyTransform {
         /// Modifies the matched pattern using the modification rules and produces results if they
         /// match the supplied [pattern]
-        fn apply(
+        fn undo(
             &self,
             matched_pattern: &RcStr,
             fragment: &RcStr,
@@ -2299,12 +2299,12 @@ async fn resolve_relative_request(
             result: &mut SmallVec<[(RcStr, RcStr); 2]>,
         ) {
             match self {
-                PatternModification::None => {
+                RequestKeyTransform::None => {
                     if pattern.is_match(matched_pattern.as_str()) {
                         result.push((matched_pattern.clone(), fragment.clone()));
                     }
                 }
-                PatternModification::AddedFragment => {
+                RequestKeyTransform::AddedFragment => {
                     debug_assert!(
                         !fragment.is_empty(),
                         "can only have an AddedFragment modification if there was a fragment"
@@ -2315,13 +2315,13 @@ async fn resolve_relative_request(
                         result.push((stripped_pattern.into(), RcStr::default()));
                     }
                 }
-                PatternModification::AddedExtension { ext, next } => {
+                RequestKeyTransform::AddedExtension { ext, next } => {
                     if let Some(stripped_pattern) = matched_pattern.strip_suffix(ext.as_str()) {
                         let stripped_pattern: RcStr = stripped_pattern.into();
                         Self::apply_all(next, &stripped_pattern, fragment, pattern, result);
                     }
                 }
-                PatternModification::ReplacedExtension { ext, next } => {
+                RequestKeyTransform::ReplacedExtension { ext, next } => {
                     if let Some(stripped_pattern) = matched_pattern.strip_suffix(ext.as_str()) {
                         let replaced_pattern: RcStr = format!(
                             "{stripped_pattern}{old_ext}",
@@ -2335,7 +2335,7 @@ async fn resolve_relative_request(
         }
 
         fn apply_all(
-            list: &[PatternModification],
+            list: &[RequestKeyTransform],
             matched_pattern: &RcStr,
             fragment: &RcStr,
             pattern: &Pattern,
@@ -2347,13 +2347,13 @@ async fn resolve_relative_request(
     }
 
     let mut modifications = Vec::new();
-    modifications.push(PatternModification::None);
+    modifications.push(RequestKeyTransform::None);
 
     // Fragments are a bit odd. `require()` allows importing files with literal `#` characters in
     // them, but `import` treats it like a url and drops it from resolution. So we need to consider
     // both cases here.
     if !fragment.is_empty() {
-        modifications.push(PatternModification::AddedFragment);
+        modifications.push(RequestKeyTransform::AddedFragment);
         new_path.push(Pattern::Alternatives(vec![
             Pattern::Constant(RcStr::default()),
             Pattern::Constant(fragment.clone()),
@@ -2367,7 +2367,7 @@ async fn resolve_relative_request(
                 .iter()
                 .cloned()
                 .chain(options_value.extensions.iter().map(|ext| {
-                    PatternModification::AddedExtension {
+                    RequestKeyTransform::AddedExtension {
                         ext: ext.clone(),
                         next: modifications.clone(),
                     }
@@ -2375,6 +2375,8 @@ async fn resolve_relative_request(
                 .collect();
         // Add the extensions as alternatives to the path
         // read_matches keeps the order of alternatives intact
+        // TODO: if the pattern has a dynamic suffix then this 'ordering' doesn't work since we just
+        // take the slowpath and return everything from the directory in `read_matches`
         new_path.push(Pattern::Alternatives(
             once(Pattern::Constant(RcStr::default()))
                 .chain(
@@ -2394,25 +2396,24 @@ async fn resolve_relative_request(
     }
     static TS_EXTENSION_REPLACEMENTS: Lazy<ExtensionReplacements> = Lazy::new(|| {
         let mut forward = FxHashMap::default();
-        let mut reverse = FxHashMap::default();
         forward.insert(
             rcstr!(".js"),
             SmallVec::from_vec(vec![rcstr!(".ts"), rcstr!(".tsx"), rcstr!(".js")]),
         );
-        reverse.insert(rcstr!(".ts"), rcstr!(".js"));
-        reverse.insert(rcstr!(".tsx"), rcstr!(".js"));
 
         forward.insert(
             rcstr!(".mjs"),
             SmallVec::from_vec(vec![rcstr!(".mts"), rcstr!(".mjs")]),
         );
 
-        reverse.insert(rcstr!(".mts"), rcstr!(".mjs"));
         forward.insert(
             rcstr!(".cjs"),
             SmallVec::from_vec(vec![rcstr!(".cts"), rcstr!(".cjs")]),
         );
-        reverse.insert(rcstr!(".cts"), rcstr!(".cjs"));
+        let reverse = forward
+            .iter()
+            .flat_map(|(k, v)| v.iter().map(|v: &RcStr| (v.clone(), k.clone())))
+            .collect::<FxHashMap<_, _>>();
         ExtensionReplacements { forward, reverse }
     });
 
@@ -2451,7 +2452,7 @@ async fn resolve_relative_request(
                 .iter()
                 .cloned()
                 .chain(replaced_extensions.iter().map(|ext| {
-                    PatternModification::ReplacedExtension {
+                    RequestKeyTransform::ReplacedExtension {
                         ext: ext.clone(),
                         next: modifications.clone(),
                     }
@@ -2472,6 +2473,7 @@ async fn resolve_relative_request(
     // This loop is necessary to 'undo' the modifications to 'new_path' that were performed above.
     // e.g. we added extensions but these shouldn't be part of the request key so remove them.
 
+    let mut keys = FxHashSet::default();
     let mut results = matches
         .iter()
         .flat_map(|m| {
@@ -2479,13 +2481,15 @@ async fn resolve_relative_request(
                 Either::Left(
                     modifications
                         .iter()
-                        .flat_map(|m| m.apply(matched_pattern, &fragment, path_pattern))
+                        .flat_map(|m| m.undo(matched_pattern, &fragment, path_pattern))
                         .map(move |result| (result, path)),
                 )
             } else {
                 Either::Right(empty())
             }
         })
+        // Dedupe here before calling `resolved`
+        .filter(move |((matched_pattern, _), _)| keys.insert(matched_pattern.clone()))
         .map(|((matched_pattern, fragment), path)| {
             resolved(
                 RequestKey::new(matched_pattern),
