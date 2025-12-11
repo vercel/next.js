@@ -473,7 +473,13 @@ function commonJsRequire(id) {
     return getOrInstantiateModuleFromParent(id, this.m).exports;
 }
 contextPrototype.r = commonJsRequire;
-/** Remove fragments and query parameters since they are never part of the context map keys */ function parseRequest(request) {
+/**
+ * Remove fragments and query parameters since they are never part of the context map keys
+ *
+ * This matches how we parse patterns at resolving time.  Arguably we should only do this for
+ * strings passed to `import` but the resolve does it for `import` and `require` and so we do
+ * here as well.
+ */ function parseRequest(request) {
     // Per the URI spec fragments can contain `?` characters, so we should trim it off first
     // https://datatracker.ietf.org/doc/html/rfc3986#section-3.5
     var hashIndex = request.indexOf('#');
