@@ -245,19 +245,23 @@ export default async function Page({ params }: PageProps<'/blog/[slug]'>) {
   if (slug.startsWith('private-')) {
     // This branch is never executed at build time
     // Runtime requests for 'private-*' slugs will error
-    const token = (await cookies()).get('token')
-    return <PrivatePost slug={slug} token={token} />
+    return <PrivatePost slug={slug} />
   }
 
   return <PublicPost slug={slug} />
 }
+
+async function PrivatePost({ slug }: { slug: string }) {
+  const token = (await cookies()).get('token')
+  // ... fetch and render private post using token for auth
+}
 ```
 
-For runtime params not returned by `generateStaticParams`, validation occurs during the first request. In the example above, requests for slugs starting with `private-` will fail because `cookies()` is accessed without Suspense. Other runtime params that don't hit the conditional branch will render successfully and be saved to disk for subsequent requests.
+For runtime params not returned by `generateStaticParams`, validation occurs during the first request. In the example above, requests for slugs starting with `private-` will fail because `PrivatePost` accesses `cookies()` without a Suspense boundary. Other runtime params that don't hit the conditional branch will render successfully and be saved to disk for subsequent requests.
 
-If your application follows conditional paths like this, make sure to wrap runtime API access in Suspense boundaries:
+To fix this, wrap `PrivatePost` with Suspense:
 
-```tsx filename="app/blog/[slug]/page.tsx"
+```tsx filename="app/blog/[slug]/page.tsx" highlight={13-15}
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 
@@ -281,7 +285,7 @@ export default async function Page({ params }: PageProps<'/blog/[slug]'>) {
 
 async function PrivatePost({ slug }: { slug: string }) {
   const token = (await cookies()).get('token')
-  // ... fetch and render private post
+  // ... fetch and render private post using token for auth
 }
 ```
 
