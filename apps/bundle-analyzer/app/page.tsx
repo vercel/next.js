@@ -1,32 +1,21 @@
 'use client'
 
 import type React from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
-import { ImportChain } from '@/components/import-chain'
 import { ErrorState } from '@/components/error-state'
-import {
-  RouteTypeahead,
-  type RouteTypeaheadRef,
-} from '@/components/route-typeahead'
+import { FileSearch } from '@/components/file-search'
+import { RouteTypeahead } from '@/components/route-typeahead'
+import { Sidebar } from '@/components/sidebar'
 import { TreemapVisualizer } from '@/components/treemap-visualizer'
 
-import { Input } from '@/components/ui/input'
-import { Skeleton, TreemapSkeleton } from '@/components/ui/skeleton'
+import { Badge } from '@/components/ui/badge'
+import { TreemapSkeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
-import { SpecialModule } from '@/lib/types'
-import { getSpecialModuleType, fetchStrict } from '@/lib/utils'
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`
-  if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
-}
+import { fetchStrict } from '@/lib/utils'
+import { formatBytes } from '@/lib/utils'
 
 export default function Home() {
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null)
@@ -75,35 +64,32 @@ export default function Home() {
   const [isMouseInTreemap, setIsMouseInTreemap] = useState(false)
   const [hoveredNodeInfo, setHoveredNodeInfo] = useState<{
     name: string
+    size: number
     server?: boolean
     client?: boolean
   } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchFocused, setSearchFocused] = useState(false)
-
-  const routeTypeaheadRef = useRef<RouteTypeaheadRef>(null)
-  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd+K or Ctrl+K to focus route filter
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        routeTypeaheadRef.current?.focus()
-      }
-      // / to focus search (only if not already in an input)
-      else if (
-        e.key === '/' &&
-        !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)
-      ) {
-        e.preventDefault()
-        searchInputRef.current?.focus()
+      // esc clears current treemap source selection
+      if (e.key === 'Escape') {
+        const activeElement = document.activeElement
+        const isInputFocused =
+          activeElement && ['INPUT', 'TEXTAREA'].includes(activeElement.tagName)
+
+        if (!isInputFocused) {
+          e.preventDefault()
+          const rootSourceIndex = getRootSourceIndex(analyzeData)
+          setSelectedSourceIndex(rootSourceIndex)
+          setFocusedSourceIndex(rootSourceIndex)
+        }
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [analyzeData])
 
   // Compute module depth map from active entries
   const moduleDepthMap = useMemo(() => {
@@ -153,11 +139,6 @@ export default function Home() {
   const isAnyLoading = isAnalyzeLoading || isModulesLoading
   const rootSourceIndex = getRootSourceIndex(analyzeData)
 
-  const specialModuleType = getSpecialModuleType(
-    analyzeData,
-    selectedSourceIndex
-  )
-
   return (
     <main
       className="h-screen flex flex-col bg-background"
@@ -167,7 +148,6 @@ export default function Home() {
       <div className="flex-none px-4 py-2 border-b border-border flex items-center gap-4">
         <div className="basis-1/3 flex">
           <RouteTypeahead
-            ref={routeTypeaheadRef}
             selectedRoute={selectedRoute}
             onRouteSelected={(route) => {
               setSelectedRoute(route)
@@ -208,27 +188,7 @@ export default function Home() {
                 <ToggleGroupItem value="asset">Asset</ToggleGroupItem>
               </ToggleGroup>
 
-              {!searchFocused && (
-                <div className="flex items-center gap-4 text-xs">
-                  <p className="text-muted-foreground">
-                    {
-                      analyzeData.source(focusedSourceIndex ?? rootSourceIndex)
-                        ?.path
-                    }
-                  </p>
-                </div>
-              )}
-
-              <Input
-                ref={searchInputRef}
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-                placeholder="Search files..."
-                className="w-48 focus:w-80 transition-all duration-200"
-              />
+              <FileSearch value={searchQuery} onChange={setSearchQuery} />
             </>
           )}
         </div>
@@ -250,24 +210,15 @@ export default function Home() {
               aria-label="Resize sidebar"
             />
 
-            <div
-              className="flex-none bg-muted border-l border-border overflow-y-auto"
-              style={{ width: `${sidebarWidth}%` }}
-            >
-              <div className="flex-1 p-3 space-y-4 overflow-y-auto">
-                <h2 className="text-xs font-semibold mb-2 text-foreground">
-                  Selected Source
-                </h2>
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-5/6" />
-                <div className="mt-4 space-y-2">
-                  <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-3 w-4/5" />
-                </div>
-              </div>
-            </div>
+            <Sidebar
+              sidebarWidth={sidebarWidth}
+              analyzeData={null}
+              modulesData={null}
+              selectedSourceIndex={null}
+              moduleDepthMap={new Map()}
+              environmentFilter={environmentFilter}
+              isLoading={true}
+            />
           </>
         ) : analyzeData ? (
           <>
@@ -294,108 +245,36 @@ export default function Home() {
               aria-label="Resize sidebar"
             />
 
-            <div
-              className="flex-none bg-muted border-l border-border overflow-y-auto"
-              style={{ width: `${sidebarWidth}%` }}
-            >
-              <div className="flex-1 p-3 space-y-4 overflow-y-auto">
-                <h2 className="text-xs font-semibold mb-2 text-foreground">
-                  Selected Source
-                </h2>
-
-                {selectedSourceIndex != null &&
-                  analyzeData.source(selectedSourceIndex) && (
-                    <>
-                      <dl className="space-y-2">
-                        <div>
-                          <dt className="text-xs text-muted-foreground inline">
-                            Output Size:{' '}
-                          </dt>
-                          <dd className="text-xs text-muted-foreground inline">
-                            {formatBytes(
-                              analyzeData.getSourceOutputSize(
-                                selectedSourceIndex
-                              )
-                            )}
-                          </dd>
-                        </div>
-                        {(specialModuleType === SpecialModule.POLYFILL_MODULE ||
-                          specialModuleType ===
-                            SpecialModule.POLYFILL_NOMODULE) && (
-                          <div className="flex items-center gap-2">
-                            <dt className="inline-flex items-center rounded-md bg-polyfill/10 dark:bg-polyfill/30 px-2 py-1 text-xs font-medium text-polyfill dark:text-polyfill-foreground ring-1 ring-inset ring-polyfill/20 shrink-0">
-                              Polyfill
-                            </dt>
-                            <dd className="text-xs text-muted-foreground">
-                              Next.js built-in polyfills
-                              {specialModuleType ===
-                              SpecialModule.POLYFILL_NOMODULE ? (
-                                <>
-                                  . <code>polyfill-nomodule.js</code> is only
-                                  sent to legacy browsers.
-                                </>
-                              ) : null}
-                            </dd>
-                          </div>
-                        )}
-                      </dl>
-                      {modulesData && (
-                        <ImportChain
-                          key={selectedSourceIndex}
-                          startFileId={selectedSourceIndex}
-                          analyzeData={analyzeData}
-                          modulesData={modulesData}
-                          depthMap={moduleDepthMap}
-                          environmentFilter={environmentFilter}
-                        />
-                      )}
-                      {(() => {
-                        const chunks =
-                          analyzeData.sourceChunks(selectedSourceIndex)
-                        if (chunks.length > 0) {
-                          return (
-                            <div className="mt-2">
-                              <p className="text-xs font-semibold text-foreground">
-                                Output Chunks:
-                              </p>
-                              <ul className="text-xs text-muted-foreground font-mono mt-1 space-y-1">
-                                {chunks.map((chunk) => (
-                                  <li key={chunk} className="break-all">
-                                    {chunk}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )
-                        }
-                        return null
-                      })()}
-                    </>
-                  )}
-              </div>
-            </div>
+            <Sidebar
+              sidebarWidth={sidebarWidth}
+              analyzeData={analyzeData ?? null}
+              modulesData={modulesData ?? null}
+              selectedSourceIndex={selectedSourceIndex}
+              moduleDepthMap={moduleDepthMap}
+              environmentFilter={environmentFilter}
+            />
           </>
         ) : null}
       </div>
 
       {analyzeData && (
         <div className="flex-none border-t border-border bg-background px-4 py-2 h-10">
-          <p className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground">
             {hoveredNodeInfo ? (
               <>
                 <span className="font-medium text-foreground">
                   {hoveredNodeInfo.name}
                 </span>
+                <span className="ml-2 text-muted-foreground">
+                  {formatBytes(hoveredNodeInfo.size)}
+                </span>
                 {(hoveredNodeInfo.server || hoveredNodeInfo.client) && (
-                  <span className="ml-2 text-xs">
+                  <span className="ml-2 inline-flex gap-1">
                     {hoveredNodeInfo.client && (
-                      <span className="text-primary">[client]</span>
-                    )}
-                    {hoveredNodeInfo.server && hoveredNodeInfo.client && (
-                      <span> </span>
+                      <Badge variant="client">client</Badge>
                     )}
                     {hoveredNodeInfo.server && (
-                      <span className="text-primary">[server]</span>
+                      <Badge variant="server">server</Badge>
                     )}
                   </span>
                 )}
@@ -403,7 +282,7 @@ export default function Home() {
             ) : (
               'Hover over a file to see details'
             )}
-          </p>
+          </div>
         </div>
       )}
     </main>

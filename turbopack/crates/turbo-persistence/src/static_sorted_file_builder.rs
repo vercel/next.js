@@ -11,6 +11,7 @@ use byteorder::{BE, ByteOrder, WriteBytesExt};
 
 use crate::{
     compression::compress_into_buffer,
+    meta_file::MetaEntryFlags,
     static_sorted_file::{
         BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED,
         KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
@@ -88,6 +89,8 @@ pub struct StaticSortedFileBuilderMeta<'a> {
     pub block_count: u16,
     /// The file size of the SST file
     pub size: u64,
+    /// The status flags for this SST file
+    pub flags: MetaEntryFlags,
     /// The number of entries in the SST file
     pub entries: u64,
 }
@@ -96,6 +99,7 @@ pub fn write_static_stored_file<E: Entry>(
     entries: &[E],
     total_key_size: usize,
     file: &Path,
+    flags: MetaEntryFlags,
 ) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
     debug_assert!(entries.iter().map(|e| e.key_hash()).is_sorted());
 
@@ -141,6 +145,7 @@ pub fn write_static_stored_file<E: Entry>(
         key_compression_dictionary_length: key_dict.len().try_into().unwrap(),
         block_count,
         size: file.stream_position()?,
+        flags,
         entries: entries.len() as u64,
     };
     Ok((meta, file.into_inner()?))

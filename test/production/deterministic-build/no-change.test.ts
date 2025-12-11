@@ -27,10 +27,10 @@ function getNodeFileHashes(next: NextInstance): RouteFileHashRecords {
 }
 
 const nodeFilePaths = [
-  'app/app-page/page',
-  'app/app-route/route',
+  'app/force-dynamic/app-page/page',
+  'app/force-dynamic/app-route/route',
   'pages/api/pages-api',
-  'pages/pages-page',
+  'pages/dynamic/pages-page',
 ]
 
 function getEdgeRouteFileHashes(next: NextInstance): RouteFileHashRecords {
@@ -57,23 +57,23 @@ interface Runs {
   run2: RouteFileHashRecords
 }
 
-describe('deterministic build', () => {
+describe('deterministic build - no-change build', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
 
-  const edgeBuildFileMd5Hashes: Runs = {
-    run1: {},
-    run2: {},
-  }
+  it('should have same md5 file across build', async () => {
+    const edgeBuildFileMd5Hashes: Runs = {
+      run1: {},
+      run2: {},
+    }
 
-  const nodeBuildFileMd5Hashes: Runs = {
-    run1: {},
-    run2: {},
-  }
+    const nodeBuildFileMd5Hashes: Runs = {
+      run1: {},
+      run2: {},
+    }
 
-  beforeAll(async () => {
     // First build
     await next.build()
     edgeBuildFileMd5Hashes.run1 = getEdgeRouteFileHashes(next)
@@ -83,9 +83,7 @@ describe('deterministic build', () => {
     await next.build()
     edgeBuildFileMd5Hashes.run2 = getEdgeRouteFileHashes(next)
     nodeBuildFileMd5Hashes.run2 = getNodeFileHashes(next)
-  })
 
-  it('should have same md5 file across build', async () => {
     expect(edgeBuildFileMd5Hashes.run1).toEqual(edgeBuildFileMd5Hashes.run2)
     expect(nodeBuildFileMd5Hashes.run1).toEqual(nodeBuildFileMd5Hashes.run2)
   })
