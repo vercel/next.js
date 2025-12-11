@@ -2247,10 +2247,10 @@ async fn resolve_relative_request(
 
     let mut new_path = path_pattern.clone();
 
+    // Fragments are a bit odd. `require()` allows importing files with literal `#` characters in
+    // them, but `import` treats it like a url and drops it from resolution. So we need to consider
+    // both cases here.
     if !fragment.is_empty() {
-        // 'fragments' should not be part of the result, however it could be that the user is
-        // attempting to match a file with a '#' character in it.  In that case we need
-        // to look for it which is what this alternation does
         new_path.push(Pattern::Alternatives(vec![
             Pattern::Constant(RcStr::default()),
             Pattern::Constant(fragment.clone()),
@@ -3370,7 +3370,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_explicit_js_resolves_to_ts() {
-        resolve_relative_request_test(ResolveRelativeRequestTestParams {
+        resolve_relative_request_test(TestParams {
             files: vec!["foo.js", "foo.ts"],
             pattern: rcstr!("./foo.js").into(),
             enable_typescript_with_output_extension: true,
@@ -3387,7 +3387,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_implicit_request_ts_priority() {
-        resolve_relative_request_test(ResolveRelativeRequestTestParams {
+        resolve_relative_request_test(TestParams {
             files: vec!["foo.js", "foo.ts"],
             pattern: rcstr!("./foo").into(),
             enable_typescript_with_output_extension: true,
@@ -3399,7 +3399,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_ts_priority_over_json() {
-        resolve_relative_request_test(ResolveRelativeRequestTestParams {
+        resolve_relative_request_test(TestParams {
             files: vec!["posts.json", "posts.ts"],
             pattern: rcstr!("./posts").into(),
             enable_typescript_with_output_extension: true,
@@ -3411,7 +3411,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_only_js_file_no_ts() {
-        resolve_relative_request_test(ResolveRelativeRequestTestParams {
+        resolve_relative_request_test(TestParams {
             files: vec!["bar.js"],
             pattern: rcstr!("./bar.js").into(),
             enable_typescript_with_output_extension: true,
@@ -3423,7 +3423,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_explicit_ts_request() {
-        resolve_relative_request_test(ResolveRelativeRequestTestParams {
+        resolve_relative_request_test(TestParams {
             files: vec!["foo.js", "foo.ts"],
             pattern: rcstr!("./foo.ts").into(),
             enable_typescript_with_output_extension: true,
@@ -3436,7 +3436,7 @@ mod tests {
     // Fragment handling tests
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_fragment() {
-        resolve_relative_request_test(ResolveRelativeRequestTestParams {
+        resolve_relative_request_test(TestParams {
             files: vec!["client.ts"],
             pattern: rcstr!("./client#frag").into(),
             enable_typescript_with_output_extension: true,
@@ -3449,13 +3449,14 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_fragment_as_part_of_filename() {
         // When a file literally contains '#' in its name, it should be preserved
-        resolve_relative_request_test(ResolveRelativeRequestTestParams {
+        resolve_relative_request_test(TestParams {
             files: vec!["client#component.js", "client#component.ts"],
             pattern: rcstr!("./client#component.js").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
             expected: vec![
-                // WRONG: request key is incorrect
+                // The request key is fundamentally ambiguous.  It depends on whether or not we
+                // consider this fragment to be part of the request pattern
                 ("./client#component.ts", "client#component.ts"),
                 // WRONG: js file should not be produced
                 ("./client", "client#component.js"),
@@ -3467,12 +3468,24 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_fragment_with_ts_priority() {
         // Fragment handling with extension priority
-        resolve_relative_request_test(ResolveRelativeRequestTestParams {
+        resolve_relative_request_test(TestParams {
             files: vec!["page#section.js", "page#section.ts"],
             pattern: rcstr!("./page#section").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
             expected: vec![("./page", "page#section.ts")],
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_query() {
+        resolve_relative_request_test(TestParams {
+            files: vec!["client.ts", "client.js"],
+            pattern: rcstr!("./client?q=s").into(),
+            enable_typescript_with_output_extension: true,
+            fully_specified: false,
+            expected: vec![("./client", "client.ts")],
         })
         .await;
     }
@@ -3483,7 +3496,7 @@ mod tests {
         // Pattern: ./src/*.js should generate multiple keys with .ts priority
         // When both foo.js and foo.ts exist, dynamic patterns need both keys for runtime resolution
         // Results are sorted alphabetically by key
-        resolve_relative_request_test(ResolveRelativeRequestTestParams {
+        resolve_relative_request_test(TestParams {
             files: vec!["src/foo.js", "src/foo.ts", "src/bar.js"],
             pattern: Pattern::Concatenation(vec![
                 Pattern::Constant(rcstr!("./src/")),
@@ -3508,7 +3521,7 @@ mod tests {
         // Pattern: ./src/* (no extension) with TypeScript priority
         // Dynamic patterns generate keys for all matched files, including extension alternatives
         // Results are sorted alphabetically by key
-        resolve_relative_request_test(ResolveRelativeRequestTestParams {
+        resolve_relative_request_test(TestParams {
             files: vec!["src/foo.js", "src/foo.ts", "src/bar.js"],
             pattern: Pattern::Concatenation(vec![
                 Pattern::Constant(rcstr!("./src/")),
@@ -3522,7 +3535,6 @@ mod tests {
                 // WRONG: all three should point at the .ts file
                 ("./src/foo", "src/foo.js"),
                 ("./src/foo.js", "src/foo.js"),
-                // WRONG: the request key should be .js
                 ("./src/foo.ts", "src/foo.ts"),
             ],
         })
@@ -3530,7 +3542,7 @@ mod tests {
     }
 
     /// Parameters for resolve_relative_request_test
-    struct ResolveRelativeRequestTestParams<'a> {
+    struct TestParams<'a> {
         files: Vec<&'a str>,
         pattern: Pattern,
         enable_typescript_with_output_extension: bool,
@@ -3540,13 +3552,13 @@ mod tests {
 
     /// Helper function to run a single extension priority test case
     async fn resolve_relative_request_test(
-        ResolveRelativeRequestTestParams {
+        TestParams {
             files,
             pattern,
             enable_typescript_with_output_extension,
             fully_specified,
             expected,
-        }: ResolveRelativeRequestTestParams<'_>,
+        }: TestParams<'_>,
     ) {
         let scratch = tempfile::tempdir().unwrap();
         {
