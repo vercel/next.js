@@ -163,19 +163,20 @@ All params are runtime data. Param access must be wrapped by Suspense fallback U
 ```tsx filename="app/blog/[slug]/page.tsx"
 import { Suspense } from 'react'
 
-export default async function Page({ params }: PageProps<'/blog/[slug]'>) {
+export default function Page({ params }: PageProps<'/blog/[slug]'>) {
   return (
     <div>
       <h1>Blog Post</h1>
       <Suspense fallback={<div>Loading...</div>}>
-        <Content slugPromise={params.then((p) => p.slug)} />
+        {params.then(({ slug }) => (
+          <Content slug={slug} />
+        ))}
       </Suspense>
     </div>
   )
 }
 
-async function Content({ slugPromise }: { slugPromise: Promise<string> }) {
-  const slug = await slugPromise
+async function Content({ slug }: { slug: string }) {
   const res = await fetch(`https://api.vercel.app/blog/${slug}`)
   const post = await res.json()
 
@@ -318,7 +319,13 @@ When using `fetch` inside the `generateStaticParams` function, the requests are 
 
 ```ts filename="app/api/posts/[id]/route.ts" switcher
 export async function generateStaticParams() {
-  return [{ id: '1' }, { id: '2' }, { id: '3' }]
+  const posts: { id: number }[] = await fetch(
+    'https://api.vercel.app/blog'
+  ).then((res) => res.json())
+
+  return posts.map((post) => ({
+    id: `${post.id}`,
+  }))
 }
 
 export async function GET(
@@ -326,21 +333,39 @@ export async function GET(
   { params }: RouteContext<'/api/posts/[id]'>
 ) {
   const { id } = await params
-  // Fetch and return post data
-  return Response.json({ id, title: `Post ${id}` })
+  const res = await fetch(`https://api.vercel.app/blog/${id}`)
+
+  if (!res.ok) {
+    return Response.json({ error: 'Post not found' }, { status: 404 })
+  }
+
+  const post = await res.json()
+  return Response.json(post)
 }
 ```
 
 ```js filename="app/api/posts/[id]/route.js" switcher
 export async function generateStaticParams() {
-  return [{ id: '1' }, { id: '2' }, { id: '3' }]
+  const posts = await fetch('https://api.vercel.app/blog').then((res) =>
+    res.json()
+  )
+
+  return posts.map((post) => ({
+    id: `${post.id}`,
+  }))
 }
 
 export async function GET(request, { params }) {
   const { id } = await params
-  // Fetch and return post data
-  return Response.json({ id, title: `Post ${id}` })
+  const res = await fetch(`https://api.vercel.app/blog/${id}`)
+
+  if (!res.ok) {
+    return Response.json({ error: 'Post not found' }, { status: 404 })
+  }
+
+  const post = await res.json()
+  return Response.json(post)
 }
 ```
 
-In this example, the route handlers for all blog post IDs (1, 2 and 3) returned by `generateStaticParams` will be statically generated at build time. Requests to other IDs will be handled dynamically at request time.
+In this example, route handlers for all blog post IDs returned by `generateStaticParams` will be statically generated at build time. Requests to other IDs will be handled dynamically at request time.
