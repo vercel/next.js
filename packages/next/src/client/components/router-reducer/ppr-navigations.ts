@@ -51,7 +51,7 @@ export type NavigationTask = {
 }
 
 export type NavigationRequestAccumulation = {
-  scrollableSegments: Array<FlightSegmentPath>
+  scrollableSegments: Array<FlightSegmentPath> | null
   separateRefreshUrls: Set<string> | null
 }
 
@@ -91,6 +91,8 @@ export function startPPRNavigation(
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
   shouldRefreshDynamicData: boolean,
+  seedData: CacheNodeSeedData | null,
+  seedHead: HeadData | null,
   prefetchData: CacheNodeSeedData | null,
   prefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean,
@@ -108,6 +110,8 @@ export function startPPRNavigation(
     newRouterState,
     shouldRefreshDynamicData,
     didFindRootLayout,
+    seedData,
+    seedHead,
     prefetchData,
     prefetchHead,
     isPrefetchHeadPartial,
@@ -128,6 +132,8 @@ function updateCacheNodeOnNavigation(
   newRouterState: FlightRouterState,
   shouldRefreshDynamicData: boolean,
   didFindRootLayout: boolean,
+  seedData: CacheNodeSeedData | null,
+  seedHead: HeadData | null,
   prefetchData: CacheNodeSeedData | null,
   prefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean,
@@ -193,6 +199,8 @@ function updateCacheNodeOnNavigation(
       newRouterState,
       oldCacheNode,
       shouldRefreshDynamicData,
+      seedData,
+      seedHead,
       prefetchData,
       prefetchHead,
       isPrefetchHeadPartial,
@@ -216,6 +224,7 @@ function updateCacheNodeOnNavigation(
 
   const newRouterStateChildren = newRouterState[1]
   const oldRouterStateChildren = oldRouterState[1]
+  const seedDataChildren = seedData !== null ? seedData[1] : null
   const prefetchDataChildren = prefetchData !== null ? prefetchData[1] : null
 
   // We're currently traversing the part of the tree that was also part of
@@ -264,6 +273,28 @@ function updateCacheNodeOnNavigation(
     // Reuse the existing CacheNode
     newCacheNode = reuseDynamicCacheNode(oldCacheNode, newParallelRoutes)
     needsDynamicRequest = false
+  } else if (seedData !== null) {
+    // If this navigation was the result of an action, then check if the
+    // server sent back data in the action response. We should favor using
+    // that, rather than performing a separate request. This is both better
+    // for performance and it's more likely to be consistent with any
+    // writes that were just performed by the action, compared to a
+    // separate request.
+    const seedRsc = seedData[0]
+    const seedLoading = seedData[2]
+    const isSeedRscPartial = false
+    const isSeedHeadPartial = seedHead === null
+    newCacheNode = readCacheNodeFromSeedData(
+      seedRsc,
+      seedLoading,
+      isSeedRscPartial,
+      seedHead,
+      isSeedHeadPartial,
+      isLeafSegment,
+      newParallelRoutes,
+      navigatedAt
+    )
+    needsDynamicRequest = isLeafSegment && isSeedHeadPartial
   } else if (prefetchData !== null) {
     // Consult the prefetch cache.
     const prefetchRsc = prefetchData[0]
@@ -357,12 +388,16 @@ function updateCacheNodeOnNavigation(
       oldParallelRoutes !== undefined
         ? oldParallelRoutes.get(parallelRouteKey)
         : undefined
+
+    let seedDataChild: CacheNodeSeedData | void | null =
+      seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
     let prefetchDataChild: CacheNodeSeedData | void | null =
       prefetchDataChildren !== null
         ? prefetchDataChildren[parallelRouteKey]
         : null
 
     let newSegmentChild = newRouterStateChild[0]
+    let seedHeadChild = seedHead
     let prefetchHeadChild = prefetchHead
     let isPrefetchHeadPartialChild = isPrefetchHeadPartial
     if (newSegmentChild === DEFAULT_SEGMENT_KEY) {
@@ -377,6 +412,8 @@ function updateCacheNodeOnNavigation(
 
       // Since we're switching to a different route tree, these are no
       // longer valid, because they correspond to the outer tree.
+      seedDataChild = null
+      seedHeadChild = null
       prefetchDataChild = null
       prefetchHeadChild = null
       isPrefetchHeadPartialChild = false
@@ -396,6 +433,8 @@ function updateCacheNodeOnNavigation(
       newRouterStateChild,
       shouldRefreshDynamicData,
       childDidFindRootLayout,
+      seedDataChild ?? null,
+      seedHeadChild,
       prefetchDataChild ?? null,
       prefetchHeadChild,
       isPrefetchHeadPartialChild,
@@ -421,7 +460,9 @@ function updateCacheNodeOnNavigation(
     taskChildren.set(parallelRouteKey, taskChild)
     const newCacheNodeChild = taskChild.node
     if (newCacheNodeChild !== null) {
-      const newSegmentMapChild: ChildSegmentMap = new Map(oldSegmentMapChild)
+      const newSegmentMapChild: ChildSegmentMap = new Map(
+        shouldRefreshDynamicData ? undefined : oldSegmentMapChild
+      )
       newSegmentMapChild.set(newSegmentKeyChild, newCacheNodeChild)
       newParallelRoutes.set(parallelRouteKey, newSegmentMapChild)
     }
@@ -471,6 +512,8 @@ function createCacheNodeOnNavigation(
   newRouterState: FlightRouterState,
   oldCacheNode: CacheNode | void,
   shouldRefreshDynamicData: boolean,
+  seedData: CacheNodeSeedData | null,
+  seedHead: HeadData | null,
   prefetchData: CacheNodeSeedData | null,
   prefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean,
@@ -497,6 +540,7 @@ function createCacheNodeOnNavigation(
 
   const newRouterStateChildren = newRouterState[1]
   const prefetchDataChildren = prefetchData !== null ? prefetchData[1] : null
+  const seedDataChildren = seedData !== null ? seedData[1] : null
   const oldParallelRoutes =
     oldCacheNode !== undefined ? oldCacheNode.parallelRoutes : undefined
   const newParallelRoutes = new Map(
@@ -514,6 +558,9 @@ function createCacheNodeOnNavigation(
     // TODO: We should use a string to represent the segment path instead of
     // an array. We already use a string representation for the path when
     // accessing the Segment Cache, so we can use the same one.
+    if (accumulation.scrollableSegments === null) {
+      accumulation.scrollableSegments = []
+    }
     accumulation.scrollableSegments.push(segmentPath)
   }
 
@@ -534,6 +581,28 @@ function createCacheNodeOnNavigation(
     // Reuse the existing CacheNode
     newCacheNode = reuseDynamicCacheNode(oldCacheNode, newParallelRoutes)
     needsDynamicRequest = false
+  } else if (seedData !== null) {
+    // If this navigation was the result of an action, then check if the
+    // server sent back data in the action response. We should favor using
+    // that, rather than performing a separate request. This is both better
+    // for performance and it's more likely to be consistent with any
+    // writes that were just performed by the action, compared to a
+    // separate request.
+    const seedRsc = seedData[0]
+    const seedLoading = seedData[2]
+    const isSeedRscPartial = false
+    const isSeedHeadPartial = seedHead === null
+    newCacheNode = readCacheNodeFromSeedData(
+      seedRsc,
+      seedLoading,
+      isSeedRscPartial,
+      seedHead,
+      isSeedHeadPartial,
+      isLeafSegment,
+      newParallelRoutes,
+      navigatedAt
+    )
+    needsDynamicRequest = isLeafSegment && isSeedHeadPartial
   } else if (prefetchData !== null) {
     // Consult the prefetch cache.
     const prefetchRsc = prefetchData[0]
@@ -578,6 +647,8 @@ function createCacheNodeOnNavigation(
       oldParallelRoutes !== undefined
         ? oldParallelRoutes.get(parallelRouteKey)
         : undefined
+    const seedDataChild: CacheNodeSeedData | void | null =
+      seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
     const prefetchDataChild: CacheNodeSeedData | void | null =
       prefetchDataChildren !== null
         ? prefetchDataChildren[parallelRouteKey]
@@ -596,6 +667,8 @@ function createCacheNodeOnNavigation(
       newRouterStateChild,
       oldCacheNodeChild,
       shouldRefreshDynamicData,
+      seedDataChild ?? null,
+      seedHead,
       prefetchDataChild ?? null,
       prefetchHead,
       isPrefetchHeadPartial,
@@ -611,7 +684,9 @@ function createCacheNodeOnNavigation(
     taskChildren.set(parallelRouteKey, taskChild)
     const newCacheNodeChild = taskChild.node
     if (newCacheNodeChild !== null) {
-      const newSegmentMapChild: ChildSegmentMap = new Map(oldSegmentMapChild)
+      const newSegmentMapChild: ChildSegmentMap = new Map(
+        shouldRefreshDynamicData ? undefined : oldSegmentMapChild
+      )
       newSegmentMapChild.set(newSegmentKeyChild, newCacheNodeChild)
       newParallelRoutes.set(parallelRouteKey, newSegmentMapChild)
     }

@@ -532,6 +532,10 @@ async function generateDynamicRSCPayload(
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
 
+  const varyHeader = ctx.res.getHeader('vary')
+  const couldBeIntercepted =
+    typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
+
   // If we have an action result, then this is a server action response.
   // We can rely on this because `ActionResult` will always be a promise, even if
   // the result is falsey.
@@ -540,6 +544,8 @@ async function generateDynamicRSCPayload(
       a: options.actionResult,
       f: flightData,
       b: ctx.sharedContext.buildId,
+      q: getRenderedSearch(query),
+      i: !!couldBeIntercepted,
     }
   }
 
@@ -547,6 +553,8 @@ async function generateDynamicRSCPayload(
   const baseResponse = {
     b: ctx.sharedContext.buildId,
     f: flightData,
+    q: getRenderedSearch(query),
+    i: !!couldBeIntercepted,
     S: workStore.isStaticGeneration,
   }
 
