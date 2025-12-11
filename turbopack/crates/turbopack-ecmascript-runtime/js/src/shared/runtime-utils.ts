@@ -48,14 +48,14 @@ interface ModuleContextEntry {
 
 interface ModuleContext {
   // require call
-  (moduleId: ModuleId): Exports | EsmNamespaceObject
+  (moduleId: string): Exports | EsmNamespaceObject
 
   // async import call
-  import(moduleId: ModuleId): Promise<Exports | EsmNamespaceObject>
+  import(moduleId: string): Promise<Exports | EsmNamespaceObject>
 
   keys(): ModuleId[]
 
-  resolve(moduleId: ModuleId): ModuleId
+  resolve(moduleId: string): ModuleId
 }
 
 type GetOrInstantiateModuleFromParent<M extends Module> = (
