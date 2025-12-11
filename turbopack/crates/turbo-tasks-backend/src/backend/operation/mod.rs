@@ -21,7 +21,6 @@ use turbo_tasks::{
 use crate::{
     backend::{
         OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
-        TurboTasksBackendJob,
         storage::{SpecificTaskDataCategory, StorageWriteGuard, get, iter_many, remove},
     },
     backing_storage::{BackingStorage, BackingStorageSealed},
@@ -545,14 +544,7 @@ where
         self.schedule_task(task);
     }
 
-    fn schedule_task(&self, mut task: Self::TaskGuardImpl) {
-        if let Some(tasks_to_prefetch) = task.prefetch() {
-            self.turbo_tasks
-                .schedule_backend_background_job(TurboTasksBackendJob::Prefetch {
-                    data: Arc::new(tasks_to_prefetch),
-                    range: None,
-                });
-        }
+    fn schedule_task(&self, task: Self::TaskGuardImpl) {
         self.turbo_tasks.schedule(task.id());
     }
 
@@ -650,7 +642,10 @@ pub trait TaskGuard: Debug {
     where
         F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
     fn invalidate_serialization(&mut self);
-    fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>>;
+    /// Determine which tasks to prefetch for a task.
+    /// Only returns Some once per task.
+    /// It returns a set of tasks and which info is needed.
+    fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, TaskDataCategory>>;
     fn is_immutable(&self) -> bool;
     fn is_dirty(&self) -> bool {
         get!(self, Dirty).is_some_and(|dirtyness| match dirtyness {
@@ -984,18 +979,16 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         }
     }
 
-    fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>> {
-        if !self.task.state().prefetched() {
-            self.task.state_mut().set_prefetched(true);
-            let map = iter_many!(self, OutputDependency { target } => (target, false))
-                .chain(iter_many!(self, CellDependency { target } => (target.task, true)))
-                .chain(iter_many!(self, CollectiblesDependency { target } => (target.task, true)))
-                .collect::<FxIndexMap<_, _>>();
-            if map.len() > 16 {
-                return Some(map);
-            }
+    fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, TaskDataCategory>> {
+        if self.task.state().prefetched() {
+            return None;
         }
-        None
+        self.task.state_mut().set_prefetched(true);
+        let map = iter_many!(self, OutputDependency { target } => (target, TaskDataCategory::Meta))
+            .chain(iter_many!(self, CellDependency { target } => (target.task, TaskDataCategory::All)))
+            .chain(iter_many!(self, CollectiblesDependency { target } => (target.task, TaskDataCategory::All)))
+            .collect::<FxIndexMap<_, _>>();
+        (map.len() > 1).then_some(map)
     }
 
     fn is_immutable(&self) -> bool {
