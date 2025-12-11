@@ -59,6 +59,7 @@ function waitForServer(process: ChildProcess, timeoutMs: number = 30000) {
     const timeout = setTimeout(() => {
       process.stdout.off('data', onStdout)
       process.off('error', onError)
+      process.off('exit', onExit)
       reject(new Error('Server did not start within timeout'))
     }, timeoutMs)
 
@@ -68,6 +69,7 @@ function waitForServer(process: ChildProcess, timeoutMs: number = 30000) {
         clearTimeout(timeout)
         process.stdout.off('data', onStdout)
         process.off('error', onError)
+        process.off('exit', onExit)
         resolve(urlMatch[0])
       }
     }
@@ -76,11 +78,25 @@ function waitForServer(process: ChildProcess, timeoutMs: number = 30000) {
       clearTimeout(timeout)
       process.stdout.off('data', onStdout)
       process.off('error', onError)
+      process.off('exit', onExit)
       reject(error)
+    }
+
+    function onExit(code: number) {
+      clearTimeout(timeout)
+      process.stdout.off('data', onStdout)
+      process.off('error', onError)
+      process.off('exit', onExit)
+      reject(
+        new Error(
+          `Server process exited with code ${code} before URL was emitted`
+        )
+      )
     }
 
     process.stdout.on('data', onStdout)
     process.on('error', onError)
+    process.on('exit', onExit)
   })
 
   return serverUrlPromise
