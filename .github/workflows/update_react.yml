@@ -21,6 +21,12 @@ jobs:
   create-pull-request:
     runs-on: ubuntu-latest
     steps:
+      - name: Check token
+        run: |
+          curl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/rate_limit
+          gh auth status
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
       - name: Checkout
         uses: actions/checkout@v4
         with:
