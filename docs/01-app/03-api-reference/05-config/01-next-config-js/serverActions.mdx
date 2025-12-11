@@ -13,10 +13,8 @@ A list of extra safe origin domains from which Server Actions can be invoked. Ne
 /** @type {import('next').NextConfig} */
 
 module.exports = {
-  experimental: {
-    serverActions: {
-      allowedOrigins: ['my-proxy.com', '*.my-proxy.com'],
-    },
+  serverActions: {
+    allowedOrigins: ['my-proxy.com', '*.my-proxy.com'],
   },
 }
 ```
@@ -31,10 +29,8 @@ However, you can configure this limit using the `serverActions.bodySizeLimit` op
 /** @type {import('next').NextConfig} */
 
 module.exports = {
-  experimental: {
-    serverActions: {
-      bodySizeLimit: '2mb',
-    },
+  serverActions: {
+    bodySizeLimit: '2mb',
   },
 }
 ```
