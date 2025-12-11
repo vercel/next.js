@@ -2223,6 +2223,8 @@ async fn resolve_relative_request(
     force_in_lookup_dir: bool,
     fragment: RcStr,
 ) -> Result<Vc<ResolveResult>> {
+    debug_assert!(query.is_empty() || query.starts_with("?"));
+    debug_assert!(fragment.is_empty() || fragment.starts_with("#"));
     // Check alias field for aliases first
     let lookup_path_ref = lookup_path.clone();
     if let Some(result) = apply_in_package(
@@ -2245,6 +2247,9 @@ async fn resolve_relative_request(
 
     let mut new_path = path_pattern.clone();
 
+    // Fragments are a bit odd. `require()` allows importing files with literal `#` characters in
+    // them, but `import` treats it like a url and drops it from resolution. So we need to consider
+    // both cases here.
     if !fragment.is_empty() {
         new_path.push(Pattern::Alternatives(vec![
             Pattern::Constant(RcStr::default()),
@@ -2314,9 +2319,14 @@ async fn resolve_relative_request(
         lookup_path.clone(),
         rcstr!(""),
         force_in_lookup_dir,
-        Pattern::new(new_path).resolve().await?,
+        Pattern::new(new_path.clone()).resolve().await?,
     )
     .await?;
+
+    // This loop is necessary to 'undo' the modifications to 'new_path' that were performed above.
+    // e.g. we added extensions but these shouldn't be part of the request key so remove them
+    // TODO: this logic is not completely correct because it fails to account for the extension
+    // replacement logic that we perform conditionally.
 
     for m in matches.iter() {
         if let PatternMatch::File(matched_pattern, path) = m {
@@ -2329,10 +2339,10 @@ async fn resolve_relative_request(
 
                     if !fragment.is_empty() {
                         // If the fragment is not empty, we need to strip it from the matched
-                        // pattern
-                        if let Some(matched_pattern) = matched_pattern
-                            .strip_suffix(fragment.as_str())
-                            .and_then(|s| s.strip_suffix('#'))
+                        // pattern so it matches path_pattern
+                        if let Some(matched_pattern) =
+                            matched_pattern.strip_suffix(fragment.as_str())
+                            && path_pattern.is_match(matched_pattern)
                         {
                             results.push(
                                 resolved(
@@ -2350,7 +2360,7 @@ async fn resolve_relative_request(
                             pushed = true;
                         }
                     }
-                    if !pushed && path_pattern.is_match(matched_pattern) {
+                    if path_pattern.is_match(matched_pattern) {
                         results.push(
                             resolved(
                                 RequestKey::new(matched_pattern.into()),
@@ -2369,8 +2379,11 @@ async fn resolve_relative_request(
                 }
             }
             if !fragment.is_empty() {
-                // If the fragment is not empty, we need to strip it from the matched pattern
-                if let Some(matched_pattern) = matched_pattern.strip_suffix(fragment.as_str()) {
+                // If the fragment is not empty, we need to strip it from the matched pattern so it
+                // matches the original pattern
+                if let Some(matched_pattern) = matched_pattern.strip_suffix(fragment.as_str())
+                    && path_pattern.is_match(matched_pattern)
+                {
                     results.push(
                         resolved(
                             RequestKey::new(matched_pattern.into()),
@@ -3332,6 +3345,321 @@ impl Display for ModulePart {
             ModulePart::Locals => f.write_str("locals"),
             ModulePart::Exports => f.write_str("exports"),
             ModulePart::Facade => f.write_str("facade"),
+        }
+    }
+}
+#[cfg(test)]
+mod tests {
+    use std::{
+        fs::{File, create_dir_all},
+        io::Write,
+    };
+
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::{TryJoinIterExt, Vc};
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
+
+    use crate::{
+        resolve::{
+            ResolveResult, ResolveResultItem, node::node_esm_resolve_options, parse::Request,
+            pattern::Pattern,
+        },
+        source::Source,
+    };
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_explicit_js_resolves_to_ts() {
+        resolve_relative_request_test(TestParams {
+            files: vec!["foo.js", "foo.ts"],
+            pattern: rcstr!("./foo.js").into(),
+            enable_typescript_with_output_extension: true,
+            fully_specified: false,
+            expected: vec![
+                // WRONG: request key is incorrect
+                ("./foo.ts", "foo.ts"),
+                // WRONG: shouldn't produce the .js file
+                ("./foo.js", "foo.js"),
+            ],
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_implicit_request_ts_priority() {
+        resolve_relative_request_test(TestParams {
+            files: vec!["foo.js", "foo.ts"],
+            pattern: rcstr!("./foo").into(),
+            enable_typescript_with_output_extension: true,
+            fully_specified: false,
+            expected: vec![("./foo", "foo.ts")],
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_ts_priority_over_json() {
+        resolve_relative_request_test(TestParams {
+            files: vec!["posts.json", "posts.ts"],
+            pattern: rcstr!("./posts").into(),
+            enable_typescript_with_output_extension: true,
+            fully_specified: false,
+            expected: vec![("./posts", "posts.ts")],
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_only_js_file_no_ts() {
+        resolve_relative_request_test(TestParams {
+            files: vec!["bar.js"],
+            pattern: rcstr!("./bar.js").into(),
+            enable_typescript_with_output_extension: true,
+            fully_specified: false,
+            expected: vec![("./bar.js", "bar.js")],
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_explicit_ts_request() {
+        resolve_relative_request_test(TestParams {
+            files: vec!["foo.js", "foo.ts"],
+            pattern: rcstr!("./foo.ts").into(),
+            enable_typescript_with_output_extension: true,
+            fully_specified: false,
+            expected: vec![("./foo.ts", "foo.ts")],
+        })
+        .await;
+    }
+
+    // Fragment handling tests
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_fragment() {
+        resolve_relative_request_test(TestParams {
+            files: vec!["client.ts"],
+            pattern: rcstr!("./client#frag").into(),
+            enable_typescript_with_output_extension: true,
+            fully_specified: false,
+            expected: vec![("./client", "client.ts")],
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_fragment_as_part_of_filename() {
+        // When a file literally contains '#' in its name, it should be preserved
+        resolve_relative_request_test(TestParams {
+            files: vec!["client#component.js", "client#component.ts"],
+            pattern: rcstr!("./client#component.js").into(),
+            enable_typescript_with_output_extension: true,
+            fully_specified: false,
+            expected: vec![
+                // The request key is fundamentally ambiguous.  It depends on whether or not we
+                // consider this fragment to be part of the request pattern
+                ("./client#component.ts", "client#component.ts"),
+                // WRONG: js file should not be produced
+                ("./client", "client#component.js"),
+            ],
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_fragment_with_ts_priority() {
+        // Fragment handling with extension priority
+        resolve_relative_request_test(TestParams {
+            files: vec!["page#section.js", "page#section.ts"],
+            pattern: rcstr!("./page#section").into(),
+            enable_typescript_with_output_extension: true,
+            fully_specified: false,
+            expected: vec![("./page", "page#section.ts")],
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_query() {
+        resolve_relative_request_test(TestParams {
+            files: vec!["client.ts", "client.js"],
+            pattern: rcstr!("./client?q=s").into(),
+            enable_typescript_with_output_extension: true,
+            fully_specified: false,
+            expected: vec![("./client", "client.ts")],
+        })
+        .await;
+    }
+
+    // Dynamic pattern tests
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_dynamic_pattern_with_js_extension() {
+        // Pattern: ./src/*.js should generate multiple keys with .ts priority
+        // When both foo.js and foo.ts exist, dynamic patterns need both keys for runtime resolution
+        // Results are sorted alphabetically by key
+        resolve_relative_request_test(TestParams {
+            files: vec!["src/foo.js", "src/foo.ts", "src/bar.js"],
+            pattern: Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("./src/")),
+                Pattern::Dynamic,
+                Pattern::Constant(rcstr!(".js")),
+            ]),
+            enable_typescript_with_output_extension: true,
+            fully_specified: false,
+            expected: vec![
+                // WRONG: request key doesn't match pattern
+                ("./src/foo.ts", "src/foo.ts"),
+                ("./src/bar.js", "src/bar.js"),
+                // WRONG: source file is redundant with extension rewriting
+                ("./src/foo.js", "src/foo.js"),
+            ],
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_dynamic_pattern_without_extension() {
+        // Pattern: ./src/* (no extension) with TypeScript priority
+        // Dynamic patterns generate keys for all matched files, including extension alternatives
+        // Results are sorted alphabetically by key
+        resolve_relative_request_test(TestParams {
+            files: vec!["src/foo.js", "src/foo.ts", "src/bar.js"],
+            pattern: Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("./src/")),
+                Pattern::Dynamic,
+            ]),
+            enable_typescript_with_output_extension: true,
+            fully_specified: false,
+            expected: vec![
+                ("./src/bar", "src/bar.js"),
+                ("./src/bar.js", "src/bar.js"),
+                // WRONG: all three should point at the .ts file
+                ("./src/foo", "src/foo.js"),
+                ("./src/foo.js", "src/foo.js"),
+                ("./src/foo.ts", "src/foo.ts"),
+            ],
+        })
+        .await;
+    }
+
+    /// Parameters for resolve_relative_request_test
+    struct TestParams<'a> {
+        files: Vec<&'a str>,
+        pattern: Pattern,
+        enable_typescript_with_output_extension: bool,
+        fully_specified: bool,
+        expected: Vec<(&'a str, &'a str)>,
+    }
+
+    /// Helper function to run a single extension priority test case
+    async fn resolve_relative_request_test(
+        TestParams {
+            files,
+            pattern,
+            enable_typescript_with_output_extension,
+            fully_specified,
+            expected,
+        }: TestParams<'_>,
+    ) {
+        let scratch = tempfile::tempdir().unwrap();
+        {
+            let path = scratch.path();
+
+            for file_name in &files {
+                let file_path = path.join(file_name);
+                if let Some(parent) = file_path.parent() {
+                    create_dir_all(parent).unwrap();
+                }
+                File::create_new(&file_path)
+                    .unwrap()
+                    .write_all(format!("export default '{file_name}'").as_bytes())
+                    .unwrap();
+            }
+        }
+
+        let path: RcStr = scratch.path().to_str().unwrap().into();
+        let expected_owned: Vec<(String, String)> = expected
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+
+        tt.run_once(async move {
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), path));
+            let lookup_path = fs.root().owned().await?;
+
+            let result = resolve_relative_helper(
+                lookup_path,
+                pattern,
+                enable_typescript_with_output_extension,
+                fully_specified,
+            )
+            .await?;
+
+            let results: Vec<(String, String)> = result
+                .primary
+                .iter()
+                .map(async |(k, v)| {
+                    Ok((
+                        k.to_string(),
+                        if let ResolveResultItem::Source(source) = v {
+                            source.ident().await?.path.path.to_string()
+                        } else {
+                            unreachable!()
+                        },
+                    ))
+                })
+                .try_join()
+                .await?;
+
+            assert_eq!(results, expected_owned);
+
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[turbo_tasks::function]
+    async fn resolve_relative_helper(
+        lookup_path: FileSystemPath,
+        pattern: Pattern,
+        enable_typescript_with_output_extension: bool,
+        fully_specified: bool,
+    ) -> anyhow::Result<Vc<ResolveResult>> {
+        let request = Request::parse(pattern.clone());
+
+        let mut options_value = node_esm_resolve_options(lookup_path.clone())
+            .with_fully_specified(fully_specified)
+            .with_extensions(vec![rcstr!(".ts"), rcstr!(".js"), rcstr!(".json")])
+            .owned()
+            .await?;
+        options_value.enable_typescript_with_output_extension =
+            enable_typescript_with_output_extension;
+        let options = options_value.clone().cell();
+        match &*request.await? {
+            Request::Relative {
+                path,
+                query,
+                force_in_lookup_dir,
+                fragment,
+            } => {
+                super::resolve_relative_request(
+                    lookup_path,
+                    request,
+                    options,
+                    &options_value,
+                    path,
+                    query.clone(),
+                    *force_in_lookup_dir,
+                    fragment.clone(),
+                )
+                .await
+            }
+            r => panic!("request should be relative, got {r:?}"),
         }
     }
 }

@@ -4,6 +4,7 @@ import fileMts from './src/file-mts.mjs'
 import fileCts from './src/file-cts.cjs'
 import fileMjs from './src/file-mjs.mjs'
 import fileCjs from './src/file-cjs.cjs'
+import fooButton from 'foo/button'
 
 it('should correctly resolve explicit extensions with nodenext', () => {
   expect(foo).toBe('foo.ts')
@@ -14,8 +15,6 @@ it('should correctly resolve explicit extensions with nodenext', () => {
   expect(fileCjs).toBe('file-cjs')
 })
 
-// import fooButton from "foo/button";
-
-// it("should correctly resolve explicit extensions with nodenext", () => {
-//   expect(fooButton).toBe("button");
-// });
+it('should correctly resolve explicit extensions with nodenext', () => {
+  expect(fooButton).toBe('button')
+})

@@ -57,6 +57,7 @@ rstest = { workspace = true }
 tokio = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 turbo-tasks-backend = { workspace = true }
+tempfile = { workspace = true }
 
 [features]
 default = []
