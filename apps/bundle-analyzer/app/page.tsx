@@ -1,6 +1,8 @@
 'use client'
 
 import type React from 'react'
+import { SizeMode } from '@/lib/treemap-layout'
+
 import { useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
 import { ErrorState } from '@/components/error-state'
@@ -17,12 +19,17 @@ import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
 import { fetchStrict } from '@/lib/utils'
 import { formatBytes } from '@/lib/utils'
 
+enum Environment {
+  Client = 'client',
+  Server = 'server',
+}
+
 export default function Home() {
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null)
-  const [environmentFilter, setEnvironmentFilter] = useState<
-    'client' | 'server'
-  >('client')
-  const [typeFilter, setTypeFilter] = useState<string[]>(['js', 'css', 'json'])
+  const [environmentFilter, setEnvironmentFilter] = useState<Environment>(
+    Environment.Client
+  )
+  const [typeFilter, setTypeFilter] = useState(['js', 'css', 'json'])
   const [selectedSourceIndex, setSelectedSourceIndex] = useState<number | null>(
     null
   )
@@ -69,6 +76,7 @@ export default function Home() {
     client?: boolean
   } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [sizeMode, setSizeMode] = useState(SizeMode.Compressed)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -100,15 +108,15 @@ export default function Home() {
   }, [modulesData, analyzeData])
 
   const filterSource = useMemo(() => {
-    if (!analyzeData) return undefined
+    if (!analyzeData) return () => true
 
     return (sourceIndex: number) => {
       const flags = analyzeData.getSourceFlags(sourceIndex)
 
       // Check environment filter
       const hasEnvironment =
-        (environmentFilter === 'client' && flags.client) ||
-        (environmentFilter === 'server' && flags.server)
+        (environmentFilter === Environment.Client && flags.client) ||
+        (environmentFilter === Environment.Server && flags.server)
 
       // Check type filter
       const hasType =
@@ -157,15 +165,39 @@ export default function Home() {
           />
         </div>
 
-        <div className="basis-2/3 flex justify-end">
+        <div className="basis-2/3 flex justify-end items-center space-x-4">
           {analyzeData && (
             <>
               <ToggleGroup
                 type="single"
-                className="mr-4"
+                value={
+                  sizeMode === SizeMode.Compressed
+                    ? 'compressed'
+                    : 'uncompressed'
+                }
+                onValueChange={(value) => {
+                  if (value)
+                    setSizeMode(
+                      value === 'compressed'
+                        ? SizeMode.Compressed
+                        : SizeMode.Uncompressed
+                    )
+                }}
+                size="sm"
+              >
+                <ToggleGroupItem value="uncompressed">
+                  Uncompressed
+                </ToggleGroupItem>
+                <ToggleGroupItem value="compressed">Compressed</ToggleGroupItem>
+              </ToggleGroup>
+
+              <ControlDivider />
+
+              <ToggleGroup
+                type="single"
                 value={environmentFilter}
                 onValueChange={(value) => {
-                  if (value) setEnvironmentFilter(value as 'client' | 'server')
+                  if (value) setEnvironmentFilter(value as Environment)
                 }}
                 size="sm"
               >
@@ -173,9 +205,10 @@ export default function Home() {
                 <ToggleGroupItem value="server">Server</ToggleGroupItem>
               </ToggleGroup>
 
+              <ControlDivider />
+
               <ToggleGroup
                 type="multiple"
-                className="mr-4"
                 value={typeFilter}
                 onValueChange={(value) => {
                   if (value.length > 0) setTypeFilter(value)
@@ -187,6 +220,8 @@ export default function Home() {
                 <ToggleGroupItem value="json">JSON</ToggleGroupItem>
                 <ToggleGroupItem value="asset">Asset</ToggleGroupItem>
               </ToggleGroup>
+
+              <ControlDivider />
 
               <FileSearch value={searchQuery} onChange={setSearchQuery} />
             </>
@@ -235,6 +270,7 @@ export default function Home() {
                 onHoveredNodeChange={setHoveredNodeInfo}
                 searchQuery={searchQuery}
                 filterSource={filterSource}
+                sizeMode={sizeMode}
               />
             </div>
 
@@ -252,6 +288,7 @@ export default function Home() {
               selectedSourceIndex={selectedSourceIndex}
               moduleDepthMap={moduleDepthMap}
               environmentFilter={environmentFilter}
+              filterSource={filterSource}
             />
           </>
         ) : null}
@@ -266,7 +303,11 @@ export default function Home() {
                   {hoveredNodeInfo.name}
                 </span>
                 <span className="ml-2 text-muted-foreground">
-                  {formatBytes(hoveredNodeInfo.size)}
+                  {`${formatBytes(hoveredNodeInfo.size)} ${
+                    sizeMode === SizeMode.Compressed
+                      ? 'compressed'
+                      : 'uncompressed'
+                  }`}
                 </span>
                 {(hoveredNodeInfo.server || hoveredNodeInfo.client) && (
                   <span className="ml-2 inline-flex gap-1">
@@ -287,6 +328,10 @@ export default function Home() {
       )}
     </main>
   )
+}
+
+function ControlDivider() {
+  return <span className="h-6 w-px bg-muted-foreground/30" />
 }
 
 function getRootSourceIndex(analyzeData: AnalyzeData | undefined): number {
