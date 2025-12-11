@@ -1341,6 +1341,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// might hold onto a block of the database and it should not be hold long-term.
     pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcSlice<u8>>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
+        let span =
+            tracing::trace_span!("database read", family, result_size = tracing::field::Empty)
+                .entered();
         let hash = hash_key(key);
         let inner = self.inner.read();
         for meta in inner.meta_files.iter().rev() {
@@ -1371,17 +1374,20 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             LookupValue::Deleted => {
                                 #[cfg(feature = "stats")]
                                 self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
+                                span.record("result_size", &"deleted");
                                 return Ok(None);
                             }
                             LookupValue::Slice { value } => {
                                 #[cfg(feature = "stats")]
                                 self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
+                                span.record("result_size", value.len());
                                 return Ok(Some(value));
                             }
                             LookupValue::Blob { sequence_number } => {
                                 #[cfg(feature = "stats")]
                                 self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
                                 let blob = self.read_blob(sequence_number)?;
+                                span.record("result_size", blob.len());
                                 return Ok(Some(blob));
                             }
                         }
@@ -1395,6 +1401,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         #[cfg(feature = "stats")]
         self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
+        span.record("result_size", &"not found");
         Ok(None)
     }
 
@@ -1404,6 +1411,15 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         keys: &[K],
     ) -> Result<Vec<Option<ArcSlice<u8>>>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
+        let span = tracing::trace_span!(
+            "database batch read",
+            family,
+            keys = keys.len(),
+            not_found = tracing::field::Empty,
+            deleted = tracing::field::Empty,
+            result_size = tracing::field::Empty
+        )
+        .entered();
         let mut cells: Vec<(u64, usize, Option<LookupValue>)> = Vec::with_capacity(keys.len());
         let mut empty_cells = keys.len();
         for (index, key) in keys.iter().enumerate() {
@@ -1458,6 +1474,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 break;
             }
         }
+        let mut deleted = 0;
+        let mut not_found = 0;
+        let mut result_size = 0;
         let mut results = vec![None; keys.len()];
         for (hash, index, result) in cells {
             if let Some(result) = result {
@@ -1466,17 +1485,20 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     LookupValue::Deleted => {
                         #[cfg(feature = "stats")]
                         self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
+                        deleted += 1;
                         None
                     }
                     LookupValue::Slice { value } => {
                         #[cfg(feature = "stats")]
                         self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
+                        result_size += value.len();
                         Some(value)
                     }
                     LookupValue::Blob { sequence_number } => {
                         #[cfg(feature = "stats")]
                         self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
                         let blob = self.read_blob(sequence_number)?;
+                        result_size += blob.len();
                         Some(blob)
                     }
                 };
@@ -1484,8 +1506,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             } else {
                 #[cfg(feature = "stats")]
                 self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
+                not_found += 1;
             }
         }
+        span.record("not_found", not_found);
+        span.record("deleted", deleted);
+        span.record("result_size", result_size);
         Ok(results)
     }
 
