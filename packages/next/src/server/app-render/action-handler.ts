@@ -14,6 +14,7 @@ import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_URL,
+  NEXT_ACTION_REVALIDATED_HEADER,
 } from '../../client/components/app-router-headers'
 import {
   getAccessFallbackHTTPStatus,
@@ -63,6 +64,10 @@ import { executeRevalidates } from '../revalidation-utils'
 import { getRequestMeta } from '../request-meta'
 import { setCacheBustingSearchParam } from '../../client/components/router-reducer/set-cache-busting-search-param'
 import { getServerModuleMap } from './manifests-singleton'
+import {
+  ActionDidNotRevalidate,
+  ActionDidRevalidateStaticAndDynamic,
+} from '../../shared/lib/action-revalidation-kind'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -141,9 +146,10 @@ function addRevalidationHeader(
   // client router cache as they may be stale. And if a path was revalidated, the
   // client needs to invalidate all subtrees below that path.
 
-  // To keep the header size small, we use a tuple of
-  // [[revalidatedPaths], isTagRevalidated ? 1 : 0, isCookieRevalidated ? 1 : 0]
-  // instead of a JSON object.
+  // TODO: Currently we don't send the specific tags or paths to the client,
+  // we just send a flag indicating that all the static data on the client
+  // should be invalidated. In the future, this will likely be a Bloom filter
+  // or bitmask of some kind.
 
   // TODO-APP: Currently the prefetch cache doesn't have subtree information,
   // so we need to invalidate the entire cache if a path was revalidated.
@@ -157,10 +163,22 @@ function addRevalidationHeader(
     ? 1
     : 0
 
-  res.setHeader(
-    'x-action-revalidated',
-    JSON.stringify([[], isTagRevalidated, isCookieRevalidated])
-  )
+  // First check if a tag, cookie, or path was revalidated.
+  if (isTagRevalidated || isCookieRevalidated) {
+    res.setHeader(
+      NEXT_ACTION_REVALIDATED_HEADER,
+      JSON.stringify(ActionDidRevalidateStaticAndDynamic)
+    )
+  } else if (
+    // Check for refresh() actions. This will invalidate only the dynamic data.
+    workStore.pathWasRevalidated !== undefined &&
+    workStore.pathWasRevalidated !== ActionDidNotRevalidate
+  ) {
+    res.setHeader(
+      NEXT_ACTION_REVALIDATED_HEADER,
+      JSON.stringify(workStore.pathWasRevalidated)
+    )
+  }
 }
 
 /**
@@ -1137,7 +1155,9 @@ export async function handleAction({
           // If the page was not revalidated, or if the action was forwarded
           // from another worker, we can skip rendering the page.
           skipPageRendering:
-            !workStore.pathWasRevalidated || actionWasForwarded,
+            workStore.pathWasRevalidated === undefined ||
+            workStore.pathWasRevalidated === ActionDidNotRevalidate ||
+            actionWasForwarded,
           temporaryReferences,
         }),
       }
@@ -1170,7 +1190,9 @@ async function executeActionAndPrepareForRender<
 
     // If the page was not revalidated, or if the action was forwarded from
     // another worker, we can skip rendering the page.
-    skipPageRendering ||= !workStore.pathWasRevalidated
+    skipPageRendering ||=
+      workStore.pathWasRevalidated === undefined ||
+      workStore.pathWasRevalidated === ActionDidNotRevalidate
 
     return { actionResult, skipPageRendering }
   } finally {
