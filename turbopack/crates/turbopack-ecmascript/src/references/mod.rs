@@ -660,8 +660,8 @@ async fn analyze_ecmascript_module_internal(
     });
     analysis.set_side_effects_mode(if has_side_effect_free_directive {
         ModuleSideEffects::SideEffectFree
-    } else {
-        // Otherwise analyze the AST
+    } else if options.infer_module_side_effects {
+        // Analyze the AST to infer side effects
         GLOBALS.set(globals, || {
             side_effects::compute_module_evaluation_side_effects(
                 program,
@@ -669,6 +669,9 @@ async fn analyze_ecmascript_module_internal(
                 eval_context.unresolved_mark,
             )
         })
+    } else {
+        // If inference is disabled, assume side effects
+        ModuleSideEffects::SideEffectful
     });
 
     let is_esm = eval_context.is_esm(specified_type);

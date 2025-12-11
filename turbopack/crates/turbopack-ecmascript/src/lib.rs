@@ -285,6 +285,8 @@ pub struct EcmascriptOptions {
     pub enable_exports_info_inlining: bool,
 
     pub inline_helpers: bool,
+    /// Whether to infer side effect free modules via local analysis. Defaults to true.
+    pub infer_module_side_effects: bool,
 }
 
 #[turbo_tasks::value]

@@ -465,6 +465,15 @@ export interface ExperimentalConfig {
   turbopackRemoveUnusedExports?: boolean
 
   /**
+   * Enable local analysis to infer side effect free modules. When enabled, Turbopack will
+   * analyze module code to determine if it has side effects. This can improve tree shaking
+   * and bundle size at the cost of some additional analysis.
+   *
+   * Defaults to `true`.
+   */
+  turbopackInferModuleSideEffects?: boolean
+
+  /**
    * Use the system-provided CA roots instead of bundled CA roots for external HTTPS requests
    * made by Turbopack. Currently this is only used for fetching data from Google Fonts.
    *
