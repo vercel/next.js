@@ -1501,12 +1501,8 @@ impl AggregationUpdateQueue {
         ctx: &mut impl ExecuteContext,
         update: AggregatedDataUpdate,
     ) {
-        for upper_id in upper_ids {
-            let mut upper = ctx.task(
-                upper_id,
-                // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
-            );
+        // For performance reasons this should stay `Meta` and not `All`
+        ctx.for_each_task_meta(upper_ids.iter().copied(), |mut upper, ctx| {
             let diff = update.apply(&mut upper, ctx.should_track_activeness(), self);
             if !diff.is_empty() {
                 let upper_ids = get_uppers(&upper);
@@ -1520,7 +1516,7 @@ impl AggregationUpdateQueue {
                     );
                 }
             }
-        }
+        });
     }
 
     fn inner_of_uppers_lost_follower(
