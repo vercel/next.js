@@ -7,7 +7,7 @@ services:
     container_name: nextjs-standalone-container
     environment:
       NODE_ENV: production
-      PORT: 3000
+      PORT: "3000"
     ports:
       - "3000:3000"
     restart: unless-stopped

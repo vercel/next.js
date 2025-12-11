@@ -1,11 +1,4 @@
 {
-  "name": "nextjs-static-export-docker-example",
-  "version": "0.0.1",
-  "description": "A production-ready example demonstrating how to Dockerize Next.js applications using export mode with best practices for containerization",
-  "author": {
-    "name": "Kristiyan Velkov",
-    "url": "https://kristiyanvelkov.com/"
-  },
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -24,20 +17,5 @@
     "@types/react-dom": "^19",
     "tailwindcss": "^4",
     "typescript": "^5"
-  },
-  "keywords": [
-    "nextjs",
-    "static export",
-    "production",
-    "dockerize next.js",
-    "docker",
-    "containerization",
-    "best practices"
-  ],
-  "engines": {
-    "node": ">=20",
-    "pnpm": ">=10",
-    "yarn": ">=1",
-    "npm": ">=9"
   }
 }

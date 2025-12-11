@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": false,
@@ -31,7 +27,5 @@
     "../with-docker-standalone-output/**/*.ts",
     "../with-docker-standalone-output/**/*.tsx"
   ],
-  "exclude": [
-    "../with-docker-standalone-output/node_modules"
-  ]
+  "exclude": ["../with-docker-standalone-output/node_modules"]
 }
