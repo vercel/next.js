@@ -12,8 +12,6 @@
 //! - Property mutations
 //! - Update expressions (`++`, `--`)
 //! - Delete expressions
-//! - Async operations (await)
-//!    - These are debatable, but for now we assume it is tied to a side effectful operation.
 //!
 //! ## Conservative Analysis
 //!
@@ -739,9 +737,11 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 // TODO: allow updates to module level variables
                 self.mark_side_effect();
             }
-            Expr::Await(_) | Expr::Yield(_) => {
-                // Async operations have side effects, this could be less conservative
-                self.mark_side_effect();
+            Expr::Await(e) => {
+                e.arg.visit_with(self);
+            }
+            Expr::Yield(e) => {
+                e.arg.visit_with(self);
             }
             Expr::TaggedTpl(tagged_tpl) => {
                 // Tagged template literals are function calls
@@ -761,9 +761,7 @@ impl<'a> Visit for SideEffectVisitor<'a> {
             }
             Expr::Seq(seq) => {
                 // Sequence expressions - check each expression
-                for expr in &seq.exprs {
-                    expr.visit_with(self);
-                }
+                seq.exprs.visit_children_with(self);
             }
             Expr::SuperProp(super_prop) => {
                 // Super property access is pure (reading from parent class)
@@ -1135,983 +1133,1019 @@ mod tests {
         };
     }
 
-    // ==================== Phase 1: Basic Tests ====================
+    mod basic_tests {
+        use super::*;
 
-    no_side_effects!(test_empty_program, "");
+        no_side_effects!(test_empty_program, "");
 
-    no_side_effects!(test_simple_const_declaration, "const x = 5;");
+        no_side_effects!(test_simple_const_declaration, "const x = 5;");
 
-    no_side_effects!(test_simple_let_declaration, "let y = 'string';");
+        no_side_effects!(test_simple_let_declaration, "let y = 'string';");
 
-    no_side_effects!(test_array_literal, "const arr = [1, 2, 3];");
+        no_side_effects!(test_array_literal, "const arr = [1, 2, 3];");
 
-    no_side_effects!(test_object_literal, "const obj = { a: 1, b: 2 };");
+        no_side_effects!(test_object_literal, "const obj = { a: 1, b: 2 };");
 
-    no_side_effects!(test_function_declaration, "function foo() { return 1; }");
+        no_side_effects!(test_function_declaration, "function foo() { return 1; }");
 
-    no_side_effects!(
-        test_function_expression,
-        "const foo = function() { return 1; };"
-    );
+        no_side_effects!(
+            test_function_expression,
+            "const foo = function() { return 1; };"
+        );
 
-    no_side_effects!(test_arrow_function, "const foo = () => 1;");
+        no_side_effects!(test_arrow_function, "const foo = () => 1;");
+    }
 
-    // ==================== Phase 2: Side Effects ====================
+    mod side_effects_tests {
+        use super::*;
 
-    side_effects!(test_console_log, "console.log('hello');");
+        side_effects!(test_console_log, "console.log('hello');");
 
-    side_effects!(test_function_call, "foo();");
+        side_effects!(test_function_call, "foo();");
 
-    side_effects!(test_method_call, "obj.method();");
+        side_effects!(test_method_call, "obj.method();");
 
-    side_effects!(test_assignment, "x = 5;");
+        side_effects!(test_assignment, "x = 5;");
 
-    side_effects!(test_member_assignment, "obj.prop = 5;");
+        side_effects!(test_member_assignment, "obj.prop = 5;");
 
-    side_effects!(test_constructor_call, "new SideEffect();");
+        side_effects!(test_constructor_call, "new SideEffect();");
 
-    side_effects!(test_update_expression, "x++;");
+        side_effects!(test_update_expression, "x++;");
+    }
 
-    // ==================== Phase 3: Pure Expressions ====================
+    mod pure_expressions_tests {
+        use super::*;
 
-    no_side_effects!(test_binary_expression, "const x = 1 + 2;");
+        no_side_effects!(test_binary_expression, "const x = 1 + 2;");
 
-    no_side_effects!(test_unary_expression, "const x = -5;");
+        no_side_effects!(test_unary_expression, "const x = -5;");
 
-    no_side_effects!(test_conditional_expression, "const x = true ? 1 : 2;");
+        no_side_effects!(test_conditional_expression, "const x = true ? 1 : 2;");
 
-    no_side_effects!(test_template_literal, "const x = `hello ${world}`;");
+        no_side_effects!(test_template_literal, "const x = `hello ${world}`;");
 
-    no_side_effects!(test_nested_object, "const obj = { a: { b: { c: 1 } } };");
+        no_side_effects!(test_nested_object, "const obj = { a: { b: { c: 1 } } };");
 
-    no_side_effects!(test_nested_array, "const arr = [[1, 2], [3, 4]];");
+        no_side_effects!(test_nested_array, "const arr = [[1, 2], [3, 4]];");
+    }
 
-    // ==================== Phase 4: Import/Export ====================
+    mod import_export_tests {
+        use super::*;
 
-    module_evaluation_is_side_effect_free!(test_import_statement, "import x from 'y';");
+        module_evaluation_is_side_effect_free!(test_import_statement, "import x from 'y';");
+        module_evaluation_is_side_effect_free!(test_require_statement, "const x = require('y');");
 
-    no_side_effects!(test_export_statement, "export default 5;");
+        no_side_effects!(test_export_statement, "export default 5;");
 
-    no_side_effects!(test_export_const, "export const x = 5;");
+        no_side_effects!(test_export_const, "export const x = 5;");
 
-    side_effects!(
-        test_export_const_with_side_effect,
-        "export const x = foo();"
-    );
+        side_effects!(
+            test_export_const_with_side_effect,
+            "export const x = foo();"
+        );
+    }
 
-    // ==================== Phase 5: Mixed Cases ====================
+    mod mixed_cases_tests {
+        use super::*;
 
-    side_effects!(test_call_in_initializer, "const x = foo();");
+        side_effects!(test_call_in_initializer, "const x = foo();");
 
-    side_effects!(test_call_in_array, "const arr = [1, foo(), 3];");
+        side_effects!(test_call_in_array, "const arr = [1, foo(), 3];");
 
-    side_effects!(test_call_in_object, "const obj = { a: foo() };");
+        side_effects!(test_call_in_object, "const obj = { a: foo() };");
 
-    no_side_effects!(
-        test_multiple_declarations_pure,
-        "const x = 1;\nconst y = 2;\nconst z = 3;"
-    );
+        no_side_effects!(
+            test_multiple_declarations_pure,
+            "const x = 1;\nconst y = 2;\nconst z = 3;"
+        );
 
-    side_effects!(
-        test_multiple_declarations_with_side_effect,
-        "const x = 1;\nfoo();\nconst z = 3;"
-    );
+        side_effects!(
+            test_multiple_declarations_with_side_effect,
+            "const x = 1;\nfoo();\nconst z = 3;"
+        );
 
-    no_side_effects!(test_class_declaration, "class Foo {}");
+        no_side_effects!(test_class_declaration, "class Foo {}");
 
-    no_side_effects!(
-        test_class_with_methods,
-        "class Foo { method() { return 1; } }"
-    );
+        no_side_effects!(
+            test_class_with_methods,
+            "class Foo { method() { return 1; } }"
+        );
+    }
 
-    // ==================== Phase 6: PURE Annotations ====================
+    mod pure_annotations_tests {
+        use super::*;
 
-    no_side_effects!(test_pure_annotation_function_call, "/*#__PURE__*/ foo();");
+        no_side_effects!(test_pure_annotation_function_call, "/*#__PURE__*/ foo();");
 
-    no_side_effects!(test_pure_annotation_with_at, "/*@__PURE__*/ foo();");
+        no_side_effects!(test_pure_annotation_with_at, "/*@__PURE__*/ foo();");
 
-    no_side_effects!(test_pure_annotation_constructor, "/*#__PURE__*/ new Foo();");
+        no_side_effects!(test_pure_annotation_constructor, "/*#__PURE__*/ new Foo();");
 
-    no_side_effects!(
-        test_pure_annotation_in_variable,
-        "const x = /*#__PURE__*/ foo();"
-    );
+        no_side_effects!(
+            test_pure_annotation_in_variable,
+            "const x = /*#__PURE__*/ foo();"
+        );
 
-    no_side_effects!(
-        test_pure_annotation_with_pure_args,
-        "/*#__PURE__*/ foo(1, 2, 3);"
-    );
+        no_side_effects!(
+            test_pure_annotation_with_pure_args,
+            "/*#__PURE__*/ foo(1, 2, 3);"
+        );
 
-    // Even with PURE annotation, impure arguments make it impure
-    side_effects!(
-        test_pure_annotation_with_impure_args,
-        "/*#__PURE__*/ foo(bar());"
-    );
+        // Even with PURE annotation, impure arguments make it impure
+        side_effects!(
+            test_pure_annotation_with_impure_args,
+            "/*#__PURE__*/ foo(bar());"
+        );
 
-    // Without annotation, calls are impure
-    side_effects!(test_without_pure_annotation, "foo();");
+        // Without annotation, calls are impure
+        side_effects!(test_without_pure_annotation, "foo();");
 
-    no_side_effects!(
-        test_pure_nested_in_object,
-        "const obj = { x: /*#__PURE__*/ foo() };"
-    );
+        no_side_effects!(
+            test_pure_nested_in_object,
+            "const obj = { x: /*#__PURE__*/ foo() };"
+        );
 
-    no_side_effects!(test_pure_in_array, "const arr = [/*#__PURE__*/ foo()];");
+        no_side_effects!(test_pure_in_array, "const arr = [/*#__PURE__*/ foo()];");
 
-    no_side_effects!(
-        test_multiple_pure_calls,
-        "const x = /*#__PURE__*/ foo();\nconst y = /*#__PURE__*/ bar();"
-    );
+        no_side_effects!(
+            test_multiple_pure_calls,
+            "const x = /*#__PURE__*/ foo();\nconst y = /*#__PURE__*/ bar();"
+        );
 
-    side_effects!(
-        test_mixed_pure_and_impure,
-        "const x = /*#__PURE__*/ foo();\nbar();\nconst z = /*#__PURE__*/ baz();"
-    );
+        side_effects!(
+            test_mixed_pure_and_impure,
+            "const x = /*#__PURE__*/ foo();\nbar();\nconst z = /*#__PURE__*/ baz();"
+        );
+    }
 
-    // ==================== Phase 7: Known Pure Builtins ====================
+    mod known_pure_builtins_tests {
+        use super::*;
 
-    no_side_effects!(test_math_abs, "const x = Math.abs(-5);");
+        no_side_effects!(test_math_abs, "const x = Math.abs(-5);");
 
-    no_side_effects!(test_math_floor, "const x = Math.floor(3.14);");
+        no_side_effects!(test_math_floor, "const x = Math.floor(3.14);");
 
-    no_side_effects!(test_math_max, "const x = Math.max(1, 2, 3);");
+        no_side_effects!(test_math_max, "const x = Math.max(1, 2, 3);");
 
-    no_side_effects!(test_object_keys, "const keys = Object.keys(obj);");
+        no_side_effects!(test_object_keys, "const keys = Object.keys(obj);");
 
-    no_side_effects!(test_object_values, "const values = Object.values(obj);");
+        no_side_effects!(test_object_values, "const values = Object.values(obj);");
 
-    no_side_effects!(test_object_entries, "const entries = Object.entries(obj);");
+        no_side_effects!(test_object_entries, "const entries = Object.entries(obj);");
 
-    no_side_effects!(test_array_is_array, "const result = Array.isArray([]);");
+        no_side_effects!(test_array_is_array, "const result = Array.isArray([]);");
 
-    no_side_effects!(
-        test_string_from_char_code,
-        "const char = String.fromCharCode(65);"
-    );
+        no_side_effects!(
+            test_string_from_char_code,
+            "const char = String.fromCharCode(65);"
+        );
 
-    no_side_effects!(test_number_is_nan, "const result = Number.isNaN(x);");
+        no_side_effects!(test_number_is_nan, "const result = Number.isNaN(x);");
 
-    no_side_effects!(
-        test_multiple_math_calls,
-        "const x = Math.abs(-5);\nconst y = Math.floor(3.14);\nconst z = Math.max(x, y);"
-    );
+        no_side_effects!(
+            test_multiple_math_calls,
+            "const x = Math.abs(-5);\nconst y = Math.floor(3.14);\nconst z = Math.max(x, y);"
+        );
 
-    // Even pure builtins become impure if arguments are impure
-    side_effects!(
-        test_pure_builtin_with_impure_arg,
-        "const x = Math.abs(foo());"
-    );
+        // Even pure builtins become impure if arguments are impure
+        side_effects!(
+            test_pure_builtin_with_impure_arg,
+            "const x = Math.abs(foo());"
+        );
 
-    no_side_effects!(
-        test_pure_builtin_in_expression,
-        "const x = Math.abs(-5) + Math.floor(3.14);"
-    );
+        no_side_effects!(
+            test_pure_builtin_in_expression,
+            "const x = Math.abs(-5) + Math.floor(3.14);"
+        );
 
-    side_effects!(
-        test_mixed_builtin_and_impure,
-        "const x = Math.abs(-5);\nfoo();\nconst z = Object.keys({});"
-    );
+        side_effects!(
+            test_mixed_builtin_and_impure,
+            "const x = Math.abs(-5);\nfoo();\nconst z = Object.keys({});"
+        );
 
-    // Accessing unknown Math properties is not in our list
-    side_effects!(test_unknown_math_property, "const x = Math.random();");
+        // Accessing unknown Math properties is not in our list
+        side_effects!(test_unknown_math_property, "const x = Math.random();");
 
-    // Object.assign is NOT pure (it mutates)
-    side_effects!(test_object_assign, "Object.assign(target, source);");
+        // Object.assign is NOT pure (it mutates)
+        side_effects!(test_object_assign, "Object.assign(target, source);");
 
-    no_side_effects!(test_array_from, "const arr = Array.from(iterable);");
+        no_side_effects!(test_array_from, "const arr = Array.from(iterable);");
 
-    no_side_effects!(test_global_is_nan, "const result = isNaN(value);");
+        no_side_effects!(test_global_is_nan, "const result = isNaN(value);");
 
-    no_side_effects!(test_global_is_finite, "const result = isFinite(value);");
+        no_side_effects!(test_global_is_finite, "const result = isFinite(value);");
 
-    no_side_effects!(test_global_parse_int, "const num = parseInt('42', 10);");
+        no_side_effects!(test_global_parse_int, "const num = parseInt('42', 10);");
 
-    no_side_effects!(test_global_parse_float, "const num = parseFloat('3.14');");
+        no_side_effects!(test_global_parse_float, "const num = parseFloat('3.14');");
 
-    no_side_effects!(
-        test_global_decode_uri,
-        "const decoded = decodeURI(encoded);"
-    );
+        no_side_effects!(
+            test_global_decode_uri,
+            "const decoded = decodeURI(encoded);"
+        );
 
-    no_side_effects!(
-        test_global_decode_uri_component,
-        "const decoded = decodeURIComponent(encoded);"
-    );
+        no_side_effects!(
+            test_global_decode_uri_component,
+            "const decoded = decodeURIComponent(encoded);"
+        );
 
-    // String() as a function (not constructor) is pure
-    no_side_effects!(
-        test_global_string_constructor_as_function,
-        "const str = String(123);"
-    );
+        // String() as a function (not constructor) is pure
+        no_side_effects!(
+            test_global_string_constructor_as_function,
+            "const str = String(123);"
+        );
 
-    // Number() as a function (not constructor) is pure
-    no_side_effects!(
-        test_global_number_constructor_as_function,
-        "const num = Number('123');"
-    );
+        // Number() as a function (not constructor) is pure
+        no_side_effects!(
+            test_global_number_constructor_as_function,
+            "const num = Number('123');"
+        );
 
-    // Boolean() as a function (not constructor) is pure
-    no_side_effects!(
-        test_global_boolean_constructor_as_function,
-        "const bool = Boolean(value);"
-    );
+        // Boolean() as a function (not constructor) is pure
+        no_side_effects!(
+            test_global_boolean_constructor_as_function,
+            "const bool = Boolean(value);"
+        );
 
-    // Symbol() as a function is pure
-    no_side_effects!(
-        test_global_symbol_constructor_as_function,
-        "const sym = Symbol('description');"
-    );
+        // Symbol() as a function is pure
+        no_side_effects!(
+            test_global_symbol_constructor_as_function,
+            "const sym = Symbol('description');"
+        );
 
-    // Global pure function with impure argument is impure
-    side_effects!(
-        test_global_pure_with_impure_arg,
-        "const result = isNaN(foo());"
-    );
+        // Global pure function with impure argument is impure
+        side_effects!(
+            test_global_pure_with_impure_arg,
+            "const result = isNaN(foo());"
+        );
 
-    // isNaN shadowed at top level
-    side_effects!(
-        test_shadowed_global_is_nan,
-        r#"
+        // isNaN shadowed at top level
+        side_effects!(
+            test_shadowed_global_is_nan,
+            r#"
             const isNaN = () => sideEffect();
             const result = isNaN(value);
             "#
-    );
+        );
+    }
 
-    // ==================== Phase 8: Edge Cases ====================
+    mod edge_cases_tests {
+        use super::*;
 
-    no_side_effects!(test_computed_property, "const obj = { [key]: value };");
+        no_side_effects!(test_computed_property, "const obj = { [key]: value };");
 
-    side_effects!(
-        test_computed_property_with_call,
-        "const obj = { [foo()]: value };"
-    );
+        side_effects!(
+            test_computed_property_with_call,
+            "const obj = { [foo()]: value };"
+        );
 
-    no_side_effects!(test_spread_in_array, "const arr = [...other];");
+        no_side_effects!(test_spread_in_array, "const arr = [...other];");
 
-    no_side_effects!(test_spread_in_object, "const obj = { ...other };");
+        no_side_effects!(test_spread_in_object, "const obj = { ...other };");
 
-    no_side_effects!(test_destructuring_assignment, "const { a, b } = obj;");
+        no_side_effects!(test_destructuring_assignment, "const { a, b } = obj;");
 
-    no_side_effects!(test_array_destructuring, "const [a, b] = arr;");
+        no_side_effects!(test_array_destructuring, "const [a, b] = arr;");
 
-    no_side_effects!(test_nested_ternary, "const x = a ? (b ? 1 : 2) : 3;");
+        no_side_effects!(test_nested_ternary, "const x = a ? (b ? 1 : 2) : 3;");
 
-    no_side_effects!(test_logical_and, "const x = a && b;");
+        no_side_effects!(test_logical_and, "const x = a && b;");
 
-    no_side_effects!(test_logical_or, "const x = a || b;");
+        no_side_effects!(test_logical_or, "const x = a || b;");
 
-    no_side_effects!(test_nullish_coalescing, "const x = a ?? b;");
+        no_side_effects!(test_nullish_coalescing, "const x = a ?? b;");
 
-    no_side_effects!(test_typeof_operator, "const x = typeof y;");
+        no_side_effects!(test_typeof_operator, "const x = typeof y;");
 
-    no_side_effects!(test_void_operator, "const x = void 0;");
+        no_side_effects!(test_void_operator, "const x = void 0;");
 
-    // delete is impure (modifies object)
-    side_effects!(test_delete_expression, "delete obj.prop;");
+        // delete is impure (modifies object)
+        side_effects!(test_delete_expression, "delete obj.prop;");
 
-    no_side_effects!(test_sequence_expression_pure, "const x = (1, 2, 3);");
+        no_side_effects!(test_sequence_expression_pure, "const x = (1, 2, 3);");
 
-    side_effects!(test_sequence_expression_impure, "const x = (foo(), 2, 3);");
+        side_effects!(test_sequence_expression_impure, "const x = (foo(), 2, 3);");
 
-    no_side_effects!(test_arrow_with_block, "const foo = () => { return 1; };");
+        no_side_effects!(test_arrow_with_block, "const foo = () => { return 1; };");
 
-    no_side_effects!(
-        test_class_with_constructor,
-        "class Foo { constructor() { this.x = 1; } }"
-    );
+        no_side_effects!(
+            test_class_with_constructor,
+            "class Foo { constructor() { this.x = 1; } }"
+        );
 
-    no_side_effects!(test_class_extends, "class Foo extends Bar {}");
+        no_side_effects!(test_class_extends, "class Foo extends Bar {}");
 
-    no_side_effects!(test_async_function, "async function foo() { return 1; }");
+        no_side_effects!(test_async_function, "async function foo() { return 1; }");
 
-    no_side_effects!(test_generator_function, "function* foo() { yield 1; }");
+        no_side_effects!(test_generator_function, "function* foo() { yield 1; }");
 
-    // Tagged templates are function calls, so impure by default
-    side_effects!(test_tagged_template, "const x = tag`hello`;");
+        // Tagged templates are function calls, so impure by default
+        side_effects!(test_tagged_template, "const x = tag`hello`;");
 
-    // String.raw is known to be pure
-    no_side_effects!(
-        test_tagged_template_string_raw,
-        "const x = String.raw`hello ${world}`;"
-    );
+        // String.raw is known to be pure
+        no_side_effects!(
+            test_tagged_template_string_raw,
+            "const x = String.raw`hello ${world}`;"
+        );
 
-    no_side_effects!(test_regex_literal, "const re = /pattern/g;");
+        no_side_effects!(test_regex_literal, "const re = /pattern/g;");
 
-    no_side_effects!(test_bigint_literal, "const big = 123n;");
+        no_side_effects!(test_bigint_literal, "const big = 123n;");
 
-    no_side_effects!(test_optional_chaining_pure, "const x = obj?.prop;");
+        no_side_effects!(test_optional_chaining_pure, "const x = obj?.prop;");
 
-    // Optional chaining with a call is still a call
-    side_effects!(test_optional_chaining_call, "const x = obj?.method();");
+        // Optional chaining with a call is still a call
+        side_effects!(test_optional_chaining_call, "const x = obj?.method();");
 
-    no_side_effects!(
-        test_multiple_exports_pure,
-        "export const a = 1;\nexport const b = 2;\nexport const c = 3;"
-    );
+        no_side_effects!(
+            test_multiple_exports_pure,
+            "export const a = 1;\nexport const b = 2;\nexport const c = 3;"
+        );
 
-    no_side_effects!(test_export_function, "export function foo() { return 1; }");
+        no_side_effects!(test_export_function, "export function foo() { return 1; }");
 
-    no_side_effects!(test_export_class, "export class Foo {}");
+        no_side_effects!(test_export_class, "export class Foo {}");
 
-    module_evaluation_is_side_effect_free!(test_reexport, "export { foo } from 'bar';");
+        module_evaluation_is_side_effect_free!(test_reexport, "export { foo } from 'bar';");
 
-    // import() is a function-like expression
-    side_effects!(test_dynamic_import, "const mod = import('./module');");
+        // import() is a function-like expression, we allow it
+        module_evaluation_is_side_effect_free!(
+            test_dynamic_import,
+            "const mod = import('./module');"
+        );
 
-    no_side_effects!(test_export_default_expression, "export default 1 + 2;");
+        module_evaluation_is_side_effect_free!(
+            test_dynamic_import_with_await,
+            "const mod = await import('./module');"
+        );
 
-    side_effects!(
-        test_export_default_expression_with_side_effect,
-        "export default foo();"
-    );
+        no_side_effects!(test_export_default_expression, "export default 1 + 2;");
 
-    no_side_effects!(
-        test_export_default_function,
-        "export default function() { return 1; }"
-    );
+        side_effects!(
+            test_export_default_expression_with_side_effect,
+            "export default foo();"
+        );
 
-    no_side_effects!(test_export_default_class, "export default class Foo {}");
+        no_side_effects!(
+            test_export_default_function,
+            "export default function() { return 1; }"
+        );
 
-    no_side_effects!(
-        test_export_named_with_pure_builtin,
-        "export const result = Math.abs(-5);"
-    );
+        no_side_effects!(test_export_default_class, "export default class Foo {}");
 
-    side_effects!(
-        test_multiple_exports_mixed,
-        "export const a = 1;\nexport const b = foo();\nexport const c = 3;"
-    );
+        no_side_effects!(
+            test_export_named_with_pure_builtin,
+            "export const result = Math.abs(-5);"
+        );
 
-    // ==================== Phase 9: Pure Constructors ====================
+        side_effects!(
+            test_multiple_exports_mixed,
+            "export const a = 1;\nexport const b = foo();\nexport const c = 3;"
+        );
+    }
 
-    no_side_effects!(test_new_set, "const s = new Set();");
+    mod pure_constructors_tests {
+        use super::*;
 
-    no_side_effects!(test_new_map, "const m = new Map();");
+        no_side_effects!(test_new_set, "const s = new Set();");
 
-    no_side_effects!(test_new_weakset, "const ws = new WeakSet();");
+        no_side_effects!(test_new_map, "const m = new Map();");
 
-    no_side_effects!(test_new_weakmap, "const wm = new WeakMap();");
+        no_side_effects!(test_new_weakset, "const ws = new WeakSet();");
 
-    no_side_effects!(test_new_regexp, "const re = new RegExp('pattern');");
+        no_side_effects!(test_new_weakmap, "const wm = new WeakMap();");
 
-    no_side_effects!(test_new_date, "const d = new Date();");
+        no_side_effects!(test_new_regexp, "const re = new RegExp('pattern');");
 
-    no_side_effects!(test_new_error, "const e = new Error('message');");
+        no_side_effects!(test_new_date, "const d = new Date();");
 
-    no_side_effects!(test_new_promise, "const p = new Promise(() => {});");
+        no_side_effects!(test_new_error, "const e = new Error('message');");
 
-    no_side_effects!(test_new_array, "const arr = new Array(10);");
+        no_side_effects!(test_new_promise, "const p = new Promise(() => {});");
 
-    no_side_effects!(test_new_object, "const obj = new Object();");
+        no_side_effects!(test_new_array, "const arr = new Array(10);");
 
-    no_side_effects!(test_new_typed_array, "const arr = new Uint8Array(10);");
+        no_side_effects!(test_new_object, "const obj = new Object();");
 
-    no_side_effects!(test_new_url, "const url = new URL('https://example.com');");
+        no_side_effects!(test_new_typed_array, "const arr = new Uint8Array(10);");
 
-    no_side_effects!(
-        test_new_url_search_params,
-        "const params = new URLSearchParams();"
-    );
+        no_side_effects!(test_new_url, "const url = new URL('https://example.com');");
 
-    // Pure constructor with impure arguments is impure
-    side_effects!(
-        test_pure_constructor_with_impure_args,
-        "const s = new Set([foo()]);"
-    );
+        no_side_effects!(
+            test_new_url_search_params,
+            "const params = new URLSearchParams();"
+        );
 
-    no_side_effects!(
-        test_multiple_pure_constructors,
-        "const s = new Set();\nconst m = new Map();\nconst re = new RegExp('test');"
-    );
+        // Pure constructor with impure arguments is impure
+        side_effects!(
+            test_pure_constructor_with_impure_args,
+            "const s = new Set([foo()]);"
+        );
 
-    // Unknown constructors are impure
-    side_effects!(
-        test_unknown_constructor,
-        "const custom = new CustomClass();"
-    );
+        no_side_effects!(
+            test_multiple_pure_constructors,
+            "const s = new Set();\nconst m = new Map();\nconst re = new RegExp('test');"
+        );
 
-    side_effects!(
-        test_mixed_constructors,
-        "const s = new Set();\nconst custom = new CustomClass();\nconst m = new Map();"
-    );
+        // Unknown constructors are impure
+        side_effects!(
+            test_unknown_constructor,
+            "const custom = new CustomClass();"
+        );
 
-    // ==================== Phase 10: Shadowing Detection ====================
+        side_effects!(
+            test_mixed_constructors,
+            "const s = new Set();\nconst custom = new CustomClass();\nconst m = new Map();"
+        );
+    }
 
-    // Math is shadowed by a local variable, so Math.abs is not the built-in
-    side_effects!(
-        test_shadowed_math,
-        r#"
+    mod shadowing_detection_tests {
+        use super::*;
+
+        // Math is shadowed by a local variable, so Math.abs is not the built-in
+        side_effects!(
+            test_shadowed_math,
+            r#"
             const Math = { abs: () => console.log('side effect') };
             const result = Math.abs(-5);
             "#
-    );
+        );
 
-    // Object is shadowed at top level, so Object.keys is not the built-in
-    side_effects!(
-        test_shadowed_object,
-        r#"
+        // Object is shadowed at top level, so Object.keys is not the built-in
+        side_effects!(
+            test_shadowed_object,
+            r#"
             const Object = { keys: () => sideEffect() };
             const result = Object.keys({});
             "#
-    );
+        );
 
-    // Array is shadowed at top level by a local class
-    side_effects!(
-        test_shadowed_array_constructor,
-        r#"
+        // Array is shadowed at top level by a local class
+        side_effects!(
+            test_shadowed_array_constructor,
+            r#"
             const Array = class { constructor() { sideEffect(); } };
             const arr = new Array();
             "#
-    );
+        );
 
-    // Set is shadowed at top level
-    side_effects!(
-        test_shadowed_set_constructor,
-        r#"
+        // Set is shadowed at top level
+        side_effects!(
+            test_shadowed_set_constructor,
+            r#"
             const Set = class { constructor() { sideEffect(); } };
             const s = new Set();
             "#
-    );
+        );
 
-    // Map is shadowed in a block scope
-    side_effects!(
-        test_shadowed_map_constructor,
-        r#"
+        // Map is shadowed in a block scope
+        side_effects!(
+            test_shadowed_map_constructor,
+            r#"
             {
                 const Map = class { constructor() { sideEffect(); } };
                 const m = new Map();
             }
             "#
-    );
+        );
 
-    // Math is NOT shadowed here, so Math.abs is the built-in
-    no_side_effects!(
-        test_global_math_not_shadowed,
-        r#"
+        // Math is NOT shadowed here, so Math.abs is the built-in
+        no_side_effects!(
+            test_global_math_not_shadowed,
+            r#"
             const result = Math.abs(-5);
             "#
-    );
+        );
 
-    // Object is NOT shadowed, so Object.keys is the built-in
-    no_side_effects!(
-        test_global_object_not_shadowed,
-        r#"
+        // Object is NOT shadowed, so Object.keys is the built-in
+        no_side_effects!(
+            test_global_object_not_shadowed,
+            r#"
             const keys = Object.keys({ a: 1, b: 2 });
             "#
-    );
+        );
 
-    // Array is NOT shadowed, so new Array() is the built-in
-    no_side_effects!(
-        test_global_array_constructor_not_shadowed,
-        r#"
+        // Array is NOT shadowed, so new Array() is the built-in
+        no_side_effects!(
+            test_global_array_constructor_not_shadowed,
+            r#"
             const arr = new Array(1, 2, 3);
             "#
-    );
+        );
 
-    // If Math is imported (has a non-empty ctxt), it's not the global
-    side_effects!(
-        test_shadowed_by_import,
-        r#"
+        // If Math is imported (has a non-empty ctxt), it's not the global
+        side_effects!(
+            test_shadowed_by_import,
+            r#"
             import { Math } from './custom-math';
             const result = Math.abs(-5);
             "#
-    );
+        );
 
-    // Math is shadowed in a block scope at top level
-    side_effects!(
-        test_nested_scope_shadowing,
-        r#"
+        // Math is shadowed in a block scope at top level
+        side_effects!(
+            test_nested_scope_shadowing,
+            r#"
             {
                 const Math = { floor: () => sideEffect() };
                 const result = Math.floor(4.5);
             }
             "#
-    );
+        );
 
-    // This test shows that function declarations are pure at top level
-    // even if they have shadowed parameters. The side effect only occurs
-    // if the function is actually called.
-    no_side_effects!(
-        test_parameter_shadowing,
-        r#"
+        // This test shows that function declarations are pure at top level
+        // even if they have shadowed parameters. The side effect only occurs
+        // if the function is actually called.
+        no_side_effects!(
+            test_parameter_shadowing,
+            r#"
             function test(RegExp) {
                 return new RegExp('test');
             }
             "#
-    );
+        );
 
-    // Number is shadowed by a var declaration
-    side_effects!(
-        test_shadowing_with_var,
-        r#"
+        // Number is shadowed by a var declaration
+        side_effects!(
+            test_shadowing_with_var,
+            r#"
             var Number = { isNaN: () => sideEffect() };
             const check = Number.isNaN(123);
             "#
-    );
+        );
 
-    // RegExp is NOT shadowed, constructor is pure
-    no_side_effects!(
-        test_global_regexp_not_shadowed,
-        r#"
+        // RegExp is NOT shadowed, constructor is pure
+        no_side_effects!(
+            test_global_regexp_not_shadowed,
+            r#"
             const re = new RegExp('[a-z]+');
             "#
-    );
+        );
+    }
 
-    // ==================== Phase 11: Literal Receiver Methods ====================
+    mod literal_receiver_methods_tests {
+        use super::*;
 
-    // String literal methods
-    no_side_effects!(
-        test_string_literal_to_lower_case,
-        r#"const result = "HELLO".toLowerCase();"#
-    );
+        // String literal methods
+        no_side_effects!(
+            test_string_literal_to_lower_case,
+            r#"const result = "HELLO".toLowerCase();"#
+        );
 
-    no_side_effects!(
-        test_string_literal_to_upper_case,
-        r#"const result = "hello".toUpperCase();"#
-    );
+        no_side_effects!(
+            test_string_literal_to_upper_case,
+            r#"const result = "hello".toUpperCase();"#
+        );
 
-    no_side_effects!(
-        test_string_literal_slice,
-        r#"const result = "hello world".slice(0, 5);"#
-    );
+        no_side_effects!(
+            test_string_literal_slice,
+            r#"const result = "hello world".slice(0, 5);"#
+        );
 
-    no_side_effects!(
-        test_string_literal_split,
-        r#"const result = "a,b,c".split(',');"#
-    );
+        no_side_effects!(
+            test_string_literal_split,
+            r#"const result = "a,b,c".split(',');"#
+        );
 
-    no_side_effects!(
-        test_string_literal_trim,
-        r#"const result = "  hello  ".trim();"#
-    );
+        no_side_effects!(
+            test_string_literal_trim,
+            r#"const result = "  hello  ".trim();"#
+        );
 
-    no_side_effects!(
-        test_string_literal_replace,
-        r#"const result = "hello".replace('h', 'H');"#
-    );
+        no_side_effects!(
+            test_string_literal_replace,
+            r#"const result = "hello".replace('h', 'H');"#
+        );
 
-    no_side_effects!(
-        test_string_literal_includes,
-        r#"const result = "hello world".includes('world');"#
-    );
+        no_side_effects!(
+            test_string_literal_includes,
+            r#"const result = "hello world".includes('world');"#
+        );
 
-    // Array literal methods
-    no_side_effects!(
-        test_array_literal_map,
-        r#"const result = [1, 2, 3].map(x => x * 2);"#
-    );
-    side_effects!(
-        test_array_literal_map_with_effectful_callback,
-        r#"const result = [1, 2, 3].map(x => {globalThis.something.push(x)});"#
-    );
+        // Array literal methods
+        no_side_effects!(
+            test_array_literal_map,
+            r#"const result = [1, 2, 3].map(x => x * 2);"#
+        );
+        side_effects!(
+            test_array_literal_map_with_effectful_callback,
+            r#"const result = [1, 2, 3].map(x => {globalThis.something.push(x)});"#
+        );
 
-    // Number literal methods - need parentheses for number literals
-    no_side_effects!(
-        test_number_literal_to_fixed,
-        r#"const result = (3.14159).toFixed(2);"#
-    );
+        // Number literal methods - need parentheses for number literals
+        no_side_effects!(
+            test_number_literal_to_fixed,
+            r#"const result = (3.14159).toFixed(2);"#
+        );
 
-    no_side_effects!(
-        test_number_literal_to_string,
-        r#"const result = (42).toString();"#
-    );
+        no_side_effects!(
+            test_number_literal_to_string,
+            r#"const result = (42).toString();"#
+        );
 
-    no_side_effects!(
-        test_number_literal_to_exponential,
-        r#"const result = (123.456).toExponential(2);"#
-    );
+        no_side_effects!(
+            test_number_literal_to_exponential,
+            r#"const result = (123.456).toExponential(2);"#
+        );
 
-    // Boolean literal methods
-    no_side_effects!(
-        test_boolean_literal_to_string,
-        r#"const result = true.toString();"#
-    );
+        // Boolean literal methods
+        no_side_effects!(
+            test_boolean_literal_to_string,
+            r#"const result = true.toString();"#
+        );
 
-    no_side_effects!(
-        test_boolean_literal_value_of,
-        r#"const result = false.valueOf();"#
-    );
+        no_side_effects!(
+            test_boolean_literal_value_of,
+            r#"const result = false.valueOf();"#
+        );
 
-    // RegExp literal methods
-    no_side_effects!(
-        test_regexp_literal_to_string,
-        r#"const result = /[a-z]+/.toString();"#
-    );
+        // RegExp literal methods
+        no_side_effects!(
+            test_regexp_literal_to_string,
+            r#"const result = /[a-z]+/.toString();"#
+        );
 
-    // Note: test() and exec() technically modify flags on the regex, but that is fine when called
-    // on a literal.
-    no_side_effects!(
-        test_regexp_literal_test,
-        r#"const result = /[a-z]+/g.test("hello");"#
-    );
+        // Note: test() and exec() technically modify flags on the regex, but that is fine when
+        // called on a literal.
+        no_side_effects!(
+            test_regexp_literal_test,
+            r#"const result = /[a-z]+/g.test("hello");"#
+        );
 
-    no_side_effects!(
-        test_regexp_literal_exec,
-        r#"const result = /(\d+)/g.exec("test123");"#
-    );
+        no_side_effects!(
+            test_regexp_literal_exec,
+            r#"const result = /(\d+)/g.exec("test123");"#
+        );
 
-    // Array literal with impure elements - the array construction itself has side effects
-    // because foo() is called when creating the array
-    side_effects!(
-        test_array_literal_with_impure_elements,
-        r#"const result = [foo(), 2, 3].map(x => x * 2);"#
-    );
+        // Array literal with impure elements - the array construction itself has side effects
+        // because foo() is called when creating the array
+        side_effects!(
+            test_array_literal_with_impure_elements,
+            r#"const result = [foo(), 2, 3].map(x => x * 2);"#
+        );
 
-    // Array literal with callback that would have side effects when called
-    // However, callbacks are just function definitions at module load time
-    // They don't execute until runtime, so this is side-effect free at load time
-    no_side_effects!(
-        test_array_literal_map_with_callback,
-        r#"const result = [1, 2, 3].map(x => x * 2);"#
-    );
+        // Array literal with callback that would have side effects when called
+        // However, callbacks are just function definitions at module load time
+        // They don't execute until runtime, so this is side-effect free at load time
+        no_side_effects!(
+            test_array_literal_map_with_callback,
+            r#"const result = [1, 2, 3].map(x => x * 2);"#
+        );
+    }
 
-    // ==================== Phase 12: Class Expression Side Effects ====================
+    mod class_expression_side_effects_tests {
+        use super::*;
 
-    // Class with no extends and no static members is pure
-    no_side_effects!(test_class_no_extends_no_static, "class Foo {}");
+        // Class with no extends and no static members is pure
+        no_side_effects!(test_class_no_extends_no_static, "class Foo {}");
 
-    // Class with pure extends is pure
-    no_side_effects!(test_class_pure_extends, "class Foo extends Bar {}");
+        // Class with pure extends is pure
+        no_side_effects!(test_class_pure_extends, "class Foo extends Bar {}");
 
-    // Class with function call in extends clause has side effects
-    side_effects!(
-        test_class_extends_with_call,
-        "class Foo extends someMixinFunction() {}"
-    );
+        // Class with function call in extends clause has side effects
+        side_effects!(
+            test_class_extends_with_call,
+            "class Foo extends someMixinFunction() {}"
+        );
 
-    // Class with complex expression in extends clause has side effects
-    side_effects!(
-        test_class_extends_with_complex_expr,
-        "class Foo extends (Bar || Baz()) {}"
-    );
+        // Class with complex expression in extends clause has side effects
+        side_effects!(
+            test_class_extends_with_complex_expr,
+            "class Foo extends (Bar || Baz()) {}"
+        );
 
-    // Class with static property initializer that calls function has side effects
-    side_effects!(
-        test_class_static_property_with_call,
-        r#"
+        // Class with static property initializer that calls function has side effects
+        side_effects!(
+            test_class_static_property_with_call,
+            r#"
         class Foo {
             static foo = someFunction();
         }
         "#
-    );
+        );
 
-    // Class with static property with pure initializer is pure
-    no_side_effects!(
-        test_class_static_property_pure,
-        r#"
+        // Class with static property with pure initializer is pure
+        no_side_effects!(
+            test_class_static_property_pure,
+            r#"
         class Foo {
             static foo = 42;
         }
         "#
-    );
+        );
 
-    // Class with static property with array literal is pure
-    no_side_effects!(
-        test_class_static_property_array_literal,
-        r#"
+        // Class with static property with array literal is pure
+        no_side_effects!(
+            test_class_static_property_array_literal,
+            r#"
         class Foo {
             static foo = [1, 2, 3];
         }
         "#
-    );
+        );
 
-    // Class with static block has side effects
-    side_effects!(
-        test_class_static_block,
-        r#"
+        // Class with static block has side effects
+        side_effects!(
+            test_class_static_block,
+            r#"
         class Foo {
             static {
                 console.log("hello");
             }
         }
         "#
-    );
+        );
 
-    no_side_effects!(
-        test_class_static_block_empty,
-        r#"
+        no_side_effects!(
+            test_class_static_block_empty,
+            r#"
         class Foo {
             static {}
         }
         "#
-    );
+        );
 
-    // Class with instance property is pure (doesn't execute at definition time)
-    no_side_effects!(
-        test_class_instance_property_with_call,
-        r#"
+        // Class with instance property is pure (doesn't execute at definition time)
+        no_side_effects!(
+            test_class_instance_property_with_call,
+            r#"
         class Foo {
             foo = someFunction();
         }
         "#
-    );
+        );
 
-    // Class with constructor is pure (doesn't execute at definition time)
-    no_side_effects!(
-        test_class_constructor_with_side_effects,
-        r#"
+        // Class with constructor is pure (doesn't execute at definition time)
+        no_side_effects!(
+            test_class_constructor_with_side_effects,
+            r#"
         class Foo {
             constructor() {
                 console.log("constructor");
             }
         }
         "#
-    );
+        );
 
-    // Class with method is pure (doesn't execute at definition time)
-    no_side_effects!(
-        test_class_method,
-        r#"
+        // Class with method is pure (doesn't execute at definition time)
+        no_side_effects!(
+            test_class_method,
+            r#"
         class Foo {
             method() {
                 console.log("method");
             }
         }
         "#
-    );
+        );
 
-    // Class expression with side effects in extends
-    side_effects!(
-        test_class_expr_extends_with_call,
-        "const Foo = class extends getMixin() {};"
-    );
+        // Class expression with side effects in extends
+        side_effects!(
+            test_class_expr_extends_with_call,
+            "const Foo = class extends getMixin() {};"
+        );
 
-    // Class expression with static property calling function
-    side_effects!(
-        test_class_expr_static_with_call,
-        r#"
+        // Class expression with static property calling function
+        side_effects!(
+            test_class_expr_static_with_call,
+            r#"
         const Foo = class {
             static prop = initValue();
         };
         "#
-    );
+        );
 
-    // Class expression with pure static property
-    no_side_effects!(
-        test_class_expr_static_pure,
-        r#"
+        // Class expression with pure static property
+        no_side_effects!(
+            test_class_expr_static_pure,
+            r#"
         const Foo = class {
             static prop = "hello";
         };
         "#
-    );
+        );
 
-    // Export class with side effects
-    side_effects!(
-        test_export_class_with_side_effects,
-        r#"
+        // Export class with side effects
+        side_effects!(
+            test_export_class_with_side_effects,
+            r#"
         export class Foo extends getMixin() {
             static prop = init();
         }
         "#
-    );
+        );
 
-    // Export default class with side effects
-    side_effects!(
-        test_export_default_class_with_side_effects,
-        r#"
+        // Export default class with side effects
+        side_effects!(
+            test_export_default_class_with_side_effects,
+            r#"
         export default class Foo {
             static { console.log("init"); }
         }
         "#
-    );
+        );
 
-    // Export class without side effects
-    no_side_effects!(
-        test_export_class_no_side_effects,
-        r#"
+        // Export class without side effects
+        no_side_effects!(
+            test_export_class_no_side_effects,
+            r#"
         export class Foo {
             method() {
                 console.log("method");
             }
         }
         "#
-    );
+        );
 
-    // Multiple static properties, some pure, some not
-    side_effects!(
-        test_class_mixed_static_properties,
-        r#"
+        // Multiple static properties, some pure, some not
+        side_effects!(
+            test_class_mixed_static_properties,
+            r#"
         class Foo {
             static a = 1;
             static b = impureCall();
             static c = 3;
         }
         "#
-    );
+        );
 
-    // Class with pure static property using known pure built-in
-    no_side_effects!(
-        test_class_static_property_pure_builtin,
-        r#"
+        // Class with pure static property using known pure built-in
+        no_side_effects!(
+            test_class_static_property_pure_builtin,
+            r#"
         class Foo {
             static value = Math.abs(-5);
         }
         "#
-    );
+        );
 
-    // Class with computed property name that has side effects
-    side_effects!(
-        test_class_computed_property_with_call,
-        r#"
+        // Class with computed property name that has side effects
+        side_effects!(
+            test_class_computed_property_with_call,
+            r#"
         class Foo {
             [computeName()]() {
                 return 42;
             }
         }
         "#
-    );
+        );
 
-    // Class with pure computed property name
-    no_side_effects!(
-        test_class_computed_property_pure,
-        r#"
+        // Class with pure computed property name
+        no_side_effects!(
+            test_class_computed_property_pure,
+            r#"
         class Foo {
             ['method']() {
                 return 42;
             }
         }
         "#
-    );
+        );
+    }
 
-    // ==================== Phase 13: Complex Variable Declarations ====================
+    mod complex_variable_declarations_tests {
+        use super::*;
 
-    // Simple destructuring without defaults is pure
-    no_side_effects!(test_destructure_simple, "const { foo } = obj;");
+        // Simple destructuring without defaults is pure
+        no_side_effects!(test_destructure_simple, "const { foo } = obj;");
 
-    // Destructuring with function call in default value has side effects
-    side_effects!(
-        test_destructure_default_with_call,
-        "const { foo = someFunction() } = obj;"
-    );
+        // Destructuring with function call in default value has side effects
+        side_effects!(
+            test_destructure_default_with_call,
+            "const { foo = someFunction() } = obj;"
+        );
 
-    // Destructuring with pure default value is pure
-    no_side_effects!(test_destructure_default_pure, "const { foo = 42 } = obj;");
+        // Destructuring with pure default value is pure
+        no_side_effects!(test_destructure_default_pure, "const { foo = 42 } = obj;");
 
-    // Destructuring with array literal default is pure
-    no_side_effects!(
-        test_destructure_default_array_literal,
-        "const { foo = ['hello'] } = obj;"
-    );
+        // Destructuring with array literal default is pure
+        no_side_effects!(
+            test_destructure_default_array_literal,
+            "const { foo = ['hello'] } = obj;"
+        );
 
-    // Destructuring with object literal default is pure
-    no_side_effects!(
-        test_destructure_default_object_literal,
-        "const { foo = { bar: 'baz' } } = obj;"
-    );
+        // Destructuring with object literal default is pure
+        no_side_effects!(
+            test_destructure_default_object_literal,
+            "const { foo = { bar: 'baz' } } = obj;"
+        );
 
-    // Nested destructuring with default that has side effect
-    side_effects!(
-        test_destructure_nested_with_call,
-        "const { a: { b = sideEffect() } } = obj;"
-    );
+        // Nested destructuring with default that has side effect
+        side_effects!(
+            test_destructure_nested_with_call,
+            "const { a: { b = sideEffect() } } = obj;"
+        );
 
-    // Array destructuring with default that has side effect
-    side_effects!(
-        test_array_destructure_default_with_call,
-        "const [a, b = getDefault()] = arr;"
-    );
+        // Array destructuring with default that has side effect
+        side_effects!(
+            test_array_destructure_default_with_call,
+            "const [a, b = getDefault()] = arr;"
+        );
 
-    // Array destructuring with pure default
-    no_side_effects!(
-        test_array_destructure_default_pure,
-        "const [a, b = 10] = arr;"
-    );
+        // Array destructuring with pure default
+        no_side_effects!(
+            test_array_destructure_default_pure,
+            "const [a, b = 10] = arr;"
+        );
 
-    // Multiple variables, one with side effect in default
-    side_effects!(
-        test_multiple_destructure_mixed,
-        "const { foo = 1, bar = compute() } = obj;"
-    );
+        // Multiple variables, one with side effect in default
+        side_effects!(
+            test_multiple_destructure_mixed,
+            "const { foo = 1, bar = compute() } = obj;"
+        );
 
-    // Rest pattern is pure
-    no_side_effects!(test_destructure_rest_pure, "const { foo, ...rest } = obj;");
+        // Rest pattern is pure
+        no_side_effects!(test_destructure_rest_pure, "const { foo, ...rest } = obj;");
 
-    // Complex destructuring with multiple levels
-    side_effects!(
-        test_destructure_complex_with_side_effect,
-        r#"
+        // Complex destructuring with multiple levels
+        side_effects!(
+            test_destructure_complex_with_side_effect,
+            r#"
         const {
             a,
             b: { c = sideEffect() },
             d = [1, 2, 3]
         } = obj;
         "#
-    );
+        );
 
-    // Complex destructuring all pure
-    no_side_effects!(
-        test_destructure_complex_pure,
-        r#"
+        // Complex destructuring all pure
+        no_side_effects!(
+            test_destructure_complex_pure,
+            r#"
         const {
             a,
             b: { c = 5 },
             d = [1, 2, 3]
         } = obj;
         "#
-    );
+        );
 
-    // Destructuring in export with side effect
-    side_effects!(
-        test_export_destructure_with_side_effect,
-        "export const { foo = init() } = obj;"
-    );
+        // Destructuring in export with side effect
+        side_effects!(
+            test_export_destructure_with_side_effect,
+            "export const { foo = init() } = obj;"
+        );
 
-    // Destructuring in export without side effect
-    no_side_effects!(
-        test_export_destructure_pure,
-        "export const { foo = 42 } = obj;"
-    );
+        // Destructuring in export without side effect
+        no_side_effects!(
+            test_export_destructure_pure,
+            "export const { foo = 42 } = obj;"
+        );
 
-    // Default value with known pure built-in
-    no_side_effects!(
-        test_destructure_default_pure_builtin,
-        "const { foo = Math.abs(-5) } = obj;"
-    );
+        // Default value with known pure built-in
+        no_side_effects!(
+            test_destructure_default_pure_builtin,
+            "const { foo = Math.abs(-5) } = obj;"
+        );
 
-    // Default value with pure annotation
-    no_side_effects!(
-        test_destructure_default_pure_annotation,
-        "const { foo = /*#__PURE__*/ compute() } = obj;"
-    );
+        // Default value with pure annotation
+        no_side_effects!(
+            test_destructure_default_pure_annotation,
+            "const { foo = /*#__PURE__*/ compute() } = obj;"
+        );
+    }
 
-    // ==================== Phase 14: Decorator Side Effects ====================
+    mod decorator_side_effects_tests {
+        use super::*;
 
-    // Class decorator has side effects (executes at definition time)
-    side_effects!(
-        test_class_decorator,
-        r#"
+        // Class decorator has side effects (executes at definition time)
+        side_effects!(
+            test_class_decorator,
+            r#"
         @decorator
         class Foo {}
         "#
-    );
+        );
 
-    // Method decorator has side effects
-    side_effects!(
-        test_method_decorator,
-        r#"
+        // Method decorator has side effects
+        side_effects!(
+            test_method_decorator,
+            r#"
         class Foo {
             @decorator
             method() {}
         }
         "#
-    );
+        );
 
-    // Property decorator has side effects
-    side_effects!(
-        test_property_decorator,
-        r#"
+        // Property decorator has side effects
+        side_effects!(
+            test_property_decorator,
+            r#"
         class Foo {
             @decorator
             prop = 1;
         }
         "#
-    );
+        );
 
-    // Multiple decorators
-    side_effects!(
-        test_multiple_decorators,
-        r#"
+        // Multiple decorators
+        side_effects!(
+            test_multiple_decorators,
+            r#"
         @decorator1
         @decorator2
         class Foo {
@@ -2122,66 +2156,68 @@ mod tests {
             method() {}
         }
         "#
-    );
+        );
 
-    // Decorator with arguments
-    side_effects!(
-        test_decorator_with_args,
-        r#"
+        // Decorator with arguments
+        side_effects!(
+            test_decorator_with_args,
+            r#"
         @decorator(config())
         class Foo {}
         "#
-    );
+        );
+    }
 
-    // ==================== Phase 15: Additional Edge Cases ====================
+    mod additional_edge_cases_tests {
+        use super::*;
 
-    // Super property access is pure
-    no_side_effects!(
-        test_super_property_pure,
-        r#"
+        // Super property access is pure
+        no_side_effects!(
+            test_super_property_pure,
+            r#"
         class Foo extends Bar {
             method() {
                 return super.parentMethod;
             }
         }
         "#
-    );
+        );
 
-    // Super method call has side effects (but only when invoked, not at definition)
-    no_side_effects!(
-        test_super_call_in_method,
-        r#"
+        // Super method call has side effects (but only when invoked, not at definition)
+        no_side_effects!(
+            test_super_call_in_method,
+            r#"
         class Foo extends Bar {
             method() {
                 return super.parentMethod();
             }
         }
         "#
-    );
+        );
 
-    // import.meta is pure
-    no_side_effects!(test_import_meta, "const url = import.meta.url;");
+        // import.meta is pure
+        no_side_effects!(test_import_meta, "const url = import.meta.url;");
 
-    // new.target is pure (only valid inside functions/constructors)
-    no_side_effects!(
-        test_new_target,
-        r#"
+        // new.target is pure (only valid inside functions/constructors)
+        no_side_effects!(
+            test_new_target,
+            r#"
         function Foo() {
             console.log(new.target);
         }
         "#
-    );
+        );
 
-    // JSX element has side effects (compiles to function calls)
-    side_effects!(test_jsx_element, "const el = <div>Hello</div>;");
+        // JSX element has side effects (compiles to function calls)
+        side_effects!(test_jsx_element, "const el = <div>Hello</div>;");
 
-    // JSX fragment has side effects
-    side_effects!(test_jsx_fragment, "const el = <>Hello</>;");
+        // JSX fragment has side effects
+        side_effects!(test_jsx_fragment, "const el = <>Hello</>;");
 
-    // Private field access is pure
-    no_side_effects!(
-        test_private_field_access,
-        r#"
+        // Private field access is pure
+        no_side_effects!(
+            test_private_field_access,
+            r#"
         class Foo {
             #privateField = 42;
             method() {
@@ -2189,24 +2225,24 @@ mod tests {
             }
         }
         "#
-    );
+        );
 
-    // Computed super property with side effect
-    no_side_effects!(
-        test_super_computed_property_pure,
-        r#"
+        // Computed super property with side effect
+        no_side_effects!(
+            test_super_computed_property_pure,
+            r#"
         class Foo extends Bar {
             method() {
                 return super['prop'];
             }
         }
         "#
-    );
+        );
 
-    // Static block with only pure statements is pure
-    no_side_effects!(
-        test_static_block_pure_content,
-        r#"
+        // Static block with only pure statements is pure
+        no_side_effects!(
+            test_static_block_pure_content,
+            r#"
         class Foo {
             static {
                 const x = 1;
@@ -2214,117 +2250,126 @@ mod tests {
             }
         }
         "#
-    );
+        );
 
-    // Static block with side effect
-    side_effects!(
-        test_static_block_with_side_effect_inside,
-        r#"
+        // Static block with side effect
+        side_effects!(
+            test_static_block_with_side_effect_inside,
+            r#"
         class Foo {
             static {
                 sideEffect();
             }
         }
         "#
-    );
+        );
 
-    // This binding is pure
-    no_side_effects!(
-        test_this_expression,
-        r#"
+        // This binding is pure
+        no_side_effects!(
+            test_this_expression,
+            r#"
         class Foo {
             method() {
                 return this;
             }
         }
         "#
-    );
+        );
 
-    // Spread in call arguments (with pure expression)
-    no_side_effects!(
-        test_spread_pure_in_call,
-        "const result = Math.max(...[1, 2, 3]);"
-    );
+        // Spread in call arguments (with pure expression)
+        no_side_effects!(
+            test_spread_pure_in_call,
+            "const result = Math.max(...[1, 2, 3]);"
+        );
 
-    // Spread in call arguments (with side effect)
-    side_effects!(
-        test_spread_with_side_effect,
-        "const result = Math.max(...getArray());"
-    );
+        // Spread in call arguments (with side effect)
+        side_effects!(
+            test_spread_with_side_effect,
+            "const result = Math.max(...getArray());"
+        );
 
-    // Complex super expression
-    no_side_effects!(
-        test_super_complex_access,
-        r#"
+        // Complex super expression
+        no_side_effects!(
+            test_super_complex_access,
+            r#"
         class Foo extends Bar {
             static method() {
                 return super.parentMethod;
             }
         }
         "#
-    );
+        );
 
-    // Getter/setter definitions are pure
-    no_side_effects!(
-        test_getter_definition,
-        r#"
+        // Getter/setter definitions are pure
+        no_side_effects!(
+            test_getter_definition,
+            r#"
         const obj = {
             get foo() {
                 return this._foo;
             }
         };
         "#
-    );
+        );
 
-    // Async function declaration is pure
-    no_side_effects!(
-        test_async_function_declaration,
-        r#"
+        // Async function declaration is pure
+        no_side_effects!(
+            test_async_function_declaration,
+            r#"
         async function foo() {
             return await something;
         }
         "#
-    );
+        );
 
-    // Generator function declaration is pure
-    no_side_effects!(
-        test_generator_declaration,
-        r#"
+        // Generator function declaration is pure
+        no_side_effects!(
+            test_generator_declaration,
+            r#"
         function* foo() {
             yield 1;
             yield 2;
         }
         "#
-    );
+        );
 
-    // Async generator is pure
-    no_side_effects!(
-        test_async_generator,
-        r#"
+        // Async generator is pure
+        no_side_effects!(
+            test_async_generator,
+            r#"
         async function* foo() {
             yield await something;
         }
         "#
-    );
+        );
 
-    // Using declaration (TC39 proposal) - if supported
-    // This would need to be handled if the parser supports it
+        // Using declaration (TC39 proposal) - if supported
+        // This would need to be handled if the parser supports it
 
-    // Nullish coalescing with side effects in right operand
-    side_effects!(
-        test_nullish_coalescing_with_side_effect,
-        "const x = a ?? sideEffect();"
-    );
+        // Nullish coalescing with side effects in right operand
+        side_effects!(
+            test_nullish_coalescing_with_side_effect,
+            "const x = a ?? sideEffect();"
+        );
 
-    // Logical OR with side effects
-    side_effects!(
-        test_logical_or_with_side_effect,
-        "const x = a || sideEffect();"
-    );
+        // Logical OR with side effects
+        side_effects!(
+            test_logical_or_with_side_effect,
+            "const x = a || sideEffect();"
+        );
 
-    // Logical AND with side effects
-    side_effects!(
-        test_logical_and_with_side_effect,
-        "const x = a && sideEffect();"
-    );
+        // Logical AND with side effects
+        side_effects!(
+            test_logical_and_with_side_effect,
+            "const x = a && sideEffect();"
+        );
+    }
+
+    mod common_js_modules_tests {
+        use super::*;
+
+        side_effects!(test_common_js_exports, "exports.foo = 'a'");
+        side_effects!(test_common_js_exports_module, "module.exports.foo = 'a'");
+        side_effects!(test_common_js_exports_assignment, "module.exports = {}");
+    }
 }
