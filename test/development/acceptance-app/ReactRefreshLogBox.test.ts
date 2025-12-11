@@ -1503,11 +1503,10 @@ describe('ReactRefreshLogBox app', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  ╰─▶   × Error: RspackResolver(NotFound("./boom.css"))",
+         "description": "Failed to compile",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "<FIXME-project-root>/app/styles2.css
-         ╰─▶   × Error: RspackResolver(NotFound("./boom.css"))",
+         "source": "╰─▶ × Error: RspackResolver(NotFound("./boom.css"))",
          "stack": [],
        }
       `)
