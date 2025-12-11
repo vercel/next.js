@@ -12,9 +12,8 @@ import type { NormalizedFlightData } from '../../flight-data-helpers'
 import { fetchServerResponse } from '../router-reducer/fetch-server-response'
 import {
   startPPRNavigation,
-  startPPRRefresh,
   listenForDynamicRequest,
-  type Task as PPRNavigationTask,
+  type NavigationTask,
   type NavigationRequestAccumulation,
 } from '../router-reducer/ppr-navigations'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
@@ -37,14 +36,6 @@ type MPANavigationResult = {
   data: string
 }
 
-type NoOpNavigationResult = {
-  tag: NavigationResultTag.NoOp
-  data: {
-    canonicalUrl: string
-    shouldScroll: boolean
-  }
-}
-
 type SuccessfulNavigationResult = {
   tag: NavigationResultTag.Success
   data: {
@@ -60,15 +51,12 @@ type SuccessfulNavigationResult = {
 
 type AsyncNavigationResult = {
   tag: NavigationResultTag.Async
-  data: Promise<
-    MPANavigationResult | NoOpNavigationResult | SuccessfulNavigationResult
-  >
+  data: Promise<MPANavigationResult | SuccessfulNavigationResult>
 }
 
 export type NavigationResult =
   | MPANavigationResult
   | SuccessfulNavigationResult
-  | NoOpNavigationResult
   | AsyncNavigationResult
 
 /**
@@ -82,7 +70,7 @@ export type NavigationResult =
 export function navigate(
   url: URL,
   currentUrl: URL,
-  currentCacheNode: CacheNode,
+  currentCacheNode: CacheNode | null,
   currentFlightRouterState: FlightRouterState,
   nextUrl: string | null,
   shouldScroll: boolean,
@@ -223,25 +211,34 @@ export function navigate(
 
 export function refresh(
   currentUrl: URL,
+  currentCacheNode: CacheNode,
   currentFlightRouterState: FlightRouterState,
   currentNextUrl: string | null,
   currentRenderedSearch: string,
   currentCanonicalUrl: string
-): SuccessfulNavigationResult | NoOpNavigationResult | MPANavigationResult {
+): SuccessfulNavigationResult | MPANavigationResult {
   // A refresh is a special case of a navigation where all the dynamic data
   // on the current router is re-fetched. Most of the logic is handled within
-  // the ppr-navigations module. The main difference here is that we call
-  // startPPRRefresh instead of startPPRNavigation.
+  // the ppr-navigations module. The main difference here is that we set
+  // shouldRefreshDynamicData to true.
   const now = Date.now()
   const shouldScroll = true
   const accumulation: NavigationRequestAccumulation = {
     scrollableSegments: [],
     separateRefreshUrls: null,
   }
-  const task = startPPRRefresh(
+  const shouldRefreshDynamicData = true
+  const task = startPPRNavigation(
     now,
+    currentUrl,
+    currentCacheNode,
     currentFlightRouterState,
-    currentNextUrl,
+    currentFlightRouterState,
+    shouldRefreshDynamicData,
+    null,
+    null,
+    false,
+    true,
     accumulation
   )
   if (task !== null) {
@@ -268,31 +265,26 @@ export function refresh(
 
     const newTree = task.route
     const newCacheNode = task.node
-    if (newTree !== null && newCacheNode !== null) {
-      // Re-render with the new data. All the other data remains the same.
-      return {
-        tag: NavigationResultTag.Success,
-        data: {
-          flightRouterState: newTree,
-          cacheNode: newCacheNode,
-          canonicalUrl: currentCanonicalUrl,
-          renderedSearch: currentRenderedSearch,
-          // During a refresh, we don't set the `scrollableSegments`. See
-          // corresponding comment in navigate-reducer.ts for context.
-          scrollableSegments: null,
-          shouldScroll,
-          hash: currentUrl.hash,
-        },
-      }
+    // Re-render with the new data. All the other data remains the same.
+    return {
+      tag: NavigationResultTag.Success,
+      data: {
+        flightRouterState: newTree,
+        cacheNode: newCacheNode,
+        canonicalUrl: currentCanonicalUrl,
+        renderedSearch: currentRenderedSearch,
+        // During a refresh, we don't set the `scrollableSegments`. See
+        // corresponding comment in navigate-reducer.ts for context.
+        scrollableSegments: null,
+        shouldScroll,
+        hash: currentUrl.hash,
+      },
     }
   }
-
+  // Could not perform a SPA navigation. Revert to a full-page (MPA) navigation.
   return {
-    tag: NavigationResultTag.NoOp,
-    data: {
-      canonicalUrl: currentCanonicalUrl,
-      shouldScroll,
-    },
+    tag: NavigationResultTag.MPA,
+    data: currentCanonicalUrl,
   }
 }
 
@@ -302,7 +294,7 @@ function navigateUsingPrefetchedRouteTree(
   currentUrl: URL,
   nextUrl: string | null,
   isSamePageNavigation: boolean,
-  currentCacheNode: CacheNode,
+  currentCacheNode: CacheNode | null,
   currentFlightRouterState: FlightRouterState,
   prefetchFlightRouterState: FlightRouterState,
   prefetchSeedData: CacheNodeSeedData | null,
@@ -312,7 +304,7 @@ function navigateUsingPrefetchedRouteTree(
   renderedSearch: string,
   shouldScroll: boolean,
   hash: string
-): SuccessfulNavigationResult | NoOpNavigationResult | MPANavigationResult {
+): SuccessfulNavigationResult | MPANavigationResult {
   // Recursively construct a prefetch tree by reading from the Segment Cache. To
   // maintain compatibility, we output the same data structures as the old
   // prefetching implementation: FlightRouterState and CacheNodeSeedData.
@@ -323,12 +315,14 @@ function navigateUsingPrefetchedRouteTree(
     scrollableSegments: [],
     separateRefreshUrls: null,
   }
+  const shouldRefreshDynamicData = false
   const task = startPPRNavigation(
     now,
     currentUrl,
     currentCacheNode,
     currentFlightRouterState,
     prefetchFlightRouterState,
+    shouldRefreshDynamicData,
     prefetchSeedData,
     prefetchHead,
     isPrefetchHeadPartial,
@@ -348,7 +342,6 @@ function navigateUsingPrefetchedRouteTree(
     }
     return navigationTaskToResult(
       task,
-      currentCacheNode,
       canonicalUrl,
       renderedSearch,
       accumulation.scrollableSegments,
@@ -356,41 +349,26 @@ function navigateUsingPrefetchedRouteTree(
       hash
     )
   }
-  // The server sent back an empty tree patch. There's nothing to update, except
-  // possibly the URL.
+  // Could not perform a SPA navigation. Revert to a full-page (MPA) navigation.
   return {
-    tag: NavigationResultTag.NoOp,
-    data: {
-      canonicalUrl,
-      shouldScroll,
-    },
+    tag: NavigationResultTag.MPA,
+    data: canonicalUrl,
   }
 }
 
 function navigationTaskToResult(
-  task: PPRNavigationTask,
-  currentCacheNode: CacheNode,
+  task: NavigationTask,
   canonicalUrl: string,
   renderedSearch: string,
   scrollableSegments: Array<FlightSegmentPath>,
   shouldScroll: boolean,
   hash: string
 ): SuccessfulNavigationResult | MPANavigationResult {
-  const flightRouterState = task.route
-  if (flightRouterState === null) {
-    // When no router state is provided, it signals that we should perform an
-    // MPA navigation.
-    return {
-      tag: NavigationResultTag.MPA,
-      data: canonicalUrl,
-    }
-  }
-  const newCacheNode = task.node
   return {
     tag: NavigationResultTag.Success,
     data: {
-      flightRouterState,
-      cacheNode: newCacheNode !== null ? newCacheNode : currentCacheNode,
+      flightRouterState: task.route,
+      cacheNode: task.node,
       canonicalUrl,
       renderedSearch,
       scrollableSegments,
@@ -534,14 +512,12 @@ async function navigateDynamicallyWithNoPrefetch(
   currentUrl: URL,
   nextUrl: string | null,
   isSamePageNavigation: boolean,
-  currentCacheNode: CacheNode,
+  currentCacheNode: CacheNode | null,
   currentFlightRouterState: FlightRouterState,
   shouldScroll: boolean,
   hash: string,
   collectedDebugInfo: Array<unknown>
-): Promise<
-  MPANavigationResult | SuccessfulNavigationResult | NoOpNavigationResult
-> {
+): Promise<MPANavigationResult | SuccessfulNavigationResult> {
   // Runs when a navigation happens but there's no cached prefetch we can use.
   // Don't bother to wait for a prefetch response; go straight to a full
   // navigation that contains both static and dynamic data in a single stream.
@@ -597,12 +573,14 @@ async function navigateDynamicallyWithNoPrefetch(
     scrollableSegments: [],
     separateRefreshUrls: null,
   }
+  const shouldRefreshDynamicData = false
   const task = startPPRNavigation(
     now,
     currentUrl,
     currentCacheNode,
     currentFlightRouterState,
     prefetchFlightRouterState,
+    shouldRefreshDynamicData,
     prefetchSeedData,
     prefetchHead,
     isPrefetchHeadPartial,
@@ -633,7 +611,6 @@ async function navigateDynamicallyWithNoPrefetch(
     }
     return navigationTaskToResult(
       task,
-      currentCacheNode,
       createHrefFromUrl(canonicalUrl),
       renderedSearch,
       accumulation.scrollableSegments,
@@ -641,14 +618,10 @@ async function navigateDynamicallyWithNoPrefetch(
       hash
     )
   }
-  // The server sent back an empty tree patch. There's nothing to update, except
-  // possibly the URL.
+  // Could not perform a SPA navigation. Revert to a full-page (MPA) navigation.
   return {
-    tag: NavigationResultTag.NoOp,
-    data: {
-      canonicalUrl: createHrefFromUrl(canonicalUrl),
-      shouldScroll,
-    },
+    tag: NavigationResultTag.MPA,
+    data: createHrefFromUrl(canonicalUrl),
   }
 }
 
