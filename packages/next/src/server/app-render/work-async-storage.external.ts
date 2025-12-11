@@ -10,6 +10,7 @@ import type { CacheLife } from '../use-cache/cache-life'
 import { workAsyncStorageInstance } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
 import type { LazyResult } from '../lib/lazy-result'
 import type { DigestedError } from './create-error-handler'
+import type { ActionRevalidationKind } from '../../shared/lib/action-revalidation-kind'
 
 export interface WorkStore {
   readonly isStaticGeneration: boolean
@@ -61,7 +62,7 @@ export interface WorkStore {
   invalidDynamicUsageError?: Error
 
   nextFetchId?: number
-  pathWasRevalidated?: boolean
+  pathWasRevalidated?: ActionRevalidationKind
 
   /**
    * Tags that were revalidated during the current request. They need to be sent

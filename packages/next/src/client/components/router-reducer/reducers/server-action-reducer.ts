@@ -54,6 +54,12 @@ import {
   navigate as navigateUsingSegmentCache,
 } from '../../segment-cache/navigation'
 import type { NormalizedSearch } from '../../segment-cache/cache-key'
+import {
+  ActionDidNotRevalidate,
+  ActionDidRevalidateDynamicOnly,
+  ActionDidRevalidateStaticAndDynamic,
+  type ActionRevalidationKind,
+} from '../../../../shared/lib/action-revalidation-kind'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -77,16 +83,12 @@ if (
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
   redirectType: RedirectType | undefined
+  revalidationKind: ActionRevalidationKind
   actionResult: ActionResult | undefined
   actionFlightData: NormalizedFlightData[] | string | undefined
   actionFlightDataRenderedSearch: NormalizedSearch | undefined
   actionFlightDataCouldBeIntercepted: boolean | undefined
   isPrerender: boolean
-  revalidatedParts: {
-    tag: boolean
-    cookie: boolean
-    paths: string[]
-  }
 }
 
 async function fetchServerAction(
@@ -160,19 +162,20 @@ async function fetchServerAction(
   }
 
   const isPrerender = !!res.headers.get(NEXT_IS_PRERENDER_HEADER)
-  let revalidatedParts: FetchServerActionResult['revalidatedParts']
+
+  let revalidationKind: ActionRevalidationKind = ActionDidNotRevalidate
   try {
-    const revalidatedHeader = JSON.parse(
-      res.headers.get('x-action-revalidated') || '[[],0,0]'
-    )
-    revalidatedParts = {
-      paths: revalidatedHeader[0] || [],
-      tag: !!revalidatedHeader[1],
-      cookie: !!revalidatedHeader[2],
+    const revalidationHeader = res.headers.get('x-action-revalidated')
+    if (revalidationHeader) {
+      const parsedKind = JSON.parse(revalidationHeader)
+      if (
+        parsedKind === ActionDidRevalidateStaticAndDynamic ||
+        parsedKind === ActionDidRevalidateDynamicOnly
+      ) {
+        revalidationKind = parsedKind
+      }
     }
-  } catch (e) {
-    revalidatedParts = NO_REVALIDATED_PARTS
-  }
+  } catch {}
 
   const redirectLocation = location
     ? assignLocation(
@@ -239,15 +242,9 @@ async function fetchServerAction(
     actionFlightDataCouldBeIntercepted,
     redirectLocation,
     redirectType,
-    revalidatedParts,
+    revalidationKind,
     isPrerender,
   }
-}
-
-const NO_REVALIDATED_PARTS = {
-  paths: [],
-  tag: false,
-  cookie: false,
 }
 
 /*
@@ -280,20 +277,15 @@ export function serverActionReducer(
 
   return fetchServerAction(state, nextUrl, action).then(
     async ({
+      revalidationKind,
       actionResult,
       actionFlightData: flightData,
       actionFlightDataRenderedSearch: flightDataRenderedSearch,
       actionFlightDataCouldBeIntercepted: flightDataCouldBeIntercepted,
       redirectLocation,
       redirectType,
-      revalidatedParts,
     }) => {
-      const actionDidRevalidateCache =
-        revalidatedParts.paths.length > 0 ||
-        revalidatedParts.tag ||
-        revalidatedParts.cookie
-
-      if (actionDidRevalidateCache) {
+      if (revalidationKind !== ActionDidNotRevalidate) {
         // Store whether this action triggered any revalidation
         // The action queue will use this information to potentially
         // trigger a refresh action if the action was discarded
@@ -302,7 +294,9 @@ export function serverActionReducer(
 
         // If there was a revalidation, evict the entire prefetch cache.
         // TODO: Evict only segments with matching tags and/or paths.
-        revalidateEntireCache(nextUrl, state.tree)
+        if (revalidationKind === ActionDidRevalidateStaticAndDynamic) {
+          revalidateEntireCache(nextUrl, state.tree)
+        }
       }
 
       if (redirectLocation !== undefined) {
@@ -341,7 +335,7 @@ export function serverActionReducer(
         // Did the action trigger a redirect?
         redirectLocation === undefined &&
         // Did the action revalidate any data?
-        !actionDidRevalidateCache &&
+        revalidationKind === ActionDidNotRevalidate &&
         // Did the server render new data?
         flightData === undefined
       ) {
@@ -382,7 +376,8 @@ export function serverActionReducer(
 
       // If the action triggered a revalidation of the cache, we should also
       // refresh all the dynamic data.
-      const shouldRefreshDynamicData = actionDidRevalidateCache
+      const shouldRefreshDynamicData =
+        revalidationKind !== ActionDidNotRevalidate
 
       // The server may have sent back new data. If so, we will perform a
       // "seeded" navigation that uses the data from the response.
