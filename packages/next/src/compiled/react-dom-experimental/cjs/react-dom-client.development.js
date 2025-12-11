@@ -25640,21 +25640,6 @@
       var computedStyle = getComputedStyle(instance);
       return createMeasurement(measuredRect, computedStyle, instance);
     }
-    function cancelAllViewTransitionAnimations(scope) {
-      for (
-        var animations = scope.getAnimations({ subtree: !0 }), i = 0;
-        i < animations.length;
-        i++
-      ) {
-        var anim = animations[i],
-          effect = anim.effect,
-          pseudo = effect.pseudoElement;
-        null != pseudo &&
-          pseudo.startsWith("::view-transition") &&
-          effect.target === scope &&
-          anim.cancel();
-      }
-    }
     function customizeViewTransitionError(error, ignoreAbort) {
       if ("object" === typeof error && null !== error)
         switch (error.name) {
@@ -25789,6 +25774,7 @@
           types: transitionTypes
         });
         ownerDocument.__reactViewTransition = transition;
+        var viewTransitionAnimations = [];
         transition.ready.then(
           function () {
             for (
@@ -25799,25 +25785,26 @@
               i < animations.length;
               i++
             ) {
-              var effect = animations[i].effect,
+              var animation = animations[i],
+                effect = animation.effect,
                 pseudoElement = effect.pseudoElement;
               if (
                 null != pseudoElement &&
                 pseudoElement.startsWith("::view-transition")
               ) {
-                pseudoElement = effect.getKeyframes();
+                viewTransitionAnimations.push(animation);
+                animation = effect.getKeyframes();
                 for (
-                  var width = void 0,
-                    height = void 0,
+                  var height = (pseudoElement = void 0),
                     unchangedDimensions = !0,
                     j = 0;
-                  j < pseudoElement.length;
+                  j < animation.length;
                   j++
                 ) {
-                  var keyframe = pseudoElement[j],
+                  var keyframe = animation[j],
                     w = keyframe.width;
-                  if (void 0 === width) width = w;
-                  else if (width !== w) {
+                  if (void 0 === pseudoElement) pseudoElement = w;
+                  else if (pseudoElement !== w) {
                     unchangedDimensions = !1;
                     break;
                   }
@@ -25832,23 +25819,22 @@
                   "none" === keyframe.transform && delete keyframe.transform;
                 }
                 unchangedDimensions &&
-                  void 0 !== width &&
+                  void 0 !== pseudoElement &&
                   void 0 !== height &&
-                  (effect.setKeyframes(pseudoElement),
+                  (effect.setKeyframes(animation),
                   (unchangedDimensions = getComputedStyle(
                     effect.target,
                     effect.pseudoElement
                   )),
-                  unchangedDimensions.width !== width ||
+                  unchangedDimensions.width !== pseudoElement ||
                     unchangedDimensions.height !== height) &&
-                  ((unchangedDimensions = pseudoElement[0]),
-                  (unchangedDimensions.width = width),
+                  ((unchangedDimensions = animation[0]),
+                  (unchangedDimensions.width = pseudoElement),
                   (unchangedDimensions.height = height),
-                  (unchangedDimensions =
-                    pseudoElement[pseudoElement.length - 1]),
-                  (unchangedDimensions.width = width),
+                  (unchangedDimensions = animation[animation.length - 1]),
+                  (unchangedDimensions.width = pseudoElement),
                   (unchangedDimensions.height = height),
-                  effect.setKeyframes(pseudoElement));
+                  effect.setKeyframes(animation));
               }
             }
             spawnedWorkCallback();
@@ -25868,7 +25854,8 @@
           }
         );
         transition.finished.finally(function () {
-          cancelAllViewTransitionAnimations(ownerDocument.documentElement);
+          for (var i = 0; i < viewTransitionAnimations.length; i++)
+            viewTransitionAnimations[i].cancel();
           ownerDocument.__reactViewTransition === transition &&
             (ownerDocument.__reactViewTransition = null);
           finishedAnimation();
@@ -26006,6 +25993,7 @@
         });
         ownerDocument.__reactViewTransition = transition;
         var customTimelineCleanup = [],
+          viewTransitionAnimations = [],
           readyCallback = function () {
             for (
               var documentElement = ownerDocument.documentElement,
@@ -26021,7 +26009,8 @@
                 pseudoElement = effect.pseudoElement;
               null != pseudoElement &&
                 pseudoElement.startsWith("::view-transition") &&
-                ((effect = effect.getTiming()),
+                (viewTransitionAnimations.push(animations[i]),
+                (effect = effect.getTiming()),
                 (effect =
                   effect.delay +
                   ("number" === typeof effect.duration ? effect.duration : 0)),
@@ -26124,8 +26113,9 @@
           }
         });
         transition.finished.finally(function () {
-          cancelAllViewTransitionAnimations(ownerDocument.documentElement);
-          for (var i = 0; i < customTimelineCleanup.length; i++)
+          for (var i = 0; i < viewTransitionAnimations.length; i++)
+            viewTransitionAnimations[i].cancel();
+          for (i = 0; i < customTimelineCleanup.length; i++)
             (0, customTimelineCleanup[i])();
           ownerDocument.__reactViewTransition === transition &&
             (ownerDocument.__reactViewTransition = null);
@@ -32446,11 +32436,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-55480b4d-20251208" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-80cb7a99-20251211" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-55480b4d-20251208\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-80cb7a99-20251211\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -32487,10 +32477,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-55480b4d-20251208",
+          version: "19.3.0-experimental-80cb7a99-20251211",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-55480b4d-20251208"
+          reconcilerVersion: "19.3.0-experimental-80cb7a99-20251211"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -32638,7 +32628,7 @@
       listenToAllSupportedEvents(container);
       return new ReactDOMHydrationRoot(initialChildren);
     };
-    exports.version = "19.3.0-experimental-55480b4d-20251208";
+    exports.version = "19.3.0-experimental-80cb7a99-20251211";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

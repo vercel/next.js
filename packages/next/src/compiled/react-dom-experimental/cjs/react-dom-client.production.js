@@ -14657,20 +14657,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1795 = 0;
-  i$jscomp$inline_1795 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1795++
+  var i$jscomp$inline_1796 = 0;
+  i$jscomp$inline_1796 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1796++
 ) {
-  var eventName$jscomp$inline_1796 =
-      simpleEventPluginEvents[i$jscomp$inline_1795],
-    domEventName$jscomp$inline_1797 =
-      eventName$jscomp$inline_1796.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1798 =
-      eventName$jscomp$inline_1796[0].toUpperCase() +
-      eventName$jscomp$inline_1796.slice(1);
+  var eventName$jscomp$inline_1797 =
+      simpleEventPluginEvents[i$jscomp$inline_1796],
+    domEventName$jscomp$inline_1798 =
+      eventName$jscomp$inline_1797.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1799 =
+      eventName$jscomp$inline_1797[0].toUpperCase() +
+      eventName$jscomp$inline_1797.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1797,
-    "on" + capitalizedEvent$jscomp$inline_1798
+    domEventName$jscomp$inline_1798,
+    "on" + capitalizedEvent$jscomp$inline_1799
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -16847,21 +16847,6 @@ function measureClonedInstance(instance) {
   var computedStyle = getComputedStyle(instance);
   return createMeasurement(measuredRect, computedStyle, instance);
 }
-function cancelAllViewTransitionAnimations(scope) {
-  for (
-    var animations = scope.getAnimations({ subtree: !0 }), i = 0;
-    i < animations.length;
-    i++
-  ) {
-    var anim = animations[i],
-      effect = anim.effect,
-      pseudo = effect.pseudoElement;
-    null != pseudo &&
-      pseudo.startsWith("::view-transition") &&
-      effect.target === scope &&
-      anim.cancel();
-  }
-}
 function customizeViewTransitionError(error, ignoreAbort) {
   if ("object" === typeof error && null !== error)
     switch (error.name) {
@@ -16969,6 +16954,7 @@ function startViewTransition(
       types: transitionTypes
     });
     ownerDocument.__reactViewTransition = transition;
+    var viewTransitionAnimations = [];
     transition.ready.then(
       function () {
         for (
@@ -16979,25 +16965,26 @@ function startViewTransition(
           i < animations.length;
           i++
         ) {
-          var effect = animations[i].effect,
+          var animation = animations[i],
+            effect = animation.effect,
             pseudoElement = effect.pseudoElement;
           if (
             null != pseudoElement &&
             pseudoElement.startsWith("::view-transition")
           ) {
-            pseudoElement = effect.getKeyframes();
+            viewTransitionAnimations.push(animation);
+            animation = effect.getKeyframes();
             for (
-              var width = void 0,
-                height = void 0,
+              var height = (pseudoElement = void 0),
                 unchangedDimensions = !0,
                 j = 0;
-              j < pseudoElement.length;
+              j < animation.length;
               j++
             ) {
-              var keyframe = pseudoElement[j],
+              var keyframe = animation[j],
                 w = keyframe.width;
-              if (void 0 === width) width = w;
-              else if (width !== w) {
+              if (void 0 === pseudoElement) pseudoElement = w;
+              else if (pseudoElement !== w) {
                 unchangedDimensions = !1;
                 break;
               }
@@ -17012,22 +16999,22 @@ function startViewTransition(
               "none" === keyframe.transform && delete keyframe.transform;
             }
             unchangedDimensions &&
-              void 0 !== width &&
+              void 0 !== pseudoElement &&
               void 0 !== height &&
-              (effect.setKeyframes(pseudoElement),
+              (effect.setKeyframes(animation),
               (unchangedDimensions = getComputedStyle(
                 effect.target,
                 effect.pseudoElement
               )),
-              unchangedDimensions.width !== width ||
+              unchangedDimensions.width !== pseudoElement ||
                 unchangedDimensions.height !== height) &&
-              ((unchangedDimensions = pseudoElement[0]),
-              (unchangedDimensions.width = width),
+              ((unchangedDimensions = animation[0]),
+              (unchangedDimensions.width = pseudoElement),
               (unchangedDimensions.height = height),
-              (unchangedDimensions = pseudoElement[pseudoElement.length - 1]),
-              (unchangedDimensions.width = width),
+              (unchangedDimensions = animation[animation.length - 1]),
+              (unchangedDimensions.width = pseudoElement),
               (unchangedDimensions.height = height),
-              effect.setKeyframes(pseudoElement));
+              effect.setKeyframes(animation));
           }
         }
         spawnedWorkCallback();
@@ -17044,7 +17031,8 @@ function startViewTransition(
       }
     );
     transition.finished.finally(function () {
-      cancelAllViewTransitionAnimations(ownerDocument.documentElement);
+      for (var i = 0; i < viewTransitionAnimations.length; i++)
+        viewTransitionAnimations[i].cancel();
       ownerDocument.__reactViewTransition === transition &&
         (ownerDocument.__reactViewTransition = null);
       passiveCallback();
@@ -17168,6 +17156,7 @@ function startGestureTransition(
     });
     ownerDocument.__reactViewTransition = transition;
     var customTimelineCleanup = [],
+      viewTransitionAnimations = [],
       readyCallback = function () {
         for (
           var documentElement = ownerDocument.documentElement,
@@ -17183,7 +17172,8 @@ function startGestureTransition(
             pseudoElement = effect.pseudoElement;
           null != pseudoElement &&
             pseudoElement.startsWith("::view-transition") &&
-            ((effect = effect.getTiming()),
+            (viewTransitionAnimations.push(animations[i]),
+            (effect = effect.getTiming()),
             (effect =
               effect.delay +
               ("number" === typeof effect.duration ? effect.duration : 0)),
@@ -17286,8 +17276,9 @@ function startGestureTransition(
       }
     });
     transition.finished.finally(function () {
-      cancelAllViewTransitionAnimations(ownerDocument.documentElement);
-      for (var i = 0; i < customTimelineCleanup.length; i++)
+      for (var i = 0; i < viewTransitionAnimations.length; i++)
+        viewTransitionAnimations[i].cancel();
+      for (i = 0; i < customTimelineCleanup.length; i++)
         (0, customTimelineCleanup[i])();
       ownerDocument.__reactViewTransition === transition &&
         (ownerDocument.__reactViewTransition = null);
@@ -18360,26 +18351,26 @@ function getResource(type, currentProps, pendingProps, currentResource) {
         "string" === typeof pendingProps.precedence
       ) {
         type = getStyleKey(pendingProps.href);
-        var styles$285 = getResourcesFromRoot(
+        var styles$286 = getResourcesFromRoot(
             JSCompiler_inline_result
           ).hoistableStyles,
-          resource$286 = styles$285.get(type);
-        resource$286 ||
+          resource$287 = styles$286.get(type);
+        resource$287 ||
           ((JSCompiler_inline_result =
             JSCompiler_inline_result.ownerDocument || JSCompiler_inline_result),
-          (resource$286 = {
+          (resource$287 = {
             type: "stylesheet",
             instance: null,
             count: 0,
             state: { loading: 0, preload: null }
           }),
-          styles$285.set(type, resource$286),
-          (styles$285 = JSCompiler_inline_result.querySelector(
+          styles$286.set(type, resource$287),
+          (styles$286 = JSCompiler_inline_result.querySelector(
             getStylesheetSelectorFromKey(type)
           )) &&
-            !styles$285._p &&
-            ((resource$286.instance = styles$285),
-            (resource$286.state.loading = 5)),
+            !styles$286._p &&
+            ((resource$287.instance = styles$286),
+            (resource$287.state.loading = 5)),
           preloadPropsMap.has(type) ||
             ((pendingProps = {
               rel: "preload",
@@ -18392,16 +18383,16 @@ function getResource(type, currentProps, pendingProps, currentResource) {
               referrerPolicy: pendingProps.referrerPolicy
             }),
             preloadPropsMap.set(type, pendingProps),
-            styles$285 ||
+            styles$286 ||
               preloadStylesheet(
                 JSCompiler_inline_result,
                 type,
                 pendingProps,
-                resource$286.state
+                resource$287.state
               )));
         if (currentProps && null === currentResource)
           throw Error(formatProdErrorMessage(528, ""));
-        return resource$286;
+        return resource$287;
       }
       if (currentProps && null !== currentResource)
         throw Error(formatProdErrorMessage(529, ""));
@@ -18498,37 +18489,37 @@ function acquireResource(hoistableRoot, resource, props) {
         return (resource.instance = instance);
       case "stylesheet":
         styleProps = getStyleKey(props.href);
-        var instance$291 = hoistableRoot.querySelector(
+        var instance$292 = hoistableRoot.querySelector(
           getStylesheetSelectorFromKey(styleProps)
         );
-        if (instance$291)
+        if (instance$292)
           return (
             (resource.state.loading |= 4),
-            (resource.instance = instance$291),
-            markNodeAsHoistable(instance$291),
-            instance$291
+            (resource.instance = instance$292),
+            markNodeAsHoistable(instance$292),
+            instance$292
           );
         instance = stylesheetPropsFromRawProps(props);
         (styleProps = preloadPropsMap.get(styleProps)) &&
           adoptPreloadPropsForStylesheet(instance, styleProps);
-        instance$291 = (
+        instance$292 = (
           hoistableRoot.ownerDocument || hoistableRoot
         ).createElement("link");
-        markNodeAsHoistable(instance$291);
-        var linkInstance = instance$291;
+        markNodeAsHoistable(instance$292);
+        var linkInstance = instance$292;
         linkInstance._p = new Promise(function (resolve, reject) {
           linkInstance.onload = resolve;
           linkInstance.onerror = reject;
         });
-        setInitialProperties(instance$291, "link", instance);
+        setInitialProperties(instance$292, "link", instance);
         resource.state.loading |= 4;
-        insertStylesheet(instance$291, props.precedence, hoistableRoot);
-        return (resource.instance = instance$291);
+        insertStylesheet(instance$292, props.precedence, hoistableRoot);
+        return (resource.instance = instance$292);
       case "script":
-        instance$291 = getScriptKey(props.src);
+        instance$292 = getScriptKey(props.src);
         if (
           (styleProps = hoistableRoot.querySelector(
-            getScriptSelectorFromKey(instance$291)
+            getScriptSelectorFromKey(instance$292)
           ))
         )
           return (
@@ -18537,7 +18528,7 @@ function acquireResource(hoistableRoot, resource, props) {
             styleProps
           );
         instance = props;
-        if ((styleProps = preloadPropsMap.get(instance$291)))
+        if ((styleProps = preloadPropsMap.get(instance$292)))
           (instance = assign({}, props)),
             adoptPreloadPropsForScript(instance, styleProps);
         hoistableRoot = hoistableRoot.ownerDocument || hoistableRoot;
@@ -19664,16 +19655,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2213 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2214 = React.version;
 if (
-  "19.3.0-experimental-55480b4d-20251208" !==
-  isomorphicReactPackageVersion$jscomp$inline_2213
+  "19.3.0-experimental-80cb7a99-20251211" !==
+  isomorphicReactPackageVersion$jscomp$inline_2214
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2213,
-      "19.3.0-experimental-55480b4d-20251208"
+      isomorphicReactPackageVersion$jscomp$inline_2214,
+      "19.3.0-experimental-80cb7a99-20251211"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19693,24 +19684,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2916 = {
+var internals$jscomp$inline_2917 = {
   bundleType: 0,
-  version: "19.3.0-experimental-55480b4d-20251208",
+  version: "19.3.0-experimental-80cb7a99-20251211",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-55480b4d-20251208"
+  reconcilerVersion: "19.3.0-experimental-80cb7a99-20251211"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2917 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2918 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2917.isDisabled &&
-    hook$jscomp$inline_2917.supportsFiber
+    !hook$jscomp$inline_2918.isDisabled &&
+    hook$jscomp$inline_2918.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2917.inject(
-        internals$jscomp$inline_2916
+      (rendererID = hook$jscomp$inline_2918.inject(
+        internals$jscomp$inline_2917
       )),
-        (injectedHook = hook$jscomp$inline_2917);
+        (injectedHook = hook$jscomp$inline_2918);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -19805,4 +19796,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-experimental-55480b4d-20251208";
+exports.version = "19.3.0-experimental-80cb7a99-20251211";
