@@ -1561,13 +1561,9 @@ impl AggregationUpdateQueue {
                 drop(follower);
 
                 if !data.is_empty() {
-                    for upper_id in removed_uppers.iter() {
-                        // remove data from upper
-                        let mut upper = ctx.task(
-                            *upper_id,
-                            // For performance reasons this should stay `Meta` and not `All`
-                            TaskDataCategory::Meta,
-                        );
+                    // remove data from upper
+                    // For performance reasons this should stay `Meta` and not `All`
+                    ctx.for_each_task_meta(removed_uppers.iter().copied(), |mut upper, ctx| {
                         let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                         if !diff.is_empty() {
                             let upper_ids = get_uppers(&upper);
@@ -1579,7 +1575,7 @@ impl AggregationUpdateQueue {
                                 .into(),
                             )
                         }
-                    }
+                    });
                 }
                 if !followers.is_empty() {
                     self.push(
