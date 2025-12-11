@@ -53,6 +53,8 @@ import { fromNodeOutgoingHttpHeaders } from '../web/utils'
 import {
   selectWorkerForForwarding,
   type ServerModuleMap,
+  getServerActionsManifest,
+  getServerModuleMap,
 } from './manifests-singleton'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
@@ -63,19 +65,21 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import { executeRevalidates } from '../revalidation-utils'
 import { getRequestMeta } from '../request-meta'
 import { setCacheBustingSearchParam } from '../../client/components/router-reducer/set-cache-busting-search-param'
-import { getServerModuleMap } from './manifests-singleton'
 import {
   ActionDidNotRevalidate,
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
 
-function formDataFromSearchQueryString(query: string) {
-  const searchParams = new URLSearchParams(query)
-  const formData = new FormData()
-  for (const [key, value] of searchParams) {
-    formData.append(key, value)
-  }
-  return formData
+/**
+ * Checks if the app has any server actions defined in any runtime.
+ */
+function hasServerActions() {
+  const serverActionsManifest = getServerActionsManifest()
+
+  return (
+    Object.keys(serverActionsManifest.node).length > 0 ||
+    Object.keys(serverActionsManifest.edge).length > 0
+  )
 }
 
 function nodeHeadersToRecord(
@@ -539,17 +543,53 @@ export async function handleAction({
 
   const {
     actionId,
-    isURLEncodedAction,
     isMultipartAction,
     isFetchAction,
+    isURLEncodedAction,
     isPossibleServerAction,
   } = getServerActionRequestMetadata(req)
+
+  const handleUnrecognizedFetchAction = (err: unknown): HandleActionResult => {
+    // If the deployment doesn't have skew protection, this is expected to occasionally happen,
+    // so we use a warning instead of an error.
+    console.warn(err)
+
+    // Return an empty response with a header that the client router will interpret.
+    // We don't need to waste time encoding a flight response, and using a blank body + header
+    // means that unrecognized actions can also be handled at the infra level
+    // (i.e. without needing to invoke a lambda)
+    res.setHeader(NEXT_ACTION_NOT_FOUND_HEADER, '1')
+    res.setHeader('content-type', 'text/plain')
+    res.statusCode = 404
+    return {
+      type: 'done',
+      result: RenderResult.fromStatic('Server action not found.', 'text/plain'),
+    }
+  }
 
   // If it can't be a Server Action, skip handling.
   // Note that this can be a false positive -- any multipart/urlencoded POST can get us here,
   // But won't know if it's an MPA action or not until we call `decodeAction` below.
   if (!isPossibleServerAction) {
     return null
+  }
+
+  // We don't currently support URL encoded actions, so we bail out early.
+  // Depending on if it's a fetch action or an MPA, we return a different response.
+  if (isURLEncodedAction) {
+    if (isFetchAction) {
+      return {
+        type: 'not-found',
+      }
+    } else {
+      // This is an MPA action, so we return null
+      return null
+    }
+  }
+
+  // If the app has no server actions at all, we can 404 early.
+  if (!hasServerActions()) {
+    return handleUnrecognizedFetchAction(getActionNotFoundError(actionId))
   }
 
   if (workStore.isStaticGeneration) {
@@ -670,24 +710,6 @@ export async function handleAction({
     }
   }
 
-  const handleUnrecognizedFetchAction = (err: unknown): HandleActionResult => {
-    // If the deployment doesn't have skew protection, this is expected to occasionally happen,
-    // so we use a warning instead of an error.
-    console.warn(err)
-
-    // Return an empty response with a header that the client router will interpret.
-    // We don't need to waste time encoding a flight response, and using a blank body + header
-    // means that unrecognized actions can also be handled at the infra level
-    // (i.e. without needing to invoke a lambda)
-    res.setHeader(NEXT_ACTION_NOT_FOUND_HEADER, '1')
-    res.setHeader('content-type', 'text/plain')
-    res.statusCode = 404
-    return {
-      type: 'done',
-      result: RenderResult.fromStatic('Server action not found.', 'text/plain'),
-    }
-  }
-
   try {
     return await actionAsyncStorage.run(
       { isAction: true },
@@ -723,6 +745,13 @@ export async function handleAction({
             const formData = await req.request.formData()
             if (isFetchAction) {
               // A fetch action with a multipart body.
+
+              try {
+                actionModId = getActionModIdOrError(actionId, serverModuleMap)
+              } catch (err) {
+                return handleUnrecognizedFetchAction(err)
+              }
+
               boundActionArguments = await decodeReply(
                 formData,
                 serverModuleMap,
@@ -731,6 +760,14 @@ export async function handleAction({
             } else {
               // Multipart POST, but not a fetch action.
               // Potentially an MPA action, we have to try decoding it to check.
+              if (areAllActionIdsValid(formData, serverModuleMap) === false) {
+                // TODO: This can be from skew or manipulated input. We should handle this case
+                // more gracefully but this preserves the prior behavior where decodeAction would throw instead.
+                throw new Error(
+                  `Failed to find Server Action. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
+                )
+              }
+
               const action = await decodeAction(formData, serverModuleMap)
               if (typeof action === 'function') {
                 // an MPA action.
@@ -796,20 +833,11 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            if (isURLEncodedAction) {
-              const formData = formDataFromSearchQueryString(actionData)
-              boundActionArguments = await decodeReply(
-                formData,
-                serverModuleMap,
-                { temporaryReferences }
-              )
-            } else {
-              boundActionArguments = await decodeReply(
-                actionData,
-                serverModuleMap,
-                { temporaryReferences }
-              )
-            }
+            boundActionArguments = await decodeReply(
+              actionData,
+              serverModuleMap,
+              { temporaryReferences }
+            )
           }
         } else if (
           // The type check here ensures that `req` is correctly typed, and the
@@ -877,6 +905,12 @@ export async function handleAction({
             if (isFetchAction) {
               // A fetch action with a multipart body.
 
+              try {
+                actionModId = getActionModIdOrError(actionId, serverModuleMap)
+              } catch (err) {
+                return handleUnrecognizedFetchAction(err)
+              }
+
               const busboy = (
                 require('next/dist/compiled/busboy') as typeof import('next/dist/compiled/busboy')
               )({
@@ -924,7 +958,19 @@ export async function handleAction({
                 }),
                 duplex: 'half',
               })
+
               const formData = await fakeRequest.formData()
+
+              if (areAllActionIdsValid(formData, serverModuleMap) === false) {
+                // TODO: This can be from skew or manipulated input. We should handle this case
+                // more gracefully but this preserves the prior behavior where decodeAction would throw instead.
+                throw new Error(
+                  `Failed to find Server Action. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
+                )
+              }
+
+              // TODO: Refactor so it is harder to accidentally decode an action before you have validated that the
+              // action referred to is available.
               const action = await decodeAction(formData, serverModuleMap)
               if (typeof action === 'function') {
                 // an MPA action.
@@ -984,20 +1030,11 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            if (isURLEncodedAction) {
-              const formData = formDataFromSearchQueryString(actionData)
-              boundActionArguments = await decodeReply(
-                formData,
-                serverModuleMap,
-                { temporaryReferences }
-              )
-            } else {
-              boundActionArguments = await decodeReply(
-                actionData,
-                serverModuleMap,
-                { temporaryReferences }
-              )
-            }
+            boundActionArguments = await decodeReply(
+              actionData,
+              serverModuleMap,
+              { temporaryReferences }
+            )
           }
         } else {
           throw new Error('Invariant: Unknown request type.')
@@ -1014,13 +1051,6 @@ export async function handleAction({
 
         // / -> fire action -> POST / -> appRender1 -> modId for the action file
         // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
-
-        try {
-          actionModId =
-            actionModId ?? getActionModIdOrError(actionId, serverModuleMap)
-        } catch (err) {
-          return handleUnrecognizedFetchAction(err)
-        }
 
         const actionMod = (await ComponentMod.__next_app__.require(
           actionModId
@@ -1235,10 +1265,121 @@ function getActionModIdOrError(
   const actionModId = serverModuleMap[actionId]?.id
 
   if (!actionModId) {
-    throw new Error(
-      `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
-    )
+    throw getActionNotFoundError(actionId)
   }
 
   return actionModId
+}
+
+function getActionNotFoundError(actionId: string | null): Error {
+  return new Error(
+    `Failed to find Server Action${actionId ? ` "${actionId}"` : ''}. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
+  )
+}
+
+const $ACTION_ = '$ACTION_'
+const $ACTION_REF_ = '$ACTION_REF_'
+const $ACTION_ID_ = '$ACTION_ID_'
+const ACTION_ID_EXPECTED_LENGTH = 42
+
+/**
+ * This function mirrors logic inside React's decodeAction and should be kept in sync with that.
+ * It pre-parses the FormData to ensure that any action IDs referred to are actual action IDs for
+ * this Next.js application.
+ */
+function areAllActionIdsValid(
+  mpaFormData: FormData,
+  serverModuleMap: ServerModuleMap
+): boolean {
+  let hasAtLeastOneAction = false
+  // Before we attempt to decode the payload for a possible MPA action, assert that all
+  // action IDs are valid IDs. If not we should disregard the payload
+  for (let key of mpaFormData.keys()) {
+    if (!key.startsWith($ACTION_)) {
+      // not a relevant field
+      continue
+    }
+
+    if (key.startsWith($ACTION_ID_)) {
+      // No Bound args case
+      if (isInvalidActionIdFieldName(key, serverModuleMap)) {
+        return false
+      }
+
+      hasAtLeastOneAction = true
+    } else if (key.startsWith($ACTION_REF_)) {
+      // Bound args case
+      const actionDescriptorField =
+        $ACTION_ + key.slice($ACTION_REF_.length) + ':0'
+      const actionFields = mpaFormData.getAll(actionDescriptorField)
+      if (actionFields.length !== 1) {
+        return false
+      }
+      const actionField = actionFields[0]
+      if (typeof actionField !== 'string') {
+        return false
+      }
+
+      if (isInvalidStringActionDescriptor(actionField, serverModuleMap)) {
+        return false
+      }
+      hasAtLeastOneAction = true
+    }
+  }
+  return hasAtLeastOneAction
+}
+
+const ACTION_DESCRIPTOR_ID_PREFIX = '{"id":"'
+function isInvalidStringActionDescriptor(
+  actionDescriptor: string,
+  serverModuleMap: ServerModuleMap
+): unknown {
+  if (actionDescriptor.startsWith(ACTION_DESCRIPTOR_ID_PREFIX) === false) {
+    return true
+  }
+
+  const from = ACTION_DESCRIPTOR_ID_PREFIX.length
+  const to = from + ACTION_ID_EXPECTED_LENGTH
+
+  // We expect actionDescriptor to be '{"id":"<actionId>",...}'
+  const actionId = actionDescriptor.slice(from, to)
+  if (
+    actionId.length !== ACTION_ID_EXPECTED_LENGTH ||
+    actionDescriptor[to] !== '"'
+  ) {
+    return true
+  }
+
+  const entry = serverModuleMap[actionId]
+
+  if (entry == null) {
+    return true
+  }
+
+  return false
+}
+
+function isInvalidActionIdFieldName(
+  actionIdFieldName: string,
+  serverModuleMap: ServerModuleMap
+): boolean {
+  // The field name must always start with $ACTION_ID_ but since it is
+  // the id is extracted from the key of the field we have already validated
+  // this before entering this function
+  if (
+    actionIdFieldName.length !==
+    $ACTION_ID_.length + ACTION_ID_EXPECTED_LENGTH
+  ) {
+    // this field name has too few or too many characters
+    return true
+  }
+
+  const actionId = actionIdFieldName.slice($ACTION_ID_.length)
+  const entry = serverModuleMap[actionId]
+
+  if (entry == null) {
+    return true
+  }
+
+  return false
 }
