@@ -1057,6 +1057,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             (meta, data)
         };
         let process = |task_id: TaskId, (meta, data): (Option<Vec<_>>, Option<Vec<_>>)| {
+            // TODO: perf: Instead of returning a `Vec` of individually allocated `SmallVec`s, it'd
+            // be better to append everything to a flat per-task or per-shard `Vec<u8>`, and have
+            // each `serialize` call return `(start_idx, end_idx)`.
             (
                 task_id,
                 meta.map(|d| self.backing_storage.serialize(task_id, &d)),
@@ -2173,15 +2176,17 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 span.record("result", "once task");
                 continue;
             }
+            let mut make_stale = true;
             let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
             if dependent.has_key(&CachedDataItemKey::OutdatedOutputDependency { target: task_id }) {
-                // output dependency is outdated, so it hasn't read the output yet
-                // and doesn't need to be invalidated
                 #[cfg(feature = "trace_task_output_dependencies")]
                 span.record("result", "outdated dependency");
-                continue;
-            }
-            if !dependent.has_key(&CachedDataItemKey::OutputDependency { target: task_id }) {
+                // output dependency is outdated, so it hasn't read the output yet
+                // and doesn't need to be invalidated
+                // But importantly we still need to make the task dirty as it should no longer
+                // be considered as "recomputation".
+                make_stale = false;
+            } else if !dependent.has_key(&CachedDataItemKey::OutputDependency { target: task_id }) {
                 // output dependency has been removed, so the task doesn't depend on the
                 // output anymore and doesn't need to be invalidated
                 #[cfg(feature = "trace_task_output_dependencies")]
@@ -2191,7 +2196,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             make_task_dirty_internal(
                 dependent,
                 dependent_task_id,
-                true,
+                make_stale,
                 #[cfg(feature = "trace_task_dirty")]
                 TaskDirtyCause::OutputChange { task_id },
                 &mut queue,

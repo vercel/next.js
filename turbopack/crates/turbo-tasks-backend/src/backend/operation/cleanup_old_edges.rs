@@ -1,7 +1,7 @@
 use std::mem::take;
 
+use bincode::{Decode, Encode};
 use rustc_hash::FxHashSet;
-use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use turbo_tasks::TaskId;
 
@@ -23,7 +23,7 @@ use crate::{
     data::{CachedDataItemKey, CellRef, CollectibleRef, CollectiblesRef},
 };
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Encode, Decode, Clone, Default)]
 pub enum CleanupOldEdgesOperation {
     RemoveEdges {
         task_id: TaskId,
@@ -38,7 +38,7 @@ pub enum CleanupOldEdgesOperation {
     // TODO Add aggregated edge
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Encode, Decode, Clone)]
 pub enum OutdatedEdge {
     Child(TaskId),
     Collectible(CollectibleRef, i32),

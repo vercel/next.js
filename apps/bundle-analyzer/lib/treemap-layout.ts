@@ -12,6 +12,7 @@ export interface LayoutRect {
 
 export interface LayoutNodeInfo {
   name: string
+  size: number
   server?: boolean
   client?: boolean
 }

@@ -4513,6 +4513,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "nohash-hasher"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
+
+[[package]]
 name = "nom"
 version = "5.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9129,11 +9135,14 @@ name = "turbo-persistence"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bitfield",
  "byteorder",
+ "dashmap 6.1.0",
  "either",
  "jiff",
  "lzzzz",
  "memmap2 0.9.5",
+ "nohash-hasher",
  "parking_lot",
  "pot",
  "qfilter",
@@ -9218,6 +9227,7 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "pin-project-lite",
+ "pot",
  "rayon",
  "regex",
  "rustc-hash 2.1.1",
@@ -9258,7 +9268,6 @@ dependencies = [
  "lmdb-rkv",
  "once_cell",
  "parking_lot",
- "pot",
  "rand 0.9.0",
  "regex",
  "ringmap",
@@ -9272,6 +9281,7 @@ dependencies = [
  "thread_local",
  "tokio",
  "tracing",
+ "turbo-bincode",
  "turbo-persistence",
  "turbo-rcstr",
  "turbo-tasks",
@@ -9286,6 +9296,7 @@ dependencies = [
  "afl",
  "anyhow",
  "arbitrary",
+ "bincode 2.0.1",
  "libfuzzer-sys",
  "once_cell",
  "serde",
@@ -9424,6 +9435,7 @@ name = "turbo-tasks-macros-tests"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "serde",
  "tokio",
  "trybuild",
@@ -9564,6 +9576,7 @@ name = "turbopack-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "clap",
  "codspeed-criterion-compat",
  "console-subscriber",

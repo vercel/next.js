@@ -836,6 +836,14 @@ export interface ExperimentalConfig {
    * @default false
    */
   hideLogsAfterAbort?: boolean
+
+  /**
+   * Whether `process.env.NEXT_DEPLOYMENT_ID` is available at runtime in the server (and `next
+   * build` doesn't need to embed the deployment ID value into the build output).
+   *
+   * @default false
+   */
+  runtimeServerDeploymentId?: boolean
 }
 
 export type ExportPathMap = {
@@ -1570,4 +1578,188 @@ export async function normalizeConfig(phase: string, config: any) {
   }
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
+}
+
+// This should be a supertype of NextConfigComplete
+//
+// The Vercel builder needs these fields (read `config` in required-server-files.json)
+// {
+//   pageExtensions: string[];
+//   experimental?: {
+//     cacheComponents?: boolean;
+//     clientParamParsingOrigins?: string[];
+//     clientSegmentCache?: boolean;
+//     ppr?: boolean | 'incremental';
+//     serverActions?: Record<string, never>;
+//   };
+// };
+export interface NextConfigRuntime {
+  // Can be undefined, particularly when experimental.runtimeServerDeploymentId is true
+  deploymentId?: NextConfigComplete['deploymentId']
+
+  configFileName?: string
+  // Should only be included when using isExperimentalCompile
+  env?: NextConfigComplete['env']
+
+  distDir: NextConfigComplete['distDir']
+  cacheComponents: NextConfigComplete['cacheComponents']
+  htmlLimitedBots: NextConfigComplete['htmlLimitedBots']
+  assetPrefix: NextConfigComplete['assetPrefix']
+  output: NextConfigComplete['output']
+  crossOrigin: NextConfigComplete['crossOrigin']
+  trailingSlash: NextConfigComplete['trailingSlash']
+  images: NextConfigComplete['images']
+  reactMaxHeadersLength: NextConfigComplete['reactMaxHeadersLength']
+  cacheLife: NextConfigComplete['cacheLife']
+  basePath: NextConfigComplete['basePath']
+  expireTime: NextConfigComplete['expireTime']
+  generateEtags: NextConfigComplete['generateEtags']
+  poweredByHeader: NextConfigComplete['poweredByHeader']
+  cacheHandler: NextConfigComplete['cacheHandler']
+  cacheHandlers: NextConfigComplete['cacheHandlers']
+  cacheMaxMemorySize: NextConfigComplete['cacheMaxMemorySize']
+  compress: NextConfigComplete['compress']
+  i18n: NextConfigComplete['i18n']
+  httpAgentOptions: NextConfigComplete['httpAgentOptions']
+  skipProxyUrlNormalize: NextConfigComplete['skipProxyUrlNormalize']
+  pageExtensions: NextConfigComplete['pageExtensions']
+  useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
+
+  experimental: Pick<
+    NextConfigComplete['experimental'],
+    | 'ppr'
+    | 'taint'
+    | 'serverActions'
+    | 'staleTimes'
+    | 'dynamicOnHover'
+    | 'inlineCss'
+    | 'authInterrupts'
+    | 'clientTraceMetadata'
+    | 'clientParamParsingOrigins'
+    | 'adapterPath'
+    | 'allowedRevalidateHeaderKeys'
+    | 'fetchCacheKeyPrefix'
+    | 'isrFlushToDisk'
+    | 'optimizeCss'
+    | 'nextScriptWorkers'
+    | 'disableOptimizedLoading'
+    | 'largePageDataBytes'
+    | 'serverComponentsHmrCache'
+    | 'caseSensitiveRoutes'
+    | 'validateRSCRequestHeaders'
+    | 'sri'
+    | 'useSkewCookie'
+    | 'preloadEntriesOnStart'
+    | 'hideLogsAfterAbort'
+    | 'removeUncaughtErrorAndRejectionListeners'
+    | 'imgOptConcurrency'
+    | 'imgOptMaxInputPixels'
+    | 'imgOptSequentialRead'
+    | 'imgOptSkipMetadata'
+    | 'imgOptTimeoutInSeconds'
+    | 'proxyClientMaxBodySize'
+    | 'proxyTimeout'
+    | 'testProxy'
+    | 'runtimeServerDeploymentId'
+  > & {
+    // Pick on @internal fields generates invalid .d.ts files
+    /** @internal */
+    trustHostHeader?: NextConfigComplete['experimental']['trustHostHeader']
+    /** @internal */
+    isExperimentalCompile?: NextConfigComplete['experimental']['isExperimentalCompile']
+  }
+}
+
+export function getNextConfigRuntime(
+  config: NextConfigComplete | NextConfigRuntime
+): NextConfigRuntime {
+  let ex = config.experimental
+
+  type Requiredish<T> = {
+    [K in keyof Required<T>]: T[K]
+  }
+
+  let experimental = ex
+    ? ({
+        ppr: ex.ppr,
+        taint: ex.taint,
+        serverActions: ex.serverActions,
+        staleTimes: ex.staleTimes,
+        dynamicOnHover: ex.dynamicOnHover,
+        inlineCss: ex.inlineCss,
+        authInterrupts: ex.authInterrupts,
+        clientTraceMetadata: ex.clientTraceMetadata,
+        clientParamParsingOrigins: ex.clientParamParsingOrigins,
+        adapterPath: ex.adapterPath,
+        allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
+        fetchCacheKeyPrefix: ex.fetchCacheKeyPrefix,
+        isrFlushToDisk: ex.isrFlushToDisk,
+        optimizeCss: ex.optimizeCss,
+        nextScriptWorkers: ex.nextScriptWorkers,
+        disableOptimizedLoading: ex.disableOptimizedLoading,
+        largePageDataBytes: ex.largePageDataBytes,
+        serverComponentsHmrCache: ex.serverComponentsHmrCache,
+        caseSensitiveRoutes: ex.caseSensitiveRoutes,
+        validateRSCRequestHeaders: ex.validateRSCRequestHeaders,
+        sri: ex.sri,
+        useSkewCookie: ex.useSkewCookie,
+        preloadEntriesOnStart: ex.preloadEntriesOnStart,
+        hideLogsAfterAbort: ex.hideLogsAfterAbort,
+        removeUncaughtErrorAndRejectionListeners:
+          ex.removeUncaughtErrorAndRejectionListeners,
+        imgOptConcurrency: ex.imgOptConcurrency,
+        imgOptMaxInputPixels: ex.imgOptMaxInputPixels,
+        imgOptSequentialRead: ex.imgOptSequentialRead,
+        imgOptSkipMetadata: ex.imgOptSkipMetadata,
+        imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
+        proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
+        proxyTimeout: ex.proxyTimeout,
+        testProxy: ex.testProxy,
+        runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
+
+        trustHostHeader: ex.trustHostHeader,
+        isExperimentalCompile: ex.isExperimentalCompile,
+      } satisfies Requiredish<NextConfigRuntime['experimental']>)
+    : {}
+
+  let runtimeConfig: Requiredish<NextConfigRuntime> = {
+    deploymentId: config.experimental.runtimeServerDeploymentId
+      ? ''
+      : config.deploymentId,
+
+    configFileName: undefined,
+    env: undefined,
+
+    distDir: config.distDir,
+    cacheComponents: config.cacheComponents,
+    htmlLimitedBots: config.htmlLimitedBots,
+    assetPrefix: config.assetPrefix,
+    output: config.output,
+    crossOrigin: config.crossOrigin,
+    trailingSlash: config.trailingSlash,
+    images: config.images,
+    reactMaxHeadersLength: config.reactMaxHeadersLength,
+    cacheLife: config.cacheLife,
+    basePath: config.basePath,
+    expireTime: config.expireTime,
+    generateEtags: config.generateEtags,
+    poweredByHeader: config.poweredByHeader,
+    cacheHandler: config.cacheHandler,
+    cacheHandlers: config.cacheHandlers,
+    cacheMaxMemorySize: config.cacheMaxMemorySize,
+    compress: config.compress,
+    i18n: config.i18n,
+    httpAgentOptions: config.httpAgentOptions,
+    skipProxyUrlNormalize: config.skipProxyUrlNormalize,
+    pageExtensions: config.pageExtensions,
+    useFileSystemPublicRoutes: config.useFileSystemPublicRoutes,
+
+    experimental,
+  }
+
+  if (config.experimental.isExperimentalCompile) {
+    runtimeConfig.env = config.env
+  }
+
+  return runtimeConfig
 }

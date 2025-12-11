@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
@@ -38,10 +39,6 @@ use turbopack_node::{
 use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
-use super::{
-    resolve::ExternalCjsModulesResolvePlugin,
-    transforms::{get_next_server_internal_transforms_rules, get_next_server_transforms_rules},
-};
 use crate::{
     app_structure::CollectedRootParams,
     mode::NextMode,
@@ -49,7 +46,10 @@ use crate::{
     next_config::NextConfig,
     next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_server_import_map},
-    next_server::resolve::ExternalPredicate,
+    next_server::{
+        resolve::{ExternalCjsModulesResolvePlugin, ExternalPredicate},
+        transforms::{get_next_server_internal_transforms_rules, get_next_server_transforms_rules},
+    },
     next_shared::{
         resolve::{
             ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
@@ -981,7 +981,19 @@ pub async fn get_server_module_options_context(
     Ok(module_options_context)
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    TaskInput,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+)]
 pub struct ServerChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,

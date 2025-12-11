@@ -53,8 +53,6 @@ impl Parse for PrimitiveInput {
     }
 }
 
-// TODO: wire this up in https://github.com/vercel/next.js/pull/86338
-#[allow(dead_code)]
 pub struct BincodeWrappers {
     pub encode_ty: Type,
     pub decode_ty: Type,
