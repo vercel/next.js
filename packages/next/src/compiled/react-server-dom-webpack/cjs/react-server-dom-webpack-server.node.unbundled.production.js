@@ -2342,44 +2342,14 @@ function fulfillReference(response, reference, value) {
     path = reference.path;
   try {
     for (var i = 1; i < path.length; i++) {
-      for (; value instanceof ReactPromise; ) {
-        var referencedChunk = value;
-        switch (referencedChunk.status) {
-          case "resolved_model":
-            initializeModelChunk(referencedChunk);
-        }
-        switch (referencedChunk.status) {
-          case "fulfilled":
-            value = referencedChunk.value;
-            continue;
-          case "blocked":
-            var cyclicHandler = resolveBlockedCycle(referencedChunk, reference);
-            if (null !== cyclicHandler) {
-              value = cyclicHandler.value;
-              continue;
-            }
-          case "pending":
-            path.splice(0, i - 1);
-            null === referencedChunk.value
-              ? (referencedChunk.value = [reference])
-              : referencedChunk.value.push(reference);
-            null === referencedChunk.reason
-              ? (referencedChunk.reason = [reference])
-              : referencedChunk.reason.push(reference);
-            return;
-          default:
-            rejectReference(
-              response,
-              reference.handler,
-              referencedChunk.reason
-            );
-            return;
-        }
-      }
       var name = path[i];
-      "object" === typeof value &&
-        hasOwnProperty.call(value, name) &&
-        (value = value[name]);
+      if (
+        "object" !== typeof value ||
+        !hasOwnProperty.call(value, name) ||
+        value instanceof Promise
+      )
+        throw Error("Invalid reference.");
+      value = value[name];
     }
     var mappedValue = map(response, value, parentObject, key);
     parentObject[key] = mappedValue;
@@ -2409,33 +2379,6 @@ function rejectReference(response, handler, error) {
       "blocked" === handler.status &&
       triggerErrorOnChunk(response, handler, error));
 }
-function waitForReference(
-  referencedChunk,
-  parentObject,
-  key,
-  response,
-  map,
-  path
-) {
-  initializingHandler
-    ? ((response = initializingHandler), response.deps++)
-    : (response = initializingHandler =
-        { chunk: null, value: null, reason: null, deps: 1, errored: !1 });
-  parentObject = {
-    handler: response,
-    parentObject: parentObject,
-    key: key,
-    map: map,
-    path: path
-  };
-  null === referencedChunk.value
-    ? (referencedChunk.value = [parentObject])
-    : referencedChunk.value.push(parentObject);
-  null === referencedChunk.reason
-    ? (referencedChunk.reason = [parentObject])
-    : referencedChunk.reason.push(parentObject);
-  return null;
-}
 function getOutlinedModel(response, reference, parentObject, key, map) {
   reference = reference.split(":");
   var id = parseInt(reference[0], 16);
@@ -2446,53 +2389,40 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
   }
   switch (id.status) {
     case "fulfilled":
-      var value = id.value;
-      for (id = 1; id < reference.length; id++) {
-        for (; value instanceof ReactPromise; ) {
-          switch (value.status) {
-            case "resolved_model":
-              initializeModelChunk(value);
-          }
-          switch (value.status) {
-            case "fulfilled":
-              value = value.value;
-              break;
-            case "blocked":
-            case "pending":
-              return waitForReference(
-                value,
-                parentObject,
-                key,
-                response,
-                map,
-                reference.slice(id - 1)
-              );
-            default:
-              return (
-                initializingHandler
-                  ? ((initializingHandler.errored = !0),
-                    (initializingHandler.value = null),
-                    (initializingHandler.reason = value.reason))
-                  : (initializingHandler = {
-                      chunk: null,
-                      value: null,
-                      reason: value.reason,
-                      deps: 0,
-                      errored: !0
-                    }),
-                null
-              );
-          }
-        }
-        var name = reference[id];
-        "object" === typeof value &&
-          hasOwnProperty.call(value, name) &&
-          (value = value[name]);
+      id = id.value;
+      for (var i = 1; i < reference.length; i++) {
+        var name = reference[i];
+        if (
+          "object" !== typeof id ||
+          !hasOwnProperty.call(id, name) ||
+          id instanceof Promise
+        )
+          throw Error("Invalid reference.");
+        id = id[name];
       }
-      return map(response, value, parentObject, key);
+      return map(response, id, parentObject, key);
     case "pending":
     case "blocked":
-      return waitForReference(id, parentObject, key, response, map, reference);
+      return (
+        initializingHandler
+          ? ((response = initializingHandler), response.deps++)
+          : (response = initializingHandler =
+              { chunk: null, value: null, reason: null, deps: 1, errored: !1 }),
+        (parentObject = {
+          handler: response,
+          parentObject: parentObject,
+          key: key,
+          map: map,
+          path: reference
+        }),
+        null === id.value
+          ? (id.value = [parentObject])
+          : id.value.push(parentObject),
+        null === id.reason
+          ? (id.reason = [parentObject])
+          : id.reason.push(parentObject),
+        null
+      );
     default:
       return (
         initializingHandler
@@ -3033,13 +2963,13 @@ exports.decodeReplyFromBusboy = function (busboyStream, webpackMap, options) {
       );
     else {
       pendingFiles++;
-      var JSCompiler_object_inline_chunks_234 = [];
+      var JSCompiler_object_inline_chunks_244 = [];
       value.on("data", function (chunk) {
-        JSCompiler_object_inline_chunks_234.push(chunk);
+        JSCompiler_object_inline_chunks_244.push(chunk);
       });
       value.on("end", function () {
         try {
-          var blob = new Blob(JSCompiler_object_inline_chunks_234, {
+          var blob = new Blob(JSCompiler_object_inline_chunks_244, {
             type: mimeType
           });
           response._formData.append(name, blob, filename);
