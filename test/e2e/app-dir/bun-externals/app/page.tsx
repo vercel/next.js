@@ -1,12 +1,23 @@
 export default function Page() {
   // These should be handled as external modules
   // When not running in Bun, require() will throw "Cannot find module"
+  let bunBundleStatus = 'not loaded'
   let bunFfiStatus = 'not loaded'
   let bunJscStatus = 'not loaded'
   let bunSqliteStatus = 'not loaded'
   let bunTestStatus = 'not loaded'
   let bunWrapStatus = 'not loaded'
   let bunStatus = 'not loaded'
+
+  try {
+    require('bun:bundle')
+    bunBundleStatus = 'loaded successfully'
+  } catch (e: any) {
+    // Expected error when not running in Bun
+    bunBundleStatus = e.message.includes('Cannot find module')
+      ? 'external (not found)'
+      : 'error: ' + e.message
+  }
 
   try {
     require('bun:ffi')
@@ -66,6 +77,7 @@ export default function Page() {
   return (
     <div>
       <h1>Bun Externals Test</h1>
+      <div id="bun-bundle">{bunBundleStatus}</div>
       <div id="bun-ffi">{bunFfiStatus}</div>
       <div id="bun-jsc">{bunJscStatus}</div>
       <div id="bun-sqlite">{bunSqliteStatus}</div>

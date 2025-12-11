@@ -6,6 +6,7 @@ export const runtime = 'edge'
 // This test verifies that Bun modules are handled correctly in edge runtime
 export async function GET() {
   const modules = [
+    { name: 'bunBundle', module: 'bun:bundle' },
     { name: 'bunFfi', module: 'bun:ffi' },
     { name: 'bunJsc', module: 'bun:jsc' },
     { name: 'bunSqlite', module: 'bun:sqlite' },

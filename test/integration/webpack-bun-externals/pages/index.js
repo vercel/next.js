@@ -7,6 +7,13 @@ export async function getServerSideProps() {
   const results = {}
 
   try {
+    require('bun:bundle')
+    results['bun:bundle'] = 'loaded'
+  } catch (e) {
+    results['bun:bundle'] = 'external (not found)'
+  }
+
+  try {
     require('bun:ffi')
     results['bun:ffi'] = 'loaded'
   } catch (e) {

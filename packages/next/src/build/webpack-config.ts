@@ -909,6 +909,7 @@ export default async function getBaseWebpackConfig(
     .builtinModules
 
   const bunExternals = [
+    'bun:bundle',
     'bun:ffi',
     'bun:jsc',
     'bun:sqlite',
