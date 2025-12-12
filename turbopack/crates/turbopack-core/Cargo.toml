@@ -39,6 +39,7 @@ swc_sourcemap = { workspace = true }
 swc_core = { workspace = true, features = ["ecma_preset_env", "common"] }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }
+turbo-frozenmap = { workspace = true }
 turbo-prehash = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
@@ -50,7 +51,6 @@ twox-hash = { workspace = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
 uuid = { workspace = true}
-
 
 [dev-dependencies]
 rstest = { workspace = true }

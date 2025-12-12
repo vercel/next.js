@@ -381,6 +381,17 @@ impl<K, V> FrozenMap<K, V> {
             inner: slice.iter(),
         }
     }
+
+    /// Extend this [`FrozenMap`] by constructing a new map with the additional entries. New entries
+    /// with overlapping keys will overwrite existing ones.
+    #[must_use]
+    pub fn extend(&self, entries: impl IntoIterator<Item = (K, V)>) -> Self
+    where
+        K: Clone + Ord,
+        V: Clone,
+    {
+        self.as_slice().iter().cloned().chain(entries).collect()
+    }
 }
 
 // Manual implementation because the derive would add unnecessary `K: Default, V: Default` bounds.
