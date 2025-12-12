@@ -103,6 +103,7 @@ impl Module for NodeAddonModule {
 
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // We assume that a node addon could have arbitrary side effects when loading.
         ModuleSideEffects::SideEffectful.cell()
     }
 }
