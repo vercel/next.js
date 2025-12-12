@@ -61,6 +61,7 @@ import {
   type ActionRevalidationKind,
 } from '../../../../shared/lib/action-revalidation-kind'
 import { isExternalURL } from '../../app-router-utils'
+import { FreshnessPolicy } from '../ppr-navigations'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -388,8 +389,10 @@ export function serverActionReducer(
 
       // If the action triggered a revalidation of the cache, we should also
       // refresh all the dynamic data.
-      const shouldRefreshDynamicData =
-        revalidationKind !== ActionDidNotRevalidate
+      const freshnessPolicy =
+        revalidationKind === ActionDidNotRevalidate
+          ? FreshnessPolicy.Default
+          : FreshnessPolicy.RefreshAll
 
       // The server may have sent back new data. If so, we will perform a
       // "seeded" navigation that uses the data from the response.
@@ -421,7 +424,7 @@ export function serverActionReducer(
             seedRenderedSearch,
             seedData,
             seedHead,
-            shouldRefreshDynamicData,
+            freshnessPolicy,
             nextUrl,
             shouldScroll
           )
@@ -443,7 +446,7 @@ export function serverActionReducer(
         state.cache,
         currentFlightRouterState,
         nextUrl,
-        shouldRefreshDynamicData,
+        freshnessPolicy,
         shouldScroll,
         mutable
       )
