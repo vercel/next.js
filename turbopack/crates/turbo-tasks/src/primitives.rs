@@ -56,7 +56,7 @@ impl ManualEncodeWrapper for JsonValueEncodeWrapper<'_> {
 
 impl Encode for JsonValueEncodeWrapper<'_> {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-        turbo_bincode::serde_json::encode(self.0, encoder)
+        turbo_bincode::serde_self_describing::encode(self.0, encoder)
     }
 }
 
@@ -72,6 +72,6 @@ impl ManualDecodeWrapper for JsonValueDecodeWrapper {
 
 impl<Context> Decode<Context> for JsonValueDecodeWrapper {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        Ok(Self(turbo_bincode::serde_json::decode(decoder)?))
+        Ok(Self(turbo_bincode::serde_self_describing::decode(decoder)?))
     }
 }

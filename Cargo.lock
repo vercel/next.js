@@ -9108,7 +9108,6 @@ dependencies = [
  "mime",
  "ringmap",
  "serde",
- "serde_json",
  "smallvec",
  "unty",
 ]
@@ -9135,6 +9134,7 @@ name = "turbo-persistence"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "bitfield",
  "byteorder",
  "dashmap 6.1.0",
@@ -9154,6 +9154,7 @@ dependencies = [
  "tempfile",
  "thread_local",
  "tracing",
+ "turbo-bincode",
  "twox-hash 2.1.0",
  "zstd",
 ]
@@ -9227,7 +9228,6 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "pin-project-lite",
- "pot",
  "rayon",
  "regex",
  "rustc-hash 2.1.1",

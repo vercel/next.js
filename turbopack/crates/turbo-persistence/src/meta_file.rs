@@ -9,12 +9,14 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use bitfield::bitfield;
 use byteorder::{BE, ReadBytesExt};
 use either::Either;
 use memmap2::{Mmap, MmapOptions};
 use quick_cache::sync::GuardResult;
 use rustc_hash::FxHasher;
+use turbo_bincode::turbo_bincode_decode;
 
 use crate::{
     QueryKey,
@@ -61,6 +63,14 @@ impl Display for MetaEntryFlags {
         }
     }
 }
+
+/// A wrapper around [`qfilter::Filter`] that implements [`Encode`] and [`Decode`].
+#[derive(Encode, Decode)]
+pub struct AmqfBincodeWrapper(
+    // this annotation can be replaced with `#[bincode(serde)]` once
+    // <https://github.com/arthurprs/qfilter/issues/13> is resolved
+    #[bincode(with = "turbo_bincode::serde_self_describing")] pub qfilter::Filter,
+);
 
 pub struct MetaEntry {
     /// The metadata for the static sorted file.
@@ -113,13 +123,15 @@ impl MetaEntry {
 
     pub fn deserialize_amqf(&self, meta: &MetaFile) -> Result<qfilter::Filter> {
         let amqf = self.raw_amqf(meta.amqf_data());
-        pot::from_slice(amqf).with_context(|| {
-            format!(
-                "Failed to deserialize AMQF from {:08}.meta for {:08}.sst",
-                meta.sequence_number,
-                self.sequence_number()
-            )
-        })
+        Ok(turbo_bincode_decode::<AmqfBincodeWrapper>(amqf)
+            .with_context(|| {
+                format!(
+                    "Failed to deserialize AMQF from {:08}.meta for {:08}.sst",
+                    meta.sequence_number,
+                    self.sequence_number()
+                )
+            })?
+            .0)
     }
 
     pub fn amqf(

@@ -18,7 +18,7 @@ use turbopack_core::{
 pub struct EmittedAsset {
     file: RcStr,
     content: RcStr,
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     source_map: Option<JsonValue>,
 }
 
