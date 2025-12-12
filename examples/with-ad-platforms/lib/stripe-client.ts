@@ -9,7 +9,7 @@ import type { CreateCheckoutRequest, CheckoutSession } from "./types";
 const STRIPE_CONFIG = {
   secretKey: process.env.STRIPE_SECRET_KEY,
   publicKey: process.env.STRIPE_PUBLIC_KEY,
-  apiVersion: "2023-10-16",
+  apiVersion: process.env.STRIPE_API_VERSION || "2023-10-16",
 };
 
 const BASE_URL = "https://api.stripe.com/v1";
