@@ -38,17 +38,7 @@ use crate::{
     utils::module_id_to_lit,
 };
 
-#[derive(
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub(crate) enum SinglePatternMapping {
     /// Invalid request.
     Invalid,

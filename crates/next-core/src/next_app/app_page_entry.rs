@@ -15,11 +15,10 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::runtime_functions::{TURBOPACK_LOAD, TURBOPACK_REQUIRE};
 
-use super::app_entry::AppEntry;
 use crate::{
     app_page_loader_tree::{AppPageLoaderTreeModule, GLOBAL_ERROR},
     app_structure::AppPageLoaderTree,
-    next_app::{AppPage, AppPath},
+    next_app::{AppPage, AppPath, app_entry::AppEntry},
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
     next_server_component::NextServerComponentTransition,

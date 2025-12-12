@@ -52,7 +52,7 @@ use crate::{
 
 /// A module id, which can be a number or string
 #[turbo_tasks::value(shared, operation)]
-#[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash)]
+#[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash, Serialize)]
 #[serde(untagged)]
 pub enum ModuleId {
     Number(u64),

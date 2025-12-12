@@ -4,7 +4,6 @@ pub use async_trait::async_trait;
 pub use bincode;
 pub use once_cell::sync::{Lazy, OnceCell};
 use rustc_hash::FxHashMap;
-pub use serde;
 pub use shrink_to_fit;
 pub use tracing;
 

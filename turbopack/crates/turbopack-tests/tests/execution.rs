@@ -69,7 +69,7 @@ struct RunTestResult {
 }
 
 #[turbo_tasks::value]
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct JsResult {
     uncaught_exceptions: Vec<String>,

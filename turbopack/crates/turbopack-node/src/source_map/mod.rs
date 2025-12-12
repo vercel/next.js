@@ -8,6 +8,7 @@ use anyhow::Result;
 use const_format::concatcp;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use serde::Deserialize;
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::{
     FileLinesContent, FileSystemPath, source_context::get_source_context, to_sys_path,
@@ -264,7 +265,7 @@ async fn resolve_source_mapping(
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct StructuredError {
     pub name: String,
     pub message: String,

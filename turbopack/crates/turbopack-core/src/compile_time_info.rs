@@ -295,19 +295,7 @@ pub struct FreeVarReferences(
     pub  FxIndexMap<Vec<DefinableNameSegment>, FreeVarReference>,
 );
 
-#[derive(
-    Debug,
-    Default,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct FreeVarReferenceVcs(
     #[bincode(with = "turbo_bincode::indexmap")]
     pub  FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<FreeVarReference>>,

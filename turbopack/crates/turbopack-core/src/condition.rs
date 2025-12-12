@@ -1,11 +1,8 @@
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 
-#[derive(
-    Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode,
-)]
+#[derive(Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum ContextCondition {
     All(Vec<ContextCondition>),
     Any(Vec<ContextCondition>),

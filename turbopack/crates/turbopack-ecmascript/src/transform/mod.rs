@@ -33,9 +33,7 @@ pub enum EcmascriptInputTransform {
     Plugin(ResolvedVc<TransformPlugin>),
     PresetEnv(ResolvedVc<Environment>),
     React {
-        #[serde(default)]
         development: bool,
-        #[serde(default)]
         refresh: bool,
         // swc.jsc.transform.react.importSource
         import_source: ResolvedVc<Option<RcStr>>,
@@ -45,17 +43,12 @@ pub enum EcmascriptInputTransform {
     // These options are subset of swc_core::ecma::transforms::typescript::Config, but
     // it doesn't derive `Copy` so repeating values in here
     TypeScript {
-        #[serde(default)]
         use_define_for_class_fields: bool,
     },
     Decorators {
-        #[serde(default)]
         is_legacy: bool,
-        #[serde(default)]
         is_ecma: bool,
-        #[serde(default)]
         emit_decorators_metadata: bool,
-        #[serde(default)]
         use_define_for_class_fields: bool,
     },
 }

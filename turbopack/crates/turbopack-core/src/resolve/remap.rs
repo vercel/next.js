@@ -61,7 +61,7 @@ pub enum SubpathValue {
 
 /// A `SubpathValue` that was applied to a pattern. See `SubpathValue` for
 /// more details on the variants.
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ReplacedSubpathValue {
     Alternatives(Vec<ReplacedSubpathValue>),
     Conditional(Vec<(RcStr, ReplacedSubpathValue)>),

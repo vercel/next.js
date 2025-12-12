@@ -28,17 +28,7 @@ use crate::{
 ///
 /// This singleton behavior must be enforced by the caller!
 #[derive(
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Debug,
-    Hash,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
 )]
 pub struct ImportMetaBinding {
     path: FileSystemPath,
