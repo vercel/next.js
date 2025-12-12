@@ -1055,6 +1055,8 @@ pub struct ExperimentalConfig {
     turbopack_remove_unused_imports: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
     turbopack_remove_unused_exports: Option<bool>,
+    /// Enable local analysis to infer side effect free modules. Defaults to true.
+    turbopack_infer_module_side_effects: Option<bool>,
     /// Devtool option for the segment explorer.
     devtool_segment_explorer: Option<bool>,
 }
@@ -2026,6 +2028,15 @@ impl NextConfig {
                 .turbopack_remove_unused_exports
                 .unwrap_or(matches!(*mode.await?, NextMode::Build)),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_infer_module_side_effects(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_infer_module_side_effects
+                .unwrap_or(true),
+        )
     }
 
     #[turbo_tasks::function]

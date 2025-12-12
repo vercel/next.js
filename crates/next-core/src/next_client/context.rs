@@ -326,6 +326,7 @@ pub async fn get_client_module_options_context(
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
             source_maps,
+            infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             ..Default::default()
         },
         css: CssOptionsContext {

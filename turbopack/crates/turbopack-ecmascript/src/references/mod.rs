@@ -77,7 +77,7 @@ use turbopack_core::{
     environment::Rendering,
     error::PrettyPrintError,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
-    module::Module,
+    module::{Module, ModuleSideEffects},
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
@@ -111,7 +111,7 @@ use crate::{
         },
         imports::{ImportAnnotations, ImportAttributes, ImportedSymbol, Reexport},
         linker::link,
-        parse_require_context,
+        parse_require_context, side_effects,
         top_level_await::has_top_level_await,
         well_known::replace_well_known,
     },
@@ -172,7 +172,7 @@ pub struct AnalyzeEcmascriptModuleResult {
     pub code_generation: ResolvedVc<CodeGens>,
     pub exports: ResolvedVc<EcmascriptExports>,
     pub async_module: ResolvedVc<OptionAsyncModule>,
-    pub has_side_effect_free_directive: bool,
+    pub side_effects: ModuleSideEffects,
     /// `true` when the analysis was successful.
     pub successful: bool,
     pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
@@ -233,7 +233,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
-    has_side_effect_free_directive: bool,
+    side_effects: ModuleSideEffects,
     #[cfg(debug_assertions)]
     ident: RcStr,
 }
@@ -253,7 +253,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             async_module: ResolvedVc::cell(None),
             successful: false,
             source_map: None,
-            has_side_effect_free_directive: false,
+            side_effects: ModuleSideEffects::SideEffectful,
             #[cfg(debug_assertions)]
             ident: Default::default(),
         }
@@ -331,8 +331,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Set whether this module is side-effect free according to a user-provided directive.
-    pub fn set_has_side_effect_free_directive(&mut self, value: bool) {
-        self.has_side_effect_free_directive = value;
+    pub fn set_side_effects_mode(&mut self, value: ModuleSideEffects) {
+        self.side_effects = value;
     }
 
     /// Sets whether the analysis was successful.
@@ -443,7 +443,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 code_generation: ResolvedVc::cell(code_generation),
                 exports: self.exports.resolved_cell(),
                 async_module: self.async_module,
-                has_side_effect_free_directive: self.has_side_effect_free_directive,
+                side_effects: self.side_effects,
                 successful: self.successful,
                 source_map: self.source_map,
             },
@@ -658,7 +658,21 @@ async fn analyze_ecmascript_module_internal(
         },
         _ => false,
     });
-    analysis.set_has_side_effect_free_directive(has_side_effect_free_directive);
+    analysis.set_side_effects_mode(if has_side_effect_free_directive {
+        ModuleSideEffects::SideEffectFree
+    } else if options.infer_module_side_effects {
+        // Analyze the AST to infer side effects
+        GLOBALS.set(globals, || {
+            side_effects::compute_module_evaluation_side_effects(
+                program,
+                comments,
+                eval_context.unresolved_mark,
+            )
+        })
+    } else {
+        // If inference is disabled, assume side effects
+        ModuleSideEffects::SideEffectful
+    });
 
     let is_esm = eval_context.is_esm(specified_type);
     let compile_time_info = compile_time_info_for_module_options(

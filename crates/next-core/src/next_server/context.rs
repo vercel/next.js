@@ -582,6 +582,7 @@ pub async fn get_server_module_options_context(
             import_externals: *next_config.import_externals().await?,
             ignore_dynamic_requests: true,
             source_maps,
+            infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             ..Default::default()
         },
         execution_context: Some(execution_context),
