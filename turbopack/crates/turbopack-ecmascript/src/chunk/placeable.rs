@@ -190,9 +190,11 @@ pub enum SideEffectsDeclaration {
 #[turbo_tasks::function]
 pub async fn get_side_effect_free_declaration(
     path: FileSystemPath,
-    side_effect_free_packages: Vc<Glob>,
+    side_effect_free_packages: Option<Vc<Glob>>,
 ) -> Result<Vc<SideEffectsDeclaration>> {
-    if side_effect_free_packages.await?.matches(&path.path) {
+    if let Some(side_effect_free_packages) = side_effect_free_packages
+        && side_effect_free_packages.await?.matches(&path.path)
+    {
         return Ok(SideEffectsDeclaration::SideEffectFree.cell());
     }
 

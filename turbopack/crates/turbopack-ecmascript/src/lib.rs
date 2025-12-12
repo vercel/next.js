@@ -786,16 +786,11 @@ impl Module for EcmascriptModuleAsset {
         let this = self.await?;
         // Check package.json first, so that we can skip parsing the module if it's marked that way.
         // We need to respect package.json configuration over any static analysis we might do.
-        let side_effects_declaration = match &this.side_effect_free_packages {
-            Some(side_effect_free_packages) => {
-                *get_side_effect_free_declaration(
-                    self.ident().path().owned().await?,
-                    **side_effect_free_packages,
-                )
-                .await?
-            }
-            None => SideEffectsDeclaration::None,
-        };
+        let side_effects_declaration = *get_side_effect_free_declaration(
+            self.ident().path().owned().await?,
+            this.side_effect_free_packages.map(|g| *g),
+        )
+        .await?;
         Ok((match side_effects_declaration {
             SideEffectsDeclaration::SideEffectful => ModuleSideEffects::SideEffectful,
             SideEffectsDeclaration::SideEffectFree => ModuleSideEffects::SideEffectFree,
