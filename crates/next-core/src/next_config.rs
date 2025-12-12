@@ -1283,6 +1283,7 @@ impl Issue for InvalidLoaderRuleRenameAsIssue {
 
 #[turbo_tasks::value(shared)]
 struct InvalidLoaderRuleConditionIssue {
+    error_string: RcStr,
     condition: ConfigConditionItem,
     config_file_path: FileSystemPath,
 }
@@ -1307,7 +1308,15 @@ impl Issue for InvalidLoaderRuleConditionIssue {
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
         Ok(Vc::cell(Some(
-            StyledString::Text(RcStr::from(format!("{:#?}", self.condition))).resolved_cell(),
+            StyledString::Stack(vec![
+                StyledString::Line(vec![
+                    StyledString::Text(rcstr!("Encountered the following error: ")),
+                    StyledString::Code(self.error_string.clone()),
+                ]),
+                StyledString::Text(rcstr!("While processing the condition:")),
+                StyledString::Code(RcStr::from(format!("{:#?}", self.condition))),
+            ])
+            .resolved_cell(),
         )))
     }
 
@@ -1497,19 +1506,21 @@ impl NextConfig {
                         // convert from Next.js-specific condition type to internal Turbopack
                         // condition type
                         let condition = if let Some(condition) = condition {
-                            if let Ok(cond) = ConditionItem::try_from(condition.clone()) {
-                                Some(cond)
-                            } else {
-                                InvalidLoaderRuleConditionIssue {
-                                    condition: condition.clone(),
-                                    config_file_path: self
-                                        .config_file_path(project_path.clone())
-                                        .owned()
-                                        .await?,
+                            match ConditionItem::try_from(condition.clone()) {
+                                Ok(cond) => Some(cond),
+                                Err(err) => {
+                                    InvalidLoaderRuleConditionIssue {
+                                        error_string: RcStr::from(err.to_string()),
+                                        condition: condition.clone(),
+                                        config_file_path: self
+                                            .config_file_path(project_path.clone())
+                                            .owned()
+                                            .await?,
+                                    }
+                                    .resolved_cell()
+                                    .emit();
+                                    None
                                 }
-                                .resolved_cell()
-                                .emit();
-                                None
                             }
                         } else {
                             None
