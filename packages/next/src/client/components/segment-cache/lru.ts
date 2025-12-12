@@ -1,13 +1,8 @@
-import type { MapEntry } from './cache-map'
 import { deleteMapEntry } from './cache-map'
+import type { LRUNode } from './cache-map'
 
 // We use an LRU for memory management. We must update this whenever we add or
 // remove a new cache entry, or when an entry changes size.
-
-// The MapEntry type is used as an LRU node, too. We choose this one instead of
-// the inner cache entry type (RouteCacheEntry, SegmentCacheEntry) because it's
-// monomorphic and can be optimized by the VM.
-type LRUNode = MapEntry<any>
 
 let head: LRUNode | null = null
 let didScheduleCleanup: boolean = false
