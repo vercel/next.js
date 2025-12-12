@@ -36,7 +36,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 #[turbo_tasks::value]
 #[serde(rename_all = "camelCase")]
 struct PostCssProcessingResult {

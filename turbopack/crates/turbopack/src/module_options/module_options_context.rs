@@ -22,9 +22,7 @@ use turbopack_node::{
 use super::ModuleRule;
 use crate::module_options::RuleCondition;
 
-#[derive(
-    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, Encode, Decode,
-)]
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct LoaderRuleItem {
     pub loaders: ResolvedVc<WebpackLoaderItems>,
     pub rename_as: Option<RcStr>,
@@ -182,7 +180,6 @@ pub struct ExternalsTracingOptions {
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
-#[serde(default)]
 pub struct ModuleOptionsContext {
     pub ecmascript: EcmascriptOptionsContext,
     pub css: CssOptionsContext,
@@ -223,7 +220,6 @@ pub struct ModuleOptionsContext {
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
-#[serde(default)]
 pub struct EcmascriptOptionsContext {
     // TODO this should just be handled via CompileTimeInfo FreeVarReferences, but then it
     // (currently) wouldn't be possible to have different replacement values in user code vs
@@ -260,7 +256,6 @@ pub struct EcmascriptOptionsContext {
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
-#[serde(default)]
 pub struct CssOptionsContext {
     /// This skips `GlobalCss` and `ModuleCss` module assets from being
     /// generated in the module graph, generating only `Css` module assets.

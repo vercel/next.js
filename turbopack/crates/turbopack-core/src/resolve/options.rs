@@ -10,13 +10,13 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
-use super::{
-    AliasPattern, ExternalType, ResolveResult, ResolveResultItem,
+use crate::resolve::{
+    AliasPattern, ExternalTraced, ExternalType, ResolveResult, ResolveResultItem,
     alias_map::{AliasMap, AliasTemplate},
+    parse::Request,
     pattern::Pattern,
-    plugin::BeforeResolvePlugin,
+    plugin::{AfterResolvePlugin, BeforeResolvePlugin},
 };
-use crate::resolve::{ExternalTraced, parse::Request, plugin::AfterResolvePlugin};
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
@@ -28,18 +28,7 @@ pub struct ExcludedExtensions(#[bincode(with = "turbo_bincode::indexset")] pub F
 
 /// A location where to resolve modules.
 #[derive(
-    TraceRawVcs,
-    Hash,
-    PartialEq,
-    Eq,
-    Clone,
-    Debug,
-    Serialize,
-    Deserialize,
-    ValueDebugFormat,
-    NonLocalValue,
-    Encode,
-    Decode,
+    TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 pub enum ResolveModules {
     /// when inside of path, use the list of directories to

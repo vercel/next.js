@@ -69,7 +69,7 @@ struct BytesBase64 {
     binary: Vec<u8>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[turbo_tasks::value]
 #[serde(rename_all = "camelCase")]
 struct WebpackLoadersProcessingResult {
@@ -442,19 +442,7 @@ pub enum ResponseMessage {
     TrackFileRead {},
 }
 
-#[derive(
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    TaskInput,
-    Serialize,
-    Deserialize,
-    Debug,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
+#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, TraceRawVcs, Encode, Decode)]
 pub struct WebpackLoaderContext {
     pub entries: ResolvedVc<EvaluateEntries>,
     pub cwd: FileSystemPath,
