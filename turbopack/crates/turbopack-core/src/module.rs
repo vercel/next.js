@@ -1,5 +1,7 @@
+use bincode::{Decode, Encode};
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::glob::Glob;
 
 use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences, source::OptionSource};
@@ -9,6 +11,22 @@ use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences, source
 pub enum StyleType {
     IsolatedStyle,
     GlobalStyle,
+}
+
+#[derive(
+    Serialize, Deserialize, Hash, Eq, PartialEq, Debug, NonLocalValue, TraceRawVcs, Encode, Decode,
+)]
+pub enum ModuleSideEffects {
+    /// Analysis determined that the module evaluation is side effect free
+    /// the module may still be side effectful based on its imports.
+    ModuleEvaluationIsSideEffectFree,
+    /// Is known to be side effect free either due to static analysis or some kind of configuration.
+    /// ```js
+    /// "use turbopack no side effects"
+    /// ```
+    SideEffectFree,
+    // Neither of the above, so we should assume it has side effects.
+    SideEffectful,
 }
 
 /// A module. This usually represents parsed source code, which has references

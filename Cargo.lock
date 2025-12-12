@@ -9775,6 +9775,7 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "petgraph 0.8.3",
+ "phf",
  "regex",
  "rustc-hash 2.1.1",
  "serde",
