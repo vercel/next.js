@@ -1,5 +1,5 @@
 import type { MapEntry } from './cache-map'
-import { deleteFromCacheMap } from './cache-map'
+import { deleteMapEntry } from './cache-map'
 
 // We use an LRU for memory management. We must update this whenever we add or
 // remove a new cache entry, or when an entry changes size.
@@ -119,7 +119,7 @@ function cleanup() {
     if (tail !== null) {
       // Delete the entry from the map. In turn, this will remove it from
       // the LRU.
-      deleteFromCacheMap(tail.value)
+      deleteMapEntry(tail)
     }
   }
 }
