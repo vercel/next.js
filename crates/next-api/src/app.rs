@@ -69,10 +69,8 @@ use turbopack_core::{
     source_map::SourceMapAsset,
     virtual_output::VirtualOutputAsset,
 };
-use turbopack_ecmascript::{
-    resolve::cjs_resolve, single_file_ecmascript_output::SingleFileEcmascriptOutput,
-};
-use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
+use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
+use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::ResolveOptionsContext};
 
 use crate::{
     dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},

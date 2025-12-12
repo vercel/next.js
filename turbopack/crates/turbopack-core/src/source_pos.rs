@@ -1,5 +1,5 @@
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 use turbo_tasks_hash::DeterministicHash;
 
@@ -21,7 +21,6 @@ const U8_CR: u8 = 0x0D;
     TaskInput,
     TraceRawVcs,
     Serialize,
-    Deserialize,
     DeterministicHash,
     NonLocalValue,
     Encode,
