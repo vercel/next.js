@@ -7,17 +7,17 @@ edition           = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
-rspack_binding_builder        = { version = "=0.6.0" }
-rspack_binding_builder_macros = { version = "=0.6.0" }
+rspack_binding_builder        = { version = "=0.6.7" }
+rspack_binding_builder_macros = { version = "=0.6.7" }
 
-rspack_core             = { version = "=0.6.0" }
-rspack_error            = { version = "=0.6.0" }
-rspack_hook             = { version = "=0.6.0" }
-rspack_plugin_externals = { version = "=0.6.0" }
-rspack_sources          = { version = "=0.4.13" }
+rspack_core             = { version = "=0.6.7" }
+rspack_error            = { version = "=0.6.7" }
+rspack_hook             = { version = "=0.6.7" }
+rspack_plugin_externals = { version = "=0.6.7" }
+rspack_sources          = { version = "=0.4.17" }
 
 regex        = { version = "1.11.1" }
-rspack_regex = { version = "=0.6.0" }
+rspack_regex = { version = "=0.6.7" }
 rustc-hash   = { version = "2.1.1" }
 
 napi        = { version = "=3.2.2" }
@@ -30,10 +30,10 @@ next-taskless = { version = "0.0.1", path = "../../../crates/next-taskless" }
 # Enable SWC plugin feature for targets that support it
 # Skip: wasm32-wasip1-threads, i686-pc-windows-msvc, aarch64-pc-windows-msvc, armv7-linux-androideabi, armv7-unknown-linux-gnueabihf
 [target.'cfg(not(any(target_arch = "wasm32", target_arch = "arm", all(target_os = "windows", target_arch = "x86"), all(target_os = "windows", target_arch = "aarch64"))))'.dependencies]
-rspack_binding_builder = { version = "=0.6.0", features = ["plugin"] }
+rspack_binding_builder = { version = "=0.6.7", features = ["plugin"] }
 
 [build-dependencies]
-rspack_binding_build = { version = "=0.6.0" }
+rspack_binding_build = { version = "=0.6.7" }
 
 # Workaround for `cross` builds to resolve parent workspace dependencies.
 # When cross-compiling, the build runs in an isolated container and can't find
