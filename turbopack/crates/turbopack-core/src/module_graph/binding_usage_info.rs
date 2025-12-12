@@ -87,7 +87,7 @@ pub async fn compute_binding_usage_info(
     remove_unused_imports: bool,
 ) -> Result<Vc<BindingUsageInfo>> {
     let span_outer = tracing::info_span!(
-        "compute bindung usage info",
+        "compute binding usage info",
         visit_count = tracing::field::Empty,
         unused_reference_count = tracing::field::Empty
     );
