@@ -80,11 +80,21 @@ export function handleNavigationResult(
       const newUrl = result.data
       return handleExternalUrl(state, mutable, newUrl, pendingPush)
     }
-    case NavigationResultTag.NoOp: {
-      // The server responded with no change to the current page. However, if
-      // the URL changed, we still need to update that.
-      const newCanonicalUrl = result.data.canonicalUrl
-      mutable.canonicalUrl = newCanonicalUrl
+    case NavigationResultTag.Success: {
+      // Received a new result.
+      mutable.cache = result.data.cacheNode
+      mutable.patchedTree = result.data.flightRouterState
+      mutable.renderedSearch = result.data.renderedSearch
+      mutable.canonicalUrl = result.data.canonicalUrl
+      // TODO: During a refresh, we don't set the `scrollableSegments`. There's
+      // some confusing and subtle logic in `handleMutable` that decides what
+      // to do when `shouldScroll` is set but `scrollableSegments` is not. I'm
+      // not convinced it's totally coherent but the tests assert on this
+      // particular behavior so I've ported the logic as-is from the previous
+      // router implementation, for now.
+      mutable.scrollableSegments = result.data.scrollableSegments ?? undefined
+      mutable.shouldScroll = result.data.shouldScroll
+      mutable.hashFragment = result.data.hash
 
       // Check if the only thing that changed was the hash fragment.
       const oldUrl = new URL(state.canonicalUrl, url)
@@ -104,23 +114,6 @@ export function handleNavigationResult(
         mutable.scrollableSegments = []
       }
 
-      return handleMutable(state, mutable)
-    }
-    case NavigationResultTag.Success: {
-      // Received a new result.
-      mutable.cache = result.data.cacheNode
-      mutable.patchedTree = result.data.flightRouterState
-      mutable.renderedSearch = result.data.renderedSearch
-      mutable.canonicalUrl = result.data.canonicalUrl
-      // TODO: During a refresh, we don't set the `scrollableSegments`. There's
-      // some confusing and subtle logic in `handleMutable` that decides what
-      // to do when `shouldScroll` is set but `scrollableSegments` is not. I'm
-      // not convinced it's totally coherent but the tests assert on this
-      // particular behavior so I've ported the logic as-is from the previous
-      // router implementation, for now.
-      mutable.scrollableSegments = result.data.scrollableSegments ?? undefined
-      mutable.shouldScroll = result.data.shouldScroll
-      mutable.hashFragment = result.data.hash
       return handleMutable(state, mutable)
     }
     case NavigationResultTag.Async: {
@@ -168,12 +161,14 @@ export function navigateReducer(
   // implementation. Eventually we'll rewrite the router reducer to a
   // state machine.
   const currentUrl = new URL(state.canonicalUrl, location.origin)
+  const shouldRefreshDynamicData = false
   const result = navigateUsingSegmentCache(
     url,
     currentUrl,
     state.cache,
     state.tree,
     state.nextUrl,
+    shouldRefreshDynamicData,
     shouldScroll,
     mutable
   )

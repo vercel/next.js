@@ -11,7 +11,7 @@ export function ClientRefreshButton() {
         router.refresh()
       }}
     >
-      Refresh
+      Client refresh
     </button>
   )
 }
