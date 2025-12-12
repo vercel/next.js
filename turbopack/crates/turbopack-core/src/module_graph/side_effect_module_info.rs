@@ -15,7 +15,7 @@ pub struct SideEffectFreeModules(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 
 /// Computes the set of side effect free modules in the module graph.
 ///
-/// This leverages the module graph to compute if modules with `ModuleEvalutationIsSideEffectFree`
+/// This leverages the module graph to compute if modules with `ModuleEvaluationIsSideEffectFree`
 /// status are actually side effectful or not.
 ///
 /// A current limitation is that the module graph doesn't contain information on how 'late' imports

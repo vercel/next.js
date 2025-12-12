@@ -10,7 +10,7 @@ use turbopack_core::{
     },
     context::AssetContext,
     ident::AssetIdent,
-    module::{Module, OptionModule},
+    module::{Module, ModuleSideEffects, OptionModule},
     module_graph::ModuleGraph,
     output::{OutputAssetsReference, OutputAssetsWithReferenced},
     reference::{ModuleReferences, SingleChunkableModuleReference},
@@ -143,6 +143,14 @@ impl Module for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
     fn is_self_async(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(true)
+    }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // Both versions of this module have a top level await that instantiates a wasm module
+        // wasm module instantiation can trigger arbitrary side effects from the native start
+        // function
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 
