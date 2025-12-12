@@ -9,7 +9,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     reference::ModuleReferences,
@@ -66,6 +66,11 @@ impl Module for NextServerComponentModule {
                 .to_resolved()
                 .await?,
         )]))
+    }
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // This just exports another import
+        ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
     }
 }
 

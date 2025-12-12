@@ -48,6 +48,7 @@ pub mod chunk_group_info;
 pub mod merged_modules;
 pub mod module_batch;
 pub(crate) mod module_batches;
+mod side_effect_module_info;
 pub(crate) mod style_groups;
 mod traced_di_graph;
 
@@ -1959,7 +1960,7 @@ pub mod tests {
     use crate::{
         asset::{Asset, AssetContent},
         ident::AssetIdent,
-        module::Module,
+        module::{Module, ModuleSideEffects},
         module_graph::{
             GraphEntries, GraphTraversalAction, ModuleGraph, ModuleGraphRef, SingleModuleGraph,
             VisitedModules, chunk_group_info::ChunkGroupEntry,
@@ -2356,6 +2357,10 @@ pub mod tests {
             };
 
             Ok(Vc::cell(references))
+        }
+        #[turbo_tasks::function]
+        fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+            ModuleSideEffects::SideEffectful.cell()
         }
     }
 

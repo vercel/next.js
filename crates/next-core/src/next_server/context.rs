@@ -9,6 +9,7 @@ use turbopack::{
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, ExternalsTracingOptions, JsxTransformOptions,
         ModuleOptionsContext, ModuleRule, TypescriptTransformOptions,
+        side_effect_free_packages_glob,
     },
     transition::Transition,
 };
@@ -592,7 +593,11 @@ pub async fn get_server_module_options_context(
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
-        side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
+        side_effect_free_packages: Some(
+            side_effect_free_packages_glob(next_config.optimize_package_imports())
+                .to_resolved()
+                .await?,
+        ),
         analyze_mode: if next_mode.is_development() {
             AnalyzeMode::CodeGeneration
         } else {

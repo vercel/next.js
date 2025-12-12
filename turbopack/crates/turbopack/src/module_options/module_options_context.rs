@@ -1,11 +1,15 @@
 use std::fmt::Debug;
 
+use anyhow::Result;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{
+    FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 use turbopack_core::{
     chunk::SourceMapsType, compile_time_info::CompileTimeInfo, condition::ContextCondition,
     environment::Environment, resolve::options::ImportMapping,
@@ -193,7 +197,7 @@ pub struct ModuleOptionsContext {
 
     pub environment: Option<ResolvedVc<Environment>>,
     pub execution_context: Option<ResolvedVc<ExecutionContext>>,
-    pub side_effect_free_packages: Vec<RcStr>,
+    pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
     pub tree_shaking_mode: Option<TreeShakingMode>,
 
     /// Generate (non-emitted) output assets for static assets and externals, to facilitate
@@ -281,4 +285,21 @@ impl ValueDefault for ModuleOptionsContext {
     fn value_default() -> Vc<Self> {
         Self::cell(Default::default())
     }
+}
+
+#[turbo_tasks::function]
+pub async fn side_effect_free_packages_glob(
+    side_effect_free_packages: ResolvedVc<Vec<RcStr>>,
+) -> Result<Vc<Glob>> {
+    let side_effect_free_packages = &*side_effect_free_packages.await?;
+    if side_effect_free_packages.is_empty() {
+        return Ok(Glob::new(rcstr!(""), GlobOptions::default()));
+    }
+
+    let mut globs = String::new();
+    globs.push_str("**/node_modules/{");
+    globs.push_str(&side_effect_free_packages.join(","));
+    globs.push_str("}/**");
+
+    Ok(Glob::new(globs.into(), GlobOptions::default()))
 }

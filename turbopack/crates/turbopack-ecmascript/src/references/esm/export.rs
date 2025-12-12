@@ -16,12 +16,11 @@ use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     chunk::{ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, analyze::AnalyzeIssue},
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::binding_usage_info::ModuleExportUsageInfo,
     reference::ModuleReference,
     resolve::ModulePart,
@@ -190,7 +189,6 @@ pub struct FollowExportsResult {
 pub async fn follow_reexports(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
-    side_effect_free_packages: Vc<Glob>,
     ignore_side_effect_of_entry: bool,
 ) -> Result<Vc<FollowExportsResult>> {
     let mut ignore_side_effects = ignore_side_effect_of_entry;
@@ -208,9 +206,7 @@ pub async fn follow_reexports(
         };
 
         if !ignore_side_effects
-            && !*module
-                .is_marked_as_side_effect_free(side_effect_free_packages)
-                .await?
+            && *module.side_effects().await? != ModuleSideEffects::SideEffectFree
         {
             // TODO It's unfortunate that we have to use the whole module here.
             // This is often the Facade module, which includes all reexports.
