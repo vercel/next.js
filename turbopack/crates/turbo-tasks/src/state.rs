@@ -8,7 +8,6 @@ use std::{
 use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use parking_lot::{Mutex, MutexGuard};
-use serde::{Deserialize, Serialize};
 use tracing::trace_span;
 
 use crate::{
@@ -16,7 +15,7 @@ use crate::{
     mark_stateful, trace::TraceRawVcs,
 };
 
-#[derive(Serialize, Deserialize, Encode, Decode)]
+#[derive(Encode, Decode)]
 struct StateInner<T> {
     value: T,
     invalidators: AutoSet<Invalidator>,
@@ -161,7 +160,7 @@ mod parking_lot_mutex_bincode {
 /// [strong consistency]: crate::OperationVc::read_strongly_consistent
 /// [`OperationVc`]: crate::OperationVc
 /// [`OperationValue`]: crate::OperationValue
-#[derive(Serialize, Deserialize, Encode, Decode)]
+#[derive(Encode, Decode)]
 pub struct State<T> {
     serialization_invalidator: SerializationInvalidator,
     #[bincode(with = "parking_lot_mutex_bincode")]
@@ -272,10 +271,9 @@ impl<T: PartialEq> State<T> {
     }
 }
 
-#[derive(Serialize, Deserialize, Encode, Decode)]
+#[derive(Encode, Decode)]
 #[bincode(bounds = "")]
 pub struct TransientState<T> {
-    #[serde(skip, default = "default_transient_state_inner")]
     #[bincode(skip, default = "default_transient_state_inner")]
     inner: Mutex<StateInner<Option<T>>>,
 }

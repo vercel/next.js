@@ -21,7 +21,6 @@ use bincode::{
     error::{DecodeError, EncodeError},
 };
 use pin_project_lite::pin_project;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub use crate::{
     id_factory::{IdFactory, IdFactoryWithReuse},
@@ -78,33 +77,6 @@ impl PartialEq for SharedError {
 }
 
 impl Eq for SharedError {}
-
-impl Serialize for SharedError {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut v = vec![self.to_string()];
-        let mut source = self.source();
-        while let Some(s) = source {
-            v.push(s.to_string());
-            source = s.source();
-        }
-        Serialize::serialize(&v, serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for SharedError {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        use serde::de::Error;
-        let mut messages = <Vec<String>>::deserialize(deserializer)?;
-        let msg = messages
-            .pop()
-            .ok_or_else(|| Error::custom("expected at least 1 error message"))?;
-        let mut e = anyhow!(msg);
-        while let Some(message) = messages.pop() {
-            e = e.context(message);
-        }
-        Ok(SharedError::new(e))
-    }
-}
 
 impl Encode for SharedError {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {

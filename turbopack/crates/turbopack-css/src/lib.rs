@@ -15,14 +15,11 @@ pub(crate) mod process;
 pub(crate) mod references;
 pub(crate) mod util;
 
-pub use asset::CssModuleAsset;
 use bincode::{Decode, Encode};
-pub use module_asset::ModuleCssAsset;
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 
-pub use self::process::*;
 use crate::references::import::ImportAssetReference;
+pub use crate::{asset::CssModuleAsset, module_asset::ModuleCssAsset, process::*};
 
 #[derive(
     PartialOrd,
@@ -34,8 +31,6 @@ use crate::references::import::ImportAssetReference;
     Copy,
     Clone,
     Default,
-    Serialize,
-    Deserialize,
     TaskInput,
     TraceRawVcs,
     NonLocalValue,

@@ -2,7 +2,6 @@ use std::future::Future;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -31,8 +30,6 @@ use crate::{
     Eq,
     PartialEq,
     Hash,
-    Serialize,
-    Deserialize,
     Debug,
     ValueDebugFormat,
     TraceRawVcs,
@@ -51,8 +48,6 @@ pub struct ClientReference {
     Eq,
     PartialEq,
     Hash,
-    Serialize,
-    Deserialize,
     Debug,
     ValueDebugFormat,
     TraceRawVcs,
@@ -144,18 +139,7 @@ struct FindServerEntries {
     include_binding_usage: bool,
 }
 
-#[derive(
-    Clone,
-    Eq,
-    PartialEq,
-    Hash,
-    Serialize,
-    Deserialize,
-    Debug,
-    ValueDebugFormat,
-    TraceRawVcs,
-    NonLocalValue,
-)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug, ValueDebugFormat, TraceRawVcs, NonLocalValue)]
 enum FindServerEntriesNode {
     ClientReference,
     ServerComponentEntry(

@@ -448,7 +448,6 @@ rstest = "0.16.0"
 rustc-hash = "2.1.1"
 semver = "1.0.16"
 serde = { version = "1.0.217", features = ["derive"] }
-serde_bytes = "0.11.15"
 serde_json = "1.0.138"
 serde_path_to_error = "0.1.16"
 serde_qs = "0.13.0"

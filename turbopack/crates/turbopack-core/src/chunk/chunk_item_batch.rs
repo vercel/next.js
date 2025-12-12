@@ -4,7 +4,6 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use either::Either;
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
@@ -50,18 +49,7 @@ pub async fn attach_async_info_to_chunkable_module(
 }
 
 #[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    TaskInput,
-    Encode,
-    Decode,
+    Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
 )]
 pub enum ChunkItemOrBatchWithAsyncModuleInfo {
     ChunkItem(ChunkItemWithAsyncModuleInfo),

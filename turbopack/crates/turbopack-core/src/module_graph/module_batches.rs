@@ -49,7 +49,7 @@ pub struct ModuleBatchesGraphEdge {
     pub module: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
 struct EntriesList(
     #[bincode(with = "turbo_bincode::indexset")] pub FxIndexSet<ResolvedVc<Box<dyn Module>>>,
 );

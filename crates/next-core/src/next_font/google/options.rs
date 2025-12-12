@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, TaskInput, Vc, fxindexset, trace::TraceRawVcs,
@@ -52,7 +52,6 @@ impl NextFontGoogleOptions {
     PartialOrd,
     Ord,
     Hash,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
@@ -65,16 +64,14 @@ pub(super) enum FontWeights {
     Fixed(Vec<u16>),
 }
 
-#[derive(
-    Debug, PartialEq, Eq, Deserialize, Serialize, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[derive(Debug, PartialEq, Eq, Deserialize, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub(super) struct FontDataEntry {
     pub weights: Vec<RcStr>,
     pub styles: Vec<RcStr>,
     pub axes: Option<Vec<Axis>>,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct Axis {
     pub tag: RcStr,

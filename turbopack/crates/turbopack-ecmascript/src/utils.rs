@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use swc_core::{
     common::{DUMMY_SP, SyntaxContext},
     ecma::{
@@ -179,19 +179,7 @@ format_iter!(std::fmt::Pointer);
 format_iter!(std::fmt::UpperExp);
 format_iter!(std::fmt::UpperHex);
 
-#[derive(
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    Debug,
-    NonLocalValue,
-    Hash,
-    Encode,
-    Decode,
-)]
+#[derive(Clone, PartialEq, Eq, TraceRawVcs, Debug, NonLocalValue, Hash, Encode, Decode)]
 pub enum AstPathRange {
     /// The ast path to the block or expression.
     Exact(
@@ -247,9 +235,7 @@ pub fn module_value_to_well_known_object(module_value: &ModuleValue) -> Option<J
     })
 }
 
-#[derive(
-    Hash, Debug, Clone, Copy, Eq, Serialize, Deserialize, PartialEq, TraceRawVcs, Encode, Decode,
-)]
+#[derive(Hash, Debug, Clone, Copy, Eq, PartialEq, TraceRawVcs, Encode, Decode)]
 pub struct AstSyntaxContext(
     #[turbo_tasks(trace_ignore)]
     #[bincode(with_serde)]

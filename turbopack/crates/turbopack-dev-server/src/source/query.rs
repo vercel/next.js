@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, hash::Hash, ops::DerefMut};
 
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 
 use crate::source::ContentSourceDataFilter;
@@ -15,13 +15,11 @@ use crate::source::ContentSourceDataFilter;
     Default,
     Hash,
     TraceRawVcs,
-    Serialize,
     Deserialize,
     NonLocalValue,
     Encode,
     Decode,
 )]
-#[serde(transparent)]
 pub struct Query(BTreeMap<String, QueryValue>);
 
 // This type contains no VCs so the default implementation works.
@@ -57,17 +55,7 @@ impl DerefMut for Query {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Deserialize, NonLocalValue, Encode, Decode,
 )]
 #[serde(untagged)]
 pub enum QueryValue {

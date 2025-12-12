@@ -96,8 +96,6 @@ unsafe impl NonLocalValue for GraphNodeIndex {}
     Ord,
     Hash,
     PartialEq,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     NonLocalValue,
     Encode,
@@ -953,18 +951,7 @@ impl ModuleGraph {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub struct SingleModuleGraphWithBindingUsage {
     pub graph: ResolvedVc<SingleModuleGraph>,
@@ -1631,7 +1618,7 @@ impl SingleModuleGraph {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub enum SingleModuleGraphNode {
     Module(ResolvedVc<Box<dyn Module>>),
     // Models a module that is referenced but has already been visited by an earlier graph.

@@ -252,7 +252,7 @@ impl Default for MiddlewaresManifest {
 )]
 #[serde(rename_all = "camelCase", default)]
 pub struct ProxyMatcher {
-    // When skipped next.js with fill that during merging.
+    // When skipped, next.js will fill the field during merging.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regexp: Option<RcStr>,
     #[serde(skip_serializing_if = "bool_is_true")]

@@ -5,12 +5,11 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
-use super::{
-    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
+use crate::source::{
+    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary, ContentSources,
     GetContentSourceContent,
-    route_tree::{BaseSegment, RouteTree, RouteTrees},
+    route_tree::{BaseSegment, MapGetContentSourceContent, RouteTree, RouteTrees},
 };
-use crate::source::{ContentSources, route_tree::MapGetContentSourceContent};
 
 /// Binds different ContentSources to different subpaths.
 ///

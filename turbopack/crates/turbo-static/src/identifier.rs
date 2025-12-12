@@ -1,16 +1,17 @@
 use std::{fs, path::PathBuf};
 
 use lsp_types::{CallHierarchyIncomingCall, CallHierarchyItem, Range};
+use serde::{Deserialize, Serialize};
 
 /// A task that references another, with the range of the reference
-#[derive(Hash, PartialEq, Eq, serde::Deserialize, serde::Serialize, Clone, Debug)]
+#[derive(Hash, PartialEq, Eq, Deserialize, Serialize, Clone, Debug)]
 pub struct IdentifierReference {
     pub identifier: Identifier,
     pub references: Vec<Range>, // the places where this identifier is used
 }
 
 /// identifies a task by its file, and range in the file
-#[derive(Hash, PartialEq, Eq, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Hash, PartialEq, Eq, Deserialize, Serialize, Clone)]
 pub struct Identifier {
     pub path: String,
     // technically you can derive this from the name and range but it's easier to just store it

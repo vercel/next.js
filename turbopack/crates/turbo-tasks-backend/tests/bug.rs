@@ -4,24 +4,19 @@
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, Vc, trace::TraceRawVcs};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs, Encode, Decode,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, NonLocalValue, TraceRawVcs, Encode, Decode)]
 struct TaskReferenceSpec {
     task: u16,
     read: bool,
     read_strongly_consistent: bool,
 }
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs, Encode, Decode,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, NonLocalValue, TraceRawVcs, Encode, Decode)]
 struct TaskSpec {
     references: Vec<TaskReferenceSpec>,
 }

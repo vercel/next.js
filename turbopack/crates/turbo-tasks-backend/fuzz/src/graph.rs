@@ -4,7 +4,6 @@ use anyhow::Result;
 use arbitrary::Arbitrary;
 use bincode::{Decode, Encode};
 use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{self, NonLocalValue, State, TaskInput, TurboTasks, Vc, trace::TraceRawVcs};
 use turbo_tasks_malloc::TurboMalloc;
 
@@ -16,8 +15,6 @@ use turbo_tasks_malloc::TurboMalloc;
     Eq,
     Hash,
     NonLocalValue,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     TaskInput,
     Encode,
@@ -38,8 +35,6 @@ pub struct TaskReferenceSpec {
     Eq,
     Hash,
     NonLocalValue,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     TaskInput,
     Encode,

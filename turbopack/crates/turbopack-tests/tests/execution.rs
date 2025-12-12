@@ -10,7 +10,7 @@ use std::{env, path::PathBuf};
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use dunce::canonicalize;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -234,16 +234,7 @@ async fn run_inner_operation(
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    Debug,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Encode,
-    Decode,
+    PartialEq, Eq, Debug, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {

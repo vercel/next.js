@@ -41,7 +41,6 @@ parking_lot = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
-serde_bytes = { workspace = true }
 serde_json = { workspace = true }
 serde_path_to_error = { workspace = true }
 tokio = { workspace = true }

@@ -2,15 +2,13 @@ use std::{fmt::Display, str::FromStr};
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
 
-use super::request::{
-    AdjustFontFallback, NextFontLocalRequest, NextFontLocalRequestArguments, SrcDescriptor,
-    SrcRequest,
+use crate::next_font::local::request::{
+    AdjustFontFallback, NextFontLocalDeclaration, NextFontLocalRequest,
+    NextFontLocalRequestArguments, SrcDescriptor, SrcRequest,
 };
-use crate::next_font::local::request::NextFontLocalDeclaration;
 
 /// A normalized, Vc-friendly struct derived from validating and transforming
 /// [[NextFontLocalRequest]]
@@ -57,13 +55,11 @@ impl NextFontLocalOptions {
 #[derive(
     Clone,
     Debug,
-    Deserialize,
     PartialEq,
     Eq,
     PartialOrd,
     Ord,
     Hash,
-    Serialize,
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
@@ -101,13 +97,11 @@ impl FontDescriptor {
 #[derive(
     Clone,
     Debug,
-    Deserialize,
     PartialEq,
     Eq,
     PartialOrd,
     Ord,
     Hash,
-    Serialize,
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
@@ -130,8 +124,6 @@ pub(super) enum FontDescriptors {
     Eq,
     PartialOrd,
     Ord,
-    Deserialize,
-    Serialize,
     Hash,
     TraceRawVcs,
     NonLocalValue,

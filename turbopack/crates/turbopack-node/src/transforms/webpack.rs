@@ -63,13 +63,13 @@ use crate::{
 };
 
 #[serde_as]
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Encode, Decode)]
 struct BytesBase64 {
     #[serde_as(as = "serde_with::base64::Base64")]
     binary: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[turbo_tasks::value]
 #[serde(rename_all = "camelCase")]
 struct WebpackLoadersProcessingResult {
@@ -340,7 +340,7 @@ pub(crate) async fn evaluate_webpack_loader(
     custom_evaluate(webpack_loader_context).await
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
+#[derive(Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 enum LogType {
     Error,
@@ -359,7 +359,7 @@ enum LogType {
     Status,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
+#[derive(Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct LogInfo {
     time: u64,
@@ -396,17 +396,7 @@ pub enum InfoMessage {
 }
 
 #[derive(
-    Debug,
-    Clone,
-    TaskInput,
-    Hash,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    Encode,
-    Decode,
+    Debug, Clone, TaskInput, Hash, PartialEq, Eq, Deserialize, TraceRawVcs, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct WebpackResolveOptions {

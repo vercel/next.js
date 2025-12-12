@@ -4,7 +4,6 @@ use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use either::Either;
 use next_core::{get_next_package, next_server::get_tracing_compile_time_info};
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -24,7 +23,7 @@ use turbopack_core::{
     resolve::{origin::PlainResolveOrigin, parse::Request},
     traced_asset::TracedAsset,
 };
-use turbopack_ecmascript::resolve::cjs_resolve;
+use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
     nft_json::{all_assets_from_entries_filtered, relativize_glob},
@@ -32,18 +31,7 @@ use crate::{
 };
 
 #[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    Deserialize,
-    Serialize,
-    Debug,
-    Clone,
-    Hash,
-    TaskInput,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Hash, TaskInput, Encode, Decode,
 )]
 enum ServerNftType {
     Minimal,

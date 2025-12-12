@@ -1,13 +1,13 @@
 use std::fmt::{Display, Formatter, Write};
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 
 use crate::{rope::Rope, source_context::get_source_context};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue)]
 pub struct UnparsableJson {
     pub message: RcStr,
     pub path: Option<RcStr>,

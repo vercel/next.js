@@ -39,7 +39,6 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
 use swc_core::{
     atoms::{Atom, Wtf8Atom, atom},
     common::{
@@ -3934,9 +3933,7 @@ async fn resolve_as_webpack_runtime(
     }
 }
 
-#[derive(
-    Hash, Debug, Clone, Eq, Serialize, Deserialize, PartialEq, TraceRawVcs, Encode, Decode,
-)]
+#[derive(Hash, Debug, Clone, Eq, PartialEq, TraceRawVcs, Encode, Decode)]
 pub struct AstPath(
     #[bincode(with_serde)]
     #[turbo_tasks(trace_ignore)]

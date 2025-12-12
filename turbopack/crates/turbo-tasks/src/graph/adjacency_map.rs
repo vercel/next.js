@@ -1,18 +1,15 @@
 use std::{collections::VecDeque, hash::Hash};
 
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
 use turbo_tasks_macros::{TraceRawVcs, ValueDebugFormat};
 
-use super::graph_store::{GraphNode, GraphStore};
-use crate::{self as turbo_tasks, NonLocalValue};
+use crate::{
+    self as turbo_tasks, NonLocalValue,
+    graph::graph_store::{GraphNode, GraphStore},
+};
 
 /// A graph traversal that builds an adjacency map
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
-#[serde(bound(
-    serialize = "T: Serialize + Eq + Hash",
-    deserialize = "T: Deserialize<'de> + Eq + Hash"
-))]
+#[derive(Debug, Clone, TraceRawVcs, ValueDebugFormat)]
 pub struct AdjacencyMap<T> {
     adjacency_map: FxHashMap<T, Vec<T>>,
     roots: Vec<T>,

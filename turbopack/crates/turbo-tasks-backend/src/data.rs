@@ -1,6 +1,5 @@
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashSet;
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     CellId, KeyValuePair, SharedReference, TaskExecutionReason, TaskId, TraitTypeId,
     TypedSharedReference, ValueTypeId,
@@ -206,7 +205,7 @@ impl InProgressCellState {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Encode, Decode)]
 pub struct AggregationNumber {
     pub base: u32,
     pub distance: u32,

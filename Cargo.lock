@@ -6543,15 +6543,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_test"
-version = "1.0.177"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f901ee573cab6b3060453d2d5f0bae4e6d628c23c0a962ff9b5f1d7c8d4f1ed"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9124,8 +9115,6 @@ dependencies = [
  "bincode 2.0.1",
  "regex",
  "regress",
- "serde",
- "serde_json",
  "turbo-tasks",
 ]
 
@@ -9325,8 +9314,6 @@ dependencies = [
  "bytes",
  "futures",
  "serde",
- "serde_bytes",
- "serde_test",
  "turbo-tasks",
 ]
 
@@ -9385,7 +9372,6 @@ dependencies = [
  "rstest",
  "rustc-hash 2.1.1",
  "serde",
- "serde_bytes",
  "serde_json",
  "serde_path_to_error",
  "sha2",
@@ -9665,7 +9651,6 @@ dependencies = [
  "rstest",
  "rustc-hash 2.1.1",
  "serde",
- "serde_bytes",
  "serde_json",
  "smallvec",
  "swc_core",

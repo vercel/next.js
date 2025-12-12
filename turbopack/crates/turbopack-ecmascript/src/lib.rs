@@ -46,18 +46,11 @@ use std::{
 
 use anyhow::{Context, Result, anyhow, bail};
 use bincode::{Decode, Encode};
-use chunk::EcmascriptChunkItem;
-use code_gen::{CodeGeneration, CodeGenerationHoistedStmt};
 use either::Either;
 use itertools::Itertools;
-use parse::{ParseResult, parse};
-use path_visitor::ApplyVisitors;
-use references::esm::UrlRewriteBehavior;
-pub use references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER};
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use smallvec::SmallVec;
-pub use static_code::StaticEcmascriptCode;
 use swc_core::{
     atoms::Atom,
     base::SwcComments,
@@ -80,10 +73,6 @@ use swc_core::{
     quote,
 };
 use tracing::{Instrument, Level, instrument};
-pub use transform::{
-    CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
-    TransformPlugin,
-};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxDashMap, FxIndexMap, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
@@ -112,27 +101,34 @@ use turbopack_core::{
     source::Source,
     source_map::GenerateSourceMap,
 };
-// TODO remove this
-pub use turbopack_resolve::ecmascript as resolve;
 
-use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports};
 use crate::{
     analyzer::graph::EvalContext,
     chunk::{
-        EcmascriptChunkPlaceable,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, EcmascriptExports,
         placeable::{SideEffectsDeclaration, get_side_effect_free_declaration},
     },
-    code_gen::{CodeGens, ModifiableAst},
+    code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
     merged_module::MergedEcmascriptModule,
-    parse::generate_js_source_map,
+    parse::{ParseResult, generate_js_source_map, parse},
+    path_visitor::ApplyVisitors,
     references::{
         analyze_ecmascript_module,
         async_module::OptionAsyncModule,
-        esm::{base::EsmAssetReferences, export},
+        esm::{UrlRewriteBehavior, base::EsmAssetReferences, export},
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
     swc_comments::{CowComments, ImmutableComments},
     transform::{remove_directives, remove_shebang},
+};
+pub use crate::{
+    references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER},
+    static_code::StaticEcmascriptCode,
+    transform::{
+        CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
+        TransformPlugin,
+    },
 };
 
 #[derive(
@@ -146,7 +142,6 @@ use crate::{
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
-    Serialize,
     Deserialize,
     Encode,
     Decode,
@@ -168,7 +163,6 @@ pub enum SpecifiedModuleType {
     Clone,
     Copy,
     Default,
-    Serialize,
     Deserialize,
     TaskInput,
     TraceRawVcs,
@@ -193,7 +187,6 @@ pub enum TreeShakingMode {
     Clone,
     Copy,
     Default,
-    Serialize,
     Deserialize,
     TaskInput,
     TraceRawVcs,
@@ -232,19 +225,7 @@ pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
 
 /// The constant to replace `typeof window` with.
 #[derive(
-    Copy,
-    Clone,
-    PartialEq,
-    Eq,
-    Debug,
-    Hash,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    TaskInput,
-    Encode,
-    Decode,
+    Copy, Clone, PartialEq, Eq, Debug, Hash, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
 )]
 pub enum TypeofWindow {
     Object,

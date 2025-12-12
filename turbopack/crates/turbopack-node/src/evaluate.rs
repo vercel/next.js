@@ -133,19 +133,7 @@ async fn emit_evaluate_pool_assets_with_effects_operation(
 }
 
 #[derive(
-    Clone,
-    Copy,
-    Hash,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TaskInput,
-    NonLocalValue,
-    TraceRawVcs,
-    Encode,
-    Decode,
+    Clone, Copy, Hash, Debug, PartialEq, Eq, TaskInput, NonLocalValue, TraceRawVcs, Encode, Decode,
 )]
 pub enum EnvVarTracking {
     WholeEnvTracked,

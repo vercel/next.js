@@ -27,7 +27,6 @@ use next_core::{
     segment_config::ParseSegmentMode,
     util::{NextRuntime, get_asset_prefix_from_pathname, pages_function_name},
 };
-use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -64,9 +63,8 @@ use turbopack_core::{
     source::Source,
     virtual_output::VirtualOutputAsset,
 };
-use turbopack_ecmascript::resolve::esm_resolve;
 use turbopack_nodejs::NodeJsChunkingContext;
-use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
+use turbopack_resolve::{ecmascript::esm_resolve, resolve_options_context::ResolveOptionsContext};
 
 use crate::{
     dynamic_imports::{
@@ -587,19 +585,7 @@ struct PageEndpoint {
 }
 
 #[derive(
-    Copy,
-    Clone,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    Hash,
-    Debug,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Copy, Clone, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 enum PageEndpointType {
     Api,
@@ -611,40 +597,14 @@ enum PageEndpointType {
     SsrOnly,
 }
 
-#[derive(
-    Copy,
-    Clone,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    Hash,
-    Debug,
-    TaskInput,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs, Encode, Decode)]
 enum SsrChunkType {
     Page,
     Data,
     Api,
 }
 
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TaskInput,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
 enum EmitManifests {
     /// Don't emit any manifests
     None,

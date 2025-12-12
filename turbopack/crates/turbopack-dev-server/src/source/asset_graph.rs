@@ -13,7 +13,7 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssetsReference, OutputAssetsSet},
 };
 
-use super::{
+use crate::source::{
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceSideEffect,
     GetContentSourceContent,
     route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},

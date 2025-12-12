@@ -2,7 +2,6 @@ use std::{borrow::Cow, collections::HashSet};
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{
@@ -28,9 +27,10 @@ use turbopack_core::{
     },
 };
 
-use super::util::{request_to_string, throw_module_not_found_expr};
 use crate::{
-    references::util::throw_module_not_found_error_expr,
+    references::util::{
+        request_to_string, throw_module_not_found_error_expr, throw_module_not_found_expr,
+    },
     runtime_functions::{
         TURBOPACK_ASYNC_LOADER, TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE,
         TURBOPACK_IMPORT, TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE,
@@ -88,19 +88,7 @@ pub(crate) enum PatternMapping {
 }
 
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
 )]
 pub(crate) enum ResolveType {
     AsyncChunkLoader,

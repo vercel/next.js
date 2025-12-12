@@ -1,6 +1,7 @@
 use std::{any::Any, collections::VecDeque, fmt::Display, sync::Arc, time::Duration};
 
 use dashmap::DashMap;
+use serde::Serialize;
 use tokio::sync::{Mutex, mpsc};
 
 pub trait CompilationEvent: Sync + Send + Any {
@@ -132,7 +133,7 @@ impl CompilationEventQueue {
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize)]
 pub enum Severity {
     Info,
     Trace,
@@ -155,7 +156,7 @@ impl Display for Severity {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 /// Compilation event that is used to log the duration of a task
 pub struct TimingEvent {
     /// Message of the event without the timing information
@@ -205,7 +206,7 @@ impl CompilationEvent for TimingEvent {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DiagnosticEvent {
     pub message: String,
     pub severity: Severity,

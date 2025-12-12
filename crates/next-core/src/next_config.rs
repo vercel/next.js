@@ -154,6 +154,7 @@ pub struct NextConfig {
     cache_components: Option<bool>,
     //
     // These are never used by Turbopack, and potentially non-serializable anyway:
+    // cache_life: (),
     // export_path_map: Option<serde_json::Value>,
     // generate_build_id: Option<serde_json::Value>,
     // webpack: Option<serde_json::Value>,
@@ -197,7 +198,6 @@ pub struct OptionCrossOriginConfig(Option<CrossOriginConfig>);
     Debug,
     Default,
     PartialEq,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
@@ -216,7 +216,6 @@ struct EslintConfig {
     Debug,
     Default,
     PartialEq,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
@@ -238,7 +237,6 @@ pub enum BuildActivityPositions {
     Debug,
     Default,
     PartialEq,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
@@ -253,16 +251,7 @@ pub struct DevIndicatorsOptions {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(untagged)]
 pub enum DevIndicatorsConfig {
@@ -275,7 +264,6 @@ pub enum DevIndicatorsConfig {
     Debug,
     Default,
     PartialEq,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
@@ -294,7 +282,6 @@ struct OnDemandEntriesConfig {
     Debug,
     Default,
     PartialEq,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
@@ -312,7 +299,6 @@ struct HttpAgentConfig {
     Debug,
     PartialEq,
     Eq,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
@@ -333,7 +319,6 @@ pub struct DomainLocale {
     Debug,
     PartialEq,
     Eq,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
@@ -357,7 +342,6 @@ pub struct OptionI18NConfig(Option<I18NConfig>);
     Debug,
     PartialEq,
     Eq,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
@@ -413,39 +397,26 @@ pub enum RouteHas {
     },
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, TraceRawVcs, NonLocalValue)]
 #[serde(rename_all = "camelCase")]
 pub struct HeaderValue {
     pub key: RcStr,
     pub value: RcStr,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue)]
 #[serde(rename_all = "camelCase")]
 pub struct Header {
     pub source: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub base_path: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub locale: Option<bool>,
     pub headers: Vec<HeaderValue>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub has: Option<Vec<RouteHas>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub missing: Option<Vec<RouteHas>>,
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub enum RedirectStatus {
@@ -454,16 +425,7 @@ pub enum RedirectStatus {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct Redirect {
@@ -504,7 +466,6 @@ pub struct Rewrites {
     Debug,
     Default,
     PartialEq,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
@@ -570,16 +531,7 @@ impl Default for ImageConfig {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum ImageLoader {
@@ -591,16 +543,7 @@ pub enum ImageLoader {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 pub enum ImageFormat {
     #[serde(rename = "image/webp")]
@@ -614,7 +557,6 @@ pub enum ImageFormat {
     Debug,
     Default,
     PartialEq,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
@@ -634,16 +576,7 @@ pub struct RemotePattern {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum RemotePatternProtocol {
@@ -665,8 +598,9 @@ pub enum RemotePatternProtocol {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct TurbopackConfig {
-    #[bincode(with = "turbo_bincode::serde_self_describing")]
-    pub rules: Option<FxIndexMap<RcStr, RuleConfigCollection>>,
+    #[serde(default)]
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub rules: FxIndexMap<RcStr, RuleConfigCollection>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
@@ -674,7 +608,16 @@ pub struct TurbopackConfig {
 }
 
 #[derive(
-    Serialize, Deserialize, Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, OperationValue,
+    Deserialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(deny_unknown_fields)]
 pub struct RegexComponents {
@@ -687,7 +630,16 @@ pub struct RegexComponents {
 ///
 /// This is needed because `RegExp` objects are not otherwise serializable.
 #[derive(
-    Clone, PartialEq, Eq, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(
     tag = "type",
@@ -722,7 +674,16 @@ impl TryFrom<RegexComponents> for EsRegex {
 }
 
 #[derive(
-    Serialize, Deserialize, Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, OperationValue,
+    Deserialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 // We can end up with confusing behaviors if we silently ignore extra properties, since `Base` will
 // match nearly every object, since it has no required field.
@@ -774,7 +735,16 @@ impl TryFrom<ConfigConditionItem> for ConditionItem {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct RuleConfigItem {
@@ -785,8 +755,9 @@ pub struct RuleConfigItem {
     pub condition: Option<ConfigConditionItem>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, Serialize, NonLocalValue, OperationValue)]
-#[serde(transparent)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
 pub struct RuleConfigCollection(Vec<RuleConfigCollectionItem>);
 
 impl<'de> Deserialize<'de> for RuleConfigCollection {
@@ -806,7 +777,16 @@ impl<'de> Deserialize<'de> for RuleConfigCollection {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(untagged)]
 pub enum RuleConfigCollectionItem {
@@ -815,7 +795,16 @@ pub enum RuleConfigCollectionItem {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(untagged)]
 pub enum LoaderItem {
@@ -876,16 +865,7 @@ pub struct ReactCompilerOptions {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(untagged)]
 pub enum ReactCompilerOptionsOrBoolean {
@@ -952,8 +932,6 @@ pub struct ExperimentalConfig {
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     after: Option<bool>,
     app_document_preloading: Option<bool>,
-    #[bincode(with = "turbo_bincode::serde_self_describing")]
-    cache_life: Option<FxIndexMap<String, CacheLifeProfile>>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
     cra_compat: Option<bool>,
@@ -1032,68 +1010,10 @@ pub struct ExperimentalConfig {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
-)]
-#[serde(rename_all = "camelCase")]
-pub struct CacheLifeProfile {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stale: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub revalidate: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub expire: Option<u32>,
-}
-
-#[test]
-fn test_cache_life_profiles() {
-    let json = serde_json::json!({
-        "cacheLife": {
-            "frequent": {
-                "stale": 19,
-                "revalidate": 100,
-            },
-        }
-    });
-
-    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
-    let mut expected_cache_life = FxIndexMap::default();
-
-    expected_cache_life.insert(
-        "frequent".to_string(),
-        CacheLifeProfile {
-            stale: Some(19),
-            revalidate: Some(100),
-            expire: None,
-        },
-    );
-
-    assert_eq!(config.cache_life, Some(expected_cache_life));
-}
-
-#[test]
-fn test_cache_life_profiles_invalid() {
-    let json = serde_json::json!({
-        "cacheLife": {
-            "invalid": {
-                "stale": "invalid_value",
-            },
-        }
-    });
-
-    let result: Result<ExperimentalConfig, _> = serde_json::from_value(json);
-
-    assert!(
-        result.is_err(),
-        "Deserialization should fail due to invalid 'stale' value type"
-    );
-}
-
-#[derive(
     Clone,
     Debug,
     PartialEq,
     Eq,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
@@ -1107,16 +1027,7 @@ pub struct SubResourceIntegrity {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Deserialize,
-    Serialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(untagged)]
 pub enum ServerActionsOrLegacyBool {
@@ -1129,16 +1040,7 @@ pub enum ServerActionsOrLegacyBool {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Deserialize,
-    Serialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum EsmExternalsValue {
@@ -1146,16 +1048,7 @@ pub enum EsmExternalsValue {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Deserialize,
-    Serialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(untagged)]
 pub enum EsmExternals {
@@ -1189,7 +1082,6 @@ fn test_esm_externals_deserialization() {
     PartialEq,
     Eq,
     Deserialize,
-    Serialize,
     TraceRawVcs,
     NonLocalValue,
     OperationValue,
@@ -1202,9 +1094,7 @@ pub struct ServerActions {
     pub body_size_limit: Option<SizeLimit>,
 }
 
-#[derive(
-    Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode)]
 #[serde(untagged)]
 pub enum SizeLimit {
     Number(f64),
@@ -1226,16 +1116,7 @@ impl PartialEq for SizeLimit {
 impl Eq for SizeLimit {}
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum MiddlewarePrefetchType {
@@ -1402,7 +1283,6 @@ impl Issue for InvalidLoaderRuleRenameAsIssue {
 
 #[turbo_tasks::value(shared)]
 struct InvalidLoaderRuleConditionIssue {
-    #[bincode(with = "turbo_bincode::serde_self_describing")]
     condition: ConfigConditionItem,
     config_file_path: FileSystemPath,
 }
@@ -1427,11 +1307,7 @@ impl Issue for InvalidLoaderRuleConditionIssue {
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
         Ok(Vc::cell(Some(
-            StyledString::Text(RcStr::from(
-                serde_json::to_string_pretty(&self.condition)
-                    .expect("condition must be serializable"),
-            ))
-            .resolved_cell(),
+            StyledString::Text(RcStr::from(format!("{:#?}", self.condition))).resolved_cell(),
         )))
     }
 
@@ -1559,7 +1435,7 @@ impl NextConfig {
         project_path: FileSystemPath,
     ) -> Result<Vc<WebpackRules>> {
         let this = self.await?;
-        let Some(turbo_rules) = this.turbopack.as_ref().and_then(|t| t.rules.as_ref()) else {
+        let Some(turbo_rules) = this.turbopack.as_ref().map(|t| &t.rules) else {
             return Ok(Vc::cell(Vec::new()));
         };
         if turbo_rules.is_empty() {
@@ -2149,7 +2025,7 @@ impl NextConfig {
 /// A subset of ts/jsconfig that next.js implicitly
 /// interops with.
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct JsConfig {
     #[bincode(with = "turbo_bincode::serde_self_describing")]

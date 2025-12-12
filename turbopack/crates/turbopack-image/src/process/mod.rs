@@ -16,7 +16,6 @@ use image::{
     imageops::FilterType,
 };
 use mime::Mime;
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -32,17 +31,7 @@ use turbopack_core::{
 use self::svg::calculate;
 
 /// Small placeholder version of the image.
-#[derive(
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct BlurPlaceholder {
     pub data_url: String,
     pub width: u32,

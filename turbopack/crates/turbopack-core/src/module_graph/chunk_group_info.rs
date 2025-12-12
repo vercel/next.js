@@ -9,7 +9,6 @@ use either::Either;
 use indexmap::map::Entry;
 use roaring::RoaringBitmap;
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -23,18 +22,7 @@ use crate::{
     module_graph::{GraphTraversalAction, ModuleGraphRef, RefData},
 };
 
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    Encode,
-    Decode,
-)]
+#[derive(Clone, Debug, Default, PartialEq, TraceRawVcs, ValueDebugFormat, Encode, Decode)]
 #[repr(transparent)]
 pub struct RoaringBitmapWrapper(
     #[turbo_tasks(trace_ignore)]
@@ -127,18 +115,7 @@ impl ChunkGroupInfo {
 }
 
 #[derive(
-    Debug,
-    Clone,
-    Hash,
-    TaskInput,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub enum ChunkGroupEntry {
     /// e.g. a page
@@ -175,19 +152,7 @@ impl ChunkGroupEntry {
     }
 }
 
-#[derive(
-    Debug,
-    Clone,
-    Hash,
-    TaskInput,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
+#[derive(Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
 pub enum ChunkGroup {
     /// e.g. a page
     Entry(Vec<ResolvedVc<Box<dyn Module>>>),
@@ -305,7 +270,7 @@ impl ChunkGroup {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub enum ChunkGroupKey {
     /// e.g. a page
     Entry(Vec<ResolvedVc<Box<dyn Module>>>),
@@ -368,7 +333,7 @@ impl ChunkGroupKey {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct ChunkGroupId(u32);
 
 impl From<usize> for ChunkGroupId {
