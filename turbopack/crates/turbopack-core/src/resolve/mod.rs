@@ -15,6 +15,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::{Instrument, Level};
+use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, SliceMap, TaskInput,
@@ -477,7 +478,7 @@ pub enum ResolveResultItem {
 #[turbo_tasks::value]
 pub struct RequestKey {
     pub request: Option<RcStr>,
-    pub conditions: BTreeMap<String, bool>,
+    pub conditions: FrozenMap<RcStr, bool>,
 }
 
 impl Display for RequestKey {
@@ -756,19 +757,26 @@ impl ResolveResult {
         }
     }
 
-    pub fn add_conditions(&mut self, conditions: impl IntoIterator<Item = (RcStr, bool)>) {
-        let mut primary = std::mem::take(&mut self.primary);
-        for (k, v) in conditions {
-            for (key, _) in primary.iter_mut() {
-                key.conditions.insert(k.to_string(), v);
-            }
-        }
-        // Deduplicate
-        self.primary = IntoIterator::into_iter(primary)
-            .collect::<FxIndexMap<_, _>>()
+    pub fn with_conditions(&self, new_conditions: &[(RcStr, bool)]) -> Self {
+        let primary = self
+            .primary
+            .iter()
+            .map(|(k, v)| {
+                (
+                    RequestKey {
+                        request: k.request.clone(),
+                        conditions: k.conditions.extend(new_conditions.iter().cloned()),
+                    },
+                    v.clone(),
+                )
+            })
+            .collect::<FxIndexMap<_, _>>() // Deduplicate
             .into_iter()
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
+            .collect();
+        ResolveResult {
+            primary,
+            affecting_sources: self.affecting_sources.clone(),
+        }
     }
 }
 
@@ -3119,8 +3127,7 @@ async fn handle_exports_imports_field(
             };
 
             let resolve_result = if !conditions.is_empty() {
-                let mut resolve_result = resolve_result.owned().await?;
-                resolve_result.add_conditions(conditions);
+                let resolve_result = resolve_result.await?.with_conditions(&conditions);
                 resolve_result.cell()
             } else {
                 resolve_result
