@@ -32,7 +32,7 @@ jobs:
         shell: bash
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
-          DRY_RUN: false
+          DRY_RUN: true
           DEPRECATION_MESSAGE: ${{ inputs.message || 'This version has a security vulnerability. Please upgrade to a patched version. See https://nextjs.org/blog/CVE-2025-66478 for more details.' }}
         run: |
           # Versions to deprecate based on security advisory ranges:
