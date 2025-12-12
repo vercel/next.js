@@ -19,20 +19,25 @@ use serde::{Deserialize, Serialize};
 /// # Construction
 ///
 /// If you're building a new map, and you don't expect many overlapping keys, consider pushing
-/// elements into a [`Vec`] and calling [`FrozenMap::from_unique_vec`] or
-/// [`FrozenMap::from_overlapping_vec`]. It is typically cheaper to collect into a [`Vec`] and sort
-/// the entries once at the end than it is to maintain a temporary map data structure.
+/// elements into a [`Vec<(K, V)>`] and calling [`FrozenMap::from`]. It is typically cheaper to
+/// collect into a [`Vec`] and sort the entries once at the end than it is to maintain a temporary
+/// map data structure.
 ///
-/// If you already have a map, or you have many overlapping keys that you don't want to temporarily
-/// hold onto, you can use the [`From`] or [`Into`] traits to create a [`FrozenMap`] from one of
-/// many common collections. You should prefer using a [`BTreeMap`], as it matches the sorted
-/// semantics of [`FrozenMap`] and avoids a sort operation during conversion.
+/// If you already have a map, need to perform lookups during construction, or you have many
+/// overlapping keys that you don't want to temporarily hold onto, you can use the provided [`From`]
+/// trait implementations to create a [`FrozenMap`] from one of many common collections. You should
+/// prefer using a [`BTreeMap`], as it matches the sorted iteration order of [`FrozenMap`] and
+/// avoids a sort operation during conversion.
 ///
-/// [`FromIterator`] and `From<Vec<(K, V)>>` trait implementations are intentionally not provided,
-/// because the desired behavior around overlapping keys is potentially ambiguous.
+/// If you don't have an existing collection, you can use the [`FromIterator<(K, V)>`] trait
+/// implementation to [`.collect()`][Iterator::collect] tuples into a [`FrozenMap`].
 ///
-/// There are a variety of constructors provided that can be more efficient if you know that your
-/// data is sorted and/or unique.
+/// Finally, if you have a list of pre-sorted tuples with unique keys, you can use the advanced
+/// [`FrozenMap::from_unique_sorted_box`] or [`FrozenMap::from_unique_sorted_box_unchecked`]
+/// constructors, which provide the cheapest possible construction.
+///
+/// Overlapping keys encountered during construction preserve the last overlapping entry, matching
+/// similar behavior for other sets in the standard library.
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode, Serialize, Deserialize)]
 #[rustfmt::skip] // rustfmt breaks bincode's proc macro string processing
 #[bincode(
@@ -41,7 +46,7 @@ use serde::{Deserialize, Serialize};
 )]
 pub struct FrozenMap<K, V> {
     /// Invariant: entries are sorted by key in ascending order with no overlapping keys.
-    entries: Box<[(K, V)]>,
+    pub(crate) entries: Box<[(K, V)]>,
 }
 
 impl<K, V> FrozenMap<K, V> {
@@ -54,53 +59,21 @@ impl<K, V> FrozenMap<K, V> {
             entries: Box::from([]),
         }
     }
+}
 
+impl<K, V> FrozenMap<K, V>
+where
+    K: Ord,
+{
     /// Creates a [`FrozenMap`] from a pre-sorted boxed slice with unique keys.
     ///
     /// Panics if the keys in `entries` are not unique and sorted.
-    pub fn from_unique_sorted_box(entries: Box<[(K, V)]>) -> Self
-    where
-        K: Ord,
-    {
+    pub fn from_unique_sorted_box(entries: Box<[(K, V)]>) -> Self {
         assert_unique_sorted(&entries);
-        Self::from_unique_sorted_box_unchecked(entries)
-    }
-
-    /// Creates a [`FrozenMap`] from a pre-sorted boxed slice with unique keys.
-    ///
-    /// # Correctness
-    ///
-    /// The caller must ensure that:
-    /// - The entries are sorted by key in ascending order according to [`K: Ord`][Ord]
-    /// - There are no overlapping keys
-    ///
-    /// If these invariants are not upheld, the map will behave incorrectly (e.g.,
-    /// [`FrozenMap::get`] may fail to find keys that are present), but no memory unsafety will
-    /// occur.
-    pub const fn from_unique_sorted_box_unchecked(entries: Box<[(K, V)]>) -> Self {
         FrozenMap { entries }
     }
 
-    /// Creates a [`FrozenMap`] from a pre-sorted slice with unique keys.
-    ///
-    /// This may be more efficient than [`FrozenMap::from_unique_sorted_iter`] because it
-    /// may be reduced to a simple `memmove` for types implementing [`Copy`], plus an ordering
-    /// check.
-    ///
-    /// Panics if the keys in `entries` are not unique and sorted.
-    pub fn from_unique_sorted_slice(entries: &[(K, V)]) -> Self
-    where
-        K: Clone + Ord,
-        V: Clone,
-    {
-        assert_unique_sorted(entries);
-        Self::from_unique_sorted_slice_unchecked(entries)
-    }
-
-    /// Creates a [`FrozenMap`] from a pre-sorted slice with unique keys.
-    ///
-    /// This may be more efficient than [`FrozenMap::from_unique_sorted_iter_unchecked`] because it
-    /// may be reduced to a simple `memmove` for types implementing [`Copy`].
+    /// Creates a [`FrozenMap`] from a pre-sorted boxed slice with unique keys.
     ///
     /// # Correctness
     ///
@@ -111,166 +84,30 @@ impl<K, V> FrozenMap<K, V> {
     /// If these invariants are not upheld, the map will behave incorrectly (e.g.,
     /// [`FrozenMap::get`] may fail to find keys that are present), but no memory unsafety will
     /// occur.
-    pub fn from_unique_sorted_slice_unchecked(entries: &[(K, V)]) -> Self
-    where
-        K: Clone,
-        V: Clone,
-    {
-        Self::from_unique_sorted_box_unchecked(Box::from(entries))
+    ///
+    /// When `debug_assertions` is enabled, this will panic if an invariant is not upheld.
+    pub fn from_unique_sorted_box_unchecked(entries: Box<[(K, V)]>) -> Self {
+        debug_assert_unique_sorted(&entries);
+        FrozenMap { entries }
     }
 
-    /// Creates a [`FrozenMap`] from an iterator that yields sorted unique keys.
+    /// Helper: Sorts keys before constructing. Does not perform any assertions.
     ///
-    /// Panics if the keys in `entries` are not unique and sorted.
-    pub fn from_unique_sorted_iter(entries: impl IntoIterator<Item = (K, V)>) -> Self
-    where
-        K: Ord,
-    {
-        let this = Self::from_unique_sorted_iter_unchecked(entries);
-        assert_unique_sorted(&this.entries);
-        this
-    }
-
-    /// Creates a [`FrozenMap`] from a pre-sorted iterator with unique keys.
-    ///
-    /// # Correctness
-    ///
-    /// The caller must ensure that:
-    /// - The iterator yields elements sorted by key in ascending order according to [`K: Ord`][Ord]
-    /// - There are no overlapping keys
-    ///
-    /// If these invariants are not upheld, the map will behave incorrectly (e.g.,
-    /// [`FrozenMap::get`] may fail to find keys that are present), but no memory unsafety will
-    /// occur.
-    pub fn from_unique_sorted_iter_unchecked(iter: impl IntoIterator<Item = (K, V)>) -> Self {
-        Self::from_unique_sorted_box_unchecked(iter.into_iter().collect())
-    }
-
-    /// Creates a [`FrozenMap`] from an unsorted iterator of unique keys. Entries are sorted by key.
-    ///
-    /// This is more efficient than [`FrozenMap::from_overlapping_iter`] if you know the keys are
-    /// unique.
-    ///
-    /// Panics if any of the keys in `entries` are overlapping.
-    pub fn from_unique_iter(entries: impl IntoIterator<Item = (K, V)>) -> Self
-    where
-        K: Ord,
-    {
-        let this = Self::from_unique_iter_unchecked(entries);
-        assert_unique(&this.entries);
-        this
-    }
-
-    /// Creates a [`FrozenMap`] from an unsorted iterator of unique keys. Entries are sorted by key.
-    ///
-    /// # Correctness
-    ///
-    /// The caller must ensure that there are no overlapping keys.
-    ///
-    /// If this invariant is not upheld, the map will behave incorrectly (e.g., [`FrozenMap::get`]
-    /// may fail to find keys that are present), but no memory unsafety will occur.
-    pub fn from_unique_iter_unchecked(entries: impl IntoIterator<Item = (K, V)>) -> Self
-    where
-        K: Ord,
-    {
-        let entries: Box<[(K, V)]> = entries.into_iter().collect();
-        if entries.is_empty() {
-            return Self::new();
-        }
-        Self::from_unique_box_unchecked(entries)
-    }
-
-    /// Creates a [`FrozenMap`] from a boxed slice with unique keys.
-    ///
-    /// Panics if any of the keys in `entries` are overlapping.
-    pub fn from_unique_box(entries: Box<[(K, V)]>) -> Self
-    where
-        K: Ord,
-    {
-        let this = Self::from_unique_box_unchecked(entries);
-        assert_unique(&this.entries);
-        this
-    }
-
-    /// Creates a [`FrozenMap`] from a boxed slice with unique keys.
-    ///
-    /// # Correctness
-    ///
-    /// The caller must ensure that there are no overlapping keys.
-    ///
-    /// If this invariant is not upheld, the map will behave incorrectly (e.g., [`FrozenMap::get`]
-    /// may fail to find keys that are present), but no memory unsafety will occur.
-    pub fn from_unique_box_unchecked(mut entries: Box<[(K, V)]>) -> Self
-    where
-        K: Ord,
-    {
+    /// The caller of this helper should provide a fast-path for empty collections.
+    pub(crate) fn from_unique_box_inner(mut entries: Box<[(K, V)]>) -> Self {
         entries.sort_unstable_by(|a, b| a.0.cmp(&b.0));
         Self::from_unique_sorted_box_unchecked(entries)
     }
 
-    /// Creates a [`FrozenMap`] from a [`Vec`] with unique keys.
+    /// Helper: Sorts and deduplicates keys before constructing. Does not perform any assertions.
     ///
-    /// Panics if any of the keys in `entries` are overlapping.
-    pub fn from_unique_vec(entries: Vec<(K, V)>) -> Self
-    where
-        K: Ord,
-    {
-        Self::from_unique_box(entries.into_boxed_slice())
-    }
-
-    /// Creates a [`FrozenMap`] from a [`Vec`] with unique keys.
-    ///
-    /// # Correctness
-    ///
-    /// The caller must ensure that there are no overlapping keys.
-    ///
-    /// If this invariant is not upheld, the map will behave incorrectly (e.g., [`FrozenMap::get`]
-    /// may fail to find keys that are present), but no memory unsafety will occur.
-    pub fn from_unique_vec_unchecked(entries: Vec<(K, V)>) -> Self
-    where
-        K: Ord,
-    {
-        Self::from_unique_box_unchecked(entries.into_boxed_slice())
-    }
-
-    /// Creates a [`FrozenMap`] from a sorted [`Vec`] with potentially-overlapping keys.
-    ///
-    /// In the case of overlapping keys, only the last overlapping entry is preserved.
-    ///
-    /// Panics if the keys in `entries` are not in sorted order.
-    pub fn from_overlapping_sorted_vec(mut entries: Vec<(K, V)>) -> Self
-    where
-        K: Ord,
-    {
-        // Remove overlapping keys, keeping the last value for each key.
-        // dedup_by removes the first argument when returning true, so we swap
-        // to keep the later (last) value in the earlier slot.
-        entries.dedup_by(|later, earlier| {
-            if later.0 == earlier.0 {
-                std::mem::swap(later, earlier);
-                true
-            } else {
-                // doing the assertion here avoids an extra loop over the entries
-                assert!(later.0 > earlier.0, "FrozenMap entries must be sorted");
-                false
-            }
-        });
-
-        // `into_boxed_slice` discards excess capacity (calls `shrink_to_fit`) before boxing
-        Self::from_unique_sorted_box(entries.into_boxed_slice())
-    }
-
-    /// Creates a [`FrozenMap`] from a sorted [`Vec`] with potentially-overlapping keys.
-    ///
-    /// In the case of overlapping keys, only the last overlapping entry is preserved.
-    ///
-    /// # Correctness
-    ///
-    /// The caller must ensure that the entries are sorted by their key.
-    pub fn from_overlapping_sorted_vec_unchecked(mut entries: Vec<(K, V)>) -> Self
-    where
-        K: Eq,
-    {
+    /// The caller of this helper should provide a fast-path for empty collections.
+    pub(crate) fn from_vec_inner(mut entries: Vec<(K, V)>) -> Self {
+        // stable sort preserves insertion order for overlapping keys
+        entries.sort_by(|a, b| a.0.cmp(&b.0));
+        // Deduplicate, keeping the last value for each key.
+        // `dedup_by` removes the first argument when returning true, so we swap to keep the later
+        // (last) value in the earlier slot.
         entries.dedup_by(|later, earlier| {
             if later.0 == earlier.0 {
                 std::mem::swap(later, earlier);
@@ -280,31 +117,6 @@ impl<K, V> FrozenMap<K, V> {
             }
         });
         Self::from_unique_sorted_box_unchecked(entries.into_boxed_slice())
-    }
-
-    /// Creates a [`FrozenMap`] from a [`Vec`] with unsorted and potentially-overlapping keys.
-    ///
-    /// In the case of overlapping keys, only the last overlapping entry is preserved.
-    pub fn from_overlapping_vec(mut entries: Vec<(K, V)>) -> Self
-    where
-        K: Ord,
-    {
-        // stable sort preserves insertion order for overlapping keys
-        entries.sort_by(|a, b| a.0.cmp(&b.0));
-        Self::from_overlapping_sorted_vec_unchecked(entries)
-    }
-
-    /// Creates a [`FrozenMap`] from a type implementing [`IntoIterator`] with unsorted and
-    /// potentially-overlapping keys.
-    ///
-    /// In the case of overlapping keys, only the last overlapping entry is preserved.
-    ///
-    /// This is a thin convenience wrapper around [`FrozenMap::from_overlapping_vec`].
-    pub fn from_overlapping_iter(entries: impl IntoIterator<Item = (K, V)>) -> Self
-    where
-        K: Ord,
-    {
-        Self::from_overlapping_vec(entries.into_iter().collect())
     }
 }
 
@@ -317,11 +129,21 @@ fn assert_unique_sorted<K: Ord, V>(entries: &[(K, V)]) {
 }
 
 #[track_caller]
-fn assert_unique<K: Eq, V>(entries: &[(K, V)]) {
-    assert!(
-        entries.is_sorted_by(|a, b| a.0 != b.0),
-        "FrozenMap entries must be unique",
+fn debug_assert_unique_sorted<K: Ord, V>(entries: &[(K, V)]) {
+    debug_assert!(
+        entries.is_sorted_by(|a, b| a.0 < b.0),
+        "FrozenMap entries must be sorted and unique",
     )
+}
+
+impl<K: Ord, V> FromIterator<(K, V)> for FrozenMap<K, V> {
+    /// Creates a [`FrozenMap`] from an iterator of key-value pairs.
+    ///
+    /// If there are overlapping keys, the last entry for each key is kept.
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(entries: T) -> Self {
+        let entries: Vec<_> = entries.into_iter().collect();
+        Self::from(entries)
+    }
 }
 
 impl<K, V> From<BTreeMap<K, V>> for FrozenMap<K, V> {
@@ -333,7 +155,9 @@ impl<K, V> From<BTreeMap<K, V>> for FrozenMap<K, V> {
         if map.is_empty() {
             return Self::new();
         }
-        Self::from_unique_sorted_iter_unchecked(map)
+        FrozenMap {
+            entries: map.into_iter().collect(),
+        }
     }
 }
 
@@ -349,7 +173,7 @@ where
         if map.is_empty() {
             return Self::new();
         }
-        Self::from_unique_box_unchecked(map.into_iter().collect())
+        Self::from_unique_box_inner(map.into_iter().collect())
     }
 }
 
@@ -365,7 +189,59 @@ where
         if map.is_empty() {
             return Self::new();
         }
-        Self::from_unique_box_unchecked(map.into_iter().collect())
+        Self::from_unique_box_inner(map.into_iter().collect())
+    }
+}
+
+impl<K: Ord, V> From<Vec<(K, V)>> for FrozenMap<K, V> {
+    /// Creates a [`FrozenMap`] from an array of key-value pairs.
+    ///
+    /// If there are overlapping keys, the last entry for each key is kept.
+    fn from(entries: Vec<(K, V)>) -> Self {
+        if entries.is_empty() {
+            return Self::new();
+        }
+        Self::from_vec_inner(entries)
+    }
+}
+
+impl<K: Ord, V> From<Box<[(K, V)]>> for FrozenMap<K, V> {
+    /// Creates a [`FrozenMap`] from an array of key-value pairs.
+    ///
+    /// If there are overlapping keys, the last entry for each key is kept.
+    fn from(entries: Box<[(K, V)]>) -> Self {
+        if entries.is_empty() {
+            return Self::new();
+        }
+        Self::from_vec_inner(Vec::from(entries))
+    }
+}
+
+impl<K, V> From<&[(K, V)]> for FrozenMap<K, V>
+where
+    K: Ord + Clone,
+    V: Clone,
+{
+    /// Creates a [`FrozenMap`] from a slice of key-value pairs. Keys and values are cloned.
+    ///
+    /// If there are overlapping keys, the last entry for each key is kept.
+    fn from(entries: &[(K, V)]) -> Self {
+        if entries.is_empty() {
+            return Self::new();
+        }
+        Self::from_vec_inner(Vec::from(entries))
+    }
+}
+
+impl<K: Ord, V, const N: usize> From<[(K, V); N]> for FrozenMap<K, V> {
+    /// Creates a [`FrozenMap`] from an owned array of key-value pairs.
+    ///
+    /// If there are overlapping keys, the last entry for each key is kept.
+    fn from(entries: [(K, V); N]) -> Self {
+        if entries.is_empty() {
+            return Self::new();
+        }
+        Self::from_vec_inner(Vec::from(entries))
     }
 }
 
@@ -951,18 +827,8 @@ mod tests {
     }
 
     #[test]
-    fn test_from_unique_vec() {
-        let frozen = FrozenMap::from_unique_vec(vec![(3, "c"), (1, "a"), (2, "b")]);
-        assert_eq!(frozen.len(), 3);
-        assert_eq!(frozen.get(&1), Some(&"a"));
-
-        let keys: Vec<_> = frozen.keys().copied().collect();
-        assert_eq!(keys, vec![1, 2, 3]);
-    }
-
-    #[test]
     fn test_from_overlapping_vec() {
-        let frozen = FrozenMap::from_overlapping_vec(vec![(1, "a"), (1, "b"), (2, "c")]);
+        let frozen = FrozenMap::from(vec![(1, "a"), (1, "b"), (2, "c")]);
         assert_eq!(frozen.len(), 2);
         // Last value wins for overlapping keys
         assert_eq!(frozen.get(&1), Some(&"b"));
@@ -971,8 +837,7 @@ mod tests {
 
     #[test]
     fn test_range() {
-        let frozen =
-            FrozenMap::from_unique_vec(vec![(1, "a"), (2, "b"), (3, "c"), (4, "d"), (5, "e")]);
+        let frozen = FrozenMap::from([(1, "a"), (2, "b"), (3, "c"), (4, "d"), (5, "e")]);
 
         let range: Vec<_> = frozen.range(2..4).collect();
         assert_eq!(range, vec![(&2, &"b"), (&3, &"c")]);
@@ -986,7 +851,7 @@ mod tests {
 
     #[test]
     fn test_index() {
-        let frozen = FrozenMap::from_unique_vec(vec![(1, "a"), (2, "b")]);
+        let frozen = FrozenMap::from([(1, "a"), (2, "b")]);
         assert_eq!(frozen[&1], "a");
         assert_eq!(frozen[&2], "b");
     }
@@ -994,13 +859,13 @@ mod tests {
     #[test]
     #[should_panic(expected = "no entry found for key")]
     fn test_index_missing() {
-        let frozen = FrozenMap::from_unique_vec(vec![(1, "a")]);
+        let frozen = FrozenMap::from([(1, "a")]);
         let _ = frozen[&2];
     }
 
     #[test]
     fn test_first_last() {
-        let frozen = FrozenMap::from_unique_vec(vec![(2, "b"), (1, "a"), (3, "c")]);
+        let frozen = FrozenMap::from([(2, "b"), (1, "a"), (3, "c")]);
         assert_eq!(frozen.first_key_value(), Some((&1, &"a")));
         assert_eq!(frozen.last_key_value(), Some((&3, &"c")));
 
@@ -1011,7 +876,7 @@ mod tests {
 
     #[test]
     fn test_as_ref() {
-        let frozen = FrozenMap::from_unique_vec(vec![(2, "b"), (1, "a"), (3, "c")]);
+        let frozen = FrozenMap::from([(2, "b"), (1, "a"), (3, "c")]);
         let slice: &[(i32, &str)] = frozen.as_ref();
         assert_eq!(slice, &[(1, "a"), (2, "b"), (3, "c")]);
 
@@ -1035,17 +900,16 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "FrozenMap entries must be unique")]
-    fn test_from_unique_vec_duplicates_panics() {
-        let _ = FrozenMap::from_unique_vec(vec![(1, "a"), (1, "b")]);
+    fn test_from_unique_sorted_box() {
+        let frozen = FrozenMap::from_unique_sorted_box(Box::from([(1, "a"), (2, "b")]));
+        assert_eq!(frozen.len(), 2);
+        assert_eq!(frozen.get(&1), Some(&"a"));
+        assert_eq!(frozen.get(&2), Some(&"b"));
     }
 
     #[test]
-    fn test_from_overlapping_sorted_vec() {
-        let frozen =
-            FrozenMap::from_overlapping_sorted_vec(vec![(1, "a"), (1, "b"), (2, "c"), (2, "d")]);
-        assert_eq!(frozen.len(), 2);
-        assert_eq!(frozen.get(&1), Some(&"b")); // last value wins
-        assert_eq!(frozen.get(&2), Some(&"d"));
+    #[should_panic(expected = "FrozenMap entries must be sorted and unique")]
+    fn test_from_unique_sorted_box_panics() {
+        let _ = FrozenMap::from_unique_sorted_box(Box::from([(1, "a"), (1, "b")]));
     }
 }

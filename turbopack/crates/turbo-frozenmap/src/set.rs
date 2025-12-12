@@ -21,18 +21,17 @@ use crate::map::{self, FrozenMap};
 /// # Construction
 ///
 /// If you're building a new set, and you don't expect many overlapping items, consider pushing
-/// elements into a [`Vec`] and calling [`FrozenSet::from_unique_iter`] or using the
-/// [`FromIterator`] implementation. It is typically cheaper to collect into a [`Vec`] and sort the
-/// items once at the end than it is to maintain a temporary set data structure.
+/// elements into a [`Vec`] and calling [`FrozenSet::from`] or using the [`FromIterator`]
+/// implementation via [`Iterator::collect`]. It is typically cheaper to collect into a [`Vec`] and
+/// sort the items once at the end than it is to maintain a temporary set data structure.
 ///
 /// If you already have a set, or you have many overlapping items that you don't want to temporarily
 /// hold onto, you can use the [`From`] or [`Into`] traits to create a [`FrozenSet`] from one of
 /// many common collections. You should prefer using a [`BTreeSet`], as it matches the sorted
 /// semantics of [`FrozenSet`] and avoids a sort operation during conversion.
 ///
-/// Unlike [`FrozenMap`], a [`FromIterator`] implementation is provided as there is less potential
-/// ambiguity about desired behavior of overlapping items. Only the last overlapping item is
-/// preserved during conversion.
+/// Overlapping keys encountered during construction preserve the last overlapping entry, matching
+/// similar behavior for other sets in the standard library.
 ///
 /// Similar to the API of [`BTreeSet`], there are no convenience methods for constructing from a
 /// [`Vec`] or boxed slice. Because of limitations of the internal representation and Rust's memory
@@ -54,11 +53,16 @@ impl<T> FrozenSet<T> {
             map: FrozenMap::new(),
         }
     }
+}
 
+impl<T> FrozenSet<T>
+where
+    T: Ord,
+{
     /// Creates a [`FrozenSet`] from a pre-sorted iterator with unique items.
     ///
-    /// This is more efficient than [`FromIterator`] if you know that the iterator is sorted and
-    /// has no overlapping items.
+    /// This is more efficient than [`Iterator::collect`] or [`FromIterator::from_iter`] if you know
+    /// that the iterator is sorted and has no overlapping items.
     ///
     /// Panics if the `items` are not unique and sorted.
     pub fn from_unique_sorted_iter(items: impl IntoIterator<Item = T>) -> Self
@@ -66,14 +70,14 @@ impl<T> FrozenSet<T> {
         T: Ord,
     {
         FrozenSet {
-            map: FrozenMap::from_unique_sorted_iter(items.into_iter().map(|t| (t, ()))),
+            map: FrozenMap::from_unique_sorted_box(items.into_iter().map(|t| (t, ())).collect()),
         }
     }
 
     /// Creates a [`FrozenSet`] from a pre-sorted iterator with unique items.
     ///
-    /// This is more efficient than [`FromIterator`] if you know that the iterator is sorted and
-    /// has no overlapping items.
+    /// This is more efficient than [`Iterator::collect`] or [`FromIterator::from_iter`] if you know
+    /// that the iterator is sorted and has no overlapping items.
     ///
     /// # Correctness
     ///
@@ -84,74 +88,11 @@ impl<T> FrozenSet<T> {
     /// If these invariants are not upheld, the set will behave incorrectly (e.g.,
     /// [`FrozenSet::contains`] may fail to find items that are present), but no memory unsafety
     /// will occur.
+    ///
+    /// When `debug_assertions` is enabled, this will panic if an invariant is not upheld.
     pub fn from_unique_sorted_iter_unchecked(items: impl IntoIterator<Item = T>) -> Self {
         FrozenSet {
-            map: FrozenMap::from_unique_sorted_iter_unchecked(items.into_iter().map(|t| (t, ()))),
-        }
-    }
-
-    /// Creates a [`FrozenSet`] from an unsorted iterator with unique items.
-    ///
-    /// Panics if the `items` are not unique.
-    pub fn from_unique_iter(items: impl IntoIterator<Item = T>) -> Self
-    where
-        T: Ord,
-    {
-        FrozenSet {
-            map: FrozenMap::from_unique_iter(items.into_iter().map(|t| (t, ()))),
-        }
-    }
-
-    /// Creates a [`FrozenSet`] from an unsorted iterator with unique items.
-    ///
-    /// This is more efficient than [`FromIterator`] if you know that the iterator has no
-    /// overlapping items.
-    ///
-    /// # Correctness
-    ///
-    /// The caller must ensure that there are no overlapping items.
-    ///
-    /// If this invariant is not upheld, the set will behave incorrectly (e.g.,
-    /// [`FrozenSet::contains`] may fail to find elements that are present), but no memory unsafety
-    /// will occur.
-    pub fn from_unique_iter_unchecked(items: impl IntoIterator<Item = T>) -> Self
-    where
-        T: Ord,
-    {
-        FrozenSet {
-            map: FrozenMap::from_unique_iter_unchecked(items.into_iter().map(|t| (t, ()))),
-        }
-    }
-
-    /// Creates a [`FrozenSet`] from a sorted iterator with potentially overlapping items.
-    ///
-    /// Panics if the `items` are not in sorted order.
-    pub fn from_sorted_iter(items: impl IntoIterator<Item = T>) -> Self
-    where
-        T: Ord,
-    {
-        FrozenSet {
-            map: FrozenMap::from_overlapping_sorted_vec(
-                items.into_iter().map(|t| (t, ())).collect(),
-            ),
-        }
-    }
-
-    /// Creates a [`FrozenSet`] from a sorted iterator with potentially overlapping items.
-    ///
-    /// # Correctness
-    ///
-    /// The caller must ensure that the items are in sorted order.
-    ///
-    /// If this invariant is not upheld, the set will behave incorrectly (e.g.,
-    /// [`FrozenSet::contains`] may fail to find elements that are present), but no memory unsafety
-    /// will occur.
-    pub fn from_sorted_iter_unchecked(items: impl IntoIterator<Item = T>) -> Self
-    where
-        T: Eq,
-    {
-        FrozenSet {
-            map: FrozenMap::from_overlapping_sorted_vec_unchecked(
+            map: FrozenMap::from_unique_sorted_box_unchecked(
                 items.into_iter().map(|t| (t, ())).collect(),
             ),
         }
@@ -163,7 +104,7 @@ impl<T: Ord> FromIterator<T> for FrozenSet<T> {
     /// only the last copy is kept.
     fn from_iter<I: IntoIterator<Item = T>>(items: I) -> Self {
         FrozenSet {
-            map: FrozenMap::from_overlapping_iter(items.into_iter().map(|t| (t, ()))),
+            map: FrozenMap::from_iter(items.into_iter().map(|t| (t, ()))),
         }
     }
 }
@@ -174,7 +115,14 @@ impl<T> From<BTreeSet<T>> for FrozenSet<T> {
     /// This is more efficient than [`From<HashSet<T>>`] because [`BTreeSet`] already iterates in
     /// sorted order, so no re-sorting is needed.
     fn from(set: BTreeSet<T>) -> Self {
-        Self::from_unique_sorted_iter_unchecked(set)
+        if set.is_empty() {
+            return Self::new();
+        }
+        FrozenSet {
+            map: FrozenMap {
+                entries: set.into_iter().map(|t| (t, ())).collect(),
+            },
+        }
     }
 }
 
@@ -187,7 +135,12 @@ where
     ///
     /// The elements are sorted during construction.
     fn from(set: HashSet<T, S>) -> Self {
-        Self::from_unique_iter_unchecked(set)
+        if set.is_empty() {
+            return Self::new();
+        }
+        FrozenSet {
+            map: FrozenMap::from_unique_box_inner(set.into_iter().map(|t| (t, ())).collect()),
+        }
     }
 }
 
@@ -200,14 +153,20 @@ where
     ///
     /// The elements are sorted during construction.
     fn from(set: IndexSet<T, S>) -> Self {
-        Self::from_unique_iter_unchecked(set)
+        if set.is_empty() {
+            return Self::new();
+        }
+        FrozenSet {
+            map: FrozenMap::from_unique_box_inner(set.into_iter().map(|t| (t, ())).collect()),
+        }
     }
 }
 
 impl<T: Ord, const N: usize> From<[T; N]> for FrozenSet<T> {
-    /// Creates a [`FrozenSet`] from an array of elements.
+    /// Creates a [`FrozenSet`] from an array of elements. If there are overlapping elements, the
+    /// last copy is kept.
     ///
-    /// If there are overlapping elements, the last copy is kept.
+    /// The elements are sorted during construction.
     fn from(elements: [T; N]) -> Self {
         Self::from_iter(elements)
     }
@@ -514,17 +473,16 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "FrozenMap entries must be unique")]
-    fn test_from_unique_iter_duplicates_panics() {
-        let _ = FrozenSet::from_unique_iter([1, 1, 2]);
+    fn test_from_unique_sorted_iter() {
+        let frozen = FrozenSet::from_unique_sorted_iter([1, 2]);
+        assert_eq!(frozen.len(), 2);
+        assert!(frozen.contains(&1));
+        assert!(frozen.contains(&2));
     }
 
     #[test]
-    fn test_from_sorted_iter() {
-        let frozen = FrozenSet::from_sorted_iter([1, 1, 2, 2, 3]);
-        assert_eq!(frozen.len(), 3);
-        assert!(frozen.contains(&1));
-        assert!(frozen.contains(&2));
-        assert!(frozen.contains(&3));
+    #[should_panic(expected = "FrozenMap entries must be sorted and unique")]
+    fn test_from_unique_sorted_iter_panics() {
+        let _ = FrozenSet::from_unique_sorted_iter([1, 1, 2]);
     }
 }
