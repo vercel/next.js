@@ -189,7 +189,7 @@
       "unrecognized server actions should 404 when POSTing a non-server-action request to a nonexistent page",
       "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: form-data/multipart",
       "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: plaintext",
-      "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: urlencoded",
+      "unrecognized server actions should 404 when POSTing a urlencoded action to a nonexistent page",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with complex argument",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with simple argument",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked via form - js disabled",
@@ -4981,6 +4981,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/no-server-actions/no-server-actions.test.ts": {
+    "passed": [
+      "app-dir - no server actions should 404 when triggering a fetch action on an app with no server actions",
+      "app-dir - no server actions should 404 when triggering an MPA action on an app with no server actions"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/node-extensions/node-extensions.random.test.ts": {
     "passed": [
       "Node Extensions Random Cache Components should not error when accessing middlware that use Math.random()",
@@ -6995,7 +7005,8 @@
   },
   "test/e2e/app-dir/segment-cache/refresh/segment-cache-refresh.test.ts": {
     "passed": [
-      "segment cache (refresh) refreshes data inside reused default parallel route slots"
+      "segment cache (refresh) Server Action refresh() refreshes dynamic data only, not cached",
+      "segment cache (refresh) router.refresh() refreshes both cached and dynamic data"
     ],
     "failed": [],
     "pending": [],
