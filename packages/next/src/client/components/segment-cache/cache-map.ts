@@ -396,7 +396,7 @@ function dropRef<V extends MapValue>(value: V): void {
   value.ref = null
 }
 
-function deleteMapEntry<V extends MapValue>(entry: MapEntry<V>): void {
+export function deleteMapEntry<V extends MapValue>(entry: MapEntry<V>): void {
   // Delete the entry from the cache.
   const emptyEntry: EmptyMapEntry<V> = entry as any
   emptyEntry.value = null
