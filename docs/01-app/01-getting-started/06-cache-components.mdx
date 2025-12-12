@@ -158,7 +158,7 @@ A specific type of dynamic data that requires request context, only available wh
 - [`cookies()`](/docs/app/api-reference/functions/cookies) - User's cookie data
 - [`headers()`](/docs/app/api-reference/functions/headers) - Request headers
 - [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) - URL query parameters
-- [`params`](/docs/app/api-reference/file-conventions/page#params-optional) - Dynamic route parameters (unless at least one sample is provided via [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params))
+- [`params`](/docs/app/api-reference/file-conventions/page#params-optional) - Dynamic route parameters (unless at least one sample is provided via [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)). See [Dynamic Routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components) for detailed patterns.
 
 ```tsx filename="page.tsx"
 import { cookies, headers } from 'next/headers'

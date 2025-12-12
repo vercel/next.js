@@ -334,6 +334,14 @@ export async function GET(request, { params }) {
 | `app/items/[slug]/route.js` | `/items/b`  | `Promise<{ slug: 'b' }>` |
 | `app/items/[slug]/route.js` | `/items/c`  | `Promise<{ slug: 'c' }>` |
 
+#### Static Generation with `generateStaticParams`
+
+You can use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) with dynamic Route Handlers to statically generate responses at build time for specified params, while handling other params dynamically at request time.
+
+When using [Cache Components](/docs/app/getting-started/cache-components), you can combine `generateStaticParams` with `use cache` to enable data caching for both prerendered and runtime params.
+
+See the [generateStaticParams with Route Handlers](/docs/app/api-reference/functions/generate-static-params#with-route-handlers) documentation for examples and details.
+
 ### URL Query Parameters
 
 The request object passed to the Route Handler is a `NextRequest` instance, which includes [some additional convenience methods](/docs/app/api-reference/functions/next-request#nexturl), such as those for more easily handling query parameters.

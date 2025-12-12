@@ -67,7 +67,6 @@ export default function BlogPostPage({
 ```jsx filename="app/blog/[slug]/page.js" switcher
 'use client'
 import { use } from 'react'
-import { useParams } from 'next/navigation'
 
 export default function BlogPostPage({ params }) {
   const { slug } = use(params)
@@ -145,6 +144,151 @@ export default async function Page(props: PageProps<'/[locale]'>) {
 - Since the `params` prop is a promise. You must use `async`/`await` or React's use function to access the values.
   - In version 14 and earlier, `params` was a synchronous prop. To help with backwards compatibility, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
 
+### With Cache Components
+
+When using [Cache Components](/docs/app/getting-started/cache-components) with dynamic route segments, how you handle params depends on whether you use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
+
+Without `generateStaticParams`, param values are unknown during prerendering, making params runtime data. You must wrap param access in `<Suspense>` boundaries to provide fallback UI.
+
+With `generateStaticParams`, you provide sample param values that can be used at build time. The build process validates that dynamic content and other runtime APIs are correctly handled, then generates static HTML files for the samples. Pages rendered with runtime params are saved to disk after a successful first request.
+
+The sections below demonstrate both patterns.
+
+#### Without `generateStaticParams`
+
+All params are runtime data. Param access must be wrapped by Suspense fallback UI. Next.js generates a static shell at build time, and content loads on each request.
+
+> **Good to know**: You can also use [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) for page-level fallback UI.
+
+```tsx filename="app/blog/[slug]/page.tsx"
+import { Suspense } from 'react'
+
+export default function Page({ params }: PageProps<'/blog/[slug]'>) {
+  return (
+    <div>
+      <h1>Blog Post</h1>
+      <Suspense fallback={<div>Loading...</div>}>
+        {params.then(({ slug }) => (
+          <Content slug={slug} />
+        ))}
+      </Suspense>
+    </div>
+  )
+}
+
+async function Content({ slug }: { slug: string }) {
+  const res = await fetch(`https://api.vercel.app/blog/${slug}`)
+  const post = await res.json()
+
+  return (
+    <article>
+      <h2>{post.title}</h2>
+      <p>{post.content}</p>
+    </article>
+  )
+}
+```
+
+#### With `generateStaticParams`
+
+Provide params ahead of time to prerender pages at build time. You can prerender all routes or a subset depending on your needs.
+
+During the build process, the route is executed with each sample param to collect the HTML result. If dynamic content or runtime data are accessed incorrectly, the build will fail.
+
+```tsx filename="app/blog/[slug]/page.tsx" highlight={5-7,10,22,24}
+import { Suspense } from 'react'
+
+export async function generateStaticParams() {
+  return [{ slug: '1' }, { slug: '2' }, { slug: '3' }]
+}
+
+export default async function Page({ params }: PageProps<'/blog/[slug]'>) {
+  const { slug } = await params
+
+  return (
+    <div>
+      <h1>Blog Post</h1>
+      <Content slug={slug} />
+    </div>
+  )
+}
+
+async function Content({ slug }: { slug: string }) {
+  const post = await getPost(slug)
+  return (
+    <article>
+      <h2>{post.title}</h2>
+      <p>{post.content}</p>
+    </article>
+  )
+}
+
+async function getPost(slug: string) {
+  'use cache'
+  const res = await fetch(`https://api.vercel.app/blog/${slug}`)
+  return res.json()
+}
+```
+
+Build-time validation only covers code paths that execute with the sample params. If your route has conditional logic that accesses runtime APIs for certain param values not in your samples, those branches won't be validated at build time:
+
+```tsx filename="app/blog/[slug]/page.tsx"
+import { cookies } from 'next/headers'
+
+export async function generateStaticParams() {
+  return [{ slug: 'public-post' }, { slug: 'hello-world' }]
+}
+
+export default async function Page({ params }: PageProps<'/blog/[slug]'>) {
+  const { slug } = await params
+
+  if (slug.startsWith('private-')) {
+    // This branch is never executed at build time
+    // Runtime requests for 'private-*' slugs will error
+    return <PrivatePost slug={slug} />
+  }
+
+  return <PublicPost slug={slug} />
+}
+
+async function PrivatePost({ slug }: { slug: string }) {
+  const token = (await cookies()).get('token')
+  // ... fetch and render private post using token for auth
+}
+```
+
+For runtime params not returned by `generateStaticParams`, validation occurs during the first request. In the example above, requests for slugs starting with `private-` will fail because `PrivatePost` accesses `cookies()` without a Suspense boundary. Other runtime params that don't hit the conditional branch will render successfully and be saved to disk for subsequent requests.
+
+To fix this, wrap `PrivatePost` with Suspense:
+
+```tsx filename="app/blog/[slug]/page.tsx" highlight={13-15}
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+
+export async function generateStaticParams() {
+  return [{ slug: 'public-post' }, { slug: 'hello-world' }]
+}
+
+export default async function Page({ params }: PageProps<'/blog/[slug]'>) {
+  const { slug } = await params
+
+  if (slug.startsWith('private-')) {
+    return (
+      <Suspense fallback={<div>Loading...</div>}>
+        <PrivatePost slug={slug} />
+      </Suspense>
+    )
+  }
+
+  return <PublicPost slug={slug} />
+}
+
+async function PrivatePost({ slug }: { slug: string }) {
+  const token = (await cookies()).get('token')
+  // ... fetch and render private post using token for auth
+}
+```
+
 ## Examples
 
 ### With `generateStaticParams`
@@ -172,3 +316,60 @@ export async function generateStaticParams() {
 ```
 
 When using `fetch` inside the `generateStaticParams` function, the requests are [automatically deduplicated](/docs/app/guides/caching#request-memoization). This avoids multiple network calls for the same data Layouts, Pages, and other `generateStaticParams` functions, speeding up build time.
+
+### Dynamic GET Route Handlers with `generateStaticParams`
+
+`generateStaticParams` also works with dynamic [Route Handlers](/docs/app/api-reference/file-conventions/route) to statically generate API responses at build time:
+
+```ts filename="app/api/posts/[id]/route.ts" switcher
+export async function generateStaticParams() {
+  const posts: { id: number }[] = await fetch(
+    'https://api.vercel.app/blog'
+  ).then((res) => res.json())
+
+  return posts.map((post) => ({
+    id: `${post.id}`,
+  }))
+}
+
+export async function GET(
+  request: Request,
+  { params }: RouteContext<'/api/posts/[id]'>
+) {
+  const { id } = await params
+  const res = await fetch(`https://api.vercel.app/blog/${id}`)
+
+  if (!res.ok) {
+    return Response.json({ error: 'Post not found' }, { status: 404 })
+  }
+
+  const post = await res.json()
+  return Response.json(post)
+}
+```
+
+```js filename="app/api/posts/[id]/route.js" switcher
+export async function generateStaticParams() {
+  const posts = await fetch('https://api.vercel.app/blog').then((res) =>
+    res.json()
+  )
+
+  return posts.map((post) => ({
+    id: `${post.id}`,
+  }))
+}
+
+export async function GET(request, { params }) {
+  const { id } = await params
+  const res = await fetch(`https://api.vercel.app/blog/${id}`)
+
+  if (!res.ok) {
+    return Response.json({ error: 'Post not found' }, { status: 404 })
+  }
+
+  const post = await res.json()
+  return Response.json(post)
+}
+```
+
+In this example, route handlers for all blog post IDs returned by `generateStaticParams` will be statically generated at build time. Requests to other IDs will be handled dynamically at request time.
