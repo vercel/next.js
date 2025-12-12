@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 /// # Construction
 ///
 /// If you're building a new map, and you don't expect many overlapping keys, consider pushing
-/// elements into a [`Vec<(K, V)>`] and calling [`FrozenMap::from`]. It is typically cheaper to
+/// entries into a [`Vec<(K, V)>`] and calling [`FrozenMap::from`]. It is typically cheaper to
 /// collect into a [`Vec`] and sort the entries once at the end than it is to maintain a temporary
 /// map data structure.
 ///
@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 /// constructors, which provide the cheapest possible construction.
 ///
 /// Overlapping keys encountered during construction preserve the last overlapping entry, matching
-/// similar behavior for other sets in the standard library.
+/// similar behavior for other maps in the standard library.
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode, Serialize, Deserialize)]
 #[rustfmt::skip] // rustfmt breaks bincode's proc macro string processing
 #[bincode(
@@ -124,7 +124,7 @@ where
 fn assert_unique_sorted<K: Ord, V>(entries: &[(K, V)]) {
     assert!(
         entries.is_sorted_by(|a, b| a.0 < b.0),
-        "FrozenMap entries must be sorted and unique",
+        "FrozenMap entries must be unique and sorted",
     )
 }
 
@@ -132,7 +132,7 @@ fn assert_unique_sorted<K: Ord, V>(entries: &[(K, V)]) {
 fn debug_assert_unique_sorted<K: Ord, V>(entries: &[(K, V)]) {
     debug_assert!(
         entries.is_sorted_by(|a, b| a.0 < b.0),
-        "FrozenMap entries must be sorted and unique",
+        "FrozenMap entries must be unique and sorted",
     )
 }
 
@@ -194,7 +194,7 @@ where
 }
 
 impl<K: Ord, V> From<Vec<(K, V)>> for FrozenMap<K, V> {
-    /// Creates a [`FrozenMap`] from an array of key-value pairs.
+    /// Creates a [`FrozenMap`] from a [`Vec`] of key-value pairs.
     ///
     /// If there are overlapping keys, the last entry for each key is kept.
     fn from(entries: Vec<(K, V)>) -> Self {
@@ -206,7 +206,7 @@ impl<K: Ord, V> From<Vec<(K, V)>> for FrozenMap<K, V> {
 }
 
 impl<K: Ord, V> From<Box<[(K, V)]>> for FrozenMap<K, V> {
-    /// Creates a [`FrozenMap`] from an array of key-value pairs.
+    /// Creates a [`FrozenMap`] from a boxed slice of key-value pairs.
     ///
     /// If there are overlapping keys, the last entry for each key is kept.
     fn from(entries: Box<[(K, V)]>) -> Self {
@@ -336,7 +336,7 @@ impl<K, V> FrozenMap<K, V> {
         }
     }
 
-    /// Constructs a double-ended iterator over a sub-range of elements in the map.
+    /// Constructs a double-ended iterator over a sub-range of entries in the map.
     pub fn range<T, R>(&self, range: R) -> Range<'_, K, V>
     where
         T: Ord + ?Sized,
@@ -908,7 +908,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "FrozenMap entries must be sorted and unique")]
+    #[should_panic(expected = "FrozenMap entries must be unique and sorted")]
     fn test_from_unique_sorted_box_panics() {
         let _ = FrozenMap::from_unique_sorted_box(Box::from([(1, "a"), (1, "b")]));
     }

@@ -21,7 +21,7 @@ use crate::map::{self, FrozenMap};
 /// # Construction
 ///
 /// If you're building a new set, and you don't expect many overlapping items, consider pushing
-/// elements into a [`Vec`] and calling [`FrozenSet::from`] or using the [`FromIterator`]
+/// items into a [`Vec`] and calling [`FrozenSet::from`] or using the [`FromIterator`]
 /// implementation via [`Iterator::collect`]. It is typically cheaper to collect into a [`Vec`] and
 /// sort the items once at the end than it is to maintain a temporary set data structure.
 ///
@@ -30,7 +30,7 @@ use crate::map::{self, FrozenMap};
 /// many common collections. You should prefer using a [`BTreeSet`], as it matches the sorted
 /// semantics of [`FrozenSet`] and avoids a sort operation during conversion.
 ///
-/// Overlapping keys encountered during construction preserve the last overlapping entry, matching
+/// Overlapping items encountered during construction preserve the last overlapping item, matching
 /// similar behavior for other sets in the standard library.
 ///
 /// Similar to the API of [`BTreeSet`], there are no convenience methods for constructing from a
@@ -65,10 +65,7 @@ where
     /// that the iterator is sorted and has no overlapping items.
     ///
     /// Panics if the `items` are not unique and sorted.
-    pub fn from_unique_sorted_iter(items: impl IntoIterator<Item = T>) -> Self
-    where
-        T: Ord,
-    {
+    pub fn from_unique_sorted_iter(items: impl IntoIterator<Item = T>) -> Self {
         FrozenSet {
             map: FrozenMap::from_unique_sorted_box(items.into_iter().map(|t| (t, ())).collect()),
         }
@@ -82,7 +79,7 @@ where
     /// # Correctness
     ///
     /// The caller must ensure that:
-    /// - The iterator yields elements in ascending order according to [`T: Ord`][Ord]
+    /// - The iterator yields items in ascending order according to [`T: Ord`][Ord]
     /// - There are no overlapping items
     ///
     /// If these invariants are not upheld, the set will behave incorrectly (e.g.,
@@ -100,8 +97,8 @@ where
 }
 
 impl<T: Ord> FromIterator<T> for FrozenSet<T> {
-    /// Creates a [`FrozenSet`] from an iterator of elements. If there are overlapping elements,
-    /// only the last copy is kept.
+    /// Creates a [`FrozenSet`] from an iterator of items. If there are overlapping items, only the
+    /// last copy is kept.
     fn from_iter<I: IntoIterator<Item = T>>(items: I) -> Self {
         FrozenSet {
             map: FrozenMap::from_iter(items.into_iter().map(|t| (t, ()))),
@@ -112,7 +109,7 @@ impl<T: Ord> FromIterator<T> for FrozenSet<T> {
 impl<T> From<BTreeSet<T>> for FrozenSet<T> {
     /// Creates a [`FrozenSet`] from a [`BTreeSet`].
     ///
-    /// This is more efficient than [`From<HashSet<T>>`] because [`BTreeSet`] already iterates in
+    /// This is more efficient than `From<HashSet<T>>` because [`BTreeSet`] already iterates in
     /// sorted order, so no re-sorting is needed.
     fn from(set: BTreeSet<T>) -> Self {
         if set.is_empty() {
@@ -133,7 +130,7 @@ where
 {
     /// Creates a [`FrozenSet`] from a [`HashSet`].
     ///
-    /// The elements are sorted during construction.
+    /// The items are sorted during construction.
     fn from(set: HashSet<T, S>) -> Self {
         if set.is_empty() {
             return Self::new();
@@ -151,7 +148,7 @@ where
 {
     /// Creates a [`FrozenSet`] from an [`IndexSet`].
     ///
-    /// The elements are sorted during construction.
+    /// The items are sorted during construction.
     fn from(set: IndexSet<T, S>) -> Self {
         if set.is_empty() {
             return Self::new();
@@ -163,12 +160,12 @@ where
 }
 
 impl<T: Ord, const N: usize> From<[T; N]> for FrozenSet<T> {
-    /// Creates a [`FrozenSet`] from an array of elements. If there are overlapping elements, the
-    /// last copy is kept.
+    /// Creates a [`FrozenSet`] from an array of items. If there are overlapping items, the last
+    /// copy is kept.
     ///
-    /// The elements are sorted during construction.
-    fn from(elements: [T; N]) -> Self {
-        Self::from_iter(elements)
+    /// The items are sorted during construction.
+    fn from(items: [T; N]) -> Self {
+        Self::from_iter(items)
     }
 }
 
@@ -201,14 +198,14 @@ impl<T> FrozenSet<T> {
         self.map.get_key_value(value).map(|(t, _)| t)
     }
 
-    /// Returns a reference to the first element in the set, if any.
-    /// This element is always the minimum of all elements in the set.
+    /// Returns a reference to the first element in the set, if any. This element is always the
+    /// minimum of all elements in the set.
     pub fn first(&self) -> Option<&T> {
         self.map.first_key_value().map(|(t, _)| t)
     }
 
-    /// Returns a reference to the last element in the set, if any.
-    /// This element is always the maximum of all elements in the set.
+    /// Returns a reference to the last element in the set, if any. This element is always the
+    /// maximum of all elements in the set.
     pub fn last(&self) -> Option<&T> {
         self.map.last_key_value().map(|(t, _)| t)
     }
@@ -230,8 +227,8 @@ impl<T> FrozenSet<T> {
         }
     }
 
-    /// Returns `true` if `self` has no elements in common with `other`.
-    /// This is equivalent to checking for an empty intersection.
+    /// Returns `true` if `self` has no elements in common with `other`. This is equivalent to
+    /// checking for an empty intersection.
     pub fn is_disjoint(&self, other: &Self) -> bool
     where
         T: Ord,
@@ -243,8 +240,8 @@ impl<T> FrozenSet<T> {
         }
     }
 
-    /// Returns `true` if the set is a subset of another,
-    /// i.e., `other` contains at least all the elements in `self`.
+    /// Returns `true` if the set is a subset of another, i.e., `other` contains at least all the
+    /// elements in `self`.
     pub fn is_subset(&self, other: &Self) -> bool
     where
         T: Ord,
@@ -255,8 +252,8 @@ impl<T> FrozenSet<T> {
         self.iter().all(|v| other.contains(v))
     }
 
-    /// Returns `true` if the set is a superset of another,
-    /// i.e., `self` contains at least all the elements in `other`.
+    /// Returns `true` if the set is a superset of another, i.e., `self` contains at least all the
+    /// elements in `other`.
     pub fn is_superset(&self, other: &Self) -> bool
     where
         T: Ord,
@@ -297,8 +294,8 @@ impl<T> IntoIterator for FrozenSet<T> {
 }
 
 // These could be newtype wrappers (BTreeSet does this), but type aliases are simpler to implement.
-type Iter<'a, T> = map::Keys<'a, T, ()>;
-type IntoIter<T> = map::IntoKeys<T, ()>;
+pub type Iter<'a, T> = map::Keys<'a, T, ()>;
+pub type IntoIter<T> = map::IntoKeys<T, ()>;
 
 /// An iterator over a sub-range of elements in a [`FrozenSet`].
 pub struct Range<'a, T> {
@@ -481,7 +478,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "FrozenMap entries must be sorted and unique")]
+    #[should_panic(expected = "FrozenMap entries must be unique and sorted")]
     fn test_from_unique_sorted_iter_panics() {
         let _ = FrozenSet::from_unique_sorted_iter([1, 1, 2]);
     }
