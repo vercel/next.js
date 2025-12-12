@@ -179,13 +179,21 @@ impl Issue for SideEffectsInPackageJsonIssue {
     }
 }
 
+#[turbo_tasks::value(shared)]
+#[derive(Copy, Clone)]
+pub enum SideEffectsDeclaration {
+    SideEffectFree,
+    SideEffectful,
+    None,
+}
+
 #[turbo_tasks::function]
-pub async fn is_marked_as_side_effect_free(
+pub async fn get_side_effect_free_declaration(
     path: FileSystemPath,
     side_effect_free_packages: Vc<Glob>,
-) -> Result<Vc<bool>> {
+) -> Result<Vc<SideEffectsDeclaration>> {
     if side_effect_free_packages.await?.matches(&path.path) {
-        return Ok(Vc::cell(true));
+        return Ok(SideEffectsDeclaration::SideEffectFree.cell());
     }
 
     let find_package_json = find_context_file(path.parent(), package_json(), false).await?;
@@ -193,17 +201,29 @@ pub async fn is_marked_as_side_effect_free(
     if let FindContextFileResult::Found(package_json, _) = &*find_package_json {
         match *side_effects_from_package_json(package_json.clone()).await? {
             SideEffectsValue::None => {}
-            SideEffectsValue::Constant(side_effects) => return Ok(Vc::cell(!side_effects)),
+            SideEffectsValue::Constant(side_effects) => {
+                return Ok(if side_effects {
+                    SideEffectsDeclaration::SideEffectful
+                } else {
+                    SideEffectsDeclaration::SideEffectFree
+                }
+                .cell());
+            }
             SideEffectsValue::Glob(glob) => {
                 if let Some(rel_path) = package_json.parent().get_relative_path_to(&path) {
                     let rel_path = rel_path.strip_prefix("./").unwrap_or(&rel_path);
-                    return Ok(Vc::cell(!glob.await?.matches(rel_path)));
+                    return Ok(if glob.await?.matches(rel_path) {
+                        SideEffectsDeclaration::SideEffectful
+                    } else {
+                        SideEffectsDeclaration::SideEffectFree
+                    }
+                    .cell());
                 }
             }
         }
     }
 
-    Ok(Vc::cell(false))
+    Ok(SideEffectsDeclaration::None.cell())
 }
 
 #[turbo_tasks::value(shared)]
