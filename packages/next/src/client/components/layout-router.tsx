@@ -50,6 +50,7 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { getParamValueFromCacheKey } from '../route-params'
 import type { Params } from '../../server/request/params'
+import { isDeferredRsc } from './router-reducer/ppr-navigations'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -375,11 +376,27 @@ function InnerLayoutRouter({
   // special case `null` to represent that this segment's data is missing. If
   // it's a promise, we need to unwrap it so we can determine whether or not the
   // data is missing.
-  const resolvedRsc: React.ReactNode =
-    typeof rsc === 'object' && rsc !== null && typeof rsc.then === 'function'
-      ? use(rsc)
-      : rsc
+  let resolvedRsc: React.ReactNode
+  if (isDeferredRsc(rsc)) {
+    const unwrappedRsc = use(rsc)
+    if (unwrappedRsc === null) {
+      // If the promise was resolved to `null`, it means the data for this
+      // segment was not returned by the server. Suspend indefinitely. When this
+      // happens, the router is responsible for triggering a new state update to
+      // un-suspend this segment.
+      use(unresolvedThenable) as never
+    }
+    resolvedRsc = unwrappedRsc
+  } else {
+    // This is not a deferred RSC promise. Don't need to unwrap it.
+    resolvedRsc = rsc
+  }
 
+  // TODO: At this point, the only reason `resolvedRsc` would be null is if the
+  // data for this segment was fetched by a reducer that hasn't been migrated
+  // yet to the Segment Cache implementation. It shouldn't happen for regular
+  // navigations. Once we convert the remaining reducers, we can delete the
+  // lazy fetching block below.
   if (!resolvedRsc) {
     // The data for this segment is not available, and there's no pending
     // navigation that will be able to fulfill it. We need to fetch more from
@@ -418,6 +435,7 @@ function InnerLayoutRouter({
               previousTree: fullTree,
               serverResponse,
               navigatedAt,
+              retry: null,
             })
           })
 
@@ -610,6 +628,14 @@ export default function OuterLayoutRouter({
   // (This only applies to page segments; layout segments cannot access search
   // params on the server.)
   const activeTree = parentTree[1][parallelRouterKey]
+  if (activeTree === undefined) {
+    // Could not find a matching segment. The client tree is inconsistent with
+    // the server tree. Suspend indefinitely; the router will have already
+    // detected the inconsistency when handling the server response, and
+    // triggered a refresh of the page to recover.
+    use(unresolvedThenable) as never
+  }
+
   const activeSegment = activeTree[0]
   const activeStateKey = createRouterCacheKey(activeSegment, true) // no search params
 

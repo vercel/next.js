@@ -2,7 +2,6 @@ import type {
   Mutable,
   ReadonlyReducerState,
   ReducerState,
-  RefreshAction,
 } from '../router-reducer-types'
 import { handleNavigationResult } from './navigate-reducer'
 import { navigateToSeededRoute } from '../../segment-cache/navigation'
@@ -10,10 +9,7 @@ import { revalidateEntireCache } from '../../segment-cache/cache'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { FreshnessPolicy } from '../ppr-navigations'
 
-export function refreshReducer(
-  state: ReadonlyReducerState,
-  action: RefreshAction
-): ReducerState {
+export function refreshReducer(state: ReadonlyReducerState): ReducerState {
   // TODO: Currently, all refreshes purge the prefetch cache. In the future,
   // only client-side refreshes will have this behavior; the server-side
   // `refresh` should send new data without purging the prefetch cache.
@@ -31,7 +27,7 @@ export function refreshReducer(
   // A refresh is modeled as a navigation to the current URL, but where any
   // existing dynamic data (including in shared layouts) is re-fetched.
   const currentCanonicalUrl = state.canonicalUrl
-  const currentUrl = new URL(currentCanonicalUrl, action.origin)
+  const currentUrl = new URL(currentCanonicalUrl, location.origin)
   const currentFlightRouterState = state.tree
   const shouldScroll = true
 

@@ -19,13 +19,18 @@ import {
 import { matchSegment } from '../match-segments'
 import { createHrefFromUrl } from './create-href-from-url'
 import { createRouterCacheKey } from './create-router-cache-key'
+import { fetchServerResponse } from './fetch-server-response'
+import { dispatchAppRouterAction } from '../use-action-queue'
 import {
-  fetchServerResponse,
-  type FetchServerResponseResult,
-} from './fetch-server-response'
+  ACTION_SERVER_PATCH,
+  type ServerPatchAction,
+} from './router-reducer-types'
 import { isNavigatingToNewRootLayout } from './is-navigating-to-new-root-layout'
 import { DYNAMIC_STALETIME_MS } from './reducers/navigate-reducer'
-import { convertServerPatchToFullTree } from '../segment-cache/navigation'
+import {
+  convertServerPatchToFullTree,
+  type NavigationSeed,
+} from '../segment-cache/navigation'
 
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
@@ -64,10 +69,33 @@ const enum NavigationTaskStatus {
   Rejected,
 }
 
+/**
+ * When a NavigationTask finishes, there may or may not be data still missing,
+ * necessitating a retry.
+ */
+const enum NavigationTaskExitStatus {
+  /**
+   * No additional navigation is required.
+   */
+  Done = 0,
+  /**
+   * Some data failed to load, presumably due to a route tree mismatch. Perform
+   * a soft retry to reload the entire tree.
+   */
+  SoftRetry = 1,
+  /**
+   * Some data failed to load in an unrecoverable way, e.g. in an inactive
+   * parallel route. Fall back to a hard (MPA-style) retry.
+   */
+  HardRetry = 2,
+}
+
 export type NavigationRequestAccumulation = {
   scrollableSegments: Array<FlightSegmentPath> | null
   separateRefreshUrls: Set<string> | null
 }
+
+const noop = () => {}
 
 export function createInitialCacheNodeForHydration(
   navigatedAt: number,
@@ -1123,6 +1151,11 @@ function spawnNewCacheNode(
   return cacheNode
 }
 
+// Represents whether the previuos navigation resulted in a route tree mismatch.
+// A mismatch results in a refresh of the page. If there are two successive
+// mismatches, we will fall back to an MPA navigation, to prevent a retry loop.
+let previousNavigationDidMismatch = false
+
 // Writes a dynamic server response into the tree created by
 // updateCacheNodeOnNavigation. All pending promises that were spawned by the
 // navigation will be resolved, either with dynamic data from the server, or
@@ -1138,59 +1171,56 @@ function spawnNewCacheNode(
 //
 // This does _not_ create a new tree; it modifies the existing one in place.
 // Which means it must follow the Suspense rules of cache safety.
-export function listenForDynamicRequest(
-  url: URL,
-  nextUrl: string | null,
+export function spawnDynamicRequests(
   task: NavigationTask,
-  dynamicRequestTree: FlightRouterState,
+  primaryUrl: URL,
+  nextUrl: string | null,
   accumulation: NavigationRequestAccumulation
 ): void {
-  const requestPromises = []
+  const dynamicRequestTree = task.dynamicRequestTree
+  if (dynamicRequestTree === null) {
+    // This navigation was fully cached. There are no dynamic requests to spawn.
+    previousNavigationDidMismatch = false
+    return
+  }
+
+  // This is intentionally not an async function to discourage the caller from
+  // awaiting the result. Any subsequent async operations spawned by this
+  // function should result in a separate navigation task, rather than
+  // block the original one.
+  //
+  // In this function we spawn (but do not await) all the network requests that
+  // block the navigation, and collect the promises. The next function,
+  // `finishNavigationTask`, can await the promises in any order without
+  // accidentally introducing a network waterfall.
+  const primaryRequestPromise = fetchMissingDynamicData(
+    task,
+    dynamicRequestTree,
+    primaryUrl,
+    nextUrl
+  )
+
   const separateRefreshUrls = accumulation.separateRefreshUrls
-  if (separateRefreshUrls === null) {
-    // Normal case. All the data can be fetched from the same URL.
-    requestPromises.push(
-      attachServerResponseListener(
-        task,
-        fetchServerResponse(url, {
-          flightRouterState: dynamicRequestTree,
-          nextUrl,
-        })
-      )
-    )
-  } else {
+  let refreshRequestPromises: Array<
+    ReturnType<typeof fetchMissingDynamicData>
+  > | null = null
+  if (separateRefreshUrls !== null) {
     // There are multiple URLs that we need to request the data from. This
     // happens when a "default" parallel route slot is present in the tree, and
     // its data cannot be fetched from the current route. We need to split the
     // combined dynamic request tree into separate requests per URL.
-    //
-    // First construct a request tree for the main URL. This will prune away
-    // the parts of the tree that are not present in the current route. (`null`
-    // as the second argument is used to represent the main URL.)
 
     // TODO: Create a scoped dynamic request tree that omits anything that
     // is not relevant to the given URL. Without doing this, the server may
     // sometimes render more data than necessary; this is not a regression
     // compared to the pre-Segment Cache implementation, though, just an
     // optimization we can make in the future.
-    // const primaryDynamicRequestTree = splitTaskByURL(task, null)
-    const primaryDynamicRequestTree = dynamicRequestTree
-    if (primaryDynamicRequestTree !== null) {
-      requestPromises.push(
-        attachServerResponseListener(
-          task,
-          fetchServerResponse(url, {
-            flightRouterState: primaryDynamicRequestTree,
-            nextUrl,
-          })
-        )
-      )
-    }
 
-    // Then construct a request tree for each additional refresh URL. This will
+    // Construct a request tree for each additional refresh URL. This will
     // prune away everything except the parts of the tree that match the
     // given refresh URL.
-    const canonicalUrl = createHrefFromUrl(url)
+    refreshRequestPromises = []
+    const canonicalUrl = createHrefFromUrl(primaryUrl)
     for (const refreshUrl of separateRefreshUrls) {
       if (refreshUrl === canonicalUrl) {
         // We already initiated a request for the this URL, above. Skip it.
@@ -1207,70 +1237,259 @@ export function listenForDynamicRequest(
       // const scopedDynamicRequestTree = splitTaskByURL(task, refreshUrl)
       const scopedDynamicRequestTree = dynamicRequestTree
       if (scopedDynamicRequestTree !== null) {
-        requestPromises.push(
-          attachServerResponseListener(
+        refreshRequestPromises.push(
+          fetchMissingDynamicData(
             task,
-            fetchServerResponse(new URL(refreshUrl, url.origin), {
-              flightRouterState: scopedDynamicRequestTree,
-              nextUrl,
-            })
+            scopedDynamicRequestTree,
+            new URL(refreshUrl, location.origin),
+            // TODO: Just noticed that this should actually the Next-Url at the
+            // time the refresh URL was set, not the current Next-Url. Need to
+            // start tracking this alongside the refresh URL. In the meantime,
+            // if a refresh fails due to a mismatch, it will trigger a
+            // hard refresh.
+            nextUrl
           )
         )
       }
     }
   }
 
-  // Once we've exhausted all the data we received from the server, if there are
-  // any remaining pending tasks in the tree, abort them. As a last ditch
-  // effort, this will trigger the "old" fetching path (server-patch-reducer)
-  // in LayoutRouter, though in the future we'll remove server-patch-reducer
-  // and handle server failures using some more robust mechanism. Perhaps by
-  // throwing a special offline error, or by triggering an MPA refresh.
-  Promise.all(requestPromises).then(
-    () => abortRemainingPendingTasks(task, null, null),
-    () => abortRemainingPendingTasks(task, null, null)
+  // Further async operations are moved into this separate function to
+  // discourage sequential network requests.
+  const voidPromise = finishNavigationTask(
+    task,
+    nextUrl,
+    primaryRequestPromise,
+    refreshRequestPromises
   )
+  // `finishNavigationTask` is responsible for error handling, so we can attach
+  // noop callbacks to this promise.
+  voidPromise.then(noop, noop)
 }
 
-function attachServerResponseListener(
+async function finishNavigationTask(
   task: NavigationTask,
-  requestPromise: Promise<FetchServerResponseResult>
+  nextUrl: string | null,
+  primaryRequestPromise: ReturnType<typeof fetchMissingDynamicData>,
+  refreshRequestPromises: Array<
+    ReturnType<typeof fetchMissingDynamicData>
+  > | null
 ): Promise<void> {
-  return requestPromise.then((result) => {
-    if (typeof result === 'string') {
-      // Happens when navigating to page in `pages` from `app`. We shouldn't
-      // get here because should have already handled this during
-      // the prefetch.
+  // Wait for all the requests to finish, or for the first one to fail.
+  let exitStatus = await waitForRequestsToFinish(
+    primaryRequestPromise,
+    refreshRequestPromises
+  )
+
+  // Once the all the requests have finished, check the tree for any remaining
+  // pending tasks. If anything is still pending, it means the server response
+  // does not match the client, and we must refresh to get back to a consistent
+  // state. We can skip this step if we already detected a mismatch during the
+  // first phase; it doesn't matter in that case because we're going to refresh
+  // the whole tree regardless.
+  if (exitStatus === NavigationTaskExitStatus.Done) {
+    exitStatus = abortRemainingPendingTasks(task, null, null)
+  }
+
+  switch (exitStatus) {
+    case NavigationTaskExitStatus.Done: {
+      // The task has completely finished. There's no missing data. Exit.
+      previousNavigationDidMismatch = false
       return
     }
-    const fullTreeResponse = convertServerPatchToFullTree(
+    case NavigationTaskExitStatus.SoftRetry: {
+      // Some data failed to finish loading. Trigger a soft retry.
+      // TODO: As an extra precaution against soft retry loops, consider
+      // tracking whether a navigation was itself triggered by a retry. If two
+      // happen in a row, fall back to a hard retry.
+      const isHardRetry = false
+      const primaryRequestResult = await primaryRequestPromise
+      dispatchRetryDueToTreeMismatch(
+        isHardRetry,
+        primaryRequestResult.url,
+        nextUrl,
+        primaryRequestResult.seed,
+        task.route
+      )
+      return
+    }
+    case NavigationTaskExitStatus.HardRetry: {
+      // Some data failed to finish loading in a non-recoverable way, such as a
+      // network error. Trigger an MPA navigation.
+      //
+      // Hard navigating/refreshing is how we prevent an infinite retry loop
+      // caused by a network error — when the network fails, we fall back to the
+      // browser behavior for offline navigations. In the future, Next.js may
+      // introduce its own custom handling of offline navigations, but that
+      // doesn't exist yet.
+      const isHardRetry = true
+      const primaryRequestResult = await primaryRequestPromise
+      dispatchRetryDueToTreeMismatch(
+        isHardRetry,
+        primaryRequestResult.url,
+        nextUrl,
+        primaryRequestResult.seed,
+        task.route
+      )
+      return
+    }
+    default: {
+      return exitStatus satisfies never
+    }
+  }
+}
+
+function waitForRequestsToFinish(
+  primaryRequestPromise: ReturnType<typeof fetchMissingDynamicData>,
+  refreshRequestPromises: Array<
+    ReturnType<typeof fetchMissingDynamicData>
+  > | null
+) {
+  // Custom async combinator logic. This could be replaced by Promise.any but
+  // we don't assume that's available.
+  //
+  // Each promise resolves once the server responsds and the data is written
+  // into the CacheNode tree. Resolve the combined promise once all the
+  // requests finish.
+  //
+  // Or, resolve as soon as one of the requests fails, without waiting for the
+  // others to finish.
+  return new Promise<NavigationTaskExitStatus>((resolve) => {
+    const onFulfill = (result: { exitStatus: NavigationTaskExitStatus }) => {
+      if (result.exitStatus === NavigationTaskExitStatus.Done) {
+        remainingCount--
+        if (remainingCount === 0) {
+          // All the requests finished successfully.
+          resolve(NavigationTaskExitStatus.Done)
+        }
+      } else {
+        // One of the requests failed. Exit with a failing status.
+        // NOTE: It's possible for one of the requests to fail with SoftRetry
+        // and a later one to fail with HardRetry. In this case, we choose to
+        // retry immediately, rather than delay the retry until all the requests
+        // finish. If it fails again, we will hard retry on the next
+        // attempt, anyway.
+        resolve(result.exitStatus)
+      }
+    }
+    // onReject shouldn't ever be called because fetchMissingDynamicData's
+    // entire body is wrapped in a try/catch. This is just defensive.
+    const onReject = () => resolve(NavigationTaskExitStatus.HardRetry)
+
+    // Attach the listeners to the promises.
+    let remainingCount = 1
+    primaryRequestPromise.then(onFulfill, onReject)
+    if (refreshRequestPromises !== null) {
+      remainingCount += refreshRequestPromises.length
+      refreshRequestPromises.forEach((refreshRequestPromise) =>
+        refreshRequestPromise.then(onFulfill, onReject)
+      )
+    }
+  })
+}
+
+function dispatchRetryDueToTreeMismatch(
+  isHardRetry: boolean,
+  retryUrl: URL,
+  retryNextUrl: string | null,
+  seed: NavigationSeed | null,
+  baseTree: FlightRouterState
+) {
+  // If this is the second time in a row that a navigation resulted in a
+  // mismatch, fall back to a hard (MPA) refresh.
+  isHardRetry = isHardRetry || previousNavigationDidMismatch
+  previousNavigationDidMismatch = true
+  const retryAction: ServerPatchAction = {
+    type: ACTION_SERVER_PATCH,
+    navigatedAt: Date.now(),
+    previousTree: baseTree,
+    serverResponse: null,
+    retry: {
+      url: retryUrl,
+      nextUrl: retryNextUrl,
+      seed,
+      mpa: isHardRetry,
+    },
+  }
+  dispatchAppRouterAction(retryAction)
+}
+
+async function fetchMissingDynamicData(
+  task: NavigationTask,
+  dynamicRequestTree: FlightRouterState,
+  url: URL,
+  nextUrl: string | null
+): Promise<{
+  exitStatus: NavigationTaskExitStatus
+  url: URL
+  seed: NavigationSeed | null
+}> {
+  try {
+    const result = await fetchServerResponse(url, {
+      flightRouterState: dynamicRequestTree,
+      nextUrl,
+    })
+    if (typeof result === 'string') {
+      // fetchServerResponse will return an href to indicate that the SPA
+      // navigation failed. For example, if the server triggered a hard
+      // redirect, or the fetch request errored. Initiate an MPA navigation
+      // to the given href.
+      return {
+        exitStatus: NavigationTaskExitStatus.HardRetry,
+        url: new URL(result, location.origin),
+        seed: null,
+      }
+    }
+    const seed = convertServerPatchToFullTree(
       task.route,
       result.flightData,
       result.renderedSearch
     )
-    finishTaskUsingDynamicDataPayload(
+    const didReceiveUnknownParallelRoute = writeDynamicDataIntoNavigationTask(
       task,
-      fullTreeResponse.tree,
-      fullTreeResponse.data,
-      fullTreeResponse.head,
+      seed.tree,
+      seed.data,
+      seed.head,
       result.debugInfo
     )
-  })
+    return {
+      exitStatus: didReceiveUnknownParallelRoute
+        ? NavigationTaskExitStatus.SoftRetry
+        : NavigationTaskExitStatus.Done,
+      url: new URL(result.canonicalUrl, location.origin),
+      seed,
+    }
+  } catch {
+    // This shouldn't happen because fetchServerResponse's entire body is
+    // wrapped in a try/catch. If it does, though, it implies the server failed
+    // to respond with any tree at all. So we must fall back to a hard retry.
+    return {
+      exitStatus: NavigationTaskExitStatus.HardRetry,
+      url: url,
+      seed: null,
+    }
+  }
 }
-function finishTaskUsingDynamicDataPayload(
+
+function writeDynamicDataIntoNavigationTask(
   task: NavigationTask,
   serverRouterState: FlightRouterState,
   dynamicData: CacheNodeSeedData | null,
   dynamicHead: HeadData,
   debugInfo: Array<any> | null
-) {
+): boolean {
   if (task.status === NavigationTaskStatus.Pending && dynamicData !== null) {
+    task.status = NavigationTaskStatus.Fulfilled
     finishPendingCacheNode(task.node, dynamicData, dynamicHead, debugInfo)
   }
 
   const taskChildren = task.children
   const serverChildren = serverRouterState[1]
   const dynamicDataChildren = dynamicData !== null ? dynamicData[1] : null
+
+  // Detect whether the server sends a parallel route slot that the client
+  // doesn't know about.
+  let didReceiveUnknownParallelRoute = false
 
   if (taskChildren !== null) {
     for (const parallelRouteKey in serverChildren) {
@@ -1282,7 +1501,22 @@ function finishTaskUsingDynamicDataPayload(
           : null
 
       const taskChild = taskChildren.get(parallelRouteKey)
-      if (taskChild !== undefined) {
+      if (taskChild === undefined) {
+        // The server sent a child segment that the client doesn't know about.
+        //
+        // When we receive an unknown parallel route, we must consider it a
+        // mismatch. This is unlike the case where the segment itself
+        // mismatches, because multiple routes can be active simultaneously.
+        // But a given layout should never have a mismatching set of
+        // child slots.
+        //
+        // Theoretically, this should only happen in development during an HMR
+        // refresh, because the set of parallel routes for a layout does not
+        // change over the lifetime of a build/deployment. In production, we
+        // should have already mismatched on either the build id or the segment
+        // path. But as an extra precaution, we validate in prod, too.
+        didReceiveUnknownParallelRoute = true
+      } else {
         const taskSegment = taskChild.route[0]
         if (
           matchSegment(serverRouterStateChild[0], taskSegment) &&
@@ -1290,17 +1524,23 @@ function finishTaskUsingDynamicDataPayload(
           dynamicDataChild !== undefined
         ) {
           // Found a match for this task. Keep traversing down the task tree.
-          finishTaskUsingDynamicDataPayload(
-            taskChild,
-            serverRouterStateChild,
-            dynamicDataChild,
-            dynamicHead,
-            debugInfo
-          )
+          const childDidReceiveUnknownParallelRoute =
+            writeDynamicDataIntoNavigationTask(
+              taskChild,
+              serverRouterStateChild,
+              dynamicDataChild,
+              dynamicHead,
+              debugInfo
+            )
+          if (childDidReceiveUnknownParallelRoute) {
+            didReceiveUnknownParallelRoute = true
+          }
         }
       }
     }
   }
+
+  return didReceiveUnknownParallelRoute
 }
 
 function finishPendingCacheNode(
@@ -1367,18 +1607,61 @@ function abortRemainingPendingTasks(
   task: NavigationTask,
   error: any,
   debugInfo: Array<any> | null
-): void {
+): NavigationTaskExitStatus {
+  let exitStatus
   if (task.status === NavigationTaskStatus.Pending) {
+    // The data for this segment is still missing.
     task.status = NavigationTaskStatus.Rejected
     abortPendingCacheNode(task.node, error, debugInfo)
+
+    // If the server failed to fulfill the data for this segment, it implies
+    // that the route tree received from the server mismatched the tree that
+    // was previously prefetched.
+    //
+    // In an app with fully static routes and no proxy-driven redirects or
+    // rewrites, this should never happen, because the route for a URL would
+    // always be the same across multiple requests. So, this implies that some
+    // runtime routing condition changed, likely in a proxy, without being
+    // pushed to the client.
+    //
+    // When this happens, we treat this the same as a refresh(). The entire
+    // tree will be re-rendered from the root.
+    if (task.refreshUrl === null) {
+      // Trigger a "soft" refresh. Essentially the same as calling `refresh()`
+      // in a Server Action.
+      exitStatus = NavigationTaskExitStatus.SoftRetry
+    } else {
+      // The mismatch was discovered inside an inactive parallel route. This
+      // implies the inactive parallel route is no longer reachable at the URL
+      // that originally rendered it. Fall back to an MPA refresh.
+      // TODO: An alternative could be to trigger a soft refresh but to _not_
+      // re-use the inactive parallel routes this time. Similar to what would
+      // happen if were to do a hard refrehs, but without the HTML page.
+      exitStatus = NavigationTaskExitStatus.HardRetry
+    }
+  } else {
+    // This segment finished. (An error here is treated as Done because they are
+    // surfaced to the application during render.)
+    exitStatus = NavigationTaskExitStatus.Done
   }
 
   const taskChildren = task.children
   if (taskChildren !== null) {
     for (const [, taskChild] of taskChildren) {
-      abortRemainingPendingTasks(taskChild, error, debugInfo)
+      const childExitStatus = abortRemainingPendingTasks(
+        taskChild,
+        error,
+        debugInfo
+      )
+      // Propagate the exit status up the tree. The statuses are ordered by
+      // their precedence.
+      if (childExitStatus > exitStatus) {
+        exitStatus = childExitStatus
+      }
     }
   }
+
+  return exitStatus
 }
 
 function abortPendingCacheNode(
@@ -1449,7 +1732,7 @@ type DeferredRsc<T extends React.ReactNode = React.ReactNode> =
 // compromise to avoid adding an extra field on every Cache Node, which would be
 // awkward because the pre-PPR parts of codebase would need to account for it,
 // too. We can remove it once type Cache Node type is more settled.
-function isDeferredRsc(value: any): value is DeferredRsc {
+export function isDeferredRsc(value: any): value is DeferredRsc {
   return value && typeof value === 'object' && value.tag === DEFERRED
 }
 

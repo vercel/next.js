@@ -12,7 +12,7 @@ import type { NormalizedFlightData } from '../../flight-data-helpers'
 import { fetchServerResponse } from '../router-reducer/fetch-server-response'
 import {
   startPPRNavigation,
-  listenForDynamicRequest,
+  spawnDynamicRequests,
   FreshnessPolicy,
   type NavigationTask,
   type NavigationRequestAccumulation,
@@ -238,15 +238,7 @@ export function navigateToSeededRoute(
     accumulation
   )
   if (task !== null) {
-    if (task.dynamicRequestTree !== null) {
-      listenForDynamicRequest(
-        url,
-        nextUrl,
-        task,
-        task.dynamicRequestTree,
-        accumulation
-      )
-    }
+    spawnDynamicRequests(task, url, nextUrl, accumulation)
     return navigationTaskToResult(
       task,
       canonicalUrl,
@@ -308,15 +300,7 @@ function navigateUsingPrefetchedRouteTree(
     accumulation
   )
   if (task !== null) {
-    if (task.dynamicRequestTree !== null) {
-      listenForDynamicRequest(
-        url,
-        nextUrl,
-        task,
-        task.dynamicRequestTree,
-        accumulation
-      )
-    }
+    spawnDynamicRequests(task, url, nextUrl, accumulation)
     return navigationTaskToResult(
       task,
       canonicalUrl,
@@ -581,7 +565,7 @@ async function navigateDynamicallyWithNoPrefetch(
   )
 }
 
-type NavigationSeed = {
+export type NavigationSeed = {
   tree: FlightRouterState
   renderedSearch: string
   data: CacheNodeSeedData | null
