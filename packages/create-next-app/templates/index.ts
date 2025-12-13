@@ -14,7 +14,7 @@ import { Bundler, GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.0";
+const nextjsReactPeerVersion = "19.2.2";
 function sorted(obj: Record<string, string>) {
   return Object.keys(obj)
     .sort()
@@ -338,6 +338,19 @@ export const installTemplate = async ({
       path.join(root, "pnpm-workspace.yaml"),
       pnpmWorkspaceYaml,
     );
+  }
+
+  if (packageManager === "bun") {
+    // Equivalent to pnpm's `ignoredBuiltDependencies`, added in bun 1.3.2.
+    // - https://bun.com/blog/bun-v1.3.2#faster-bun-install
+    // - https://github.com/oven-sh/bun/pull/24283
+    // Bun ignores `sharp` by default, but does not ignore `unrs-resolver`
+    // unless configured.
+    packageJson.ignoreScripts = ["sharp", "unrs-resolver"];
+    // The script must be in *both* `ignoreScripts` and `trustedDependencies` to
+    // suppress the warning. This could change in future versions of Bun.
+    // https://vercel.slack.com/archives/C06DNAH5LSG/p1763582930218709?thread_ts=1763580178.004169&cid=C06DNAH5LSG
+    packageJson.trustedDependencies = ["sharp", "unrs-resolver"];
   }
 
   await fs.writeFile(

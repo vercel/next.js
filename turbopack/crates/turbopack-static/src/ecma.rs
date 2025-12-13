@@ -5,7 +5,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     source::Source,
@@ -56,6 +56,16 @@ impl Module for StaticUrlJsModule {
             ident = ident.with_modifier(format!("tag {}", tag).into());
         }
         ident
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectFree.cell()
     }
 }
 

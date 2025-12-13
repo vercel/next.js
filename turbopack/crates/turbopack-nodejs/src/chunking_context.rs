@@ -18,10 +18,11 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         ModuleGraph,
+        binding_usage_info::{BindingUsageInfo, ModuleExportUsage},
         chunk_group_info::ChunkGroup,
-        export_usage::{ExportUsageInfo, ModuleExportUsage},
     },
     output::{OutputAsset, OutputAssets},
+    reference::ModuleReference,
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
@@ -75,6 +76,11 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn nested_async_availability(mut self, enable_nested_async_availability: bool) -> Self {
+        self.chunking_context.enable_nested_async_availability = enable_nested_async_availability;
+        self
+    }
+
     pub fn module_merging(mut self, enable_module_merging: bool) -> Self {
         self.chunking_context.enable_module_merging = enable_module_merging;
         self
@@ -112,8 +118,16 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    pub fn export_usage(mut self, export_usage: Option<ResolvedVc<ExportUsageInfo>>) -> Self {
+    pub fn export_usage(mut self, export_usage: Option<ResolvedVc<BindingUsageInfo>>) -> Self {
         self.chunking_context.export_usage = export_usage;
+        self
+    }
+
+    pub fn unused_references(
+        mut self,
+        unused_references: Option<ResolvedVc<BindingUsageInfo>>,
+    ) -> Self {
+        self.chunking_context.unused_references = unused_references;
         self
     }
 
@@ -151,16 +165,19 @@ pub struct NodeJsChunkingContext {
     /// This path is used to compute the url to request chunks or assets from
     client_root: FileSystemPath,
     /// This path is used to compute the url to request chunks or assets from
+    #[bincode(with = "turbo_bincode::indexmap")]
     client_roots: FxIndexMap<RcStr, FileSystemPath>,
     /// Chunks are placed at this path
     chunk_root_path: FileSystemPath,
     /// Static assets are placed at this path
     asset_root_path: FileSystemPath,
     /// Static assets are placed at this path
+    #[bincode(with = "turbo_bincode::indexmap")]
     asset_root_paths: FxIndexMap<RcStr, FileSystemPath>,
     /// Static assets requested from this url base
     asset_prefix: Option<RcStr>,
     /// Static assets requested from this url base
+    #[bincode(with = "turbo_bincode::indexmap")]
     asset_prefixes: FxIndexMap<RcStr, RcStr>,
     /// The environment chunks will be evaluated in.
     environment: ResolvedVc<Environment>,
@@ -168,6 +185,8 @@ pub struct NodeJsChunkingContext {
     runtime_type: RuntimeType,
     /// Enable tracing for this chunking
     enable_file_tracing: bool,
+    /// Enable nested async availability for this chunking
+    enable_nested_async_availability: bool,
     /// Enable module merging
     enable_module_merging: bool,
     /// Enable dynamic chunk content loading.
@@ -181,7 +200,9 @@ pub struct NodeJsChunkingContext {
     /// The strategy to use for generating module ids
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     /// The module export usage info, if available.
-    export_usage: Option<ResolvedVc<ExportUsageInfo>>,
+    export_usage: Option<ResolvedVc<BindingUsageInfo>>,
+    /// Which references are unused and should be skipped (e.g. during codegen).
+    unused_references: Option<ResolvedVc<BindingUsageInfo>>,
     /// The strategy to use for generating source map source uris
     source_map_source_type: SourceMapSourceType,
     /// The chunking configs
@@ -215,6 +236,7 @@ impl NodeJsChunkingContext {
                 asset_prefix: None,
                 asset_prefixes: Default::default(),
                 enable_file_tracing: false,
+                enable_nested_async_availability: false,
                 enable_module_merging: false,
                 enable_dynamic_chunk_content_loading: false,
                 environment,
@@ -225,6 +247,7 @@ impl NodeJsChunkingContext {
                 source_map_source_type: SourceMapSourceType::TurbopackUri,
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
                 export_usage: None,
+                unused_references: None,
                 chunking_configs: Default::default(),
                 debug_ids: false,
             },
@@ -307,6 +330,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
+    fn is_nested_async_availability_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_nested_async_availability)
+    }
+
+    #[turbo_tasks::function]
     fn is_module_merging_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_module_merging)
     }
@@ -374,6 +402,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     fn reference_chunk_source_maps(&self, _chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool> {
         Vc::cell(match self.source_maps_type {
             SourceMapsType::Full => true,
+            SourceMapsType::Partial => true,
             SourceMapsType::None => false,
         })
     }
@@ -382,6 +411,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     fn reference_module_source_maps(&self, _module: Vc<Box<dyn Module>>) -> Vc<bool> {
         Vc::cell(match self.source_maps_type {
             SourceMapsType::Full => true,
+            SourceMapsType::Partial => true,
             SourceMapsType::None => false,
         })
     }
@@ -598,9 +628,21 @@ impl ChunkingContext for NodeJsChunkingContext {
         if let Some(export_usage) = self.await?.export_usage {
             Ok(export_usage.await?.used_exports(module).await?)
         } else {
-            // In development mode, we don't have export usage info, so we assume all exports are
-            // used.
             Ok(ModuleExportUsage::all())
+        }
+    }
+
+    #[turbo_tasks::function]
+    async fn is_reference_unused(
+        self: Vc<Self>,
+        reference: ResolvedVc<Box<dyn ModuleReference>>,
+    ) -> Result<Vc<bool>> {
+        if let Some(unused_references) = self.await?.unused_references {
+            Ok(Vc::cell(
+                unused_references.await?.is_reference_unused(&reference),
+            ))
+        } else {
+            Ok(Vc::cell(false))
         }
     }
 

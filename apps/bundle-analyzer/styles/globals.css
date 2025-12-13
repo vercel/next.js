@@ -21,6 +21,8 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
+  --polyfill: oklch(0.478 0.0185 252.37);
+  --polyfill-foreground: oklch(0.99 0 0);
   --radius: 0.625rem;
 }
 
@@ -42,6 +44,8 @@
   --border: oklch(0.269 0 0);
   --input: oklch(0.269 0 0);
   --ring: oklch(0.439 0 0);
+  --polyfill: oklch(0.478 0.0185 252.37);
+  --polyfill-foreground: oklch(0.99 0 0);
 }
 
 @theme inline {
@@ -64,6 +68,8 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-polyfill: var(--polyfill);
+  --color-polyfill-foreground: var(--polyfill-foreground);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

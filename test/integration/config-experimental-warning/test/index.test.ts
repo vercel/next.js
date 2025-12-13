@@ -16,7 +16,7 @@ const appDir = join(__dirname, '..')
 const configFile = new File(join(appDir, '/next.config.js'))
 const configFileMjs = new File(join(appDir, '/next.config.mjs'))
 
-const experimentalHeader = ' - Experiments (use with caution):'
+const experimentalHeader = '- Experiments (use with caution):'
 
 let app
 async function collectStdoutFromDev(appDir) {

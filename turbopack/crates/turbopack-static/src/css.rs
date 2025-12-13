@@ -4,7 +4,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     output::OutputAsset,
     source::Source,
 };
@@ -44,6 +44,17 @@ impl Module for StaticUrlCssModule {
             ident = ident.with_modifier(format!("tag {}", tag).into());
         }
         ident
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
+
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectFree.cell()
     }
 }
 

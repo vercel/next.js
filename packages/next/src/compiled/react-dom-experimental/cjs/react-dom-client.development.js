@@ -588,14 +588,16 @@
       return requiredContext(contextStackCursor.current);
     }
     function pushHostContext(fiber) {
-      null !== fiber.memoizedState &&
-        push(hostTransitionProviderCursor, fiber, fiber);
-      var context = requiredContext(contextStackCursor.current);
+      var stateHook = fiber.memoizedState;
+      null !== stateHook &&
+        ((HostTransitionContext._currentValue = stateHook.memoizedState),
+        push(hostTransitionProviderCursor, fiber, fiber));
+      stateHook = requiredContext(contextStackCursor.current);
       var type = fiber.type;
-      var nextContext = getChildHostContextProd(context.context, type);
-      type = updatedAncestorInfoDev(context.ancestorInfo, type);
+      var nextContext = getChildHostContextProd(stateHook.context, type);
+      type = updatedAncestorInfoDev(stateHook.ancestorInfo, type);
       nextContext = { context: nextContext, ancestorInfo: type };
-      context !== nextContext &&
+      stateHook !== nextContext &&
         (push(contextFiberStackCursor, fiber, fiber),
         push(contextStackCursor, nextContext, fiber));
     }
@@ -5093,6 +5095,7 @@
           (workInProgress.flags = 0),
           (workInProgress.subtreeFlags = 0),
           (workInProgress.deletions = null),
+          (workInProgress.key = current.key),
           (workInProgress.actualDuration = -0),
           (workInProgress.actualStartTime = -1.1));
       workInProgress.flags = current.flags & 132120576;
@@ -5156,6 +5159,7 @@
           (workInProgress.memoizedState = current.memoizedState),
           (workInProgress.updateQueue = current.updateQueue),
           (workInProgress.type = current.type),
+          (workInProgress.key = current.key),
           (renderLanes = current.dependencies),
           (workInProgress.dependencies =
             null === renderLanes
@@ -6599,9 +6603,14 @@
       }
       function mapRemainingChildren(currentFirstChild) {
         for (var existingChildren = new Map(); null !== currentFirstChild; )
-          null !== currentFirstChild.key
-            ? existingChildren.set(currentFirstChild.key, currentFirstChild)
-            : existingChildren.set(currentFirstChild.index, currentFirstChild),
+          null === currentFirstChild.key
+            ? existingChildren.set(currentFirstChild.index, currentFirstChild)
+            : currentFirstChild.key === REACT_OPTIMISTIC_KEY
+              ? existingChildren.set(
+                  -currentFirstChild.index - 1,
+                  currentFirstChild
+                )
+              : existingChildren.set(currentFirstChild.key, currentFirstChild),
             (currentFirstChild = currentFirstChild.sibling);
         return existingChildren;
       }
@@ -6697,12 +6706,13 @@
           current.stateNode.implementation !== portal.implementation
         )
           return (
-            (current = createFiberFromPortal(portal, returnFiber.mode, lanes)),
-            (current.return = returnFiber),
-            (current._debugInfo = currentDebugInfo),
-            current
+            (portal = createFiberFromPortal(portal, returnFiber.mode, lanes)),
+            (portal.return = returnFiber),
+            (portal._debugInfo = currentDebugInfo),
+            portal
           );
         current = useFiber(current, portal.children || []);
+        current.key = portal.key;
         current.return = returnFiber;
         current._debugInfo = currentDebugInfo;
         return current;
@@ -6710,19 +6720,20 @@
       function updateFragment(returnFiber, current, fragment, lanes, key) {
         if (null === current || 7 !== current.tag)
           return (
-            (current = createFiberFromFragment(
+            (key = createFiberFromFragment(
               fragment,
               returnFiber.mode,
               lanes,
               key
             )),
-            (current.return = returnFiber),
-            (current._debugOwner = returnFiber),
-            (current._debugTask = returnFiber._debugTask),
-            (current._debugInfo = currentDebugInfo),
-            current
+            (key.return = returnFiber),
+            (key._debugOwner = returnFiber),
+            (key._debugTask = returnFiber._debugTask),
+            (key._debugInfo = currentDebugInfo),
+            key
           );
         current = useFiber(current, fragment);
+        current.key = key;
         current.return = returnFiber;
         current._debugInfo = currentDebugInfo;
         return current;
@@ -6931,7 +6942,9 @@
                 (newIdx =
                   existingChildren.get(
                     null === newChild.key ? newIdx : newChild.key
-                  ) || null),
+                  ) ||
+                  existingChildren.get(-newIdx - 1) ||
+                  null),
                 (existingChildren = pushDebugInfo(newChild._debugInfo)),
                 (returnFiber = updateElement(
                   returnFiber,
@@ -6947,7 +6960,9 @@
                 (existingChildren =
                   existingChildren.get(
                     null === newChild.key ? newIdx : newChild.key
-                  ) || null),
+                  ) ||
+                  existingChildren.get(-newIdx - 1) ||
+                  null),
                 updatePortal(returnFiber, existingChildren, newChild, lanes)
               );
             case REACT_LAZY_TYPE:
@@ -7133,10 +7148,13 @@
                 knownKeys
               )),
               shouldTrackSideEffects &&
-                null !== nextOldFiber.alternate &&
-                oldFiber.delete(
-                  null === nextOldFiber.key ? newIdx : nextOldFiber.key
-                ),
+                ((newFiber = nextOldFiber.alternate),
+                null !== newFiber &&
+                  (newFiber.key === REACT_OPTIMISTIC_KEY
+                    ? oldFiber.delete(-newIdx - 1)
+                    : oldFiber.delete(
+                        null === newFiber.key ? newIdx : newFiber.key
+                      ))),
               (currentFirstChild = placeChild(
                 nextOldFiber,
                 currentFirstChild,
@@ -7276,10 +7294,11 @@
                 knownKeys
               )),
               shouldTrackSideEffects &&
-                null !== nextOldFiber.alternate &&
-                oldFiber.delete(
-                  null === nextOldFiber.key ? newIdx : nextOldFiber.key
-                ),
+                ((step = nextOldFiber.alternate),
+                null !== step &&
+                  (step.key === REACT_OPTIMISTIC_KEY
+                    ? oldFiber.delete(-newIdx - 1)
+                    : oldFiber.delete(null === step.key ? newIdx : step.key))),
               (currentFirstChild = placeChild(
                 nextOldFiber,
                 currentFirstChild,
@@ -7315,9 +7334,12 @@
               var prevDebugInfo = pushDebugInfo(newChild._debugInfo);
               a: {
                 for (var key = newChild.key; null !== currentFirstChild; ) {
-                  if (currentFirstChild.key === key) {
-                    key = newChild.type;
-                    if (key === REACT_FRAGMENT_TYPE) {
+                  if (
+                    currentFirstChild.key === key ||
+                    currentFirstChild.key === REACT_OPTIMISTIC_KEY
+                  ) {
+                    var elementType = newChild.type;
+                    if (elementType === REACT_FRAGMENT_TYPE) {
                       if (7 === currentFirstChild.tag) {
                         deleteRemainingChildren(
                           returnFiber,
@@ -7327,6 +7349,7 @@
                           currentFirstChild,
                           newChild.props.children
                         );
+                        lanes.key = key;
                         coerceRef(lanes, newChild);
                         lanes.return = returnFiber;
                         lanes._debugOwner = newChild._owner;
@@ -7336,21 +7359,22 @@
                         break a;
                       }
                     } else if (
-                      currentFirstChild.elementType === key ||
+                      currentFirstChild.elementType === elementType ||
                       isCompatibleFamilyForHotReloading(
                         currentFirstChild,
                         newChild
                       ) ||
-                      ("object" === typeof key &&
-                        null !== key &&
-                        key.$$typeof === REACT_LAZY_TYPE &&
-                        resolveLazy(key) === currentFirstChild.type)
+                      ("object" === typeof elementType &&
+                        null !== elementType &&
+                        elementType.$$typeof === REACT_LAZY_TYPE &&
+                        resolveLazy(elementType) === currentFirstChild.type)
                     ) {
                       deleteRemainingChildren(
                         returnFiber,
                         currentFirstChild.sibling
                       );
                       lanes = useFiber(currentFirstChild, newChild.props);
+                      lanes.key = key;
                       coerceRef(lanes, newChild);
                       lanes.return = returnFiber;
                       lanes._debugOwner = newChild._owner;
@@ -7392,19 +7416,21 @@
               return returnFiber;
             case REACT_PORTAL_TYPE:
               a: {
-                prevDebugInfo = newChild;
                 for (
-                  newChild = prevDebugInfo.key;
+                  prevDebugInfo = newChild.key;
                   null !== currentFirstChild;
 
                 ) {
-                  if (currentFirstChild.key === newChild)
+                  if (
+                    currentFirstChild.key === prevDebugInfo ||
+                    currentFirstChild.key === REACT_OPTIMISTIC_KEY
+                  )
                     if (
                       4 === currentFirstChild.tag &&
                       currentFirstChild.stateNode.containerInfo ===
-                        prevDebugInfo.containerInfo &&
+                        newChild.containerInfo &&
                       currentFirstChild.stateNode.implementation ===
-                        prevDebugInfo.implementation
+                        newChild.implementation
                     ) {
                       deleteRemainingChildren(
                         returnFiber,
@@ -7412,8 +7438,9 @@
                       );
                       lanes = useFiber(
                         currentFirstChild,
-                        prevDebugInfo.children || []
+                        newChild.children || []
                       );
+                      lanes.key = prevDebugInfo;
                       lanes.return = returnFiber;
                       returnFiber = lanes;
                       break a;
@@ -7425,7 +7452,7 @@
                   currentFirstChild = currentFirstChild.sibling;
                 }
                 lanes = createFiberFromPortal(
-                  prevDebugInfo,
+                  newChild,
                   returnFiber.mode,
                   lanes
                 );
@@ -7466,14 +7493,14 @@
               throw Error(
                 "An object is not an iterable. This error is likely caused by a bug in React. Please file an issue."
               );
-            var newChildren = key.call(newChild);
-            if (newChildren === newChild) {
+            elementType = key.call(newChild);
+            if (elementType === newChild) {
               if (
                 0 !== returnFiber.tag ||
                 "[object GeneratorFunction]" !==
                   Object.prototype.toString.call(returnFiber.type) ||
                 "[object Generator]" !==
-                  Object.prototype.toString.call(newChildren)
+                  Object.prototype.toString.call(elementType)
               )
                 didWarnAboutGenerators ||
                   console.error(
@@ -7490,7 +7517,7 @@
             returnFiber = reconcileChildrenIterator(
               returnFiber,
               currentFirstChild,
-              newChildren,
+              elementType,
               lanes
             );
             currentDebugInfo = prevDebugInfo;
@@ -25613,21 +25640,6 @@
       var computedStyle = getComputedStyle(instance);
       return createMeasurement(measuredRect, computedStyle, instance);
     }
-    function cancelAllViewTransitionAnimations(scope) {
-      for (
-        var animations = scope.getAnimations({ subtree: !0 }), i = 0;
-        i < animations.length;
-        i++
-      ) {
-        var anim = animations[i],
-          effect = anim.effect,
-          pseudo = effect.pseudoElement;
-        null != pseudo &&
-          pseudo.startsWith("::view-transition") &&
-          effect.target === scope &&
-          anim.cancel();
-      }
-    }
     function customizeViewTransitionError(error, ignoreAbort) {
       if ("object" === typeof error && null !== error)
         switch (error.name) {
@@ -25762,6 +25774,7 @@
           types: transitionTypes
         });
         ownerDocument.__reactViewTransition = transition;
+        var viewTransitionAnimations = [];
         transition.ready.then(
           function () {
             for (
@@ -25772,25 +25785,26 @@
               i < animations.length;
               i++
             ) {
-              var effect = animations[i].effect,
+              var animation = animations[i],
+                effect = animation.effect,
                 pseudoElement = effect.pseudoElement;
               if (
                 null != pseudoElement &&
                 pseudoElement.startsWith("::view-transition")
               ) {
-                pseudoElement = effect.getKeyframes();
+                viewTransitionAnimations.push(animation);
+                animation = effect.getKeyframes();
                 for (
-                  var width = void 0,
-                    height = void 0,
+                  var height = (pseudoElement = void 0),
                     unchangedDimensions = !0,
                     j = 0;
-                  j < pseudoElement.length;
+                  j < animation.length;
                   j++
                 ) {
-                  var keyframe = pseudoElement[j],
+                  var keyframe = animation[j],
                     w = keyframe.width;
-                  if (void 0 === width) width = w;
-                  else if (width !== w) {
+                  if (void 0 === pseudoElement) pseudoElement = w;
+                  else if (pseudoElement !== w) {
                     unchangedDimensions = !1;
                     break;
                   }
@@ -25805,23 +25819,22 @@
                   "none" === keyframe.transform && delete keyframe.transform;
                 }
                 unchangedDimensions &&
-                  void 0 !== width &&
+                  void 0 !== pseudoElement &&
                   void 0 !== height &&
-                  (effect.setKeyframes(pseudoElement),
+                  (effect.setKeyframes(animation),
                   (unchangedDimensions = getComputedStyle(
                     effect.target,
                     effect.pseudoElement
                   )),
-                  unchangedDimensions.width !== width ||
+                  unchangedDimensions.width !== pseudoElement ||
                     unchangedDimensions.height !== height) &&
-                  ((unchangedDimensions = pseudoElement[0]),
-                  (unchangedDimensions.width = width),
+                  ((unchangedDimensions = animation[0]),
+                  (unchangedDimensions.width = pseudoElement),
                   (unchangedDimensions.height = height),
-                  (unchangedDimensions =
-                    pseudoElement[pseudoElement.length - 1]),
-                  (unchangedDimensions.width = width),
+                  (unchangedDimensions = animation[animation.length - 1]),
+                  (unchangedDimensions.width = pseudoElement),
                   (unchangedDimensions.height = height),
-                  effect.setKeyframes(pseudoElement));
+                  effect.setKeyframes(animation));
               }
             }
             spawnedWorkCallback();
@@ -25841,7 +25854,8 @@
           }
         );
         transition.finished.finally(function () {
-          cancelAllViewTransitionAnimations(ownerDocument.documentElement);
+          for (var i = 0; i < viewTransitionAnimations.length; i++)
+            viewTransitionAnimations[i].cancel();
           ownerDocument.__reactViewTransition === transition &&
             (ownerDocument.__reactViewTransition = null);
           finishedAnimation();
@@ -25979,6 +25993,7 @@
         });
         ownerDocument.__reactViewTransition = transition;
         var customTimelineCleanup = [],
+          viewTransitionAnimations = [],
           readyCallback = function () {
             for (
               var documentElement = ownerDocument.documentElement,
@@ -25994,7 +26009,8 @@
                 pseudoElement = effect.pseudoElement;
               null != pseudoElement &&
                 pseudoElement.startsWith("::view-transition") &&
-                ((effect = effect.getTiming()),
+                (viewTransitionAnimations.push(animations[i]),
+                (effect = effect.getTiming()),
                 (effect =
                   effect.delay +
                   ("number" === typeof effect.duration ? effect.duration : 0)),
@@ -26097,8 +26113,9 @@
           }
         });
         transition.finished.finally(function () {
-          cancelAllViewTransitionAnimations(ownerDocument.documentElement);
-          for (var i = 0; i < customTimelineCleanup.length; i++)
+          for (var i = 0; i < viewTransitionAnimations.length; i++)
+            viewTransitionAnimations[i].cancel();
+          for (i = 0; i < customTimelineCleanup.length; i++)
             (0, customTimelineCleanup[i])();
           ownerDocument.__reactViewTransition === transition &&
             (ownerDocument.__reactViewTransition = null);
@@ -28263,6 +28280,7 @@
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
+      REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
       REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
       isArrayImpl = Array.isArray,
       ReactSharedInternals =
@@ -32418,11 +32436,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-93fc5740-20251113" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-b45bb335-20251211" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-93fc5740-20251113\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-b45bb335-20251211\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -32459,10 +32477,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-93fc5740-20251113",
+          version: "19.3.0-experimental-b45bb335-20251211",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-93fc5740-20251113"
+          reconcilerVersion: "19.3.0-experimental-b45bb335-20251211"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -32610,7 +32628,7 @@
       listenToAllSupportedEvents(container);
       return new ReactDOMHydrationRoot(initialChildren);
     };
-    exports.version = "19.3.0-experimental-93fc5740-20251113";
+    exports.version = "19.3.0-experimental-b45bb335-20251211";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

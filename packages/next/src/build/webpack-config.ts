@@ -4,6 +4,7 @@ import { yellow, bold } from '../lib/picocolors'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
+import fs from 'fs'
 
 import { getDefineEnv } from './define-env'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
@@ -95,14 +96,19 @@ import type { NextBuildContext } from './build-context'
 import type { RootParamsLoaderOpts } from './webpack/loaders/next-root-params-loader'
 import type { InvalidImportLoaderOpts } from './webpack/loaders/next-invalid-import-error-loader'
 import { defaultOverrides } from '../server/require-hook'
+import JSON5 from 'next/dist/compiled/json5'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
   [key: string]: string | string[]
 }
 
-const EXTERNAL_PACKAGES =
-  require('../lib/server-external-packages.json') as string[]
+const EXTERNAL_PACKAGES = JSON5.parse(
+  fs.readFileSync(
+    path.join(__dirname, '../lib/server-external-packages.jsonc'),
+    'utf8'
+  )
+) as string[]
 
 const DEFAULT_TRANSPILED_PACKAGES =
   require('../lib/default-transpiled-packages.json') as string[]

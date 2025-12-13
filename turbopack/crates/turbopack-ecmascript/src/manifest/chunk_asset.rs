@@ -7,7 +7,7 @@ use turbopack_core::{
         ChunkableModule, ChunkingContext, ChunkingContextExt, availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::{
         ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
     },
@@ -78,7 +78,7 @@ impl ManifestAsyncModule {
             let module_or_batch = batches.get_entry(inner_module).await?;
             if let Some(chunkable_module_or_batch) =
                 ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
-                && *chunk_items.get(chunkable_module_or_batch).await?
+                && *chunk_items.get(chunkable_module_or_batch.into()).await?
             {
                 return Ok(OutputAssetsWithReferenced {
                     assets: ResolvedVc::cell(vec![]),
@@ -125,6 +125,11 @@ impl Module for ManifestAsyncModule {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let assets = self.chunk_group().expand_all_assets().await?;
 
@@ -145,6 +150,11 @@ impl Module for ManifestAsyncModule {
                 .try_join()
                 .await?,
         ))
+    }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectFree.cell()
     }
 }
 

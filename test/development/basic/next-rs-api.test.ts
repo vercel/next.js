@@ -229,6 +229,7 @@ async function main() {
     },
     browserslistQuery: 'last 2 versions',
     noMangling: false,
+    writeRoutesHashesManifest: false,
     currentNodeJsVersion: '18.0.0',
   });
 
@@ -386,6 +387,7 @@ describe('next.rs api', () => {
       },
       browserslistQuery: 'last 2 versions',
       noMangling: false,
+      writeRoutesHashesManifest: false,
       currentNodeJsVersion: '18.0.0',
     })
     projectUpdateSubscription = filterMapAsyncIterator(

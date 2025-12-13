@@ -136,7 +136,10 @@ fn next_font_loaders_errors(input: PathBuf) {
         &|_tr| {
             next_font_loaders(FontLoaderConfig {
                 relative_file_path_from_root: atom!("pages/test.tsx"),
-                font_loaders: vec![atom!("@next/font/google"), atom!("cool-fonts")],
+                font_loaders: vec![
+                    atom!("@next/font/google").into(),
+                    atom!("cool-fonts").into(),
+                ],
             })
         },
         &input,

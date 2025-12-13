@@ -44,13 +44,13 @@ use std::{
 
 use anyhow::{Context, Result, anyhow, bail};
 use auto_hash_map::{AutoMap, AutoSet};
+use bincode::{Decode, Encode};
 use bitflags::bitflags;
 use dunce::simplified;
 use indexmap::IndexSet;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use rustc_hash::FxHashSet;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tracing::Instrument;
@@ -252,31 +252,31 @@ struct DiskFileSystemApplyContext {
     created_directories: FxHashSet<PathBuf>,
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 struct DiskFileSystemInner {
     pub name: RcStr,
     pub root: RcStr,
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[serde(skip)]
+    #[bincode(skip)]
     mutex_map: MutexMap<PathBuf>,
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[serde(skip)]
+    #[bincode(skip)]
     invalidator_map: InvalidatorMap,
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[serde(skip)]
+    #[bincode(skip)]
     dir_invalidator_map: InvalidatorMap,
     /// Lock that makes invalidation atomic. It will keep a write lock during
     /// watcher invalidation and a read lock during other operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[serde(skip)]
+    #[bincode(skip)]
     invalidation_lock: RwLock<()>,
     /// Semaphore to limit the maximum number of concurrent file operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[serde(skip, default = "create_read_semaphore")]
+    #[bincode(skip, default = "create_read_semaphore")]
     read_semaphore: tokio::sync::Semaphore,
     /// Semaphore to limit the maximum number of concurrent file operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[serde(skip, default = "create_write_semaphore")]
+    #[bincode(skip, default = "create_write_semaphore")]
     write_semaphore: tokio::sync::Semaphore,
 
     #[turbo_tasks(debug_ignore, trace_ignore)]
@@ -1120,6 +1120,26 @@ impl FileSystem for DiskFileSystem {
                         PathBuf::from(unix_to_sys(target).as_ref())
                     };
                     let full_path = full_path.into_owned();
+
+                    if old_content.is_some() {
+                        // Remove existing symlink before creating a new one. At least on Unix,
+                        // symlink(2) fails with EEXIST if the link already exists instead of
+                        // overwriting it
+                        retry_blocking(full_path.clone(), |path| std::fs::remove_file(path))
+                            .concurrency_limited(&inner.write_semaphore)
+                            .await
+                            .or_else(|err| {
+                                if err.kind() == ErrorKind::NotFound {
+                                    Ok(())
+                                } else {
+                                    Err(err)
+                                }
+                            })
+                            .with_context(|| {
+                                anyhow!("removing existing symlink {} failed", full_path.display())
+                            })?;
+                    }
+
                     retry_blocking(target_path, move |target_path| {
                         let _span = tracing::info_span!(
                             "write symlink",
@@ -1438,30 +1458,27 @@ impl FileSystemPath {
         ))
     }
 
-    /// Similar to [FileSystemPath::join], but returns an Option that will be
-    /// None when the joined path would leave the filesystem root.
+    /// Similar to [FileSystemPath::join], but returns an [`Option`] that will be [`None`] when the
+    /// joined path would leave the filesystem root.
     #[allow(clippy::needless_borrow)] // for windows build
-    pub fn try_join(&self, path: &str) -> Result<Option<FileSystemPath>> {
+    pub fn try_join(&self, path: &str) -> Option<FileSystemPath> {
         // TODO(PACK-3279): Remove this once we do not produce invalid paths at the first place.
         #[cfg(target_os = "windows")]
         let path = path.replace('\\', "/");
 
-        if let Some(path) = join_path(&self.path, &path) {
-            Ok(Some(Self::new_normalized(self.fs, path.into())))
-        } else {
-            Ok(None)
-        }
+        join_path(&self.path, &path).map(|p| Self::new_normalized(self.fs, RcStr::from(p)))
     }
 
-    /// Similar to [FileSystemPath::join], but returns an Option that will be
-    /// None when the joined path would leave the current path.
-    pub fn try_join_inside(&self, path: &str) -> Result<Option<FileSystemPath>> {
-        if let Some(path) = join_path(&self.path, path)
-            && path.starts_with(&*self.path)
+    /// Similar to [FileSystemPath::try_join], but returns [`None`] when the new path would leave
+    /// the current path (not just the filesystem root). This is useful for preventing access
+    /// outside of a directory.
+    pub fn try_join_inside(&self, path: &str) -> Option<FileSystemPath> {
+        if let Some(p) = join_path(&self.path, path)
+            && p.starts_with(&*self.path)
         {
-            return Ok(Some(Self::new_normalized(self.fs, path.into())));
+            return Some(Self::new_normalized(self.fs, RcStr::from(p)));
         }
-        Ok(None)
+        None
     }
 
     /// DETERMINISM: Result is in random order. Either sort result or do not depend
@@ -1678,13 +1695,14 @@ pub struct RealPathResult {
 
 /// Errors that can occur when resolving a path with symlinks.
 /// Many of these can be transient conditions that might happen when package managers are running.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, NonLocalValue, TraceRawVcs)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
 pub enum RealPathResultError {
     TooManySymlinks,
     CycleDetected,
     Invalid,
     NotFound,
 }
+
 impl RealPathResultError {
     /// Formats the error message
     pub fn as_error_message(&self, orig: &FileSystemPath, result: &RealPathResult) -> String {
@@ -1766,12 +1784,6 @@ impl From<File> for FileContent {
     }
 }
 
-impl From<File> for Vc<FileContent> {
-    fn from(file: File) -> Self {
-        FileContent::Content(file).cell()
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum FileComparison {
     Create,
@@ -1847,7 +1859,14 @@ impl FileContent {
 }
 
 bitflags! {
-  #[derive(Default, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+  #[derive(
+    Default,
+    TraceRawVcs,
+    NonLocalValue,
+    DeterministicHash,
+    Encode,
+    Decode,
+  )]
   pub struct LinkType: u8 {
       const DIRECTORY = 0b00000001;
       const ABSOLUTE = 0b00000010;
@@ -1921,7 +1940,7 @@ impl File {
     }
 
     /// Returns a Read/AsyncRead/Stream/Iterator to access the File's contents.
-    pub fn read(&self) -> RopeReader {
+    pub fn read(&self) -> RopeReader<'_> {
         self.content.read()
     }
 }
@@ -2002,61 +2021,13 @@ impl File {
     }
 }
 
-mod mime_option_serde {
-    use std::{fmt, str::FromStr};
-
-    use mime::Mime;
-    use serde::{Deserializer, Serializer, de};
-
-    pub fn serialize<S>(mime: &Option<Mime>, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        if let Some(mime) = mime {
-            serializer.serialize_str(mime.as_ref())
-        } else {
-            serializer.serialize_str("")
-        }
-    }
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Mime>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct Visitor;
-
-        impl de::Visitor<'_> for Visitor {
-            type Value = Option<Mime>;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a valid MIME type or empty string")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<Option<Mime>, E>
-            where
-                E: de::Error,
-            {
-                if value.is_empty() {
-                    Ok(None)
-                } else {
-                    Mime::from_str(value)
-                        .map(Some)
-                        .map_err(|e| E::custom(format!("{e}")))
-                }
-            }
-        }
-
-        deserializer.deserialize_str(Visitor)
-    }
-}
-
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Default)]
 pub struct FileMeta {
     // Size of the file
     // len: u64,
     permissions: Permissions,
-    #[serde(with = "mime_option_serde")]
+    #[bincode(with = "turbo_bincode::mime_option")]
     #[turbo_tasks(trace_ignore)]
     content_type: Option<Mime>,
 }
@@ -2325,7 +2296,7 @@ pub enum FileLinesContent {
     NotFound,
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum RawDirectoryEntry {
     File,
     Directory,
@@ -2334,7 +2305,7 @@ pub enum RawDirectoryEntry {
     Other,
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum DirectoryEntry {
     File(FileSystemPath),
     Directory(FileSystemPath),
@@ -2870,7 +2841,114 @@ mod tests {
         .unwrap();
     }
 
-    // Test helpers for denied_path tests
+    #[cfg(test)]
+    mod symlink_tests {
+        use std::{
+            fs::{File, create_dir_all, read_to_string},
+            io::Write,
+        };
+
+        use turbo_rcstr::{RcStr, rcstr};
+        use turbo_tasks::{ResolvedVc, apply_effects};
+        use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+
+        use crate::{DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkType};
+
+        #[turbo_tasks::function(operation)]
+        async fn test_write_link_effect(
+            fs: ResolvedVc<DiskFileSystem>,
+            path: FileSystemPath,
+            target: RcStr,
+        ) -> anyhow::Result<()> {
+            let write_file = |f| {
+                fs.write_link(
+                    f,
+                    LinkContent::Link {
+                        target: format!("{target}/data.txt").into(),
+                        link_type: LinkType::empty(),
+                    }
+                    .cell(),
+                )
+            };
+            // Write it twice (same content)
+            write_file(path.join("symlink-file")?).await?;
+            write_file(path.join("symlink-file")?).await?;
+
+            let write_dir = |f| {
+                fs.write_link(
+                    f,
+                    LinkContent::Link {
+                        target: target.clone(),
+                        link_type: LinkType::DIRECTORY,
+                    }
+                    .cell(),
+                )
+            };
+            // Write it twice (same content)
+            write_dir(path.join("symlink-dir")?).await?;
+            write_dir(path.join("symlink-dir")?).await?;
+
+            Ok(())
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn test_write_link() {
+            let scratch = tempfile::tempdir().unwrap();
+            let path = scratch.path().to_owned();
+
+            create_dir_all(path.join("subdir-a")).unwrap();
+            File::create_new(path.join("subdir-a/data.txt"))
+                .unwrap()
+                .write_all(b"foo")
+                .unwrap();
+            create_dir_all(path.join("subdir-b")).unwrap();
+            File::create_new(path.join("subdir-b/data.txt"))
+                .unwrap()
+                .write_all(b"bar")
+                .unwrap();
+            let root = path.to_str().unwrap().into();
+
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+
+            tt.run_once(async move {
+                let fs = DiskFileSystem::new(rcstr!("test"), root)
+                    .to_resolved()
+                    .await?;
+                let root_path = fs.root().owned().await?;
+
+                let write_result =
+                    test_write_link_effect(fs, root_path.clone(), rcstr!("subdir-a"));
+                write_result.read_strongly_consistent().await?;
+                apply_effects(write_result).await?;
+
+                assert_eq!(read_to_string(path.join("symlink-file")).unwrap(), "foo");
+                assert_eq!(
+                    read_to_string(path.join("symlink-dir/data.txt")).unwrap(),
+                    "foo"
+                );
+
+                // Write the same links again but with different targets
+                let write_result = test_write_link_effect(fs, root_path, rcstr!("subdir-b"));
+                write_result.read_strongly_consistent().await?;
+                apply_effects(write_result).await?;
+
+                assert_eq!(read_to_string(path.join("symlink-file")).unwrap(), "bar");
+                assert_eq!(
+                    read_to_string(path.join("symlink-dir/data.txt")).unwrap(),
+                    "bar"
+                );
+
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+        }
+    }
+
+    // Tests helpers for denied_path tests
     #[cfg(test)]
     mod denied_path_tests {
         use std::{

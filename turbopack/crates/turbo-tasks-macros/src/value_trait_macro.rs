@@ -176,10 +176,12 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 .emit();
         }
 
+        let is_self_used = default.as_ref().map(is_self_used).unwrap_or(false);
         let Some(turbo_fn) = TurboFn::new(
             sig,
             DefinitionContext::ValueTrait,
             FunctionArguments::default(),
+            is_self_used,
         ) else {
             return quote! {
                 // An error occurred while parsing the function signature.
@@ -194,12 +196,10 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         });
 
         let default = if let Some(default) = default {
-            let is_self_used = is_self_used(default);
             let inline_function_ident = turbo_fn.inline_ident();
             let inline_extension_trait_ident =
                 Ident::new(&format!("{trait_ident}_{ident}_inline"), ident.span());
-            let (inline_signature, inline_block) =
-                turbo_fn.inline_signature_and_block(default, is_self_used);
+            let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(default);
             let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
             let function_path_string = format!("{trait_ident}::{ident}");

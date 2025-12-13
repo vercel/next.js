@@ -66,6 +66,15 @@ declare module 'react-server-dom-webpack/client' {
     options?: Options
   ): Promise<T>
 
+  export function createFromNodeStream<T>(
+    stream: import('node:stream').Readable,
+    serverConsumerManifest: Options['serverConsumerManifest'],
+    options?: Omit<Options, 'serverConsumerManifest' | 'debugChannel'> & {
+      // For the Node.js client we only support a single-direction debug channel.
+      debugChannel?: import('node:stream').Readable
+    }
+  ): Promise<T>
+
   export function createServerReference(
     id: string,
     callServer: CallServerCallback,
@@ -106,6 +115,8 @@ declare module 'react-server-dom-webpack/client.browser' {
     replayConsoleLogs?: boolean
     temporaryReferences?: TemporaryReferenceSet
     debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
+    startTime?: number
+    endTime?: number
   }
 
   export function createFromFetch<T>(
@@ -215,9 +226,9 @@ declare module 'react-server-dom-webpack/server.node' {
   export type TemporaryReferenceSet = WeakMap<any, string>
 
   export type ImportManifestEntry = {
-    id: string
+    id: string | number
     // chunks is a double indexed array of chunkId / chunkFilename pairs
-    chunks: Array<string>
+    chunks: ReadonlyArray<string>
     name: string
     async?: boolean
   }
@@ -268,7 +279,7 @@ declare module 'react-server-dom-webpack/static' {
     webpackMap: {
       readonly [id: string]: {
         readonly id: string | number
-        readonly chunks: readonly string[]
+        readonly chunks: ReadonlyArray<string>
         readonly name: string
         readonly async?: boolean
       }
@@ -307,6 +318,8 @@ declare module 'react-server-dom-webpack/client.edge' {
     replayConsoleLogs?: boolean
     environmentName?: string
     debugChannel?: { readable?: ReadableStream }
+    startTime?: number
+    endTime?: number
   }
 
   export type EncodeFormActionCallback = <A>(

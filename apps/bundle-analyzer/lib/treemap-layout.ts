@@ -1,5 +1,7 @@
-import type { AnalyzeData } from './analyze-data'
+import type { AnalyzeData, SourceIndex } from './analyze-data'
 import { layoutTreemap } from './layout-treemap'
+import { SpecialModule } from './types'
+import { getSpecialModuleType } from './utils'
 
 export interface LayoutRect {
   x: number
@@ -10,6 +12,7 @@ export interface LayoutRect {
 
 export interface LayoutNodeInfo {
   name: string
+  size: number
   server?: boolean
   client?: boolean
 }
@@ -18,6 +21,7 @@ export interface LayoutNode extends LayoutNodeInfo {
   size: number
   rect: LayoutRect
   type: 'file' | 'directory' | 'collapsed-directory'
+  specialModuleType: SpecialModule | null
   titleBarHeight?: number
   children?: LayoutNode[]
   itemCount?: number
@@ -26,7 +30,7 @@ export interface LayoutNode extends LayoutNodeInfo {
   css?: boolean
   json?: boolean
   asset?: boolean
-  sourceIndex?: number // Track which source this node represents
+  sourceIndex?: SourceIndex // Track which source this node represents
 }
 
 interface SourceMetadata {
@@ -36,7 +40,7 @@ interface SourceMetadata {
 
 function precomputeSourceMetadata(
   analyzeData: AnalyzeData,
-  filterSource?: (sourceIndex: number) => boolean
+  filterSource?: (sourceIndex: SourceIndex) => boolean
 ): SourceMetadata[] {
   const sourceCount = analyzeData.sourceCount()
   const metadata: SourceMetadata[] = new Array(sourceCount)
@@ -62,7 +66,7 @@ function precomputeSourceMetadata(
   }
 
   // Top-down pass: aggregate child sizes and filtered status for directories
-  function processDirectory(idx: number) {
+  function processDirectory(idx: SourceIndex) {
     const children = analyzeData.sourceChildren(idx)
     if (children.length === 0) return // Already processed as leaf
 
@@ -94,11 +98,11 @@ function precomputeSourceMetadata(
 // Internal function that uses precomputed metadata
 function computeTreemapLayoutFromAnalyzeInternal(
   analyzeData: AnalyzeData,
-  sourceIndex: number,
+  sourceIndex: SourceIndex,
   foldedPath: string,
   rect: LayoutRect,
   metadata: SourceMetadata[],
-  filterSource?: (sourceIndex: number) => boolean
+  filterSource?: (sourceIndex: SourceIndex) => boolean
 ): LayoutNode {
   const source = analyzeData.source(sourceIndex)
   if (!source) {
@@ -141,6 +145,7 @@ function computeTreemapLayoutFromAnalyzeInternal(
       type: 'file',
       rect,
       sourceIndex,
+      specialModuleType: getSpecialModuleType(analyzeData, sourceIndex),
       ...analyzeData.getSourceFlags(sourceIndex),
     }
   }
@@ -160,7 +165,7 @@ function computeTreemapLayoutFromAnalyzeInternal(
 
   if (isCollapsed) {
     // Count all descendant files
-    function countDescendants(idx: number): number {
+    function countDescendants(idx: SourceIndex): number {
       const children = analyzeData.sourceChildren(idx)
       if (children.length === 0) return 1
       return children.reduce(
@@ -178,6 +183,7 @@ function computeTreemapLayoutFromAnalyzeInternal(
       itemCount: countDescendants(sourceIndex),
       children: [],
       sourceIndex,
+      specialModuleType: null,
     }
   }
 
@@ -211,6 +217,7 @@ function computeTreemapLayoutFromAnalyzeInternal(
       titleBarHeight,
       children: [],
       sourceIndex,
+      specialModuleType: null,
     }
   }
 
@@ -240,15 +247,16 @@ function computeTreemapLayoutFromAnalyzeInternal(
     titleBarHeight,
     children: layoutChildren,
     sourceIndex,
+    specialModuleType: null,
   }
 }
 
 // Public function that precomputes metadata and calls internal function
 export function computeTreemapLayoutFromAnalyze(
   analyzeData: AnalyzeData,
-  sourceIndex: number,
+  sourceIndex: SourceIndex,
   rect: LayoutRect,
-  filterSource?: (sourceIndex: number) => boolean
+  filterSource?: (sourceIndex: SourceIndex) => boolean
 ): LayoutNode {
   // Precompute metadata once for entire tree
   const metadata = precomputeSourceMetadata(analyzeData, filterSource)

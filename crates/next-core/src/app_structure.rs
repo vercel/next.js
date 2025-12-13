@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use indexmap::map::{Entry, OccupiedEntry};
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -37,31 +37,18 @@ fn normalize_underscore(string: &str) -> String {
 #[turbo_tasks::value]
 #[derive(Default, Debug, Clone)]
 pub struct AppDirModules {
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub layout: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub global_error: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub global_not_found: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub loading: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub template: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub forbidden: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub unauthorized: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub not_found: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub default: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub route: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Metadata::is_empty", default)]
     pub metadata: Metadata,
 }
 
@@ -86,7 +73,7 @@ impl AppDirModules {
 }
 
 /// A single metadata file plus an optional "alt" text file.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum MetadataWithAltItem {
     Static {
         path: FileSystemPath,
@@ -99,7 +86,7 @@ pub enum MetadataWithAltItem {
 
 /// A single metadata file.
 #[derive(
-    Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs, NonLocalValue,
+    Clone, Debug, Hash, PartialEq, Eq, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub enum MetadataItem {
     Static { path: FileSystemPath },
@@ -145,19 +132,12 @@ impl From<MetadataWithAltItem> for MetadataItem {
 }
 
 /// Metadata file that can be placed in any segment of the app directory.
-#[derive(
-    Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue,
-)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct Metadata {
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub icon: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub apple: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub twitter: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub open_graph: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub sitemap: Option<MetadataItem>,
     // The page indicates where the metadata is defined and captured.
     // The steps for capturing metadata (get_directory_tree) and constructing
@@ -166,7 +146,6 @@ pub struct Metadata {
     // the actual path incorrectly with fillMetadataSegment.
     //
     // This is only being used for the static metadata files.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub base_page: Option<AppPage>,
 }
 
@@ -192,11 +171,8 @@ impl Metadata {
 #[turbo_tasks::value]
 #[derive(Default, Clone, Debug)]
 pub struct GlobalMetadata {
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub favicon: Option<MetadataItem>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub robots: Option<MetadataItem>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub manifest: Option<MetadataItem>,
 }
 
@@ -412,6 +388,7 @@ async fn get_directory_tree_internal(
 pub struct AppPageLoaderTree {
     pub page: AppPage,
     pub segment: RcStr,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub parallel_routes: FxIndexMap<RcStr, AppPageLoaderTree>,
     pub modules: AppDirModules,
     pub global_metadata: ResolvedVc<GlobalMetadata>,
@@ -509,13 +486,13 @@ impl ValueDefault for FileSystemPathVec {
     PartialEq,
     Eq,
     Hash,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     ValueDebugFormat,
     Debug,
     TaskInput,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum Entrypoint {
     AppPage {
@@ -554,7 +531,9 @@ impl Entrypoint {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Entrypoints(FxIndexMap<AppPath, Entrypoint>);
+pub struct Entrypoints(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<AppPath, Entrypoint>,
+);
 
 fn is_parallel_route(name: &str) -> bool {
     name.starts_with('@')
@@ -768,7 +747,7 @@ pub fn get_entrypoints(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct CollectedRootParams(FxIndexSet<RcStr>);
+pub struct CollectedRootParams(#[bincode(with = "turbo_bincode::indexset")] FxIndexSet<RcStr>);
 
 #[turbo_tasks::function]
 pub async fn collect_root_params(

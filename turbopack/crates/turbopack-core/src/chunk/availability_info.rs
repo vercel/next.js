@@ -1,30 +1,20 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use bitfield::bitfield;
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 
-use super::available_modules::{AvailableModules, AvailableModulesSet};
+use crate::chunk::available_modules::{AvailableModules, AvailableModulesSet};
 
 bitfield! {
-    #[derive(Clone, Copy, Default, TaskInput, TraceRawVcs, NonLocalValue, Serialize, Deserialize, PartialEq, Eq, Hash)]
+    #[derive(Clone, Copy, Default, TaskInput, TraceRawVcs, NonLocalValue, PartialEq, Eq, Hash, Encode, Decode)]
     pub struct AvailabilityFlags(u8);
     impl Debug;
     pub is_in_async_module, set_is_in_async_module: 0;
 }
 
 #[derive(
-    Eq,
-    PartialEq,
-    Hash,
-    Clone,
-    Copy,
-    Debug,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Serialize,
-    Deserialize,
+    Eq, PartialEq, Hash, Clone, Copy, Debug, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub struct AvailabilityInfo {
     flags: AvailabilityFlags,

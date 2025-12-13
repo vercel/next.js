@@ -280,6 +280,7 @@ function getIteratorFn(maybeIterable) {
   return "function" === typeof maybeIterable ? maybeIterable : null;
 }
 var ASYNC_ITERATOR = Symbol.asyncIterator,
+  REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
   REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
 function getComponentNameFromType(type) {
   if (null == type) return null;
@@ -417,10 +418,13 @@ function popHostContainer() {
   pop(rootInstanceStackCursor);
 }
 function pushHostContext(fiber) {
-  null !== fiber.memoizedState && push(hostTransitionProviderCursor, fiber);
-  var context = contextStackCursor.current;
-  var JSCompiler_inline_result = getChildHostContextProd(context, fiber.type);
-  context !== JSCompiler_inline_result &&
+  var stateHook = fiber.memoizedState;
+  null !== stateHook &&
+    ((HostTransitionContext._currentValue = stateHook.memoizedState),
+    push(hostTransitionProviderCursor, fiber));
+  stateHook = contextStackCursor.current;
+  var JSCompiler_inline_result = getChildHostContextProd(stateHook, fiber.type);
+  stateHook !== JSCompiler_inline_result &&
     (push(contextFiberStackCursor, fiber),
     push(contextStackCursor, JSCompiler_inline_result));
 }
@@ -2576,7 +2580,8 @@ function createWorkInProgress(current, pendingProps) {
       (workInProgress.type = current.type),
       (workInProgress.flags = 0),
       (workInProgress.subtreeFlags = 0),
-      (workInProgress.deletions = null));
+      (workInProgress.deletions = null),
+      (workInProgress.key = current.key));
   workInProgress.flags = current.flags & 132120576;
   workInProgress.childLanes = current.childLanes;
   workInProgress.lanes = current.lanes;
@@ -2617,6 +2622,7 @@ function resetWorkInProgress(workInProgress, renderLanes) {
       (workInProgress.memoizedState = current.memoizedState),
       (workInProgress.updateQueue = current.updateQueue),
       (workInProgress.type = current.type),
+      (workInProgress.key = current.key),
       (renderLanes = current.dependencies),
       (workInProgress.dependencies =
         null === renderLanes
@@ -3605,9 +3611,14 @@ function createChildReconciler(shouldTrackSideEffects) {
   }
   function mapRemainingChildren(currentFirstChild) {
     for (var existingChildren = new Map(); null !== currentFirstChild; )
-      null !== currentFirstChild.key
-        ? existingChildren.set(currentFirstChild.key, currentFirstChild)
-        : existingChildren.set(currentFirstChild.index, currentFirstChild),
+      null === currentFirstChild.key
+        ? existingChildren.set(currentFirstChild.index, currentFirstChild)
+        : currentFirstChild.key === REACT_OPTIMISTIC_KEY
+          ? existingChildren.set(
+              -currentFirstChild.index - 1,
+              currentFirstChild
+            )
+          : existingChildren.set(currentFirstChild.key, currentFirstChild),
         (currentFirstChild = currentFirstChild.sibling);
     return existingChildren;
   }
@@ -3697,27 +3708,24 @@ function createChildReconciler(shouldTrackSideEffects) {
       current.stateNode.implementation !== portal.implementation
     )
       return (
-        (current = createFiberFromPortal(portal, returnFiber.mode, lanes)),
-        (current.return = returnFiber),
-        current
+        (portal = createFiberFromPortal(portal, returnFiber.mode, lanes)),
+        (portal.return = returnFiber),
+        portal
       );
     current = useFiber(current, portal.children || []);
+    current.key = portal.key;
     current.return = returnFiber;
     return current;
   }
   function updateFragment(returnFiber, current, fragment, lanes, key) {
     if (null === current || 7 !== current.tag)
       return (
-        (current = createFiberFromFragment(
-          fragment,
-          returnFiber.mode,
-          lanes,
-          key
-        )),
-        (current.return = returnFiber),
-        current
+        (key = createFiberFromFragment(fragment, returnFiber.mode, lanes, key)),
+        (key.return = returnFiber),
+        key
       );
     current = useFiber(current, fragment);
+    current.key = key;
     current.return = returnFiber;
     return current;
   }
@@ -3870,7 +3878,9 @@ function createChildReconciler(shouldTrackSideEffects) {
             (existingChildren =
               existingChildren.get(
                 null === newChild.key ? newIdx : newChild.key
-              ) || null),
+              ) ||
+              existingChildren.get(-newIdx - 1) ||
+              null),
             updateElement(returnFiber, existingChildren, newChild, lanes)
           );
         case REACT_PORTAL_TYPE:
@@ -3878,7 +3888,9 @@ function createChildReconciler(shouldTrackSideEffects) {
             (existingChildren =
               existingChildren.get(
                 null === newChild.key ? newIdx : newChild.key
-              ) || null),
+              ) ||
+              existingChildren.get(-newIdx - 1) ||
+              null),
             updatePortal(returnFiber, existingChildren, newChild, lanes)
           );
         case REACT_LAZY_TYPE:
@@ -3997,10 +4009,13 @@ function createChildReconciler(shouldTrackSideEffects) {
       )),
         null !== nextOldFiber &&
           (shouldTrackSideEffects &&
-            null !== nextOldFiber.alternate &&
-            oldFiber.delete(
-              null === nextOldFiber.key ? newIdx : nextOldFiber.key
-            ),
+            ((newFiber = nextOldFiber.alternate),
+            null !== newFiber &&
+              (newFiber.key === REACT_OPTIMISTIC_KEY
+                ? oldFiber.delete(-newIdx - 1)
+                : oldFiber.delete(
+                    null === newFiber.key ? newIdx : newFiber.key
+                  ))),
           (currentFirstChild = placeChild(
             nextOldFiber,
             currentFirstChild,
@@ -4098,8 +4113,13 @@ function createChildReconciler(shouldTrackSideEffects) {
       (step = updateFromMap(oldFiber, returnFiber, newIdx, step.value, lanes)),
         null !== step &&
           (shouldTrackSideEffects &&
-            null !== step.alternate &&
-            oldFiber.delete(null === step.key ? newIdx : step.key),
+            ((nextOldFiber = step.alternate),
+            null !== nextOldFiber &&
+              (nextOldFiber.key === REACT_OPTIMISTIC_KEY
+                ? oldFiber.delete(-newIdx - 1)
+                : oldFiber.delete(
+                    null === nextOldFiber.key ? newIdx : nextOldFiber.key
+                  ))),
           (currentFirstChild = placeChild(step, currentFirstChild, newIdx)),
           null === previousNewFiber
             ? (resultingFirstChild = step)
@@ -4129,9 +4149,12 @@ function createChildReconciler(shouldTrackSideEffects) {
         case REACT_ELEMENT_TYPE:
           a: {
             for (var key = newChild.key; null !== currentFirstChild; ) {
-              if (currentFirstChild.key === key) {
-                key = newChild.type;
-                if (key === REACT_FRAGMENT_TYPE) {
+              if (
+                currentFirstChild.key === key ||
+                currentFirstChild.key === REACT_OPTIMISTIC_KEY
+              ) {
+                var elementType = newChild.type;
+                if (elementType === REACT_FRAGMENT_TYPE) {
                   if (7 === currentFirstChild.tag) {
                     deleteRemainingChildren(
                       returnFiber,
@@ -4141,23 +4164,25 @@ function createChildReconciler(shouldTrackSideEffects) {
                       currentFirstChild,
                       newChild.props.children
                     );
+                    lanes.key = key;
                     coerceRef(lanes, newChild);
                     lanes.return = returnFiber;
                     returnFiber = lanes;
                     break a;
                   }
                 } else if (
-                  currentFirstChild.elementType === key ||
-                  ("object" === typeof key &&
-                    null !== key &&
-                    key.$$typeof === REACT_LAZY_TYPE &&
-                    resolveLazy(key) === currentFirstChild.type)
+                  currentFirstChild.elementType === elementType ||
+                  ("object" === typeof elementType &&
+                    null !== elementType &&
+                    elementType.$$typeof === REACT_LAZY_TYPE &&
+                    resolveLazy(elementType) === currentFirstChild.type)
                 ) {
                   deleteRemainingChildren(
                     returnFiber,
                     currentFirstChild.sibling
                   );
                   lanes = useFiber(currentFirstChild, newChild.props);
+                  lanes.key = key;
                   coerceRef(lanes, newChild);
                   lanes.return = returnFiber;
                   returnFiber = lanes;
@@ -4193,20 +4218,25 @@ function createChildReconciler(shouldTrackSideEffects) {
           return placeSingleChild(returnFiber);
         case REACT_PORTAL_TYPE:
           a: {
-            for (key = newChild.key; null !== currentFirstChild; ) {
-              if (currentFirstChild.key === key)
+            key = newChild;
+            for (newChild = key.key; null !== currentFirstChild; ) {
+              if (
+                currentFirstChild.key === newChild ||
+                currentFirstChild.key === REACT_OPTIMISTIC_KEY
+              )
                 if (
                   4 === currentFirstChild.tag &&
                   currentFirstChild.stateNode.containerInfo ===
-                    newChild.containerInfo &&
+                    key.containerInfo &&
                   currentFirstChild.stateNode.implementation ===
-                    newChild.implementation
+                    key.implementation
                 ) {
                   deleteRemainingChildren(
                     returnFiber,
                     currentFirstChild.sibling
                   );
-                  lanes = useFiber(currentFirstChild, newChild.children || []);
+                  lanes = useFiber(currentFirstChild, key.children || []);
+                  lanes.key = newChild;
                   lanes.return = returnFiber;
                   returnFiber = lanes;
                   break a;
@@ -4217,7 +4247,7 @@ function createChildReconciler(shouldTrackSideEffects) {
               else deleteChild(returnFiber, currentFirstChild);
               currentFirstChild = currentFirstChild.sibling;
             }
-            lanes = createFiberFromPortal(newChild, returnFiber.mode, lanes);
+            lanes = createFiberFromPortal(key, returnFiber.mode, lanes);
             lanes.return = returnFiber;
             returnFiber = lanes;
           }
@@ -14627,20 +14657,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1795 = 0;
-  i$jscomp$inline_1795 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1795++
+  var i$jscomp$inline_1796 = 0;
+  i$jscomp$inline_1796 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1796++
 ) {
-  var eventName$jscomp$inline_1796 =
-      simpleEventPluginEvents[i$jscomp$inline_1795],
-    domEventName$jscomp$inline_1797 =
-      eventName$jscomp$inline_1796.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1798 =
-      eventName$jscomp$inline_1796[0].toUpperCase() +
-      eventName$jscomp$inline_1796.slice(1);
+  var eventName$jscomp$inline_1797 =
+      simpleEventPluginEvents[i$jscomp$inline_1796],
+    domEventName$jscomp$inline_1798 =
+      eventName$jscomp$inline_1797.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1799 =
+      eventName$jscomp$inline_1797[0].toUpperCase() +
+      eventName$jscomp$inline_1797.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1797,
-    "on" + capitalizedEvent$jscomp$inline_1798
+    domEventName$jscomp$inline_1798,
+    "on" + capitalizedEvent$jscomp$inline_1799
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -16817,21 +16847,6 @@ function measureClonedInstance(instance) {
   var computedStyle = getComputedStyle(instance);
   return createMeasurement(measuredRect, computedStyle, instance);
 }
-function cancelAllViewTransitionAnimations(scope) {
-  for (
-    var animations = scope.getAnimations({ subtree: !0 }), i = 0;
-    i < animations.length;
-    i++
-  ) {
-    var anim = animations[i],
-      effect = anim.effect,
-      pseudo = effect.pseudoElement;
-    null != pseudo &&
-      pseudo.startsWith("::view-transition") &&
-      effect.target === scope &&
-      anim.cancel();
-  }
-}
 function customizeViewTransitionError(error, ignoreAbort) {
   if ("object" === typeof error && null !== error)
     switch (error.name) {
@@ -16939,6 +16954,7 @@ function startViewTransition(
       types: transitionTypes
     });
     ownerDocument.__reactViewTransition = transition;
+    var viewTransitionAnimations = [];
     transition.ready.then(
       function () {
         for (
@@ -16949,25 +16965,26 @@ function startViewTransition(
           i < animations.length;
           i++
         ) {
-          var effect = animations[i].effect,
+          var animation = animations[i],
+            effect = animation.effect,
             pseudoElement = effect.pseudoElement;
           if (
             null != pseudoElement &&
             pseudoElement.startsWith("::view-transition")
           ) {
-            pseudoElement = effect.getKeyframes();
+            viewTransitionAnimations.push(animation);
+            animation = effect.getKeyframes();
             for (
-              var width = void 0,
-                height = void 0,
+              var height = (pseudoElement = void 0),
                 unchangedDimensions = !0,
                 j = 0;
-              j < pseudoElement.length;
+              j < animation.length;
               j++
             ) {
-              var keyframe = pseudoElement[j],
+              var keyframe = animation[j],
                 w = keyframe.width;
-              if (void 0 === width) width = w;
-              else if (width !== w) {
+              if (void 0 === pseudoElement) pseudoElement = w;
+              else if (pseudoElement !== w) {
                 unchangedDimensions = !1;
                 break;
               }
@@ -16982,22 +16999,22 @@ function startViewTransition(
               "none" === keyframe.transform && delete keyframe.transform;
             }
             unchangedDimensions &&
-              void 0 !== width &&
+              void 0 !== pseudoElement &&
               void 0 !== height &&
-              (effect.setKeyframes(pseudoElement),
+              (effect.setKeyframes(animation),
               (unchangedDimensions = getComputedStyle(
                 effect.target,
                 effect.pseudoElement
               )),
-              unchangedDimensions.width !== width ||
+              unchangedDimensions.width !== pseudoElement ||
                 unchangedDimensions.height !== height) &&
-              ((unchangedDimensions = pseudoElement[0]),
-              (unchangedDimensions.width = width),
+              ((unchangedDimensions = animation[0]),
+              (unchangedDimensions.width = pseudoElement),
               (unchangedDimensions.height = height),
-              (unchangedDimensions = pseudoElement[pseudoElement.length - 1]),
-              (unchangedDimensions.width = width),
+              (unchangedDimensions = animation[animation.length - 1]),
+              (unchangedDimensions.width = pseudoElement),
               (unchangedDimensions.height = height),
-              effect.setKeyframes(pseudoElement));
+              effect.setKeyframes(animation));
           }
         }
         spawnedWorkCallback();
@@ -17014,7 +17031,8 @@ function startViewTransition(
       }
     );
     transition.finished.finally(function () {
-      cancelAllViewTransitionAnimations(ownerDocument.documentElement);
+      for (var i = 0; i < viewTransitionAnimations.length; i++)
+        viewTransitionAnimations[i].cancel();
       ownerDocument.__reactViewTransition === transition &&
         (ownerDocument.__reactViewTransition = null);
       passiveCallback();
@@ -17138,6 +17156,7 @@ function startGestureTransition(
     });
     ownerDocument.__reactViewTransition = transition;
     var customTimelineCleanup = [],
+      viewTransitionAnimations = [],
       readyCallback = function () {
         for (
           var documentElement = ownerDocument.documentElement,
@@ -17153,7 +17172,8 @@ function startGestureTransition(
             pseudoElement = effect.pseudoElement;
           null != pseudoElement &&
             pseudoElement.startsWith("::view-transition") &&
-            ((effect = effect.getTiming()),
+            (viewTransitionAnimations.push(animations[i]),
+            (effect = effect.getTiming()),
             (effect =
               effect.delay +
               ("number" === typeof effect.duration ? effect.duration : 0)),
@@ -17256,8 +17276,9 @@ function startGestureTransition(
       }
     });
     transition.finished.finally(function () {
-      cancelAllViewTransitionAnimations(ownerDocument.documentElement);
-      for (var i = 0; i < customTimelineCleanup.length; i++)
+      for (var i = 0; i < viewTransitionAnimations.length; i++)
+        viewTransitionAnimations[i].cancel();
+      for (i = 0; i < customTimelineCleanup.length; i++)
         (0, customTimelineCleanup[i])();
       ownerDocument.__reactViewTransition === transition &&
         (ownerDocument.__reactViewTransition = null);
@@ -18330,26 +18351,26 @@ function getResource(type, currentProps, pendingProps, currentResource) {
         "string" === typeof pendingProps.precedence
       ) {
         type = getStyleKey(pendingProps.href);
-        var styles$285 = getResourcesFromRoot(
+        var styles$286 = getResourcesFromRoot(
             JSCompiler_inline_result
           ).hoistableStyles,
-          resource$286 = styles$285.get(type);
-        resource$286 ||
+          resource$287 = styles$286.get(type);
+        resource$287 ||
           ((JSCompiler_inline_result =
             JSCompiler_inline_result.ownerDocument || JSCompiler_inline_result),
-          (resource$286 = {
+          (resource$287 = {
             type: "stylesheet",
             instance: null,
             count: 0,
             state: { loading: 0, preload: null }
           }),
-          styles$285.set(type, resource$286),
-          (styles$285 = JSCompiler_inline_result.querySelector(
+          styles$286.set(type, resource$287),
+          (styles$286 = JSCompiler_inline_result.querySelector(
             getStylesheetSelectorFromKey(type)
           )) &&
-            !styles$285._p &&
-            ((resource$286.instance = styles$285),
-            (resource$286.state.loading = 5)),
+            !styles$286._p &&
+            ((resource$287.instance = styles$286),
+            (resource$287.state.loading = 5)),
           preloadPropsMap.has(type) ||
             ((pendingProps = {
               rel: "preload",
@@ -18362,16 +18383,16 @@ function getResource(type, currentProps, pendingProps, currentResource) {
               referrerPolicy: pendingProps.referrerPolicy
             }),
             preloadPropsMap.set(type, pendingProps),
-            styles$285 ||
+            styles$286 ||
               preloadStylesheet(
                 JSCompiler_inline_result,
                 type,
                 pendingProps,
-                resource$286.state
+                resource$287.state
               )));
         if (currentProps && null === currentResource)
           throw Error(formatProdErrorMessage(528, ""));
-        return resource$286;
+        return resource$287;
       }
       if (currentProps && null !== currentResource)
         throw Error(formatProdErrorMessage(529, ""));
@@ -18468,37 +18489,37 @@ function acquireResource(hoistableRoot, resource, props) {
         return (resource.instance = instance);
       case "stylesheet":
         styleProps = getStyleKey(props.href);
-        var instance$291 = hoistableRoot.querySelector(
+        var instance$292 = hoistableRoot.querySelector(
           getStylesheetSelectorFromKey(styleProps)
         );
-        if (instance$291)
+        if (instance$292)
           return (
             (resource.state.loading |= 4),
-            (resource.instance = instance$291),
-            markNodeAsHoistable(instance$291),
-            instance$291
+            (resource.instance = instance$292),
+            markNodeAsHoistable(instance$292),
+            instance$292
           );
         instance = stylesheetPropsFromRawProps(props);
         (styleProps = preloadPropsMap.get(styleProps)) &&
           adoptPreloadPropsForStylesheet(instance, styleProps);
-        instance$291 = (
+        instance$292 = (
           hoistableRoot.ownerDocument || hoistableRoot
         ).createElement("link");
-        markNodeAsHoistable(instance$291);
-        var linkInstance = instance$291;
+        markNodeAsHoistable(instance$292);
+        var linkInstance = instance$292;
         linkInstance._p = new Promise(function (resolve, reject) {
           linkInstance.onload = resolve;
           linkInstance.onerror = reject;
         });
-        setInitialProperties(instance$291, "link", instance);
+        setInitialProperties(instance$292, "link", instance);
         resource.state.loading |= 4;
-        insertStylesheet(instance$291, props.precedence, hoistableRoot);
-        return (resource.instance = instance$291);
+        insertStylesheet(instance$292, props.precedence, hoistableRoot);
+        return (resource.instance = instance$292);
       case "script":
-        instance$291 = getScriptKey(props.src);
+        instance$292 = getScriptKey(props.src);
         if (
           (styleProps = hoistableRoot.querySelector(
-            getScriptSelectorFromKey(instance$291)
+            getScriptSelectorFromKey(instance$292)
           ))
         )
           return (
@@ -18507,7 +18528,7 @@ function acquireResource(hoistableRoot, resource, props) {
             styleProps
           );
         instance = props;
-        if ((styleProps = preloadPropsMap.get(instance$291)))
+        if ((styleProps = preloadPropsMap.get(instance$292)))
           (instance = assign({}, props)),
             adoptPreloadPropsForScript(instance, styleProps);
         hoistableRoot = hoistableRoot.ownerDocument || hoistableRoot;
@@ -19634,16 +19655,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2213 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2214 = React.version;
 if (
-  "19.3.0-experimental-93fc5740-20251113" !==
-  isomorphicReactPackageVersion$jscomp$inline_2213
+  "19.3.0-experimental-b45bb335-20251211" !==
+  isomorphicReactPackageVersion$jscomp$inline_2214
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2213,
-      "19.3.0-experimental-93fc5740-20251113"
+      isomorphicReactPackageVersion$jscomp$inline_2214,
+      "19.3.0-experimental-b45bb335-20251211"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19663,24 +19684,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2916 = {
+var internals$jscomp$inline_2917 = {
   bundleType: 0,
-  version: "19.3.0-experimental-93fc5740-20251113",
+  version: "19.3.0-experimental-b45bb335-20251211",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-93fc5740-20251113"
+  reconcilerVersion: "19.3.0-experimental-b45bb335-20251211"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2917 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2918 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2917.isDisabled &&
-    hook$jscomp$inline_2917.supportsFiber
+    !hook$jscomp$inline_2918.isDisabled &&
+    hook$jscomp$inline_2918.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2917.inject(
-        internals$jscomp$inline_2916
+      (rendererID = hook$jscomp$inline_2918.inject(
+        internals$jscomp$inline_2917
       )),
-        (injectedHook = hook$jscomp$inline_2917);
+        (injectedHook = hook$jscomp$inline_2918);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -19775,4 +19796,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-experimental-93fc5740-20251113";
+exports.version = "19.3.0-experimental-b45bb335-20251211";

@@ -1,6 +1,6 @@
 'use client'
 
-import { darken, lighten } from 'polished'
+import { darken, lighten, readableColor } from 'polished'
 import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AnalyzeData } from '@/lib/analyze-data'
@@ -9,6 +9,8 @@ import {
   type LayoutNode,
   type LayoutNodeInfo,
 } from '@/lib/treemap-layout'
+import { SpecialModule } from '@/lib/types'
+import { formatBytes } from '@/lib/utils'
 
 interface TreemapVisualizerProps {
   analyzeData: AnalyzeData
@@ -23,6 +25,8 @@ interface TreemapVisualizerProps {
   onHoveredNodeChangeDelayed?: (nodeInfo: LayoutNodeInfo | null) => void
   searchQuery?: string
   filterSource?: (sourceIndex: number) => boolean
+  isModulePolyfillChunk?: (sourceIndex: number) => boolean
+  isNoModulePolyfillChunk?: (sourceIndex: number) => boolean
 }
 
 function getFileColor(node: {
@@ -33,12 +37,17 @@ function getFileColor(node: {
   server?: boolean
   client?: boolean
   traced?: boolean
+  specialModuleType: SpecialModule | null
 }): string {
-  const { js, css, json, asset, client, traced } = node
+  const { js, css, json, asset, client, traced, specialModuleType } = node
+
+  if (isPolyfill(specialModuleType)) {
+    return '#5f707f'
+  }
 
   let color = '#9ca3af' // gray-400 default
-  if (js) color = '#0068d6'
-  if (css) color = '#663399'
+  if (js) color = '#4682b4'
+  if (css) color = '#8b7d9e'
   if (json) color = '#297a3a'
   if (asset) color = '#da2f35'
 
@@ -52,6 +61,13 @@ function getFileColor(node: {
     }
   }
   return color
+}
+
+function isPolyfill(specialModuleType: SpecialModule | null): boolean {
+  return (
+    specialModuleType === SpecialModule.POLYFILL_MODULE ||
+    specialModuleType === SpecialModule.POLYFILL_NOMODULE
+  )
 }
 
 function findNodeAtPosition(
@@ -320,16 +336,26 @@ function drawTreemap(
     ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
 
     if (rect.width > 60 && rect.height > 30) {
-      ctx.fillStyle = colors.text
-      ctx.font = '12px sans-serif'
+      const textColor = readableColor(color)
+      ctx.fillStyle = textColor
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
 
       const maxWidth = rect.width - 8
       let displayName = name
-      const metrics = ctx.measureText(displayName)
 
-      if (metrics.width > maxWidth) {
+      const sizeText = formatBytes(node.size)
+      const fontSize = 12
+      const sizeFontSize = 10
+      const lineHeight = fontSize + 2
+
+      // Check if we have space for both name and size
+      const hasSpaceForSize = rect.height > 50
+
+      ctx.font = `${fontSize}px sans-serif`
+      const nameMetrics = ctx.measureText(displayName)
+
+      if (nameMetrics.width > maxWidth) {
         while (
           displayName.length > 0 &&
           ctx.measureText(`${displayName}...`).width > maxWidth
@@ -339,11 +365,31 @@ function drawTreemap(
         displayName += '...'
       }
 
-      ctx.fillText(
-        displayName,
-        rect.x + rect.width / 2,
-        rect.y + rect.height / 2
-      )
+      if (hasSpaceForSize) {
+        ctx.font = `${fontSize}px sans-serif`
+        ctx.fillText(
+          displayName,
+          rect.x + rect.width / 2,
+          rect.y + rect.height / 2 - lineHeight / 2
+        )
+
+        ctx.globalAlpha = opacity * 0.75
+        ctx.font = `${sizeFontSize}px sans-serif`
+        ctx.fillText(
+          sizeText,
+          rect.x + rect.width / 2,
+          rect.y + rect.height / 2 + lineHeight / 2
+        )
+        ctx.globalAlpha = opacity
+      } else {
+        // Only name fits, draw it centered
+        ctx.font = `${fontSize}px sans-serif`
+        ctx.fillText(
+          displayName,
+          rect.x + rect.width / 2,
+          rect.y + rect.height / 2
+        )
+      }
     }
 
     ctx.globalAlpha = 1.0
@@ -516,6 +562,7 @@ function wrapLayoutWithAncestorsUsingIndices(
       titleBarHeight: titleBarHeight,
       children: [currentNode],
       sourceIndex: ancestorIndex,
+      specialModuleType: null,
     }
 
     currentNode = ancestorNode
@@ -539,6 +586,7 @@ function wrapLayoutWithAncestorsUsingIndices(
     titleBarHeight: minTitleBarHeight,
     children: [currentNode],
     sourceIndex: rootIndex,
+    specialModuleType: null,
   }
 
   return rootNode
@@ -779,6 +827,7 @@ export function TreemapVisualizer({
     if (node) {
       const nodeInfo = {
         name: node.name,
+        size: node.size,
         server: node.server,
         client: node.client,
       }

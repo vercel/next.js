@@ -15,13 +15,13 @@ use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
     ModuleAssetContext,
-    ecmascript::AnalyzeMode,
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext,
         TypescriptTransformOptions,
     },
 };
 use turbopack_core::{
+    chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -33,6 +33,7 @@ use turbopack_core::{
     reference_type::ReferenceType,
     traced_asset::TracedAsset,
 };
+use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::helpers::print_changeset;
@@ -212,6 +213,7 @@ async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<
                 ..Default::default()
             },
             css: CssOptionsContext {
+                source_maps: SourceMapsType::None,
                 enable_raw_css: true,
                 ..Default::default()
             },

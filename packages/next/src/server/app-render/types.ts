@@ -4,7 +4,6 @@ import type {
   ExperimentalConfig,
   NextConfigComplete,
 } from '../../server/config-shared'
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
@@ -81,7 +80,8 @@ export type ServerOnInstrumentationRequestError = (
   // The request could be middleware, node server or web server request,
   // we normalized them into an aligned format to `onRequestError` API later.
   request: NextRequestHint | BaseNextRequest | IncomingMessage,
-  errorContext: Parameters<InstrumentationOnRequestError>[2]
+  errorContext: Parameters<InstrumentationOnRequestError>[2],
+  silenceLog: boolean
 ) => void | Promise<void>
 
 export interface RenderOptsPartial {
@@ -93,7 +93,6 @@ export interface RenderOptsPartial {
   cacheComponents: boolean
   trailingSlash: boolean
   images: ImageConfigComplete
-  clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   supportsDynamicResponse: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
@@ -115,6 +114,10 @@ export interface RenderOptsPartial {
     debugChannel: { readable: ReadableStream<Uint8Array> },
     htmlRequestId: string,
     requestId: string
+  ) => void
+  sendErrorsToBrowser?: (
+    errorsRscStream: ReadableStream<Uint8Array>,
+    htmlRequestId: string
   ) => void
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'

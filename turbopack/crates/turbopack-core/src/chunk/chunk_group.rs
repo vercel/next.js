@@ -12,6 +12,7 @@ use super::{
 use crate::{
     chunk::{
         ChunkableModule, ChunkingType,
+        available_modules::AvailableModuleItem,
         chunk_item_batch::{ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo},
     },
     environment::ChunkLoading,
@@ -251,6 +252,9 @@ pub async fn chunk_group_content(
         entries,
         &mut state,
         |parent_info, &node, state| {
+            if matches!(node, ModuleOrBatch::None(_)) {
+                return Ok(GraphTraversalAction::Continue);
+            }
             // Traced modules need to have a special handling
             if let Some((
                 _,
@@ -275,7 +279,7 @@ pub async fn chunk_group_content(
 
             let is_available = available_modules
                 .as_ref()
-                .is_some_and(|available_modules| available_modules.get(chunkable_node));
+                .is_some_and(|available_modules| available_modules.get(chunkable_node.into()));
 
             let Some((_, edge)) = parent_info else {
                 // An entry from the entries list
@@ -310,7 +314,14 @@ pub async fn chunk_group_content(
                     if can_split_async {
                         let chunkable_module = ResolvedVc::try_downcast(edge.module.unwrap())
                             .context("Module in async chunking edge is not chunkable")?;
-                        state.async_modules.insert(chunkable_module);
+                        let is_async_loader_available =
+                            available_modules.as_ref().is_some_and(|available_modules| {
+                                available_modules
+                                    .get(AvailableModuleItem::AsyncLoader(chunkable_module))
+                            });
+                        if !is_async_loader_available {
+                            state.async_modules.insert(chunkable_module);
+                        }
                         GraphTraversalAction::Exclude
                     } else if is_available {
                         GraphTraversalAction::Exclude
@@ -343,8 +354,21 @@ pub async fn chunk_group_content(
     )?;
 
     // This needs to use the unmerged items
+    let available_modules = state
+        .chunkable_items
+        .iter()
+        .copied()
+        .map(Into::into)
+        .chain(
+            state
+                .async_modules
+                .iter()
+                .copied()
+                .map(AvailableModuleItem::AsyncLoader),
+        )
+        .collect();
     let availability_info = availability_info
-        .with_modules(Vc::cell(state.chunkable_items.clone()))
+        .with_modules(Vc::cell(available_modules))
         .await?;
 
     let should_merge_modules = if should_merge_modules {

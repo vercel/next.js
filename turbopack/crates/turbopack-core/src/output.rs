@@ -107,7 +107,9 @@ pub struct ExpandedOutputAssets(Vec<ResolvedVc<Box<dyn OutputAsset>>>);
 
 /// A set of [OutputAsset]s
 #[turbo_tasks::value(transparent)]
-pub struct OutputAssetsSet(FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>);
+pub struct OutputAssetsSet(
+    #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>,
+);
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
