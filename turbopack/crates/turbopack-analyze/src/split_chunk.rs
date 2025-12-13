@@ -2,7 +2,6 @@ use std::mem::replace;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ValueToString, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, rope::Rope};
@@ -12,18 +11,14 @@ use turbopack_core::{
     source_map::{GenerateSourceMap, OriginalToken, SourceMap, SyntheticToken, Token},
 };
 
-#[derive(
-    Clone, Debug, Deserialize, Eq, NonLocalValue, PartialEq, Serialize, TraceRawVcs, Encode, Decode,
-)]
+#[derive(Clone, Debug, Eq, NonLocalValue, PartialEq, TraceRawVcs, Encode, Decode)]
 pub struct ChunkPartRange {
     pub line: u32,
     pub start_column: u32,
     pub end_column: u32,
 }
 
-#[derive(
-    Clone, Debug, Deserialize, Eq, NonLocalValue, PartialEq, Serialize, TraceRawVcs, Encode, Decode,
-)]
+#[derive(Clone, Debug, Eq, NonLocalValue, PartialEq, TraceRawVcs, Encode, Decode)]
 pub struct ChunkPart {
     pub source: RcStr,
     pub real_size: u32,

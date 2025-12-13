@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{OperationVc, ResolvedVc, TryJoinIterExt, Vc};
 
-use super::{
+use crate::source::{
     ContentSourceContent, ContentSourceData, ContentSourceDataVary, GetContentSourceContent,
     GetContentSourceContents, Rewrite, RewriteType,
 };

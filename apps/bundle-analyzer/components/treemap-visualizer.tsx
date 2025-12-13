@@ -10,6 +10,7 @@ import {
   type LayoutNodeInfo,
 } from '@/lib/treemap-layout'
 import { SpecialModule } from '@/lib/types'
+import { formatBytes } from '@/lib/utils'
 
 interface TreemapVisualizerProps {
   analyzeData: AnalyzeData
@@ -337,15 +338,24 @@ function drawTreemap(
     if (rect.width > 60 && rect.height > 30) {
       const textColor = readableColor(color)
       ctx.fillStyle = textColor
-      ctx.font = '12px sans-serif'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
 
       const maxWidth = rect.width - 8
       let displayName = name
-      const metrics = ctx.measureText(displayName)
 
-      if (metrics.width > maxWidth) {
+      const sizeText = formatBytes(node.size)
+      const fontSize = 12
+      const sizeFontSize = 10
+      const lineHeight = fontSize + 2
+
+      // Check if we have space for both name and size
+      const hasSpaceForSize = rect.height > 50
+
+      ctx.font = `${fontSize}px sans-serif`
+      const nameMetrics = ctx.measureText(displayName)
+
+      if (nameMetrics.width > maxWidth) {
         while (
           displayName.length > 0 &&
           ctx.measureText(`${displayName}...`).width > maxWidth
@@ -355,11 +365,31 @@ function drawTreemap(
         displayName += '...'
       }
 
-      ctx.fillText(
-        displayName,
-        rect.x + rect.width / 2,
-        rect.y + rect.height / 2
-      )
+      if (hasSpaceForSize) {
+        ctx.font = `${fontSize}px sans-serif`
+        ctx.fillText(
+          displayName,
+          rect.x + rect.width / 2,
+          rect.y + rect.height / 2 - lineHeight / 2
+        )
+
+        ctx.globalAlpha = opacity * 0.75
+        ctx.font = `${sizeFontSize}px sans-serif`
+        ctx.fillText(
+          sizeText,
+          rect.x + rect.width / 2,
+          rect.y + rect.height / 2 + lineHeight / 2
+        )
+        ctx.globalAlpha = opacity
+      } else {
+        // Only name fits, draw it centered
+        ctx.font = `${fontSize}px sans-serif`
+        ctx.fillText(
+          displayName,
+          rect.x + rect.width / 2,
+          rect.y + rect.height / 2
+        )
+      }
     }
 
     ctx.globalAlpha = 1.0
@@ -797,6 +827,7 @@ export function TreemapVisualizer({
     if (node) {
       const nodeInfo = {
         name: node.name,
+        size: node.size,
         server: node.server,
         client: node.client,
       }

@@ -6543,15 +6543,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_test"
-version = "1.0.177"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f901ee573cab6b3060453d2d5f0bae4e6d628c23c0a962ff9b5f1d7c8d4f1ed"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9108,7 +9099,6 @@ dependencies = [
  "mime",
  "ringmap",
  "serde",
- "serde_json",
  "smallvec",
  "unty",
 ]
@@ -9125,9 +9115,16 @@ dependencies = [
  "bincode 2.0.1",
  "regex",
  "regress",
- "serde",
- "serde_json",
  "turbo-tasks",
+]
+
+[[package]]
+name = "turbo-frozenmap"
+version = "0.1.0"
+dependencies = [
+ "bincode 2.0.1",
+ "indexmap 2.9.0",
+ "serde",
 ]
 
 [[package]]
@@ -9135,6 +9132,7 @@ name = "turbo-persistence"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "bitfield",
  "byteorder",
  "dashmap 6.1.0",
@@ -9154,6 +9152,7 @@ dependencies = [
  "tempfile",
  "thread_local",
  "tracing",
+ "turbo-bincode",
  "twox-hash 2.1.0",
  "zstd",
 ]
@@ -9227,7 +9226,6 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "pin-project-lite",
- "pot",
  "rayon",
  "regex",
  "rustc-hash 2.1.1",
@@ -9242,6 +9240,7 @@ dependencies = [
  "triomphe 0.1.12",
  "turbo-bincode",
  "turbo-dyn-eq-hash",
+ "turbo-frozenmap",
  "turbo-rcstr",
  "turbo-tasks-hash",
  "turbo-tasks-macros",
@@ -9315,8 +9314,6 @@ dependencies = [
  "bytes",
  "futures",
  "serde",
- "serde_bytes",
- "serde_test",
  "turbo-tasks",
 ]
 
@@ -9375,7 +9372,6 @@ dependencies = [
  "rstest",
  "rustc-hash 2.1.1",
  "serde",
- "serde_bytes",
  "serde_json",
  "serde_path_to_error",
  "sha2",
@@ -9655,14 +9651,15 @@ dependencies = [
  "rstest",
  "rustc-hash 2.1.1",
  "serde",
- "serde_bytes",
  "serde_json",
  "smallvec",
  "swc_core",
  "swc_sourcemap",
+ "tempfile",
  "tokio",
  "tracing",
  "turbo-bincode",
+ "turbo-frozenmap",
  "turbo-prehash",
  "turbo-rcstr",
  "turbo-tasks",
@@ -9774,6 +9771,7 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "petgraph 0.8.3",
+ "phf",
  "regex",
  "rustc-hash 2.1.1",
  "serde",
@@ -9877,7 +9875,6 @@ dependencies = [
  "regex",
  "rustc-hash 2.1.1",
  "serde",
- "serde_with",
  "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
@@ -9905,6 +9902,7 @@ dependencies = [
  "anyhow",
  "markdown",
  "mdxjs",
+ "serde",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-fs",

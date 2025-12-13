@@ -48,6 +48,7 @@ pub mod chunk_group_info;
 pub mod merged_modules;
 pub mod module_batch;
 pub(crate) mod module_batches;
+mod side_effect_module_info;
 pub(crate) mod style_groups;
 mod traced_di_graph;
 
@@ -95,8 +96,6 @@ unsafe impl NonLocalValue for GraphNodeIndex {}
     Ord,
     Hash,
     PartialEq,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     NonLocalValue,
     Encode,
@@ -952,18 +951,7 @@ impl ModuleGraph {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub struct SingleModuleGraphWithBindingUsage {
     pub graph: ResolvedVc<SingleModuleGraph>,
@@ -1630,7 +1618,7 @@ impl SingleModuleGraph {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub enum SingleModuleGraphNode {
     Module(ResolvedVc<Box<dyn Module>>),
     // Models a module that is referenced but has already been visited by an earlier graph.
@@ -1959,7 +1947,7 @@ pub mod tests {
     use crate::{
         asset::{Asset, AssetContent},
         ident::AssetIdent,
-        module::Module,
+        module::{Module, ModuleSideEffects},
         module_graph::{
             GraphEntries, GraphTraversalAction, ModuleGraph, ModuleGraphRef, SingleModuleGraph,
             VisitedModules, chunk_group_info::ChunkGroupEntry,
@@ -2356,6 +2344,10 @@ pub mod tests {
             };
 
             Ok(Vc::cell(references))
+        }
+        #[turbo_tasks::function]
+        fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+            ModuleSideEffects::SideEffectful.cell()
         }
     }
 
