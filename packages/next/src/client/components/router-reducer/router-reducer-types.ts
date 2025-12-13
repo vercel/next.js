@@ -3,6 +3,7 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
 } from '../../../shared/lib/app-router-types'
+import type { NavigationSeed } from '../segment-cache/navigation'
 import type { FetchServerResponseResult } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
@@ -48,7 +49,6 @@ export interface ServerActionMutable extends Mutable {
  */
 export interface RefreshAction {
   type: typeof ACTION_REFRESH
-  origin: Location['origin']
 }
 
 export interface HmrRefreshAction {
@@ -139,8 +139,14 @@ export type AppHistoryState = {
 export interface ServerPatchAction {
   type: typeof ACTION_SERVER_PATCH
   navigatedAt: number
-  serverResponse: FetchServerResponseResult
+  serverResponse: FetchServerResponseResult | null
   previousTree: FlightRouterState
+  retry: null | {
+    url: URL
+    nextUrl: string | null
+    seed: NavigationSeed | null
+    mpa: boolean
+  }
 }
 
 /**

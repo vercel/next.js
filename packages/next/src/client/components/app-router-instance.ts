@@ -79,13 +79,7 @@ function runRemainingActions(
     // after the navigation has already finished and the queue is empty
     if (actionQueue.needsRefresh) {
       actionQueue.needsRefresh = false
-      actionQueue.dispatch(
-        {
-          type: ACTION_REFRESH,
-          origin: window.location.origin,
-        },
-        setState
-      )
+      actionQueue.dispatch({ type: ACTION_REFRESH }, setState)
     }
   }
 }
@@ -383,7 +377,6 @@ export const publicAppRouterInstance: AppRouterInstance = {
     startTransition(() => {
       dispatchAppRouterAction({
         type: ACTION_REFRESH,
-        origin: window.location.origin,
       })
     })
   },
