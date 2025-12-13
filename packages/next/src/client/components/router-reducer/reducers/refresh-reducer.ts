@@ -16,6 +16,14 @@ export function refreshReducer(state: ReadonlyReducerState): ReducerState {
   const currentNextUrl = state.nextUrl
   const currentRouterState = state.tree
   revalidateEntireCache(currentNextUrl, currentRouterState)
+  return refreshDynamicData(state, FreshnessPolicy.RefreshAll)
+}
+
+export function refreshDynamicData(
+  state: ReadonlyReducerState,
+  freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HMRRefresh
+): ReducerState {
+  const currentNextUrl = state.nextUrl
 
   // We always send the last next-url, not the current when performing a dynamic
   // request. This is because we update the next-url after a navigation, but we
@@ -47,7 +55,7 @@ export function refreshReducer(state: ReadonlyReducerState): ReducerState {
     currentUrl,
     state.cache,
     currentFlightRouterState,
-    FreshnessPolicy.RefreshAll,
+    freshnessPolicy,
     nextUrlForRefresh,
     shouldScroll
   )

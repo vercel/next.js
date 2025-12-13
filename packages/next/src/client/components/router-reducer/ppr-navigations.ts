@@ -61,6 +61,7 @@ export const enum FreshnessPolicy {
   Hydration,
   HistoryTraversal,
   RefreshAll,
+  HMRRefresh,
 }
 
 const enum NavigationTaskStatus {
@@ -347,6 +348,7 @@ function updateCacheNodeOnNavigation(
       shouldRefreshDynamicData = false
       break
     case FreshnessPolicy.RefreshAll:
+    case FreshnessPolicy.HMRRefresh:
       shouldDropSiblingCaches = true
       shouldRefreshDynamicData = true
       break
@@ -714,6 +716,7 @@ function createCacheNodeOnNavigation(
       }
       break
     case FreshnessPolicy.RefreshAll:
+    case FreshnessPolicy.HMRRefresh:
       // Drop all dynamic data.
       shouldRefreshDynamicData = true
       shouldDropSiblingCaches = true
@@ -1180,6 +1183,7 @@ export function spawnDynamicRequests(
   task: NavigationTask,
   primaryUrl: URL,
   nextUrl: string | null,
+  freshnessPolicy: FreshnessPolicy,
   accumulation: NavigationRequestAccumulation
 ): void {
   const dynamicRequestTree = task.dynamicRequestTree
@@ -1202,7 +1206,8 @@ export function spawnDynamicRequests(
     task,
     dynamicRequestTree,
     primaryUrl,
-    nextUrl
+    nextUrl,
+    freshnessPolicy
   )
 
   const separateRefreshUrls = accumulation.separateRefreshUrls
@@ -1252,7 +1257,8 @@ export function spawnDynamicRequests(
             // start tracking this alongside the refresh URL. In the meantime,
             // if a refresh fails due to a mismatch, it will trigger a
             // hard refresh.
-            nextUrl
+            nextUrl,
+            freshnessPolicy
           )
         )
       }
@@ -1423,7 +1429,8 @@ async function fetchMissingDynamicData(
   task: NavigationTask,
   dynamicRequestTree: FlightRouterState,
   url: URL,
-  nextUrl: string | null
+  nextUrl: string | null,
+  freshnessPolicy: FreshnessPolicy
 ): Promise<{
   exitStatus: NavigationTaskExitStatus
   url: URL
@@ -1433,6 +1440,7 @@ async function fetchMissingDynamicData(
     const result = await fetchServerResponse(url, {
       flightRouterState: dynamicRequestTree,
       nextUrl,
+      isHmrRefresh: freshnessPolicy === FreshnessPolicy.HMRRefresh,
     })
     if (typeof result === 'string') {
       // fetchServerResponse will return an href to indicate that the SPA

@@ -238,7 +238,7 @@ export function navigateToSeededRoute(
     accumulation
   )
   if (task !== null) {
-    spawnDynamicRequests(task, url, nextUrl, accumulation)
+    spawnDynamicRequests(task, url, nextUrl, freshnessPolicy, accumulation)
     return navigationTaskToResult(
       task,
       canonicalUrl,
@@ -300,7 +300,7 @@ function navigateUsingPrefetchedRouteTree(
     accumulation
   )
   if (task !== null) {
-    spawnDynamicRequests(task, url, nextUrl, accumulation)
+    spawnDynamicRequests(task, url, nextUrl, freshnessPolicy, accumulation)
     return navigationTaskToResult(
       task,
       canonicalUrl,
@@ -510,6 +510,7 @@ async function navigateDynamicallyWithNoPrefetch(
       break
     case FreshnessPolicy.Hydration: // <- shouldn't happen during client nav
     case FreshnessPolicy.RefreshAll:
+    case FreshnessPolicy.HMRRefresh:
       dynamicRequestTree = DynamicRequestTreeForEntireRoute
       break
     default:

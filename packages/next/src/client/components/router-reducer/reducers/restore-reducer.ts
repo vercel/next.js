@@ -70,7 +70,13 @@ export function restoreReducer(
     return handleExternalUrl(state, mutable, restoredCanonicalUrl, false)
   }
 
-  spawnDynamicRequests(task, restoredUrl, restoredNextUrl, accumulation)
+  spawnDynamicRequests(
+    task,
+    restoredUrl,
+    restoredNextUrl,
+    FreshnessPolicy.HistoryTraversal,
+    accumulation
+  )
 
   return {
     // Set canonical url

@@ -389,7 +389,6 @@ export const publicAppRouterInstance: AppRouterInstance = {
       startTransition(() => {
         dispatchAppRouterAction({
           type: ACTION_HMR_REFRESH,
-          origin: window.location.origin,
         })
       })
     }
