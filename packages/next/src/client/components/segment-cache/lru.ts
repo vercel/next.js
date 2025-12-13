@@ -1,15 +1,10 @@
-import type { MapEntry } from './cache-map'
 import { deleteMapEntry } from './cache-map'
+import type { UnknownMapEntry } from './cache-map'
 
 // We use an LRU for memory management. We must update this whenever we add or
 // remove a new cache entry, or when an entry changes size.
 
-// The MapEntry type is used as an LRU node, too. We choose this one instead of
-// the inner cache entry type (RouteCacheEntry, SegmentCacheEntry) because it's
-// monomorphic and can be optimized by the VM.
-type LRUNode = MapEntry<any>
-
-let head: LRUNode | null = null
+let head: UnknownMapEntry | null = null
 let didScheduleCleanup: boolean = false
 let lruSize: number = 0
 
@@ -18,7 +13,7 @@ let lruSize: number = 0
 // customizable via the Next.js config, too.
 const maxLruSize = 50 * 1024 * 1024 // 50 MB
 
-export function lruPut(node: LRUNode) {
+export function lruPut(node: UnknownMapEntry) {
   if (head === node) {
     // Already at the head
     return
@@ -57,7 +52,7 @@ export function lruPut(node: LRUNode) {
   head = node
 }
 
-export function updateLruSize(node: LRUNode, newNodeSize: number) {
+export function updateLruSize(node: UnknownMapEntry, newNodeSize: number) {
   // This is a separate function from `put` so that we can resize the entry
   // regardless of whether it's currently being tracked by the LRU.
   const prevNodeSize = node.size
@@ -71,7 +66,7 @@ export function updateLruSize(node: LRUNode, newNodeSize: number) {
   ensureCleanupIsScheduled()
 }
 
-export function deleteFromLru(deleted: LRUNode) {
+export function deleteFromLru(deleted: UnknownMapEntry) {
   const next = deleted.next
   const prev = deleted.prev
   if (next !== null && prev !== null) {

@@ -66,7 +66,7 @@ import {
   deleteFromCacheMap,
   isValueExpired,
   type CacheMap,
-  type MapEntry,
+  type UnknownMapEntry,
 } from './cache-map'
 import {
   appendSegmentRequestKeyPart,
@@ -166,7 +166,7 @@ type RouteCacheEntryShared = {
   couldBeIntercepted: boolean
 
   // Map-related fields.
-  ref: null | MapEntry<RouteCacheEntry>
+  ref: UnknownMapEntry | null
   size: number
   staleAt: number
   version: number
@@ -223,7 +223,7 @@ type SegmentCacheEntryShared = {
   fetchStrategy: FetchStrategy
 
   // Map-related fields.
-  ref: null | MapEntry<SegmentCacheEntry>
+  ref: UnknownMapEntry | null
   size: number
   staleAt: number
   version: number
