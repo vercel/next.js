@@ -70,7 +70,7 @@ import { lruPut, updateLruSize, deleteFromLru } from './lru'
 // SegmentCacheEntry; this is just to keep track of the coupling so we don't
 // leak concerns between the modules unnecessarily.
 export interface MapValue {
-  ref: LRUNode | null
+  ref: UnknownMapEntry | null
   size: number
   staleAt: number
   version: number
@@ -106,14 +106,14 @@ export interface MapEntry<V extends MapValue> {
  * The `map` field lets Map<unknown, MapEntry<V>> be assignable to this
  * type since we're only reading from the map, not inserting into it.
  */
-export type LRUNode = {
-  parent: LRUNode | null
+export type UnknownMapEntry = {
+  parent: UnknownMapEntry | null
   key: unknown
-  map: Pick<Map<unknown, LRUNode>, 'get' | 'delete' | 'size'> | null
+  map: Pick<Map<unknown, UnknownMapEntry>, 'get' | 'delete' | 'size'> | null
   value: MapValue | null
 
-  prev: LRUNode | null
-  next: LRUNode | null
+  prev: UnknownMapEntry | null
+  next: UnknownMapEntry | null
   size: number
 }
 
@@ -352,7 +352,7 @@ export function setInCacheMap<V extends MapValue>(
   updateLruSize(entry, value.size)
 }
 
-function setMapEntryValue(entry: LRUNode, value: MapValue): void {
+function setMapEntryValue(entry: UnknownMapEntry, value: MapValue): void {
   if (entry.value !== null) {
     // There's already a value at the given keypath. Disconnect the old value
     // from the map. We're not calling `deleteMapEntry` here because the
@@ -360,10 +360,7 @@ function setMapEntryValue(entry: LRUNode, value: MapValue): void {
     dropRef(entry.value)
     entry.value = null
   }
-  fillEmptyReference(entry, value)
-}
 
-function fillEmptyReference(entry: LRUNode, value: MapValue): void {
   // This value may already be in the map at a different keypath.
   // Grab a reference before we overwrite it.
   const oldEntry = value.ref
@@ -404,7 +401,7 @@ function dropRef(value: MapValue): void {
   value.ref = null
 }
 
-export function deleteMapEntry(entry: LRUNode): void {
+export function deleteMapEntry(entry: UnknownMapEntry): void {
   // Delete the entry from the cache.
   entry.value = null
 
