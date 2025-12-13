@@ -3,12 +3,17 @@ import { getLocationOrigin } from '../../utils'
 import { searchParamsToUrlQuery } from './querystring'
 
 export interface ParsedRelativeUrl {
+  auth: string | null
   hash: string
+  host: string | null
+  hostname: string | null
   href: string
   pathname: string
+  port: string | null
+  protocol: string | null
   query: ParsedUrlQuery
   search: string
-  slashes: undefined
+  slashes: null
 }
 
 /**
@@ -54,13 +59,18 @@ export function parseRelativeUrl(
   }
 
   return {
+    auth: null,
+    host: null,
+    hostname: null,
     pathname,
+    port: null,
+    protocol: null,
     query: parseQuery ? searchParamsToUrlQuery(searchParams) : undefined,
     search,
     hash,
     href: href.slice(origin.length),
     // We don't know for relative URLs at this point since we set a custom, internal
     // base that isn't surfaced to users.
-    slashes: undefined,
+    slashes: null,
   }
 }
