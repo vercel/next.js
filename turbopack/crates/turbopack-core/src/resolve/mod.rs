@@ -7,7 +7,6 @@ use std::{
 };
 
 use anyhow::{Result, bail};
-use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use either::Either;
 use once_cell::sync::Lazy;
@@ -15,7 +14,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::{Instrument, Level};
-use turbo_frozenmap::FrozenMap;
+use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, SliceMap, TaskInput,
@@ -129,7 +128,7 @@ pub enum ImportUsage {
     ///
     /// (This is only ever set on `ModulePart::Export` references. Side effects are handled via
     /// `ModulePart::Evaluation` references, which always have `ImportUsage::SideEffects`.)
-    Exports(AutoSet<RcStr>),
+    Exports(FrozenSet<RcStr>),
 }
 
 #[turbo_tasks::value]
