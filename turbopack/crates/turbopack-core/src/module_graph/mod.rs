@@ -1240,7 +1240,7 @@ impl ModuleGraphRef {
         let entries = self.graphs.iter().flat_map(|g| g.entry_modules());
 
         // Despite the name we need to do a DFS to respect 'reachability' if an edge was trimmed we
-        // should not follow it, and this is the only way to do that.
+        // should not follow it, and this is a reasonable way to do that.
         self.traverse_edges_dfs(
             entries,
             &mut (),
