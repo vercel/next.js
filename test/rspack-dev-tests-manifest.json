@@ -2103,6 +2103,7 @@
       "middleware - development errors when there is a compilation error after boot logs the error correctly",
       "middleware - development errors when there is a compilation error after boot renders the error correctly and recovers",
       "middleware - development errors when there is a compilation error from boot logs the error correctly",
+      "middleware - development errors when there is a compilation error from boot renders the error correctly and recovers",
       "middleware - development errors when there is an unhandled rejection while loading a dependency does not render the error",
       "middleware - development errors when there is an unhandled rejection while loading a dependency logs the error correctly",
       "middleware - development errors when there is an unhandled rejection while loading the module does not render the error",
@@ -2111,7 +2112,6 @@
     ],
     "failed": [
       "middleware - development errors when running invalid dynamic code with eval logs the error correctly",
-      "middleware - development errors when there is a compilation error from boot renders the error correctly and recovers",
       "middleware - development errors when throwing while loading the module logs the error correctly"
     ],
     "pending": [],
@@ -2737,7 +2737,7 @@
       "unrecognized server actions should 404 when POSTing a non-server-action request to a nonexistent page",
       "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: form-data/multipart",
       "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: plaintext",
-      "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: urlencoded",
+      "unrecognized server actions should 404 when POSTing a urlencoded action to a nonexistent page",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with complex argument",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with simple argument",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked via form - js disabled",
@@ -5251,6 +5251,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/external-redirect/external-redirect.test.ts": {
+    "passed": [
+      "external-redirect regression: Server Action triggered from onClick redirects to external URL"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/externalize-node-binary/externalize-node-binary.test.ts": {
     "passed": [],
     "failed": [],
@@ -7280,6 +7289,16 @@
   "test/e2e/app-dir/no-duplicate-headers-next-config/no-duplicate-headers-next-config.test.ts": {
     "passed": [
       "no-duplicate-headers-next-config should prioritise headers in next config for static assets"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/no-server-actions/no-server-actions.test.ts": {
+    "passed": [
+      "app-dir - no server actions should 404 when triggering a fetch action on an app with no server actions",
+      "app-dir - no server actions should 404 when triggering an MPA action on an app with no server actions"
     ],
     "failed": [],
     "pending": [],
@@ -11665,6 +11684,13 @@
   },
   "test/e2e/new-link-behavior/stitches.test.ts": {
     "passed": ["New Link Behavior with stitches should render <a>"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-analyze/next-analyze.test.ts": {
+    "passed": ["next experimental-analyze skips in non-Turbopack tests"],
     "failed": [],
     "pending": [],
     "flakey": [],
