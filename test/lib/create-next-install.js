@@ -10,6 +10,13 @@ const { linkPackages } =
 const PREFER_OFFLINE = process.env.NEXT_TEST_PREFER_OFFLINE === '1'
 const useRspack = process.env.NEXT_TEST_USE_RSPACK === '1'
 
+function createTempId() {
+  // Windows path length limits can cause Turbopack to fail resolving packages
+  // from very deep pnpm virtual-store paths. Keep temp folder names short.
+  const bytes = process.platform === 'win32' ? 16 : 32
+  return randomBytes(bytes).toString('hex')
+}
+
 async function installDependencies(cwd, tmpDir) {
   const args = [
     'install',
@@ -62,7 +69,7 @@ async function createNextInstall({
       const origRepoDir = path.join(__dirname, '../../')
       const installDir = path.join(
         tmpDir,
-        `next-install-${randomBytes(32).toString('hex')}`,
+        `next-install-${createTempId()}`,
         subDir
       )
       let tmpRepoDir
@@ -78,7 +85,7 @@ async function createNextInstall({
       } else {
         tmpRepoDir = path.join(
           tmpDir,
-          `next-repo-${randomBytes(32).toString('hex')}`,
+          `next-repo-${createTempId()}`,
           subDir
         )
         require('console').log('Creating temp repo dir', tmpRepoDir)
