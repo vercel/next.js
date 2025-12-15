@@ -70,7 +70,7 @@ import {
 import { isRedirectError } from '../../client/components/redirect-error'
 import { getImplicitTags, type ImplicitTags } from '../lib/implicit-tags'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
-import { getTracer } from '../lib/trace/tracer'
+import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
 import {
   createReactServerErrorHandler,
@@ -2203,17 +2203,6 @@ async function renderToHTMLOrFlightImpl(
       }
     }
 
-    const renderToStreamWithTracing = getTracer().wrap(
-      AppRenderSpan.getBodyResult,
-      {
-        spanName: `render route (app) ${pagePath}`,
-        attributes: {
-          'next.route': pagePath,
-        },
-      },
-      renderToStream
-    )
-
     let didExecuteServerAction = false
     let formState: null | any = null
     if (isPossibleActionRequest) {
@@ -2238,7 +2227,7 @@ async function renderToHTMLOrFlightImpl(
           const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
           res.statusCode = 404
           metadata.statusCode = 404
-          const stream = await renderToStreamWithTracing(
+          const stream = await renderToStream(
             requestStore,
             req,
             res,
@@ -2275,7 +2264,7 @@ async function renderToHTMLOrFlightImpl(
       contentType: HTML_CONTENT_TYPE_HEADER,
     }
 
-    const stream = await renderToStreamWithTracing(
+    const stream = await renderToStream(
       // NOTE: in Cache Components (dev), if the render is restarted, it will use a different requestStore
       // than the one that we're passing in here.
       requestStore,
@@ -2581,68 +2570,212 @@ async function renderToStream(
       ? `self.__next_r=${JSON.stringify(requestId)}`
       : undefined
 
-  const { reactServerErrorsByDigest } = workStore
-  function onHTMLRenderRSCError(err: DigestedError, silenceLog: boolean) {
-    return onInstrumentationRequestError?.(
-      err,
-      req,
-      createErrorContext(ctx, 'react-server-components'),
-      silenceLog
-    )
-  }
-  const serverComponentsErrorHandler = createReactServerErrorHandler(
-    dev,
-    nextExport,
-    reactServerErrorsByDigest,
-    onHTMLRenderRSCError
+  // Create the "render route (app)" span manually so we can keep it open during streaming.
+  // This is necessary because errors inside Suspense boundaries are reported asynchronously
+  // during stream consumption, after a typical wrapped function would have ended the span.
+  // Note: We pass the full span name as the first argument since startSpan uses it directly.
+  const renderSpan = getTracer().startSpan(
+    `render route (app) ${pagePath}` as any,
+    {
+      attributes: {
+        'next.span_name': `render route (app) ${pagePath}`,
+        'next.span_type': AppRenderSpan.getBodyResult,
+        'next.route': pagePath,
+      },
+    }
   )
 
-  function onHTMLRenderSSRError(err: DigestedError) {
-    // We don't need to silence logs here. onHTMLRenderSSRError won't be called
-    // at all if the error was logged before in the RSC error handler.
-    const silenceLog = false
-    return onInstrumentationRequestError?.(
-      err,
-      req,
-      createErrorContext(ctx, 'server-rendering'),
-      silenceLog
-    )
+  // Helper to end the span with error status (used when throwing from catch blocks)
+  const endSpanWithError = (err: unknown) => {
+    if (!renderSpan.isRecording()) return
+    if (err instanceof Error) {
+      renderSpan.recordException(err)
+      renderSpan.setAttribute('error.type', err.name)
+    }
+    renderSpan.setStatus({
+      code: SpanStatusCode.ERROR,
+      message: err instanceof Error ? err.message : undefined,
+    })
+    renderSpan.end()
   }
 
-  const allCapturedErrors: Array<unknown> = []
-  const htmlRendererErrorHandler = createHTMLErrorHandler(
-    dev,
-    nextExport,
-    reactServerErrorsByDigest,
-    allCapturedErrors,
-    onHTMLRenderSSRError
-  )
+  // Run the rest of the function within the span's context so child spans
+  // (like "build component tree", "generateMetadata") are properly parented.
+  return getTracer().withSpan(renderSpan, async () => {
+    const { reactServerErrorsByDigest } = workStore
+    function onHTMLRenderRSCError(err: DigestedError, silenceLog: boolean) {
+      return onInstrumentationRequestError?.(
+        err,
+        req,
+        createErrorContext(ctx, 'react-server-components'),
+        silenceLog
+      )
+    }
+    const serverComponentsErrorHandler = createReactServerErrorHandler(
+      dev,
+      nextExport,
+      reactServerErrorsByDigest,
+      onHTMLRenderRSCError,
+      renderSpan
+    )
 
-  let reactServerResult: null | ReactServerResult = null
-  let reactDebugStream: ReadableStream<Uint8Array> | undefined
+    function onHTMLRenderSSRError(err: DigestedError) {
+      // We don't need to silence logs here. onHTMLRenderSSRError won't be called
+      // at all if the error was logged before in the RSC error handler.
+      const silenceLog = false
+      return onInstrumentationRequestError?.(
+        err,
+        req,
+        createErrorContext(ctx, 'server-rendering'),
+        silenceLog
+      )
+    }
 
-  const setHeader = res.setHeader.bind(res)
-  const appendHeader = res.appendHeader.bind(res)
-  const { clientModules } = getClientReferenceManifest()
+    const allCapturedErrors: Array<unknown> = []
+    const htmlRendererErrorHandler = createHTMLErrorHandler(
+      dev,
+      nextExport,
+      reactServerErrorsByDigest,
+      allCapturedErrors,
+      onHTMLRenderSSRError,
+      renderSpan
+    )
 
-  try {
-    if (
-      // We only want this behavior when we have React's dev builds available
-      process.env.NODE_ENV === 'development' &&
-      // We only want this behavior when running `next dev`
-      dev &&
-      // Edge routes never prerender so we don't have a Prerender environment for anything in edge runtime
-      process.env.NEXT_RUNTIME !== 'edge' &&
-      // We only have a Prerender environment for projects opted into cacheComponents
-      cacheComponents
-    ) {
-      let debugChannel: DebugChannelPair | undefined
+    let reactServerResult: null | ReactServerResult = null
+    let reactDebugStream: ReadableStream<Uint8Array> | undefined
 
-      const getPayload = async (
-        // eslint-disable-next-line @typescript-eslint/no-shadow
-        requestStore: RequestStore
-      ) => {
-        const payload: InitialRSCPayload & RSCPayloadDevProperties =
+    const setHeader = res.setHeader.bind(res)
+    const appendHeader = res.appendHeader.bind(res)
+    const { clientModules } = getClientReferenceManifest()
+
+    try {
+      if (
+        // We only want this behavior when we have React's dev builds available
+        process.env.NODE_ENV === 'development' &&
+        // We only want this behavior when running `next dev`
+        dev &&
+        // Edge routes never prerender so we don't have a Prerender environment for anything in edge runtime
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        // We only have a Prerender environment for projects opted into cacheComponents
+        cacheComponents
+      ) {
+        let debugChannel: DebugChannelPair | undefined
+
+        const getPayload = async (
+          // eslint-disable-next-line @typescript-eslint/no-shadow
+          requestStore: RequestStore
+        ) => {
+          const payload: InitialRSCPayload & RSCPayloadDevProperties =
+            await workUnitAsyncStorage.run(
+              requestStore,
+              getRSCPayload,
+              tree,
+              ctx,
+              res.statusCode === 404
+            )
+
+          if (isBypassingCachesInDev(renderOpts, requestStore)) {
+            // Mark the RSC payload to indicate that caches were bypassed in dev.
+            // This lets the client know not to cache anything based on this render.
+            if (renderOpts.setCacheStatus) {
+              // we know this is available  when cacheComponents is enabled, but typeguard to be safe
+              renderOpts.setCacheStatus('bypass', htmlRequestId)
+            }
+            payload._bypassCachesInDev = createElement(
+              WarnForBypassCachesInDev,
+              {
+                route: workStore.route,
+              }
+            )
+          }
+
+          return payload
+        }
+
+        if (
+          // We only do this flow if we can safely recreate the store from scratch
+          // (which is not the case for renders after an action)
+          createRequestStore &&
+          // We only do this flow if we're not bypassing caches in dev using
+          // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
+          !isBypassingCachesInDev(renderOpts, requestStore)
+        ) {
+          const {
+            stream: serverStream,
+            accumulatedChunksPromise,
+            staticInterruptReason,
+            runtimeInterruptReason,
+            staticStageEndTime,
+            runtimeStageEndTime,
+            debugChannel: returnedDebugChannel,
+            requestStore: finalRequestStore,
+          } = await renderWithRestartOnCacheMissInDev(
+            ctx,
+            requestStore,
+            createRequestStore,
+            getPayload,
+            serverComponentsErrorHandler
+          )
+
+          let validationDebugChannelClient: Readable | undefined = undefined
+          if (returnedDebugChannel) {
+            const [t1, t2] = returnedDebugChannel.clientSide.readable.tee()
+            returnedDebugChannel.clientSide.readable = t1
+            validationDebugChannelClient = nodeStreamFromReadableStream(t2)
+          }
+
+          consoleAsyncStorage.run(
+            { dim: true },
+            spawnStaticShellValidationInDev,
+            accumulatedChunksPromise,
+            staticInterruptReason,
+            runtimeInterruptReason,
+            staticStageEndTime,
+            runtimeStageEndTime,
+            ctx,
+            finalRequestStore,
+            devFallbackParams,
+            validationDebugChannelClient
+          )
+
+          reactServerResult = new ReactServerResult(serverStream)
+          requestStore = finalRequestStore
+          debugChannel = returnedDebugChannel
+        } else {
+          // We're either bypassing caches or we can't restart the render.
+          // Do a dynamic render, but with (basic) environment labels.
+
+          debugChannel = setReactDebugChannel && createDebugChannel()
+
+          const serverStream =
+            await stagedRenderToReadableStreamWithoutCachesInDev(
+              ctx,
+              requestStore,
+              getPayload,
+              {
+                onError: serverComponentsErrorHandler,
+                filterStackFrame,
+                debugChannel: debugChannel?.serverSide,
+              }
+            )
+          reactServerResult = new ReactServerResult(serverStream)
+        }
+
+        if (debugChannel && setReactDebugChannel) {
+          const [readableSsr, readableBrowser] =
+            debugChannel.clientSide.readable.tee()
+
+          reactDebugStream = readableSsr
+
+          setReactDebugChannel(
+            { readable: readableBrowser },
+            htmlRequestId,
+            requestId
+          )
+        }
+      } else {
+        // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
+        const RSCPayload: RSCPayload & RSCPayloadDevProperties =
           await workUnitAsyncStorage.run(
             requestStore,
             getRSCPayload,
@@ -2651,401 +2784,158 @@ async function renderToStream(
             res.statusCode === 404
           )
 
-        if (isBypassingCachesInDev(renderOpts, requestStore)) {
-          // Mark the RSC payload to indicate that caches were bypassed in dev.
-          // This lets the client know not to cache anything based on this render.
-          if (renderOpts.setCacheStatus) {
-            // we know this is available  when cacheComponents is enabled, but typeguard to be safe
-            renderOpts.setCacheStatus('bypass', htmlRequestId)
-          }
-          payload._bypassCachesInDev = createElement(WarnForBypassCachesInDev, {
-            route: workStore.route,
-          })
+        const debugChannel = setReactDebugChannel && createDebugChannel()
+
+        if (debugChannel) {
+          const [readableSsr, readableBrowser] =
+            debugChannel.clientSide.readable.tee()
+
+          reactDebugStream = readableSsr
+
+          setReactDebugChannel(
+            { readable: readableBrowser },
+            htmlRequestId,
+            requestId
+          )
         }
 
-        return payload
-      }
-
-      if (
-        // We only do this flow if we can safely recreate the store from scratch
-        // (which is not the case for renders after an action)
-        createRequestStore &&
-        // We only do this flow if we're not bypassing caches in dev using
-        // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
-        !isBypassingCachesInDev(renderOpts, requestStore)
-      ) {
-        const {
-          stream: serverStream,
-          accumulatedChunksPromise,
-          staticInterruptReason,
-          runtimeInterruptReason,
-          staticStageEndTime,
-          runtimeStageEndTime,
-          debugChannel: returnedDebugChannel,
-          requestStore: finalRequestStore,
-        } = await renderWithRestartOnCacheMissInDev(
-          ctx,
-          requestStore,
-          createRequestStore,
-          getPayload,
-          serverComponentsErrorHandler
-        )
-
-        let validationDebugChannelClient: Readable | undefined = undefined
-        if (returnedDebugChannel) {
-          const [t1, t2] = returnedDebugChannel.clientSide.readable.tee()
-          returnedDebugChannel.clientSide.readable = t1
-          validationDebugChannelClient = nodeStreamFromReadableStream(t2)
-        }
-
-        consoleAsyncStorage.run(
-          { dim: true },
-          spawnStaticShellValidationInDev,
-          accumulatedChunksPromise,
-          staticInterruptReason,
-          runtimeInterruptReason,
-          staticStageEndTime,
-          runtimeStageEndTime,
-          ctx,
-          finalRequestStore,
-          devFallbackParams,
-          validationDebugChannelClient
-        )
-
-        reactServerResult = new ReactServerResult(serverStream)
-        requestStore = finalRequestStore
-        debugChannel = returnedDebugChannel
-      } else {
-        // We're either bypassing caches or we can't restart the render.
-        // Do a dynamic render, but with (basic) environment labels.
-
-        debugChannel = setReactDebugChannel && createDebugChannel()
-
-        const serverStream =
-          await stagedRenderToReadableStreamWithoutCachesInDev(
-            ctx,
+        reactServerResult = new ReactServerResult(
+          workUnitAsyncStorage.run(
             requestStore,
-            getPayload,
+            serverRenderToReadableStream,
+            RSCPayload,
+            clientModules,
             {
-              onError: serverComponentsErrorHandler,
               filterStackFrame,
+              onError: serverComponentsErrorHandler,
               debugChannel: debugChannel?.serverSide,
             }
           )
-        reactServerResult = new ReactServerResult(serverStream)
-      }
-
-      if (debugChannel && setReactDebugChannel) {
-        const [readableSsr, readableBrowser] =
-          debugChannel.clientSide.readable.tee()
-
-        reactDebugStream = readableSsr
-
-        setReactDebugChannel(
-          { readable: readableBrowser },
-          htmlRequestId,
-          requestId
-        )
-      }
-    } else {
-      // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
-      const RSCPayload: RSCPayload & RSCPayloadDevProperties =
-        await workUnitAsyncStorage.run(
-          requestStore,
-          getRSCPayload,
-          tree,
-          ctx,
-          res.statusCode === 404
-        )
-
-      const debugChannel = setReactDebugChannel && createDebugChannel()
-
-      if (debugChannel) {
-        const [readableSsr, readableBrowser] =
-          debugChannel.clientSide.readable.tee()
-
-        reactDebugStream = readableSsr
-
-        setReactDebugChannel(
-          { readable: readableBrowser },
-          htmlRequestId,
-          requestId
         )
       }
 
-      reactServerResult = new ReactServerResult(
-        workUnitAsyncStorage.run(
-          requestStore,
-          serverRenderToReadableStream,
-          RSCPayload,
-          clientModules,
-          {
-            filterStackFrame,
-            onError: serverComponentsErrorHandler,
-            debugChannel: debugChannel?.serverSide,
-          }
-        )
-      )
-    }
+      // React doesn't start rendering synchronously but we want the RSC render to have a chance to start
+      // before we begin SSR rendering because we want to capture any available preload headers so we tick
+      // one task before continuing
+      await waitAtLeastOneReactRenderTask()
 
-    // React doesn't start rendering synchronously but we want the RSC render to have a chance to start
-    // before we begin SSR rendering because we want to capture any available preload headers so we tick
-    // one task before continuing
-    await waitAtLeastOneReactRenderTask()
-
-    // If provided, the postpone state should be parsed as JSON so it can be
-    // provided to React.
-    if (typeof renderOpts.postponed === 'string') {
-      if (postponedState?.type === DynamicState.DATA) {
-        // We have a complete HTML Document in the prerender but we need to
-        // still include the new server component render because it was not included
-        // in the static prelude.
-        const inlinedReactServerDataStream = createInlinedDataReadableStream(
-          reactServerResult.tee(),
-          nonce,
-          formState
-        )
-
-        return chainStreams(
-          inlinedReactServerDataStream,
-          createDocumentClosingStream()
-        )
-      } else if (postponedState) {
-        // We assume we have dynamic HTML requiring a resume render to complete
-        const { postponed, preludeState } =
-          getPostponedFromState(postponedState)
-        const resume = (
-          require('react-dom/server') as typeof import('react-dom/server')
-        ).resume
-
-        const htmlStream = await workUnitAsyncStorage.run(
-          requestStore,
-          resume,
-          <App
-            reactServerStream={reactServerResult.tee()}
-            reactDebugStream={reactDebugStream}
-            debugEndTime={undefined}
-            preinitScripts={preinitScripts}
-            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-            nonce={nonce}
-            images={ctx.renderOpts.images}
-          />,
-          postponed,
-          { onError: htmlRendererErrorHandler, nonce }
-        )
-
-        const getServerInsertedHTML = makeGetServerInsertedHTML({
-          polyfills,
-          renderServerInsertedHTML,
-          serverCapturedErrors: allCapturedErrors,
-          basePath,
-          tracingMetadata: tracingMetadata,
-        })
-        return await continueDynamicHTMLResume(htmlStream, {
-          // If the prelude is empty (i.e. is no static shell), we should wait for initial HTML to be rendered
-          // to avoid injecting RSC data too early.
-          // If we have a non-empty-prelude (i.e. a static HTML shell), then it's already been sent separately,
-          // so we shouldn't wait for any HTML to be emitted from the resume before sending RSC data.
-          delayDataUntilFirstHtmlChunk:
-            preludeState === DynamicHTMLPreludeState.Empty,
-          inlinedDataStream: createInlinedDataReadableStream(
-            reactServerResult.consume(),
+      // If provided, the postpone state should be parsed as JSON so it can be
+      // provided to React.
+      if (typeof renderOpts.postponed === 'string') {
+        if (postponedState?.type === DynamicState.DATA) {
+          // We have a complete HTML Document in the prerender but we need to
+          // still include the new server component render because it was not included
+          // in the static prelude.
+          const inlinedReactServerDataStream = createInlinedDataReadableStream(
+            reactServerResult.tee(),
             nonce,
             formState
-          ),
-          getServerInsertedHTML,
-          getServerInsertedMetadata,
-        })
-      }
-    }
+          )
 
-    // This is a regular dynamic render
-    const renderToReadableStream = (
-      require('react-dom/server') as typeof import('react-dom/server')
-    ).renderToReadableStream
+          // End the span since there's no async rendering in this path
+          if (renderSpan.isRecording()) renderSpan.end()
+          return chainStreams(
+            inlinedReactServerDataStream,
+            createDocumentClosingStream()
+          )
+        } else if (postponedState) {
+          // We assume we have dynamic HTML requiring a resume render to complete
+          const { postponed, preludeState } =
+            getPostponedFromState(postponedState)
+          const resume = (
+            require('react-dom/server') as typeof import('react-dom/server')
+          ).resume
 
-    const htmlStream = await workUnitAsyncStorage.run(
-      requestStore,
-      renderToReadableStream,
-      <App
-        reactServerStream={reactServerResult.tee()}
-        reactDebugStream={reactDebugStream}
-        debugEndTime={undefined}
-        preinitScripts={preinitScripts}
-        ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-        nonce={nonce}
-        images={ctx.renderOpts.images}
-      />,
-      {
-        onError: htmlRendererErrorHandler,
-        nonce,
-        onHeaders: (headers: Headers) => {
-          headers.forEach((value, key) => {
-            appendHeader(key, value)
-          })
-        },
-        maxHeadersLength: reactMaxHeadersLength,
-        bootstrapScriptContent,
-        bootstrapScripts: [bootstrapScript],
-        formState,
-      }
-    )
-
-    const getServerInsertedHTML = makeGetServerInsertedHTML({
-      polyfills,
-      renderServerInsertedHTML,
-      serverCapturedErrors: allCapturedErrors,
-      basePath,
-      tracingMetadata: tracingMetadata,
-    })
-    /**
-     * Rules of Static & Dynamic HTML:
-     *
-     *    1.) We must generate static HTML unless the caller explicitly opts
-     *        in to dynamic HTML support.
-     *
-     *    2.) If dynamic HTML support is requested, we must honor that request
-     *        or throw an error. It is the sole responsibility of the caller to
-     *        ensure they aren't e.g. requesting dynamic HTML for a static page.
-     *
-     *   3.) If `shouldWaitOnAllReady` is true, which indicates we need to
-     *       resolve all suspenses and generate a full HTML. e.g. when it's a
-     *       html limited bot requests, we produce the full HTML content.
-     *
-     * These rules help ensure that other existing features like request caching,
-     * coalescing, and ISR continue working as intended.
-     */
-    const generateStaticHTML =
-      supportsDynamicResponse !== true || !!shouldWaitOnAllReady
-
-    return await continueFizzStream(htmlStream, {
-      inlinedDataStream: createInlinedDataReadableStream(
-        reactServerResult.consume(),
-        nonce,
-        formState
-      ),
-      isStaticGeneration: generateStaticHTML,
-      isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
-      buildId: ctx.workStore.buildId,
-      getServerInsertedHTML,
-      getServerInsertedMetadata,
-      validateRootLayout: dev,
-    })
-  } catch (err) {
-    if (
-      isStaticGenBailoutError(err) ||
-      (typeof err === 'object' &&
-        err !== null &&
-        'message' in err &&
-        typeof err.message === 'string' &&
-        err.message.includes(
-          'https://nextjs.org/docs/advanced-features/static-html-export'
-        ))
-    ) {
-      // Ensure that "next dev" prints the red error overlay
-      throw err
-    }
-
-    // If a bailout made it to this point, it means it wasn't wrapped inside
-    // a suspense boundary.
-    const shouldBailoutToCSR = isBailoutToCSRError(err)
-    if (shouldBailoutToCSR) {
-      const stack = getStackWithoutErrorMessage(err)
-      error(
-        `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
-      )
-
-      throw err
-    }
-
-    let errorType: MetadataErrorType | 'redirect' | undefined
-
-    if (isHTTPAccessFallbackError(err)) {
-      res.statusCode = getAccessFallbackHTTPStatus(err)
-      metadata.statusCode = res.statusCode
-      errorType = getAccessFallbackErrorTypeByStatus(res.statusCode)
-    } else if (isRedirectError(err)) {
-      errorType = 'redirect'
-      res.statusCode = getRedirectStatusCodeFromError(err)
-      metadata.statusCode = res.statusCode
-
-      const redirectUrl = addPathPrefix(getURLFromRedirectError(err), basePath)
-
-      // If there were mutable cookies set, we need to set them on the
-      // response.
-      const headers = new Headers()
-      if (appendMutableCookies(headers, requestStore.mutableCookies)) {
-        setHeader('set-cookie', Array.from(headers.values()))
-      }
-
-      setHeader('location', redirectUrl)
-    } else if (!shouldBailoutToCSR) {
-      res.statusCode = 500
-      metadata.statusCode = res.statusCode
-    }
-
-    const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
-      buildManifest,
-      assetPrefix,
-      crossOrigin,
-      subresourceIntegrityManifest,
-      getAssetQueryString(ctx, false),
-      nonce,
-      '/_not-found/page'
-    )
-
-    const errorRSCPayload = await workUnitAsyncStorage.run(
-      requestStore,
-      getErrorRSCPayload,
-      tree,
-      ctx,
-      reactServerErrorsByDigest.has((err as any).digest) ? null : err,
-      errorType
-    )
-
-    const errorServerStream = workUnitAsyncStorage.run(
-      requestStore,
-      serverRenderToReadableStream,
-      errorRSCPayload,
-      clientModules,
-      {
-        filterStackFrame,
-        onError: serverComponentsErrorHandler,
-      }
-    )
-
-    if (reactServerResult === null) {
-      // We errored when we did not have an RSC stream to read from. This is not just a render
-      // error, we need to throw early
-      throw err
-    }
-
-    try {
-      const fizzStream = await workUnitAsyncStorage.run(
-        requestStore,
-        renderToInitialFizzStream,
-        {
-          ReactDOMServer:
-            require('react-dom/server') as typeof import('react-dom/server'),
-          element: (
-            <ErrorApp
-              reactServerStream={errorServerStream}
+          const htmlStream = await workUnitAsyncStorage.run(
+            requestStore,
+            resume,
+            <App
+              reactServerStream={reactServerResult.tee()}
+              reactDebugStream={reactDebugStream}
+              debugEndTime={undefined}
+              preinitScripts={preinitScripts}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-              preinitScripts={errorPreinitScripts}
               nonce={nonce}
               images={ctx.renderOpts.images}
-            />
-          ),
-          streamOptions: {
-            nonce,
-            bootstrapScriptContent,
-            // Include hydration scripts in the HTML
-            bootstrapScripts: [errorBootstrapScript],
-            formState,
+            />,
+            postponed,
+            { onError: htmlRendererErrorHandler, nonce }
+          )
+
+          // End the render span only after React completed rendering (including anything inside Suspense boundaries)
+          htmlStream.allReady.finally(() => {
+            if (renderSpan.isRecording()) renderSpan.end()
+          })
+
+          const getServerInsertedHTML = makeGetServerInsertedHTML({
+            polyfills,
+            renderServerInsertedHTML,
+            serverCapturedErrors: allCapturedErrors,
+            basePath,
+            tracingMetadata: tracingMetadata,
+          })
+          return await continueDynamicHTMLResume(htmlStream, {
+            // If the prelude is empty (i.e. is no static shell), we should wait for initial HTML to be rendered
+            // to avoid injecting RSC data too early.
+            // If we have a non-empty-prelude (i.e. a static HTML shell), then it's already been sent separately,
+            // so we shouldn't wait for any HTML to be emitted from the resume before sending RSC data.
+            delayDataUntilFirstHtmlChunk:
+              preludeState === DynamicHTMLPreludeState.Empty,
+            inlinedDataStream: createInlinedDataReadableStream(
+              reactServerResult.consume(),
+              nonce,
+              formState
+            ),
+            getServerInsertedHTML,
+            getServerInsertedMetadata,
+          })
+        }
+      }
+
+      // This is a regular dynamic render
+      const renderToReadableStream = (
+        require('react-dom/server') as typeof import('react-dom/server')
+      ).renderToReadableStream
+
+      const htmlStream = await workUnitAsyncStorage.run(
+        requestStore,
+        renderToReadableStream,
+        <App
+          reactServerStream={reactServerResult.tee()}
+          reactDebugStream={reactDebugStream}
+          debugEndTime={undefined}
+          preinitScripts={preinitScripts}
+          ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+          nonce={nonce}
+          images={ctx.renderOpts.images}
+        />,
+        {
+          onError: htmlRendererErrorHandler,
+          nonce,
+          onHeaders: (headers: Headers) => {
+            headers.forEach((value, key) => {
+              appendHeader(key, value)
+            })
           },
+          maxHeadersLength: reactMaxHeadersLength,
+          bootstrapScriptContent,
+          bootstrapScripts: [bootstrapScript],
+          formState,
         }
       )
 
+      // End the render span only after React completed rendering (including anything inside Suspense boundaries)
+      htmlStream.allReady.finally(() => {
+        if (renderSpan.isRecording()) renderSpan.end()
+      })
+
+      const getServerInsertedHTML = makeGetServerInsertedHTML({
+        polyfills,
+        renderServerInsertedHTML,
+        serverCapturedErrors: allCapturedErrors,
+        basePath,
+        tracingMetadata: tracingMetadata,
+      })
       /**
        * Rules of Static & Dynamic HTML:
        *
@@ -3055,20 +2945,19 @@ async function renderToStream(
        *    2.) If dynamic HTML support is requested, we must honor that request
        *        or throw an error. It is the sole responsibility of the caller to
        *        ensure they aren't e.g. requesting dynamic HTML for a static page.
-       *    3.) If `shouldWaitOnAllReady` is true, which indicates we need to
-       *        resolve all suspenses and generate a full HTML. e.g. when it's a
-       *        html limited bot requests, we produce the full HTML content.
+       *
+       *   3.) If `shouldWaitOnAllReady` is true, which indicates we need to
+       *       resolve all suspenses and generate a full HTML. e.g. when it's a
+       *       html limited bot requests, we produce the full HTML content.
        *
        * These rules help ensure that other existing features like request caching,
        * coalescing, and ISR continue working as intended.
        */
       const generateStaticHTML =
         supportsDynamicResponse !== true || !!shouldWaitOnAllReady
-      return await continueFizzStream(fizzStream, {
+
+      return await continueFizzStream(htmlStream, {
         inlinedDataStream: createInlinedDataReadableStream(
-          // This is intentionally using the readable datastream from the
-          // main render rather than the flight data from the error page
-          // render
           reactServerResult.consume(),
           nonce,
           formState
@@ -3076,28 +2965,199 @@ async function renderToStream(
         isStaticGeneration: generateStaticHTML,
         isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
         buildId: ctx.workStore.buildId,
-        getServerInsertedHTML: makeGetServerInsertedHTML({
-          polyfills,
-          renderServerInsertedHTML,
-          serverCapturedErrors: [],
-          basePath,
-          tracingMetadata: tracingMetadata,
-        }),
+        getServerInsertedHTML,
         getServerInsertedMetadata,
         validateRootLayout: dev,
       })
-    } catch (finalErr: any) {
+    } catch (err) {
       if (
-        process.env.NODE_ENV === 'development' &&
-        isHTTPAccessFallbackError(finalErr)
+        isStaticGenBailoutError(err) ||
+        (typeof err === 'object' &&
+          err !== null &&
+          'message' in err &&
+          typeof err.message === 'string' &&
+          err.message.includes(
+            'https://nextjs.org/docs/advanced-features/static-html-export'
+          ))
       ) {
-        const { bailOnRootNotFound } =
-          require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
-        bailOnRootNotFound()
+        // Ensure that "next dev" prints the red error overlay
+        endSpanWithError(err)
+        throw err
       }
-      throw finalErr
+
+      // If a bailout made it to this point, it means it wasn't wrapped inside
+      // a suspense boundary.
+      const shouldBailoutToCSR = isBailoutToCSRError(err)
+      if (shouldBailoutToCSR) {
+        const stack = getStackWithoutErrorMessage(err)
+        error(
+          `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
+        )
+
+        endSpanWithError(err)
+        throw err
+      }
+
+      let errorType: MetadataErrorType | 'redirect' | undefined
+
+      if (isHTTPAccessFallbackError(err)) {
+        res.statusCode = getAccessFallbackHTTPStatus(err)
+        metadata.statusCode = res.statusCode
+        errorType = getAccessFallbackErrorTypeByStatus(res.statusCode)
+      } else if (isRedirectError(err)) {
+        errorType = 'redirect'
+        res.statusCode = getRedirectStatusCodeFromError(err)
+        metadata.statusCode = res.statusCode
+
+        const redirectUrl = addPathPrefix(
+          getURLFromRedirectError(err),
+          basePath
+        )
+
+        // If there were mutable cookies set, we need to set them on the
+        // response.
+        const headers = new Headers()
+        if (appendMutableCookies(headers, requestStore.mutableCookies)) {
+          setHeader('set-cookie', Array.from(headers.values()))
+        }
+
+        setHeader('location', redirectUrl)
+      } else if (!shouldBailoutToCSR) {
+        res.statusCode = 500
+        metadata.statusCode = res.statusCode
+      }
+
+      const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
+        buildManifest,
+        assetPrefix,
+        crossOrigin,
+        subresourceIntegrityManifest,
+        getAssetQueryString(ctx, false),
+        nonce,
+        '/_not-found/page'
+      )
+
+      let errorRSCPayload: InitialRSCPayload
+      let errorServerStream: ReturnType<typeof serverRenderToReadableStream>
+
+      try {
+        errorRSCPayload = await workUnitAsyncStorage.run(
+          requestStore,
+          getErrorRSCPayload,
+          tree,
+          ctx,
+          reactServerErrorsByDigest.has((err as any).digest) ? null : err,
+          errorType
+        )
+
+        errorServerStream = workUnitAsyncStorage.run(
+          requestStore,
+          serverRenderToReadableStream,
+          errorRSCPayload,
+          clientModules,
+          {
+            filterStackFrame,
+            onError: serverComponentsErrorHandler,
+          }
+        )
+
+        if (reactServerResult === null) {
+          // We errored when we did not have an RSC stream to read from. This is not just a render
+          // error, we need to throw early
+          endSpanWithError(err)
+          throw err
+        }
+      } catch (setupErr) {
+        endSpanWithError(setupErr)
+        throw setupErr
+      }
+
+      try {
+        const fizzStream = await workUnitAsyncStorage.run(
+          requestStore,
+          renderToInitialFizzStream,
+          {
+            ReactDOMServer:
+              require('react-dom/server') as typeof import('react-dom/server'),
+            element: (
+              <ErrorApp
+                reactServerStream={errorServerStream}
+                ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                preinitScripts={errorPreinitScripts}
+                nonce={nonce}
+                images={ctx.renderOpts.images}
+              />
+            ),
+            streamOptions: {
+              nonce,
+              bootstrapScriptContent,
+              // Include hydration scripts in the HTML
+              bootstrapScripts: [errorBootstrapScript],
+              formState,
+            },
+          }
+        )
+
+        // End the render span only after React completed rendering (including anything inside Suspense boundaries)
+        fizzStream.allReady.finally(() => {
+          if (renderSpan.isRecording()) renderSpan.end()
+        })
+
+        /**
+         * Rules of Static & Dynamic HTML:
+         *
+         *    1.) We must generate static HTML unless the caller explicitly opts
+         *        in to dynamic HTML support.
+         *
+         *    2.) If dynamic HTML support is requested, we must honor that request
+         *        or throw an error. It is the sole responsibility of the caller to
+         *        ensure they aren't e.g. requesting dynamic HTML for a static page.
+         *    3.) If `shouldWaitOnAllReady` is true, which indicates we need to
+         *        resolve all suspenses and generate a full HTML. e.g. when it's a
+         *        html limited bot requests, we produce the full HTML content.
+         *
+         * These rules help ensure that other existing features like request caching,
+         * coalescing, and ISR continue working as intended.
+         */
+        const generateStaticHTML =
+          supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+        return await continueFizzStream(fizzStream, {
+          inlinedDataStream: createInlinedDataReadableStream(
+            // This is intentionally using the readable datastream from the
+            // main render rather than the flight data from the error page
+            // render
+            reactServerResult.consume(),
+            nonce,
+            formState
+          ),
+          isStaticGeneration: generateStaticHTML,
+          isBuildTimePrerendering:
+            ctx.workStore.isBuildTimePrerendering === true,
+          buildId: ctx.workStore.buildId,
+          getServerInsertedHTML: makeGetServerInsertedHTML({
+            polyfills,
+            renderServerInsertedHTML,
+            serverCapturedErrors: [],
+            basePath,
+            tracingMetadata: tracingMetadata,
+          }),
+          getServerInsertedMetadata,
+          validateRootLayout: dev,
+        })
+      } catch (finalErr: any) {
+        if (
+          process.env.NODE_ENV === 'development' &&
+          isHTTPAccessFallbackError(finalErr)
+        ) {
+          const { bailOnRootNotFound } =
+            require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
+          bailOnRootNotFound()
+        }
+        endSpanWithError(finalErr)
+        throw finalErr
+      }
     }
-  }
+  })
   /* eslint-enable @next/internal/no-ambiguous-jsx */
 }
 
