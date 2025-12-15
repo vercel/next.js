@@ -172,6 +172,8 @@ jobs:
         run: |
           npm i -g corepack@0.31
       - name: Check tmp
+        env:
+          TEMP: ${{ runner.temp }}
         run: |
           echo ${{ runner.temp }}
           node -e "const os = require('os'); console.log(os.tmpdir())"
@@ -281,6 +283,8 @@ jobs:
         # We must use a login shell: fnm installation may modify the `.profile`
         shell: bash -le {0}
         timeout-minutes: ${{ inputs.timeout_minutes }}
+        env:
+          TEMP: ${{ runner.temp }}
 
       # This file messes up the tests because it influences the build root autodetection.
       - name: Clean up stray files
