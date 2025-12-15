@@ -50,6 +50,12 @@ export type NavigationTask = {
   children: Map<string, NavigationTask> | null
 }
 
+export const enum FreshnessPolicy {
+  Default,
+  HistoryTraversal,
+  RefreshAll,
+}
+
 export type NavigationRequestAccumulation = {
   scrollableSegments: Array<FlightSegmentPath> | null
   separateRefreshUrls: Set<string> | null
@@ -90,7 +96,7 @@ export function startPPRNavigation(
   oldCacheNode: CacheNode | null,
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
-  shouldRefreshDynamicData: boolean,
+  freshness: FreshnessPolicy,
   seedData: CacheNodeSeedData | null,
   seedHead: HeadData | null,
   prefetchData: CacheNodeSeedData | null,
@@ -108,7 +114,7 @@ export function startPPRNavigation(
     oldCacheNode !== null ? oldCacheNode : undefined,
     oldRouterState,
     newRouterState,
-    shouldRefreshDynamicData,
+    freshness,
     didFindRootLayout,
     seedData,
     seedHead,
@@ -130,7 +136,7 @@ function updateCacheNodeOnNavigation(
   oldCacheNode: CacheNode | void,
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
-  shouldRefreshDynamicData: boolean,
+  freshness: FreshnessPolicy,
   didFindRootLayout: boolean,
   seedData: CacheNodeSeedData | null,
   seedHead: HeadData | null,
@@ -198,7 +204,7 @@ function updateCacheNodeOnNavigation(
       navigatedAt,
       newRouterState,
       oldCacheNode,
-      shouldRefreshDynamicData,
+      freshness,
       seedData,
       seedHead,
       prefetchData,
@@ -247,8 +253,26 @@ function updateCacheNodeOnNavigation(
   // leak. We should figure out a better model for the lifetime of inactive
   // segments, so we can maintain instant back/forward navigations without
   // leaking memory indefinitely.
+  let shouldDropSiblingCaches: boolean = false
+  let shouldRefreshDynamicData: boolean = false
+  switch (freshness) {
+    case FreshnessPolicy.Default:
+    case FreshnessPolicy.HistoryTraversal:
+      // We should never drop dynamic data in shared layouts, except during
+      // a refresh.
+      shouldDropSiblingCaches = false
+      shouldRefreshDynamicData = false
+      break
+    case FreshnessPolicy.RefreshAll:
+      shouldDropSiblingCaches = true
+      shouldRefreshDynamicData = true
+      break
+    default:
+      freshness satisfies never
+      break
+  }
   const newParallelRoutes = new Map(
-    shouldRefreshDynamicData ? undefined : oldParallelRoutes
+    shouldDropSiblingCaches ? undefined : oldParallelRoutes
   )
 
   // TODO: We're not consistent about how we do this check. Some places
@@ -271,7 +295,12 @@ function updateCacheNodeOnNavigation(
     !(isLeafSegment && isSamePageNavigation)
   ) {
     // Reuse the existing CacheNode
-    newCacheNode = reuseDynamicCacheNode(oldCacheNode, newParallelRoutes)
+    const dropPrefetchRsc = false
+    newCacheNode = reuseDynamicCacheNode(
+      dropPrefetchRsc,
+      oldCacheNode,
+      newParallelRoutes
+    )
     needsDynamicRequest = false
   } else if (seedData !== null) {
     // If this navigation was the result of an action, then check if the
@@ -431,7 +460,7 @@ function updateCacheNodeOnNavigation(
       oldCacheNodeChild,
       oldRouterStateChild,
       newRouterStateChild,
-      shouldRefreshDynamicData,
+      freshness,
       childDidFindRootLayout,
       seedDataChild ?? null,
       seedHeadChild,
@@ -461,7 +490,7 @@ function updateCacheNodeOnNavigation(
     const newCacheNodeChild = taskChild.node
     if (newCacheNodeChild !== null) {
       const newSegmentMapChild: ChildSegmentMap = new Map(
-        shouldRefreshDynamicData ? undefined : oldSegmentMapChild
+        shouldDropSiblingCaches ? undefined : oldSegmentMapChild
       )
       newSegmentMapChild.set(newSegmentKeyChild, newCacheNodeChild)
       newParallelRoutes.set(parallelRouteKey, newSegmentMapChild)
@@ -511,7 +540,7 @@ function createCacheNodeOnNavigation(
   navigatedAt: number,
   newRouterState: FlightRouterState,
   oldCacheNode: CacheNode | void,
-  shouldRefreshDynamicData: boolean,
+  freshness: FreshnessPolicy,
   seedData: CacheNodeSeedData | null,
   seedHead: HeadData | null,
   prefetchData: CacheNodeSeedData | null,
@@ -543,8 +572,66 @@ function createCacheNodeOnNavigation(
   const seedDataChildren = seedData !== null ? seedData[1] : null
   const oldParallelRoutes =
     oldCacheNode !== undefined ? oldCacheNode.parallelRoutes : undefined
+
+  let shouldDropSiblingCaches: boolean = false
+  let shouldRefreshDynamicData: boolean = false
+  let dropPrefetchRsc: boolean = false
+  switch (freshness) {
+    case FreshnessPolicy.Default:
+      // We should never drop dynamic data in sibling caches except during
+      // a refresh.
+      shouldDropSiblingCaches = false
+
+      // Only reuse the dynamic data if experimental.staleTimes.dynamic config
+      // is set, and the data is not stale. (This is not a recommended API with
+      // Cache Components, but it's supported for backwards compatibility. Use
+      // cacheLife instead.)
+      //
+      // DYNAMIC_STALETIME_MS defaults to 0, but it can be increased.
+      shouldRefreshDynamicData =
+        oldCacheNode === undefined ||
+        navigatedAt - oldCacheNode.navigatedAt >= DYNAMIC_STALETIME_MS
+
+      dropPrefetchRsc = false
+      break
+    case FreshnessPolicy.HistoryTraversal:
+      // During back/forward navigations, we reuse the dynamic data regardless
+      // of how stale it may be.
+      shouldRefreshDynamicData = false
+      shouldRefreshDynamicData = false
+
+      // Only show prefetched data if the dynamic data is still pending. This
+      // avoids a flash back to the prefetch state in a case where it's highly
+      // likely to have already streamed in.
+      //
+      // Tehnically, what we're actually checking is whether the dynamic network
+      // response was received. But since it's a streaming response, this does
+      // not mean that all the dynamic data has fully streamed in. It just means
+      // that _some_ of the dynamic data was received. But as a heuristic, we
+      // assume that the rest dynamic data will stream in quickly, so it's still
+      // better to skip the prefetch state.
+      if (oldCacheNode !== undefined) {
+        const oldRsc = oldCacheNode.rsc
+        const oldRscDidResolve =
+          !isDeferredRsc(oldRsc) || oldRsc.status !== 'pending'
+        dropPrefetchRsc = oldRscDidResolve
+      } else {
+        dropPrefetchRsc = false
+      }
+      break
+    case FreshnessPolicy.RefreshAll:
+      // Drop all dynamic data.
+      shouldRefreshDynamicData = true
+      shouldDropSiblingCaches = true
+      dropPrefetchRsc = false
+      break
+    default:
+      freshness satisfies never
+      break
+  }
+
   const newParallelRoutes = new Map(
-    shouldRefreshDynamicData ? undefined : oldParallelRoutes
+    shouldDropSiblingCaches ? undefined : oldParallelRoutes
   )
   const isLeafSegment = Object.keys(newRouterStateChildren).length === 0
 
@@ -566,20 +653,13 @@ function createCacheNodeOnNavigation(
 
   let newCacheNode: ReadyCacheNode
   let needsDynamicRequest: boolean
-  if (
-    !shouldRefreshDynamicData &&
-    oldCacheNode !== undefined &&
-    // DYNAMIC_STALETIME_MS defaults to 0, but it can be increased using
-    // the experimental.staleTimes.dynamic config. When set, we'll avoid
-    // refetching dynamic data if it was fetched within the given threshold.
-    // TODO: We should use this same logic for popstate navigations, replacing
-    // the `updateCacheNodeOnPopstateRestoration` function. That way we can
-    // handle the case where the data is missing here, like we would for a
-    // normal navigation, rather than rely on the lazy fetch in LazyRouter.
-    oldCacheNode.navigatedAt + DYNAMIC_STALETIME_MS > navigatedAt
-  ) {
+  if (!shouldRefreshDynamicData && oldCacheNode !== undefined) {
     // Reuse the existing CacheNode
-    newCacheNode = reuseDynamicCacheNode(oldCacheNode, newParallelRoutes)
+    newCacheNode = reuseDynamicCacheNode(
+      dropPrefetchRsc,
+      oldCacheNode,
+      newParallelRoutes
+    )
     needsDynamicRequest = false
   } else if (seedData !== null) {
     // If this navigation was the result of an action, then check if the
@@ -666,7 +746,7 @@ function createCacheNodeOnNavigation(
       navigatedAt,
       newRouterStateChild,
       oldCacheNodeChild,
-      shouldRefreshDynamicData,
+      freshness,
       seedDataChild ?? null,
       seedHead,
       prefetchDataChild ?? null,
@@ -685,7 +765,7 @@ function createCacheNodeOnNavigation(
     const newCacheNodeChild = taskChild.node
     if (newCacheNodeChild !== null) {
       const newSegmentMapChild: ChildSegmentMap = new Map(
-        shouldRefreshDynamicData ? undefined : oldSegmentMapChild
+        shouldDropSiblingCaches ? undefined : oldSegmentMapChild
       )
       newSegmentMapChild.set(newSegmentKeyChild, newCacheNodeChild)
       newParallelRoutes.set(parallelRouteKey, newSegmentMapChild)
@@ -837,6 +917,7 @@ function reuseActiveSegmentInDefaultSlot(
 }
 
 function reuseDynamicCacheNode(
+  dropPrefetchRsc: boolean,
   existingCacheNode: CacheNode,
   parallelRoutes: Map<string, ChildSegmentMap>
 ): ReadyCacheNode {
@@ -844,9 +925,9 @@ function reuseDynamicCacheNode(
   const cacheNode: ReadyCacheNode = {
     lazyData: null,
     rsc: existingCacheNode.rsc,
-    prefetchRsc: existingCacheNode.prefetchRsc,
+    prefetchRsc: dropPrefetchRsc ? null : existingCacheNode.prefetchRsc,
     head: existingCacheNode.head,
-    prefetchHead: existingCacheNode.prefetchHead,
+    prefetchHead: dropPrefetchRsc ? null : existingCacheNode.prefetchHead,
     loading: existingCacheNode.loading,
 
     parallelRoutes,
@@ -1396,76 +1477,6 @@ function abortPendingCacheNode(
   const head = cacheNode.head
   if (isDeferredRsc(head)) {
     head.resolve(null, debugInfo)
-  }
-}
-
-export function updateCacheNodeOnPopstateRestoration(
-  oldCacheNode: CacheNode,
-  routerState: FlightRouterState
-): ReadyCacheNode {
-  // A popstate navigation reads data from the local cache. It does not issue
-  // new network requests (unless the cache entries have been evicted). So, we
-  // update the cache to drop the prefetch data for any segment whose dynamic
-  // data was already received. This prevents an unnecessary flash back to PPR
-  // state during a back/forward navigation.
-  //
-  // This function clones the entire cache node tree and sets the `prefetchRsc`
-  // field to `null` to prevent it from being rendered. We can't mutate the node
-  // in place because this is a concurrent data structure.
-  //
-  // TODO: Delete this function and instead move the logic into the normal
-  // navigation path (updateCacheNodeOnNavigation) to ensure we handle all the
-  // same cases. The only difference is that whenever a segment is missing, we
-  // should always check for existing dynamic data rather than spawning a new
-  // request. We can handle this using the same branch that handles stale
-  // dynamic data (see createCacheNodeOnNavigation).
-  const routerStateChildren = routerState[1]
-  const oldParallelRoutes = oldCacheNode.parallelRoutes
-  const newParallelRoutes = new Map(oldParallelRoutes)
-  for (let parallelRouteKey in routerStateChildren) {
-    const routerStateChild: FlightRouterState =
-      routerStateChildren[parallelRouteKey]
-    const segmentChild = routerStateChild[0]
-    const segmentKeyChild = createRouterCacheKey(segmentChild)
-    const oldSegmentMapChild = oldParallelRoutes.get(parallelRouteKey)
-    if (oldSegmentMapChild !== undefined) {
-      const oldCacheNodeChild = oldSegmentMapChild.get(segmentKeyChild)
-      if (oldCacheNodeChild !== undefined) {
-        const newCacheNodeChild = updateCacheNodeOnPopstateRestoration(
-          oldCacheNodeChild,
-          routerStateChild
-        )
-        const newSegmentMapChild = new Map(oldSegmentMapChild)
-        newSegmentMapChild.set(segmentKeyChild, newCacheNodeChild)
-        newParallelRoutes.set(parallelRouteKey, newSegmentMapChild)
-      }
-    }
-  }
-
-  // Only show prefetched data if the dynamic data is still pending.
-  //
-  // Tehnically, what we're actually checking is whether the dynamic network
-  // response was received. But since it's a streaming response, this does not
-  // mean that all the dynamic data has fully streamed in. It just means that
-  // _some_ of the dynamic data was received. But as a heuristic, we assume that
-  // the rest dynamic data will stream in quickly, so it's still better to skip
-  // the prefetch state.
-  const rsc = oldCacheNode.rsc
-  const shouldUsePrefetch = isDeferredRsc(rsc) && rsc.status === 'pending'
-
-  return {
-    lazyData: null,
-    rsc,
-    head: oldCacheNode.head,
-
-    prefetchHead: shouldUsePrefetch ? oldCacheNode.prefetchHead : [null, null],
-    prefetchRsc: shouldUsePrefetch ? oldCacheNode.prefetchRsc : null,
-    loading: oldCacheNode.loading,
-
-    // These are the cloned children we computed above
-    parallelRoutes: newParallelRoutes,
-
-    navigatedAt: oldCacheNode.navigatedAt,
   }
 }
 

@@ -5,15 +5,20 @@ import type {
   RestoreAction,
 } from '../router-reducer-types'
 import { extractPathFromFlightRouterState } from '../compute-changed-path'
-import { updateCacheNodeOnPopstateRestoration } from '../ppr-navigations'
+import {
+  FreshnessPolicy,
+  listenForDynamicRequest,
+  startPPRNavigation,
+  type NavigationRequestAccumulation,
+} from '../ppr-navigations'
 import type { FlightRouterState } from '../../../../shared/lib/app-router-types'
+import { handleExternalUrl } from './navigate-reducer'
+import type { Mutable } from '../router-reducer-types'
 
 export function restoreReducer(
   state: ReadonlyReducerState,
   action: RestoreAction
 ): ReducerState {
-  const { url, historyState } = action
-  const href = createHrefFromUrl(url)
   // This action is used to restore the router state from the history state.
   // However, it's possible that the history state no longer contains the `FlightRouterState`.
   // We will copy over the internal state on pushState/replaceState events, but if a history entry
@@ -22,6 +27,7 @@ export function restoreReducer(
   // In this case, we'll continue to use the existing tree so the router doesn't get into an invalid state.
   let treeToRestore: FlightRouterState | undefined
   let renderedSearch: string | undefined
+  const historyState = action.historyState
   if (historyState) {
     treeToRestore = historyState.tree
     renderedSearch = historyState.renderedSearch
@@ -30,18 +36,54 @@ export function restoreReducer(
     renderedSearch = state.renderedSearch
   }
 
-  const oldCache = state.cache
-  const newCache = process.env.__NEXT_PPR
-    ? // When PPR is enabled, we update the cache to drop the prefetch
-      // data for any segment whose dynamic data was already received. This
-      // prevents an unnecessary flash back to PPR state during a
-      // back/forward navigation.
-      updateCacheNodeOnPopstateRestoration(oldCache, treeToRestore)
-    : oldCache
+  const currentUrl = new URL(state.canonicalUrl, location.origin)
+  const restoredUrl = action.url
+  const restoredCanonicalUrl = createHrefFromUrl(restoredUrl)
+  const restoredNextUrl =
+    extractPathFromFlightRouterState(treeToRestore) ?? restoredUrl.pathname
+
+  const now = Date.now()
+  const accumulation: NavigationRequestAccumulation = {
+    scrollableSegments: null,
+    separateRefreshUrls: null,
+  }
+  const task = startPPRNavigation(
+    now,
+    currentUrl,
+    state.cache,
+    state.tree,
+    treeToRestore,
+    FreshnessPolicy.HistoryTraversal,
+    null,
+    null,
+    null,
+    null,
+    false,
+    false,
+    accumulation
+  )
+
+  if (task === null) {
+    const mutable: Mutable = {
+      preserveCustomHistoryState: true,
+    }
+    return handleExternalUrl(state, mutable, restoredCanonicalUrl, false)
+  }
+
+  if (task.dynamicRequestTree !== null) {
+    listenForDynamicRequest(
+      restoredUrl,
+      restoredNextUrl,
+      task,
+      task.dynamicRequestTree,
+      null,
+      accumulation
+    )
+  }
 
   return {
     // Set canonical url
-    canonicalUrl: href,
+    canonicalUrl: restoredCanonicalUrl,
     renderedSearch,
     pushRef: {
       pendingPush: false,
@@ -50,10 +92,14 @@ export function restoreReducer(
       preserveCustomHistoryState: true,
     },
     focusAndScrollRef: state.focusAndScrollRef,
-    cache: newCache,
+    cache: task.node,
     // Restore provided tree
     tree: treeToRestore,
-    nextUrl: extractPathFromFlightRouterState(treeToRestore) ?? url.pathname,
+
+    nextUrl: restoredNextUrl,
+    // TODO: We need to restore previousNextUrl, too, which represents the
+    // Next-Url that was used to fetch the data. Anywhere we fetch using the
+    // canonical URL, there should be a corresponding Next-Url.
     previousNextUrl: null,
     debugInfo: null,
   }

@@ -17,6 +17,7 @@ import {
 } from '../../segment-cache/navigation'
 import { NavigationResultTag } from '../../segment-cache/types'
 import { getStaleTimeMs } from '../../segment-cache/cache'
+import { FreshnessPolicy } from '../ppr-navigations'
 
 // These values are set by `define-env-plugin` (based on `nextConfig.experimental.staleTimes`)
 // and default to 5 minutes (static) / 0 seconds (dynamic)
@@ -161,14 +162,13 @@ export function navigateReducer(
   // implementation. Eventually we'll rewrite the router reducer to a
   // state machine.
   const currentUrl = new URL(state.canonicalUrl, location.origin)
-  const shouldRefreshDynamicData = false
   const result = navigateUsingSegmentCache(
     url,
     currentUrl,
     state.cache,
     state.tree,
     state.nextUrl,
-    shouldRefreshDynamicData,
+    FreshnessPolicy.Default,
     shouldScroll,
     mutable
   )
