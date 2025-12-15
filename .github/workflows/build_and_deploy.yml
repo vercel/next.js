@@ -3,8 +3,9 @@ name: build-and-deploy
 
 on:
   push:
+    # Don't run when tags are pushed
     branches:
-      - '*'
+      - '**'
   # we need the preview tarball for deploy tests
   pull_request:
     types: [opened, synchronize]
