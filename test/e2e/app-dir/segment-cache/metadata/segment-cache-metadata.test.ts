@@ -25,13 +25,13 @@ describe('segment cache (metadata)', () => {
         )
         await checkbox.click()
       }, [
+        {
+          includes: 'Target page',
+        },
         // Because the link is prefetched with prefetch={true},
         // we should be able to prefetch the title, even though it's dynamic.
         {
           includes: 'Dynamic Title',
-        },
-        {
-          includes: 'Target page',
         },
       ])
 
@@ -42,14 +42,14 @@ describe('segment cache (metadata)', () => {
         )
         await checkbox.click()
       }, [
+        {
+          includes: 'Target page',
+          block: 'reject',
+        },
         // It should not prefetch the page title or content again, because it
         // was already cached.
         {
           includes: 'Dynamic Title',
-          block: 'reject',
-        },
-        {
-          includes: 'Target page',
           block: 'reject',
         },
       ])
@@ -85,13 +85,13 @@ describe('segment cache (metadata)', () => {
         )
         await checkbox.click()
       }, [
+        {
+          includes: 'Target page',
+        },
         // Because the link is prefetched with prefetch={true},
         // we should be able to prefetch the title, even though it's dynamic.
         {
           includes: 'Runtime-prefetchable title',
-        },
-        {
-          includes: 'Target page',
         },
       ])
 
@@ -102,14 +102,14 @@ describe('segment cache (metadata)', () => {
         )
         await checkbox.click()
       }, [
+        {
+          includes: 'Target page',
+          block: 'reject',
+        },
         // It should not prefetch the page title or content again, because it
         // was already cached.
         {
           includes: 'Runtime-prefetchable title',
-          block: 'reject',
-        },
-        {
-          includes: 'Target page',
           block: 'reject',
         },
       ])

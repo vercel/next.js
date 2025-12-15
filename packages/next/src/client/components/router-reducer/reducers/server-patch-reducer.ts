@@ -7,21 +7,81 @@ import type {
   ReadonlyReducerState,
   Mutable,
 } from '../router-reducer-types'
-import { handleExternalUrl } from './navigate-reducer'
+import { handleExternalUrl, handleNavigationResult } from './navigate-reducer'
 import { applyFlightData } from '../apply-flight-data'
 import { handleMutable } from '../handle-mutable'
 import type { CacheNode } from '../../../../shared/lib/app-router-types'
 import { createEmptyCacheNode } from '../../app-router'
+import { navigateToSeededRoute } from '../../segment-cache/navigation'
+import { refreshReducer } from './refresh-reducer'
+import { FreshnessPolicy } from '../ppr-navigations'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
   action: ServerPatchAction
 ): ReducerState {
-  const { serverResponse, navigatedAt } = action
+  const { serverResponse, navigatedAt, retry, previousTree } = action
 
   const mutable: Mutable = {}
 
   mutable.preserveCustomHistoryState = false
+
+  if (retry !== null) {
+    // A "retry" is a navigation that happens due to a route mismatch. It's
+    // similar to a refresh, because we will omit any existing dynamic data on
+    // the page. But we seed the retry navigation with the exact tree that the
+    // server just responded with.
+    const retryMpa = retry.mpa
+    const retryUrl = new URL(retry.url, location.origin)
+    const retrySeed = retry.seed
+    if (retryMpa || retrySeed === null) {
+      // If the server did not send back data during the mismatch, fall back to
+      // an MPA navigation.
+      return handleExternalUrl(state, mutable, retryUrl.href, false)
+    }
+    const currentUrl = new URL(state.canonicalUrl, location.origin)
+    if (previousTree !== state.tree) {
+      // There was another, more recent navigation since the once that
+      // mismatched. We can abort the retry, but we still need to refresh the
+      // page to evict any stale dynamic data.
+      return refreshReducer(state)
+    }
+    // There have been no new navigations since the mismatched one. Refresh,
+    // using the tree we just received from the server.
+    const retryCanonicalUrl = createHrefFromUrl(retryUrl)
+    const retryNextUrl = retry.nextUrl
+    // A retry should not create a new history entry.
+    const pendingPush = false
+    const shouldScroll = true
+    const now = Date.now()
+    const result = navigateToSeededRoute(
+      now,
+      retryUrl,
+      retryCanonicalUrl,
+      retrySeed,
+      currentUrl,
+      state.cache,
+      state.tree,
+      FreshnessPolicy.RefreshAll,
+      retryNextUrl,
+      shouldScroll
+    )
+    return handleNavigationResult(retryUrl, state, mutable, pendingPush, result)
+  }
+
+  // TODO: The rest of this reducer will be deleted once we migrate the
+  // remaining to reducers to no longer rely on the lazy data fetch that happens
+  // on mismatch in LayoutRouter.
+
+  if (serverResponse === null) {
+    // No data provided. Fall back to a hard refresh.
+    return handleExternalUrl(
+      state,
+      mutable,
+      state.canonicalUrl,
+      state.pushRef.pendingPush
+    )
+  }
 
   // Handle case when navigating to page in `pages` from `app`
   if (typeof serverResponse === 'string') {

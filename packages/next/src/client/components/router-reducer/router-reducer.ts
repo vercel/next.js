@@ -36,10 +36,10 @@ function clientReducer(
       return restoreReducer(state, action)
     }
     case ACTION_REFRESH: {
-      return refreshReducer(state, action)
+      return refreshReducer(state)
     }
     case ACTION_HMR_REFRESH: {
-      return hmrRefreshReducer(state, action)
+      return hmrRefreshReducer(state)
     }
     case ACTION_SERVER_ACTION: {
       return serverActionReducer(state, action)
