@@ -154,16 +154,10 @@ jobs:
       - name: Use Node.js ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
         run: |
           node --version || echo "Node.js not installed yet"
-          # TODO: May be sufficient to just set `$FNM_MULTISHELL_PATH/bin` from `fnm env --json` into GITHUB_PATH
-          fnm_env=$(fnm env)
-          # Debug what we're about to eval
-          echo "$fnm_env"
-          eval "$fnm_env"
           fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
           fnm default ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
           node --version
           which node
-          echo "$FNM_MULTISHELL_PATH/bin" >> "$GITHUB_PATH"
       # Debug used Node.js version in a separate step to ensure
       # the Node.js version is set for the entire job
       - run: node --version
