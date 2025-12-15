@@ -1,6 +1,5 @@
 {
   "name": "next-minimal-server",
-  "version": "0.0.1",
   "description": "Minimal server for Next.js for benchmarking/perf analysis purposes.",
   "bin": "./bin/minimal-server.js",
   "peerDependencies": {
