@@ -7,7 +7,7 @@ import type {
 import { extractPathFromFlightRouterState } from '../compute-changed-path'
 import {
   FreshnessPolicy,
-  listenForDynamicRequest,
+  spawnDynamicRequests,
   startPPRNavigation,
   type NavigationRequestAccumulation,
 } from '../ppr-navigations'
@@ -70,16 +70,13 @@ export function restoreReducer(
     return handleExternalUrl(state, mutable, restoredCanonicalUrl, false)
   }
 
-  if (task.dynamicRequestTree !== null) {
-    listenForDynamicRequest(
-      restoredUrl,
-      restoredNextUrl,
-      task,
-      task.dynamicRequestTree,
-      null,
-      accumulation
-    )
-  }
+  spawnDynamicRequests(
+    task,
+    restoredUrl,
+    restoredNextUrl,
+    FreshnessPolicy.HistoryTraversal,
+    accumulation
+  )
 
   return {
     // Set canonical url
