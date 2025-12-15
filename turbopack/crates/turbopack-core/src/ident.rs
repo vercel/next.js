@@ -4,7 +4,6 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs,
@@ -24,8 +23,6 @@ use crate::resolve::ModulePart;
     Eq,
     PartialEq,
     TraceRawVcs,
-    Serialize,
-    Deserialize,
     NonLocalValue,
     Encode,
     Decode,

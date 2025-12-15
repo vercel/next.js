@@ -93,21 +93,18 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
             let mut module_depth =
                 FxHashMap::with_capacity_and_hasher(module_count, Default::default());
-            module_graph.traverse_edges_from_entries_bfs(
-                entries.iter().copied(),
-                |parent, node| {
-                    if let Some((parent, _)) = parent {
-                        let parent_depth = *module_depth
-                            .get(&parent)
-                            .context("Module depth not found")?;
-                        module_depth.entry(node).or_insert(parent_depth + 1);
-                    } else {
-                        module_depth.insert(node, 0);
-                    };
+            module_graph.traverse_edges_bfs(entries.iter().copied(), |parent, node| {
+                if let Some((parent, _)) = parent {
+                    let parent_depth = *module_depth
+                        .get(&parent)
+                        .context("Module depth not found")?;
+                    module_depth.entry(node).or_insert(parent_depth + 1);
+                } else {
+                    module_depth.insert(node, 0);
+                };
 
-                    Ok(GraphTraversalAction::Continue)
-                },
-            )?;
+                Ok(GraphTraversalAction::Continue)
+            })?;
             module_depth
         };
 
@@ -326,7 +323,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         // leading to the list `a, b` which is not execution order.
                         let mut visited = FxHashSet::default();
 
-                        module_graph.traverse_edges_from_entries_dfs(
+                        module_graph.traverse_edges_dfs(
                             chunk_group.entries(),
                             &mut (),
                             |parent_info, node, _| {
@@ -468,7 +465,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let mut exposed_modules_namespace: FxHashSet<ResolvedVc<Box<dyn Module>>> =
             FxHashSet::with_capacity_and_hasher(module_merged_groups.len(), Default::default());
 
-        module_graph.traverse_edges_from_entries_dfs(
+        module_graph.traverse_edges_dfs(
             entries,
             &mut (),
             |_, _, _| Ok(GraphTraversalAction::Continue),
