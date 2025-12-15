@@ -84,7 +84,21 @@ jobs:
           sudo dpkg -i hyperfine_1.16.1_amd64.deb
           npm i -g corepack@0.31
           corepack enable
-          pnpm install --loglevel error
+
+      - id: get-store-path
+        run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@v4
+        timeout-minutes: 5
+        id: cache-pnpm-store
+        with:
+          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
+          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-
+            pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - run: pnpm install --loglevel error
 
       - name: Build next-swc
         run: |

@@ -35,12 +35,31 @@ jobs:
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
 
+      - name: Cache Rust build artifacts
+        uses: ijjk/rust-cache@turbo-cache-v1.0.8
+        with:
+          cache-provider: 'github'
+          shared-key: rust-bench-test-${{ hashFiles('.cargo/config.toml') }}
+
       - name: Setup node
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
       - run: corepack enable
+
+      - id: get-store-path
+        run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@v4
+        timeout-minutes: 5
+        id: cache-pnpm-store
+        with:
+          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
+          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-
+            pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
 
       # We need to install the dependencies for the benchmark apps
       - run: pnpm install
