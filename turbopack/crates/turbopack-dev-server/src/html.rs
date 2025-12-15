@@ -1,7 +1,6 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use mime_guess::mime::TEXT_HTML_UTF_8;
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs,
@@ -21,18 +20,7 @@ use turbopack_core::{
 };
 
 #[derive(
-    Clone,
-    Debug,
-    Deserialize,
-    Eq,
-    Hash,
-    NonLocalValue,
-    PartialEq,
-    Serialize,
-    TaskInput,
-    TraceRawVcs,
-    Encode,
-    Decode,
+    Clone, Debug, Eq, Hash, NonLocalValue, PartialEq, TaskInput, TraceRawVcs, Encode, Decode,
 )]
 pub struct DevHtmlEntry {
     pub chunkable_module: ResolvedVc<Box<dyn ChunkableModule>>,

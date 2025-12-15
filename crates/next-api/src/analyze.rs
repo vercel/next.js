@@ -3,12 +3,9 @@ use std::{borrow::Cow, io::Write};
 use anyhow::Result;
 use byteorder::{BE, WriteBytesExt};
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs,
-};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     File, FileContent, FileSystemPath,
     rope::{Rope, RopeBuilder},
@@ -25,9 +22,6 @@ use turbopack_core::{
 
 use crate::route::ModuleGraphs;
 
-#[derive(
-    Default, Clone, Debug, Deserialize, Eq, NonLocalValue, PartialEq, Serialize, TraceRawVcs,
-)]
 pub struct EdgesData {
     pub offsets: Vec<u32>,
     pub data: Vec<u32>,
@@ -430,7 +424,7 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
     let mut all_async_edges = FxIndexSet::default();
     for &module_graph in module_graphs.await? {
         let module_graph = module_graph.read_graphs().await?;
-        module_graph.traverse_all_edges_unordered(|parent, node| {
+        module_graph.traverse_edges_unordered(|parent, node| {
             if let Some((parent_node, reference)) = parent {
                 all_modules.insert(parent_node);
                 all_modules.insert(node);
