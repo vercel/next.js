@@ -8,6 +8,7 @@ import { handleNavigationResult } from './navigate-reducer'
 import { navigateToSeededRoute } from '../../segment-cache/navigation'
 import { revalidateEntireCache } from '../../segment-cache/cache'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
+import { FreshnessPolicy } from '../ppr-navigations'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -33,7 +34,6 @@ export function refreshReducer(
   const url = currentUrl
   const currentFlightRouterState = state.tree
   const shouldScroll = true
-  const shouldRefreshDynamicData = true
 
   const seedFlightRouterState = state.tree
   const seedRenderedSearch = state.renderedSearch
@@ -49,7 +49,7 @@ export function refreshReducer(
     seedRenderedSearch,
     seedData,
     seedHead,
-    shouldRefreshDynamicData,
+    FreshnessPolicy.RefreshAll,
     nextUrlForRefresh,
     shouldScroll
   )

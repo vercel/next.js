@@ -13,6 +13,7 @@ import { fetchServerResponse } from '../router-reducer/fetch-server-response'
 import {
   startPPRNavigation,
   listenForDynamicRequest,
+  FreshnessPolicy,
   type NavigationTask,
   type NavigationRequestAccumulation,
 } from '../router-reducer/ppr-navigations'
@@ -72,7 +73,7 @@ export function navigate(
   currentCacheNode: CacheNode | null,
   currentFlightRouterState: FlightRouterState,
   nextUrl: string | null,
-  shouldRefreshDynamicData: boolean,
+  freshnessPolicy: FreshnessPolicy,
   shouldScroll: boolean,
   accumulation: { collectedDebugInfo?: Array<unknown> }
 ): NavigationResult {
@@ -131,7 +132,7 @@ export function navigate(
       isPrefetchHeadPartial,
       newCanonicalUrl,
       renderedSearch,
-      shouldRefreshDynamicData,
+      freshnessPolicy,
       shouldScroll,
       url.hash
     )
@@ -176,7 +177,7 @@ export function navigate(
         isPrefetchHeadPartial,
         newCanonicalUrl,
         newRenderedSearch,
-        shouldRefreshDynamicData,
+        freshnessPolicy,
         shouldScroll,
         url.hash
       )
@@ -198,7 +199,7 @@ export function navigate(
       isSamePageNavigation,
       currentCacheNode,
       currentFlightRouterState,
-      shouldRefreshDynamicData,
+      freshnessPolicy,
       shouldScroll,
       url.hash,
       collectedDebugInfo
@@ -215,7 +216,7 @@ export function navigateToSeededRoute(
   seedRenderedSearch: string,
   seedData: CacheNodeSeedData | null,
   seedHead: HeadData | null,
-  shouldRefreshDynamicData: boolean,
+  freshnessPolicy: FreshnessPolicy,
   nextUrl: string | null,
   shouldScroll: boolean
 ): SuccessfulNavigationResult | MPANavigationResult {
@@ -234,7 +235,7 @@ export function navigateToSeededRoute(
     currentCacheNode,
     currentFlightRouterState,
     seedFlightRouterState,
-    shouldRefreshDynamicData,
+    freshnessPolicy,
     seedData,
     seedHead,
     null,
@@ -284,7 +285,7 @@ function navigateUsingPrefetchedRouteTree(
   isPrefetchHeadPartial: boolean,
   canonicalUrl: string,
   renderedSearch: string,
-  shouldRefreshDynamicData: boolean,
+  freshnessPolicy: FreshnessPolicy,
   shouldScroll: boolean,
   hash: string
 ): SuccessfulNavigationResult | MPANavigationResult {
@@ -306,7 +307,7 @@ function navigateUsingPrefetchedRouteTree(
     currentCacheNode,
     currentFlightRouterState,
     prefetchFlightRouterState,
-    shouldRefreshDynamicData,
+    freshnessPolicy,
     seedData,
     seedHead,
     prefetchSeedData,
@@ -512,7 +513,7 @@ async function navigateDynamicallyWithNoPrefetch(
   isSamePageNavigation: boolean,
   currentCacheNode: CacheNode | null,
   currentFlightRouterState: FlightRouterState,
-  shouldRefreshDynamicData: boolean,
+  freshnessPolicy: FreshnessPolicy,
   shouldScroll: boolean,
   hash: string,
   collectedDebugInfo: Array<unknown>
@@ -529,10 +530,23 @@ async function navigateDynamicallyWithNoPrefetch(
   // tree. So it's the same flow as the "happy path" (prefetch, then
   // navigation), except we use a single server response for both stages.
 
+  let dynamicRequestTree: FlightRouterState
+  switch (freshnessPolicy) {
+    case FreshnessPolicy.Default:
+    case FreshnessPolicy.HistoryTraversal:
+      dynamicRequestTree = currentFlightRouterState
+      break
+    case FreshnessPolicy.RefreshAll:
+      dynamicRequestTree = DynamicRequestTreeForEntireRoute
+      break
+    default:
+      freshnessPolicy satisfies never
+      dynamicRequestTree = currentFlightRouterState
+      break
+  }
+
   const promiseForDynamicServerResponse = fetchServerResponse(url, {
-    flightRouterState: shouldRefreshDynamicData
-      ? DynamicRequestTreeForEntireRoute
-      : currentFlightRouterState,
+    flightRouterState: dynamicRequestTree,
     nextUrl,
   })
   const result = await promiseForDynamicServerResponse
@@ -582,7 +596,7 @@ async function navigateDynamicallyWithNoPrefetch(
     currentCacheNode,
     currentFlightRouterState,
     prefetchFlightRouterState,
-    shouldRefreshDynamicData,
+    freshnessPolicy,
     seedData,
     seedHead,
     prefetchData,
