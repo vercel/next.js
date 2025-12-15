@@ -30,7 +30,7 @@ pub async fn get_global_module_id_strategy(
 
         // And additionally, all the modules that are inserted by chunking (i.e. async loaders)
         let mut async_idents = vec![];
-        module_graph.traverse_all_edges_unordered(|parent, current| {
+        module_graph.traverse_edges_unordered(|parent, current| {
             if let Some((
                 _,
                 &RefData {

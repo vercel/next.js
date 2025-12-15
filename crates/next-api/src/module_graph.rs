@@ -173,7 +173,7 @@ impl NextDynamicGraph {
 
             // module -> the client reference entry (if any)
             let mut state_map = FxHashMap::default();
-            graph.traverse_edges_from_entries_dfs(
+            graph.traverse_edges_dfs(
                 entries,
                 &mut (),
                 |parent_info, node, _| {
@@ -351,7 +351,7 @@ impl ServerActionsGraph {
                 }
 
                 let mut result = FxIndexMap::default();
-                graph.traverse_nodes_from_entries_dfs(
+                graph.traverse_nodes_dfs(
                     vec![entry],
                     &mut result,
                     |node, result| {
@@ -559,7 +559,7 @@ impl ClientReferencesGraph {
             let mut server_components = FxIndexSet::default();
 
             // Perform a DFS traversal to find all server components included by this page.
-            graph.traverse_nodes_from_entries_dfs(
+            graph.traverse_nodes_dfs(
                 entries,
                 &mut (),
                 |node, _| {
@@ -615,7 +615,7 @@ impl ClientReferencesGraph {
             // necessarily rendered at the same time (not-found, or parallel routes), we need to
             // determine the order of client references individually for each server component.
             for sc in server_components.iter().copied() {
-                graph.traverse_nodes_from_entries_dfs(
+                graph.traverse_nodes_dfs(
                     std::iter::once(ResolvedVc::upcast(sc)),
                     &mut (),
                     |node, _| {
@@ -786,7 +786,7 @@ async fn validate_pages_css_imports_individual(
 
     let mut candidates = vec![];
 
-    graph.traverse_edges_from_entries_dfs(
+    graph.traverse_edges_dfs(
         entries,
         &mut (),
         |parent_info, node, _| {

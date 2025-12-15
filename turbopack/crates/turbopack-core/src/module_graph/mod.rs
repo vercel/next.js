@@ -1107,7 +1107,7 @@ impl ModuleGraphRef {
     ///    - Receives the module and the `state`
     ///    - Can return [GraphTraversalAction]s to control the traversal
     /// * `visit_postorder` - Called after visiting children of a node.
-    pub fn traverse_nodes_from_entries_dfs<S>(
+    pub fn traverse_nodes_dfs<S>(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         state: &mut S,
@@ -1168,7 +1168,7 @@ impl ModuleGraphRef {
     ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
     ///    - Can return [GraphTraversalAction]s to control the traversal
-    pub fn traverse_edges_from_entries_bfs(
+    pub fn traverse_edges_bfs(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         mut visitor: impl FnMut(
@@ -1209,55 +1209,6 @@ impl ModuleGraphRef {
         Ok(())
     }
 
-    /// Traverses all reachable edges exactly once and calls the visitor with the edge source and
-    /// target.
-    ///
-    /// This means that target nodes can be revisited (once per incoming edge).
-    ///
-    /// * `entry` - The entry module to start the traversal from
-    /// * `visitor` - Called before visiting the children of a node.
-    ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
-    ///      &SingleModuleGraphNode, state &S
-    ///    - Can return [GraphTraversalAction]s to control the traversal
-    pub fn traverse_edges_from_entry_dfs(
-        &self,
-        entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
-        mut visitor: impl FnMut(
-            Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData)>,
-            ResolvedVc<Box<dyn Module>>,
-        ) -> GraphTraversalAction,
-    ) -> Result<()> {
-        let mut stack = entries
-            .into_iter()
-            .map(|e| self.get_entry(e))
-            .collect::<Result<Vec<_>>>()?;
-        let mut visited = FxHashSet::default();
-        for entry_node in &stack {
-            visitor(None, self.get_node(*entry_node)?.module());
-        }
-        while let Some(node) = stack.pop() {
-            if visited.insert(node) {
-                let node_weight = self.get_node(node)?;
-                for (edge, succ) in self.iter_graphs_neighbors_rev(node, Direction::Outgoing) {
-                    let succ_weight = self.get_node(succ)?;
-                    let action = visitor(
-                        Some((node_weight.module(), self.get_edge(edge)?)),
-                        succ_weight.module(),
-                    );
-                    if !self.should_visit_node(succ_weight, Direction::Outgoing) {
-                        continue;
-                    }
-                    let succ = succ_weight.target_idx(Direction::Outgoing).unwrap_or(succ);
-                    if !visited.contains(&succ) && action == GraphTraversalAction::Continue {
-                        stack.push(succ);
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
     /// Traverses all edges exactly once (in an unspecified order) and calls the visitor with the
     /// edge source and target.
     ///
@@ -1266,7 +1217,7 @@ impl ModuleGraphRef {
     /// * `visitor` - Called before visiting the children of a node.
     ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode
-    pub fn traverse_all_edges_unordered(
+    pub fn traverse_edges_unordered(
         &self,
         mut visitor: impl FnMut(
             Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData)>,
@@ -1275,7 +1226,9 @@ impl ModuleGraphRef {
     ) -> Result<()> {
         let entries = self.graphs.iter().flat_map(|g| g.entry_modules());
 
-        self.traverse_edges_from_entries_dfs(
+        // Despite the name we need to do a DFS to respect 'reachability' if an edge was trimmed we
+        // should not follow it, and this is a reasonable way to do that.
+        self.traverse_edges_dfs(
             entries,
             &mut (),
             |parent, target, _| {
@@ -1304,7 +1257,7 @@ impl ModuleGraphRef {
     /// * `visit_postorder` - Called after visiting the children of a node. Return
     ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
-    pub fn traverse_edges_from_entries_dfs<S>(
+    pub fn traverse_edges_dfs<S>(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         state: &mut S,
@@ -1319,7 +1272,7 @@ impl ModuleGraphRef {
             &mut S,
         ) -> Result<()>,
     ) -> Result<()> {
-        self.traverse_edges_from_entries_dfs_impl::<S>(
+        self.traverse_edges_dfs_impl::<S>(
             entries,
             state,
             visit_preorder,
@@ -1344,7 +1297,7 @@ impl ModuleGraphRef {
     /// * `visit_postorder` - Called after visiting the parents of a node. Return
     ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
-    pub fn traverse_edges_from_entries_dfs_reversed<S>(
+    pub fn traverse_edges_reverse_dfs<S>(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         state: &mut S,
@@ -1359,7 +1312,7 @@ impl ModuleGraphRef {
             &mut S,
         ) -> Result<()>,
     ) -> Result<()> {
-        self.traverse_edges_from_entries_dfs_impl::<S>(
+        self.traverse_edges_dfs_impl::<S>(
             entries,
             state,
             visit_preorder,
@@ -1368,7 +1321,7 @@ impl ModuleGraphRef {
         )
     }
 
-    fn traverse_edges_from_entries_dfs_impl<S>(
+    fn traverse_edges_dfs_impl<S>(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         state: &mut S,
@@ -1972,7 +1925,7 @@ pub mod tests {
                 let mut preorder_visits = Vec::new();
                 let mut postorder_visits = Vec::new();
 
-                graph.traverse_edges_from_entries_dfs(
+                graph.traverse_edges_dfs(
                     entry_modules,
                     &mut (),
                     |parent, target, _| {
@@ -2032,7 +1985,7 @@ pub mod tests {
                 let mut preorder_visits = Vec::new();
                 let mut postorder_visits = Vec::new();
 
-                graph.traverse_edges_from_entries_dfs(
+                graph.traverse_edges_dfs(
                     entry_modules,
                     &mut (),
                     |parent, target, _| {
@@ -2186,7 +2139,7 @@ pub mod tests {
             // test traversing forward from a in the child graph
             {
                 let mut visited_forward = Vec::new();
-                child_graph.traverse_edges_from_entries_dfs(
+                child_graph.traverse_edges_dfs(
                     vec![a_module],
                     &mut (),
                     |_parent, child, _state_| {
@@ -2237,7 +2190,7 @@ pub mod tests {
                     .next()
                     .unwrap();
                 let mut visited_reverse = Vec::new();
-                child_graph.traverse_edges_from_entries_dfs_reversed(
+                child_graph.traverse_edges_reverse_dfs(
                     vec![d_module],
                     &mut (),
                     |_parent, child, _state_| {
@@ -2259,7 +2212,7 @@ pub mod tests {
             // VisitedModule in this graph
             {
                 let mut visited_reverse = Vec::new();
-                child_graph.traverse_edges_from_entries_dfs_reversed(
+                child_graph.traverse_edges_reverse_dfs(
                     vec![b_module],
                     &mut (),
                     |_parent, child, _state_| {
