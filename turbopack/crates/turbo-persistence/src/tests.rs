@@ -1185,17 +1185,17 @@ fn batch_get_with_overwrites() -> Result<()> {
 
     assert_eq!(results.len(), 50);
     // First 25 should have new values
-    for i in 0..25 {
+    for (i, result) in results.iter().enumerate().take(25) {
         assert_eq!(
-            results[i].as_deref(),
+            result.as_deref(),
             Some(&[i as u8 + 100][..]),
             "Failed at index {i}"
         );
     }
     // Last 25 should have original values
-    for i in 25..50 {
+    for (i, result) in results.iter().enumerate().skip(25) {
         assert_eq!(
-            results[i].as_deref(),
+            result.as_deref(),
             Some(&[i as u8][..]),
             "Failed at index {i}"
         );

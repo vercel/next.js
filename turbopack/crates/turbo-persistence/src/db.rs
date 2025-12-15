@@ -1374,7 +1374,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             LookupValue::Deleted => {
                                 #[cfg(feature = "stats")]
                                 self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
-                                span.record("result_size", &"deleted");
+                                span.record("result_size", "deleted");
                                 return Ok(None);
                             }
                             LookupValue::Slice { value } => {
@@ -1401,7 +1401,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         #[cfg(feature = "stats")]
         self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
-        span.record("result_size", &"not found");
+        span.record("result_size", "not found");
         Ok(None)
     }
 
