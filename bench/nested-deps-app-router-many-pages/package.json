@@ -1,5 +1,6 @@
 {
   "name": "nested-deps-app-router-many-pages",
+  "private": true,
   "scripts": {
     "prepare-bench": "rimraf components app && fuzzponent -d 2 -s 206 -o components && node ./create-pages.mjs",
     "dev-application": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK=1 next dev",
