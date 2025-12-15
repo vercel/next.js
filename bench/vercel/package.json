@@ -1,6 +1,5 @@
 {
   "name": "bench-production",
-  "private": true,
   "version": "1.0.0",
   "description": "Scripts for benchmarking in production.",
   "main": "bench.js",

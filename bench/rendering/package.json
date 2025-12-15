@@ -1,6 +1,5 @@
 {
   "name": "bench-rendering",
-  "private": true,
   "scripts": {
     "build-application": "next build",
     "start": "NODE_ENV=production pnpm build-application && NODE_ENV=production next start",

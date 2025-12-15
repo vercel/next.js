@@ -1,6 +1,5 @@
 {
   "name": "bench-recursive-delete",
-  "private": true,
   "type": "module",
   "scripts": {
     "bench": "bash run.sh"
