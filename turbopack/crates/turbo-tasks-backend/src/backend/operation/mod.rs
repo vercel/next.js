@@ -188,11 +188,10 @@ where
         &mut self,
         task_ids: &[TaskId],
         category: TaskDataCategory,
-    ) -> Vec<Vec<CachedDataItem>> {
+    ) -> Option<Vec<Vec<CachedDataItem>>> {
         if !self.ensure_transaction() {
-            // TODO this is an unnecessary allocation
-            // If we don't need to restore, we can just return an empty vector for each task
-            return vec![Vec::new(); task_ids.len()];
+            // If we don't need to restore, we return None
+            return None;
         }
         let tx = self.get_tx();
         // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
@@ -202,7 +201,7 @@ where
                 .batch_lookup_data(tx, task_ids, category)
         };
         match result {
-            Ok(result) => result,
+            Ok(result) => Some(result),
             Err(e) => {
                 panic!(
                     "Failed to restore task data (corrupted database or bug): {:?}",
@@ -304,22 +303,34 @@ where
         }
 
         if !tasks_to_restore_for_data.is_empty() {
-            let data =
-                self.restore_task_data_batch(&tasks_to_restore_for_data, TaskDataCategory::Data);
-            data.into_iter()
-                .zip(tasks_to_restore_for_data_indicies.into_iter())
-                .for_each(|(items, idx)| {
-                    tasks[idx].2 = Some(items);
-                });
+            if let Some(data) =
+                self.restore_task_data_batch(&tasks_to_restore_for_data, TaskDataCategory::Data)
+            {
+                data.into_iter()
+                    .zip(tasks_to_restore_for_data_indicies.into_iter())
+                    .for_each(|(items, idx)| {
+                        tasks[idx].2 = Some(items);
+                    });
+            } else {
+                for idx in tasks_to_restore_for_data_indicies {
+                    tasks[idx].2 = Some(Vec::new());
+                }
+            }
         }
         if !tasks_to_restore_for_meta.is_empty() {
-            let data =
-                self.restore_task_data_batch(&tasks_to_restore_for_meta, TaskDataCategory::Meta);
-            data.into_iter()
-                .zip(tasks_to_restore_for_meta_indicies.into_iter())
-                .for_each(|(items, idx)| {
-                    tasks[idx].3 = Some(items);
-                });
+            if let Some(data) =
+                self.restore_task_data_batch(&tasks_to_restore_for_meta, TaskDataCategory::Meta)
+            {
+                data.into_iter()
+                    .zip(tasks_to_restore_for_meta_indicies.into_iter())
+                    .for_each(|(items, idx)| {
+                        tasks[idx].3 = Some(items);
+                    });
+            } else {
+                for idx in tasks_to_restore_for_meta_indicies {
+                    tasks[idx].3 = Some(Vec::new());
+                }
+            }
         }
 
         for (task_id, category, items_for_data, items_for_meta) in tasks {
