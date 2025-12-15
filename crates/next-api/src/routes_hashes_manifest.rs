@@ -64,7 +64,7 @@ pub async fn endpoint_hashes(
 
     let module_graph = module_graph.read_graphs().await?;
 
-    module_graph.traverse_nodes_from_entries_dfs(
+    module_graph.traverse_nodes_dfs(
         modules,
         &mut all_modules,
         |module, all_modules| {
