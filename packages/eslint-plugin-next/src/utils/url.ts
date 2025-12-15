@@ -8,12 +8,12 @@ const fsReadDirSyncCache = {}
 /**
  * Recursively parse directory for page URLs.
  */
-function parseUrlForPages(urlprefix: string, directory: string) {
+function parseUrlForPages(urlprefix: string, directory: string, rootDir?: string) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
   const res = []
-  const { ext, index } = getRegexPatterns()
+  const { ext, index } = getRegexPatterns(rootDir)
 
   fsReadDirSyncCache[directory].forEach((dirent) => {
     if (ext.test(dirent.name)) {
@@ -25,7 +25,9 @@ function parseUrlForPages(urlprefix: string, directory: string) {
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(`${urlprefix}${dirent.name}/`, dirPath))
+        res.push(
+          ...parseUrlForPages(`${urlprefix}${dirent.name}/`, dirPath, rootDir)
+        )
       }
     }
   })
@@ -35,12 +37,12 @@ function parseUrlForPages(urlprefix: string, directory: string) {
 /**
  * Recursively parse app directory for URLs.
  */
-function parseUrlForAppDir(urlprefix: string, directory: string) {
+function parseUrlForAppDir(urlprefix: string, directory: string, rootDir?: string) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
   const res = []
-  const { ext, page, layout } = getRegexPatterns()
+  const { ext, page, layout } = getRegexPatterns(rootDir)
 
   fsReadDirSyncCache[directory].forEach((dirent) => {
     if (ext.test(dirent.name)) {
@@ -52,7 +54,9 @@ function parseUrlForAppDir(urlprefix: string, directory: string) {
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForAppDir(`${urlprefix}${dirent.name}/`, dirPath))
+        res.push(
+          ...parseUrlForAppDir(`${urlprefix}${dirent.name}/`, dirPath, rootDir)
+        )
       }
     }
   })
@@ -135,13 +139,14 @@ export function normalizeAppPath(route: string) {
  */
 export function getUrlFromPagesDirectories(
   urlPrefix: string,
-  directories: string[]
+  directories: string[],
+  rootDir?: string
 ) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
-        .flatMap((directory) => parseUrlForPages(urlPrefix, directory))
+        .flatMap((directory) => parseUrlForPages(urlPrefix, directory, rootDir))
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
           (url) => `^${normalizeURL(url)}$`
@@ -155,13 +160,14 @@ export function getUrlFromPagesDirectories(
 
 export function getUrlFromAppDirectory(
   urlPrefix: string,
-  directories: string[]
+  directories: string[],
+  rootDir?: string
 ) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
-        .map((directory) => parseUrlForAppDir(urlPrefix, directory))
+        .map((directory) => parseUrlForAppDir(urlPrefix, directory, rootDir))
         .flat()
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
@@ -205,14 +211,15 @@ const getPageExtensions = (() => {
   const cache = new Map<string, string[]>()
 
   const fn = (cwd: string = process.cwd()): string[] => {
-    if (cache.has(cwd)) return cache.get(cwd)!
+    const cacheKey = path.resolve(cwd)
+    if (cache.has(cacheKey)) return cache.get(cacheKey)!
 
     const fallback = ['tsx', 'ts', 'jsx', 'js']
     const configFiles = ['next.config.js', 'next.config.mjs', 'next.config.ts']
 
     for (const configFile of configFiles) {
       try {
-        const configPath = path.resolve(cwd, configFile)
+        const configPath = path.resolve(cacheKey, configFile)
 
         // Check if file exists before requiring
         if (!fs.existsSync(configPath)) {
@@ -246,7 +253,7 @@ const getPageExtensions = (() => {
           const result = config.pageExtensions.map((ext: string) =>
             ext.replace(/^\./, '')
           )
-          cache.set(cwd, result)
+          cache.set(cacheKey, result)
           return result
         }
       } catch (error) {
@@ -256,7 +263,7 @@ const getPageExtensions = (() => {
     }
 
     // No valid config found, use defaults
-    cache.set(cwd, fallback)
+    cache.set(cacheKey, fallback)
     return fallback
   }
 
@@ -280,9 +287,10 @@ const getRegexPatterns = (() => {
   }>()
 
   const fn = (cwd: string = process.cwd()) => {
-    if (cache.has(cwd)) return cache.get(cwd)!
+    const cacheKey = path.resolve(cwd)
+    if (cache.has(cacheKey)) return cache.get(cacheKey)!
 
-    const extensions = getPageExtensions(cwd)
+    const extensions = getPageExtensions(cacheKey)
     const escaped = extensions.map((ext) =>
       ext.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     )
@@ -295,7 +303,7 @@ const getRegexPatterns = (() => {
       layout: new RegExp(`^layout\\.(${group})$`),
     }
 
-    cache.set(cwd, result)
+    cache.set(cacheKey, result)
     return result
   }
 
