@@ -30,6 +30,7 @@ export function serverPatchReducer(
     return handleExternalUrl(state, mutable, retryUrl.href, false)
   }
   const currentUrl = new URL(state.canonicalUrl, location.origin)
+  const currentRenderedSearch = state.renderedSearch
   if (action.previousTree !== state.tree) {
     // There was another, more recent navigation since the once that
     // mismatched. We can abort the retry, but we still need to refresh the
@@ -50,6 +51,7 @@ export function serverPatchReducer(
     retryCanonicalUrl,
     retrySeed,
     currentUrl,
+    currentRenderedSearch,
     state.cache,
     state.tree,
     FreshnessPolicy.RefreshAll,
