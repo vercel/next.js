@@ -35,7 +35,6 @@ use crate::{
     PartialEq,
     Eq,
     Hash,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     DeterministicHash,
@@ -50,7 +49,7 @@ pub enum MangleType {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, TaskInput, Clone, Copy, Hash, DeterministicHash)]
+#[derive(Debug, TaskInput, Clone, Copy, Hash, DeterministicHash, Deserialize)]
 pub enum MinifyType {
     // TODO instead of adding a new property here,
     // refactor that to Minify(MinifyOptions) to allow defaults on MinifyOptions
@@ -228,8 +227,6 @@ pub struct EntryChunkGroupResult {
     PartialEq,
     Eq,
     Hash,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
@@ -257,7 +254,7 @@ pub struct ChunkingConfig {
 pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Copy, Hash, TaskInput, Default)]
+#[derive(Debug, Clone, Copy, Hash, TaskInput, Default, Deserialize)]
 pub enum SourceMapSourceType {
     AbsoluteFileUri,
     RelativeUri,

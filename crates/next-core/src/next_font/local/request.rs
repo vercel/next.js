@@ -22,7 +22,6 @@ pub(super) struct NextFontLocalRequest {
     Ord,
     Hash,
     TaskInput,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     NonLocalValue,

@@ -51,7 +51,6 @@ use indexmap::IndexSet;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use rustc_hash::FxHashSet;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tracing::Instrument;
@@ -253,36 +252,30 @@ struct DiskFileSystemApplyContext {
     created_directories: FxHashSet<PathBuf>,
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+#[derive(TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 struct DiskFileSystemInner {
     pub name: RcStr,
     pub root: RcStr,
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[serde(skip)]
     #[bincode(skip)]
     mutex_map: MutexMap<PathBuf>,
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[serde(skip)]
     #[bincode(skip)]
     invalidator_map: InvalidatorMap,
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[serde(skip)]
     #[bincode(skip)]
     dir_invalidator_map: InvalidatorMap,
     /// Lock that makes invalidation atomic. It will keep a write lock during
     /// watcher invalidation and a read lock during other operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[serde(skip)]
     #[bincode(skip)]
     invalidation_lock: RwLock<()>,
     /// Semaphore to limit the maximum number of concurrent file operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[serde(skip, default = "create_read_semaphore")]
     #[bincode(skip, default = "create_read_semaphore")]
     read_semaphore: tokio::sync::Semaphore,
     /// Semaphore to limit the maximum number of concurrent file operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[serde(skip, default = "create_write_semaphore")]
     #[bincode(skip, default = "create_write_semaphore")]
     write_semaphore: tokio::sync::Semaphore,
 
@@ -1702,19 +1695,7 @@ pub struct RealPathResult {
 
 /// Errors that can occur when resolving a path with symlinks.
 /// Many of these can be transient conditions that might happen when package managers are running.
-#[derive(
-    Debug,
-    Clone,
-    Hash,
-    Eq,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    NonLocalValue,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
 pub enum RealPathResultError {
     TooManySymlinks,
     CycleDetected,
@@ -1880,8 +1861,6 @@ impl FileContent {
 bitflags! {
   #[derive(
     Default,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     NonLocalValue,
     DeterministicHash,
@@ -2042,61 +2021,12 @@ impl File {
     }
 }
 
-mod mime_option_serde {
-    use std::{fmt, str::FromStr};
-
-    use mime::Mime;
-    use serde::{Deserializer, Serializer, de};
-
-    pub fn serialize<S>(mime: &Option<Mime>, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        if let Some(mime) = mime {
-            serializer.serialize_str(mime.as_ref())
-        } else {
-            serializer.serialize_str("")
-        }
-    }
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Mime>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct Visitor;
-
-        impl de::Visitor<'_> for Visitor {
-            type Value = Option<Mime>;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a valid MIME type or empty string")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<Option<Mime>, E>
-            where
-                E: de::Error,
-            {
-                if value.is_empty() {
-                    Ok(None)
-                } else {
-                    Mime::from_str(value)
-                        .map(Some)
-                        .map_err(|e| E::custom(format!("{e}")))
-                }
-            }
-        }
-
-        deserializer.deserialize_str(Visitor)
-    }
-}
-
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Default)]
 pub struct FileMeta {
     // Size of the file
     // len: u64,
     permissions: Permissions,
-    #[serde(with = "mime_option_serde")]
     #[bincode(with = "turbo_bincode::mime_option")]
     #[turbo_tasks(trace_ignore)]
     content_type: Option<Mime>,
@@ -2366,19 +2296,7 @@ pub enum FileLinesContent {
     NotFound,
 }
 
-#[derive(
-    Hash,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum RawDirectoryEntry {
     File,
     Directory,
@@ -2387,19 +2305,7 @@ pub enum RawDirectoryEntry {
     Other,
 }
 
-#[derive(
-    Hash,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum DirectoryEntry {
     File(FileSystemPath),
     Directory(FileSystemPath),

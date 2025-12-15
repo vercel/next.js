@@ -300,6 +300,10 @@ export type NavigationFlightResponse = {
   f: FlightData
   /** prerendered */
   S: boolean
+  /** renderedSearch */
+  q: string
+  /** couldBeIntercepted */
+  i: boolean
   /** runtimePrefetch - [isPartial, staleTime]. Only present in runtime prefetch responses. */
   rp?: [boolean, number]
 }
@@ -312,6 +316,10 @@ export type ActionFlightResponse = {
   b: string
   /** flightData */
   f: FlightData
+  /** renderedSearch */
+  q: string
+  /** couldBeIntercepted */
+  i: boolean
 }
 
 export type RSCPayload =

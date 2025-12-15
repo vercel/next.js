@@ -11,7 +11,7 @@ use hyper::{
 use turbo_rcstr::RcStr;
 use turbo_tasks::{OperationVc, ResolvedVc, TransientInstance, Vc};
 
-use super::{
+use crate::source::{
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
     GetContentSourceContent, GetContentSourceContents, HeaderList, ProxyResult, RewriteType,
     StaticContent,
