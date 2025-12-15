@@ -341,10 +341,6 @@ export const publicAppRouterInstance: AppRouterInstance = {
           fetchStrategy = FetchStrategy.Full
           break
         }
-        case PrefetchKind.TEMPORARY: {
-          // This concept doesn't exist in the segment cache implementation.
-          return
-        }
         default: {
           prefetchKind satisfies never
           // Despite typescript thinking that this can't happen,

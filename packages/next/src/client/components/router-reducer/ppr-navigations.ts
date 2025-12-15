@@ -4,9 +4,8 @@ import type {
   FlightSegmentPath,
 } from '../../../shared/lib/app-router-types'
 import type {
-  CacheNode,
   ChildSegmentMap,
-  ReadyCacheNode,
+  CacheNode,
 } from '../../../shared/lib/app-router-types'
 import type {
   HeadData,
@@ -371,7 +370,7 @@ function updateCacheNodeOnNavigation(
   // usually we just clone the data from the old CacheNode. However, during a
   // refresh or a revalidation, there won't be any existing CacheNode. So we
   // may need to consult the prefetch cache, like we would for a new segment.
-  let newCacheNode: ReadyCacheNode
+  let newCacheNode: CacheNode
   let needsDynamicRequest: boolean
   if (
     oldCacheNode !== undefined &&
@@ -748,7 +747,7 @@ function createCacheNodeOnNavigation(
     accumulation.scrollableSegments.push(segmentPath)
   }
 
-  let newCacheNode: ReadyCacheNode
+  let newCacheNode: CacheNode
   let needsDynamicRequest: boolean
   if (!shouldRefreshDynamicData && oldCacheNode !== undefined) {
     // Reuse the existing CacheNode
@@ -1045,10 +1044,9 @@ function reuseDynamicCacheNode(
   dropPrefetchRsc: boolean,
   existingCacheNode: CacheNode,
   parallelRoutes: Map<string, ChildSegmentMap>
-): ReadyCacheNode {
+): CacheNode {
   // Clone an existing CacheNode's data, with (possibly) new children.
-  const cacheNode: ReadyCacheNode = {
-    lazyData: null,
+  const cacheNode: CacheNode = {
     rsc: existingCacheNode.rsc,
     prefetchRsc: dropPrefetchRsc ? null : existingCacheNode.prefetchRsc,
     head: existingCacheNode.head,
@@ -1073,7 +1071,7 @@ function readCacheNodeFromSeedData(
   isPageSegment: boolean,
   parallelRoutes: Map<string, ChildSegmentMap>,
   navigatedAt: number
-): ReadyCacheNode {
+): CacheNode {
   // TODO: Currently this is threaded through the navigation logic using the
   // CacheNodeSeedData type, but in the future this will read directly from
   // the Segment Cache. See readRenderSnapshotFromCache.
@@ -1107,8 +1105,7 @@ function readCacheNodeFromSeedData(
     head = null
   }
 
-  const cacheNode: ReadyCacheNode = {
-    lazyData: null,
+  const cacheNode: CacheNode = {
     rsc,
     prefetchRsc,
     head,
@@ -1129,7 +1126,7 @@ function spawnNewCacheNode(
   isLeafSegment: boolean,
   navigatedAt: number,
   freshness: FreshnessPolicy
-): ReadyCacheNode {
+): CacheNode {
   // We should never spawn network requests during hydration. We must treat the
   // initial payload as authoritative, because the initial page load is used
   // as a last-ditch mechanism for recovering the app.
@@ -1146,8 +1143,7 @@ function spawnNewCacheNode(
   // case in updateCacheNodeOnNavigation.
   const isHydration = freshness === FreshnessPolicy.Hydration
 
-  const cacheNode: ReadyCacheNode = {
-    lazyData: null,
+  const cacheNode: CacheNode = {
     rsc: !isHydration ? createDeferredRsc() : null,
     prefetchRsc: null,
     head: !isHydration && isLeafSegment ? createDeferredRsc() : null,
@@ -1412,15 +1408,11 @@ function dispatchRetryDueToTreeMismatch(
   previousNavigationDidMismatch = true
   const retryAction: ServerPatchAction = {
     type: ACTION_SERVER_PATCH,
-    navigatedAt: Date.now(),
     previousTree: baseTree,
-    serverResponse: null,
-    retry: {
-      url: retryUrl,
-      nextUrl: retryNextUrl,
-      seed,
-      mpa: isHardRetry,
-    },
+    url: retryUrl,
+    nextUrl: retryNextUrl,
+    seed,
+    mpa: isHardRetry,
   }
   dispatchAppRouterAction(retryAction)
 }

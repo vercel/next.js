@@ -132,33 +132,25 @@ export type AppHistoryState = {
 
 /**
  * Server-patch applies the provided Flight data to the cache and router tree.
- * - Only triggered in layout-router.
- * - Creates a new cache and router state with the Flight data applied.
  */
 export interface ServerPatchAction {
   type: typeof ACTION_SERVER_PATCH
-  navigatedAt: number
-  serverResponse: FetchServerResponseResult | null
   previousTree: FlightRouterState
-  retry: null | {
-    url: URL
-    nextUrl: string | null
-    seed: NavigationSeed | null
-    mpa: boolean
-  }
+  url: URL
+  nextUrl: string | null
+  seed: NavigationSeed | null
+  mpa: boolean
 }
 
 /**
  * PrefetchKind defines the type of prefetching that should be done.
  * - `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully.
  * - `full` - prefetch the page data fully.
- * - `temporary` - a temporary prefetch entry is added to the cache, this is used when prefetch={false} is used in next/link or when you push a route programmatically.
  */
 
 export enum PrefetchKind {
   AUTO = 'auto',
   FULL = 'full',
-  TEMPORARY = 'temporary',
 }
 
 /**

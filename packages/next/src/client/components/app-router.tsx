@@ -105,19 +105,6 @@ function HistoryUpdater({
   return null
 }
 
-export function createEmptyCacheNode(): CacheNode {
-  return {
-    lazyData: null,
-    rsc: null,
-    prefetchRsc: null,
-    head: null,
-    prefetchHead: null,
-    parallelRoutes: new Map(),
-    loading: null,
-    navigatedAt: -1,
-  }
-}
-
 function copyNextJsInternalHistoryState(data: any) {
   if (data == null) data = {}
   const currentState = window.history.state
