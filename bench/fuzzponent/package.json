@@ -1,5 +1,6 @@
 {
   "name": "fuzzponent",
+  "version": "0.0.1",
   "bin": {
     "fuzzponent": "./bin/fuzzponent.js"
   },
