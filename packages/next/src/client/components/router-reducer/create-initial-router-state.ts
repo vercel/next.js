@@ -1,20 +1,16 @@
-import type {
-  CacheNode,
-  FlightDataPath,
-} from '../../../shared/lib/app-router-types'
+import type { FlightDataPath } from '../../../shared/lib/app-router-types'
 
 import { createHrefFromUrl } from './create-href-from-url'
-import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
 
 import type { AppRouterState } from './router-reducer-types'
 import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
+import { createInitialCacheNodeForHydration } from './ppr-navigations'
 
 export interface InitialRouterStateParameters {
   navigatedAt: number
   initialCanonicalUrlParts: string[]
   initialRenderedSearch: string
-  initialParallelRoutes: CacheNode['parallelRoutes']
   initialFlightData: FlightDataPath[]
   location: Location | null
 }
@@ -24,7 +20,6 @@ export function createInitialRouterState({
   initialFlightData,
   initialCanonicalUrlParts,
   initialRenderedSearch,
-  initialParallelRoutes,
   location,
 }: InitialRouterStateParameters): AppRouterState {
   // When initialized on the server, the canonical URL is provided as an array of parts.
@@ -40,20 +35,6 @@ export function createInitialRouterState({
   } = normalizedFlightData
   // For the SSR render, seed data should always be available (we only send back a `null` response
   // in the case of a `loading` segment, pre-PPR.)
-  const rsc = initialSeedData?.[0]
-  const loading = initialSeedData?.[2] ?? null
-
-  const cache: CacheNode = {
-    lazyData: null,
-    rsc,
-    prefetchRsc: null,
-    head: null,
-    prefetchHead: null,
-    // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
-    parallelRoutes: initialParallelRoutes,
-    loading,
-    navigatedAt,
-  }
 
   const canonicalUrl =
     // location.href is read as the initial value for canonicalUrl in the browser
@@ -63,21 +44,14 @@ export function createInitialRouterState({
         createHrefFromUrl(location)
       : initialCanonicalUrl
 
-  // When the cache hasn't been seeded yet we fill the cache with the head.
-  if (initialParallelRoutes === null || initialParallelRoutes.size === 0) {
-    fillLazyItemsTillLeafWithHead(
+  const initialState = {
+    tree: initialTree,
+    cache: createInitialCacheNodeForHydration(
       navigatedAt,
-      cache,
-      undefined,
       initialTree,
       initialSeedData,
       initialHead
-    )
-  }
-
-  const initialState = {
-    tree: initialTree,
-    cache,
+    ),
     pushRef: {
       pendingPush: false,
       mpaNavigation: false,

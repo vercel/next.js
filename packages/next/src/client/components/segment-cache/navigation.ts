@@ -536,6 +536,7 @@ async function navigateDynamicallyWithNoPrefetch(
     case FreshnessPolicy.HistoryTraversal:
       dynamicRequestTree = currentFlightRouterState
       break
+    case FreshnessPolicy.Hydration: // <- shouldn't happen during client nav
     case FreshnessPolicy.RefreshAll:
       dynamicRequestTree = DynamicRequestTreeForEntireRoute
       break
