@@ -206,6 +206,9 @@ function isGroupSegment(segment: string) {
 /**
  * Get page extensions from next.config.js/mjs/ts
  * Falls back to default extensions if config is not found or invalid
+ *
+ * Note: loading `next.config.ts` may require registering a TypeScript loader
+ * (`tsx/cjs` or `ts-node/register`), which has process-wide side effects.
  */
 const getPageExtensions = (() => {
   const cache = new Map<string, string[]>()
@@ -228,16 +231,19 @@ const getPageExtensions = (() => {
 
         // For .ts files, try to use tsx or ts-node if available
         if (configFile.endsWith('.ts')) {
-          try {
-            // Try tsx first (faster)
-            (require('tsx/cjs') as typeof import('tsx/cjs'))
-          } catch {
+          // Avoid registering a TypeScript loader if one is already present.
+          if (!require.extensions['.ts']) {
             try {
-              // Fallback to ts-node
-              (require('ts-node/register') as typeof import('ts-node/register'))
+              // Try tsx first (faster)
+              ;(require('tsx/cjs') as typeof import('tsx/cjs'))
             } catch {
-              // Skip .ts file if no TypeScript loader available
-              continue
+              try {
+                // Fallback to ts-node
+                ;(require('ts-node/register') as typeof import('ts-node/register'))
+              } catch {
+                // Skip .ts file if no TypeScript loader available
+                continue
+              }
             }
           }
         }
