@@ -171,13 +171,6 @@ jobs:
         if: ${{ contains(fromJson(inputs.runs_on_labels), 'ubuntu-latest') }}
         run: |
           npm i -g corepack@0.31
-      - name: Check tmp
-        env:
-          TEMP: ${{ runner.temp }}
-        run: |
-          echo ${{ runner.temp }}
-          node -e "const os = require('os'); console.log(os.tmpdir())"
-          node -e "console.log(process.env)"
       - run: corepack enable
       - run: pwd
 
@@ -284,6 +277,8 @@ jobs:
         shell: bash -le {0}
         timeout-minutes: ${{ inputs.timeout_minutes }}
         env:
+          # Used by Node.js in os.tmpdir()
+          # TODO: Make sure our own runners set TEMP to a temp directory that is cleaned up between runs
           TEMP: ${{ runner.temp }}
 
       # This file messes up the tests because it influences the build root autodetection.
