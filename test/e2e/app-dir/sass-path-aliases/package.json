@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "dependencies": {
+    "react": "latest",
+    "react-dom": "latest",
+    "next": "latest",
+    "sass": "latest"
+  }
+}

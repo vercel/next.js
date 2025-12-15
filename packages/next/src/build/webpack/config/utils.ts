@@ -29,6 +29,10 @@ export type ConfigurationContext = {
   // @ts-expect-error TODO: remove any
   future: NextConfigComplete['future']
   experimental: NextConfigComplete['experimental']
+
+  // jsconfig.json or tsconfig.json configuration
+  jsConfig?: { compilerOptions: Record<string, any> }
+  resolvedBaseUrl?: { baseUrl: string; isImplicit: boolean }
 }
 
 export type ConfigurationFn = (

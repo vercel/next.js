@@ -1,0 +1,16 @@
+@use '#styles/variables';
+
+:root {
+  --primary-color: #{variables.$primary-color};
+  --secondary-color: #{variables.$secondary-color};
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+.test-hash-alias {
+  background-color: var(--primary-color);
+  color: var(--secondary-color);
+}
