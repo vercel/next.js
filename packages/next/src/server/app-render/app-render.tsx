@@ -1710,7 +1710,6 @@ function App<T>({
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
     initialRenderedSearch: response.q,
-    initialParallelRoutes: new Map(),
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
     location: null,
@@ -1774,7 +1773,6 @@ function ErrorApp<T>({
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
     initialRenderedSearch: response.q,
-    initialParallelRoutes: new Map(),
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
     location: null,

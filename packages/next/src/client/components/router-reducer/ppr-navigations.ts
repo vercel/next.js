@@ -52,6 +52,7 @@ export type NavigationTask = {
 
 export const enum FreshnessPolicy {
   Default,
+  Hydration,
   HistoryTraversal,
   RefreshAll,
 }
@@ -59,6 +60,52 @@ export const enum FreshnessPolicy {
 export type NavigationRequestAccumulation = {
   scrollableSegments: Array<FlightSegmentPath> | null
   separateRefreshUrls: Set<string> | null
+}
+
+export function createInitialCacheNodeForHydration(
+  navigatedAt: number,
+  initialTree: FlightRouterState,
+  seedData: CacheNodeSeedData | null,
+  seedHead: HeadData
+): CacheNode {
+  // Create the initial cache node tree, using the data embedded into the
+  // HTML document.
+  const accumulation: NavigationRequestAccumulation = {
+    scrollableSegments: null,
+    separateRefreshUrls: null,
+  }
+  const task = createCacheNodeOnNavigation(
+    navigatedAt,
+    initialTree,
+    undefined,
+    FreshnessPolicy.Hydration,
+    seedData,
+    seedHead,
+    null,
+    null,
+    false,
+    null,
+    null,
+    false,
+    accumulation
+  )
+
+  // NOTE: We intentionally don't check if any data needs to be fetched from the
+  // server. We assume the initial hydration payload is sufficient to render
+  // the page.
+  //
+  // The completeness of the initial data is an important property that we rely
+  // on as a last-ditch mechanism for recovering the app; we must always be able
+  // to reload a fresh HTML document to get to a consistent state.
+  //
+  // In the future, there may be cases where the server intentionally sends
+  // partial data and expects the client to fill in the rest, in which case this
+  // logic may change. (There already is a similar case where the server sends
+  // _no_ hydration data in the HTML document at all, and the client fetches it
+  // separately, but that's different because we still end up hydrating with a
+  // complete tree.)
+
+  return task.node
 }
 
 // Creates a new Cache Node tree (i.e. copy-on-write) that represents the
@@ -258,6 +305,7 @@ function updateCacheNodeOnNavigation(
   switch (freshness) {
     case FreshnessPolicy.Default:
     case FreshnessPolicy.HistoryTraversal:
+    case FreshnessPolicy.Hydration: // <- shouldn't happen during client nav
       // We should never drop dynamic data in shared layouts, except during
       // a refresh.
       shouldDropSiblingCaches = false
@@ -346,7 +394,8 @@ function updateCacheNodeOnNavigation(
     newCacheNode = spawnNewCacheNode(
       newParallelRoutes,
       isLeafSegment,
-      navigatedAt
+      navigatedAt,
+      freshness
     )
     needsDynamicRequest = true
   }
@@ -429,7 +478,12 @@ function updateCacheNodeOnNavigation(
     let seedHeadChild = seedHead
     let prefetchHeadChild = prefetchHead
     let isPrefetchHeadPartialChild = isPrefetchHeadPartial
-    if (newSegmentChild === DEFAULT_SEGMENT_KEY) {
+    if (
+      // Skip this branch during a history traversal. We restore the tree that
+      // was stashed in the history entry as-is.
+      freshness !== FreshnessPolicy.HistoryTraversal &&
+      newSegmentChild === DEFAULT_SEGMENT_KEY
+    ) {
       // This is a "default" segment. These are never sent by the server during
       // a soft navigation; instead, the client reuses whatever segment was
       // already active in that slot on the previous route.
@@ -546,8 +600,8 @@ function createCacheNodeOnNavigation(
   prefetchData: CacheNodeSeedData | null,
   prefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean,
-  parentSegmentPath: FlightSegmentPath,
-  parentParallelRouteKey: string,
+  parentSegmentPath: FlightSegmentPath | null,
+  parentParallelRouteKey: string | null,
   parentNeedsDynamicRequest: boolean,
   accumulation: NavigationRequestAccumulation
 ): NavigationTask {
@@ -562,10 +616,11 @@ function createCacheNodeOnNavigation(
   // diverges, which is why we keep them separate.
 
   const newSegment = newRouterState[0]
-  const segmentPath = parentSegmentPath.concat([
-    parentParallelRouteKey,
-    newSegment,
-  ])
+  const segmentPath =
+    parentParallelRouteKey !== null && parentSegmentPath !== null
+      ? parentSegmentPath.concat([parentParallelRouteKey, newSegment])
+      : // NOTE: The root segment is intentionally omitted from the segment path
+        []
 
   const newRouterStateChildren = newRouterState[1]
   const prefetchDataChildren = prefetchData !== null ? prefetchData[1] : null
@@ -592,6 +647,13 @@ function createCacheNodeOnNavigation(
         oldCacheNode === undefined ||
         navigatedAt - oldCacheNode.navigatedAt >= DYNAMIC_STALETIME_MS
 
+      dropPrefetchRsc = false
+      break
+    case FreshnessPolicy.Hydration:
+      // During hydration, we assume the data sent by the server is both
+      // consistent and complete.
+      shouldRefreshDynamicData = false
+      shouldDropSiblingCaches = false
       dropPrefetchRsc = false
       break
     case FreshnessPolicy.HistoryTraversal:
@@ -671,7 +733,8 @@ function createCacheNodeOnNavigation(
     const seedRsc = seedData[0]
     const seedLoading = seedData[2]
     const isSeedRscPartial = false
-    const isSeedHeadPartial = seedHead === null
+    const isSeedHeadPartial =
+      seedHead === null && freshness !== FreshnessPolicy.Hydration
     newCacheNode = readCacheNodeFromSeedData(
       seedRsc,
       seedLoading,
@@ -683,7 +746,31 @@ function createCacheNodeOnNavigation(
       navigatedAt
     )
     needsDynamicRequest = isLeafSegment && isSeedHeadPartial
-  } else if (prefetchData !== null) {
+  } else if (
+    freshness === FreshnessPolicy.Hydration &&
+    isLeafSegment &&
+    seedHead !== null
+  ) {
+    // This is another weird case related to "not found" pages and hydration.
+    // There will be a head sent by the server, but no page seed data.
+    // TODO: We really should get rid of all these "not found" specific quirks
+    // and make sure the tree is always consistent.
+    const seedRsc = null
+    const seedLoading = null
+    const isSeedRscPartial = false
+    const isSeedHeadPartial = false
+    newCacheNode = readCacheNodeFromSeedData(
+      seedRsc,
+      seedLoading,
+      isSeedRscPartial,
+      seedHead,
+      isSeedHeadPartial,
+      isLeafSegment,
+      newParallelRoutes,
+      navigatedAt
+    )
+    needsDynamicRequest = false
+  } else if (freshness !== FreshnessPolicy.Hydration && prefetchData !== null) {
     // Consult the prefetch cache.
     const prefetchRsc = prefetchData[0]
     const prefetchLoading = prefetchData[2]
@@ -705,7 +792,8 @@ function createCacheNodeOnNavigation(
     newCacheNode = spawnNewCacheNode(
       newParallelRoutes,
       isLeafSegment,
-      navigatedAt
+      navigatedAt,
+      freshness
     )
     needsDynamicRequest = true
   }
@@ -940,11 +1028,11 @@ function reuseDynamicCacheNode(
 }
 
 function readCacheNodeFromSeedData(
-  prefetchRsc: React.ReactNode,
-  prefetchLoading: LoadingModuleData | Promise<LoadingModuleData>,
-  isPrefetchRSCPartial: boolean,
-  prefetchHead: HeadData | null,
-  isPrefetchHeadPartial: boolean,
+  seedRsc: React.ReactNode,
+  seedLoading: LoadingModuleData | Promise<LoadingModuleData>,
+  isSeedRscPartial: boolean,
+  seedHead: HeadData | null,
+  isSeedHeadPartial: boolean,
   isPageSegment: boolean,
   parallelRoutes: Map<string, ChildSegmentMap>,
   navigatedAt: number
@@ -954,40 +1042,44 @@ function readCacheNodeFromSeedData(
   // the Segment Cache. See readRenderSnapshotFromCache.
 
   let rsc: React.ReactNode
-  if (isPrefetchRSCPartial) {
+  let prefetchRsc: React.ReactNode
+  if (isSeedRscPartial) {
     // The prefetched data contains dynamic holes. Create a pending promise that
     // will be fulfilled when the dynamic data is received from the server.
+    prefetchRsc = seedRsc
     rsc = createDeferredRsc()
   } else {
     // The prefetched data is complete. Use it directly.
-    rsc = prefetchRsc
+    prefetchRsc = null
+    rsc = seedRsc
   }
 
   // If this is a page segment, also read the head.
-  let resolvedPrefetchHead: HeadData | null
-  let resolvedHead: HeadData | null
+  let prefetchHead: HeadData | null
+  let head: HeadData | null
   if (isPageSegment) {
-    resolvedPrefetchHead = prefetchHead
-    if (isPrefetchHeadPartial) {
-      resolvedHead = createDeferredRsc()
+    if (isSeedHeadPartial) {
+      prefetchHead = seedHead
+      head = createDeferredRsc()
     } else {
-      resolvedHead = prefetchHead
+      prefetchHead = null
+      head = seedHead
     }
   } else {
-    resolvedPrefetchHead = null
-    resolvedHead = null
+    prefetchHead = null
+    head = null
   }
 
   const cacheNode: ReadyCacheNode = {
     lazyData: null,
     rsc,
     prefetchRsc,
-    head: resolvedHead,
-    prefetchHead: resolvedPrefetchHead,
+    head,
+    prefetchHead,
     // TODO: Technically, a loading boundary could contain dynamic data. We
     // should have separate `loading` and `prefetchLoading` fields to handle
     // this, like we do for the segment data and head.
-    loading: prefetchLoading,
+    loading: seedLoading,
     parallelRoutes,
     navigatedAt,
   }
@@ -998,15 +1090,32 @@ function readCacheNodeFromSeedData(
 function spawnNewCacheNode(
   parallelRoutes: Map<string, ChildSegmentMap>,
   isLeafSegment: boolean,
-  navigatedAt: number
+  navigatedAt: number,
+  freshness: FreshnessPolicy
 ): ReadyCacheNode {
+  // We should never spawn network requests during hydration. We must treat the
+  // initial payload as authoritative, because the initial page load is used
+  // as a last-ditch mechanism for recovering the app.
+  //
+  // This is also an important safety check because if this leaks into the
+  // server rendering path (which theoretically it never should because
+  // the server payload should be consistent), the server would hang because
+  // these promises would never resolve.
+  //
+  // TODO: There is an existing case where the global "not found" boundary
+  // triggers this path. But it does render correctly despite that. That's an
+  // unusual render path so it's not surprising, but we should look into
+  // modeling it in a more consistent way. See also the /_notFound special
+  // case in updateCacheNodeOnNavigation.
+  const isHydration = freshness === FreshnessPolicy.Hydration
+
   const cacheNode: ReadyCacheNode = {
     lazyData: null,
-    rsc: createDeferredRsc(),
+    rsc: !isHydration ? createDeferredRsc() : null,
     prefetchRsc: null,
-    head: isLeafSegment ? createDeferredRsc() : null,
+    head: !isHydration && isLeafSegment ? createDeferredRsc() : null,
     prefetchHead: null,
-    loading: createDeferredRsc<LoadingModuleData>(),
+    loading: !isHydration ? createDeferredRsc<LoadingModuleData>() : null,
     parallelRoutes,
     navigatedAt,
   }
