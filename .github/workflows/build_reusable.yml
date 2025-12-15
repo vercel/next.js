@@ -143,9 +143,28 @@ jobs:
           script: |
             core.setOutput('input_step_key', '${{ inputs.stepName }}'.toLowerCase().replaceAll(/[/.]/g, '-').trim('-'));
 
-      - run: fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
-      - run: fnm default ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
-      - run: node -v
+      - name: Use Node.js ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }} for default shell
+        run: |
+          node --version || true
+          which node || true
+          # TODO: May be sufficient to just set `$FNM_MULTISHELL_PATH/bin` from `fnm env --json` into GITHUB_PATH
+          fnm_env=$(fnm env)
+          # Debug what we're about to eval
+          echo "$fnm_env"
+          eval "$fnm_env"
+          fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+          fnm default ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+          node --version
+          which node
+          NODE_SHELL_PATH=$(dirname "$(which node)")
+          echo "Adding '$NODE_SHELL_PATH' to GITHUB_PATH"
+          echo "$NODE_SHELL_PATH" >> "$GITHUB_PATH"
+      # Debug used Node.js version in a separate step to ensure
+      # the Node.js version is set for the entire job
+      - name: Verify Node.js version
+        run: |
+          which node
+          node --version
       - name: Prepare corepack
         if: ${{ contains(fromJson(inputs.runs_on_labels), 'ubuntu-latest') }}
         run: |
