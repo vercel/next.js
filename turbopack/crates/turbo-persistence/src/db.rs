@@ -32,10 +32,7 @@ use crate::{
     key::{StoreKey, hash_key},
     lookup_entry::{LookupEntry, LookupValue},
     merge_iter::MergeIter,
-    meta_file::{
-        AmqfCache, MetaBatchLookupResult, MetaEntryFlags, MetaFile, MetaLookupResult,
-        StaticSortedFileRange,
-    },
+    meta_file::{AmqfCache, MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
     parallel_scheduler::ParallelScheduler,
     sst_filter::SstFilter,
@@ -1429,7 +1426,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         cells.sort_by_key(|(hash, _, _)| *hash);
         let inner = self.inner.read();
         for meta in inner.meta_files.iter().rev() {
-            let result = meta.batch_lookup(
+            let _result = meta.batch_lookup(
                 family as u32,
                 keys,
                 &mut cells,
@@ -1441,13 +1438,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
             #[cfg(feature = "stats")]
             {
-                let MetaBatchLookupResult {
+                let crate::meta_file::MetaBatchLookupResult {
                     family_miss,
                     range_misses,
                     quick_filter_misses,
                     sst_misses,
                     hits: _,
-                } = result;
+                } = _result;
                 if family_miss {
                     self.stats.miss_family.fetch_add(1, Ordering::Relaxed);
                 }
@@ -1467,8 +1464,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         .fetch_add(sst_misses as u64, Ordering::Relaxed);
                 }
             }
-            #[cfg(not(feature = "stats"))]
-            let _ = result;
 
             if empty_cells == 0 {
                 break;
