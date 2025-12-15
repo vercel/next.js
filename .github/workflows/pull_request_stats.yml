@@ -4,6 +4,10 @@ on:
 
 name: Generate Pull Request Stats
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   NAPI_CLI_VERSION: 2.18.4
   TURBO_VERSION: 2.5.5
