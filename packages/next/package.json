@@ -79,8 +79,7 @@
   },
   "scripts": {
     "dev": "cross-env NEXT_SERVER_NO_MANGLE=1 taskr",
-    "release": "taskr release",
-    "build": "pnpm release",
+    "build": "taskr release",
     "prepublishOnly": "cd ../../ && turbo run build",
     "types": "tsc --project tsconfig.build.json --declaration --emitDeclarationOnly --stripInternal --declarationDir dist",
     "typescript": "tsec --noEmit",
