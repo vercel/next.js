@@ -4,7 +4,7 @@ name: build-and-deploy
 on:
   push:
     tags-ignore:
-      - '*'
+      - 'v*'
   # we need the preview tarball for deploy tests
   pull_request:
     types: [opened, synchronize]
