@@ -858,8 +858,10 @@ export async function handleAction({
 
           temporaryReferences = createTemporaryReferenceSet()
 
-          const { Transform, pipeline } =
+          const { PassThrough, Readable, Transform } =
             require('node:stream') as typeof import('node:stream')
+          const { pipeline } =
+            require('node:stream/promises') as typeof import('node:stream/promises')
 
           const defaultBodySizeLimit = '1 MB'
           const bodySizeLimit =
@@ -893,14 +895,6 @@ export async function handleAction({
             },
           })
 
-          const sizeLimitedBody = pipeline(
-            req.body,
-            sizeLimitTransform,
-            // Avoid unhandled errors from `pipeline()` by passing an empty completion callback.
-            // We'll propagate the errors properly when consuming the stream.
-            () => {}
-          )
-
           if (isMultipartAction) {
             if (isFetchAction) {
               // A fetch action with a multipart body.
@@ -919,23 +913,25 @@ export async function handleAction({
                 limits: { fieldSize: bodySizeLimitBytes },
               })
 
-              // We need to use `pipeline(one, two)` instead of `one.pipe(two)` to propagate size limit errors correctly.
-              pipeline(
-                sizeLimitedBody,
-                busboy,
-                // Avoid unhandled errors from `pipeline()` by passing an empty completion callback.
-                // We'll propagate the errors properly when consuming the stream.
-                () => {}
-              )
-
-              boundActionArguments = await decodeReplyFromBusboy(
-                busboy,
-                serverModuleMap,
-                { temporaryReferences }
-              )
+              const abortController = new AbortController()
+              try {
+                ;[, boundActionArguments] = await Promise.all([
+                  pipeline(req.body, sizeLimitTransform, busboy, {
+                    signal: abortController.signal,
+                  }),
+                  decodeReplyFromBusboy(busboy, serverModuleMap, {
+                    temporaryReferences,
+                  }),
+                ])
+              } catch (err) {
+                abortController.abort()
+                throw err
+              }
             } else {
               // Multipart POST, but not a fetch action.
               // Potentially an MPA action, we have to try decoding it to check.
+
+              const sizeLimitedBody = new PassThrough()
 
               // React doesn't yet publish a busboy version of decodeAction
               // so we polyfill the parsing of FormData.
@@ -943,23 +939,25 @@ export async function handleAction({
                 method: 'POST',
                 // @ts-expect-error
                 headers: { 'Content-Type': contentType },
-                body: new ReadableStream({
-                  start: (controller) => {
-                    sizeLimitedBody.on('data', (chunk) => {
-                      controller.enqueue(new Uint8Array(chunk))
-                    })
-                    sizeLimitedBody.on('end', () => {
-                      controller.close()
-                    })
-                    sizeLimitedBody.on('error', (err) => {
-                      controller.error(err)
-                    })
-                  },
-                }),
+                body: Readable.toWeb(
+                  sizeLimitedBody
+                ) as ReadableStream<Uint8Array>,
                 duplex: 'half',
               })
 
-              const formData = await fakeRequest.formData()
+              let formData: FormData
+              const abortController = new AbortController()
+              try {
+                ;[, formData] = await Promise.all([
+                  pipeline(req.body, sizeLimitTransform, sizeLimitedBody, {
+                    signal: abortController.signal,
+                  }),
+                  fakeRequest.formData(),
+                ])
+              } catch (err) {
+                abortController.abort()
+                throw err
+              }
 
               if (areAllActionIdsValid(formData, serverModuleMap) === false) {
                 // TODO: This can be from skew or manipulated input. We should handle this case
@@ -1023,10 +1021,17 @@ export async function handleAction({
             // In practice, this happens if `encodeReply` returned a string instead of FormData,
             // which can happen for very simple JSON-like values that don't need multiple flight rows.
 
+            const sizeLimitedBody = new PassThrough()
+
             const chunks: Buffer[] = []
-            for await (const chunk of sizeLimitedBody) {
-              chunks.push(Buffer.from(chunk))
-            }
+            await Promise.all([
+              pipeline(req.body, sizeLimitTransform, sizeLimitedBody),
+              (async () => {
+                for await (const chunk of sizeLimitedBody) {
+                  chunks.push(Buffer.from(chunk))
+                }
+              })(),
+            ])
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
