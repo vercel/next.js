@@ -1,9 +1,6 @@
 'use client'
 
-import type {
-  CacheNode,
-  LazyCacheNode,
-} from '../../shared/lib/app-router-types'
+import type { CacheNode } from '../../shared/lib/app-router-types'
 import type { LoadingModuleData } from '../../shared/lib/app-router-types'
 import type {
   FlightRouterState,
@@ -11,16 +8,12 @@ import type {
   Segment,
 } from '../../shared/lib/app-router-types'
 import type { ErrorComponent } from './error-boundary'
-import {
-  ACTION_SERVER_PATCH,
-  type FocusAndScrollRef,
-} from './router-reducer/router-reducer-types'
+import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
 import React, {
   Activity,
   useContext,
   use,
-  startTransition,
   Suspense,
   useDeferredValue,
   type JSX,
@@ -32,7 +25,6 @@ import {
   GlobalLayoutRouterContext,
   TemplateContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { unresolvedThenable } from './unresolved-thenable'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
@@ -40,8 +32,6 @@ import { disableSmoothScrollDuringRouteTransition } from '../../shared/lib/route
 import { RedirectBoundary } from './redirect-boundary'
 import { HTTPAccessFallbackBoundary } from './http-access-fallback/error-boundary'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
-import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has-interception-route-in-current-tree'
-import { dispatchAppRouterAction } from './use-action-queue'
 import { useRouterBFCache, type RouterBFCacheEntry } from './bfcache'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
@@ -51,56 +41,6 @@ import {
 import { getParamValueFromCacheKey } from '../route-params'
 import type { Params } from '../../server/request/params'
 import { isDeferredRsc } from './router-reducer/ppr-navigations'
-
-/**
- * Add refetch marker to router state at the point of the current layout segment.
- * This ensures the response returned is not further down than the current layout segment.
- */
-function walkAddRefetch(
-  segmentPathToWalk: FlightSegmentPath | undefined,
-  treeToRecreate: FlightRouterState
-): FlightRouterState {
-  if (segmentPathToWalk) {
-    const [segment, parallelRouteKey] = segmentPathToWalk
-    const isLast = segmentPathToWalk.length === 2
-
-    if (matchSegment(treeToRecreate[0], segment)) {
-      if (treeToRecreate[1].hasOwnProperty(parallelRouteKey)) {
-        if (isLast) {
-          const subTree = walkAddRefetch(
-            undefined,
-            treeToRecreate[1][parallelRouteKey]
-          )
-          return [
-            treeToRecreate[0],
-            {
-              ...treeToRecreate[1],
-              [parallelRouteKey]: [
-                subTree[0],
-                subTree[1],
-                subTree[2],
-                'refetch',
-              ],
-            },
-          ]
-        }
-
-        return [
-          treeToRecreate[0],
-          {
-            ...treeToRecreate[1],
-            [parallelRouteKey]: walkAddRefetch(
-              segmentPathToWalk.slice(2),
-              treeToRecreate[1][parallelRouteKey]
-            ),
-          },
-        ]
-      }
-    }
-  }
-
-  return treeToRecreate
-}
 
 const __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = (
   ReactDOM as any
@@ -335,7 +275,7 @@ function InnerLayoutRouter({
   tree,
   segmentPath,
   debugNameContext,
-  cacheNode,
+  cacheNode: maybeCacheNode,
   params,
   url,
   isActive,
@@ -343,7 +283,7 @@ function InnerLayoutRouter({
   tree: FlightRouterState
   segmentPath: FlightSegmentPath
   debugNameContext: string
-  cacheNode: CacheNode
+  cacheNode: CacheNode | null
   params: Params
   url: string
   isActive: boolean
@@ -355,7 +295,18 @@ function InnerLayoutRouter({
     throw new Error('invariant global layout router not mounted')
   }
 
-  const { tree: fullTree } = context
+  const cacheNode =
+    maybeCacheNode !== null
+      ? maybeCacheNode
+      : // This segment is not in the cache. Suspend indefinitely.
+        //
+        // This should only be reachable for inactive/hidden segments, during
+        // prerendering The active segment should always be consistent with the
+        // CacheNode tree. Regardless, if we don't have a matching CacheNode, we
+        // must suspend rather than render nothing, to prevent showing an
+        // inconsistent route.
+
+        (use(unresolvedThenable) as never)
 
   // `rsc` represents the renderable node for this segment.
 
@@ -389,70 +340,11 @@ function InnerLayoutRouter({
     resolvedRsc = unwrappedRsc
   } else {
     // This is not a deferred RSC promise. Don't need to unwrap it.
+    if (rsc === null) {
+      use(unresolvedThenable) as never
+    }
     resolvedRsc = rsc
   }
-
-  // TODO: At this point, the only reason `resolvedRsc` would be null is if the
-  // data for this segment was fetched by a reducer that hasn't been migrated
-  // yet to the Segment Cache implementation. It shouldn't happen for regular
-  // navigations. Once we convert the remaining reducers, we can delete the
-  // lazy fetching block below.
-  if (!resolvedRsc) {
-    // The data for this segment is not available, and there's no pending
-    // navigation that will be able to fulfill it. We need to fetch more from
-    // the server and patch the cache.
-
-    // Only fetch data for the active segment. Inactive segments (rendered
-    // offscreen for bfcache) should not trigger fetches.
-    if (isActive) {
-      // Check if there's already a pending request.
-      let lazyData = cacheNode.lazyData
-      if (lazyData === null) {
-        /**
-         * Router state with refetch marker added
-         */
-        // TODO-APP: remove ''
-        const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
-        const includeNextUrl = hasInterceptionRouteInCurrentTree(fullTree)
-        const navigatedAt = Date.now()
-        cacheNode.lazyData = lazyData = fetchServerResponse(
-          new URL(url, location.origin),
-          {
-            flightRouterState: refetchTree,
-            nextUrl: includeNextUrl
-              ? // We always send the last next-url, not the current when
-                // performing a dynamic request. This is because we update
-                // the next-url after a navigation, but we want the same
-                // interception route to be matched that used the last
-                // next-url.
-                context.previousNextUrl || context.nextUrl
-              : null,
-          }
-        ).then((serverResponse) => {
-          startTransition(() => {
-            dispatchAppRouterAction({
-              type: ACTION_SERVER_PATCH,
-              previousTree: fullTree,
-              serverResponse,
-              navigatedAt,
-              retry: null,
-            })
-          })
-
-          return serverResponse
-        })
-
-        // Suspend while waiting for lazyData to resolve
-        use(lazyData)
-      }
-    }
-    // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-    // A falsey `resolvedRsc` indicates missing data -- we should not commit that branch, and we need to wait for the data to arrive.
-    use(unresolvedThenable) as never
-  }
-
-  // If we get to this point, then we know we have something we can render.
-  let content = resolvedRsc
 
   // In dev, we create a NavigationPromisesContext containing the instrumented promises that provide
   // `useSelectedLayoutSegment` and `useSelectedLayoutSegments`.
@@ -468,15 +360,17 @@ function InnerLayoutRouter({
     )
   }
 
+  let children = resolvedRsc
+
   if (navigationPromises) {
-    content = (
+    children = (
       <NavigationPromisesContext.Provider value={navigationPromises}>
         {resolvedRsc}
       </NavigationPromisesContext.Provider>
     )
   }
 
-  const subtree = (
+  children = (
     // The layout router context narrows down tree and childNodes at each level.
     <LayoutRouterContext.Provider
       value={{
@@ -491,11 +385,11 @@ function InnerLayoutRouter({
         isActive: isActive,
       }}
     >
-      {content}
+      {children}
     </LayoutRouterContext.Provider>
   )
-  // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
-  return subtree
+
+  return children
 }
 
 /**
@@ -657,25 +551,7 @@ export default function OuterLayoutRouter({
     const cacheKey = createRouterCacheKey(segment)
 
     // Read segment path from the parallel router cache node.
-    let cacheNode = segmentMap.get(cacheKey)
-    if (cacheNode === undefined) {
-      // When data is not available during rendering client-side we need to fetch
-      // it from the server.
-      const newLazyCacheNode: LazyCacheNode = {
-        lazyData: null,
-        rsc: null,
-        prefetchRsc: null,
-        head: null,
-        prefetchHead: null,
-        parallelRoutes: new Map(),
-        loading: null,
-        navigatedAt: -1,
-      }
-
-      // Flight data fetch kicked off during render and put into the cache.
-      cacheNode = newLazyCacheNode
-      segmentMap.set(cacheKey, newLazyCacheNode)
-    }
+    const cacheNode = segmentMap.get(cacheKey) ?? null
 
     /*
     - Error boundary
