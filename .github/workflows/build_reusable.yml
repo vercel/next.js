@@ -153,7 +153,8 @@ jobs:
 
       - name: Use Node.js ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }} for default shell
         run: |
-          node --version || echo "Node.js not installed yet"
+          node --version || echo "Cannot determine version of Node.js yet"
+          which node || echo "Cannot determine path of Node.js yet"
           # TODO: May be sufficient to just set `$FNM_MULTISHELL_PATH/bin` from `fnm env --json` into GITHUB_PATH
           fnm_env=$(fnm env)
           # Debug what we're about to eval
@@ -168,7 +169,11 @@ jobs:
           echo "$NODE_SHELL_PATH" >> "$GITHUB_PATH"
       # Debug used Node.js version in a separate step to ensure
       # the Node.js version is set for the entire job
-      - run: node --version
+      - name: Verify Node.js version
+        run: |
+          echo $PATH
+          which node
+          node --version
       - name: Prepare corepack
         if: ${{ contains(fromJson(inputs.runs_on_labels), 'ubuntu-latest') }}
         run: |
