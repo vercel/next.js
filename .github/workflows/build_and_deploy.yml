@@ -51,6 +51,11 @@ jobs:
         run: |
           npm i -g corepack@0.31
           corepack enable
+      - name: Check tmp
+        run: |
+          echo ${{ runner.temp }}
+          node -e "const os = require('os'); console.log(os.tmpdir())"
+          node -e "console.log(process.env)"
       - name: Determine deploy target
         # 'force-preview' performs a full preview build but only if acknowledged i.e. workflow_dispatch
         # 'automated-preview' for pushes on branches other than 'canary' for integration testing.
