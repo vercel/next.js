@@ -1234,7 +1234,7 @@ import { cookies } from 'next/headers'
 import { connection } from 'next/server'
 
 export async function generateMetadata() {
-  const token = (await cookies()).get('token')
+  const token = (await cookies()).get('token')?.value
   // ... use token to fetch personalized metadata
   return { title: 'Personalized Title' }
 }
