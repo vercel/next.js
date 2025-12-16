@@ -14,6 +14,7 @@ describe('app dir - metadata dynamic routes', () => {
     files: __dirname,
     dependencies: {
       '@vercel/og': 'latest',
+      '@next/bundle-analyzer': 'workspace',
     },
   })
 
