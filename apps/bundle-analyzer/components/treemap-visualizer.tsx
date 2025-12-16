@@ -72,26 +72,66 @@ function isPolyfill(specialModuleType: SpecialModule | null): boolean {
   )
 }
 
+const textWidthCache = new Map<string, number>()
+const TEXT_WIDTH_CACHE_SIZE = 30_000 // Shouldn't be more than a few megabytes of memory
+function measureTextCached(
+  ctx: CanvasRenderingContext2D,
+  text: string
+): number {
+  const cacheKey = `${ctx.font}|${text}`
+
+  let width = textWidthCache.get(cacheKey)
+  if (width !== undefined) {
+    // Move to end -- update the insertion order for LRU
+    textWidthCache.delete(cacheKey)
+    textWidthCache.set(cacheKey, width)
+    return width
+  }
+
+  width = ctx.measureText(text).width
+
+  // LRU-style cache eviction
+  if (textWidthCache.size >= TEXT_WIDTH_CACHE_SIZE) {
+    const firstKey = textWidthCache.keys().next().value
+    if (firstKey !== undefined) {
+      textWidthCache.delete(firstKey)
+    }
+  }
+
+  textWidthCache.set(cacheKey, width)
+  return width
+}
+
 function truncateTextWithEllipsisIfNeeded(
   ctx: CanvasRenderingContext2D,
   text: string,
   maxWidth: number
 ): string {
-  const ellipsisWidth = ctx.measureText('...').width
+  const ellipsisWidth = measureTextCached(ctx, '...')
 
-  if (ctx.measureText(text).width <= maxWidth) {
+  if (measureTextCached(ctx, text) <= maxWidth) {
     return text
   }
 
-  let truncated = text
-  while (
-    truncated.length > 0 &&
-    ctx.measureText(truncated).width + ellipsisWidth > maxWidth
-  ) {
-    truncated = truncated.slice(0, -1)
+  let left = 0
+  let right = text.length
+  let bestLength = 0
+
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2)
+    const truncated = text.slice(0, mid)
+    // Don't use the cached version since we don't want repeated failures filling it up
+    const width = ctx.measureText(truncated).width
+
+    if (width + ellipsisWidth <= maxWidth) {
+      bestLength = mid
+      left = mid + 1
+    } else {
+      right = mid - 1
+    }
   }
 
-  return truncated.length > 0 ? `${truncated}...` : '...'
+  return bestLength > 0 ? `${text.slice(0, bestLength)}...` : '...'
 }
 
 function findNodeAtPosition(
@@ -439,8 +479,8 @@ function drawTreemap(
       ctx.lineTo(rect.x + rect.width, rect.y + titleBarHeight)
       ctx.stroke()
 
-      const titleFontSize = Math.max(10, titleBarHeight * 0.5)
-      const sizeFontSize = Math.max(9, titleFontSize - 2)
+      const titleFontSize = Math.min(10, titleBarHeight * 0.5)
+      const sizeFontSize = Math.min(9, titleFontSize - 2)
       const sizeText = formatBytes(node.size)
       const centerY = rect.y + titleBarHeight / 2
       const gap = 6
@@ -449,7 +489,7 @@ function drawTreemap(
 
       // Measure size text first to reserve space
       ctx.font = `${sizeFontSize}px sans-serif`
-      const sizeWidth = ctx.measureText(sizeText).width
+      const sizeWidth = measureTextCached(ctx, sizeText)
 
       const nameX = rect.x + 8
       const availableNameWidth = Math.max(0, rect.width - 16 - sizeWidth - gap)
@@ -464,7 +504,7 @@ function drawTreemap(
       ctx.textAlign = 'left'
       ctx.fillText(displayName, nameX, centerY, availableNameWidth)
 
-      const nameWidth = ctx.measureText(displayName).width
+      const nameWidth = measureTextCached(ctx, displayName)
       const sizeX = nameX + nameWidth + gap
 
       // Only draw size text if it fits within bounds
@@ -518,7 +558,7 @@ function drawTreemap(
       ctx.textBaseline = 'middle'
 
       ctx.font = `${sizeFontSize}px sans-serif`
-      const sizeWidth = ctx.measureText(sizeText).width
+      const sizeWidth = measureTextCached(ctx, sizeText)
 
       const nameX = rect.x + 8
       const availableNameWidth = Math.max(0, rect.width - 16 - sizeWidth - gap)
@@ -533,7 +573,7 @@ function drawTreemap(
       ctx.textAlign = 'left'
       ctx.fillText(displayName, nameX, centerY, availableNameWidth)
 
-      const nameWidth = ctx.measureText(displayName).width
+      const nameWidth = measureTextCached(ctx, displayName)
       const sizeX = nameX + nameWidth + gap
 
       // Only draw size text if it fits within bounds
