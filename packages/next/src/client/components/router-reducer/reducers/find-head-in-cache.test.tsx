@@ -30,7 +30,6 @@ describe('findHeadInCache', () => {
 
     const cache: CacheNode = {
       navigatedAt,
-      lazyData: null,
       rsc: null,
       prefetchRsc: null,
       head: null,
@@ -44,7 +43,6 @@ describe('findHeadInCache', () => {
               'linking',
               {
                 navigatedAt,
-                lazyData: null,
                 rsc: null,
                 prefetchRsc: null,
                 head: null,
@@ -58,7 +56,6 @@ describe('findHeadInCache', () => {
                         'about',
                         {
                           navigatedAt,
-                          lazyData: null,
                           head: null,
                           prefetchHead: null,
                           loading: null,
@@ -70,7 +67,6 @@ describe('findHeadInCache', () => {
                                   '',
                                   {
                                     navigatedAt,
-                                    lazyData: null,
                                     rsc: null,
                                     prefetchRsc: null,
                                     prefetchHead: null,
@@ -90,7 +86,6 @@ describe('findHeadInCache', () => {
                       // [
                       //   '',
                       //   {
-                      //     lazyData: null,
                       //     rsc: <>Page</>,
                       //     prefetchRsc: null,
                       //     parallelRoutes: new Map(),

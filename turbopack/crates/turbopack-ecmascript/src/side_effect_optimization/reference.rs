@@ -1,6 +1,5 @@
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{Ident, Lit},
@@ -30,19 +29,7 @@ use crate::{
     utils::module_id_to_lit,
 };
 
-#[derive(
-    Debug,
-    Clone,
-    Eq,
-    PartialEq,
-    Hash,
-    Serialize,
-    Deserialize,
-    NonLocalValue,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode)]
 enum EcmascriptModulePartReferenceMode {
     Synthesize,
     Normal,

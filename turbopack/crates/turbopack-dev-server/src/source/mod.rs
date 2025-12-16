@@ -17,7 +17,6 @@ use std::collections::BTreeSet;
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use futures::{TryStreamExt, stream::Stream as StreamTrait};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     Completion, NonLocalValue, OperationVc, ResolvedVc, TaskInput, Upcast, ValueDefault, Vc,
@@ -185,8 +184,6 @@ impl HeaderList {
     Eq,
     NonLocalValue,
     TraceRawVcs,
-    Serialize,
-    Deserialize,
     Clone,
     Debug,
     Hash,
@@ -264,19 +261,7 @@ impl ValueDefault for Body {
 }
 
 /// Filter function that describes which information is required.
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    Hash,
-    Serialize,
-    Deserialize,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, Hash, NonLocalValue, Encode, Decode)]
 pub enum ContentSourceDataFilter {
     All,
     Subset(BTreeSet<String>),
@@ -501,9 +486,7 @@ impl ContentSource for NoContentSource {
     }
 }
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum RewriteType {
     Location {
         /// The new path and query used to lookup content. This _does not_ need to be the original

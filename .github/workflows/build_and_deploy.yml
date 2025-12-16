@@ -3,10 +3,19 @@ name: build-and-deploy
 
 on:
   push:
+    # Don't run when tags are pushed
+    branches:
+      - '**'
   # we need the preview tarball for deploy tests
   pull_request:
     types: [opened, synchronize]
   workflow_dispatch:
+
+concurrency:
+  # Limit concurrent runs to 1 per PR,
+  # but allow concurrent runs on push if they potentially use different source code
+  group: ${{ github.event_name == 'pull_request' && format('{0}-pr-{1}', github.workflow, github.ref_name) || format('{0}-sha-{1}', github.workflow, github.sha) }}
+  cancel-in-progress: true
 
 env:
   NAPI_CLI_VERSION: 2.18.4
@@ -99,10 +108,8 @@ jobs:
         id: cache-pnpm-store
         with:
           path: ${{ steps.get-store-path.outputs.STORE_PATH }}
-          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            pnpm-store-
-            pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          key: pnpm-store-v2-${{ hashFiles('pnpm-lock.yaml') }}
+          # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       - run: pnpm install
 

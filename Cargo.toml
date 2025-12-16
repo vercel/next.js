@@ -294,13 +294,12 @@ next-taskless = { path = "crates/next-taskless" }
 # Turbopack
 auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
 turbo-bincode = { path = "turbopack/crates/turbo-bincode" }
-turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
-turbo-rcstr = { path = "turbopack/crates/turbo-rcstr" }
 turbo-dyn-eq-hash = { path = "turbopack/crates/turbo-dyn-eq-hash" }
 turbo-esregex = { path = "turbopack/crates/turbo-esregex" }
+turbo-frozenmap = { path = "turbopack/crates/turbo-frozenmap" }
 turbo-persistence = { path = "turbopack/crates/turbo-persistence" }
-turbo-unix-path = { path = "turbopack/crates/turbo-unix-path" }
-turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
+turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
+turbo-rcstr = { path = "turbopack/crates/turbo-rcstr" }
 turbo-tasks = { path = "turbopack/crates/turbo-tasks" }
 turbo-tasks-backend = { path = "turbopack/crates/turbo-tasks-backend" }
 turbo-tasks-bytes = { path = "turbopack/crates/turbo-tasks-bytes" }
@@ -309,7 +308,9 @@ turbo-tasks-fetch = { path = "turbopack/crates/turbo-tasks-fetch" }
 turbo-tasks-fs = { path = "turbopack/crates/turbo-tasks-fs" }
 turbo-tasks-hash = { path = "turbopack/crates/turbo-tasks-hash" }
 turbo-tasks-macros = { path = "turbopack/crates/turbo-tasks-macros" }
+turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
 turbo-tasks-testing = { path = "turbopack/crates/turbo-tasks-testing" }
+turbo-unix-path = { path = "turbopack/crates/turbo-unix-path" }
 turbopack = { path = "turbopack/crates/turbopack" }
 turbopack-bench = { path = "turbopack/crates/turbopack-bench" }
 turbopack-nodejs = { path = "turbopack/crates/turbopack-nodejs" }
@@ -447,7 +448,6 @@ rstest = "0.16.0"
 rustc-hash = "2.1.1"
 semver = "1.0.16"
 serde = { version = "1.0.217", features = ["derive"] }
-serde_bytes = "0.11.15"
 serde_json = "1.0.138"
 serde_path_to_error = "0.1.16"
 serde_qs = "0.13.0"

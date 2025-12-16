@@ -35,7 +35,13 @@ export interface LayoutNode extends LayoutNodeInfo {
 
 interface SourceMetadata {
   filtered: boolean
-  totalSize: number
+  size: number
+  compressedSize: number
+}
+
+export enum SizeMode {
+  Compressed = 'compressed',
+  Uncompressed = 'uncompressed',
 }
 
 function precomputeSourceMetadata(
@@ -45,23 +51,24 @@ function precomputeSourceMetadata(
   const sourceCount = analyzeData.sourceCount()
   const metadata: SourceMetadata[] = new Array(sourceCount)
 
-  // Initialize all entries
-  for (let i = 0; i < sourceCount; i++) {
-    metadata[i] = { filtered: true, totalSize: 0 }
-  }
-
-  // Bottom-up pass: compute leaf node data
   for (let i = sourceCount - 1; i >= 0; i--) {
     const children = analyzeData.sourceChildren(i)
-    const ownSize = analyzeData.getSourceOutputSize(i)
+    const ownSize = analyzeData.getOwnSizes(i)
 
     if (children.length === 0) {
-      // Leaf node (file)
-      metadata[i].totalSize = ownSize
-      metadata[i].filtered = filterSource ? !filterSource(i) : false
+      // file
+      metadata[i] = {
+        size: ownSize.size,
+        compressedSize: ownSize.compressedSize,
+        filtered: filterSource ? !filterSource(i) : false,
+      }
     } else {
-      // Directory - initialize with own size
-      metadata[i].totalSize = ownSize
+      // directory
+      metadata[i] = {
+        filtered: true,
+        size: ownSize.size,
+        compressedSize: ownSize.compressedSize,
+      }
     }
   }
 
@@ -70,19 +77,22 @@ function precomputeSourceMetadata(
     const children = analyzeData.sourceChildren(idx)
     if (children.length === 0) return // Already processed as leaf
 
-    let totalSize = metadata[idx].totalSize // Start with own size
+    let totalUncompressedSize = metadata[idx].size
+    let totalCompressedSize = metadata[idx].compressedSize
     let hasVisibleChild = false
 
     for (const childIdx of children) {
       processDirectory(childIdx) // Process child first
       if (!metadata[childIdx].filtered) {
         // Only add size of visible (non-filtered) children
-        totalSize += metadata[childIdx].totalSize
+        totalUncompressedSize += metadata[childIdx].size
+        totalCompressedSize += metadata[childIdx].compressedSize
         hasVisibleChild = true
       }
     }
 
-    metadata[idx].totalSize = totalSize
+    metadata[idx].size = totalUncompressedSize
+    metadata[idx].compressedSize = totalCompressedSize
     metadata[idx].filtered = !hasVisibleChild // Directory filtered if no visible children
   }
 
@@ -102,7 +112,8 @@ function computeTreemapLayoutFromAnalyzeInternal(
   foldedPath: string,
   rect: LayoutRect,
   metadata: SourceMetadata[],
-  filterSource?: (sourceIndex: SourceIndex) => boolean
+  filterSource: ((sourceIndex: SourceIndex) => boolean) | undefined,
+  sizeMode: SizeMode
 ): LayoutNode {
   const source = analyzeData.source(sourceIndex)
   if (!source) {
@@ -111,7 +122,6 @@ function computeTreemapLayoutFromAnalyzeInternal(
 
   const isDirectory = source.path.endsWith('/') || !source.path
 
-  // Get children sources
   const childrenIndices = analyzeData.sourceChildren(sourceIndex)
 
   // Fold single-child directories
@@ -129,13 +139,16 @@ function computeTreemapLayoutFromAnalyzeInternal(
         foldedPath + source.path,
         rect,
         metadata,
-        filterSource
+        filterSource,
+        sizeMode
       )
     }
   }
 
-  // Use precomputed size
-  const totalSize = metadata[sourceIndex].totalSize
+  const totalSize =
+    sizeMode === SizeMode.Compressed
+      ? metadata[sourceIndex].compressedSize
+      : metadata[sourceIndex].size
 
   // If this is a file (no children), create a file node
   if (!isDirectory || childrenIndices.length === 0) {
@@ -150,7 +163,9 @@ function computeTreemapLayoutFromAnalyzeInternal(
     }
   }
 
-  // This is a directory with children
+  const directoryName = foldedPath + source.path || 'All Route Modules'
+
+  // Directory with children
   const titleBarHeight = Math.round(
     Math.max(12, Math.min(24, rect.height * 0.1))
   )
@@ -175,7 +190,7 @@ function computeTreemapLayoutFromAnalyzeInternal(
     }
 
     return {
-      name: foldedPath + source.path,
+      name: directoryName,
       size: totalSize,
       type: 'collapsed-directory',
       rect,
@@ -199,8 +214,11 @@ function computeTreemapLayoutFromAnalyzeInternal(
       continue
     }
 
-    // Use precomputed size
-    const childSize = metadata[childIndex].totalSize
+    // Use precomputed size based on mode
+    const childSize =
+      sizeMode === SizeMode.Compressed
+        ? metadata[childIndex].compressedSize
+        : metadata[childIndex].size
 
     childrenData.push({
       index: childIndex,
@@ -210,7 +228,7 @@ function computeTreemapLayoutFromAnalyzeInternal(
 
   if (childrenData.length === 0) {
     return {
-      name: foldedPath + source.path,
+      name: directoryName,
       size: totalSize,
       type: 'directory',
       rect,
@@ -235,12 +253,13 @@ function computeTreemapLayoutFromAnalyzeInternal(
       '',
       childRects[i],
       metadata,
-      filterSource
+      filterSource,
+      sizeMode
     )
   )
 
   return {
-    name: foldedPath + source.path,
+    name: directoryName,
     size: totalSize,
     type: 'directory',
     rect,
@@ -256,7 +275,8 @@ export function computeTreemapLayoutFromAnalyze(
   analyzeData: AnalyzeData,
   sourceIndex: SourceIndex,
   rect: LayoutRect,
-  filterSource?: (sourceIndex: SourceIndex) => boolean
+  filterSource?: (sourceIndex: SourceIndex) => boolean,
+  sizeMode: SizeMode = SizeMode.Compressed
 ): LayoutNode {
   // Precompute metadata once for entire tree
   const metadata = precomputeSourceMetadata(analyzeData, filterSource)
@@ -268,6 +288,7 @@ export function computeTreemapLayoutFromAnalyze(
     '',
     rect,
     metadata,
-    filterSource
+    filterSource,
+    sizeMode
   )
 }

@@ -1,6 +1,5 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     CollectiblesSource, FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc,
@@ -114,8 +113,6 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
     Debug,
     Clone,
     TaskInput,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     PartialEq,
     Eq,
@@ -208,33 +205,13 @@ async fn pick_endpoint(
     Ok(Vc::cell(endpoint))
 }
 
-#[derive(
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct InstrumentationOperation {
     pub node_js: OperationVc<OptionEndpoint>,
     pub edge: OperationVc<OptionEndpoint>,
 }
 
-#[derive(
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct MiddlewareOperation {
     pub endpoint: OperationVc<OptionEndpoint>,
     pub is_proxy: bool,
@@ -259,17 +236,7 @@ pub enum RouteOperation {
 }
 
 #[derive(
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Clone,
-    Debug,
-    NonLocalValue,
-    Encode,
-    Decode,
+    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
 )]
 pub struct AppPageRouteOperation {
     pub original_name: RcStr,
