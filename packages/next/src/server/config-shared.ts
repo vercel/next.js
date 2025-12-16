@@ -469,7 +469,7 @@ export interface ExperimentalConfig {
    * analyze module code to determine if it has side effects. This can improve tree shaking
    * and bundle size at the cost of some additional analysis.
    *
-   * Defaults to `true`.
+   * Defaults to `true` in canary builds only
    */
   turbopackInferModuleSideEffects?: boolean
 
@@ -1576,6 +1576,7 @@ export const defaultConfig = Object.freeze({
     mcpServer: true,
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: false,
+    turbopackInferModuleSideEffects: !isStableBuild(),
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
