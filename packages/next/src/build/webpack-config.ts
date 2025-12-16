@@ -1120,8 +1120,8 @@ export default async function getBaseWebpackConfig(
           chunks: 'all' as const,
           name: 'framework',
           // Ensures the framework chunk is not created for App Router.
-          layer: isWebpackDefaultLayer,
-          test(module: any) {
+          layer: isWebpackDefaultLayer as (layer: string | null) => boolean,
+          test(module: webpack.Module) {
             const resource = module.nameForCondition?.()
             return resource
               ? topLevelFrameworkPaths.some((pkgPath) =>
@@ -1136,25 +1136,17 @@ export default async function getBaseWebpackConfig(
         }
 
         const libCacheGroup = {
-          test(module: {
-            type: string
-            size: Function
-            nameForCondition: Function
-          }): boolean {
+          test(module: webpack.Module): boolean {
             return (
               !module.type?.startsWith('css') &&
               module.size() > 160000 &&
               /node_modules[/\\]/.test(module.nameForCondition() || '')
             )
           },
-          name(module: {
-            layer: string | null | undefined
-            type: string
-            libIdent?: Function
-            updateHash: (hash: crypto.Hash) => void
-          }): string {
+          name(module: webpack.Module): string {
             const hash = crypto.createHash('sha1')
             if (isModuleCSS(module)) {
+              // @ts-expect-error - updateHash is missing in typings
               module.updateHash(hash)
             } else {
               if (!module.libIdent) {
@@ -1162,6 +1154,7 @@ export default async function getBaseWebpackConfig(
                   `Encountered unknown module type: ${module.type}. Please open an issue.`
                 )
               }
+              // @ts-ignore
               hash.update(module.libIdent({ context: dir }))
             }
 

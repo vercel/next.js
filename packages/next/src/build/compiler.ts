@@ -54,6 +54,10 @@ export function runCompiler(
   return new Promise((resolve, reject) => {
     const compiler = getWebpackBundler()(config)
 
+    if (!compiler) {
+      throw new Error('No webpack compiler')
+    }
+
     // Ensure we use the previous inputFileSystem
     if (inputFileSystem) {
       compiler.inputFileSystem = inputFileSystem

@@ -44,9 +44,7 @@ export interface EvalSourceMapDevToolPluginOptions
 // https://github.com/webpack/webpack/blob/e237b580e2bda705c5ab39973f786f7c5a7026bc/lib/EvalSourceMapDevToolPlugin.js#L37
 export default class EvalSourceMapDevToolPlugin {
   sourceMapComment: string
-  moduleFilenameTemplate: NonNullable<
-    EvalSourceMapDevToolPluginOptions['moduleFilenameTemplate']
-  >
+  moduleFilenameTemplate: string | ((context?: any) => string)
   namespace: NonNullable<EvalSourceMapDevToolPluginOptions['namespace']>
   options: EvalSourceMapDevToolPluginOptions
   shouldIgnorePath: (modulePath: string) => boolean
@@ -67,9 +65,10 @@ export default class EvalSourceMapDevToolPlugin {
       options.append && typeof options.append !== 'function'
         ? options.append
         : '//# sourceURL=[module]\n//# sourceMappingURL=[url]'
-    this.moduleFilenameTemplate =
-      options.moduleFilenameTemplate ||
-      'webpack://[namespace]/[resource-path]?[hash]'
+    this.moduleFilenameTemplate = (options.moduleFilenameTemplate ||
+      'webpack://[namespace]/[resource-path]?[hash]') as
+      | string
+      | ((context?: any) => string)
     this.namespace = options.namespace || ''
     this.options = options
 

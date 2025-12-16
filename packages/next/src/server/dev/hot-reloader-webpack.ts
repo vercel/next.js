@@ -195,7 +195,8 @@ function findEntryModule(
 
 function erroredPages(compilation: webpack.Compilation) {
   const failedPages: { [page: string]: WebpackError[] } = {}
-  for (const error of compilation.errors) {
+  for (const err of compilation.errors) {
+    const error = err as WebpackError
     if (!error.module) {
       continue
     }
@@ -217,7 +218,7 @@ function erroredPages(compilation: webpack.Compilation) {
       failedPages[enhancedName] = []
     }
 
-    failedPages[enhancedName].push(error)
+    failedPages[enhancedName].push(error as WebpackError)
   }
 
   return failedPages
@@ -845,6 +846,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     })
 
     const fallbackCompiler = getWebpackBundler()(fallbackConfig)
+
+    if (!fallbackCompiler) {
+      throw new Error('No webpack compiler')
+    }
 
     this.fallbackWatcher = await new Promise((resolve) => {
       let bootedFallbackCompiler = false

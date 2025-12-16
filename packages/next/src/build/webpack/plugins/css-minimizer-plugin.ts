@@ -48,6 +48,7 @@ export class CssMinimizerPlugin {
       .process(input, postcssOptions)
       .then((res) => {
         if (res.map) {
+          // @ts-expect-error of type 'RawSourceMap' version is not compatible, it's a small typing bug
           return new sources.SourceMapSource(res.css, file, res.map.toJSON())
         } else {
           return new sources.RawSource(res.css)
