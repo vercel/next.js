@@ -12,8 +12,8 @@ Large bundles can negatively impact your application's performance. <AppOnly>By 
 
 Next.js provides two tools for analyzing bundles:
 
-- [Turbopack Bundle Analyzer (experimental)](#turbopack-experimental)
-- [@next/bundle-analyzer for Webpack](#webpack)
+- [Turbopack Bundle Analyzer (experimental)](#turbopack-bundle-analyzer-experimental)
+- [`@next/bundle-analyzer` for Webpack](#nextbundle-analyzer-for-webpack)
 
 This guide will walk you through how to use each tool depending on your setup, and how to [optimize package imports](#optimizing-package-imports).
 
@@ -51,9 +51,9 @@ This side panel also shows the size of the module and output chunks.
 
 </AppOnly>
 
-## Webpack
+## `@next/bundle-analyzer` for Webpack
 
-[`@next/bundle-analyzer`](https://www.npmjs.com/package/@next/bundle-analyzer) is a plugin for Next.js that helps you manage the size of your application bundles. It generates a visual report of the size of each package and their dependencies. You can use the information to remove large dependencies, split, or [lazy-load](/docs/app/guides/lazy-loading) your code.
+The [`@next/bundle-analyzer`](https://www.npmjs.com/package/@next/bundle-analyzer) is a plugin that helps you manage the size of your application bundles. It generates a visual report of the size of each package and their dependencies. You can use the information to remove large dependencies, split, or [lazy-load](/docs/app/guides/lazy-loading) your code.
 
 ### Step 1: Installation
 
