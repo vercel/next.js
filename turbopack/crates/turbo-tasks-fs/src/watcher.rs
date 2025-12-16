@@ -18,7 +18,6 @@ use notify::{
     event::{MetadataKind, ModifyKind, RenameMode},
 };
 use rustc_hash::FxHashSet;
-use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -61,9 +60,8 @@ static WATCH_RECURSIVE_MODE: LazyLock<RecursiveMode> = LazyLock::new(|| {
     }
 });
 
-#[derive(Serialize, Deserialize, Encode, Decode)]
+#[derive(Encode, Decode)]
 pub(crate) struct DiskWatcher {
-    #[serde(skip)]
     #[bincode(skip)]
     state: State,
 }
