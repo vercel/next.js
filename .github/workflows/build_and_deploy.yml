@@ -3,10 +3,19 @@ name: build-and-deploy
 
 on:
   push:
+    # Don't run when tags are pushed
+    branches:
+      - '**'
   # we need the preview tarball for deploy tests
   pull_request:
     types: [opened, synchronize]
   workflow_dispatch:
+
+concurrency:
+  # Limit concurrent runs to 1 per PR,
+  # but allow concurrent runs on push if they potentially use different source code
+  group: ${{ github.event_name == 'pull_request' && format('{0}-pr-{1}', github.workflow, github.ref_name) || format('{0}-sha-{1}', github.workflow, github.sha) }}
+  cancel-in-progress: true
 
 env:
   NAPI_CLI_VERSION: 2.18.4
