@@ -38,12 +38,13 @@ impl ChunkPart {
 
         let mut all_range_content = String::new();
         for range in &self.ranges {
-            all_range_content += &content_between(
+            append_content_between(
                 range.line,
                 range.start_column,
                 range.line,
                 range.end_column,
                 lines,
+                &mut all_range_content,
             );
         }
         compressed_size_bytes(all_range_content.into())
@@ -404,45 +405,48 @@ async fn unaccounted(
     }]))
 }
 
-fn content_between(
+fn append_content_between(
     start_line: u32,
     start_column: u32,
     end_line: u32,
     end_column: u32,
     lines: &[FileLine],
-) -> RcStr {
+    out: &mut String,
+) {
     let start_line = start_line.min(lines.len() as u32 - 1);
     let end_line = end_line.min(lines.len() as u32 - 1);
-    if start_line == end_line {
-        let start_col = start_column.min(lines[start_line as usize].len() as u32);
-        let end_col = end_column.min(lines[start_line as usize].len() as u32);
-        if end_col < start_col {
-            return RcStr::default();
-        }
-        return lines[start_line as usize]
+
+    let start_column = start_column.min(lines[start_line as usize].len() as u32);
+    let end_column = if start_line == end_line {
+        end_column.min(lines[start_line as usize].len() as u32)
+    } else {
+        lines[start_line as usize].len() as u32
+    };
+
+    if end_column <= start_column {
+        return;
+    }
+
+    out.extend(
+        lines[start_line as usize]
             .content
             .chars()
-            .skip(start_col as usize)
-            .take((end_col - start_col) as usize)
-            .collect::<String>()
-            .into();
-    }
+            .skip(start_column as usize)
+            .take((end_column - start_column) as usize),
+    );
 
-    let mut out = String::new();
-    out += &lines[start_line as usize]
-        .content
-        .chars()
-        .skip(start_column as usize)
-        .collect::<String>();
+    if start_line == end_line {
+        return;
+    }
 
     for line in &lines[start_line as usize + 1..end_line as usize] {
-        out += &line.content;
+        out.push_str(&line.content);
     }
 
-    out += &lines[end_line as usize]
-        .content
-        .chars()
-        .take(end_column as usize)
-        .collect::<String>();
-    out.into()
+    out.extend(
+        lines[end_line as usize]
+            .content
+            .chars()
+            .take(end_column as usize),
+    );
 }
