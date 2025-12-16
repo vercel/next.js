@@ -117,7 +117,7 @@ export function getResolveRoutes(
     finished: boolean
     statusCode?: number
     bodyStream?: ReadableStream | null
-    resHeaders: Record<string, string | string[]>
+    resHeaders: Record<string, string | string[]> | null
     parsedUrl: NextUrlWithParsedQuery
     matchedOutput?: FsOutput | null
   }> {
@@ -752,10 +752,12 @@ export function getResolveRoutes(
             parsedDestination.pathname
           )
 
+          // @ts-expect-error // custom ParsedUrl
+          const unsafeParsedUrl: NextUrlWithParsedQuery = parsedDestination
           return {
             finished: true,
-            // @ts-expect-error custom ParsedUrl
-            parsedUrl: parsedDestination,
+            parsedUrl: unsafeParsedUrl,
+            resHeaders: null,
             statusCode: getRedirectStatus(route),
           }
         }
@@ -826,9 +828,11 @@ export function getResolveRoutes(
           }
 
           if (parsedDestination.protocol) {
+            // @ts-expect-error // custom ParsedUrl
+            const unsafeParsedUrl: NextUrlWithParsedQuery = parsedDestination
             return {
-              // @ts-expect-error custom ParsedUrl
-              parsedUrl: parsedDestination,
+              parsedUrl: unsafeParsedUrl,
+              resHeaders: null,
               finished: true,
             }
           }
