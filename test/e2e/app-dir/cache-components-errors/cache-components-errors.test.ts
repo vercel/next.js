@@ -610,7 +610,7 @@ describe('Cache Components Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at a (app/dynamic-root/indirection.tsx:7:34)
+                   at <unknown> (app/dynamic-root/indirection.tsx:7:34)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -1841,7 +1841,7 @@ describe('Cache Components Errors', () => {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at a (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at <unknown> (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -2101,7 +2101,7 @@ describe('Cache Components Errors', () => {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at a (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at <unknown> (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -3336,7 +3336,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
                      at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
-                     at async h (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
+                     at async g (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
                    20 |
                  > 21 | const getCachedData = unstable_cache(async () => {
