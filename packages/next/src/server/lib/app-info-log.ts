@@ -1,5 +1,6 @@
 import { loadEnvConfig } from '@next/env'
 import * as inspector from 'inspector'
+import os from 'os'
 import * as Log from '../../build/output/log'
 import { bold, purple, strikethrough } from '../../lib/picocolors'
 import {
@@ -97,6 +98,11 @@ export function logStartInfo({
       }
     }
   }
+
+  // Report available cores to put execution times in perspective
+  // `availableCores` is preferred over `cpus().length` because it reflects any restrictions applied to containers
+  const availableCores = os.availableParallelism()
+  Log.bootstrap(`- Available Cores: ${availableCores}`)
 
   // New line after the bootstrap info
   Log.info('')
