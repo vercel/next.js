@@ -72,6 +72,15 @@ function isPolyfill(specialModuleType: SpecialModule | null): boolean {
   )
 }
 
+function calculateTitleFontSizes(titleBarHeight: number): {
+  titleFontSize: number
+  sizeFontSize: number
+} {
+  const titleFontSize = Math.min(10, titleBarHeight * 0.5)
+  const sizeFontSize = Math.min(9, titleFontSize - 2)
+  return { titleFontSize, sizeFontSize }
+}
+
 const textWidthCache = new Map<string, number>()
 const TEXT_WIDTH_CACHE_SIZE = 30_000 // Shouldn't be more than a few megabytes of memory
 function measureTextCached(
@@ -296,7 +305,7 @@ function drawTreemap(
         ctx.lineTo(rect.x + rect.width, rect.y + titleBarHeight)
         ctx.stroke()
 
-        const titleFontSize = Math.max(10, titleBarHeight * 0.5)
+        const { titleFontSize } = calculateTitleFontSizes(titleBarHeight)
         ctx.fillStyle = colors.text
         ctx.font = `600 ${titleFontSize}px sans-serif`
         ctx.textAlign = 'left'
@@ -479,8 +488,8 @@ function drawTreemap(
       ctx.lineTo(rect.x + rect.width, rect.y + titleBarHeight)
       ctx.stroke()
 
-      const titleFontSize = Math.min(10, titleBarHeight * 0.5)
-      const sizeFontSize = Math.min(9, titleFontSize - 2)
+      const { titleFontSize, sizeFontSize } =
+        calculateTitleFontSizes(titleBarHeight)
       const sizeText = formatBytes(node.size)
       const centerY = rect.y + titleBarHeight / 2
       const gap = 6
@@ -549,8 +558,8 @@ function drawTreemap(
       ctx.lineTo(rect.x + rect.width, rect.y + titleBarHeight)
       ctx.stroke()
 
-      const titleFontSize = Math.max(10, titleBarHeight * 0.5)
-      const sizeFontSize = Math.max(9, titleFontSize - 2)
+      const { titleFontSize, sizeFontSize } =
+        calculateTitleFontSizes(titleBarHeight)
       const sizeText = formatBytes(node.size)
       const centerY = rect.y + titleBarHeight / 2
       const gap = 6
