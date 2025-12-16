@@ -108,10 +108,8 @@ jobs:
         id: cache-pnpm-store
         with:
           path: ${{ steps.get-store-path.outputs.STORE_PATH }}
-          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            pnpm-store-
-            pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          key: pnpm-store-v2-${{ hashFiles('pnpm-lock.yaml') }}
+          # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       - run: pnpm install
 
