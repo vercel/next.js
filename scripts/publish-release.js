@@ -85,7 +85,8 @@ const cwd = process.cwd()
     try {
       await publishSema.acquire()
       const child = execa(
-        `npm`,
+        // pnpm is required to resolve `workspace:` protocol before publishing
+        `pnpm`,
         [
           'publish',
           `${path.join(packagesDir, pkg)}`,

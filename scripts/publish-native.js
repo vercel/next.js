@@ -41,7 +41,8 @@ const cwd = process.cwd()
             JSON.stringify(pkg, null, 2)
           )
           const child = execa(
-            `npm`,
+            // pnpm is required to resolve `workspace:` protocol before publishing
+            `pnpm`,
             [
               `publish`,
               `${path.join(nativePackagesDir, platform)}`,
@@ -99,7 +100,8 @@ const cwd = process.cwd()
         )
         try {
           await execa(
-            `npm`,
+            // pnpm is required to resolve `workspace:` protocol before publishing
+            `pnpm`,
             [
               'publish',
               `${path.join(wasmDir, `pkg-${wasmTarget}`)}`,
