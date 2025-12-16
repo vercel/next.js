@@ -170,25 +170,18 @@ export default function Home() {
             <>
               <ToggleGroup
                 type="single"
-                value={
-                  sizeMode === SizeMode.Compressed
-                    ? 'compressed'
-                    : 'uncompressed'
-                }
+                value={sizeMode}
                 onValueChange={(value) => {
-                  if (value)
-                    setSizeMode(
-                      value === 'compressed'
-                        ? SizeMode.Compressed
-                        : SizeMode.Uncompressed
-                    )
+                  if (value) setSizeMode(value as SizeMode)
                 }}
                 size="sm"
               >
-                <ToggleGroupItem value="uncompressed">
+                <ToggleGroupItem value={SizeMode.Uncompressed}>
                   Uncompressed
                 </ToggleGroupItem>
-                <ToggleGroupItem value="compressed">Compressed</ToggleGroupItem>
+                <ToggleGroupItem value={SizeMode.Compressed}>
+                  Compressed
+                </ToggleGroupItem>
               </ToggleGroup>
 
               <ControlDivider />
@@ -201,8 +194,12 @@ export default function Home() {
                 }}
                 size="sm"
               >
-                <ToggleGroupItem value="client">Client</ToggleGroupItem>
-                <ToggleGroupItem value="server">Server</ToggleGroupItem>
+                <ToggleGroupItem value={Environment.Client}>
+                  Client
+                </ToggleGroupItem>
+                <ToggleGroupItem value={Environment.Server}>
+                  Server
+                </ToggleGroupItem>
               </ToggleGroup>
 
               <ControlDivider />
@@ -303,11 +300,7 @@ export default function Home() {
                   {hoveredNodeInfo.name}
                 </span>
                 <span className="ml-2 text-muted-foreground">
-                  {`${formatBytes(hoveredNodeInfo.size)} ${
-                    sizeMode === SizeMode.Compressed
-                      ? 'compressed'
-                      : 'uncompressed'
-                  }`}
+                  {`${formatBytes(hoveredNodeInfo.size)} ${sizeMode}`}
                 </span>
                 {(hoveredNodeInfo.server || hoveredNodeInfo.client) && (
                   <span className="ml-2 inline-flex gap-1">

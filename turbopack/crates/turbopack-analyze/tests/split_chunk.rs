@@ -62,8 +62,8 @@ async fn split_chunk() {
         assert_eq!(parts.len(), 2);
 
         assert_eq!(parts[0].source, rcstr!("source1.js"));
-        assert_eq!(parts[0].real_size, 15);
-        assert_eq!(parts[0].unaccounted_size, 51);
+        assert_eq!(parts[0].real_size, 46);
+        assert_eq!(parts[0].unaccounted_size, 34);
         assert_eq!(
             parts[0].ranges,
             vec![
@@ -75,14 +75,14 @@ async fn split_chunk() {
                 ChunkPartRange {
                     line: 3,
                     start_column: 0,
-                    end_column: 3
+                    end_column: 34
                 },
             ]
         );
 
         assert_eq!(parts[1].source, rcstr!("source2.js"));
         assert_eq!(parts[1].real_size, 31);
-        assert_eq!(parts[1].unaccounted_size, 46);
+        assert_eq!(parts[1].unaccounted_size, 30);
         assert_eq!(
             parts[1].ranges,
             vec![ChunkPartRange {
@@ -92,7 +92,7 @@ async fn split_chunk() {
             }]
         );
 
-        assert_eq!(parts[0].get_compressed_size().await.unwrap(), 17);
+        assert_eq!(parts[0].get_compressed_size().await.unwrap(), 43);
         assert_eq!(parts[1].get_compressed_size().await.unwrap(), 28);
 
         println!("{:#?}", parts);

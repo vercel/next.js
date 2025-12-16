@@ -142,21 +142,21 @@ function SelectionDetails({
             <div>
               <span>{formatBytes(size)}</span>{' '}
               <span className="text-muted-foreground">uncompressed</span>
-              <HelpTooltip>
+              <InlineHelpTooltip>
                 Uncompressed modules may still be minified, tree-shaken, and
                 dead-code eliminated. They just don't account for general
                 compression like gzip.
-              </HelpTooltip>
+              </InlineHelpTooltip>
             </div>
             <>
               <div>
                 <span className="text-muted-foreground">About </span>
                 <span>{formatBytes(compressedSize)}</span>
                 <span className="text-muted-foreground ml-1">compressed</span>
-                <HelpTooltip>
+                <InlineHelpTooltip>
                   Estimated compressed size. Modules are compressed in isolation
                   which may differ from their size in the final chunk.
-                </HelpTooltip>
+                </InlineHelpTooltip>
               </div>
             </>
             {hasChildModules && childModuleCount != null ? (
@@ -218,7 +218,7 @@ function SelectionDetails({
   )
 }
 
-function HelpTooltip({ children }: { children: React.ReactNode }) {
+function InlineHelpTooltip({ children }: { children: React.ReactNode }) {
   return (
     <TooltipProvider>
       <Tooltip>
