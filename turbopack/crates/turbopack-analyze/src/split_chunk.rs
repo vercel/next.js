@@ -8,7 +8,7 @@ use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, OriginalToken, SourceMap, SyntheticToken, Token},
+    source_map::{GenerateSourceMap, OriginalToken, SourceMap, Token},
 };
 
 use crate::compressed_size::compressed_size_bytes;
@@ -111,7 +111,8 @@ pub async fn split_output_asset_into_parts(
         let start_line = start_line.min(lines.len() as u32 - 1);
         let end_line = end_line.min(lines.len() as u32 - 1);
         if start_line == end_line {
-            return end_column - start_column;
+            // TODO: Figure out why start is larger than end sometimes
+            return end_column.saturating_sub(start_column);
         }
         let mut len = lines[start_line as usize].len() as u32 - start_column + 1;
         for line in &lines[start_line as usize + 1..end_line as usize] {
@@ -139,17 +140,6 @@ pub async fn split_output_asset_into_parts(
                 lines,
             });
         entry.real_size += size;
-
-        // Check if the new range is adjacent to the last range and merge if so
-        if let Some(last_range) = entry.ranges.last_mut()
-            && last_range.line == chunk_part_range.line
-            && last_range.end_column == chunk_part_range.start_column
-            && chunk_part_range.end_column >= chunk_part_range.start_column
-        {
-            last_range.end_column = chunk_part_range.end_column;
-            return;
-        }
-
         entry.ranges.push(chunk_part_range);
     }
 
@@ -171,16 +161,68 @@ pub async fn split_output_asset_into_parts(
         entry.unaccounted_size += unaccounted;
     }
 
+    fn end_current_mapping(
+        source: RcStr,
+        current_line: u32,
+        start_column: u32,
+        next_line: u32,
+        next_column: u32,
+        lines: &[FileLine],
+        chunk_parts: &mut FxIndexMap<RcStr, ChunkPart>,
+        lines_vc: ResolvedVc<FileLinesContent>,
+    ) -> State {
+        let mapping_end_column = end_of_mapping_column(current_line, next_line, next_column, lines);
+        let len = mapping_end_column.saturating_sub(start_column);
+        add_chunk_part_range(
+            source.clone(),
+            ChunkPartRange {
+                line: current_line,
+                start_column,
+                end_column: mapping_end_column,
+            },
+            len,
+            chunk_parts,
+            lines_vc,
+        );
+        State::AfterMapping {
+            source,
+            generated_line: current_line,
+            current_generated_column: mapping_end_column,
+        }
+    }
+
+    fn should_extend_mapping(
+        state: &State,
+        new_source: &RcStr,
+        new_line: u32,
+        new_column: u32,
+    ) -> bool {
+        if let State::InMapping {
+            source,
+            generated_line,
+            end_column,
+            ..
+        } = state
+        {
+            // Extend if same source and line, and columns are adjacent or overlapping
+            // end_column <= new_column handles both adjacent (equal) and overlapping cases
+            source == new_source && *generated_line == new_line && *end_column <= new_column
+        } else {
+            false
+        }
+    }
+
     enum State {
         StartOfFile,
         InMapping {
             source: RcStr,
-            current_generated_line: u32,
-            current_generated_column: u32,
+            generated_line: u32,
+            start_column: u32,
+            end_column: u32,
         },
         AfterMapping {
             source: RcStr,
-            current_generated_line: u32,
+            generated_line: u32,
             current_generated_column: u32,
         },
     }
@@ -188,55 +230,6 @@ pub async fn split_output_asset_into_parts(
     let mut state: State = State::StartOfFile;
 
     for token in source_map.tokens() {
-        // First end the previous mapping if we were in one
-        let end_info = if let State::InMapping {
-            ref source,
-            current_generated_line,
-            current_generated_column,
-        } = state
-        {
-            let (Token::Original(OriginalToken {
-                generated_line,
-                generated_column,
-                ..
-            })
-            | Token::Synthetic(SyntheticToken {
-                generated_line,
-                generated_column,
-                ..
-            })) = token;
-            let mapping_end_column = end_of_mapping_column(
-                current_generated_line,
-                generated_line,
-                generated_column,
-                lines,
-            );
-            // TODO: Handle this better
-            let len = mapping_end_column.saturating_sub(current_generated_column);
-            Some((
-                source.clone(),
-                ChunkPartRange {
-                    line: current_generated_line,
-                    start_column: current_generated_column,
-                    end_column: mapping_end_column,
-                },
-                len,
-                current_generated_line,
-                mapping_end_column,
-            ))
-        } else {
-            None
-        };
-
-        if let Some((source, range, len, line, col)) = end_info {
-            add_chunk_part_range(source.clone(), range, len, &mut chunk_parts, lines_vc);
-            state = State::AfterMapping {
-                source,
-                current_generated_line: line,
-                current_generated_column: col,
-            };
-        }
-
         if let Token::Original(OriginalToken {
             original_file,
             generated_line,
@@ -244,13 +237,56 @@ pub async fn split_output_asset_into_parts(
             ..
         }) = token
         {
+            // Check if we can extend the current mapping
+            if should_extend_mapping(&state, &original_file, generated_line, generated_column) {
+                // Same source and line with adjacent columns - update end to next token position
+                if let State::InMapping {
+                    source,
+                    generated_line: current_line,
+                    start_column,
+                    ..
+                } = state
+                {
+                    state = State::InMapping {
+                        source,
+                        generated_line: current_line,
+                        start_column,
+                        end_column: generated_column,
+                    };
+                    continue;
+                }
+            }
+
+            // End the current mapping if we're in one
+            if let State::InMapping {
+                source,
+                generated_line: current_line,
+                start_column,
+                ..
+            } = state
+            {
+                state = end_current_mapping(
+                    source,
+                    current_line,
+                    start_column,
+                    generated_line,
+                    generated_column,
+                    lines,
+                    &mut chunk_parts,
+                    lines_vc,
+                );
+            }
+
             // Start a new mapping and put the unaccounted part in between somewhere
+            // Set end_column to start_column initially; it will be updated when we see the next
+            // token
             match replace(
                 &mut state,
                 State::InMapping {
                     source: original_file.clone(),
-                    current_generated_line: generated_line,
-                    current_generated_column: generated_column,
+                    generated_line,
+                    start_column: generated_column,
+                    end_column: generated_column,
                 },
             ) {
                 State::InMapping { .. } => {
@@ -258,11 +294,11 @@ pub async fn split_output_asset_into_parts(
                 }
                 State::AfterMapping {
                     source,
-                    current_generated_line,
+                    generated_line,
                     current_generated_column,
                 } => {
                     let len = len_between(
-                        current_generated_line,
+                        generated_line,
                         current_generated_column,
                         generated_line,
                         generated_column,
@@ -295,30 +331,21 @@ pub async fn split_output_asset_into_parts(
     // End the current token at end of file
     if let State::InMapping {
         ref source,
-        current_generated_line,
-        current_generated_column,
+        generated_line,
+        start_column,
+        ..
     } = state
     {
-        let mapping_end_column =
-            end_of_mapping_column(current_generated_line, last_line, last_column, lines);
-        // TODO: Handle this better
-        let len = mapping_end_column.saturating_sub(current_generated_column);
-        add_chunk_part_range(
+        state = end_current_mapping(
             source.clone(),
-            ChunkPartRange {
-                line: current_generated_line,
-                start_column: current_generated_column,
-                end_column: mapping_end_column,
-            },
-            len,
+            generated_line,
+            start_column,
+            last_line,
+            last_column,
+            lines,
             &mut chunk_parts,
             lines_vc,
         );
-        state = State::AfterMapping {
-            source: source.clone(),
-            current_generated_line,
-            current_generated_column: mapping_end_column,
-        };
     }
 
     match state {
@@ -327,11 +354,11 @@ pub async fn split_output_asset_into_parts(
         }
         State::AfterMapping {
             source,
-            current_generated_line,
+            generated_line,
             current_generated_column,
         } => {
             let len = len_between(
-                current_generated_line,
+                generated_line,
                 current_generated_column,
                 last_line,
                 last_column,
