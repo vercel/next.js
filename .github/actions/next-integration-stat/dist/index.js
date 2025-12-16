@@ -11574,7 +11574,7 @@ class Client extends DispatcherBase {
     }
 
     if (maxConcurrentStreams != null && (typeof maxConcurrentStreams !== 'number' || maxConcurrentStreams < 1)) {
-      throw new InvalidArgumentError('maxConcurrentStreams must be a possitive integer, greater than 0')
+      throw new InvalidArgumentError('maxConcurrentStreams must be a positive integer, greater than 0')
     }
 
     if (typeof connect !== 'function') {
@@ -33516,7 +33516,7 @@ class Client extends DispatcherBase {
     }
 
     if (maxConcurrentStreams != null && (typeof maxConcurrentStreams !== 'number' || maxConcurrentStreams < 1)) {
-      throw new InvalidArgumentError('maxConcurrentStreams must be a possitive integer, greater than 0')
+      throw new InvalidArgumentError('maxConcurrentStreams must be a positive integer, greater than 0')
     }
 
     if (typeof connect !== 'function') {
@@ -56282,7 +56282,7 @@ function getJobResults(octokit, token, sha) {
             }
             return acc;
         }, [[], []]);
-        console.log(`Flakyness test subset results`, { flakyMonitorJobResults });
+        console.log(`Flakiness test subset results`, { flakyMonitorJobResults });
         const testResultManifest = {
             ref: sha,
             flakyMonitorJobResults: flakyMonitorJobResults,
@@ -56302,7 +56302,7 @@ function getTestResultDiffBase(_octokit) {
         // all the previous test run data.
         //
         // The last update to that branch is from Dec 2023. If we want to support
-        // comparisions with the canary branch, we need to read this data from
+        // comparisons with the canary branch, we need to read this data from
         // somewhere else.
         return null;
     });
@@ -56474,7 +56474,7 @@ function run() {
         const passedTestsLists = [];
         // Collect failed test results for each job. We don't use this actively yet.
         const perJobFailedLists = {};
-        // Consturct a comment body to post test report with summary & full details.
+        // Construct a comment body to post test report with summary & full details.
         const comments = jobResults.result.reduce((acc, value, _idx) => {
             var _a, _b, _c, _d;
             const { data: testData } = value;

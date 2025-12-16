@@ -214,7 +214,7 @@ async function getJobResults(
     [[], []] as [Array<JobResult>, Array<JobResult>]
   )
 
-  console.log(`Flakyness test subset results`, { flakyMonitorJobResults })
+  console.log(`Flakiness test subset results`, { flakyMonitorJobResults })
 
   const testResultManifest: TestResultManifest = {
     ref: sha,
@@ -241,7 +241,7 @@ async function getTestResultDiffBase(
   // all the previous test run data.
   //
   // The last update to that branch is from Dec 2023. If we want to support
-  // comparisions with the canary branch, we need to read this data from
+  // comparisons with the canary branch, we need to read this data from
   // somewhere else.
   return null
 }
@@ -496,7 +496,7 @@ async function run() {
   // Collect failed test results for each job. We don't use this actively yet.
   const perJobFailedLists = {}
 
-  // Consturct a comment body to post test report with summary & full details.
+  // Construct a comment body to post test report with summary & full details.
   const comments = jobResults.result.reduce((acc, value, _idx) => {
     const { data: testData } = value
 
