@@ -53,9 +53,8 @@ export function parseAndValidateFlightRouterState(
     const state = JSON.parse(decodeURIComponent(stateHeader))
     assert(state, flightRouterStateSchema)
     return state
-  } catch (parseError) {
-    const message =
-      parseError instanceof Error ? parseError.message : 'undefined'
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
 
     throw new Error(
       `The router state header was sent but could not be parsed. Error: '${message}'. Header preview: ${sanitizeHeader(stateHeader)})`
