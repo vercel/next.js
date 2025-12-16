@@ -167,11 +167,23 @@ export async function buildPagesStaticPaths({
           (!repeat && typeof paramValue !== 'string') ||
           typeof paramValue === 'undefined'
         ) {
-          throw new Error(
-            `A required parameter (${validParamKey}) was not provided as ${
+          throw new TypeError(
+            `Parameter "${validParamKey}" in getStaticPaths must be ${
               repeat ? 'an array' : 'a string'
-            } received ${typeof paramValue} in getStaticPaths for ${page}`
+            }, got ${typeof paramValue} (${JSON.stringify(paramValue)}) for ${page}`
           )
+        }
+
+        // Validate that all array elements are strings when repeat is true
+        if (repeat && Array.isArray(paramValue)) {
+          for (let i = 0; i < paramValue.length; i++) {
+            const element = paramValue[i]
+            if (typeof element !== 'string') {
+              throw new TypeError(
+                `Parameter "${validParamKey}[${i}]" in getStaticPaths must be a string, got ${typeof element} (${JSON.stringify(element)}) for ${page}`
+              )
+            }
+          }
         }
 
         let replaced = `[${repeat ? '...' : ''}${validParamKey}]`
