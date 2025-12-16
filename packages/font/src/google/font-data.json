@@ -546,6 +546,19 @@
     "styles": ["normal", "italic"],
     "subsets": ["latin"]
   },
+  "Amarna": {
+    "weights": ["100", "200", "300", "400", "500", "600", "700", "variable"],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Amatic SC": {
     "weights": ["400", "700"],
     "styles": ["normal"],
@@ -1418,17 +1431,17 @@
     "styles": ["normal", "italic"],
     "subsets": ["latin"]
   },
-  "BBH Sans Bartle": {
+  "BBH Bartle": {
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin"]
   },
-  "BBH Sans Bogle": {
+  "BBH Bogle": {
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin"]
   },
-  "BBH Sans Hegarty": {
+  "BBH Hegarty": {
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin"]
@@ -3409,6 +3422,30 @@
       "runic",
       "vietnamese"
     ]
+  },
+  "Cause": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
   },
   "Caveat": {
     "weights": ["400", "500", "600", "700", "variable"],
@@ -5722,6 +5759,19 @@
       "vietnamese"
     ]
   },
+  "Geom": {
+    "weights": ["300", "400", "500", "600", "700", "800", "900", "variable"],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["greek", "latin", "latin-ext"]
+  },
   "Georama": {
     "weights": [
       "100",
@@ -5898,6 +5948,57 @@
     ],
     "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
   },
+  "Google Sans": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "GRAD",
+        "min": -50,
+        "max": 200,
+        "defaultValue": 0
+      },
+      {
+        "tag": "opsz",
+        "min": 17,
+        "max": 18,
+        "defaultValue": 18
+      },
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": [
+      "armenian",
+      "bengali",
+      "canadian-aboriginal",
+      "cyrillic",
+      "cyrillic-ext",
+      "devanagari",
+      "ethiopic",
+      "georgian",
+      "greek",
+      "greek-ext",
+      "gujarati",
+      "gurmukhi",
+      "hebrew",
+      "khmer",
+      "lao",
+      "latin",
+      "latin-ext",
+      "malayalam",
+      "oriya",
+      "sinhala",
+      "symbols",
+      "tamil",
+      "telugu",
+      "thai",
+      "vietnamese"
+    ]
+  },
   "Google Sans Code": {
     "weights": ["300", "400", "500", "600", "700", "800", "variable"],
     "styles": ["normal", "italic"],
@@ -5925,6 +6026,7 @@
   },
   "Google Sans Flex": {
     "weights": [
+      "1",
       "100",
       "200",
       "300",
@@ -8210,6 +8312,27 @@
     "weights": ["400", "700", "800"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
+  },
+  "Lilex": {
+    "weights": ["100", "200", "300", "400", "500", "600", "700", "variable"],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": [
+      "cyrillic",
+      "cyrillic-ext",
+      "greek",
+      "latin",
+      "latin-ext",
+      "symbols2",
+      "vietnamese"
+    ]
   },
   "Lilita One": {
     "weights": ["400"],
@@ -16082,6 +16205,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "Sekuya": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
   },
   "Sen": {
     "weights": ["400", "500", "600", "700", "800", "variable"],
