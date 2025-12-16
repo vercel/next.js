@@ -37,7 +37,7 @@ export type AnalyzeOptions = {
   reactProductionProfiling?: boolean
   noMangling?: boolean
   appDirOnly?: boolean
-  serve?: boolean
+  output?: boolean
   port?: number
 }
 
@@ -46,7 +46,7 @@ export default async function analyze({
   reactProductionProfiling = false,
   noMangling = false,
   appDirOnly = false,
-  serve = false,
+  output = false,
   port = 4000,
 }: AnalyzeOptions): Promise<void> {
   try {
@@ -78,8 +78,8 @@ export default async function analyze({
 
     const durationString = durationToString(analyzeDuration)
     let logMessage = `Analyze completed in ${durationString}.`
-    if (!serve) {
-      logMessage += ` To explore the analyze results, run \`next experimental-analyze --serve\`.`
+    if (output) {
+      logMessage += ` Results written to ${ANALYZE_PATH}.\nTo explore the analyze results interactively, run \`next experimental-analyze\` without \`--output\`.`
     }
     Log.event(logMessage)
 
@@ -108,7 +108,7 @@ export default async function analyze({
       })
     )
 
-    if (serve) {
+    if (!output) {
       await startServer(path.join(dir, ANALYZE_PATH), port)
     }
   } catch (e) {
