@@ -1476,7 +1476,7 @@ impl ModuleGraphRef {
                     .cmp(&other.priority)
                     // Use visit_order, so when there are ties we prioritize earlier discovered
                     // nodes, reverting to a BFS in the the case where all priorities are equal
-                    .then(other.visit_order.cmp(&self.visit_order))
+                    .then(self.visit_order.cmp(&other.visit_order))
             }
         }
 
@@ -2081,6 +2081,64 @@ pub mod tests {
                         // we start following the cycle again
                         (Some(rcstr!("a.js")), rcstr!("b.js")),
                         (Some(rcstr!("b.js")), rcstr!("c.js")),
+                    ],
+                    visits
+                );
+
+                Ok(())
+            },
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_traverse_edges_fixed_point_no_priority_is_bfs() {
+        run_graph_test(
+            vec![rcstr!("a.js")],
+            {
+                let mut deps = FxHashMap::default();
+                // a simple triangle
+                //        a
+                //      b   c
+                //   d    e    f
+                deps.insert(rcstr!("a.js"), vec![rcstr!("b.js"), rcstr!("c.js")]);
+                deps.insert(rcstr!("b.js"), vec![rcstr!("d.js"), rcstr!("e.js")]);
+                deps.insert(rcstr!("c.js"), vec![rcstr!("e.js"), rcstr!("f.js")]);
+                deps
+            },
+            |graph, entry_modules, module_to_name| {
+                let mut visits = Vec::new();
+                let mut count = 0;
+
+                graph.traverse_edges_fixed_point_with_priority(
+                    entry_modules.into_iter().map(|m| (m, 0)),
+                    &mut (),
+                    |parent, target, _| {
+                        visits.push((
+                            parent.map(|(node, _, _)| module_to_name.get(&node).unwrap().clone()),
+                            module_to_name.get(&target).unwrap().clone(),
+                        ));
+                        count += 1;
+
+                        // We are a cycle so we need to break the loop eventually
+                        Ok(if count < 6 {
+                            GraphTraversalAction::Continue
+                        } else {
+                            GraphTraversalAction::Skip
+                        })
+                    },
+                    |_, _| Ok(0),
+                )?;
+
+                assert_eq!(
+                    vec![
+                        (None, rcstr!("a.js")),
+                        (Some(rcstr!("a.js")), rcstr!("c.js")),
+                        (Some(rcstr!("a.js")), rcstr!("b.js")),
+                        (Some(rcstr!("b.js")), rcstr!("e.js")),
+                        (Some(rcstr!("b.js")), rcstr!("d.js")),
+                        (Some(rcstr!("c.js")), rcstr!("f.js")),
+                        (Some(rcstr!("c.js")), rcstr!("e.js")),
                     ],
                     visits
                 );
