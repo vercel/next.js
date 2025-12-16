@@ -1,6 +1,6 @@
-/* global __resourceQuery */
-
 "use strict";
+
+/* global __resourceQuery */
 
 if (typeof EventSource !== "function") {
 	throw new Error(
@@ -54,15 +54,18 @@ var updateEventSource = function updateEventSource() {
 exports.keepAlive = function (options) {
 	var data = options.data;
 	var onError = options.onError;
-	var active = options.active;
-	var module = options.module;
+
 	errorHandlers.add(onError);
+
 	var value = activeKeys.get(data) || 0;
+
 	activeKeys.set(data, value + 1);
+
 	if (value === 0) {
 		updateEventSource();
 	}
-	if (!active && !module.hot) {
+
+	if (!options.active && !options.module.hot) {
 		console.log(
 			"Hot Module Replacement is not enabled. Waiting for process restart..."
 		);
@@ -80,4 +83,11 @@ exports.keepAlive = function (options) {
 			}
 		}, 1000);
 	};
+};
+
+/**
+ * @param {string} value new url value
+ */
+exports.setUrl = function (value) {
+	urlBase = value;
 };

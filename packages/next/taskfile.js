@@ -2084,7 +2084,13 @@ export async function ncc_webpack_bundle5(task, opts) {
       packageName: 'webpack',
       bundleName: 'webpack',
       customEmit(path) {
-        if (path.endsWith('.runtime.js')) return `'./${basename(path)}'`
+        if (
+          /HotModuleReplacement\.runtime|JavascriptHotModuleReplacement\.runtime/.test(
+            path
+          )
+        ) {
+          return `'./${basename(path)}'`
+        }
       },
       externals: bundleExternals,
       target: 'es5',
