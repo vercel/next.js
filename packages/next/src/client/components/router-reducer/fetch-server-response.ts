@@ -35,10 +35,7 @@ import {
 } from '../../flight-data-helpers'
 import { getAppBuildId } from '../../app-build-id'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
-import {
-  getRenderedSearch,
-  urlToUrlWithoutFlightMarker,
-} from '../../route-params'
+import { urlToUrlWithoutFlightMarker } from '../../route-params'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 
@@ -252,7 +249,14 @@ export async function fetchServerResponse(
     return {
       flightData: normalizedFlightData,
       canonicalUrl: canonicalUrl,
-      renderedSearch: getRenderedSearch(res),
+      // TODO: We should be able to read this from the rewrite header, not the
+      // Flight response. Theoretically they should always agree, but there are
+      // currently some cases where it's incorrect for interception routes. We
+      // can always trust the value in the response body. However, per-segment
+      // prefetch responses don't embed the value in the body; they rely on the
+      // header alone. So we need to investigate why the header is sometimes
+      // wrong for interception routes.
+      renderedSearch: flightResponse.q as NormalizedSearch,
       couldBeIntercepted: interception,
       prerendered: flightResponse.S,
       postponed,

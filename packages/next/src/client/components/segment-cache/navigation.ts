@@ -24,12 +24,13 @@ import {
   readSegmentCacheEntry,
   waitForSegmentCacheEntry,
   requestOptimisticRouteCacheEntry,
+  convertRootFlightRouterStateToRouteTree,
   type RouteTree,
   type FulfilledRouteCacheEntry,
 } from './cache'
-import { createCacheKey } from './cache-key'
-import { addSearchParamsIfPageSegment } from '../../../shared/lib/segment'
+import { createCacheKey, type NormalizedSearch } from './cache-key'
 import { NavigationResultTag } from './types'
+import type { PageVaryPath } from './vary-path'
 
 type MPANavigationResult = {
   tag: NavigationResultTag.MPA
@@ -105,9 +106,7 @@ export function navigate(
   const route = readRouteCacheEntry(now, cacheKey)
   if (route !== null && route.status === EntryStatus.Fulfilled) {
     // We have a matching prefetch.
-    const snapshot = readRenderSnapshotFromCache(now, route, route.tree)
-    const prefetchFlightRouterState = snapshot.flightRouterState
-    const prefetchSeedData = snapshot.seedData
+    const prefetchData = readRenderSnapshotFromCache(now, route, route.tree)
     const headSnapshot = readHeadSnapshotFromCache(now, route)
     const prefetchHead = headSnapshot.rsc
     const isPrefetchHeadPartial = headSnapshot.isPartial
@@ -128,8 +127,8 @@ export function navigate(
       isSamePageNavigation,
       currentCacheNode,
       currentFlightRouterState,
-      prefetchFlightRouterState,
-      prefetchSeedData,
+      route.tree,
+      prefetchData,
       prefetchHead,
       isPrefetchHeadPartial,
       newCanonicalUrl,
@@ -152,13 +151,11 @@ export function navigate(
     const optimisticRoute = requestOptimisticRouteCacheEntry(now, url, nextUrl)
     if (optimisticRoute !== null) {
       // We have an optimistic route tree. Proceed with the normal flow.
-      const snapshot = readRenderSnapshotFromCache(
+      const prefetchData = readRenderSnapshotFromCache(
         now,
         optimisticRoute,
         optimisticRoute.tree
       )
-      const prefetchFlightRouterState = snapshot.flightRouterState
-      const prefetchSeedData = snapshot.seedData
       const headSnapshot = readHeadSnapshotFromCache(now, optimisticRoute)
       const prefetchHead = headSnapshot.rsc
       const isPrefetchHeadPartial = headSnapshot.isPartial
@@ -173,8 +170,8 @@ export function navigate(
         isSamePageNavigation,
         currentCacheNode,
         currentFlightRouterState,
-        prefetchFlightRouterState,
-        prefetchSeedData,
+        optimisticRoute.tree,
+        prefetchData,
         prefetchHead,
         isPrefetchHeadPartial,
         newCanonicalUrl,
@@ -233,7 +230,7 @@ export function navigateToSeededRoute(
     currentRenderedSearch,
     currentCacheNode,
     currentFlightRouterState,
-    navigationSeed.tree,
+    navigationSeed.routeTree,
     freshnessPolicy,
     navigationSeed.data,
     navigationSeed.head,
@@ -270,7 +267,7 @@ function navigateUsingPrefetchedRouteTree(
   isSamePageNavigation: boolean,
   currentCacheNode: CacheNode | null,
   currentFlightRouterState: FlightRouterState,
-  prefetchFlightRouterState: FlightRouterState,
+  routeTree: RouteTree,
   prefetchSeedData: CacheNodeSeedData | null,
   prefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean,
@@ -297,7 +294,7 @@ function navigateUsingPrefetchedRouteTree(
     currentRenderedSearch,
     currentCacheNode,
     currentFlightRouterState,
-    prefetchFlightRouterState,
+    routeTree,
     freshnessPolicy,
     seedData,
     seedHead,
@@ -351,8 +348,7 @@ function readRenderSnapshotFromCache(
   now: number,
   route: FulfilledRouteCacheEntry,
   tree: RouteTree
-): { flightRouterState: FlightRouterState; seedData: CacheNodeSeedData } {
-  let childRouterStates: { [parallelRouteKey: string]: FlightRouterState } = {}
+): CacheNodeSeedData {
   let childSeedDatas: {
     [parallelRouteKey: string]: CacheNodeSeedData | null
   } = {}
@@ -360,9 +356,11 @@ function readRenderSnapshotFromCache(
   if (slots !== null) {
     for (const parallelRouteKey in slots) {
       const childTree = slots[parallelRouteKey]
-      const childResult = readRenderSnapshotFromCache(now, route, childTree)
-      childRouterStates[parallelRouteKey] = childResult.flightRouterState
-      childSeedDatas[parallelRouteKey] = childResult.seedData
+      childSeedDatas[parallelRouteKey] = readRenderSnapshotFromCache(
+        now,
+        route,
+        childTree
+      )
     }
   }
 
@@ -412,34 +410,10 @@ function readRenderSnapshotFromCache(
     }
   }
 
-  // The navigation implementation expects the search params to be
-  // included in the segment. However, the Segment Cache tracks search
-  // params separately from the rest of the segment key. So we need to
-  // add them back here.
-  //
-  // See corresponding comment in convertFlightRouterStateToTree.
-  //
-  // TODO: What we should do instead is update the navigation diffing
-  // logic to compare search params explicitly. This is a temporary
-  // solution until more of the Segment Cache implementation has settled.
-  const segment = addSearchParamsIfPageSegment(
-    tree.segment,
-    Object.fromEntries(new URLSearchParams(route.renderedSearch))
-  )
-
   // We don't need this information in a render snapshot, so this can just be a placeholder.
   const hasRuntimePrefetch = false
 
-  return {
-    flightRouterState: [
-      segment,
-      childRouterStates,
-      null,
-      null,
-      tree.isRootLayout,
-    ],
-    seedData: [rsc, childSeedDatas, loading, isPartial, hasRuntimePrefetch],
-  }
+  return [rsc, childSeedDatas, loading, isPartial, hasRuntimePrefetch]
 }
 
 function readHeadSnapshotFromCache(
@@ -577,15 +551,16 @@ async function navigateDynamicallyWithNoPrefetch(
 }
 
 export type NavigationSeed = {
-  tree: FlightRouterState
   renderedSearch: string
+  routeTree: RouteTree
+  metadataVaryPath: PageVaryPath | null
   data: CacheNodeSeedData | null
   head: HeadData | null
 }
 
 export function convertServerPatchToFullTree(
   currentTree: FlightRouterState,
-  flightData: Array<NormalizedFlightData>,
+  flightData: Array<NormalizedFlightData> | null,
   renderedSearch: string
 ): NavigationSeed {
   // During a client navigation or prefetch, the server sends back only a patch
@@ -607,29 +582,47 @@ export function convertServerPatchToFullTree(
   let baseTree: FlightRouterState = currentTree
   let baseData: CacheNodeSeedData | null = null
   let head: HeadData | null = null
-  for (const {
-    segmentPath,
-    tree: treePatch,
-    seedData: dataPatch,
-    head: headPatch,
-  } of flightData) {
-    const result = convertServerPatchToFullTreeImpl(
-      baseTree,
-      baseData,
-      treePatch,
-      dataPatch,
+  if (flightData !== null) {
+    for (const {
       segmentPath,
-      0
-    )
-    baseTree = result.tree
-    baseData = result.data
-    // This is the same for all patches per response, so just pick an
-    // arbitrary one
-    head = headPatch
+      tree: treePatch,
+      seedData: dataPatch,
+      head: headPatch,
+    } of flightData) {
+      const result = convertServerPatchToFullTreeImpl(
+        baseTree,
+        baseData,
+        treePatch,
+        dataPatch,
+        segmentPath,
+        renderedSearch,
+        0
+      )
+      baseTree = result.tree
+      baseData = result.data
+      // This is the same for all patches per response, so just pick an
+      // arbitrary one
+      head = headPatch
+    }
   }
 
+  const finalFlightRouterState = baseTree
+
+  // Convert the final FlightRouterState into a RouteTree type.
+  //
+  // TODO: Eventually, FlightRouterState will evolve to being a transport format
+  // only. The RouteTree type will become the main type used for dealing with
+  // routes on the client, and we'll store it in the state directly.
+  const acc = { metadataVaryPath: null }
+  const routeTree = convertRootFlightRouterStateToRouteTree(
+    finalFlightRouterState,
+    renderedSearch as NormalizedSearch,
+    acc
+  )
+
   return {
-    tree: baseTree,
+    routeTree,
+    metadataVaryPath: acc.metadataVaryPath,
     data: baseData,
     renderedSearch,
     head,
@@ -642,6 +635,7 @@ function convertServerPatchToFullTreeImpl(
   treePatch: FlightRouterState,
   dataPatch: CacheNodeSeedData | null,
   segmentPath: FlightSegmentPath,
+  renderedSearch: string,
   index: number
 ): { tree: FlightRouterState; data: CacheNodeSeedData | null } {
   if (index === segmentPath.length) {
@@ -682,6 +676,7 @@ function convertServerPatchToFullTreeImpl(
         treePatch,
         dataPatch,
         segmentPath,
+        renderedSearch,
         // Advance the index by two and keep cloning until we reach
         // the end of the segment path.
         index + 2
@@ -706,7 +701,19 @@ function convertServerPatchToFullTreeImpl(
   // refetch marker.
   clonedTree = [baseRouterState[0], newTreeChildren]
   if (2 in baseRouterState) {
-    clonedTree[2] = baseRouterState[2]
+    const compressedRefreshState = baseRouterState[2]
+    if (
+      compressedRefreshState !== undefined &&
+      compressedRefreshState !== null
+    ) {
+      // Since this part of the tree was patched with new data, any parent
+      // refresh states should be updated to reflect the new rendered search
+      // value. (The refresh state acts like a "context provider".) All pages
+      // within the same server response share the same renderedSearch value,
+      // but the same RouteTree could be composed from multiple different
+      // routes, and multiple responses.
+      clonedTree[2] = [compressedRefreshState[0], renderedSearch]
+    }
   }
   if (3 in baseRouterState) {
     clonedTree[3] = baseRouterState[3]

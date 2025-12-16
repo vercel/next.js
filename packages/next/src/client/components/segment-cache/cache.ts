@@ -44,7 +44,10 @@ import {
   finalizePageVaryPath,
   clonePageVaryPathWithNewSearchParams,
   type PageVaryPath,
+  type LayoutVaryPath,
   finalizeMetadataVaryPath,
+  getPartialPageVaryPath,
+  getPartialLayoutVaryPath,
 } from './vary-path'
 import { getAppBuildId } from '../../app-build-id'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
@@ -124,6 +127,7 @@ type RouteTreeShared = {
   // TODO: Remove the `segment` field, now that it can be reconstructed
   // from `param`.
   segment: FlightRouterStateSegment
+  refreshState: RefreshState | null
   slots: null | {
     [parallelRouteKey: string]: RouteTree
   }
@@ -143,9 +147,14 @@ type RouteTreeShared = {
   hasRuntimePrefetch: boolean
 }
 
+export type RefreshState = {
+  canonicalUrl: string
+  renderedSearch: NormalizedSearch
+}
+
 type LayoutRouteTree = RouteTreeShared & {
   isPage: false
-  varyPath: SegmentVaryPath
+  varyPath: LayoutVaryPath
 }
 
 type PageRouteTree = RouteTreeShared & {
@@ -638,6 +647,7 @@ function createOptimisticRouteTree(
     return {
       requestKey: tree.requestKey,
       segment: tree.segment,
+      refreshState: tree.refreshState,
       varyPath: clonePageVaryPathWithNewSearchParams(
         tree.varyPath,
         newRenderedSearch
@@ -653,6 +663,7 @@ function createOptimisticRouteTree(
   return {
     requestKey: tree.requestKey,
     segment: tree.segment,
+    refreshState: tree.refreshState,
     varyPath: tree.varyPath,
     isPage: false,
     slots: clonedSlots,
@@ -889,6 +900,7 @@ function fulfillRouteCacheEntry(
   const metadata: RouteTree = {
     requestKey: HEAD_REQUEST_KEY,
     segment: HEAD_REQUEST_KEY,
+    refreshState: null,
     varyPath: metadataVaryPath,
     // The metadata isn't really a "page" (though it isn't really a "segment"
     // either) but for the purposes of how this field is used, it behaves like
@@ -1117,13 +1129,14 @@ function convertTreePrefetchToRouteTree(
   return {
     requestKey,
     segment,
-    varyPath,
+    refreshState: null,
     // TODO: Cheating the type system here a bit because TypeScript can't tell
     // that the type of isPage and varyPath are consistent. The fix would be to
     // create separate constructors and call the appropriate one from each of
     // the branches above. Just seems a bit overkill only for one field so I'll
     // leave it as-is for now. If isPage were wrong it would break the behavior
     // and we'd catch it quickly, anyway.
+    varyPath: varyPath as any,
     isPage: isPage as boolean as any,
     slots,
     isRootLayout: prefetch.isRootLayout,
@@ -1134,7 +1147,7 @@ function convertTreePrefetchToRouteTree(
   }
 }
 
-function convertRootFlightRouterStateToRouteTree(
+export function convertRootFlightRouterStateToRouteTree(
   flightRouterState: FlightRouterState,
   renderedSearch: NormalizedSearch,
   acc: RouteTreeAccumulator
@@ -1148,14 +1161,63 @@ function convertRootFlightRouterStateToRouteTree(
   )
 }
 
+export function convertReusedFlightRouterStateToRouteTree(
+  parentRouteTree: RouteTree,
+  parallelRouteKey: string,
+  flightRouterState: FlightRouterState,
+  renderedSearch: NormalizedSearch,
+  acc: RouteTreeAccumulator
+) {
+  // Create a RouteTree for a FlightRouterState that was reused from an older
+  // route. This happens during a navigation when a parallel route slot does not
+  // match the target route; we reuse whatever slot was already active.
+
+  // Unlike a FlightRouterState, the RouteTree type contains backreferences to
+  // the parent segments. Append the vary path to the parent's vary path.
+  const parentPartialVaryPath = parentRouteTree.isPage
+    ? getPartialPageVaryPath(parentRouteTree.varyPath)
+    : getPartialLayoutVaryPath(parentRouteTree.varyPath)
+  const segment = flightRouterState[0]
+  // And the request key.
+  const parentRequestKey = parentRouteTree.requestKey
+  const requestKeyPart = createSegmentRequestKeyPart(segment)
+  const requestKey = appendSegmentRequestKeyPart(
+    parentRequestKey,
+    parallelRouteKey,
+    requestKeyPart
+  )
+  return convertFlightRouterStateToRouteTree(
+    flightRouterState,
+    requestKey,
+    parentPartialVaryPath,
+    renderedSearch,
+    acc
+  )
+}
+
 function convertFlightRouterStateToRouteTree(
   flightRouterState: FlightRouterState,
   requestKey: SegmentRequestKey,
   parentPartialVaryPath: PartialSegmentVaryPath | null,
-  renderedSearch: NormalizedSearch,
+  parentRenderedSearch: NormalizedSearch,
   acc: RouteTreeAccumulator
 ): RouteTree {
   const originalSegment = flightRouterState[0]
+
+  // If the FlightRouterState has a refresh state, then this segment is part of
+  // an inactive parallel route. It has a different rendered search query than
+  // the outer parent route. In order to construct the inactive route correctly,
+  // we must restore the query that was originally used to render it.
+  const compressedRefreshState = flightRouterState[2] ?? null
+  const refreshState =
+    compressedRefreshState !== null
+      ? {
+          canonicalUrl: compressedRefreshState[0] as string,
+          renderedSearch: compressedRefreshState[1] as NormalizedSearch,
+        }
+      : null
+  const renderedSearch =
+    refreshState !== null ? refreshState.renderedSearch : parentRenderedSearch
 
   let segment: FlightRouterStateSegment
   let partialVaryPath: PartialSegmentVaryPath | null
@@ -1245,13 +1307,14 @@ function convertFlightRouterStateToRouteTree(
   return {
     requestKey,
     segment,
-    varyPath,
+    refreshState,
     // TODO: Cheating the type system here a bit because TypeScript can't tell
     // that the type of isPage and varyPath are consistent. The fix would be to
     // create separate constructors and call the appropriate one from each of
     // the branches above. Just seems a bit overkill only for one field so I'll
     // leave it as-is for now. If isPage were wrong it would break the behavior
     // and we'd catch it quickly, anyway.
+    varyPath: varyPath as any,
     isPage: isPage as boolean as any,
     slots,
     isRootLayout: flightRouterState[4] === true,
