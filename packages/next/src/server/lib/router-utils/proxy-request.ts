@@ -6,6 +6,9 @@ import { stringifyQuery } from '../../server-route-utils'
 import { Duplex } from 'stream'
 import { DetachedPromise } from '../../../lib/detached-promise'
 
+const HttpProxy =
+  require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
+
 export async function proxyRequest(
   req: IncomingMessage,
   res: ServerResponse | Duplex,
@@ -19,14 +22,13 @@ export async function proxyRequest(
   parsedUrl.search = stringifyQuery(req as any, query)
 
   const target = url.format(parsedUrl)
-  const HttpProxy =
-    require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
 
   const proxy = new HttpProxy({
     target,
     changeOrigin: true,
     ignorePath: true,
     ws: true,
+    xfwd: true,
     // we limit proxy requests to 30s by default, in development
     // we don't time out WebSocket requests to allow proxying
     proxyTimeout: proxyTimeout === null ? undefined : proxyTimeout || 30_000,
