@@ -1,20 +1,61 @@
 ---
-title: How to optimize package bundling
+title: Optmizing package bundling
 nav_title: Package Bundling
-description: Learn how to optimize your application's server and client bundles.
+description: Learn how to analyze and optimize your application's server and client bundles with the Turbopack Bundle Analyzer, and the `@next/bundle-analyzer` plugin for Webpack.
 related:
   description: Learn more about optimizing your application for production.
   links:
     - app/guides/production-checklist
 ---
 
-Bundling external packages can significantly improve the performance of your application. <AppOnly>By default, packages imported inside Server Components and Route Handlers are automatically bundled by Next.js. This page will guide you through how to analyze and further optimize package bundling.</AppOnly> <PagesOnly>By default, packages imported into your application are not bundled. This can impact performance or might not work if external packages are not pre-bundled, for example, if imported from a monorepo or `node_modules`. This page will guide you through how to analyze and configure package bundling.</PagesOnly>
+Large bundles can negatively impact your application's performance. <AppOnly>By default, Next.js automatically bundles packages imported inside Server Components and Route Handlers.</AppOnly><PagesOnly>By default, packages imported into your application are not bundled, which can be a source of performance issues if external packages are not pre-bundled, for example, if imported from a monorepo or `node_modules`.</PagesOnly>. In some cases, you may need to further optimize it.
 
-## Analyzing JavaScript bundles
+Next.js provides two tools for analyzing bundles:
+
+- [Turbopack Bundle Analyzer (experimental)](#turbopack-experimental)
+- [@next/bundle-analyzer for Webpack](#webpack)
+
+This guide will walk you through how to use each tool depending on your setup, and how to [optimize package imports](#optimizing-package-imports).
+
+<AppOnly>
+
+## Turbopack Bundle Analyzer (Experimental)
+
+> This experimental feature is available in v16.1 and above. You can share feedback on the [dedicated GitHub discussion](https://github.com/vercel/next.js/discussions/86731).
+
+The Turbopack Bundle Analyzer is integrated with Turbopack's module graph. It understands your application's routes, server and client boundaries, CSS and asset imports.
+
+### Step 1: Run the Turbopack Bundle Analyzer
+
+To get started, run the following command and open up the interactive view in your browser.
+
+```bash
+next experimental-analyze --serve
+```
+
+### Step 2: Filter and inspect modules
+
+Within the UI, you can filter by route, environment (client or server), and type (JavaScript, CSS, JSON, or asset), or search by file:
+
+[Video]
+
+### Step 3: Identify code location with import chains
+
+The treemap shows each module as a rectangle where the size of the module is represented by the area of the rectangle.
+
+Click a module to view its full import chain and locate where it's used in your codebase:
+
+[Image]
+
+This side panel also shows the size of the module and output chunks.
+
+</AppOnly>
+
+## Webpack
 
 [`@next/bundle-analyzer`](https://www.npmjs.com/package/@next/bundle-analyzer) is a plugin for Next.js that helps you manage the size of your application bundles. It generates a visual report of the size of each package and their dependencies. You can use the information to remove large dependencies, split, or [lazy-load](/docs/app/guides/lazy-loading) your code.
 
-### Installation
+### Step 1: Installation
 
 Install the plugin by running the following command:
 
@@ -39,7 +80,7 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 module.exports = withBundleAnalyzer(nextConfig)
 ```
 
-### Generating a report
+### Step 2: Generating a report
 
 Run the following command to analyze your bundles:
 
@@ -74,7 +115,7 @@ Next.js also optimizes some libraries automatically, thus they do not need to be
 
 <PagesOnly>
 
-## Bundling specific packages
+## Bundling all or specific packages
 
 To bundle specific packages, you can use the [`transpilePackages`](/docs/app/api-reference/config/next-config-js/transpilePackages) option in your `next.config.js`. This option is useful for bundling external packages that are not pre-bundled, for example, in a monorepo or imported from `node_modules`.
 
@@ -86,8 +127,6 @@ const nextConfig = {
 
 module.exports = nextConfig
 ```
-
-## Bundling all packages
 
 To automatically bundle all packages (default behavior in the App Router), you can use the [`bundlePagesRouterDependencies`](/docs/pages/api-reference/config/next-config-js/bundlePagesRouterDependencies) option in your `next.config.js`.
 
