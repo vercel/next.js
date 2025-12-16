@@ -2103,6 +2103,7 @@
       "middleware - development errors when there is a compilation error after boot logs the error correctly",
       "middleware - development errors when there is a compilation error after boot renders the error correctly and recovers",
       "middleware - development errors when there is a compilation error from boot logs the error correctly",
+      "middleware - development errors when there is a compilation error from boot renders the error correctly and recovers",
       "middleware - development errors when there is an unhandled rejection while loading a dependency does not render the error",
       "middleware - development errors when there is an unhandled rejection while loading a dependency logs the error correctly",
       "middleware - development errors when there is an unhandled rejection while loading the module does not render the error",
@@ -2111,7 +2112,6 @@
     ],
     "failed": [
       "middleware - development errors when running invalid dynamic code with eval logs the error correctly",
-      "middleware - development errors when there is a compilation error from boot renders the error correctly and recovers",
       "middleware - development errors when throwing while loading the module logs the error correctly"
     ],
     "pending": [],
@@ -2737,7 +2737,7 @@
       "unrecognized server actions should 404 when POSTing a non-server-action request to a nonexistent page",
       "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: form-data/multipart",
       "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: plaintext",
-      "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: urlencoded",
+      "unrecognized server actions should 404 when POSTing a urlencoded action to a nonexistent page",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with complex argument",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with simple argument",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked via form - js disabled",
@@ -4604,6 +4604,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/concurrent-navigations/mismatching-prefetch.test.ts": {
+    "passed": ["mismatching prefetch disabled in development"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts": {
     "passed": [
       "conflicting-page-segments should throw an error when a route groups causes a conflict with a parallel segment"
@@ -5245,6 +5252,15 @@
   "test/e2e/app-dir/esm-client-module-without-exports/esm-client-module-without-exports.test.ts": {
     "passed": [
       "esm-client-module-without-exports should render without errors"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/external-redirect/external-redirect.test.ts": {
+    "passed": [
+      "external-redirect regression: Server Action triggered from onClick redirects to external URL"
     ],
     "failed": [],
     "pending": [],
@@ -7286,6 +7302,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/no-server-actions/no-server-actions.test.ts": {
+    "passed": [
+      "app-dir - no server actions should 404 when triggering a fetch action on an app with no server actions",
+      "app-dir - no server actions should 404 when triggering an MPA action on an app with no server actions"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/node-extensions/node-extensions.random.test.ts": {
     "passed": [
       "Node Extensions Random Cache Components should not error when accessing middlware that use Math.random()",
@@ -7524,34 +7550,62 @@
   },
   "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts": {
     "passed": [
-      "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
-      "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
-      "parallel-routes-and-interception parallel routes should handle a loading state",
-      "parallel-routes-and-interception parallel routes should load CSS for a default page that exports another page",
-      "parallel-routes-and-interception parallel routes should match parallel routes",
-      "parallel-routes-and-interception parallel routes should match parallel routes in route groups",
-      "parallel-routes-and-interception parallel routes should match the catch-all routes of the more specific path, if there is more than one catch-all route",
-      "parallel-routes-and-interception parallel routes should navigate with a link with prefetch=false",
-      "parallel-routes-and-interception parallel routes should only scroll to the parallel route that was navigated to",
-      "parallel-routes-and-interception parallel routes should render nested parallel routes",
-      "parallel-routes-and-interception parallel routes should support layout files in parallel routes",
-      "parallel-routes-and-interception parallel routes should support nested parallel routes",
-      "parallel-routes-and-interception parallel routes should support parallel route tab bars",
-      "parallel-routes-and-interception parallel routes should support parallel routes with no page component",
-      "parallel-routes-and-interception parallel routes should throw a 404 when no matching parallel route is found",
-      "parallel-routes-and-interception route intercepting should intercept on routes that contain hyphenated/special dynamic params",
-      "parallel-routes-and-interception route intercepting should re-render the layout on the server when it had a default child route",
-      "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
-      "parallel-routes-and-interception route intercepting should render an intercepted route from a slot",
-      "parallel-routes-and-interception route intercepting should render intercepted route",
-      "parallel-routes-and-interception route intercepting should render intercepted route from a nested route",
-      "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes",
-      "parallel-routes-and-interception route intercepting should support intercepting local dynamic sibling routes",
-      "parallel-routes-and-interception route intercepting should support intercepting with beforeFiles rewrites",
-      "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
-      "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
-      "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route",
-      "parallel-routes-and-interception route intercepting with prerendered dynamic routes  should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should apply the catch-all route to the parallel route if no matching route is found",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should display all parallel route params with useParams",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should handle a loading state",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should load CSS for a default page that exports another page",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should match parallel routes",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should match parallel routes in route groups",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should match the catch-all routes of the more specific path, if there is more than one catch-all route",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should navigate with a link with prefetch=false",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should only scroll to the parallel route that was navigated to",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should render nested parallel routes",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should support layout files in parallel routes",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should support nested parallel routes",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should support parallel route tab bars",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should support parallel routes with no page component",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should throw a 404 when no matching parallel route is found",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should intercept on routes that contain hyphenated/special dynamic params",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should re-render the layout on the server when it had a default child route",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should render an intercepted route at the top level from a nested path",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should render an intercepted route from a slot",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should render intercepted route from a nested route",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should render modal when paired with parallel routes",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should support intercepting local dynamic sibling routes",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should support intercepting with beforeFiles rewrites",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting with dynamic catch-all routes should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting with dynamic optional catch-all routes should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting with dynamic routes should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting with prerendered dynamic routes  should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should apply the catch-all route to the parallel route if no matching route is found",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should display all parallel route params with useParams",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should handle a loading state",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should load CSS for a default page that exports another page",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should match parallel routes",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should match parallel routes in route groups",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should match the catch-all routes of the more specific path, if there is more than one catch-all route",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should navigate with a link with prefetch=false",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should only scroll to the parallel route that was navigated to",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should render nested parallel routes",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should support layout files in parallel routes",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should support nested parallel routes",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should support parallel route tab bars",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should support parallel routes with no page component",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should throw a 404 when no matching parallel route is found",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should intercept on routes that contain hyphenated/special dynamic params",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should re-render the layout on the server when it had a default child route",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should render an intercepted route at the top level from a nested path",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should render an intercepted route from a slot",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should render intercepted route from a nested route",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should render modal when paired with parallel routes",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should support intercepting local dynamic sibling routes",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should support intercepting with beforeFiles rewrites",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting with dynamic catch-all routes should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting with dynamic optional catch-all routes should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting with dynamic routes should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting with prerendered dynamic routes  should render intercepted route",
       "parallel-routes-and-interception-conflicting-pages should gracefully handle when two page segments match the `children` parallel slot"
     ],
     "failed": [],
@@ -9208,6 +9262,7 @@
       "shallow-routing pushState should support setting a different pathname reflected on usePathname",
       "shallow-routing pushState should support setting a different searchParam reflected on useSearchParams",
       "shallow-routing pushState should support setting a different url using a string",
+      "shallow-routing pushState should support setting data",
       "shallow-routing pushState should work when given a null state value",
       "shallow-routing replaceState should support setting a different pathname reflected on usePathname",
       "shallow-routing replaceState should support setting a different searchParam reflected on useSearchParams",
@@ -9217,7 +9272,7 @@
       "shallow-routing replaceState should work when given an undefined state value",
       "shallow-routing should work when given an undefined state value"
     ],
-    "failed": ["shallow-routing pushState should support setting data"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11670,6 +11725,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/next-analyze/next-analyze.test.ts": {
+    "passed": ["next experimental-analyze skips in non-Turbopack tests"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/next-config-warnings/esm-externals-false/esm-externals-false.test.ts": {
     "passed": [
       "next-config-warnings - esm-externals-false should warn when using ESM externals: false"
@@ -12066,6 +12128,7 @@
       "opentelemetry incoming context propagation app router should handle RSC with fetch in RSC mode",
       "opentelemetry incoming context propagation app router should handle RSC with fetch on edge",
       "opentelemetry incoming context propagation app router should handle error in RSC",
+      "opentelemetry incoming context propagation app router should handle error inside Suspense boundary",
       "opentelemetry incoming context propagation app router should handle route handlers in app router",
       "opentelemetry incoming context propagation app router should handle route handlers in app router on edge",
       "opentelemetry incoming context propagation app router should propagate custom context without span",
@@ -12081,6 +12144,7 @@
       "opentelemetry root context app router should handle RSC with fetch in RSC mode",
       "opentelemetry root context app router should handle RSC with fetch on edge",
       "opentelemetry root context app router should handle error in RSC",
+      "opentelemetry root context app router should handle error inside Suspense boundary",
       "opentelemetry root context app router should handle route handlers in app router",
       "opentelemetry root context app router should handle route handlers in app router on edge",
       "opentelemetry root context app router should propagate custom context without span",
