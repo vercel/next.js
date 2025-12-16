@@ -1451,10 +1451,17 @@ impl ModuleGraphRef {
             );
         }
 
+        let mut visit_order = 0usize;
+        let mut order = || {
+            let order = visit_order;
+            visit_order += 1;
+            order
+        };
         #[derive(PartialEq, Eq)]
         struct NodeWithPriority<T: Ord> {
             node: GraphNodeIndex,
             priority: T,
+            visit_order: usize,
         }
         impl<T: Ord> PartialOrd for NodeWithPriority<T> {
             fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -1467,8 +1474,9 @@ impl ModuleGraphRef {
 
                 self.priority
                     .cmp(&other.priority)
-                    // include GraphNodeIndex for total and deterministic ordering
-                    .then(other.node.cmp(&self.node))
+                    // Use visit_order, so when there are ties we prioritize earlier discovered
+                    // nodes, reverting to a BFS in the the case where all priorities are equal
+                    .then(other.visit_order.cmp(&self.visit_order))
             }
         }
 
@@ -1480,6 +1488,7 @@ impl ModuleGraphRef {
                     Ok(NodeWithPriority {
                         node: self.get_entry(m)?,
                         priority,
+                        visit_order: order(),
                     })
                 })
                 .collect::<Result<Vec<_>>>()?,
@@ -1511,6 +1520,7 @@ impl ModuleGraphRef {
                     queue.push(NodeWithPriority {
                         node: succ,
                         priority: priority(succ_weight.module(), state)?,
+                        visit_order: order(),
                     });
                 }
             }
