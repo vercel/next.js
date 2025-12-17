@@ -2,7 +2,6 @@ use std::mem::take;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use swc_core::{
     atoms::{Atom, atom},
     base::SwcComments,
@@ -33,17 +32,7 @@ use crate::{
 };
 
 #[derive(
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Debug,
-    Hash,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
 )]
 pub struct Unreachable {
     range: AstPathRange,

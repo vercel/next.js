@@ -37,7 +37,7 @@ export type AnalyzeOptions = {
   reactProductionProfiling?: boolean
   noMangling?: boolean
   appDirOnly?: boolean
-  serve?: boolean
+  output?: boolean | string
   port?: number
 }
 
@@ -46,7 +46,7 @@ export default async function analyze({
   reactProductionProfiling = false,
   noMangling = false,
   appDirOnly = false,
-  serve = false,
+  output = false,
   port = 4000,
 }: AnalyzeOptions): Promise<void> {
   try {
@@ -77,9 +77,16 @@ export default async function analyze({
       await turbopackAnalyze(analyzeContext)
 
     const durationString = durationToString(analyzeDuration)
+
+    // Determine the output path: use custom path if provided, otherwise default
+    const outputPath = typeof output === 'string' ? output : ANALYZE_PATH
+    const resolvedOutputPath = path.isAbsolute(outputPath)
+      ? outputPath
+      : path.join(dir, outputPath)
+
     let logMessage = `Analyze completed in ${durationString}.`
-    if (!serve) {
-      logMessage += ` To explore the analyze results, run \`next experimental-analyze --serve\`.`
+    if (output) {
+      logMessage += ` Results written to ${outputPath}.\nTo explore the analyze results interactively, run \`next experimental-analyze\` without \`--output\`.`
     }
     Log.event(logMessage)
 
@@ -87,16 +94,16 @@ export default async function analyze({
 
     await cp(
       path.join(__dirname, '../../bundle-analyzer'),
-      path.join(dir, ANALYZE_PATH),
+      resolvedOutputPath,
       { recursive: true }
     )
 
     // Collect and write routes for the bundle analyzer
     const routes = await collectRoutesForAnalyze(dir, config, appDirOnly)
 
-    await mkdir(path.join(dir, ANALYZE_PATH, 'data'), { recursive: true })
+    await mkdir(path.join(resolvedOutputPath, 'data'), { recursive: true })
     await writeFile(
-      path.join(dir, ANALYZE_PATH, 'data', 'routes.json'),
+      path.join(resolvedOutputPath, 'data', 'routes.json'),
       JSON.stringify(routes, null, 2)
     )
 
@@ -108,8 +115,8 @@ export default async function analyze({
       })
     )
 
-    if (serve) {
-      await startServer(path.join(dir, ANALYZE_PATH), port)
+    if (!output) {
+      await startServer(resolvedOutputPath, port)
     }
   } catch (e) {
     const telemetry = traceGlobals.get('telemetry') as Telemetry | undefined

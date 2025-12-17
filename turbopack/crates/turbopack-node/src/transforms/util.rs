@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TryJoinIterExt, trace::TraceRawVcs};
@@ -11,14 +11,12 @@ use turbopack_core::{
     asset::AssetContent, server_fs::ServerFileSystem, virtual_source::VirtualSource,
 };
 
-#[derive(
-    Debug, PartialEq, Eq, Serialize, Deserialize, Clone, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct EmittedAsset {
     file: RcStr,
     content: RcStr,
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     source_map: Option<JsonValue>,
 }
 

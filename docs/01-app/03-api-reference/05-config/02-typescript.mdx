@@ -80,6 +80,17 @@ Next.js generates global helpers for App Router route types. These are available
 
 </AppOnly>
 
+## `next-env.d.ts`
+
+Next.js generates a `next-env.d.ts` file in your project root. This file references Next.js type definitions, allowing TypeScript to recognize non-code imports (images, stylesheets, etc.) and Next.js-specific types.
+
+Running `next dev`, `next build`, or [`next typegen`](/docs/app/api-reference/cli/next#next-typegen-options) regenerates this file.
+
+> **Good to know**:
+>
+> - We recommend adding `next-env.d.ts` to your `.gitignore` file.
+> - The file must be in your `tsconfig.json` `include` array (`create-next-app` does this automatically).
+
 ## Examples
 
 ### Type Checking Next.js Configuration Files
@@ -470,7 +481,7 @@ If you'd like Next.js to dangerously produce production code even when your appl
 
 If disabled, be sure you are running type checks as part of your build or deploy process, otherwise this can be very dangerous.
 
-Open `next.config.ts` and enable the `ignoreBuildErrors` option in the `typescript` config:
+Open `next.config.ts` and enable the `ignoreBuildErrors` option in the [`typescript`](/docs/app/api-reference/config/next-config-js/typescript) config:
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'

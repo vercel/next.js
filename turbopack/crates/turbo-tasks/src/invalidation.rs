@@ -14,7 +14,6 @@ use bincode::{
     impl_borrow_decode,
 };
 use indexmap::map::Entry;
-use serde::{Deserialize, Serialize, de::Visitor};
 use tokio::runtime::Handle;
 use turbo_dyn_eq_hash::{
     DynEq, DynHash, impl_eq_for_dyn, impl_hash_for_dyn, impl_partial_eq_for_dyn,
@@ -110,44 +109,6 @@ impl Eq for Invalidator {}
 impl TraceRawVcs for Invalidator {
     fn trace_raw_vcs(&self, _context: &mut crate::trace::TraceRawVcsContext) {
         // nothing here
-    }
-}
-
-impl Serialize for Invalidator {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_newtype_struct("Invalidator", &self.task)
-    }
-}
-
-impl<'de> Deserialize<'de> for Invalidator {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct V;
-
-        impl<'de> Visitor<'de> for V {
-            type Value = Invalidator;
-
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "an Invalidator")
-            }
-
-            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                Ok(Invalidator {
-                    task: TaskId::deserialize(deserializer)?,
-                    turbo_tasks: with_turbo_tasks(Arc::downgrade),
-                    handle: tokio::runtime::Handle::current(),
-                })
-            }
-        }
-        deserializer.deserialize_newtype_struct("Invalidator", V)
     }
 }
 

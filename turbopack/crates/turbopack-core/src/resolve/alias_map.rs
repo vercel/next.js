@@ -15,7 +15,7 @@ use turbo_tasks::{
     trace::{TraceRawVcs, TraceRawVcsContext},
 };
 
-use super::pattern::Pattern;
+use crate::resolve::pattern::Pattern;
 
 /// A map of [`AliasPattern`]s to the [`Template`]s they resolve to.
 ///
@@ -25,8 +25,7 @@ use super::pattern::Pattern;
 ///
 /// If the pattern does not have a wildcard character, it will only match the
 /// exact string, and return the template as-is.
-#[derive(Clone, Serialize, Deserialize, Encode, Decode)]
-#[serde(transparent)]
+#[derive(Clone, Encode, Decode)]
 #[bincode(
     encode_bounds = "T: Serialize",
     decode_bounds = "T: DeserializeOwned",

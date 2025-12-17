@@ -63,13 +63,13 @@ use crate::{
 };
 
 #[serde_as]
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Encode, Decode)]
 struct BytesBase64 {
     #[serde_as(as = "serde_with::base64::Base64")]
     binary: Vec<u8>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 #[turbo_tasks::value]
 #[serde(rename_all = "camelCase")]
 struct WebpackLoadersProcessingResult {
@@ -98,7 +98,7 @@ struct WebpackLoadersProcessingResult {
 pub struct WebpackLoaderItem {
     pub loader: RcStr,
     #[serde(default)]
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     pub options: serde_json::Map<String, serde_json::Value>,
 }
 
@@ -340,7 +340,7 @@ pub(crate) async fn evaluate_webpack_loader(
     custom_evaluate(webpack_loader_context).await
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
+#[derive(Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 enum LogType {
     Error,
@@ -359,12 +359,12 @@ enum LogType {
     Status,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
+#[derive(Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct LogInfo {
     time: u64,
     log_type: LogType,
-    #[bincode(with = "turbo_bincode::serde_json")]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     args: Vec<JsonValue>,
     trace: Option<Vec<StackFrame<'static>>>,
 }
@@ -396,17 +396,7 @@ pub enum InfoMessage {
 }
 
 #[derive(
-    Debug,
-    Clone,
-    TaskInput,
-    Hash,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    Encode,
-    Decode,
+    Debug, Clone, TaskInput, Hash, PartialEq, Eq, Deserialize, TraceRawVcs, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct WebpackResolveOptions {
@@ -442,19 +432,7 @@ pub enum ResponseMessage {
     TrackFileRead {},
 }
 
-#[derive(
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    TaskInput,
-    Serialize,
-    Deserialize,
-    Debug,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
+#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, TraceRawVcs, Encode, Decode)]
 pub struct WebpackLoaderContext {
     pub entries: ResolvedVc<EvaluateEntries>,
     pub cwd: FileSystemPath,

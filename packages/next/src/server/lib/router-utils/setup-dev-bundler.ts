@@ -143,13 +143,14 @@ async function verifyTypeScript(opts: SetupOpts) {
   const verifyResult = await verifyTypeScriptSetup({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
-    intentDirs: [opts.pagesDir, opts.appDir].filter(Boolean) as string[],
     typeCheckPreflight: false,
     tsconfigPath: opts.nextConfig.typescript.tsconfigPath,
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
     hasAppDir: !!opts.appDir,
     hasPagesDir: !!opts.pagesDir,
     isolatedDevBuild: opts.nextConfig.experimental.isolatedDevBuild,
+    appDir: opts.appDir,
+    pagesDir: opts.pagesDir,
   })
 
   if (verifyResult.version) {

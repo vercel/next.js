@@ -1132,6 +1132,10 @@ export default async function build(
         nextBuildSpan,
         config,
         cacheDir,
+        debugBuildPaths:
+          debugBuildAppPaths !== undefined || debugBuildPagePaths !== undefined
+            ? { app: debugBuildAppPaths, pages: debugBuildPagePaths }
+            : undefined,
       }
 
       if (appDir && 'exportPathMap' in config) {
