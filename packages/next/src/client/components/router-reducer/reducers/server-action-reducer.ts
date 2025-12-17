@@ -61,6 +61,7 @@ import {
   type ActionRevalidationKind,
 } from '../../../../shared/lib/action-revalidation-kind'
 import { isExternalURL } from '../../app-router-utils'
+import { FreshnessPolicy } from '../ppr-navigations'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -388,8 +389,10 @@ export function serverActionReducer(
 
       // If the action triggered a revalidation of the cache, we should also
       // refresh all the dynamic data.
-      const shouldRefreshDynamicData =
-        revalidationKind !== ActionDidNotRevalidate
+      const freshnessPolicy =
+        revalidationKind === ActionDidNotRevalidate
+          ? FreshnessPolicy.Default
+          : FreshnessPolicy.RefreshAll
 
       // The server may have sent back new data. If so, we will perform a
       // "seeded" navigation that uses the data from the response.
@@ -408,20 +411,23 @@ export function serverActionReducer(
           // will use this to render the new page. If this happens to be only a
           // subset of the data needed to render the new page, we'll initiate a
           // new fetch, like we would for a normal navigation.
-          const seedFlightRouterState = normalizedFlightData.tree
-          const seedRenderedSearch = flightDataRenderedSearch
-          const seedData = normalizedFlightData.seedData
-          const seedHead = normalizedFlightData.head
+          const redirectCanonicalUrl = createHrefFromUrl(redirectUrl)
+          const navigationSeed = {
+            tree: normalizedFlightData.tree,
+            renderedSearch: flightDataRenderedSearch,
+            data: normalizedFlightData.seedData,
+            head: normalizedFlightData.head,
+          }
+          const now = Date.now()
           const result = navigateToSeededRoute(
+            now,
             redirectUrl,
+            redirectCanonicalUrl,
+            navigationSeed,
             currentUrl,
             state.cache,
             currentFlightRouterState,
-            seedFlightRouterState,
-            seedRenderedSearch,
-            seedData,
-            seedHead,
-            shouldRefreshDynamicData,
+            freshnessPolicy,
             nextUrl,
             shouldScroll
           )
@@ -443,7 +449,7 @@ export function serverActionReducer(
         state.cache,
         currentFlightRouterState,
         nextUrl,
-        shouldRefreshDynamicData,
+        freshnessPolicy,
         shouldScroll,
         mutable
       )

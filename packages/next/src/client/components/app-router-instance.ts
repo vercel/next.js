@@ -79,13 +79,7 @@ function runRemainingActions(
     // after the navigation has already finished and the queue is empty
     if (actionQueue.needsRefresh) {
       actionQueue.needsRefresh = false
-      actionQueue.dispatch(
-        {
-          type: ACTION_REFRESH,
-          origin: window.location.origin,
-        },
-        setState
-      )
+      actionQueue.dispatch({ type: ACTION_REFRESH }, setState)
     }
   }
 }
@@ -347,10 +341,6 @@ export const publicAppRouterInstance: AppRouterInstance = {
           fetchStrategy = FetchStrategy.Full
           break
         }
-        case PrefetchKind.TEMPORARY: {
-          // This concept doesn't exist in the segment cache implementation.
-          return
-        }
         default: {
           prefetchKind satisfies never
           // Despite typescript thinking that this can't happen,
@@ -383,7 +373,6 @@ export const publicAppRouterInstance: AppRouterInstance = {
     startTransition(() => {
       dispatchAppRouterAction({
         type: ACTION_REFRESH,
-        origin: window.location.origin,
       })
     })
   },
@@ -396,7 +385,6 @@ export const publicAppRouterInstance: AppRouterInstance = {
       startTransition(() => {
         dispatchAppRouterAction({
           type: ACTION_HMR_REFRESH,
-          origin: window.location.origin,
         })
       })
     }
