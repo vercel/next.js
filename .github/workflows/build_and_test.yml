@@ -6,6 +6,12 @@ on:
   pull_request:
     types: [opened, synchronize]
 
+concurrency:
+  # Limit concurrent runs to 1 per PR,
+  # but allow concurrent runs on push if they potentially use different source code
+  group: ${{ github.event_name == 'pull_request' && format('{0}-pr-{1}', github.workflow, github.ref_name) || format('{0}-sha-{1}', github.workflow, github.sha) }}
+  cancel-in-progress: true
+
 # NOTE: anything in `afterBuild` inherits environment variables defined in
 # `build_reusable.yml` (not these!) because that job executes within the context
 # of that workflow. Environment variables are not automatically passed to
