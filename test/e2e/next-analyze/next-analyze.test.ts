@@ -2,9 +2,11 @@ import { nextTestSetup } from 'e2e-utils'
 import { runNextCommand, shouldUseTurbopack } from 'next-test-utils'
 import path from 'node:path'
 import { ChildProcess, spawn } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
 
 describe('next experimental-analyze', () => {
   if (!shouldUseTurbopack()) {
+    // Test suites require at least one test
     it('skips in non-Turbopack tests', () => {})
     return
   }
@@ -16,25 +18,18 @@ describe('next experimental-analyze', () => {
   })
 
   if (skipped) {
+    // Test suites require at least one test
     it('is skipped', () => {})
     return
   }
 
   it('runs successfully without errors', async () => {
-    const { code, stderr } = await runNextCommand(['experimental-analyze'], {
-      cwd: next.testDir,
-      stderr: true,
-    })
-
-    expect(code).toBe(0)
-    expect(stderr).not.toContain('Error')
-
     const nextDir = path.dirname(require.resolve('next/package'))
     const nextBin = path.join(nextDir, 'dist/bin/next')
 
     const serveProcess = spawn(
       'node',
-      [nextBin, 'experimental-analyze', '--serve', '--port', '0'],
+      [nextBin, 'experimental-analyze', '--port', '0'],
       {
         cwd: next.testDir,
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -51,6 +46,77 @@ describe('next experimental-analyze', () => {
     } finally {
       serveProcess.kill()
     }
+  })
+  ;['-o', '--output'].forEach((flag) => {
+    describe(`with ${flag} flag`, () => {
+      it('writes output to default path when no path is specified', async () => {
+        const defaultOutputPath = path.join(
+          next.testDir,
+          '.next/diagnostics/analyze'
+        )
+
+        const { code, stderr, stdout } = await runNextCommand(
+          ['experimental-analyze', flag],
+          {
+            cwd: next.testDir,
+            stderr: true,
+            stdout: true,
+          }
+        )
+
+        expect(code).toBe(0)
+        expect(stderr).not.toContain('Error')
+        expect(stdout).toContain('.next/diagnostics/analyze')
+
+        expect(existsSync(defaultOutputPath)).toBe(true)
+        expect(existsSync(path.join(defaultOutputPath, 'index.html'))).toBe(
+          true
+        )
+        expect(
+          existsSync(path.join(defaultOutputPath, 'data', 'routes.json'))
+        ).toBe(true)
+
+        const routesJson = readFileSync(
+          path.join(defaultOutputPath, 'data', 'routes.json'),
+          'utf-8'
+        )
+        const routes = JSON.parse(routesJson)
+        expect(routes).toEqual(['/', '/_not-found'])
+      })
+
+      it('writes output to custom path', async () => {
+        const customOutputPath = path.join(
+          next.testDir,
+          'nested/output/directory'
+        )
+
+        const { code, stderr, stdout } = await runNextCommand(
+          ['experimental-analyze', flag, 'nested/output/directory'],
+          {
+            cwd: next.testDir,
+            stderr: true,
+            stdout: true,
+          }
+        )
+
+        expect(code).toBe(0)
+        expect(stderr).not.toContain('Error')
+        expect(stdout).toContain('nested/output/directory')
+
+        expect(existsSync(customOutputPath)).toBe(true)
+        expect(existsSync(path.join(customOutputPath, 'index.html'))).toBe(true)
+        expect(
+          existsSync(path.join(customOutputPath, 'data', 'routes.json'))
+        ).toBe(true)
+
+        const routesJson = readFileSync(
+          path.join(customOutputPath, 'data', 'routes.json'),
+          'utf-8'
+        )
+        const routes = JSON.parse(routesJson)
+        expect(routes).toEqual(['/', '/_not-found'])
+      })
+    })
   })
 })
 

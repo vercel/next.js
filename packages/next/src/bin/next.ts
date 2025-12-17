@@ -202,7 +202,7 @@ program
 program
   .command('experimental-analyze')
   .description(
-    'Analyze bundle output. Does not produce build artifacts. Only compatible with Turbopack.'
+    'Analyze production bundle output with an interactive web ui. Does not produce an application build. Only compatible with Turbopack.'
   )
   .argument(
     '[directory]',
@@ -212,7 +212,10 @@ program
   )
   .option('--no-mangling', 'Disables mangling.')
   .option('--profile', 'Enables production profiling for React.')
-  .option('--serve', 'Serve the bundle analyzer in a browser after analysis.')
+  .option(
+    '-o, --output [path]',
+    'Only write analysis files to disk. Does not start the server. Optionally specify a custom output path (defaults to .next/diagnostics/analyze).'
+  )
   .addOption(
     new Option(
       '--port <port>',
@@ -227,7 +230,7 @@ program
     return import('../cli/next-analyze.js')
       .then((mod) => mod.nextAnalyze(options, directory))
       .then(() => {
-        if (!options.serve) {
+        if (options.output) {
           // The Next.js process is held open by something on the event loop. Exit manually like the `build` command does.
           // TODO: Fix the underlying issue so this is not necessary.
           process.exit(0)
