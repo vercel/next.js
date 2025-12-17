@@ -455,14 +455,14 @@ describe('basePath', () => {
   it('should have correct href for a link', async () => {
     const browser = await webdriver(next.url, `${basePath}/hello`)
     const href = await browser.elementByCss('a').getAttribute('href')
-    const { pathname } = new URL(href)
+    const { pathname } = new URL(href, await browser.url())
     expect(pathname).toBe(`${basePath}/other-page`)
   })
 
   it('should have correct href for a link to /', async () => {
     const browser = await webdriver(next.url, `${basePath}/link-to-root`)
     const href = await browser.elementByCss('#link-back').getAttribute('href')
-    const { pathname } = new URL(href)
+    const { pathname } = new URL(href, await browser.url())
     expect(pathname).toBe(`${basePath}`)
   })
 

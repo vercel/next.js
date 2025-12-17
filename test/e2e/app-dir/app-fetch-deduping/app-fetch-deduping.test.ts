@@ -14,7 +14,10 @@ describe('app-fetch-deduping', () => {
       beforeAll(async () => {
         externalServerPort = await findPort()
         externalServer = http.createServer((req, res) => {
-          const parsedUrl = new URL(req.url)
+          const parsedUrl = new URL(
+            req.url,
+            `http://localhost:${externalServerPort}`
+          )
           const overrideStatus = parsedUrl.searchParams.get('status')
 
           // if the requested url has a "status" search param, override the response status

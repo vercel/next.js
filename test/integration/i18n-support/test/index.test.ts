@@ -237,9 +237,10 @@ describe('i18n Support', () => {
             )
             hrefs.sort()
 
+            const baseURL = await browser.url()
             assert.deepEqual(
               hrefs.map((href) =>
-                new URL(href).pathname
+                new URL(href, baseURL).pathname
                   .replace(ctx.basePath, '')
                   .replace(/^\/_next\/data\/[^/]+/, '')
               ),
@@ -286,7 +287,7 @@ describe('i18n Support', () => {
           } else {
             expect(res.status).toBe(307)
 
-            const parsed = new URL(res.headers.get('location'))
+            const parsed = new URL(res.headers.get('location'), res.url)
             expect(parsed.pathname).toBe(`/${locale}/`)
             expect(Object.fromEntries(parsed.searchParams.entries())).toEqual(
               {}
@@ -486,7 +487,7 @@ describe('i18n Support', () => {
           } else {
             expect(res.status).toBe(307)
 
-            const parsed = new URL(res.headers.get('location'))
+            const parsed = new URL(res.headers.get('location'), res.url)
             expect(parsed.pathname).toBe(`/${locale}`)
             expect(Object.fromEntries(parsed.searchParams.entries())).toEqual(
               {}

@@ -253,7 +253,7 @@ export default (next: NextInstance) => {
       expect(pathname).toBe('/trailing-redirect')
       expect(hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(search).toBe(
-        'url=https%3A%2F%2Fgoogle.com%2Fimage%3Fcrop%3Dfocalpoint%26w%3D24&w=1200&q=100'
+        '?url=https%3A%2F%2Fgoogle.com%2Fimage%3Fcrop%3Dfocalpoint%26w%3D24&w=1200&q=100'
       )
     })
 
@@ -288,7 +288,7 @@ export default (next: NextInstance) => {
       )
       expect(res.status).toBe(307)
       expect(pathname).toBe('/about')
-      expect(search).toBe('foo=%2Fgoogle.com')
+      expect(search).toBe('?foo=%2Fgoogle.com')
       expect(hostname).not.toBe('google.com')
       expect(hostname).not.toMatch(/google/)
     })

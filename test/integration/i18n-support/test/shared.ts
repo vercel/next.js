@@ -485,6 +485,7 @@ export function runTests(ctx) {
       `${ctx.basePath || ''}/links?nextLocale=go`
     )
 
+    let baseURL = await browser.url()
     for (const [element, pathname] of [
       ['#to-another', '/another'],
       ['#to-gsp', '/gsp'],
@@ -494,7 +495,7 @@ export function runTests(ctx) {
       ['#to-gssp-slug', '/gssp/first'],
     ]) {
       const href = await browser.elementByCss(element).getAttribute('href')
-      const { hostname, pathname: hrefPathname } = new URL(href)
+      const { hostname, pathname: hrefPathname } = new URL(href, baseURL)
       expect(hostname).not.toBe('example.com')
       expect(hrefPathname).toBe(`${ctx.basePath || ''}/go${pathname}`)
     }
@@ -504,6 +505,7 @@ export function runTests(ctx) {
       `${ctx.basePath || ''}/links?nextLocale=go-BE`
     )
 
+    baseURL = await browser.url()
     for (const [element, pathname] of [
       ['#to-another', '/another'],
       ['#to-gsp', '/gsp'],
@@ -513,7 +515,7 @@ export function runTests(ctx) {
       ['#to-gssp-slug', '/gssp/first'],
     ]) {
       const href = await browser.elementByCss(element).getAttribute('href')
-      const { hostname, pathname: hrefPathname } = new URL(href)
+      const { hostname, pathname: hrefPathname } = new URL(href, baseURL)
       expect(hostname).not.toBe('example.com')
       expect(hrefPathname).toBe(`${ctx.basePath || ''}/go-BE${pathname}`)
     }

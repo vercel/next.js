@@ -21,7 +21,7 @@ const runTests = () => {
     await browser.waitForElementByCss('#url')
 
     const dataUrl = await browser.elementByCss('#url').text()
-    const { pathname } = new URL(dataUrl)
+    const { pathname } = new URL(dataUrl, await browser.url())
     expect(pathname).toBe(`/_next/data/${buildId}/root/catch-all.json`)
   })
 }
