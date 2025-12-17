@@ -17,8 +17,7 @@ export interface CacheControl {
 
 export interface CacheHeaders {
   'Cache-Control': string
-  'CDN-Cache-Control'?: string
-  'Surrogate-Control'?: string
+  cdnCacheControl?: string
 }
 
 export function getCacheControlHeader({
@@ -41,51 +40,59 @@ export function getCacheControlHeader({
 
   // For non-zero revalidation, we want to leverage CDN stale-while-revalidate caching
   // semantics without allowing the browser to cache the response.
-  const cdnDirective = `max-age=${
-    typeof revalidate === 'number' ? revalidate : CACHE_ONE_YEAR
-  }${swrHeader}`
+  const maxAge = typeof revalidate === 'number' ? revalidate : CACHE_ONE_YEAR
+  const cdnCacheControl = `max-age=${maxAge}${swrHeader}`
+  const cacheControl = `s-maxage=${maxAge}`
 
   return {
-    'Cache-Control': 'max-age=0, must-revalidate',
-    'CDN-Cache-Control': cdnDirective,
-    'Surrogate-Control': cdnDirective,
+    'Cache-Control': cacheControl,
+    cdnCacheControl: cdnCacheControl,
   }
 }
 
 /**
- * Sets cache control headers on a ServerResponse object.
- * Use this helper to consistently set Cache-Control, CDN-Cache-Control,
- * and Surrogate-Control headers.
+ * The default header name used for CDN cache control.
  */
-export function setCacheControlHeaders(
+export const DEFAULT_CDN_CACHE_CONTROL_HEADER = 'CDN-Cache-Control'
+
+/**
+ * Sets cache control headers on a ServerResponse object.
+ * Use this helper to consistently set Cache-Control and CDN cache control headers.
+ *
+ * @param res - The ServerResponse object
+ * @param cacheControl - The cache control configuration
+ * @param cdnCacheControlHeader - Custom CDN cache control header name from config, falls back to 'CDN-Cache-Control' if undefined
+ */
+export function setResponseCacheControlHeaders(
   res: ServerResponse,
-  cacheControl: CacheControl
+  cacheControl: CacheControl,
+  cdnCacheControlHeader: string | undefined
 ): void {
   const cacheHeaders = getCacheControlHeader(cacheControl)
+  const headerName = cdnCacheControlHeader ?? DEFAULT_CDN_CACHE_CONTROL_HEADER
   res.setHeader('Cache-Control', cacheHeaders['Cache-Control'])
-  if (cacheHeaders['CDN-Cache-Control']) {
-    res.setHeader('CDN-Cache-Control', cacheHeaders['CDN-Cache-Control'])
-  }
-  if (cacheHeaders['Surrogate-Control']) {
-    res.setHeader('Surrogate-Control', cacheHeaders['Surrogate-Control'])
+  if (cacheHeaders.cdnCacheControl) {
+    res.setHeader(headerName, cacheHeaders.cdnCacheControl)
   }
 }
 
 /**
  * Sets cache control headers on a Headers object (for Web API responses).
- * Use this helper to consistently set Cache-Control, CDN-Cache-Control,
- * and Surrogate-Control headers.
+ * Use this helper to consistently set Cache-Control and CDN cache control headers.
+ *
+ * @param headers - The Headers object
+ * @param cacheControl - The cache control configuration
+ * @param cdnCacheControlHeader - Custom CDN cache control header name from config, falls back to 'CDN-Cache-Control' if undefined
  */
-export function setCacheControlHeadersOnHeaders(
+export function setCacheControlHeaders(
   headers: Headers,
-  cacheControl: CacheControl
+  cacheControl: CacheControl,
+  cdnCacheControlHeader: string | undefined
 ): void {
   const cacheHeaders = getCacheControlHeader(cacheControl)
+  const headerName = cdnCacheControlHeader ?? DEFAULT_CDN_CACHE_CONTROL_HEADER
   headers.set('Cache-Control', cacheHeaders['Cache-Control'])
-  if (cacheHeaders['CDN-Cache-Control']) {
-    headers.set('CDN-Cache-Control', cacheHeaders['CDN-Cache-Control'])
-  }
-  if (cacheHeaders['Surrogate-Control']) {
-    headers.set('Surrogate-Control', cacheHeaders['Surrogate-Control'])
+  if (cacheHeaders.cdnCacheControl) {
+    headers.set(headerName, cacheHeaders.cdnCacheControl)
   }
 }

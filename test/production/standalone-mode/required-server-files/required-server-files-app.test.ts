@@ -112,7 +112,7 @@ describe('required server files app router', () => {
       },
     })
     expect(res.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe('max-age=0, must-revalidate')
+    expect(res.headers.get('cache-control')).toBe('s-maxage=31536000')
     expect(res.headers.get('cdn-cache-control')).toBe('max-age=31536000')
   })
 
@@ -172,7 +172,7 @@ describe('required server files app router', () => {
       },
     })
     expect(res.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe('max-age=0, must-revalidate')
+    expect(res.headers.get('cache-control')).toBe('s-maxage=3600')
     expect(res.headers.get('cdn-cache-control')).toBe(
       'max-age=3600, stale-while-revalidate=31532400'
     )

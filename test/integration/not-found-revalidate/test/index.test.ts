@@ -81,7 +81,7 @@ const runTests = () => {
     let res = await fetchViaHTTP(appPort, '/fallback-blocking/hello')
     let $ = cheerio.load(await res.text())
 
-    expect(res.headers.get('cache-control')).toBe('max-age=0, must-revalidate')
+    expect(res.headers.get('cache-control')).toBe('s-maxage=1')
     expect(res.headers.get('cdn-cache-control')).toBe(
       `max-age=1, stale-while-revalidate=31535999`
     )
@@ -92,7 +92,7 @@ const runTests = () => {
     res = await fetchViaHTTP(appPort, '/fallback-blocking/hello')
     $ = cheerio.load(await res.text())
 
-    expect(res.headers.get('cache-control')).toBe('max-age=0, must-revalidate')
+    expect(res.headers.get('cache-control')).toBe('s-maxage=1')
     expect(res.headers.get('cdn-cache-control')).toBe(
       `max-age=1, stale-while-revalidate=31535999`
     )
@@ -104,7 +104,7 @@ const runTests = () => {
     $ = cheerio.load(await res.text())
 
     const props = JSON.parse($('#props').text())
-    expect(res.headers.get('cache-control')).toBe('max-age=0, must-revalidate')
+    expect(res.headers.get('cache-control')).toBe('s-maxage=1')
     expect(res.headers.get('cdn-cache-control')).toBe(
       'max-age=1, stale-while-revalidate=31535999'
     )
@@ -118,7 +118,7 @@ const runTests = () => {
     $ = cheerio.load(await res.text())
 
     const props2 = JSON.parse($('#props').text())
-    expect(res.headers.get('cache-control')).toBe('max-age=0, must-revalidate')
+    expect(res.headers.get('cache-control')).toBe('s-maxage=1')
     expect(res.headers.get('cdn-cache-control')).toBe(
       'max-age=1, stale-while-revalidate=31535999'
     )
@@ -132,7 +132,7 @@ const runTests = () => {
     $ = cheerio.load(await res.text())
 
     const props3 = JSON.parse($('#props').text())
-    expect(res.headers.get('cache-control')).toBe('max-age=0, must-revalidate')
+    expect(res.headers.get('cache-control')).toBe('s-maxage=1')
     expect(res.headers.get('cdn-cache-control')).toBe(
       'max-age=1, stale-while-revalidate=31535999'
     )
@@ -152,7 +152,7 @@ const runTests = () => {
     let res = await fetchViaHTTP(appPort, '/fallback-true/world')
     let $ = cheerio.load(await res.text())
 
-    expect(res.headers.get('cache-control')).toBe('max-age=0, must-revalidate')
+    expect(res.headers.get('cache-control')).toBe('s-maxage=1')
     expect(res.headers.get('cdn-cache-control')).toBe(
       `max-age=1, stale-while-revalidate=31535999`
     )
@@ -164,7 +164,7 @@ const runTests = () => {
     $ = cheerio.load(await res.text())
 
     const props = JSON.parse($('#props').text())
-    expect(res.headers.get('cache-control')).toBe('max-age=0, must-revalidate')
+    expect(res.headers.get('cache-control')).toBe('s-maxage=1')
     expect(res.headers.get('cdn-cache-control')).toBe(
       'max-age=1, stale-while-revalidate=31535999'
     )
@@ -178,7 +178,7 @@ const runTests = () => {
     $ = cheerio.load(await res.text())
 
     const props2 = JSON.parse($('#props').text())
-    expect(res.headers.get('cache-control')).toBe('max-age=0, must-revalidate')
+    expect(res.headers.get('cache-control')).toBe('s-maxage=1')
     expect(res.headers.get('cdn-cache-control')).toBe(
       'max-age=1, stale-while-revalidate=31535999'
     )
@@ -192,7 +192,7 @@ const runTests = () => {
     $ = cheerio.load(await res.text())
 
     const props3 = JSON.parse($('#props').text())
-    expect(res.headers.get('cache-control')).toBe('max-age=0, must-revalidate')
+    expect(res.headers.get('cache-control')).toBe('s-maxage=1')
     expect(res.headers.get('cdn-cache-control')).toBe(
       'max-age=1, stale-while-revalidate=31535999'
     )

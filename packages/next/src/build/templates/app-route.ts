@@ -22,7 +22,7 @@ import {
   fromNodeOutgoingHttpHeaders,
   toNodeOutgoingHttpHeaders,
 } from '../../server/web/utils'
-import { setCacheControlHeadersOnHeaders } from '../../server/lib/cache-control'
+import { setCacheControlHeaders } from '../../server/lib/cache-control'
 import { INFINITE_CACHE, NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import {
@@ -450,7 +450,11 @@ export async function handler(
         !res.getHeader('Cache-Control') &&
         !headers.get('Cache-Control')
       ) {
-        setCacheControlHeadersOnHeaders(headers, cacheEntry.cacheControl)
+        setCacheControlHeaders(
+          headers,
+          cacheEntry.cacheControl,
+          nextConfig.experimental.cdnCacheControlHeader
+        )
       }
 
       await sendResponse(
