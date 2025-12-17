@@ -87,9 +87,7 @@ describe('app dir - hooks', () => {
       ])
 
       expect({ client, server }).toEqual({
-        server:
-          // structurally same but nominal different. We need nominal for instanceof checks.
-          'FAILED Received: "foo=bar" instead instanceof ReadonlyURLSearchParams',
+        server: 'PASS instanceof check',
         client: 'PASS instanceof check',
       })
     })
