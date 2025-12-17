@@ -1,0 +1,173 @@
+use std::{
+    cmp::Reverse,
+    collections::{BinaryHeap, hash_map::Entry},
+};
+
+use bincode::{Decode, Encode};
+use rustc_hash::FxHashMap;
+#[cfg(feature = "trace_leaf_distance_update")]
+use tracing::{span::Span, trace_span};
+use turbo_tasks::TaskId;
+
+use crate::{
+    backend::{
+        TaskDataCategory,
+        operation::{ExecuteContext, Operation, TaskGuard},
+        storage::{get, iter_many},
+    },
+    data::CachedDataItem,
+};
+
+const MAX_COUNT_BEFORE_YIELD: usize = 1000;
+const BASE_LEAF_DISTANCE_BUFFER: u32 = 128;
+
+/// An leaf distance update job that is enqueued.
+#[derive(Encode, Decode, Clone)]
+struct LeafDistanceUpdate {
+    dependencies_min: u32,
+    dependencies_max: u32,
+    done: bool,
+    #[cfg(feature = "trace_leaf_distance_update")]
+    #[bincode(skip, default)]
+    span: Option<Span>,
+}
+
+impl LeafDistanceUpdate {
+    fn add(&mut self, dependency_min: u32, dependency_max: u32) {
+        self.dependencies_min = self.dependencies_min.max(dependency_min);
+        self.dependencies_max = self.dependencies_max.max(dependency_max);
+    }
+}
+
+/// A queue of leaf distance update jobs.
+/// It will execute these jobs in order of their minimum dependency leaf distance.
+/// This ensures that we never have to re-process a task.
+#[derive(Default, Encode, Decode, Clone)]
+pub struct LeafDistanceUpdateQueue {
+    queue: BinaryHeap<(Reverse<u32>, TaskId)>,
+    leaf_distance_updates: FxHashMap<TaskId, LeafDistanceUpdate>,
+}
+
+impl LeafDistanceUpdateQueue {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.queue.is_empty()
+    }
+
+    pub fn push(&mut self, task_id: TaskId, dependency_min: u32, dependency_max: u32) {
+        match self.leaf_distance_updates.entry(task_id) {
+            Entry::Occupied(mut entry) => {
+                let update = entry.get_mut();
+                if update.done {
+                    if update.dependencies_min < dependency_min {
+                        update.done = false;
+                        self.queue.push((Reverse(dependency_min), task_id));
+                    }
+                }
+                update.add(dependency_min, dependency_max);
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(LeafDistanceUpdate {
+                    dependencies_min: dependency_min,
+                    dependencies_max: dependency_max,
+                    done: false,
+                });
+                self.queue.push((Reverse(dependency_min), task_id));
+            }
+        };
+    }
+
+    /// Executes a single step of the queue. Returns true, when the queue is empty.
+    pub fn process(&mut self, ctx: &mut impl ExecuteContext) -> bool {
+        let mut remaining = MAX_COUNT_BEFORE_YIELD;
+        while remaining > 0 {
+            if let Some((Reverse(queue_dependencies_min), task_id)) = self.queue.pop() {
+                let &mut LeafDistanceUpdate {
+                    dependencies_min,
+                    dependencies_max,
+                    ref mut done,
+                    #[cfg(feature = "trace_leaf_distance_update")]
+                    span,
+                } = self.leaf_distance_updates.get_mut(&task_id).unwrap();
+                if queue_dependencies_min != dependencies_min {
+                    // Stale entry in queue
+                    // Re-enqueue to keep the ordering correct
+                    self.queue.push((Reverse(dependencies_min), task_id));
+                    continue;
+                }
+                #[cfg(feature = "trace_leaf_distance_update")]
+                let _guard = span.map(|s| s.entered());
+                *done = true;
+                self.update_leaf_distance(ctx, task_id, dependencies_min, dependencies_max);
+                remaining -= 1;
+            } else {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn update_leaf_distance(
+        &mut self,
+        ctx: &mut impl ExecuteContext,
+        task_id: TaskId,
+        dependencies_min: u32,
+        dependencies_max: u32,
+    ) {
+        #[cfg(feature = "trace_leaf_distance_update")]
+        let _span =
+            trace_span!("update leaf distance", dependencies_min, dependencies_max).entered();
+
+        let mut task = ctx.task(
+            task_id,
+            // For performance reasons this should stay `Data` and not `All`
+            TaskDataCategory::Data,
+        );
+        debug_assert!(dependencies_max < u32::MAX / 2);
+        let mut leaf_distance = get!(task, LeafDistance).copied().unwrap_or_default();
+        if leaf_distance.min > dependencies_min {
+            // It is strictly monotonic. No need to update.
+            return;
+        }
+        // It's not strictly monotonic, we need to update
+        if leaf_distance.max <= dependencies_min {
+            // We overshoot the buffer zone.
+            let old_value = leaf_distance.min;
+            leaf_distance.min = dependencies_max + 1;
+            let buffer_size = BASE_LEAF_DISTANCE_BUFFER
+                - BASE_LEAF_DISTANCE_BUFFER.saturating_mul(old_value) / leaf_distance.min;
+            leaf_distance.max = leaf_distance.min + buffer_size;
+        } else {
+            // We are within the buffer zone, keep the max as is
+            leaf_distance.min = dependencies_min + 1;
+        }
+        let dependents = iter_many!(task, OutputDependent { task } => task)
+            // TODO Technically this is also needed, but there are cycles in the CellDependent graph
+            // So we need to handle that properly first
+            // .chain(iter_many!(task, CellDependent { task, .. } => task))
+            ;
+        for dependent_id in dependents {
+            self.push(dependent_id, leaf_distance.min, leaf_distance.max);
+        }
+        task.insert(CachedDataItem::LeafDistance {
+            value: leaf_distance,
+        });
+    }
+}
+
+impl Operation for LeafDistanceUpdateQueue {
+    fn execute(mut self, ctx: &mut impl ExecuteContext) {
+        if self.is_empty() {
+            return;
+        }
+        loop {
+            ctx.operation_suspend_point(&self);
+            if self.process(ctx) {
+                return;
+            }
+        }
+    }
+}

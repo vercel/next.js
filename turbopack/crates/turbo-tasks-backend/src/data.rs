@@ -237,6 +237,24 @@ pub struct AggregationNumber {
     pub effective: u32,
 }
 
+/// Monotonic increasing distance range to leaf nodes when following "dependencies" edges.
+/// It is a range and ranges might overlap. There is a strictly monotonic increasing `min` value.
+/// `max` value might not be monotonic. The `max` value is used as buffer zone to avoid too many
+/// updates to dependent nodes when the leaf distance increases slightly. When the leaf distance is
+/// increased it tries to keep the `max` value equal. When increasing there are three cases:
+/// - `min` >= `min` of the dependency + 1: no change.
+/// - `min` <= `max`: only `min` is increased to the smallest possible value.
+/// - `min` > `max`: `min` is increased to the `max` value of the dependency + 1 and `max` is
+/// increased to `min` + buffer zone.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Encode, Decode)]
+pub struct LeafDistance {
+    /// This
+    pub min: u32,
+    /// A buffer zone value in which is usually safe to increase the leaf distance without causing
+    /// too many updates to dependent nodes.
+    pub max: u32,
+}
+
 #[derive(Debug, Clone, KeyValuePair, Encode, Decode)]
 pub enum CachedDataItem {
     // Output
@@ -311,6 +329,11 @@ pub enum CachedDataItem {
         collectible_type: TraitTypeId,
         task: TaskId,
         value: (),
+    },
+
+    // Priority
+    LeafDistance {
+        value: LeafDistance,
     },
 
     // Aggregation Graph
@@ -443,6 +466,7 @@ impl CachedDataItem {
             CachedDataItem::AggregationNumber { .. } => true,
             CachedDataItem::Follower { task, .. } => !task.is_transient(),
             CachedDataItem::Upper { task, .. } => !task.is_transient(),
+            CachedDataItem::LeafDistance { .. } => true,
             CachedDataItem::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItem::AggregatedCurrentSessionCleanContainer { .. } => false,
             CachedDataItem::AggregatedCollectible { collectible, .. } => {
@@ -508,7 +532,8 @@ impl CachedDataItem {
             | Self::CellDependency { .. }
             | Self::CollectiblesDependency { .. }
             | Self::OutputDependent { .. }
-            | Self::CellDependent { .. } => TaskDataCategory::Data,
+            | Self::CellDependent { .. }
+            | Self::LeafDistance { .. } => TaskDataCategory::Data,
 
             Self::Collectible { .. }
             | Self::Output { .. }
@@ -573,6 +598,7 @@ impl CachedDataItemKey {
             CachedDataItemKey::AggregationNumber { .. } => true,
             CachedDataItemKey::Follower { task, .. } => !task.is_transient(),
             CachedDataItemKey::Upper { task, .. } => !task.is_transient(),
+            CachedDataItemKey::LeafDistance { .. } => true,
             CachedDataItemKey::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItemKey::AggregatedCurrentSessionCleanContainer { .. } => false,
             CachedDataItemKey::AggregatedCollectible { collectible, .. } => {
@@ -606,7 +632,8 @@ impl CachedDataItemType {
             | Self::CellDependency { .. }
             | Self::CollectiblesDependency { .. }
             | Self::OutputDependent { .. }
-            | Self::CellDependent { .. } => TaskDataCategory::Data,
+            | Self::CellDependent { .. }
+            | Self::LeafDistance { .. } => TaskDataCategory::Data,
 
             Self::Collectible { .. }
             | Self::Output { .. }
@@ -653,6 +680,7 @@ impl CachedDataItemType {
             | Self::AggregationNumber
             | Self::Follower
             | Self::Upper
+            | Self::LeafDistance
             | Self::AggregatedDirtyContainer
             | Self::AggregatedCollectible
             | Self::AggregatedDirtyContainerCount
