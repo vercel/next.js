@@ -168,6 +168,16 @@ pub async fn get_server_resolve_options_context(
     )
     .await?;
 
+    // Load packages that should be external but NOT traced for standalone output.
+    // These are dev-only packages that should not be included in the standalone output.
+    let untraced_packages: Vec<RcStr> = load_next_js_jsonc_file(
+        project_path.clone(),
+        rcstr!("dist/lib/server-external-untraced-packages.jsonc"),
+    )
+    .await
+    .unwrap_or_default();
+    let untraced_packages = ResolvedVc::cell(untraced_packages);
+
     let mut transpiled_packages = get_transpiled_packages(next_config, project_path.clone())
         .owned()
         .await?;
@@ -198,10 +208,11 @@ pub async fn get_server_resolve_options_context(
 
     external_packages.retain(|item| !transpiled_packages.contains(item));
 
-    let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
+    let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new_with_untraced(
         project_path.root().owned().await?,
         ExternalPredicate::Only(ResolvedVc::cell(external_packages)).cell(),
         *next_config.import_externals().await?,
+        untraced_packages,
     )
     .to_resolved()
     .await?;
@@ -223,10 +234,11 @@ pub async fn get_server_resolve_options_context(
     let external_cjs_modules_plugin = if *next_config.bundle_pages_router_dependencies().await? {
         server_external_packages_plugin
     } else {
-        ExternalCjsModulesResolvePlugin::new(
+        ExternalCjsModulesResolvePlugin::new_with_untraced(
             project_path.root().owned().await?,
             ExternalPredicate::AllExcept(ResolvedVc::cell(transpiled_packages)).cell(),
             *next_config.import_externals().await?,
+            untraced_packages,
         )
         .to_resolved()
         .await?

@@ -44,6 +44,9 @@ pub(crate) struct ExternalCjsModulesResolvePlugin {
     root: FileSystemPath,
     predicate: ResolvedVc<ExternalPredicate>,
     import_externals: bool,
+    /// Packages that should be external but NOT traced for standalone output.
+    /// These are dev-only packages that are not needed at runtime.
+    untraced_packages: ResolvedVc<Vec<RcStr>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -58,6 +61,23 @@ impl ExternalCjsModulesResolvePlugin {
             root,
             predicate,
             import_externals,
+            untraced_packages: ResolvedVc::cell(Vec::new()),
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn new_with_untraced(
+        root: FileSystemPath,
+        predicate: ResolvedVc<ExternalPredicate>,
+        import_externals: bool,
+        untraced_packages: ResolvedVc<Vec<RcStr>>,
+    ) -> Vc<Self> {
+        ExternalCjsModulesResolvePlugin {
+            root,
+            predicate,
+            import_externals,
+            untraced_packages,
         }
         .cell()
     }
@@ -322,11 +342,25 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
 
         let target = result_from_original_location.ident().path().owned().await?;
 
+        // Check if this package should be untraced (dev-only packages that shouldn't
+        // be included in standalone output)
+        let untraced_packages = self.untraced_packages.await?;
+        let should_be_untraced = untraced_packages.iter().any(|untraced_pkg| {
+            package.as_str() == untraced_pkg.as_str()
+                || package.as_str().starts_with(&format!("{}/", untraced_pkg))
+        });
+
+        let traced = if should_be_untraced {
+            ExternalTraced::Untraced
+        } else {
+            ExternalTraced::Traced
+        };
+
         Ok(ResolveResultOption::some(*ResolveResult::primary(
             ResolveResultItem::External {
                 name: request_str.into(),
                 ty: external_type,
-                traced: ExternalTraced::Traced,
+                traced,
                 target: Some(target),
             },
         )))
