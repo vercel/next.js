@@ -16,7 +16,7 @@ The `'use cache: private'` directive allows functions to access runtime request 
 
 Reach for `'use cache: private'` when:
 
-- You can't extract runtime values outside the cached scope and [pass them as arguments](/docs/app/getting-started/cache-components#with-runtime-data) to a regular `use cache` function
+- You want to cache a function that already accesses runtime data, and refactoring to [move the runtime access outside and pass values as arguments](/docs/app/getting-started/cache-components#with-runtime-data) is not practical.
 - Compliance requirements prevent storing certain data on the server, even temporarily
 
 Because this directive accesses runtime data, the function executes on every server render and is excluded from running during [static shell](/docs/app/getting-started/cache-components#how-rendering-works-with-cache-components) generation.
