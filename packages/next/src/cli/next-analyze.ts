@@ -13,7 +13,7 @@ export type NextAnalyzeOptions = {
   profile?: boolean
   mangling: boolean
   port: number
-  output: boolean
+  output: boolean | string
   experimentalAppOnly?: boolean
 }
 
