@@ -1,5 +1,6 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -10,9 +11,9 @@ use turbopack_css::CssModuleAssetType;
 use turbopack_ecmascript::{EcmascriptInputTransforms, EcmascriptOptions};
 use turbopack_wasm::source::WebAssemblySourceType;
 
-use super::{CustomModuleType, RuleCondition, match_mode::MatchMode};
+use crate::module_options::{CustomModuleType, RuleCondition, match_mode::MatchMode};
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
+#[derive(Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct ModuleRule {
     condition: RuleCondition,
     effects: Vec<ModuleRuleEffect>,
@@ -120,6 +121,16 @@ pub enum ModuleType {
         #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
+    EcmascriptExtensionless {
+        /// Transforms to run first: transpile TypeScript, decorators, ...
+        preprocess: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to execute on standard EcmaScript (plus JSX): styled-jsx, swc plugins, ...
+        main: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run last: JSX, preset-env, scan for imports, ...
+        postprocess: ResolvedVc<EcmascriptInputTransforms>,
+        #[turbo_tasks(trace_ignore)]
+        options: ResolvedVc<EcmascriptOptions>,
+    },
     Json,
     Raw,
     NodeAddon,
@@ -128,8 +139,14 @@ pub enum ModuleType {
         ty: CssModuleAssetType,
         environment: Option<ResolvedVc<Environment>>,
     },
-    StaticUrlJs,
-    StaticUrlCss,
+    StaticUrlJs {
+        /// The tag that is passed to ChunkingContext::asset_url
+        tag: Option<RcStr>,
+    },
+    StaticUrlCss {
+        /// The tag that is passed to ChunkingContext::asset_url
+        tag: Option<RcStr>,
+    },
     InlinedBytesJs,
     WebAssembly {
         source_ty: WebAssemblySourceType,

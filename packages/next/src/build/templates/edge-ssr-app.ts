@@ -1,13 +1,14 @@
 import '../../server/web/globals'
-import { adapter, type NextRequestHint } from '../../server/web/adapter'
+import {
+  adapter,
+  type EdgeHandler,
+  type NextRequestHint,
+} from '../../server/web/adapter'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
 
 import * as pageMod from 'VAR_USERLAND'
 
-import type { RequestData } from '../../server/web/types'
-import type { NextConfigComplete } from '../../server/config-shared'
-import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
-import { createServerModuleMap } from '../../server/app-render/action-utils'
+import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
 import { initializeCacheHandlers } from '../../server/use-cache/handlers'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
@@ -29,26 +30,16 @@ import { CloseController } from '../../server/web/web-on-close'
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
 
-// Initialize the cache handlers interface.
-initializeCacheHandlers()
-
-// injected by the loader afterwards.
-declare const nextConfig: NextConfigComplete
-// INJECT:nextConfig
-
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
 const rscManifest = self.__RSC_MANIFEST?.['VAR_PAGE']
 const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)
 
 if (rscManifest && rscServerManifest) {
-  setReferenceManifestsSingleton({
+  setManifestsSingleton({
     page: 'VAR_PAGE',
     clientReferenceManifest: rscManifest,
     serverActionsManifest: rscServerManifest,
-    serverModuleMap: createServerModuleMap({
-      serverActionsManifest: rscServerManifest,
-    }),
   })
 }
 
@@ -80,18 +71,21 @@ async function requestHandler(
     query,
     params,
     buildId,
+    nextConfig,
     buildManifest,
     prerenderManifest,
     reactLoadableManifest,
-    clientReferenceManifest,
     subresourceIntegrityManifest,
     dynamicCssManifest,
     nextFontManifest,
     resolvedPathname,
-    serverActionsManifest,
     interceptionRoutePatterns,
     routerServerContext,
+    deploymentId,
   } = prepareResult
+
+  // Initialize the cache handlers interface.
+  initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
   const botType = getBotType(req.headers.get('User-Agent') || '')
@@ -131,8 +125,6 @@ async function requestHandler(
       reactLoadableManifest,
       subresourceIntegrityManifest,
       dynamicCssManifest,
-      serverActionsManifest,
-      clientReferenceManifest,
       setIsrStatus: routerServerContext?.setIsrStatus,
 
       dir: pageRouteModule.relativeProjectDir,
@@ -144,24 +136,22 @@ async function requestHandler(
       nextConfigOutput: nextConfig.output,
       crossOrigin: nextConfig.crossOrigin,
       trailingSlash: nextConfig.trailingSlash,
+      images: nextConfig.images,
       previewProps: prerenderManifest.preview,
-      deploymentId: nextConfig.deploymentId,
+      deploymentId,
       enableTainting: nextConfig.experimental.taint,
       htmlLimitedBots: nextConfig.htmlLimitedBots,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
       multiZoneDraftMode: false,
-      cacheLifeProfiles: nextConfig.experimental.cacheLife,
+      cacheLifeProfiles: nextConfig.cacheLife,
       basePath: nextConfig.basePath,
       serverActions: nextConfig.experimental.serverActions,
-
+      cacheComponents: Boolean(nextConfig.cacheComponents),
       experimental: {
         isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
-        cacheComponents: Boolean(nextConfig.experimental.cacheComponents),
-        clientSegmentCache: Boolean(nextConfig.experimental.clientSegmentCache),
-        clientParamParsing: Boolean(nextConfig.experimental.clientParamParsing),
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
@@ -174,7 +164,8 @@ async function requestHandler(
       incrementalCache: await pageRouteModule.getIncrementalCache(
         baseReq,
         nextConfig,
-        prerenderManifest
+        prerenderManifest,
+        true
       ),
 
       waitUntil: event.waitUntil.bind(event),
@@ -183,11 +174,17 @@ async function requestHandler(
       },
       onAfterTaskError: () => {},
 
-      onInstrumentationRequestError: (error, _request, errorContext) =>
+      onInstrumentationRequestError: (
+        error,
+        _request,
+        errorContext,
+        silenceLog
+      ) =>
         pageRouteModule.onRequestError(
           baseReq,
           error,
           errorContext,
+          silenceLog,
           routerServerContext
         ),
       dev: pageRouteModule.isDev,
@@ -322,12 +319,18 @@ async function requestHandler(
 
       return renderResultToResponse(result)
     } catch (err) {
-      await pageRouteModule.onRequestError(baseReq, err, {
-        routerKind: 'App Router',
-        routePath: normalizedSrcPage,
-        routeType: 'render',
-        revalidateReason: undefined,
-      })
+      const silenceLog = false
+      await pageRouteModule.onRequestError(
+        baseReq,
+        err,
+        {
+          routerKind: 'App Router',
+          routePath: normalizedSrcPage,
+          routeType: 'render',
+          revalidateReason: undefined,
+        },
+        silenceLog
+      )
       // rethrow so that we can handle serving error page
       throw err
     }
@@ -352,11 +355,13 @@ async function requestHandler(
   )
 }
 
-export default function nHandler(opts: { page: string; request: RequestData }) {
+const handler: EdgeHandler = (opts) => {
   return adapter({
     ...opts,
     IncrementalCache,
     handler: requestHandler,
     incrementalCacheHandler,
+    page: 'VAR_PAGE',
   })
 }
+export default handler

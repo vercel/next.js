@@ -2,6 +2,7 @@ use std::mem::take;
 
 use anyhow::{Context, Result, bail};
 use base64::Engine;
+use bincode::{Decode, Encode};
 use either::Either;
 use futures::try_join;
 use serde::{Deserialize, Serialize};
@@ -12,7 +13,6 @@ use turbo_tasks::{
     Completion, NonLocalValue, OperationValue, OperationVc, ResolvedVc, TaskInput, TryJoinIterExt,
     ValueToString, Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
     File, FileContent, FileSystemPath,
@@ -30,7 +30,7 @@ use turbopack_core::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
-    module::Module,
+    module_graph::ModuleGraph,
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         options::{ConditionValue, ResolveInPackage, ResolveIntoPackage, ResolveOptions},
@@ -39,9 +39,7 @@ use turbopack_core::{
         resolve,
     },
     source::Source,
-    source_map::{
-        GenerateSourceMap, OptionStringifiedSourceMap, utils::resolve_source_map_sources,
-    },
+    source_map::{GenerateSourceMap, utils::resolve_source_map_sources},
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
@@ -50,32 +48,33 @@ use turbopack_resolve::{
     resolve_options_context::ResolveOptionsContext,
 };
 
-use super::util::{EmittedAsset, emitted_assets_to_virtual_sources};
 use crate::{
     AssetsForSourceMapping,
     debug::should_debug,
     embed_js::embed_file_path,
     evaluate::{
-        EnvVarTracking, EvaluateContext, EvaluationIssue, JavaScriptEvaluation,
-        JavaScriptStreamSender, compute, custom_evaluate, get_evaluate_pool,
+        EnvVarTracking, EvaluateContext, EvaluateEntries, EvaluationIssue, custom_evaluate,
+        get_evaluate_entries, get_evaluate_pool,
     },
     execution_context::ExecutionContext,
     pool::{FormattingMode, NodeJsPool},
     source_map::{StackFrame, StructuredError},
+    transforms::util::{EmittedAsset, emitted_assets_to_virtual_sources},
 };
 
 #[serde_as]
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Encode, Decode)]
 struct BytesBase64 {
     #[serde_as(as = "serde_with::base64::Base64")]
     binary: Vec<u8>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone, Deserialize)]
+#[turbo_tasks::value]
 #[serde(rename_all = "camelCase")]
-#[turbo_tasks::value(serialization = "custom")]
 struct WebpackLoadersProcessingResult {
     #[serde(with = "either::serde_untagged")]
+    #[bincode(with = "turbo_bincode::either")]
     #[turbo_tasks(debug_ignore, trace_ignore)]
     source: Either<RcStr, BytesBase64>,
     map: Option<RcStr>,
@@ -84,11 +83,22 @@ struct WebpackLoadersProcessingResult {
 }
 
 #[derive(
-    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, OperationValue,
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 pub struct WebpackLoaderItem {
     pub loader: RcStr,
     #[serde(default)]
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     pub options: serde_json::Map<String, serde_json::Value>,
 }
 
@@ -177,7 +187,7 @@ impl Asset for WebpackLoadersProcessedAsset {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
-    async fn generate_source_map(self: Vc<Self>) -> Result<Vc<OptionStringifiedSourceMap>> {
+    async fn generate_source_map(self: Vc<Self>) -> Result<Vc<FileContent>> {
         Ok(*self.process().await?.source_map)
     }
 }
@@ -185,7 +195,7 @@ impl GenerateSourceMap for WebpackLoadersProcessedAsset {
 #[turbo_tasks::value]
 struct ProcessWebpackLoadersResult {
     content: ResolvedVc<AssetContent>,
-    source_map: ResolvedVc<OptionStringifiedSourceMap>,
+    source_map: ResolvedVc<FileContent>,
     assets: Vec<ResolvedVc<VirtualSource>>,
 }
 
@@ -223,7 +233,7 @@ impl WebpackLoadersProcessedAsset {
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
-                source_map: ResolvedVc::cell(None),
+                source_map: FileContent::NotFound.resolved_cell(),
             }
             .cell());
         };
@@ -242,8 +252,13 @@ impl WebpackLoadersProcessedAsset {
         };
         let evaluate_context = transform.evaluate_context;
 
-        let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context)
-            .module()
+        let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context).module();
+
+        let entries = get_evaluate_entries(webpack_loaders_executor, *evaluate_context, None)
+            .to_resolved()
+            .await?;
+
+        let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false, false)
             .to_resolved()
             .await?;
 
@@ -256,12 +271,12 @@ impl WebpackLoadersProcessedAsset {
         };
         let loaders = transform.loaders.await?;
         let config_value = evaluate_webpack_loader(WebpackLoaderContext {
-            module_asset: webpack_loaders_executor,
+            entries,
             cwd: project_path.clone(),
             env: *env,
             context_source_for_issue: this.source,
-            asset_context: evaluate_context,
             chunking_context: *chunking_context,
+            module_graph,
             resolve_options_context: Some(transform.resolve_options_context),
             args: vec![
                 ResolvedVc::cell(content),
@@ -275,19 +290,17 @@ impl WebpackLoadersProcessedAsset {
         })
         .await?;
 
-        let SingleValue::Single(val) = config_value.try_into_single().await? else {
+        let Some(val) = &*config_value else {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
-                source_map: ResolvedVc::cell(None),
+                source_map: FileContent::NotFound.resolved_cell(),
             }
             .cell());
         };
-        let processed: WebpackLoadersProcessingResult = parse_json_with_source_context(
-            val.to_str()?,
-        )
-        .context("Unable to deserializate response from webpack loaders transform operation")?;
+        let processed: WebpackLoadersProcessingResult = parse_json_with_source_context(val)
+            .context("Unable to deserializate response from webpack loaders transform operation")?;
 
         // handle SourceMap
         let source_map = if !transform.source_maps {
@@ -310,7 +323,11 @@ impl WebpackLoadersProcessedAsset {
         Ok(ProcessWebpackLoadersResult {
             content,
             assets,
-            source_map: ResolvedVc::cell(source_map),
+            source_map: if let Some(source_map) = source_map {
+                FileContent::Content(File::from(source_map)).resolved_cell()
+            } else {
+                FileContent::NotFound.resolved_cell()
+            },
         }
         .cell())
     }
@@ -319,19 +336,11 @@ impl WebpackLoadersProcessedAsset {
 #[turbo_tasks::function]
 pub(crate) async fn evaluate_webpack_loader(
     webpack_loader_context: WebpackLoaderContext,
-) -> Result<Vc<JavaScriptEvaluation>> {
+) -> Result<Vc<Option<RcStr>>> {
     custom_evaluate(webpack_loader_context).await
 }
 
-#[turbo_tasks::function]
-async fn compute_webpack_loader_evaluation(
-    webpack_loader_context: WebpackLoaderContext,
-    sender: Vc<JavaScriptStreamSender>,
-) -> Result<Vc<()>> {
-    compute(webpack_loader_context, sender).await
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 enum LogType {
     Error,
@@ -350,11 +359,12 @@ enum LogType {
     Status,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct LogInfo {
     time: u64,
     log_type: LogType,
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
     args: Vec<JsonValue>,
     trace: Option<Vec<StackFrame<'static>>>,
 }
@@ -385,7 +395,9 @@ pub enum InfoMessage {
     },
 }
 
-#[derive(Debug, Clone, TaskInput, Hash, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Debug, Clone, TaskInput, Hash, PartialEq, Eq, Deserialize, TraceRawVcs, Encode, Decode,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct WebpackResolveOptions {
     alias_fields: Option<Vec<RcStr>>,
@@ -408,21 +420,25 @@ pub enum RequestMessage {
         lookup_path: RcStr,
         request: RcStr,
     },
+    #[serde(rename_all = "camelCase")]
+    TrackFileRead { file: RcStr },
 }
 
 #[derive(Serialize, Debug)]
 #[serde(untagged)]
 pub enum ResponseMessage {
     Resolve { path: RcStr },
+    // Only used for tracking invalidations, no content is returned.
+    TrackFileRead {},
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Serialize, Deserialize, Debug, TraceRawVcs)]
+#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, TraceRawVcs, Encode, Decode)]
 pub struct WebpackLoaderContext {
-    pub module_asset: ResolvedVc<Box<dyn Module>>,
+    pub entries: ResolvedVc<EvaluateEntries>,
     pub cwd: FileSystemPath,
     pub env: ResolvedVc<Box<dyn ProcessEnv>>,
     pub context_source_for_issue: ResolvedVc<Box<dyn Source>>,
-    pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
     pub args: Vec<ResolvedVc<JsonValue>>,
@@ -435,20 +451,13 @@ impl EvaluateContext for WebpackLoaderContext {
     type ResponseMessage = ResponseMessage;
     type State = Vec<LogInfo>;
 
-    async fn compute(self, sender: Vc<JavaScriptStreamSender>) -> Result<()> {
-        compute_webpack_loader_evaluation(self, sender)
-            .as_side_effect()
-            .await
-    }
-
     fn pool(&self) -> OperationVc<crate::pool::NodeJsPool> {
         get_evaluate_pool(
-            self.module_asset,
+            self.entries,
             self.cwd.clone(),
             self.env,
-            self.asset_context,
             self.chunking_context,
-            None,
+            self.module_graph,
             self.additional_invalidation,
             should_debug("webpack_loader"),
             // Env vars are read untracked, since we want a more granular dependency on certain env
@@ -607,6 +616,12 @@ impl EvaluateContext for WebpackLoaderContext {
                         lookup_path.value_to_string().await?
                     );
                 }
+            }
+            RequestMessage::TrackFileRead { file } => {
+                // Ignore result, we read on the JS side again to prevent some IPC overhead. Still
+                // await the read though to cover at least one class of race conditions.
+                let _ = &*self.cwd.join(&file)?.read().await?;
+                Ok(ResponseMessage::TrackFileRead {})
             }
         }
     }

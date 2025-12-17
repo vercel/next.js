@@ -88,7 +88,7 @@ impl GetContentFn {
 }
 
 async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
-    let captured = source.peek_issues().await?;
+    let captured = source.peek_issues();
 
     captured.get_plain_issues().await
 }

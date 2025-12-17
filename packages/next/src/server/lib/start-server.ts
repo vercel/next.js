@@ -22,14 +22,13 @@ import { exec } from 'child_process'
 import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import {
-  RESTART_EXIT_CODE,
-  getFormattedDebugAddress,
-  getNodeDebugType,
-} from './utils'
+import { RESTART_EXIT_CODE } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
-import { CONFIG_FILES } from '../../shared/lib/constants'
+import {
+  CONFIG_FILES,
+  PHASE_DEVELOPMENT_SERVER,
+} from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
@@ -304,8 +303,6 @@ export async function startServer(
 
   await new Promise<void>((resolve) => {
     server.on('listening', async () => {
-      const nodeDebugType = getNodeDebugType()
-
       const addr = server.address()
       const actualHostname = formatHostname(
         typeof addr === 'object'
@@ -345,13 +342,6 @@ export async function startServer(
 
       const appUrl = `${protocol}://${formattedHostname}:${port}`
 
-      if (nodeDebugType) {
-        const formattedDebugAddress = getFormattedDebugAddress()
-        Log.info(
-          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at ${formattedDebugAddress}.`
-        )
-      }
-
       // Store the selected port to:
       // - expose it to render workers
       // - re-use it for automatic dev server restarts with a randomly selected port
@@ -367,10 +357,12 @@ export async function startServer(
       // Only load env and config in dev to for logging purposes
       let envInfo: string[] | undefined
       let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
+      let cacheComponents: boolean | undefined
       try {
         if (isDev) {
           const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
           envInfo = startServerInfo.envInfo
+          cacheComponents = startServerInfo.cacheComponents
           experimentalFeatures = startServerInfo.experimentalFeatures
         }
         logStartInfo({
@@ -378,6 +370,7 @@ export async function startServer(
           appUrl,
           envInfo,
           experimentalFeatures,
+          cacheComponents,
           logBundler: isDev,
         })
 
@@ -415,6 +408,27 @@ export async function startServer(
               nextServer?.close().catch(console.error),
               cleanupListeners?.runAll().catch(console.error),
             ])
+
+            // Flush telemetry if this is a dev server
+            if (isDev) {
+              try {
+                const { traceGlobals } =
+                  require('../../trace/shared') as typeof import('../../trace/shared')
+                const telemetry = traceGlobals.get('telemetry') as
+                  | InstanceType<
+                      typeof import('../../telemetry/storage').Telemetry
+                    >
+                  | undefined
+                if (telemetry) {
+                  // Use flushDetached to avoid blocking process exit
+                  // Each process writes to a unique file (_events_${pid}.json)
+                  // to avoid race conditions with the parent process
+                  telemetry.flushDetached('dev', dir)
+                }
+              } catch (_) {
+                // Ignore telemetry errors during cleanup
+              }
+            }
 
             debug('start-server process cleanup finished')
             process.exit(0)
@@ -462,10 +476,10 @@ export async function startServer(
 
         Log.event(`Ready in ${formatDurationText}`)
 
-        if (process.env.TURBOPACK) {
+        if (process.env.TURBOPACK && isDev) {
           await validateTurboNextConfig({
             dir: serverOptions.dir,
-            isDev: serverOptions.isDev,
+            configPhase: PHASE_DEVELOPMENT_SERVER,
           })
         }
       } catch (err) {

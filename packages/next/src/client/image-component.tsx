@@ -364,10 +364,24 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     const configContext = useContext(ImageConfigContext)
     const config = useMemo(() => {
       const c = configEnv || configContext || imageConfigDefault
+
       const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
       const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
       const qualities = c.qualities?.sort((a, b) => a - b)
-      return { ...c, allSizes, deviceSizes, qualities }
+      return {
+        ...c,
+        allSizes,
+        deviceSizes,
+        qualities,
+        // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
+        // security sensitive configs like `localPatterns`, which is needed
+        // during the server render to ensure it's validated. Therefore use
+        // configContext, which holds the config from the server for validation.
+        localPatterns:
+          typeof window === 'undefined'
+            ? configContext?.localPatterns
+            : c.localPatterns,
+      }
     }, [configContext])
 
     const { onLoad, onLoadingComplete } = props
@@ -385,7 +399,6 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
 
     const [blurComplete, setBlurComplete] = useState(false)
     const [showAltText, setShowAltText] = useState(false)
-
     const { props: imgAttributes, meta: imgMeta } = getImgProps(props, {
       defaultLoader,
       imgConf: config,

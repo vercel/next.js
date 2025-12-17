@@ -12,7 +12,6 @@ export interface NapiNextConfigComplete {
 export interface NapiNextExternalsPluginOptions {
   compilerType: string
   config: NapiNextConfigComplete
-  builtinModules: Array<string>
   optOutBundlingPackageRegex: RegExp
   finalTranspilePackages: Array<string>
   dir: string

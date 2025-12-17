@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox } from 'next-test-utils'
+import { waitForRedbox } from 'next-test-utils'
 
 describe('DevErrorOverlay', () => {
   const { next } = nextTestSetup({
@@ -14,7 +14,7 @@ describe('DevErrorOverlay', () => {
 
     const errorCode = await browser.elementByCss('[data-nextjs-error-code]')
     const code = await errorCode.getAttribute('data-nextjs-error-code')
-    expect(code).toBe('E127')
+    expect(code).toBe('E40')
   })
 
   it('sends feedback when clicking helpful button', async () => {
@@ -40,7 +40,7 @@ describe('DevErrorOverlay', () => {
         .textContent()
     ).toEqual('Thanks for your feedback!')
     expect(feedbackRequests).toEqual([
-      '/__nextjs_error_feedback?errorCode=E794&wasHelpful=true',
+      '/__nextjs_error_feedback?errorCode=E40&wasHelpful=true',
     ])
   })
 
@@ -67,7 +67,7 @@ describe('DevErrorOverlay', () => {
         .textContent()
     ).toEqual('Thanks for your feedback!')
     expect(feedbackRequests).toEqual([
-      '/__nextjs_error_feedback?errorCode=E794&wasHelpful=false',
+      '/__nextjs_error_feedback?errorCode=E40&wasHelpful=false',
     ])
   })
 
@@ -86,7 +86,7 @@ describe('DevErrorOverlay', () => {
       },
     })
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     await browser.waitForIdleNetwork()
 
     // Verify woff2 files were requested and loaded successfully
@@ -99,7 +99,7 @@ describe('DevErrorOverlay', () => {
   it('should load dev overlay styles successfully', async () => {
     const browser = await next.browser('/hydration-error')
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     const redbox = browser.locateRedbox()
 
     // check the data-nextjs-dialog-header="true" DOM element styles under redbox is applied

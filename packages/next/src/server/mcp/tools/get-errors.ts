@@ -1,13 +1,17 @@
 /**
- * MCP tool for retrieving browser error state.
+ * MCP tool for retrieving error state from Next.js dev server.
  *
- * This tool demonstrates server-to-browser communication in Next.js dev mode.
- * It leverages the existing HMR infrastructure rather than creating new channels.
+ * This tool provides comprehensive error reporting including:
+ * - Next.js global errors (e.g., next.config validation errors)
+ * - Browser runtime errors with source-mapped stack traces
+ * - Build errors from webpack/turbopack compilation
+ *
+ * For browser errors, it leverages the HMR infrastructure for server-to-browser communication.
  *
  * Flow:
  *   MCP client → server generates request ID → HMR message to browser →
  *   browser queries error overlay state → HMR response back → server performs source mapping →
- *   formatted output.
+ *   combined with global errors → formatted output.
  */
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
 import type { OverlayState } from '../../../next-devtools/dev-overlay/shared'
@@ -15,23 +19,14 @@ import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   type HmrMessageSentToBrowser,
 } from '../../dev/hot-reloader-types'
-import { nanoid } from 'next/dist/compiled/nanoid'
-import type { OverlayStateWithUrl } from '../../../shared/lib/mcp-error-types'
 import { formatErrors } from './utils/format-errors'
-
-// These promises are created when the MCP endpoint is called but before the browser has responded
-// with its error state. They are resolved when the browser has responded with its error state
-// or when the timeout is reached.
-const pendingRequests = new Map<
-  string,
-  {
-    responses: OverlayStateWithUrl[]
-    expectedCount: number
-    resolve: (value: OverlayStateWithUrl[]) => void
-    reject: (reason?: any) => void
-    timeout: NodeJS.Timeout
-  }
->()
+import {
+  createBrowserRequest,
+  handleBrowserPageResponse,
+  DEFAULT_BROWSER_REQUEST_TIMEOUT_MS,
+} from './utils/browser-communication'
+import { NextInstanceErrorState } from './next-instance-error-state'
+import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
 
 export function registerGetErrorsTool(
   server: McpServer,
@@ -42,10 +37,13 @@ export function registerGetErrorsTool(
     'get_errors',
     {
       description:
-        'Get the current error state of the app when rendered in the browser, including any build or runtime errors with source-mapped stack traces',
+        'Get the current error state from the Next.js dev server, including Next.js global errors (e.g., next.config validation), browser runtime errors, and build errors with source-mapped stack traces',
       inputSchema: {},
     },
     async (_request) => {
+      // Track telemetry
+      mcpTelemetryTracker.recordToolCall('mcp/get_errors')
+
       try {
         const connectionCount = getActiveConnectionCount()
         if (connectionCount === 0) {
@@ -59,71 +57,45 @@ export function registerGetErrorsTool(
           }
         }
 
-        const requestId = `mcp-error-state-${nanoid()}`
-
-        // The promise will be resolved when all active browser sessions have responded
-        // with their respective error states. We will resolve the promise after 5 seconds
-        // with whatever responses we have received so far.
-        const responsePromise = new Promise<OverlayStateWithUrl[]>(
-          (resolve, reject) => {
-            const timeout = setTimeout(() => {
-              const pending = pendingRequests.get(requestId)
-              if (pending && pending.responses.length > 0) {
-                resolve(pending.responses)
-              } else {
-                reject(
-                  new Error(
-                    'Timeout waiting for error state from frontend. The browser may not be responding to HMR messages.'
-                  )
-                )
-              }
-              pendingRequests.delete(requestId)
-            }, 5000)
-            pendingRequests.set(requestId, {
-              responses: [],
-              expectedCount: connectionCount,
-              resolve,
-              reject,
-              timeout,
-            })
-          }
+        const responses = await createBrowserRequest<OverlayState>(
+          HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE,
+          sendHmrMessage,
+          getActiveConnectionCount,
+          DEFAULT_BROWSER_REQUEST_TIMEOUT_MS
         )
 
-        // When browser receives this HMR message, it will send back a response with
-        // its client-side error state, which will be handled by `handleErrorStateResponse`.
-        sendHmrMessage({
-          type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE,
-          requestId,
-        })
-
-        const clientStates = await responsePromise
-
-        const errorsByUrl = new Map<string, OverlayState>()
-        for (const state of clientStates) {
-          if (state.errorState) {
-            errorsByUrl.set(state.url, state.errorState)
+        // The error state for each route
+        // key is the route path, value is the error state
+        const routesErrorState = new Map<string, OverlayState>()
+        for (const response of responses) {
+          if (response.data) {
+            routesErrorState.set(response.url, response.data)
           }
         }
 
-        const hasErrors = Array.from(errorsByUrl.values()).some(
+        const hasRouteErrors = Array.from(routesErrorState.values()).some(
           (state) => state.errors.length > 0 || !!state.buildError
         )
+        const hasInstanceErrors = NextInstanceErrorState.nextConfig.length > 0
 
-        if (!hasErrors) {
+        if (!hasRouteErrors && !hasInstanceErrors) {
           return {
             content: [
               {
                 type: 'text',
                 text:
-                  clientStates.length === 0
+                  responses.length === 0
                     ? 'No browser sessions responded.'
-                    : `No errors detected in ${clientStates.length} browser session(s).`,
+                    : `No errors detected in ${responses.length} browser session(s).`,
               },
             ],
           }
         }
 
-        const output = await formatErrors(errorsByUrl)
+        const output = await formatErrors(
+          routesErrorState,
+          NextInstanceErrorState
+        )
 
         return {
           content: [
@@ -155,19 +127,9 @@ export function handleErrorStateResponse(
   errorState: OverlayState | null,
   url: string | undefined
 ) {
-  if (!url) {
-    throw new Error(
-      'URL is required in MCP error state response. This is a bug in Next.js.'
-    )
-  }
-
-  const pending = pendingRequests.get(requestId)
-  if (pending) {
-    pending.responses.push({ url, errorState })
-    if (pending.responses.length >= pending.expectedCount) {
-      clearTimeout(pending.timeout)
-      pending.resolve(pending.responses)
-      pendingRequests.delete(requestId)
-    }
-  }
+  handleBrowserPageResponse<OverlayState | null>(
+    requestId,
+    errorState,
+    url || ''
+  )
 }

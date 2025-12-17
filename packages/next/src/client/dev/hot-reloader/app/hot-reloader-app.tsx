@@ -11,6 +11,7 @@ import {
 import {
   dispatcher,
   getSerializedOverlayState,
+  getSegmentTrieData,
 } from 'next/dist/compiled/next-devtools'
 import { ReplaySsrOnlyErrors } from '../../../../next-devtools/userspace/app/errors/replay-ssr-only-errors'
 import { AppDevOverlayErrorBoundary } from '../../../../next-devtools/userspace/app/app-dev-overlay-error-boundary'
@@ -26,6 +27,7 @@ import type {
   TurbopackMessageSentToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import type { McpErrorStateResponse } from '../../../../shared/lib/mcp-error-types'
+import type { McpPageMetadataResponse } from '../../../../shared/lib/mcp-page-metadata-types'
 import { useUntrackedPathname } from '../../../components/navigation-untracked'
 import reportHmrLatency from '../../report-hmr-latency'
 import { TurbopackHmr } from '../turbopack-hot-reloader-common'
@@ -36,11 +38,18 @@ import {
 } from '../../../components/app-router-instance'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
 import { getOrCreateDebugChannelReadableWriterPair } from '../../debug-channel'
+// TODO: Explicitly import from client.browser (doesn't work with Webpack).
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { createFromReadableStream as createFromReadableStreamBrowser } from 'react-server-dom-webpack/client'
+import { findSourceMapURL } from '../../../app-find-source-map-url'
 
 export interface StaticIndicatorState {
   pathname: string | null
-  appIsrManifest: Record<string, true>
+  appIsrManifest: Record<string, boolean> | null
 }
+
+const createFromReadableStream =
+  createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
@@ -259,18 +268,18 @@ export function processMessage(
       if (process.env.__NEXT_DEV_INDICATOR) {
         staticIndicatorState.appIsrManifest = message.data
 
-        // handle initial status on receiving manifest
-        // navigation is handled in useEffect for pathname changes
-        // as we'll receive the updated manifest before usePathname
-        // triggers for new value
-        if (
-          staticIndicatorState.pathname &&
-          staticIndicatorState.pathname in message.data
-        ) {
-          dispatcher.onStaticIndicator(true)
-        } else {
-          dispatcher.onStaticIndicator(false)
-        }
+        // Handle the initial static indicator status on receiving the ISR
+        // manifest. Navigation is handled in an effect inside HotReload for
+        // pathname changes as we'll receive the updated manifest before
+        // usePathname triggers for a new value.
+
+        const isStatic = staticIndicatorState.pathname
+          ? message.data[staticIndicatorState.pathname]
+          : undefined
+
+        dispatcher.onStaticIndicator(
+          isStatic === undefined ? 'pending' : isStatic ? 'static' : 'dynamic'
+        )
       }
       break
     }
@@ -487,6 +496,44 @@ export function processMessage(
       sendMessage(JSON.stringify(response))
       return
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_PAGE_METADATA: {
+      const segmentTrieData = getSegmentTrieData()
+      const response: McpPageMetadataResponse = {
+        event: HMR_MESSAGE_SENT_TO_SERVER.MCP_PAGE_METADATA_RESPONSE,
+        requestId: message.requestId,
+        segmentTrieData,
+        url: window.location.href,
+      }
+      sendMessage(JSON.stringify(response))
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR: {
+      dispatcher.onCacheIndicator(message.state)
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER: {
+      createFromReadableStream<Error[]>(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(message.serializedErrors)
+            controller.close()
+          },
+        }),
+        { findSourceMapURL }
+      ).then(
+        (errors) => {
+          for (const error of errors) {
+            console.error(error)
+          }
+        },
+        (err) => {
+          console.error(
+            new Error('Failed to deserialize errors.', { cause: err })
+          )
+        }
+      )
+      return
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:
     case HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES:
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES:
@@ -529,10 +576,14 @@ export default function HotReload({
 
       staticIndicatorState.pathname = pathname
 
-      if (pathname && pathname in staticIndicatorState.appIsrManifest) {
-        dispatcher.onStaticIndicator(true)
-      } else {
-        dispatcher.onStaticIndicator(false)
+      if (staticIndicatorState.appIsrManifest) {
+        const isStatic = pathname
+          ? staticIndicatorState.appIsrManifest[pathname]
+          : undefined
+
+        dispatcher.onStaticIndicator(
+          isStatic === undefined ? 'pending' : isStatic ? 'static' : 'dynamic'
+        )
       }
     }, [pathname, staticIndicatorState])
   }

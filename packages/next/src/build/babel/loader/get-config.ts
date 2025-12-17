@@ -17,6 +17,7 @@ import {
 } from './util'
 import * as Log from '../../output/log'
 import { isReactCompilerRequired } from '../../swc'
+import { installBindings } from '../../swc/install-bindings'
 
 /**
  * An internal (non-exported) type used by babel.
@@ -64,6 +65,18 @@ interface CharacteristicsGermaneToCaching {
   configFilePath: string | undefined
 }
 
+function shouldSkipBabel(
+  transformMode: 'standalone' | 'default',
+  configFilePath: string | undefined,
+  hasReactCompiler: boolean
+) {
+  return (
+    transformMode === 'standalone' &&
+    configFilePath == null &&
+    !hasReactCompiler
+  )
+}
+
 const fileExtensionRegex = /\.([a-z]+)$/
 async function getCacheCharacteristics(
   loaderOptions: NextBabelLoaderOptions,
@@ -91,19 +104,39 @@ async function getCacheCharacteristics(
   const hasModuleExports = source.indexOf('module.exports') !== -1
   const fileExt = fileExtensionRegex.exec(filename)?.[1] || 'unknown'
 
+  let {
+    reactCompilerPlugins,
+    reactCompilerExclude,
+    configFile: configFilePath,
+    transformMode,
+  } = loaderOptions
+
   // Compute `hasReactCompiler` as part of the cache characteristics / key,
   // rather than inside of `getFreshConfig`:
   // - `isReactCompilerRequired` depends on the file contents
   // - `node_modules` and `reactCompilerExclude` depend on the file path, which
   //   isn't part of the cache characteristics
-  let { reactCompilerPlugins, reactCompilerExclude } = loaderOptions
-  reactCompilerPlugins ??= []
-  const hasReactCompiler =
+  let hasReactCompiler =
+    reactCompilerPlugins != null &&
     reactCompilerPlugins.length !== 0 &&
     !loaderOptions.isServer &&
     !/[/\\]node_modules[/\\]/.test(filename) &&
-    !reactCompilerExclude?.(filename) &&
-    (await isReactCompilerRequired(filename))
+    // Assumption: `reactCompilerExclude` is cheap because it should only
+    // operate on the file path and *not* the file contents (it's sync)
+    !reactCompilerExclude?.(filename)
+
+  // `isReactCompilerRequired` is expensive to run (parses/visits with SWC), so
+  // only run it if there's a good chance we might be able to skip calling Babel
+  // entirely (speculatively call `shouldSkipBabel`).
+  //
+  // Otherwise, we can let react compiler handle this logic for us. It should
+  // behave equivalently.
+  if (
+    hasReactCompiler &&
+    shouldSkipBabel(transformMode, configFilePath, /*hasReactCompiler*/ false)
+  ) {
+    hasReactCompiler &&= await isReactCompilerRequired(filename)
+  }
 
   return {
     isStandalone,
@@ -113,7 +146,7 @@ async function getCacheCharacteristics(
     hasModuleExports,
     hasReactCompiler,
     fileExt,
-    configFilePath: loaderOptions.configFile,
+    configFilePath,
   }
 }
 
@@ -336,8 +369,9 @@ async function getFreshConfig(
   const { hasReactCompiler, configFilePath, fileExt } = cacheCharacteristics
 
   let customConfig = configFilePath && getCustomBabelConfig(configFilePath)
-  if (transformMode === 'standalone' && !customConfig && !hasReactCompiler) {
-    // Optimization: There's nothing useful to do, bail out and skip babel on this file
+  if (shouldSkipBabel(transformMode, configFilePath, hasReactCompiler)) {
+    // Optimization: There's nothing useful to do, bail out and skip babel on
+    // this file
     return null
   }
 
@@ -537,6 +571,10 @@ export default async function getConfig(
     inputSourceMap?: SourceMap | undefined
   }
 ): Promise<ResolvedBabelConfig | null> {
+  // Install bindings early so they are definitely available to the loader.
+  // When run by webpack in next this is already done with correct configuration so this is a no-op.
+  // In turbopack loaders are run in a subprocess so it may or may not be done.
+  await installBindings()
   const cacheCharacteristics = await getCacheCharacteristics(
     loaderOptions,
     source,

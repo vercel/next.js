@@ -8,9 +8,9 @@ if (!Array.isArray(globalThis.TURBOPACK)) {
 }
 
 const CHUNK_BASE_PATH = "";
-const CHUNK_SUFFIX_PATH = "";
 const RELATIVE_ROOT_PATH = "../../../../../../..";
 const RUNTIME_PUBLIC_PATH = "";
+const CHUNK_SUFFIX = "";
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
@@ -260,9 +260,29 @@ function commonJsRequire(id) {
 }
 contextPrototype.r = commonJsRequire;
 /**
+ * Remove fragments and query parameters since they are never part of the context map keys
+ *
+ * This matches how we parse patterns at resolving time.  Arguably we should only do this for
+ * strings passed to `import` but the resolve does it for `import` and `require` and so we do
+ * here as well.
+ */ function parseRequest(request) {
+    // Per the URI spec fragments can contain `?` characters, so we should trim it off first
+    // https://datatracker.ietf.org/doc/html/rfc3986#section-3.5
+    const hashIndex = request.indexOf('#');
+    if (hashIndex !== -1) {
+        request = request.substring(0, hashIndex);
+    }
+    const queryIndex = request.indexOf('?');
+    if (queryIndex !== -1) {
+        request = request.substring(0, queryIndex);
+    }
+    return request;
+}
+/**
  * `require.context` and require/import expression runtime.
  */ function moduleContext(map) {
     function moduleContext(id) {
+        id = parseRequest(id);
         if (hasOwnProperty.call(map, id)) {
             return map[id].module();
         }
@@ -274,6 +294,7 @@ contextPrototype.r = commonJsRequire;
         return Object.keys(map);
     };
     moduleContext.resolve = (id)=>{
+        id = parseRequest(id);
         if (hasOwnProperty.call(map, id)) {
             return map[id].id();
         }
@@ -488,7 +509,7 @@ contextPrototype.g = globalThis;
 function applyModuleFactoryName(factory) {
     // Give the module factory a nice name to improve stack traces.
     Object.defineProperty(factory, 'name', {
-        value: '__TURBOPACK__module__evaluation__'
+        value: 'module evaluation'
     });
 }
 /**
@@ -522,7 +543,7 @@ const moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
 const availableModules = new Map();
 const availableModuleChunks = new Map();
-function factoryNotAvailable(moduleId, sourceType, sourceData) {
+function factoryNotAvailableMessage(moduleId, sourceType, sourceData) {
     let instantiationReason;
     switch(sourceType){
         case 0:
@@ -537,7 +558,7 @@ function factoryNotAvailable(moduleId, sourceType, sourceData) {
         default:
             invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
     }
-    throw new Error(`Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`);
+    return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
 }
 function loadChunk(chunkData) {
     return loadChunkInternal(1, this.m.id, chunkData);
@@ -617,7 +638,7 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkUrl) {
     let entry = instrumentedBackendLoadChunks.get(thenable);
     if (entry === undefined) {
         const resolve = instrumentedBackendLoadChunks.set.bind(instrumentedBackendLoadChunks, thenable, loadedChunk);
-        entry = thenable.then(resolve).catch((error)=>{
+        entry = thenable.then(resolve).catch((cause)=>{
             let loadReason;
             switch(sourceType){
                 case 0:
@@ -632,9 +653,11 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkUrl) {
                 default:
                     invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
             }
-            throw new Error(`Failed to load chunk ${chunkUrl} ${loadReason}${error ? `: ${error}` : ''}`, error ? {
-                cause: error
+            let error = new Error(`Failed to load chunk ${chunkUrl} ${loadReason}${cause ? `: ${cause}` : ''}`, cause ? {
+                cause
             } : undefined);
+            error.name = 'ChunkLoadError';
+            throw error;
         });
         instrumentedBackendLoadChunks.set(thenable, entry);
     }
@@ -666,6 +689,7 @@ browserContextPrototype.P = resolveAbsolutePath;
     // It is important to reverse the array so when bootstrapping we can infer what chunk is being
     // evaluated by poping urls off of this array.  See `getPathFromScript`
     let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
+self.TURBOPACK_CHUNK_SUFFIX = ${JSON.stringify(CHUNK_SUFFIX)};
 self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
 importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`;
     let blob = new Blob([
@@ -684,7 +708,7 @@ browserContextPrototype.b = getWorkerBlobURL;
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */ function getChunkRelativeUrl(chunkPath) {
-    return `${CHUNK_BASE_PATH}${chunkPath.split('/').map((p)=>encodeURIComponent(p)).join('/')}${CHUNK_SUFFIX_PATH}`;
+    return `${CHUNK_BASE_PATH}${chunkPath.split('/').map((p)=>encodeURIComponent(p)).join('/')}${CHUNK_SUFFIX}`;
 }
 function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
@@ -818,7 +842,7 @@ function instantiateModule(moduleId, sourceType, sourceData) {
         // This can happen if modules incorrectly handle HMR disposes/updates,
         // e.g. when they keep a `setTimeout` around which still executes old code
         // and contains e.g. a `require("something")` call.
-        factoryNotAvailable(id, sourceType, sourceData);
+        throw new Error(factoryNotAvailableMessage(id, sourceType, sourceData) + ' It might have been deleted in an HMR update.');
     }
     const hotData = moduleHotData.get(id);
     const { hot, hotState } = createModuleHot(id, hotData);
@@ -1815,7 +1839,7 @@ let DEV_BACKEND;
     }
 })();
 function _eval({ code, url, map }) {
-    code += `\n\n//# sourceURL=${encodeURI(location.origin + CHUNK_BASE_PATH + url + CHUNK_SUFFIX_PATH)}`;
+    code += `\n\n//# sourceURL=${encodeURI(location.origin + CHUNK_BASE_PATH + url + CHUNK_SUFFIX)}`;
     if (map) {
         code += `\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${btoa(// btoa doesn't handle nonlatin characters, so escape them as \x sequences
         // See https://stackoverflow.com/a/26603875

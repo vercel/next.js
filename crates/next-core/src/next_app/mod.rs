@@ -12,7 +12,7 @@ use std::{
 };
 
 use anyhow::{Result, bail};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 
@@ -29,8 +29,6 @@ pub use crate::next_app::{
     Clone,
     Debug,
     Hash,
-    Serialize,
-    Deserialize,
     PartialEq,
     Eq,
     PartialOrd,
@@ -38,6 +36,8 @@ pub use crate::next_app::{
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum PageSegment {
     /// e.g. `/dashboard`
@@ -134,8 +134,6 @@ impl Display for PageSegment {
     Clone,
     Debug,
     Hash,
-    Serialize,
-    Deserialize,
     PartialEq,
     Eq,
     PartialOrd,
@@ -143,6 +141,8 @@ impl Display for PageSegment {
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum PageType {
     Page,
@@ -168,11 +168,11 @@ impl Display for PageType {
     PartialEq,
     Eq,
     Default,
-    Serialize,
-    Deserialize,
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct AppPage(pub Vec<PageSegment>);
 
@@ -348,8 +348,6 @@ impl PartialOrd for AppPage {
     Clone,
     Debug,
     Hash,
-    Serialize,
-    Deserialize,
     PartialEq,
     Eq,
     PartialOrd,
@@ -357,6 +355,8 @@ impl PartialOrd for AppPage {
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum PathSegment {
     /// e.g. `/dashboard`
@@ -404,11 +404,11 @@ impl Display for PathSegment {
     PartialEq,
     Eq,
     Default,
-    Serialize,
-    Deserialize,
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct AppPath(pub Vec<PathSegment>);
 
@@ -459,6 +459,18 @@ impl AppPath {
         }
 
         true
+    }
+
+    /// Returns true if ANY segment in the entire path is an interception route.
+    /// This is different from `is_intercepting()` which only checks the last
+    /// segment.
+    pub fn contains_interception(&self) -> bool {
+        self.iter().any(|segment| {
+            matches!(
+                segment,
+                PathSegment::Static(s) if s.starts_with("(.)") || s.starts_with("(..)") || s.starts_with("(...)")
+            )
+        })
     }
 }
 

@@ -1,4 +1,4 @@
-import { cookies, type UnsafeUnwrappedCookies } from 'next/headers'
+import { cookies } from 'next/headers'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
@@ -20,8 +20,8 @@ export default async function Page() {
 async function CookiesReadingComponent() {
   // Await a connection to test the subsequent sync cookies access at runtime.
   await connection()
-
-  const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+  // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+  const token = (cookies() as any).get('token')
 
   return (
     <div>

@@ -11,7 +11,6 @@ export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
 export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
   'x-prerender-revalidate-if-generated'
 
-export const RSC_PREFETCH_SUFFIX = '.prefetch.rsc'
 export const RSC_SEGMENTS_DIR_SUFFIX = '.segments'
 export const RSC_SEGMENT_SUFFIX = '.segment.rsc'
 export const RSC_SUFFIX = '.rsc'
@@ -45,6 +44,10 @@ export const INFINITE_CACHE = 0xfffffffe
 // Patterns to detect middleware files
 export const MIDDLEWARE_FILENAME = 'middleware'
 export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`
+
+// Patterns to detect proxy files (replacement for middleware)
+export const PROXY_FILENAME = 'proxy'
+export const PROXY_LOCATION_REGEXP = `(?:src/)?${PROXY_FILENAME}`
 
 // Pattern to detect instrumentation hooks file
 export const INSTRUMENTATION_HOOK_FILENAME = 'instrumentation'

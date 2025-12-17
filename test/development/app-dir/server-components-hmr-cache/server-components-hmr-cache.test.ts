@@ -91,6 +91,61 @@ describe('server-components-hmr-cache', () => {
       })
     })
 
+    describe('with cacheMaxMemorySize set to 0', () => {
+      beforeAll(async () => {
+        await next.patchFile('next.config.js', (content) =>
+          content.replace('// cacheMaxMemorySize: 0,', 'cacheMaxMemorySize: 0,')
+        )
+      })
+
+      afterAll(async () => {
+        await next.patchFile('next.config.js', (content) =>
+          content.replace('cacheMaxMemorySize: 0,', '// cacheMaxMemorySize: 0,')
+        )
+      })
+
+      it('should not warn about "Single item size exceeds maxSize"', async () => {
+        const initialOutputLength = next.cliOutput.length
+        const browser = await next.browser(`/${runtime}`)
+        await browser.elementById('value').text()
+
+        await next.patchFile(
+          'components/shared-page.tsx',
+          (content) => content.replace('foo', 'bar'),
+          async () => {
+            await retry(async () => {
+              const updatedContent = await browser.elementById('content').text()
+              expect(updatedContent).toBe('bar')
+            }, 5000)
+
+            // Verify the warning does not appear
+            const newOutput = next.cliOutput.slice(initialOutputLength)
+            expect(newOutput).not.toContain('Single item size exceeds maxSize')
+          }
+        )
+      })
+
+      it('should still use cached fetch calls for fast refresh requests', async () => {
+        const browser = await next.browser(`/${runtime}`)
+        const valueBeforePatch = await browser.elementById('value').text()
+
+        await next.patchFile(
+          'components/shared-page.tsx',
+          (content) => content.replace('foo', 'bar'),
+          async () => {
+            await retry(async () => {
+              const updatedContent = await browser.elementById('content').text()
+              expect(updatedContent).toBe('bar')
+            }, 5000)
+
+            // HMR cache should still work even with cacheMaxMemorySize: 0
+            const valueAfterPatch = await browser.elementById('value').text()
+            expect(valueBeforePatch).toEqual(valueAfterPatch)
+          }
+        )
+      })
+    })
+
     describe('with experimental.serverComponentsHmrCache disabled', () => {
       beforeAll(async () => {
         await next.patchFile('next.config.js', (content) =>

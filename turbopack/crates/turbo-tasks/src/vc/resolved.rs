@@ -9,6 +9,7 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -64,8 +65,9 @@ use crate::{
 /// [`NonLocalValue`]: crate::NonLocalValue
 /// [rewritten external signature]: https://turbopack-rust-docs.vercel.sh/turbo-engine/tasks.html#external-signature-rewriting
 /// [`ReadRef`]: crate::ReadRef
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Encode, Decode)]
 #[serde(transparent, bound = "")]
+#[bincode(bounds = "T: ?Sized")]
 #[repr(transparent)]
 pub struct ResolvedVc<T>
 where
@@ -219,6 +221,22 @@ where
         ResolvedVc {
             node: Vc::upcast_non_strict(this.node),
         }
+    }
+
+    /// Upcasts the given `Vec<ResolvedVc<T>>` to a `Vec<ResolvedVc<K>>`.
+    ///
+    /// See also: [`Vc::upcast`].
+    #[inline(always)]
+    pub fn upcast_vec<K>(vec: Vec<Self>) -> Vec<ResolvedVc<K>>
+    where
+        T: UpcastStrict<K>,
+        K: VcValueTrait + ?Sized,
+    {
+        debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<ResolvedVc<K>>());
+        debug_assert!(size_of::<Vec<ResolvedVc<T>>>() == size_of::<Vec<ResolvedVc<K>>>());
+        let (ptr, len, capacity) = vec.into_raw_parts();
+        // Safety: The memory layout of `ResolvedVc<T>` and `ResolvedVc<K>` is the same.
+        unsafe { Vec::from_raw_parts(ptr as *mut ResolvedVc<K>, len, capacity) }
     }
 
     /// Cheaply converts a Vec of resolved Vcs to a Vec of Vcs.

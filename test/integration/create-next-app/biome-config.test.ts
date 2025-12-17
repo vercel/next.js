@@ -31,6 +31,7 @@ describe('create-next-app Biome configuration', () => {
           '--app',
           '--no-turbopack',
           '--no-import-alias',
+          '--no-react-compiler',
           '--skip-install',
         ],
         nextTgzFilename,
@@ -59,6 +60,7 @@ describe('create-next-app Biome configuration', () => {
           '--app',
           '--no-turbopack',
           '--no-import-alias',
+          '--no-react-compiler',
         ],
         nextTgzFilename,
         { cwd }
@@ -95,6 +97,7 @@ describe('create-next-app Biome configuration', () => {
           '--app',
           '--no-turbopack',
           '--no-import-alias',
+          '--no-react-compiler',
         ],
         nextTgzFilename,
         { cwd }
@@ -131,6 +134,7 @@ describe('create-next-app Biome configuration', () => {
           '--app',
           '--no-turbopack',
           '--no-import-alias',
+          '--no-react-compiler',
         ],
         nextTgzFilename,
         { cwd }
@@ -167,6 +171,7 @@ describe('create-next-app Biome configuration', () => {
           '--app',
           '--no-turbopack',
           '--no-import-alias',
+          '--no-react-compiler',
         ],
         nextTgzFilename,
         { cwd }

@@ -22,6 +22,8 @@ pub unsafe trait VcValueType: ShrinkToFit + Sized + Send + Sync + 'static {
 
     /// Returns the type id of the value type.
     fn get_value_type_id() -> ValueTypeId;
+
+    fn has_serialization() -> bool;
 }
 
 /// A trait implemented on all values trait object references that can be put

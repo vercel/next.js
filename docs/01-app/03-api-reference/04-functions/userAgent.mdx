@@ -7,10 +7,10 @@ description: Parses the User-Agent header and returns structured information abo
 
 The `userAgent` helper parses the request's `User-Agent` header and returns structured information about the client's browser, device, engine, OS, CPU, and whether the client is a known bot.
 
-```ts filename="middleware.ts" switcher
+```ts filename="proxy.ts" switcher
 import { NextRequest, NextResponse, userAgent } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const url = request.nextUrl
   const { device } = userAgent(request)
 
@@ -23,10 +23,10 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-```js filename="middleware.js" switcher
+```js filename="proxy.js" switcher
 import { NextResponse, userAgent } from 'next/server'
 
-export function middleware(request) {
+export function proxy(request) {
   const url = request.nextUrl
   const { device } = userAgent(request)
 

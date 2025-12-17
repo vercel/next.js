@@ -1,4 +1,3 @@
-/* eslint-disable no-redeclare */
 import type { IncomingMessage } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
@@ -249,11 +248,6 @@ export interface RequestMeta {
   params?: ParsedUrlQuery
 
   /**
-   * The AMP validator to use in development
-   */
-  ampValidator?: (html: string, pathname: string) => Promise<void>
-
-  /**
    * ErrorOverlay component to use in development for pages router
    */
   PagesErrorDebug?: PagesDevOverlayBridgeType
@@ -267,7 +261,20 @@ export interface RequestMeta {
   /**
    * DEV only: The fallback params that should be used when validating prerenders during dev
    */
-  devValidatingFallbackParams?: OpaqueFallbackRouteParams
+  devFallbackParams?: OpaqueFallbackRouteParams
+
+  /**
+   * DEV only: Request timings in process.hrtime.bigint()
+   */
+  devRequestTimingStart?: bigint
+  devRequestTimingMiddlewareStart?: bigint
+  devRequestTimingMiddlewareEnd?: bigint
+  devRequestTimingInternalsEnd?: bigint
+
+  /**
+   * DEV only: The duration of getStaticPaths/generateStaticParams in process.hrtime.bigint()
+   */
+  devGenerateStaticParamsDuration?: bigint
 }
 
 /**
@@ -348,10 +355,7 @@ type NextQueryMetadata = {
   [NEXT_RSC_UNION_QUERY]?: string
 }
 
-export type NextParsedUrlQuery = ParsedUrlQuery &
-  NextQueryMetadata & {
-    amp?: '1'
-  }
+export type NextParsedUrlQuery = ParsedUrlQuery & NextQueryMetadata
 
 export interface NextUrlWithParsedQuery extends UrlWithParsedQuery {
   query: NextParsedUrlQuery

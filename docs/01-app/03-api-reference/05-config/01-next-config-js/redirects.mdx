@@ -38,7 +38,7 @@ module.exports = {
 
 Redirects are checked before the filesystem which includes pages and `/public` files.
 
-When using the Pages Router, redirects are not applied to client-side routing (`Link`, `router.push`) unless [Middleware](/docs/app/api-reference/file-conventions/middleware) is present and matches the path.
+When using the Pages Router, redirects are not applied to client-side routing (`Link`, `router.push`) unless [Proxy](/docs/app/api-reference/file-conventions/proxy) is present and matches the path.
 
 When a redirect is applied, any query values provided in the request will be passed through to the redirect destination. For example, see the following redirect configuration:
 
@@ -56,7 +56,7 @@ When `/old-blog/post-1?hello=world` is requested, the client will be redirected 
 
 ## Path Matching
 
-Path matches are allowed, for example `/old-blog/:slug` will match `/old-blog/hello-world` (no nested paths):
+Path matches are allowed, for example `/old-blog/:slug` will match `/old-blog/first-post` (no nested paths):
 
 ```js filename="next.config.js"
 module.exports = {
@@ -71,6 +71,12 @@ module.exports = {
   },
 }
 ```
+
+The pattern `/old-blog/:slug` matches `/old-blog/first-post` and `/old-blog/post-1` but not `/old-blog/a/b` (no nested paths). Patterns are anchored to the start: `/old-blog/:slug` will not match `/archive/old-blog/first-post`.
+
+You can use modifiers on parameters: `*` (zero or more), `+` (one or more), `?` (zero or one). For example, `/blog/:slug*` matches `/blog`, `/blog/a`, and `/blog/a/b/c`.
+
+Read more details on [path-to-regexp](https://github.com/pillarjs/path-to-regexp) documentation.
 
 ### Wildcard Path Matching
 
@@ -152,7 +158,7 @@ module.exports = {
         permanent: false,
         destination: '/another-page',
       },
-      // if the header `x-dont-redirect` is present,
+      // if the header `x-do-not-redirect` is present,
       // this redirect will NOT be applied
       {
         source: '/:path((?!another-page$).*)',
@@ -252,7 +258,7 @@ module.exports = {
 
 When implementing redirects with internationalization in the App Router, you can include locales in `next.config.js` redirects, but only as hardcoded paths.
 
-For dynamic or per-request locale handling, use [dynamic route segments and middleware](/docs/app/guides/internationalization), which can redirect based on the user's preferred language.
+For dynamic or per-request locale handling, use [dynamic route segments and proxy](/docs/app/guides/internationalization), which can redirect based on the user's preferred language.
 
 ```js filename="next.config.js"
 module.exports = {

@@ -106,6 +106,8 @@ describe('mcp-server get_errors tool', () => {
 
     const isTurbopack = process.env.IS_TURBOPACK_TEST === '1'
 
+    const isRspack = !!process.env.NEXT_RSPACK
+
     // Normalize paths in turbopack output to remove temp directory prefix
     if (isTurbopack) {
       strippedErrors = strippedErrors.replace(/\.\/test\/tmp\/[^/]+\//g, './')
@@ -155,8 +157,43 @@ describe('mcp-server get_errors tool', () => {
 
        ---"
       `)
-    } else {
+    } else if (isRspack) {
       // Webpack output
+      expect(strippedErrors).toMatchInlineSnapshot(`
+       "# Found errors in 1 browser session(s)
+
+       ## Session: /build-error
+
+       **1 error(s) found**
+
+       ### Build Error
+
+       \`\`\`
+       ./app/build-error/page.tsx
+         ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+               │    ,-[4:1]
+               │  1 | export default function BuildErrorPage() {
+               │  2 |   // Syntax error - missing closing brace
+               │  3 |   return <div>Page
+               │  4 | }
+               │    : ^
+               │    \`----
+               │   x Expected '</', got '<eof>'
+               │    ,-[4:1]
+               │  1 | export default function BuildErrorPage() {
+               │  2 |   // Syntax error - missing closing brace
+               │  3 |   return <div>Page
+               │  4 | }
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
+       \`\`\`
+
+       ---"
+      `)
+    } else {
       expect(strippedErrors).toMatchInlineSnapshot(`
        "# Found errors in 1 browser session(s)
 
@@ -273,6 +310,58 @@ describe('mcp-server get_errors tool', () => {
       await s1.close()
       await s2.close()
     }
+  })
+
+  it('should capture next.config errors and clear when fixed', async () => {
+    // Read the original config
+    const originalConfig = await next.readFile('next.config.js')
+
+    // Stop server, write invalid config, and restart
+    await next.stop()
+    await next.patchFile(
+      'next.config.js',
+      `module.exports = {
+  experimental: {
+    invalidTestProperty: 'this should cause a validation warning',
+  },
+}`
+    )
+    await next.start()
+
+    // Open a browser session
+    await next.browser('/')
+
+    // Check that the config error is captured
+    let errors: string = ''
+    await retry(async () => {
+      const sessionId = 'test-config-error-' + Date.now()
+      errors = await callGetErrors(sessionId)
+      expect(errors).toContain('Next.js Configuration Errors')
+      expect(errors).toContain('error(s) found in next.config')
+    })
+
+    const strippedErrors = stripAnsi(errors)
+    expect(strippedErrors).toContain('Next.js Configuration Errors')
+    expect(strippedErrors).toContain('Invalid next.config.js options detected')
+    expect(strippedErrors).toContain('invalidTestProperty')
+
+    // Stop server, fix the config, and restart
+    await next.stop()
+    await next.patchFile('next.config.js', originalConfig)
+    await next.start()
+
+    // Open a browser session
+    await next.browser('/')
+
+    // Verify the config error is now gone
+    await retry(async () => {
+      const sessionId = 'test-config-fixed-' + Date.now()
+      const fixedErrors = await callGetErrors(sessionId)
+      const strippedFixed = stripAnsi(fixedErrors)
+      expect(strippedFixed).not.toContain('Next.js Configuration Errors')
+      expect(strippedFixed).not.toContain('invalidTestProperty')
+      expect(strippedFixed).toContain('No errors detected')
+    })
   })
 })
 

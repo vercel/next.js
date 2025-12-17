@@ -15,12 +15,13 @@ type Story = StoryObj<typeof NodejsInspectorButton>
 
 export const WithDevtoolsUrl: Story = {
   args: {
-    devtoolsFrontendUrl: 'chrome-devtools://devtools/bundled/inspector.html',
+    defaultDevtoolsFrontendUrl:
+      'chrome-devtools://devtools/bundled/inspector.html',
   },
 }
 
 export const WithoutDevtoolsUrl: Story = {
   args: {
-    devtoolsFrontendUrl: undefined,
+    defaultDevtoolsFrontendUrl: undefined,
   },
 }

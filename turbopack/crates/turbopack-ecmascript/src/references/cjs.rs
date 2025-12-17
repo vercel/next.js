@@ -1,5 +1,5 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     common::util::take::Take,
     ecma::ast::{CallExpr, Expr, ExprOrSpread, Lit},
@@ -150,7 +150,9 @@ impl IntoCodeGenReference for CjsRequireAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
 pub struct CjsRequireAssetReferenceCodeGen {
     reference: ResolvedVc<CjsRequireAssetReference>,
     path: AstPath,
@@ -274,7 +276,9 @@ impl IntoCodeGenReference for CjsRequireResolveAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
 pub struct CjsRequireResolveAssetReferenceCodeGen {
     reference: ResolvedVc<CjsRequireResolveAssetReference>,
     path: AstPath,
@@ -334,7 +338,9 @@ impl CjsRequireResolveAssetReferenceCodeGen {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
+)]
 pub struct CjsRequireCacheAccess {
     pub path: AstPath,
 }

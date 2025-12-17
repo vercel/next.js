@@ -16,6 +16,7 @@ pub mod compile_time_info;
 pub mod condition;
 pub mod context;
 pub mod data_uri_source;
+pub mod debug_id;
 pub mod diagnostics;
 pub mod environment;
 pub mod error;

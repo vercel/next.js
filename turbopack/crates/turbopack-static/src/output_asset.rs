@@ -1,16 +1,18 @@
 use anyhow::Result;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     source::Source,
 };
 #[turbo_tasks::value]
 pub struct StaticOutputAsset {
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     source: ResolvedVc<Box<dyn Source>>,
+    tag: Option<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -19,13 +21,18 @@ impl StaticOutputAsset {
     pub fn new(
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         source: ResolvedVc<Box<dyn Source>>,
+        tag: Option<RcStr>,
     ) -> Vc<Self> {
         Self::cell(StaticOutputAsset {
             chunking_context,
             source,
+            tag,
         })
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for StaticOutputAsset {}
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for StaticOutputAsset {
@@ -42,9 +49,11 @@ impl OutputAsset for StaticOutputAsset {
             anyhow::bail!("StaticAsset::path: unsupported file content")
         };
         let content_hash_b16 = turbo_tasks_hash::encode_hex(content_hash);
-        Ok(self
-            .chunking_context
-            .asset_path(content_hash_b16.into(), self.source.ident()))
+        Ok(self.chunking_context.asset_path(
+            content_hash_b16.into(),
+            self.source.ident(),
+            self.tag.clone(),
+        ))
     }
 }
 

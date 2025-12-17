@@ -1,28 +1,23 @@
 'use client'
 
-import type {
-  CacheNode,
-  LazyCacheNode,
-} from '../../shared/lib/app-router-types'
+import type { CacheNode } from '../../shared/lib/app-router-types'
 import type { LoadingModuleData } from '../../shared/lib/app-router-types'
 import type {
   FlightRouterState,
   FlightSegmentPath,
+  Segment,
 } from '../../shared/lib/app-router-types'
 import type { ErrorComponent } from './error-boundary'
-import {
-  ACTION_SERVER_PATCH,
-  type FocusAndScrollRef,
-} from './router-reducer/router-reducer-types'
+import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
 import React, {
   Activity,
   useContext,
   use,
-  startTransition,
   Suspense,
   useDeferredValue,
   type JSX,
+  type ActivityProps,
 } from 'react'
 import ReactDOM from 'react-dom'
 import {
@@ -30,7 +25,6 @@ import {
   GlobalLayoutRouterContext,
   TemplateContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { unresolvedThenable } from './unresolved-thenable'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
@@ -38,60 +32,15 @@ import { disableSmoothScrollDuringRouteTransition } from '../../shared/lib/route
 import { RedirectBoundary } from './redirect-boundary'
 import { HTTPAccessFallbackBoundary } from './http-access-fallback/error-boundary'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
-import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has-interception-route-in-current-tree'
-import { dispatchAppRouterAction } from './use-action-queue'
 import { useRouterBFCache, type RouterBFCacheEntry } from './bfcache'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-
-/**
- * Add refetch marker to router state at the point of the current layout segment.
- * This ensures the response returned is not further down than the current layout segment.
- */
-function walkAddRefetch(
-  segmentPathToWalk: FlightSegmentPath | undefined,
-  treeToRecreate: FlightRouterState
-): FlightRouterState {
-  if (segmentPathToWalk) {
-    const [segment, parallelRouteKey] = segmentPathToWalk
-    const isLast = segmentPathToWalk.length === 2
-
-    if (matchSegment(treeToRecreate[0], segment)) {
-      if (treeToRecreate[1].hasOwnProperty(parallelRouteKey)) {
-        if (isLast) {
-          const subTree = walkAddRefetch(
-            undefined,
-            treeToRecreate[1][parallelRouteKey]
-          )
-          return [
-            treeToRecreate[0],
-            {
-              ...treeToRecreate[1],
-              [parallelRouteKey]: [
-                subTree[0],
-                subTree[1],
-                subTree[2],
-                'refetch',
-              ],
-            },
-          ]
-        }
-
-        return [
-          treeToRecreate[0],
-          {
-            ...treeToRecreate[1],
-            [parallelRouteKey]: walkAddRefetch(
-              segmentPathToWalk.slice(2),
-              treeToRecreate[1][parallelRouteKey]
-            ),
-          },
-        ]
-      }
-    }
-  }
-
-  return treeToRecreate
-}
+import {
+  NavigationPromisesContext,
+  type NavigationPromises,
+} from '../../shared/lib/hooks-client-context.shared-runtime'
+import { getParamValueFromCacheKey } from '../route-params'
+import type { Params } from '../../server/request/params'
+import { isDeferredRsc } from './router-reducer/ppr-navigations'
 
 const __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = (
   ReactDOM as any
@@ -132,12 +81,6 @@ function shouldSkipElement(element: HTMLElement) {
   // and will result in a situation we bail on scroll because of something like a fixed nav,
   // even though the actual page content is offscreen
   if (['sticky', 'fixed'].includes(getComputedStyle(element).position)) {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn(
-        'Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element:',
-        element
-      )
-    }
     return true
   }
 
@@ -331,20 +274,39 @@ function ScrollAndFocusHandler({
 function InnerLayoutRouter({
   tree,
   segmentPath,
-  cacheNode,
+  debugNameContext,
+  cacheNode: maybeCacheNode,
+  params,
   url,
+  isActive,
 }: {
   tree: FlightRouterState
   segmentPath: FlightSegmentPath
-  cacheNode: CacheNode
+  debugNameContext: string
+  cacheNode: CacheNode | null
+  params: Params
   url: string
+  isActive: boolean
 }) {
   const context = useContext(GlobalLayoutRouterContext)
+  const parentNavPromises = useContext(NavigationPromisesContext)
+
   if (!context) {
     throw new Error('invariant global layout router not mounted')
   }
 
-  const { tree: fullTree } = context
+  const cacheNode =
+    maybeCacheNode !== null
+      ? maybeCacheNode
+      : // This segment is not in the cache. Suspend indefinitely.
+        //
+        // This should only be reachable for inactive/hidden segments, during
+        // prerendering The active segment should always be consistent with the
+        // CacheNode tree. Regardless, if we don't have a matching CacheNode, we
+        // must suspend rather than render nothing, to prevent showing an
+        // inconsistent route.
+
+        (use(unresolvedThenable) as never)
 
   // `rsc` represents the renderable node for this segment.
 
@@ -365,71 +327,69 @@ function InnerLayoutRouter({
   // special case `null` to represent that this segment's data is missing. If
   // it's a promise, we need to unwrap it so we can determine whether or not the
   // data is missing.
-  const resolvedRsc: React.ReactNode =
-    typeof rsc === 'object' && rsc !== null && typeof rsc.then === 'function'
-      ? use(rsc)
-      : rsc
-
-  if (!resolvedRsc) {
-    // The data for this segment is not available, and there's no pending
-    // navigation that will be able to fulfill it. We need to fetch more from
-    // the server and patch the cache.
-
-    // Check if there's already a pending request.
-    let lazyData = cacheNode.lazyData
-    if (lazyData === null) {
-      /**
-       * Router state with refetch marker added
-       */
-      // TODO-APP: remove ''
-      const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
-      const includeNextUrl = hasInterceptionRouteInCurrentTree(fullTree)
-      const navigatedAt = Date.now()
-      cacheNode.lazyData = lazyData = fetchServerResponse(
-        new URL(url, location.origin),
-        {
-          flightRouterState: refetchTree,
-          nextUrl: includeNextUrl ? context.nextUrl : null,
-        }
-      ).then((serverResponse) => {
-        startTransition(() => {
-          dispatchAppRouterAction({
-            type: ACTION_SERVER_PATCH,
-            previousTree: fullTree,
-            serverResponse,
-            navigatedAt,
-          })
-        })
-
-        return serverResponse
-      })
-
-      // Suspend while waiting for lazyData to resolve
-      use(lazyData)
+  let resolvedRsc: React.ReactNode
+  if (isDeferredRsc(rsc)) {
+    const unwrappedRsc = use(rsc)
+    if (unwrappedRsc === null) {
+      // If the promise was resolved to `null`, it means the data for this
+      // segment was not returned by the server. Suspend indefinitely. When this
+      // happens, the router is responsible for triggering a new state update to
+      // un-suspend this segment.
+      use(unresolvedThenable) as never
     }
-    // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-    // A falsey `resolvedRsc` indicates missing data -- we should not commit that branch, and we need to wait for the data to arrive.
-    use(unresolvedThenable) as never
+    resolvedRsc = unwrappedRsc
+  } else {
+    // This is not a deferred RSC promise. Don't need to unwrap it.
+    if (rsc === null) {
+      use(unresolvedThenable) as never
+    }
+    resolvedRsc = rsc
   }
 
-  // If we get to this point, then we know we have something we can render.
-  const subtree = (
+  // In dev, we create a NavigationPromisesContext containing the instrumented promises that provide
+  // `useSelectedLayoutSegment` and `useSelectedLayoutSegments`.
+  // Promises are cached outside of render to survive suspense retries.
+  let navigationPromises: NavigationPromises | null = null
+  if (process.env.NODE_ENV !== 'production') {
+    const { createNestedLayoutNavigationPromises } =
+      require('./navigation-devtools') as typeof import('./navigation-devtools')
+
+    navigationPromises = createNestedLayoutNavigationPromises(
+      tree,
+      parentNavPromises
+    )
+  }
+
+  let children = resolvedRsc
+
+  if (navigationPromises) {
+    children = (
+      <NavigationPromisesContext.Provider value={navigationPromises}>
+        {resolvedRsc}
+      </NavigationPromisesContext.Provider>
+    )
+  }
+
+  children = (
     // The layout router context narrows down tree and childNodes at each level.
     <LayoutRouterContext.Provider
       value={{
         parentTree: tree,
         parentCacheNode: cacheNode,
         parentSegmentPath: segmentPath,
+        parentParams: params,
+        debugNameContext: debugNameContext,
 
         // TODO-APP: overriding of url for parallel routes
         url: url,
+        isActive: isActive,
       }}
     >
-      {resolvedRsc}
+      {children}
     </LayoutRouterContext.Provider>
   )
-  // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
-  return subtree
+
+  return children
 }
 
 /**
@@ -437,9 +397,11 @@ function InnerLayoutRouter({
  * If no loading property is provided it renders the children without a suspense boundary.
  */
 function LoadingBoundary({
+  name,
   loading,
   children,
 }: {
+  name: ActivityProps['name']
   loading: LoadingModuleData | Promise<LoadingModuleData>
   children: React.ReactNode
 }): JSX.Element {
@@ -469,6 +431,7 @@ function LoadingBoundary({
     const loadingScripts = loadingModuleData[2]
     return (
       <Suspense
+        name={name}
         fallback={
           <>
             {loadingStyles}
@@ -519,7 +482,15 @@ export default function OuterLayoutRouter({
     throw new Error('invariant expected layout router to be mounted')
   }
 
-  const { parentTree, parentCacheNode, parentSegmentPath, url } = context
+  const {
+    parentTree,
+    parentCacheNode,
+    parentSegmentPath,
+    parentParams,
+    url,
+    isActive,
+    debugNameContext,
+  } = context
 
   // Get the CacheNode for this segment by reading it from the parent segment's
   // child map.
@@ -551,6 +522,14 @@ export default function OuterLayoutRouter({
   // (This only applies to page segments; layout segments cannot access search
   // params on the server.)
   const activeTree = parentTree[1][parallelRouterKey]
+  if (activeTree === undefined) {
+    // Could not find a matching segment. The client tree is inconsistent with
+    // the server tree. Suspend indefinitely; the router will have already
+    // detected the inconsistency when handling the server response, and
+    // triggered a refresh of the page to recover.
+    use(unresolvedThenable) as never
+  }
+
   const activeSegment = activeTree[0]
   const activeStateKey = createRouterCacheKey(activeSegment, true) // no search params
 
@@ -572,25 +551,7 @@ export default function OuterLayoutRouter({
     const cacheKey = createRouterCacheKey(segment)
 
     // Read segment path from the parallel router cache node.
-    let cacheNode = segmentMap.get(cacheKey)
-    if (cacheNode === undefined) {
-      // When data is not available during rendering client-side we need to fetch
-      // it from the server.
-      const newLazyCacheNode: LazyCacheNode = {
-        lazyData: null,
-        rsc: null,
-        prefetchRsc: null,
-        head: null,
-        prefetchHead: null,
-        parallelRoutes: new Map(),
-        loading: null,
-        navigatedAt: -1,
-      }
-
-      // Flight data fetch kicked off during render and put into the cache.
-      cacheNode = newLazyCacheNode
-      segmentMap.set(cacheKey, newLazyCacheNode)
-    }
+    const cacheNode = segmentMap.get(cacheKey) ?? null
 
     /*
     - Error boundary
@@ -621,6 +582,40 @@ export default function OuterLayoutRouter({
       )
     }
 
+    let params = parentParams
+    if (Array.isArray(segment)) {
+      // This segment contains a route param. Accumulate these as we traverse
+      // down the router tree. The result represents the set of params that
+      // the layout/page components are permitted to access below this point.
+      const paramName = segment[0]
+      const paramCacheKey = segment[1]
+      const paramType = segment[2]
+      const paramValue = getParamValueFromCacheKey(paramCacheKey, paramType)
+      if (paramValue !== null) {
+        params = {
+          ...parentParams,
+          [paramName]: paramValue,
+        }
+      }
+    }
+
+    const debugName = getBoundaryDebugNameFromSegment(segment)
+    // `debugNameContext` represents the nearest non-"virtual" parent segment.
+    // `getBoundaryDebugNameFromSegment` returns undefined for virtual segments.
+    // So if `debugName` is undefined, the context is passed through unchanged.
+    const childDebugNameContext = debugName ?? debugNameContext
+
+    // In practical terms, clicking this name in the Suspense DevTools
+    // should select the child slots of that layout.
+    //
+    // So the name we apply to the Activity boundary is actually based on
+    // the nearest parent segments.
+    //
+    // We skip over "virtual" parents, i.e. ones inserted by Next.js that
+    // don't correspond to application-defined code.
+    const isVirtual = debugName === undefined
+    const debugNameToDisplay = isVirtual ? undefined : debugNameContext
+
     // TODO: The loading module data for a segment is stored on the parent, then
     // applied to each of that parent segment's parallel route slots. In the
     // simple case where there's only one parallel route (the `children` slot),
@@ -640,7 +635,10 @@ export default function OuterLayoutRouter({
               errorStyles={errorStyles}
               errorScripts={errorScripts}
             >
-              <LoadingBoundary loading={loadingModuleData}>
+              <LoadingBoundary
+                name={debugNameToDisplay}
+                loading={loadingModuleData}
+              >
                 <HTTPAccessFallbackBoundary
                   notFound={notFound}
                   forbidden={forbidden}
@@ -650,8 +648,11 @@ export default function OuterLayoutRouter({
                     <InnerLayoutRouter
                       url={url}
                       tree={tree}
+                      params={params}
                       cacheNode={cacheNode}
                       segmentPath={segmentPath}
+                      debugNameContext={childDebugNameContext}
+                      isActive={isActive && stateKey === activeStateKey}
                     />
                     {segmentBoundaryTriggerNode}
                   </RedirectBoundary>
@@ -680,9 +681,10 @@ export default function OuterLayoutRouter({
       )
     }
 
-    if (process.env.__NEXT_ROUTER_BF_CACHE) {
+    if (process.env.__NEXT_CACHE_COMPONENTS) {
       child = (
         <Activity
+          name={debugNameToDisplay}
           key={stateKey}
           mode={stateKey === activeStateKey ? 'visible' : 'hidden'}
         >
@@ -697,4 +699,29 @@ export default function OuterLayoutRouter({
   } while (bfcacheEntry !== null)
 
   return children
+}
+
+function getBoundaryDebugNameFromSegment(segment: Segment): string | undefined {
+  if (segment === '/') {
+    // Reached the root
+    return '/'
+  }
+  if (typeof segment === 'string') {
+    if (isVirtualLayout(segment)) {
+      return undefined
+    } else {
+      return segment + '/'
+    }
+  }
+  const paramCacheKey = segment[1]
+  return paramCacheKey + '/'
+}
+
+function isVirtualLayout(segment: string): boolean {
+  return (
+    // This is inserted by the loader. We should consider encoding these
+    // in a more special way instead of checking the name, to distinguish them
+    // from app-defined groups.
+    segment === '(slot)'
+  )
 }

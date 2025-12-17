@@ -1,7 +1,7 @@
 use std::mem::take;
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     common::DUMMY_SP,
     ecma::{
@@ -89,15 +89,7 @@ impl ValueToString for AmdDefineAssetReference {
 impl ChunkableModuleReference for AmdDefineAssetReference {}
 
 #[derive(
-    ValueDebugFormat,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    Clone,
-    NonLocalValue,
+    ValueDebugFormat, Debug, PartialEq, Eq, TraceRawVcs, Clone, NonLocalValue, Hash, Encode, Decode,
 )]
 pub enum AmdDefineDependencyElement {
     Request {
@@ -114,12 +106,13 @@ pub enum AmdDefineDependencyElement {
     Debug,
     PartialEq,
     Eq,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     Copy,
     Clone,
     NonLocalValue,
+    Hash,
+    Encode,
+    Decode,
 )]
 pub enum AmdDefineFactoryType {
     Unknown,
@@ -127,7 +120,9 @@ pub enum AmdDefineFactoryType {
     Value,
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,

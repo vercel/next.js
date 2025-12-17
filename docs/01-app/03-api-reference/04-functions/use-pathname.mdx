@@ -5,6 +5,8 @@ description: API Reference for the usePathname hook.
 
 `usePathname` is a **Client Component** hook that lets you read the current URL's **pathname**.
 
+> **Good to know**: When [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled `usePathname` may require a `Suspense` boundary around it if your route has a dynamic param. If you use `generateStaticParams` the `Suspense` boundary is optional
+
 ```tsx filename="app/example-client-component.tsx" switcher
 'use client'
 
@@ -34,10 +36,17 @@ For example, a Client Component with `usePathname` will be rendered into HTML on
 > **Good to know**:
 >
 > - Reading the current URL from a [Server Component](/docs/app/getting-started/server-and-client-components) is not supported. This design is intentional to support layout state being preserved across page navigations.
-> - Compatibility mode:
->   - `usePathname` can return `null` when a [fallback route](/docs/pages/api-reference/functions/get-static-paths#fallback-true) is being rendered or when a `pages` directory page has been [automatically statically optimized](/docs/pages/building-your-application/rendering/automatic-static-optimization) by Next.js and the router is not ready.
->   - When using `usePathname` with rewrites in [`next.config`](/docs/app/api-reference/config/next-config-js/rewrites) or [`Middleware`](/docs/app/api-reference/file-conventions/middleware), `useState` and `useEffect` must also be used in order to avoid hydration mismatch errors.
->   - Next.js will automatically update your types if it detects both an `app` and `pages` directory in your project.
+> - If your page is being statically pre-rendered and your app has [rewrites](/docs/app/api-reference/config/next-config-js/rewrites) in `next.config` or a [Proxy](/docs/app/api-reference/file-conventions/proxy) file, reading the pathname with `usePathname()` can result in hydration mismatch errors—because the initial value comes from the server and may not match the actual browser pathname after routing. See our [example](#avoid-hydration-mismatch-with-rewrites) for a way to mitigate this issue.
+
+<details>
+
+<summary>Compatibility with Pages Router</summary>
+
+If you have components that use `usePathname` and they are imported into routes within the Pages Router, be aware that `usePathname` may return `null` if the router is not yet initialized. This can occur in cases such as [fallback routes](/docs/pages/api-reference/functions/get-static-paths#fallback-true) or during [Automatic Static Optimization](https://nextjs.org/docs/pages/building-your-application/rendering/static#automatic-static-optimization) in the Pages Router.
+
+To enhance compatibility between routing systems, if your project contains both an `app` and a `pages` directory, Next.js will automatically adjust the return type of `usePathname`.
+
+</details>
 
 ## Parameters
 
@@ -94,7 +103,7 @@ function ExampleClientComponent() {
 
 ### Avoid hydration mismatch with rewrites
 
-When a page is pre-rendered, the HTML is generated for the source pathname. If the page is then reached through a rewrite using `next.config` or `Middleware`, the browser URL may differ, and `usePathname()` will read the rewritten pathname on the client.
+When a page is pre-rendered, the HTML is generated for the source pathname. If the page is then reached through a rewrite using `next.config` or `Proxy`, the browser URL may differ, and `usePathname()` will read the rewritten pathname on the client.
 
 To avoid hydration mismatches, design the UI so that only a small, isolated part depends on the client pathname. Render a stable fallback on the server and update that part after mount.
 

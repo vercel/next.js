@@ -28,8 +28,9 @@ DEALINGS IN THE SOFTWARE.
 
 use anyhow::Context;
 use napi::bindgen_prelude::*;
+use napi_derive::napi;
 use swc_core::{
-    base::{TransformOutput, config::JsMinifyOptions, try_with_handler},
+    base::{config::JsMinifyOptions, try_with_handler},
     common::{FileName, GLOBALS, errors::ColorConfig},
 };
 
@@ -39,6 +40,29 @@ pub struct MinifyTask {
     c: swc_core::base::Compiler,
     code: Option<String>,
     opts: JsMinifyOptions,
+}
+
+// Same as the swc_core::base::TransformOutput, but using our napi-rs v2's derived #[napi], while
+// swc is already on napi-rs v3.
+#[napi_derive::napi(object)]
+#[derive(Debug)]
+pub struct TransformOutput {
+    pub code: String,
+    pub map: Option<String>,
+
+    pub output: Option<String>,
+    pub diagnostics: std::vec::Vec<String>,
+}
+
+impl From<swc_core::base::TransformOutput> for TransformOutput {
+    fn from(other: swc_core::base::TransformOutput) -> Self {
+        Self {
+            code: other.code,
+            map: other.map,
+            output: other.output,
+            diagnostics: other.diagnostics,
+        }
+    }
 }
 
 #[napi]
@@ -64,6 +88,7 @@ impl Task for MinifyTask {
                 })
             },
         )
+        .map(TransformOutput::from)
         .map_err(|e| e.to_pretty_error())
         .convert_err()
     }
@@ -118,6 +143,7 @@ pub fn minify_sync(input: Buffer, opts: Buffer) -> napi::Result<TransformOutput>
             })
         },
     )
+    .map(TransformOutput::from)
     .map_err(|e| e.to_pretty_error())
     .convert_err()
 }

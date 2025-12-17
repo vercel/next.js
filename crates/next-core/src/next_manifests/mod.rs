@@ -4,19 +4,20 @@ pub mod client_reference_manifest;
 mod encode_uri_component;
 
 use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc,
-    trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
+    Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
-use crate::next_config::{CrossOriginConfig, RouteHas};
+use crate::next_config::RouteHas;
 
 #[derive(Serialize, Default, Debug)]
 pub struct PagesManifest {
@@ -32,7 +33,35 @@ pub struct BuildManifest {
 
     pub polyfill_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     pub root_main_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub pages: FxIndexMap<RcStr, ResolvedVc<OutputAssets>>,
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for BuildManifest {
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let chunks: Vec<ReadRef<OutputAssets>> = self.pages.values().try_join().await?;
+
+        let root_main_files = self
+            .root_main_files
+            .iter()
+            .map(async |c| Ok(c.path().await?.has_extension(".js").then_some(*c)))
+            .try_flat_join()
+            .await?;
+
+        let references = chunks
+            .into_iter()
+            .flatten()
+            .copied()
+            .chain(root_main_files.into_iter())
+            .chain(self.polyfill_files.iter().copied())
+            .collect();
+
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
+            references,
+        )))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -40,20 +69,6 @@ impl OutputAsset for BuildManifest {
     #[turbo_tasks::function]
     async fn path(&self) -> Vc<FileSystemPath> {
         self.output_path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
-        let chunks: Vec<ReadRef<OutputAssets>> = self.pages.values().try_join().await?;
-
-        let references = chunks
-            .into_iter()
-            .flat_map(|c| c.into_iter().copied()) // once again, rustc struggles here
-            .chain(self.root_main_files.iter().copied())
-            .chain(self.polyfill_files.iter().copied())
-            .collect();
-
-        Ok(Vc::cell(references))
     }
 }
 
@@ -78,7 +93,7 @@ impl Asset for BuildManifest {
         let pages: Vec<(RcStr, Vec<RcStr>)> = self
             .pages
             .iter()
-            .map(|(k, chunks)| async move {
+            .map(async |(k, chunks)| {
                 Ok((
                     k.clone(),
                     chunks
@@ -116,15 +131,20 @@ impl Asset for BuildManifest {
         let root_main_files: Vec<RcStr> = self
             .root_main_files
             .iter()
-            .copied()
             .map(async |chunk| {
                 let chunk_path = chunk.path().await?;
-                Ok(client_relative_path
-                    .get_path_to(&chunk_path)
-                    .context("failed to resolve client-relative path to root_main_file")?
-                    .into())
+                if !chunk_path.has_extension(".js") {
+                    Ok(None)
+                } else {
+                    Ok(Some(
+                        client_relative_path
+                            .get_path_to(&chunk_path)
+                            .context("failed to resolve client-relative path to root_main_file")?
+                            .into(),
+                    ))
+                }
             })
-            .try_join()
+            .try_flat_join()
             .await?;
 
         let manifest = SerializedBuildManifest {
@@ -135,7 +155,7 @@ impl Asset for BuildManifest {
         };
 
         Ok(AssetContent::file(
-            File::from(serde_json::to_string_pretty(&manifest)?).into(),
+            FileContent::Content(File::from(serde_json::to_string_pretty(&manifest)?)).cell(),
         ))
     }
 }
@@ -146,7 +166,17 @@ pub struct ClientBuildManifest {
     pub output_path: FileSystemPath,
     pub client_relative_path: FileSystemPath,
 
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub pages: FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>,
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for ClientBuildManifest {
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let chunks: Vec<ResolvedVc<Box<dyn OutputAsset>>> = self.pages.values().copied().collect();
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(chunks)))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -154,12 +184,6 @@ impl OutputAsset for ClientBuildManifest {
     #[turbo_tasks::function]
     async fn path(&self) -> Vc<FileSystemPath> {
         self.output_path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
-        let chunks: Vec<ResolvedVc<Box<dyn OutputAsset>>> = self.pages.values().copied().collect();
-        Ok(Vc::cell(chunks))
     }
 }
 
@@ -189,7 +213,7 @@ impl Asset for ClientBuildManifest {
             .collect();
 
         Ok(AssetContent::file(
-            File::from(serde_json::to_string_pretty(&manifest)?).into(),
+            FileContent::Content(File::from(serde_json::to_string_pretty(&manifest)?)).cell(),
         ))
     }
 }
@@ -223,10 +247,12 @@ impl Default for MiddlewaresManifest {
     Serialize,
     Deserialize,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase", default)]
-pub struct MiddlewareMatcher {
-    // When skipped next.js with fill that during merging.
+pub struct ProxyMatcher {
+    // When skipped, next.js will fill the field during merging.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regexp: Option<RcStr>,
     #[serde(skip_serializing_if = "bool_is_true")]
@@ -238,7 +264,7 @@ pub struct MiddlewareMatcher {
     pub original_source: RcStr,
 }
 
-impl Default for MiddlewareMatcher {
+impl Default for ProxyMatcher {
     fn default() -> Self {
         Self {
             regexp: None,
@@ -259,7 +285,7 @@ pub struct EdgeFunctionDefinition {
     pub files: Vec<RcStr>,
     pub name: RcStr,
     pub page: RcStr,
-    pub matchers: Vec<MiddlewareMatcher>,
+    pub matchers: Vec<ProxyMatcher>,
     pub wasm: Vec<AssetBinding>,
     pub assets: Vec<AssetBinding>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -398,74 +424,13 @@ pub enum ActionManifestModuleId<'a> {
     Serialize,
     Deserialize,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum ActionLayer {
     Rsc,
     ActionBrowser,
-}
-
-#[derive(Serialize, Default, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct ClientReferenceManifest {
-    pub module_loading: ModuleLoading,
-    /// Mapping of module path and export name to client module ID and required
-    /// client chunks.
-    pub client_modules: ManifestNode,
-    /// Mapping of client module ID to corresponding SSR module ID and required
-    /// SSR chunks.
-    pub ssr_module_mapping: FxIndexMap<ModuleId, ManifestNode>,
-    /// Same as `ssr_module_mapping`, but for Edge SSR.
-    #[serde(rename = "edgeSSRModuleMapping")]
-    pub edge_ssr_module_mapping: FxIndexMap<ModuleId, ManifestNode>,
-    /// Mapping of client module ID to corresponding RSC module ID and required
-    /// RSC chunks.
-    pub rsc_module_mapping: FxIndexMap<ModuleId, ManifestNode>,
-    /// Same as `rsc_module_mapping`, but for Edge RSC.
-    #[serde(rename = "edgeRscModuleMapping")]
-    pub edge_rsc_module_mapping: FxIndexMap<ModuleId, ManifestNode>,
-    /// Mapping of server component path to required CSS client chunks.
-    #[serde(rename = "entryCSSFiles")]
-    pub entry_css_files: FxIndexMap<RcStr, FxIndexSet<CssResource>>,
-    /// Mapping of server component path to required JS client chunks.
-    #[serde(rename = "entryJSFiles")]
-    pub entry_js_files: FxIndexMap<RcStr, FxIndexSet<RcStr>>,
-}
-
-#[derive(Serialize, Debug, Clone, Eq, Hash, PartialEq)]
-pub struct CssResource {
-    pub path: RcStr,
-    pub inlined: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub content: Option<RcStr>,
-}
-
-#[derive(Serialize, Default, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct ModuleLoading {
-    pub prefix: RcStr,
-    pub cross_origin: Option<CrossOriginConfig>,
-}
-
-#[derive(Serialize, Default, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ManifestNode {
-    /// Mapping of export name to manifest node entry.
-    #[serde(flatten)]
-    pub module_exports: FxIndexMap<RcStr, ManifestNodeEntry>,
-}
-
-#[derive(Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ManifestNodeEntry {
-    /// Turbopack module ID.
-    pub id: ModuleId,
-    /// Export name.
-    pub name: RcStr,
-    /// Chunks for the module. JS and CSS.
-    pub chunks: Vec<RcStr>,
-    // TODO(WEB-434)
-    pub r#async: bool,
 }
 
 #[derive(Serialize, Debug, Eq, PartialEq, Hash, Clone)]
@@ -496,14 +461,14 @@ mod tests {
     #[test]
     fn test_middleware_matcher_serialization() {
         let matchers = vec![
-            MiddlewareMatcher {
+            ProxyMatcher {
                 regexp: None,
                 locale: false,
                 has: None,
                 missing: None,
                 original_source: rcstr!(""),
             },
-            MiddlewareMatcher {
+            ProxyMatcher {
                 regexp: Some(rcstr!(".*")),
                 locale: true,
                 has: Some(vec![RouteHas::Query {
@@ -519,7 +484,7 @@ mod tests {
         ];
 
         let serialized = serde_json::to_string(&matchers).unwrap();
-        let deserialized: Vec<MiddlewareMatcher> = serde_json::from_str(&serialized).unwrap();
+        let deserialized: Vec<ProxyMatcher> = serde_json::from_str(&serialized).unwrap();
 
         assert_eq!(matchers, deserialized);
     }

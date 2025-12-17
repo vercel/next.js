@@ -8,6 +8,11 @@ on:
         required: false
         default: false
         type: boolean
+      npm-name:
+        description: 'NPM package name to publish'
+        required: false
+        default: '@next/rspack-core'
+        type: string
       npm-tag:
         description: 'NPM tag for publishing'
         required: false
@@ -48,13 +53,13 @@ jobs:
         run: |
           echo "🚀 Release Configuration:"
           echo "  - Dry-run mode: ${{ inputs.dry-run }}"
+          echo "  - NPM name: ${{ inputs.npm-name || '@next/rspack-core' }}"
           echo "  - NPM tag: ${{ inputs.npm-tag || 'latest' }}"
           if [ "${{ inputs.dry-run }}" == "true" ]; then
             echo "  - ⚠️  This is a DRY RUN - no packages will be published"
           else
             echo "  - 📦 This will PUBLISH packages to npm"
           fi
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -66,13 +71,16 @@ jobs:
       - name: Setup pnpm
         run: corepack prepare
 
+      - name: Change npm name
+        run: pnpm run change-npm-name "${{ inputs.npm-name }}"
+        working-directory: ./rspack
+
       - name: Cache pnpm dependencies
         uses: actions/cache@v3
         with:
           path: ~/.pnpm-store
-          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-pnpm-
+          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-v2-${{ hashFiles('**/pnpm-lock.yaml') }}
+          # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       - name: Install dependencies
         run: pnpm install
@@ -109,7 +117,7 @@ jobs:
         run: |
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
 
       - name: Release npm binding packages
         run: |

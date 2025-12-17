@@ -27,7 +27,7 @@ const Home: NextPage = () => {
 
   // Util search query/input check
   /*
-  The is a helper util method, that validtes the input field via a regex and returns a true or false.
+  The is a helper util method, that validates the input field via a regex and returns a true or false.
   This also wiggles the text input if the regex doesn't find any match.
   */
   const queryCheckWiggle = () => {

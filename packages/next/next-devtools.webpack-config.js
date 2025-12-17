@@ -17,7 +17,7 @@ function shouldIgnorePath(modulePath) {
  * @returns {webpack.Configuration}
  */
 module.exports = ({ dev, ...rest }) => {
-  const experimental = true
+  const experimental = false
 
   const bundledReactChannel = experimental ? '-experimental' : ''
 

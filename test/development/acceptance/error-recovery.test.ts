@@ -6,10 +6,9 @@ import { outdent } from 'outdent'
 import path from 'path'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
-const isRspack = !!process.env.NEXT_RSPACK
 
 describe('pages/ error recovery', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
@@ -59,11 +58,10 @@ describe('pages/ error recovery', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '>', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '>', got '<eof>'
                │    ,----
                │  1 | export default () => <div/
@@ -122,7 +120,7 @@ describe('pages/ error recovery', () => {
       /Count: 1/
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 
   test('logbox: can recover from a event handler error', async () => {
@@ -189,7 +187,7 @@ describe('pages/ error recovery', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
 
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
@@ -199,7 +197,7 @@ describe('pages/ error recovery', () => {
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 
   it('logbox: can recover from a component error', async () => {
@@ -244,8 +242,6 @@ describe('pages/ error recovery', () => {
       `
     )
 
-    // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
-    // Somehow we end up with two in React 18 + Turbopack/Rspack due to React's attempt to recover from this error.
     if (isReact18 && isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        [
@@ -258,8 +254,6 @@ describe('pages/ error recovery', () => {
            |         ^",
            "stack": [
              "Child child.js (3:9)",
-             "<FIXME-file-protocol>",
-             "<FIXME-file-protocol>",
            ],
          },
          {
@@ -271,8 +265,6 @@ describe('pages/ error recovery', () => {
            |         ^",
            "stack": [
              "Child child.js (3:9)",
-             "<FIXME-file-protocol>",
-             "<FIXME-file-protocol>",
            ],
          },
        ]
@@ -305,23 +297,7 @@ describe('pages/ error recovery', () => {
        ]
       `)
     } else {
-      if (isTurbopack) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "oops",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "child.js (3:9) @ Child
-         > 3 |   throw new Error('oops')
-             |         ^",
-           "stack": [
-             "Child child.js (3:9)",
-             "<FIXME-file-protocol>",
-             "<FIXME-file-protocol>",
-           ],
-         }
-        `)
-      } else if (isRspack) {
+      if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
            "description": "oops",
@@ -364,7 +340,7 @@ describe('pages/ error recovery', () => {
     )
 
     expect(didNotReload).toBe(true)
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Hello')
@@ -426,11 +402,10 @@ describe('pages/ error recovery', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '{', got 'return'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '{', got 'return'
                │    ,-[5:1]
                │  2 |
@@ -511,11 +486,10 @@ describe('pages/ error recovery', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '{', got 'throw'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '{', got 'throw'
                │    ,-[5:1]
                │  2 |
@@ -587,8 +561,6 @@ describe('pages/ error recovery', () => {
       await expect(session.getRedboxSource()).resolves.toInclude('render() {')
     })
 
-    // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
-    // Somehow we end up with two in React 18 due to React's attempt to recover from this error.
     if (isReact18 && isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        [
@@ -601,8 +573,6 @@ describe('pages/ error recovery', () => {
            |           ^",
            "stack": [
              "ClassDefault.render index.js (5:11)",
-             "<FIXME-file-protocol>",
-             "<FIXME-file-protocol>",
            ],
          },
          {
@@ -614,60 +584,24 @@ describe('pages/ error recovery', () => {
            |           ^",
            "stack": [
              "ClassDefault.render index.js (5:11)",
-             "<FIXME-file-protocol>",
-             "<FIXME-file-protocol>",
            ],
          },
        ]
       `)
     } else {
-      if (isRspack) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "nooo",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "index.js (5:11) @ ClassDefault.render
-         > 5 |     throw new Error('nooo');
-             |           ^",
-           "stack": [
-             "ClassDefault.render index.js (5:11)",
-           ],
-         }
-        `)
-      } else {
-        if (isTurbopack) {
-          await expect(browser).toDisplayRedbox(`
-           {
-             "description": "nooo",
-             "environmentLabel": null,
-             "label": "Runtime Error",
-             "source": "index.js (5:11) @ ClassDefault.render
-           > 5 |     throw new Error('nooo');
-               |           ^",
-             "stack": [
-               "ClassDefault.render index.js (5:11)",
-               "<FIXME-file-protocol>",
-               "<FIXME-file-protocol>",
-             ],
-           }
-          `)
-        } else {
-          await expect(browser).toDisplayRedbox(`
-           {
-             "description": "nooo",
-             "environmentLabel": null,
-             "label": "Runtime Error",
-             "source": "index.js (5:11) @ ClassDefault.render
-           > 5 |     throw new Error('nooo');
-               |           ^",
-             "stack": [
-               "ClassDefault.render index.js (5:11)",
-             ],
-           }
-          `)
+      await expect(browser).toDisplayRedbox(`
+        {
+          "description": "nooo",
+          "environmentLabel": null,
+          "label": "Runtime Error",
+          "source": "index.js (5:11) @ ClassDefault.render
+        > 5 |     throw new Error('nooo');
+            |           ^",
+          "stack": [
+            "ClassDefault.render index.js (5:11)",
+          ],
         }
-      }
+      `)
     }
   })
 
@@ -714,41 +648,7 @@ describe('pages/ error recovery', () => {
       `
     )
 
-    // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
-    // We get an error because Foo didn't import React. Fair.
-    // Somehow we end up with two in React 18 + Turbopack/Rspack due to React's attempt to recover from this error.
-    if (isReact18 && isTurbopack) {
-      await expect(browser).toDisplayRedbox(`
-       [
-         {
-           "description": "React is not defined",
-           "environmentLabel": null,
-           "label": "Runtime ReferenceError",
-           "source": "Foo.js (3:3) @ Foo
-       > 3 |   return React.createElement('h1', null, 'Foo');
-           |   ^",
-           "stack": [
-             "Foo Foo.js (3:3)",
-             "<FIXME-file-protocol>",
-             "<FIXME-file-protocol>",
-           ],
-         },
-         {
-           "description": "React is not defined",
-           "environmentLabel": null,
-           "label": "Runtime ReferenceError",
-           "source": "Foo.js (3:3) @ Foo
-       > 3 |   return React.createElement('h1', null, 'Foo');
-           |   ^",
-           "stack": [
-             "Foo Foo.js (3:3)",
-             "<FIXME-file-protocol>",
-             "<FIXME-file-protocol>",
-           ],
-         },
-       ]
-      `)
-    } else if (isReact18 && isRspack) {
+    if (isReact18 && (isRspack || isTurbopack)) {
       await expect(browser).toDisplayRedbox(`
        [
          {
@@ -776,23 +676,7 @@ describe('pages/ error recovery', () => {
        ]
       `)
     } else {
-      if (isTurbopack) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "React is not defined",
-           "environmentLabel": null,
-           "label": "Runtime ReferenceError",
-           "source": "Foo.js (3:3) @ Foo
-         > 3 |   return React.createElement('h1', null, 'Foo');
-             |   ^",
-           "stack": [
-             "Foo Foo.js (3:3)",
-             "<FIXME-file-protocol>",
-             "<FIXME-file-protocol>",
-           ],
-         }
-        `)
-      } else if (isRspack) {
+      if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
            "description": "React is not defined",
@@ -837,7 +721,7 @@ describe('pages/ error recovery', () => {
     )
 
     // Expected: this fixes the problem
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554150098
@@ -936,11 +820,10 @@ describe('pages/ error recovery', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '}', got '<eof>'
                │    ,-[7:1]
                │  4 |   i++
@@ -1002,11 +885,10 @@ describe('pages/ error recovery', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Expected '}', got '<eof>'
                │    ,-[7:1]
                │  4 |   i++

@@ -248,11 +248,40 @@ opt-level = 3
 [profile.release.package.serde]
 opt-level = 3
 
+[profile.release.package.wasmer]
+opt-level = "s"
+
+[profile.release.package.wasmer-vm]
+opt-level = "s"
+
+[profile.release.package.wasmer-compiler-cranelift]
+opt-level = "s"
+
+[profile.release.package.regalloc2]
+opt-level = "s"
+
+[profile.release.package.swc_plugin_backend_wasmer]
+opt-level = "s"
+
+[profile.release.package.globset]
+opt-level = "s"
+
+[profile.release.package.toml_edit]
+opt-level = "s"
+
+[profile.release.package.miette]
+opt-level = "s"
+
+
 # Use a custom profile for CI where many tests are performance sensitive but we still want the additional validation of debug-assertions
 [profile.release-with-assertions]
 inherits = "release"
 debug-assertions = true
 overflow-checks = true
+
+[profile.release-with-debug]
+inherits = "release"
+debug = true
 
 [workspace.dependencies]
 # Workspace crates
@@ -264,13 +293,13 @@ next-taskless = { path = "crates/next-taskless" }
 
 # Turbopack
 auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
-turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
-turbo-rcstr = { path = "turbopack/crates/turbo-rcstr" }
+turbo-bincode = { path = "turbopack/crates/turbo-bincode" }
 turbo-dyn-eq-hash = { path = "turbopack/crates/turbo-dyn-eq-hash" }
 turbo-esregex = { path = "turbopack/crates/turbo-esregex" }
+turbo-frozenmap = { path = "turbopack/crates/turbo-frozenmap" }
 turbo-persistence = { path = "turbopack/crates/turbo-persistence" }
-turbo-unix-path = { path = "turbopack/crates/turbo-unix-path" }
-turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
+turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
+turbo-rcstr = { path = "turbopack/crates/turbo-rcstr" }
 turbo-tasks = { path = "turbopack/crates/turbo-tasks" }
 turbo-tasks-backend = { path = "turbopack/crates/turbo-tasks-backend" }
 turbo-tasks-bytes = { path = "turbopack/crates/turbo-tasks-bytes" }
@@ -279,8 +308,9 @@ turbo-tasks-fetch = { path = "turbopack/crates/turbo-tasks-fetch" }
 turbo-tasks-fs = { path = "turbopack/crates/turbo-tasks-fs" }
 turbo-tasks-hash = { path = "turbopack/crates/turbo-tasks-hash" }
 turbo-tasks-macros = { path = "turbopack/crates/turbo-tasks-macros" }
-turbo-tasks-macros-shared = { path = "turbopack/crates/turbo-tasks-macros-shared" }
+turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
 turbo-tasks-testing = { path = "turbopack/crates/turbo-tasks-testing" }
+turbo-unix-path = { path = "turbopack/crates/turbo-unix-path" }
 turbopack = { path = "turbopack/crates/turbopack" }
 turbopack-bench = { path = "turbopack/crates/turbopack-bench" }
 turbopack-nodejs = { path = "turbopack/crates/turbopack-nodejs" }
@@ -288,6 +318,7 @@ turbopack-cli-utils = { path = "turbopack/crates/turbopack-cli-utils" }
 turbopack-core = { path = "turbopack/crates/turbopack-core" }
 turbopack-create-test-app = { path = "turbopack/crates/turbopack-create-test-app" }
 turbopack-css = { path = "turbopack/crates/turbopack-css" }
+turbopack-analyze = { path = "turbopack/crates/turbopack-analyze" }
 turbopack-browser = { path = "turbopack/crates/turbopack-browser" }
 turbopack-dev-server = { path = "turbopack/crates/turbopack-dev-server" }
 turbopack-ecmascript = { path = "turbopack/crates/turbopack-ecmascript" }
@@ -308,25 +339,25 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "36.0.1", features = [
+swc_core = { version = "49.0.0", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
 ] }
-swc_plugin_backend_wasmer = { version = "2.0.0" }
-testing = "15.0.0"
+swc_plugin_backend_wasmer = { version = "6.0.0" }
+testing = "19.0.0"
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = "0.19.0"
 mdxjs = "1.0.3"
-modularize_imports = "0.94.0"
-styled_components = "0.122.0"
-styled_jsx = "0.98.0"
-swc_emotion = "0.98.0"
-swc_relay = "0.68.0"
-react_remove_properties = "0.48.0"
-remove_console = "0.49.0"
-preset_env_base = "5.0.0"
+modularize_imports = "0.104.0"
+styled_components = "0.132.0"
+styled_jsx = "0.107.0"
+swc_emotion = "0.108.0"
+swc_relay = "0.78.0"
+react_remove_properties = "0.58.0"
+remove_console = "0.59.0"
+preset_env_base = "6.0.0"
 
 
 # General Deps
@@ -341,13 +372,11 @@ tungstenite = "0.20.1"
 allsorts = { version = "0.14.0", default-features = false, features = [
   "flate2_rust",
 ] }
-anyhow = "1.0.98"
-async-compression = { version = "0.3.13", default-features = false, features = [
-  "gzip",
-  "tokio",
-] }
+anyhow = "1.0.100"
 async-trait = "0.1.64"
+bincode = { version = "2.0.1", features = ["serde"] }
 bitfield = "0.18.0"
+byteorder = "1.5.0"
 bytes = "1.1.0"
 bytes-str = "0.2.7"
 chrono = "0.4.23"
@@ -363,21 +392,23 @@ dhat = { version = "0.3.2" }
 dunce = "1.0.3"
 either = "1.9.0"
 erased-serde = "0.4.5"
+flate2 = "1.0.28"
 futures = "0.3.31"
-futures-util = "0.3.31"
 futures-retry = "0.6.0"
+futures-util = "0.3.31"
 hashbrown = "0.14.5"
-image = { version = "0.25.0", default-features = false }
+image = { version = "0.25.8", default-features = false }
 indexmap = "2.7.1"
 indoc = "2.0.0"
+inventory = "0.3.21"
 itertools = "0.10.5"
-lightningcss = { version = "1.0.0-alpha.67", features = [
+lightningcss = { version = "1.0.0-alpha.68", features = [
   "serde",
   "visitor",
   "into_owned",
   "browserslist",
 ] }
-lightningcss-napi = { version = "0.4.4", default-features = false, features = [
+lightningcss-napi = { version = "0.4.5", default-features = false, features = [
   "visitor",
 ] }
 markdown = "1.0.0-alpha.18"
@@ -392,13 +423,14 @@ napi = { version = "2", default-features = false, features = [
   "napi5",
   "compat-mode",
 ] }
+nohash-hasher = "0.2.0"
 notify = "8.1.0"
 once_cell = "1.17.1"
 owo-colors = "4.2.2"
 parcel_selectors = "0.28.2"
 parking_lot = "0.12.1"
 pathdiff = "0.2.1"
-petgraph = "0.6.3"
+petgraph = "0.8.3"
 pin-project-lite = "0.2.9"
 postcard = "1.0.4"
 proc-macro2 = "1.0.79"
@@ -409,47 +441,47 @@ rand = "0.9.0"
 rayon = "1.10.0"
 regex = "1.10.6"
 regress = "0.10.4"
-reqwest = { version = "0.12.22", default-features = false }
+reqwest = { version = "0.12.24", default-features = false }
 ringmap = "0.1.3"
 roaring = "0.10.10"
 rstest = "0.16.0"
 rustc-hash = "2.1.1"
-twox-hash = { version = "2.0.1", features = ["xxhash64"] }
 semver = "1.0.16"
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.138"
-serde_bytes = "0.11.15"
 serde_path_to_error = "0.1.16"
 serde_qs = "0.13.0"
 serde_with = "3.12.0"
-smallvec = { version = "1.13.1", features = [
+smallvec = { version = "1.15.1", features = [
   "serde",
   "const_generics",
   "union",
   "const_new",
+  "impl_bincode",
 ] }
-swc_sourcemap = "9.3.4"
-strsim = "0.11.1"
 shrink-to-fit = "0.2.10"
+strsim = "0.11.1"
+swc_sourcemap = "9.3.4"
 syn = "2.0.100"
 tempfile = "3.20.0"
-thread_local = "1.1.8"
 thiserror = "1.0.48"
+thread_local = "1.1.8"
 tokio = "1.43.0"
 tokio-util = { version = "0.7.13", features = ["io", "rt"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
 triomphe = { git = "https://github.com/sokra/triomphe", branch = "sokra/unstable" }
+twox-hash = { version = "2.1.0", features = ["xxhash64", "xxhash3_128"] }
 unsize = "1.1.0"
+unty = "0.0.4"
 url = "2.2.2"
 urlencoding = "2.1.2"
+uuid = "1.18.1"
 vergen = { version = "9.0.6", features = ["cargo"] }
 vergen-gitcl = { version = "1.0.8", features = ["cargo"] }
-webbrowser = "0.8.7"
-inventory = "0.3.21"
+webbrowser = "1.0.6"
 
 [patch.crates-io]
-hyper = { git = "https://github.com/bgw/hyper-rs.git", branch = "v1.6.0-with-macos-intel-miscompilation-workaround" }
+bincode = { git = "https://github.com/bgw/bincode.git", branch = "bgw/patches" }
+virtue = { git = "https://github.com/bgw/virtue.git", branch = "bgw/fix-generic-default-parsing" }
 mdxjs = { git = "https://github.com/mischnic/mdxjs-rs.git", branch = "swc-core-32" }
-lightningcss = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }
-parcel_selectors = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }

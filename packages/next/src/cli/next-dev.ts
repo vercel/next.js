@@ -7,10 +7,11 @@ import {
   getNodeDebugType,
   getParsedDebugAddress,
   getMaxOldSpaceSize,
-  getParsedNodeOptionsWithoutInspect,
   printAndExit,
   formatNodeOptions,
   formatDebugAddress,
+  getParsedNodeOptions,
+  type DebugAddress,
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -38,11 +39,19 @@ import { once } from 'node:events'
 import { clearTimeout } from 'timers'
 import { flushAllTraces, trace } from '../trace'
 import { traceId } from '../trace/shared'
+import {
+  Bundler,
+  finalizeBundlerFromConfig,
+  parseBundlerArgs,
+} from '../lib/bundler'
 
 export type NextDevOptions = {
   disableSourceMaps: boolean
+  // Commander is not putting `--inspect` through the arg parser
+  inspect?: DebugAddress | true
   turbo?: boolean
   turbopack?: boolean
+  webpack?: boolean
   port: number
   hostname?: string
   experimentalHttps?: boolean
@@ -50,6 +59,7 @@ export type NextDevOptions = {
   experimentalHttpsCert?: string
   experimentalHttpsCa?: string
   experimentalUploadTrace?: string
+  experimentalNextConfigStripTypes?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
@@ -58,11 +68,11 @@ let dir: string
 let child: undefined | ChildProcess
 // The config in next-dev is only used to access config.distDir for telemetry and trace.
 let config: NextConfigComplete
-let isTurboSession = false
+let bundler: Bundler
 let traceUploadUrl: string
 let sessionStopHandled = false
-let sessionStarted = Date.now()
-let sessionSpan = trace('next-dev')
+const sessionStarted = Date.now()
+const sessionSpan = trace('next-dev')
 
 // How long should we wait for the child to cleanly exit after sending
 // SIGINT/SIGTERM to the child process before sending SIGKILL?
@@ -123,11 +133,13 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       new Telemetry({
         distDir: path.join(dir, config.distDir),
       })
+    // Reading the config can modify environment variables that influence the bundler selection.
+    bundler = finalizeBundlerFromConfig(bundler)
 
     telemetry.record(
       eventCliSessionStopped({
         cliCommand: 'dev',
-        turboFlag: isTurboSession,
+        turboFlag: bundler === Bundler.Turbopack,
         durationMilliseconds: Date.now() - sessionStarted,
         pagesDir,
         appDir,
@@ -146,7 +158,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       mode: 'dev',
       projectDir: dir,
       distDir: config.distDir,
-      isTurboSession,
+      isTurboSession: bundler === Bundler.Turbopack,
     })
   }
 
@@ -168,14 +180,7 @@ const nextDev = async (
   portSource: PortSource,
   directory?: string
 ) => {
-  const isTurbopack = Boolean(
-    options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST
-  )
-  if (isTurbopack) {
-    process.env.TURBOPACK = '1'
-  }
-
-  isTurboSession = isTurbopack
+  bundler = parseBundlerArgs(options)
 
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
 
@@ -257,8 +262,7 @@ const nextDev = async (
       let resolved = false
       const defaultEnv = (initialEnv || process.env) as typeof process.env
 
-      const nodeOptions = getParsedNodeOptionsWithoutInspect()
-      const nodeDebugType = getNodeDebugType()
+      const nodeOptions = getParsedNodeOptions()
 
       let maxOldSpaceSize: string | number | undefined = getMaxOldSpaceSize()
       if (!maxOldSpaceSize && !process.env.NEXT_DISABLE_MEM_OVERRIDE) {
@@ -278,17 +282,31 @@ const nextDev = async (
         nodeOptions['enable-source-maps'] = true
       }
 
-      if (nodeDebugType) {
-        const address = getParsedDebugAddress()
-        address.port = address.port + 1
+      const nodeDebugType = getNodeDebugType(nodeOptions)
+      const originalAddress =
+        nodeDebugType === undefined ? undefined : nodeOptions[nodeDebugType]
+      delete nodeOptions.inspect
+      delete nodeOptions['inspect-brk']
+      delete nodeOptions['inspect_brk']
+      if (nodeDebugType !== undefined) {
+        const address = getParsedDebugAddress(originalAddress)
+        address.port = address.port === 0 ? 0 : address.port + 1
         nodeOptions[nodeDebugType] = formatDebugAddress(address)
+      } else if (options.inspect) {
+        const address: DebugAddress =
+          options.inspect === true
+            ? getParsedDebugAddress(true)
+            : options.inspect
+        nodeOptions.inspect = formatDebugAddress(address)
       }
 
       child = fork(startServerPath, {
         stdio: 'inherit',
         env: {
           ...defaultEnv,
-          ...(isTurbopack ? { TURBOPACK: '1' } : undefined),
+          ...(bundler === Bundler.Turbopack
+            ? { TURBOPACK: process.env.TURBOPACK }
+            : undefined),
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
@@ -336,12 +354,13 @@ const nextDev = async (
               (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
                 silent: true,
               }))
+            bundler = finalizeBundlerFromConfig(bundler)
             uploadTrace({
               traceUploadUrl,
               mode: 'dev',
               projectDir: dir,
               distDir: config.distDir,
-              isTurboSession,
+              isTurboSession: bundler === Bundler.Turbopack,
               sync: true,
             })
           }

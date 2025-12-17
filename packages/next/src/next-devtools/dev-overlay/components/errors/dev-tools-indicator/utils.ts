@@ -1,4 +1,4 @@
-import { useEffect, experimental_useEffectEvent as useEffectEvent } from 'react'
+import { useEffect, useEffectEvent } from 'react'
 
 export function useFocusTrap(
   rootRef: React.RefObject<HTMLElement | null>,

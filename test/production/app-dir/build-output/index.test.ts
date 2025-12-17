@@ -23,9 +23,7 @@ describe('production - app dir - build output', () => {
     const indexOfStartCompiling = output.indexOf(
       'Creating an optimized production build'
     )
-    const indexOfLinting = output.indexOf(
-      'Linting and checking validity of types'
-    )
+    const indexOfLinting = output.indexOf('Running TypeScript')
     expect(indexOfVersion).toBeLessThan(indexOfLinting)
     expect(indexOfStartCompiling).toBeLessThan(indexOfLinting)
   })
@@ -74,25 +72,6 @@ describe('production - app dir - build output', () => {
         export default async function Page({ searchParams }) {
           setTimeout(() => {
             headers()
-          }, 0)
-          return <div>Hello World</div>
-        }          
-        `
-    )
-    const { cliOutput } = await next.build()
-    await next.deleteFile('app/out-of-band-dynamic-api/page.tsx')
-
-    expect(cliOutput).toContain('Next.js build worker exited with code: 78')
-  })
-
-  it('should fail the build if you use a dynamic API outside of a render context - searchParams', async () => {
-    await next.stop()
-    await next.patchFile(
-      'app/out-of-band-dynamic-api/page.tsx',
-      outdent`
-        export default async function Page({ searchParams }) {
-          setTimeout(() => {
-            searchParams.foo
           }, 0)
           return <div>Hello World</div>
         }          

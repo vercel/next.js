@@ -90,24 +90,32 @@ fn next_ssg_errors(input: PathBuf) {
 }
 
 #[fixture("tests/errors/react-server-components/**/input.js")]
+#[fixture("tests/errors/react-server-components/**/page.js")]
+#[fixture("tests/errors/react-server-components/**/route.js")]
 fn react_server_components_errors(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
     let cache_components_enabled = input.iter().any(|s| s.to_str() == Some("cache-components"));
     let use_cache_enabled = input.iter().any(|s| s.to_str() == Some("use-cache"));
+
+    let app_dir = input
+        .iter()
+        .position(|s| s.to_str() == Some("app-dir"))
+        .map(|pos| input.iter().take(pos + 1).collect());
+
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
         &|tr| {
             server_components(
-                FileName::Real(PathBuf::from("/some-project/src/page.js")).into(),
+                FileName::Real(input.clone()).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer,
                     cache_components_enabled,
                     use_cache_enabled,
                 }),
                 tr.comments.as_ref().clone(),
-                None,
+                app_dir.clone(),
             )
         },
         &input,
@@ -128,7 +136,10 @@ fn next_font_loaders_errors(input: PathBuf) {
         &|_tr| {
             next_font_loaders(FontLoaderConfig {
                 relative_file_path_from_root: atom!("pages/test.tsx"),
-                font_loaders: vec![atom!("@next/font/google"), atom!("cool-fonts")],
+                font_loaders: vec![
+                    atom!("@next/font/google").into(),
+                    atom!("cool-fonts").into(),
+                ],
             })
         },
         &input,
@@ -150,6 +161,8 @@ fn react_server_actions_errors(input: PathBuf) {
         syntax(),
         &|tr| {
             (
+                // The transforms are intentionally declared in the same order as in
+                // crates/next-custom-transforms/src/chain_transforms.rs
                 resolver(Mark::new(), Mark::new(), false),
                 server_components(
                     FileName::Real(PathBuf::from("/app/item.js")).into(),
@@ -214,6 +227,8 @@ fn use_cache_not_allowed(input: PathBuf) {
         syntax(),
         &|tr| {
             (
+                // The transforms are intentionally declared in the same order as in
+                // crates/next-custom-transforms/src/chain_transforms.rs
                 resolver(Mark::new(), Mark::new(), false),
                 server_components(
                     FileName::Real(PathBuf::from("/app/item.js")).into(),

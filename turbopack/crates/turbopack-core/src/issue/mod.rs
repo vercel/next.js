@@ -9,14 +9,14 @@ use std::{
 };
 
 use anyhow::{Result, anyhow};
-use async_trait::async_trait;
 use auto_hash_map::AutoSet;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     CollectiblesSource, IntoTraitRef, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc,
-    TaskInput, TransientInstance, TransientValue, TryJoinIterExt, Upcast, ValueDefault,
-    ValueToString, Vc, emit, trace::TraceRawVcs,
+    TaskInput, TransientValue, TryJoinIterExt, Upcast, ValueDefault, ValueToString, Vc, emit,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
@@ -30,7 +30,9 @@ use crate::{
 };
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialOrd, Ord, Copy, Clone, Hash, Debug, DeterministicHash, TaskInput)]
+#[derive(
+    PartialOrd, Ord, Copy, Clone, Hash, Debug, DeterministicHash, TaskInput, Serialize, Deserialize,
+)]
 #[serde(rename_all = "camelCase")]
 pub enum IssueSeverity {
     Bug,
@@ -80,7 +82,7 @@ impl Display for IssueSeverity {
 /// Represents a section of structured styled text. This can be interpreted and
 /// rendered by various UIs as appropriate, e.g. HTML for display on the web,
 /// ANSI sequences in TTYs.
-#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash)]
+#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash, Serialize)]
 #[turbo_tasks::value(shared)]
 pub enum StyledString {
     /// Multiple [StyledString]s concatenated into a single line. Each item is
@@ -97,6 +99,26 @@ pub enum StyledString {
     Code(RcStr),
     /// Some important text.
     Strong(RcStr),
+}
+
+impl StyledString {
+    pub fn to_unstyled_string(&self) -> String {
+        match self {
+            StyledString::Line(items) => items
+                .iter()
+                .map(|item| item.to_unstyled_string())
+                .collect::<Vec<_>>()
+                .join(""),
+            StyledString::Stack(items) => items
+                .iter()
+                .map(|item| item.to_unstyled_string())
+                .collect::<Vec<_>>()
+                .join("\n"),
+            StyledString::Text(s) | StyledString::Code(s) | StyledString::Strong(s) => {
+                s.to_string()
+            }
+        }
+    }
 }
 
 #[turbo_tasks::value_trait]
@@ -163,7 +185,7 @@ pub trait ImportTracer {
     fn get_traces(self: Vc<Self>, path: FileSystemPath) -> Vc<ImportTraces>;
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value]
 #[derive(Debug)]
 pub struct DelegatingImportTracer {
     delegates: AutoSet<ResolvedVc<Box<dyn ImportTracer>>>,
@@ -260,17 +282,7 @@ impl CapturedIssues {
 }
 
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    Hash,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
+    Clone, Copy, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub struct IssueSource {
     source: ResolvedVc<Box<dyn Source>>,
@@ -279,17 +291,7 @@ pub struct IssueSource {
 
 /// The end position is the first character after the range
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    Hash,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
+    Clone, Copy, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 enum SourceRange {
     LineColumn(SourcePos, SourcePos),
@@ -608,7 +610,7 @@ async fn into_plain_trace(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<P
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash)]
+#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash, Serialize)]
 pub enum IssueStage {
     Config,
     AppStructure,
@@ -797,63 +799,57 @@ pub trait IssueReporter {
     ///
     /// # Arguments:
     ///
-    /// * `issues` - A [ReadRef] of [CapturedIssues]. Typically obtained with
-    ///   `source.peek_issues()`.
     /// * `source` - The root [Vc] from which issues are traced. Can be used by implementers to
-    ///   determine which issues are new.
+    ///   determine which issues are new.  This must be derived from the OperationVc so issues can
+    ///   be collected.
     /// * `min_failing_severity` - The minimum Vc<[IssueSeverity]>
     ///  The minimum issue severity level considered to fatally end the program.
     #[turbo_tasks::function]
     fn report_issues(
         self: Vc<Self>,
-        issues: TransientInstance<CapturedIssues>,
         source: TransientValue<RawVc>,
         min_failing_severity: IssueSeverity,
     ) -> Vc<bool>;
 }
 
-#[async_trait]
 pub trait CollectibleIssuesExt
 where
     Self: Sized,
 {
-    /// Returns all issues from `source` in a list with their associated
-    /// processing path.
-    async fn peek_issues(self) -> Result<CapturedIssues>;
+    /// Returns all issues from `source`
+    ///
+    /// Must be called in a turbo-task as this constructs a `cell`
+    fn peek_issues(self) -> CapturedIssues;
 
-    /// Returns all issues from `source` in a list with their associated
-    /// processing path.
+    /// Drops all issues from `source`
     ///
     /// This unemits the issues. They will not propagate up.
-    async fn take_issues(self) -> Result<CapturedIssues>;
+    fn drop_issues(self);
 }
 
-#[async_trait]
 impl<T> CollectibleIssuesExt for T
 where
     T: CollectiblesSource + Copy + Send,
 {
-    async fn peek_issues(self) -> Result<CapturedIssues> {
-        Ok(CapturedIssues {
+    fn peek_issues(self) -> CapturedIssues {
+        CapturedIssues {
             issues: self.peek_collectibles(),
 
-            tracer: DelegatingImportTracer::resolved_cell(DelegatingImportTracer {
+            tracer: DelegatingImportTracer {
                 delegates: self.peek_collectibles(),
-            }),
-        })
+            }
+            .resolved_cell(),
+        }
     }
 
-    async fn take_issues(self) -> Result<CapturedIssues> {
-        Ok(CapturedIssues {
-            issues: self.take_collectibles(),
-
-            tracer: DelegatingImportTracer::resolved_cell(DelegatingImportTracer {
-                delegates: self.take_collectibles(),
-            }),
-        })
+    fn drop_issues(self) {
+        self.drop_collectibles::<Box<dyn Issue>>();
     }
 }
 
+/// A helper function to print out issues to the console.
+///
+/// Must be called in a turbo-task as this constructs a `cell`
 pub async fn handle_issues<T: Send>(
     source_op: OperationVc<T>,
     issue_reporter: Vc<Box<dyn IssueReporter>>,
@@ -863,10 +859,8 @@ pub async fn handle_issues<T: Send>(
 ) -> Result<()> {
     let source_vc = source_op.connect();
     let _ = source_op.resolve_strongly_consistent().await?;
-    let issues = source_op.peek_issues().await?;
 
     let has_fatal = issue_reporter.report_issues(
-        TransientInstance::new(issues),
         TransientValue::new(Vc::into_raw(source_vc)),
         min_failing_severity,
     );

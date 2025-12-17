@@ -47,6 +47,7 @@ import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
+import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -86,12 +87,18 @@ function convertDynamicParamTypeToSyntax(
 ) {
   switch (dynamicParamTypeShort) {
     case 'c':
-    case 'ci':
+    case 'ci(..)(..)':
+    case 'ci(.)':
+    case 'ci(..)':
+    case 'ci(...)':
       return `[...${param}]`
     case 'oc':
       return `[[...${param}]]`
     case 'd':
-    case 'di':
+    case 'di(..)(..)':
+    case 'di(.)':
+    case 'di(..)':
+    case 'di(...)':
       return `[${param}]`
     default:
       throw new Error('Unknown dynamic param type')
@@ -192,7 +199,6 @@ interface EntryType {
 }
 
 // Shadowing check in ESLint does not account for enum
-// eslint-disable-next-line no-shadow
 export const enum EntryTypes {
   ENTRY,
   CHILD_ENTRY,
@@ -885,7 +891,11 @@ export function onDemandEntryHandler({
 
       if (hasNewEntry) {
         const routePage = isApp ? route.page : normalizeAppPath(route.page)
-        reportTrigger(routePage, url)
+        // If proxy file, remove the leading slash from "/proxy" to "proxy".
+        reportTrigger(
+          isMiddlewareFile(routePage) ? routePage.slice(1) : routePage,
+          url
+        )
       }
 
       if (entriesThatShouldBeInvalidated.length > 0) {
@@ -1009,6 +1019,15 @@ export function onDemandEntryHandler({
             handleErrorStateResponse(
               parsedData.requestId,
               parsedData.errorState,
+              parsedData.url
+            )
+          } else if (
+            parsedData.event ===
+            HMR_MESSAGE_SENT_TO_SERVER.MCP_PAGE_METADATA_RESPONSE
+          ) {
+            handlePageMetadataResponse(
+              parsedData.requestId,
+              parsedData.segmentTrieData,
               parsedData.url
             )
           }

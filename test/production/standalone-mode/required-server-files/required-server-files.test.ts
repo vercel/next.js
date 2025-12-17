@@ -44,6 +44,9 @@ describe('required server files', () => {
               : 'middleware.js'
           )
         ),
+        'instrumentation.js': new FileRef(
+          join(__dirname, 'instrumentation.js')
+        ),
         'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
         'data.txt': new FileRef(join(__dirname, 'data.txt')),
         '.env': new FileRef(join(__dirname, '.env')),
@@ -53,9 +56,6 @@ describe('required server files', () => {
       nextConfig: {
         cacheHandler: './cache-handler.js',
         cacheMaxMemorySize: 0,
-        eslint: {
-          ignoreDuringBuilds: true,
-        },
         output: 'standalone',
         async rewrites() {
           return {
@@ -87,8 +87,11 @@ describe('required server files', () => {
           }
         },
       },
+      skipStart: true,
     })
-    await next.stop()
+
+    let { exitCode } = await next.build()
+    expect(exitCode).toBe(0)
 
     requiredFilesManifest = JSON.parse(
       await next.readFile('.next/required-server-files.json')
@@ -244,11 +247,11 @@ describe('required server files', () => {
           redirect: 'manual',
         }
       )
-      expect(dataRes.headers.get('cache-control')).toBe(cacheControl)
       expect((await dataRes.json()).pageProps).toEqual({
         __N_REDIRECT: dest,
         __N_REDIRECT_STATUS: 307,
       })
+      expect(dataRes.headers.get('cache-control')).toBe(cacheControl)
     }
   )
 
@@ -412,12 +415,18 @@ describe('required server files', () => {
     expect(Array.isArray(requiredFilesManifest.files)).toBe(true)
     expect(Array.isArray(requiredFilesManifest.ignore)).toBe(true)
     expect(requiredFilesManifest.files.length).toBeGreaterThan(0)
-    expect(requiredFilesManifest.ignore.length).toBeGreaterThan(0)
+    expect(requiredFilesManifest.ignore.length).toBe(0)
     expect(typeof requiredFilesManifest.config.configFile).toBe('undefined')
     expect(typeof requiredFilesManifest.config.trailingSlash).toBe('boolean')
     expect(typeof requiredFilesManifest.appDir).toBe('string')
     // not in a monorepo so relative app dir is empty string
     expect(requiredFilesManifest.relativeAppDir).toBe('')
+
+    expect(
+      requiredFilesManifest.files.filter(
+        (f) => !fs.pathExistsSync(join(next.testDir, 'standalone', f))
+      )
+    ).toBeEmpty()
   })
 
   it('should de-dupe HTML/data requests', async () => {

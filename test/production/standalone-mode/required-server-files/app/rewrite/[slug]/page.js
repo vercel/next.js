@@ -22,7 +22,7 @@ export default async function Page({ params }) {
       <Suspense>
         <Postpone>
           <p id="page">/rewrite/[slug]</p>
-          <p id="params">{JSON.stringify(params)}</p>
+          <p id="params">{JSON.stringify(await params)}</p>
           <p id="now">{Date.now()}</p>
         </Postpone>
       </Suspense>

@@ -1,8 +1,11 @@
 import type { __ApiPreviewProps } from './api-utils'
-import type { LoadComponentsReturnType } from './load-components'
+import type {
+  GenericComponentMod,
+  LoadComponentsReturnType,
+} from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from './request/params'
-import type { NextConfig, NextConfigComplete } from './config-shared'
+import type { NextConfig, NextConfigRuntime } from './config-shared'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
@@ -14,10 +17,7 @@ import type {
   RenderOptsPartial as AppRenderOptsPartial,
   ServerOnInstrumentationRequestError,
 } from './app-render/types'
-import type {
-  ServerComponentsHmrCache,
-  ResponseCacheBase,
-} from './response-cache'
+import type { ServerComponentsHmrCache } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import {
   NormalizeError,
@@ -40,7 +40,7 @@ import type {
   IncomingMessage,
   ServerResponse as HTTPServerResponse,
 } from 'http'
-import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import type { ProxyMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
 import type { PathnameNormalizer } from './normalizers/request/pathname-normalizer'
 import type { InstrumentationModule } from './instrumentation/types'
@@ -57,7 +57,6 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../shared/lib/constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import { setConfig } from '../shared/lib/runtime-config.external'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
@@ -65,7 +64,7 @@ import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
-import { getPreviouslyRevalidatedTags, getServerUtils } from './server-utils'
+import { getServerUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import {
   addRequestMeta,
@@ -122,7 +121,6 @@ import {
   isAppPageRouteModule,
   isAppRouteRouteModule,
 } from './route-modules/checks'
-import { PrefetchRSCPathnameNormalizer } from './normalizers/request/prefetch-rsc'
 import { NextDataPathnameNormalizer } from './normalizers/request/next-data'
 import { getIsPossibleServerAction } from './lib/server-action-request-meta'
 import { isInterceptionRouteAppPath } from '../shared/lib/router/utils/interception-routes'
@@ -142,7 +140,6 @@ import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segmen
 import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
-import { getCacheHandlers } from './use-cache/handlers'
 import { fixMojibake } from './lib/fix-mojibake'
 import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache-busting-search-param'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
@@ -150,16 +147,19 @@ import type { CacheControl } from './lib/cache-control'
 import type { PrerenderedRoute } from '../build/static-paths/types'
 import { createOpaqueFallbackRouteParams } from './request/fallback-params'
 import { RouteKind } from './route-kind'
+import type { ErrorModule } from './load-default-error-components'
 
-export type FindComponentsResult = {
-  components: LoadComponentsReturnType
+export type FindComponentsResult<
+  NextModule extends GenericComponentMod = GenericComponentMod,
+> = {
+  components: LoadComponentsReturnType<NextModule>
   query: NextParsedUrlQuery
 }
 
 export interface MiddlewareRoutingItem {
   page: string
   match: MiddlewareRouteMatch
-  matchers?: MiddlewareMatcher[]
+  matchers?: ProxyMatcher[]
 }
 
 export type RouteHandler<
@@ -234,9 +234,9 @@ export interface Options {
 
 export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
 
-export type LoadedRenderOpts = RenderOpts &
-  LoadComponentsReturnType &
-  RequestLifecycleOpts
+export type LoadedRenderOpts<
+  NextModule extends GenericComponentMod = GenericComponentMod,
+> = RenderOpts & LoadComponentsReturnType<NextModule> & RequestLifecycleOpts
 
 export type RequestLifecycleOpts = {
   waitUntil: ((promise: Promise<any>) => void) | undefined
@@ -311,7 +311,7 @@ export default abstract class Server<
   public readonly port?: number
   protected readonly dir: string
   protected readonly quiet: boolean
-  protected readonly nextConfig: NextConfigComplete
+  protected readonly nextConfig: NextConfigRuntime
   protected readonly distDir: string
   protected readonly publicDir: string
   protected readonly hasStaticDir: boolean
@@ -326,7 +326,6 @@ export default abstract class Server<
   protected interceptionRoutePatterns: RegExp[]
   protected nextFontManifest?: DeepReadonly<NextFontManifest>
   protected instrumentation: InstrumentationModule | undefined
-  private readonly responseCache: ResponseCacheBase
 
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
@@ -393,10 +392,6 @@ export default abstract class Server<
     requestHeaders: Record<string, undefined | string | string[]>
   }): Promise<import('./lib/incremental-cache').IncrementalCache>
 
-  protected abstract getResponseCache(options: {
-    dev: boolean
-  }): ResponseCacheBase
-
   protected getServerComponentsHmrCache():
     | ServerComponentsHmrCache
     | undefined {
@@ -417,13 +412,11 @@ export default abstract class Server<
 
   protected readonly normalizers: {
     readonly rsc: RSCPathnameNormalizer | undefined
-    readonly prefetchRSC: PrefetchRSCPathnameNormalizer | undefined
     readonly segmentPrefetchRSC: SegmentPrefixRSCPathnameNormalizer | undefined
     readonly data: NextDataPathnameNormalizer | undefined
   }
 
   private readonly isAppPPREnabled: boolean
-  private readonly isAppSegmentPrefetchEnabled: boolean
 
   /**
    * This is used to persist cache scopes across
@@ -453,7 +446,25 @@ export default abstract class Server<
 
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
-    this.nextConfig = conf as NextConfigComplete
+    this.nextConfig = conf as NextConfigRuntime
+
+    let deploymentId
+    if (this.nextConfig.experimental.runtimeServerDeploymentId) {
+      if (!process.env.NEXT_DEPLOYMENT_ID) {
+        throw new Error(
+          'process.env.NEXT_DEPLOYMENT_ID is missing but runtimeServerDeploymentId is enabled'
+        )
+      }
+      deploymentId = process.env.NEXT_DEPLOYMENT_ID
+    } else {
+      let id = this.nextConfig.experimental.useSkewCookie
+        ? ''
+        : this.nextConfig.deploymentId || ''
+
+      deploymentId = id
+      process.env.NEXT_DEPLOYMENT_ID = id
+    }
+
     this.hostname = hostname
     if (this.hostname) {
       // we format the hostname so that it can be fetched
@@ -476,14 +487,7 @@ export default abstract class Server<
       ? new LocaleRouteNormalizer(this.i18nProvider)
       : undefined
 
-    // Only serverRuntimeConfig needs the default
-    // publicRuntimeConfig gets it's default in client/index.js
-    const {
-      serverRuntimeConfig = {},
-      publicRuntimeConfig,
-      assetPrefix,
-      generateEtags,
-    } = this.nextConfig
+    const { assetPrefix, generateEtags } = this.nextConfig
 
     this.buildId = this.getBuildId()
     // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
@@ -498,10 +502,6 @@ export default abstract class Server<
       this.enabledDirectories.app &&
       checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
 
-    this.isAppSegmentPrefetchEnabled =
-      this.enabledDirectories.app &&
-      this.nextConfig.experimental.clientSegmentCache === true
-
     this.normalizers = {
       // We should normalize the pathname from the RSC prefix only in minimal
       // mode as otherwise that route is not exposed external to the server as
@@ -510,32 +510,24 @@ export default abstract class Server<
         this.enabledDirectories.app && this.minimalMode
           ? new RSCPathnameNormalizer()
           : undefined,
-      prefetchRSC:
-        this.isAppPPREnabled && this.minimalMode
-          ? new PrefetchRSCPathnameNormalizer()
-          : undefined,
-      segmentPrefetchRSC:
-        this.isAppSegmentPrefetchEnabled && this.minimalMode
-          ? new SegmentPrefixRSCPathnameNormalizer()
-          : undefined,
+      segmentPrefetchRSC: this.minimalMode
+        ? new SegmentPrefixRSCPathnameNormalizer()
+        : undefined,
       data: this.enabledDirectories.pages
         ? new NextDataPathnameNormalizer(this.buildId)
         : undefined,
     }
 
     this.nextFontManifest = this.getNextFontManifest()
-    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.deploymentId || ''
 
     this.renderOpts = {
       dir: this.dir,
       supportsDynamicResponse: true,
       trailingSlash: this.nextConfig.trailingSlash,
-      deploymentId: this.nextConfig.deploymentId,
+      deploymentId: deploymentId,
       poweredByHeader: this.nextConfig.poweredByHeader,
-      canonicalBase: this.nextConfig.amp.canonicalBase || '',
       generateEtags,
       previewProps: this.getPrerenderManifest().preview,
-      ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
       images: this.nextConfig.images,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
@@ -546,33 +538,21 @@ export default abstract class Server<
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
       serverComponents: this.enabledDirectories.app,
-      cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
+      cacheLifeProfiles: this.nextConfig.cacheLife,
       enableTainting: this.nextConfig.experimental.taint,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
         : undefined,
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
-      // Only the `publicRuntimeConfig` key is exposed to the client side
-      // It'll be rendered as part of __NEXT_DATA__ on the client side
-      runtimeConfig:
-        Object.keys(publicRuntimeConfig).length > 0
-          ? publicRuntimeConfig
-          : undefined,
 
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       // `htmlLimitedBots` is passed to server as serialized config in string format
       htmlLimitedBots: this.nextConfig.htmlLimitedBots,
+      cacheComponents: this.nextConfig.cacheComponents ?? false,
       experimental: {
         expireTime: this.nextConfig.expireTime,
         staleTimes: this.nextConfig.experimental.staleTimes,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
-        cacheComponents: this.nextConfig.experimental.cacheComponents ?? false,
-        clientSegmentCache:
-          this.nextConfig.experimental.clientSegmentCache === 'client-only'
-            ? 'client-only'
-            : Boolean(this.nextConfig.experimental.clientSegmentCache),
-        clientParamParsing:
-          this.nextConfig.experimental.clientParamParsing ?? false,
         clientParamParsingOrigins:
           this.nextConfig.experimental.clientParamParsingOrigins,
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
@@ -583,12 +563,6 @@ export default abstract class Server<
         this.instrumentationOnRequestError.bind(this),
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
     }
-
-    // Initialize next/config with the environment configuration
-    setConfig({
-      serverRuntimeConfig,
-      publicRuntimeConfig,
-    })
 
     this.pagesManifest = this.getPagesManifest()
     this.appPathsManifest = this.getAppPathsManifest()
@@ -604,7 +578,6 @@ export default abstract class Server<
     void this.matchers.reload()
 
     this.setAssetPrefix(assetPrefix)
-    this.responseCache = this.getResponseCache({ dev })
   }
 
   protected reloadMatchers() {
@@ -635,17 +608,6 @@ export default abstract class Server<
       addRequestMeta(req, 'isRSCRequest', true)
       addRequestMeta(req, 'isPrefetchRSCRequest', true)
       addRequestMeta(req, 'segmentPrefetchRSCRequest', segmentPath)
-    } else if (this.normalizers.prefetchRSC?.match(parsedUrl.pathname)) {
-      parsedUrl.pathname = this.normalizers.prefetchRSC.normalize(
-        parsedUrl.pathname,
-        true
-      )
-
-      // Mark the request as a router prefetch request.
-      req.headers[RSC_HEADER] = '1'
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
-      addRequestMeta(req, 'isRSCRequest', true)
-      addRequestMeta(req, 'isPrefetchRSCRequest', true)
     } else if (this.normalizers.rsc?.match(parsedUrl.pathname)) {
       parsedUrl.pathname = this.normalizers.rsc.normalize(
         parsedUrl.pathname,
@@ -875,7 +837,7 @@ export default abstract class Server<
     }
   }
 
-  public logError(err: Error): void {
+  public logError(err: unknown): void {
     if (this.quiet) return
     Log.error(err)
   }
@@ -1462,29 +1424,6 @@ export default abstract class Server<
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
-      const cacheHandlers = getCacheHandlers()
-
-      if (cacheHandlers) {
-        await Promise.all(
-          [...cacheHandlers].map(async (cacheHandler) => {
-            if ('refreshTags' in cacheHandler) {
-              // Note: cacheHandler.refreshTags() is called lazily before the
-              // first cache entry is retrieved. It allows us to skip the
-              // refresh request if no caches are read at all.
-            } else {
-              const previouslyRevalidatedTags = getPreviouslyRevalidatedTags(
-                req.headers,
-                this.getPrerenderManifest().preview.previewModeId
-              )
-
-              await cacheHandler.receiveExpiredTags(
-                ...previouslyRevalidatedTags
-              )
-            }
-          })
-        )
-      }
-
       // set server components HMR cache to request meta so it can be passed
       // down for edge functions
       if (!getRequestMeta(req, 'serverComponentsHmrCache')) {
@@ -1640,12 +1579,6 @@ export default abstract class Server<
     // because the RSC normalizer will match the prefetch RSC routes too.
     if (this.normalizers.segmentPrefetchRSC) {
       normalizers.push(this.normalizers.segmentPrefetchRSC)
-    }
-
-    // We have to put the prefetch normalizer before the RSC normalizer
-    // because the RSC normalizer will match the prefetch RSC routes too.
-    if (this.normalizers.prefetchRSC) {
-      normalizers.push(this.normalizers.prefetchRSC)
     }
 
     if (this.normalizers.rsc) {
@@ -2063,7 +1996,11 @@ export default abstract class Server<
     if (
       !this.minimalMode &&
       this.nextConfig.experimental.validateRSCRequestHeaders &&
-      isRSCRequest
+      isRSCRequest &&
+      // In the event that we're serving a NoFallbackError, the headers will
+      // already be stripped so this comparison will always fail, resulting in
+      // a redirect loop.
+      !is404Page
     ) {
       const headers = req.headers
 
@@ -2271,10 +2208,6 @@ export default abstract class Server<
       }
     }
 
-    // Ensure that if the `amp` query parameter is falsy that we remove it from
-    // the query object. This ensures it won't be found by the `in` operator.
-    if ('amp' in query && !query.amp) delete query.amp
-
     if (opts.supportsDynamicResponse === true) {
       const ua = req.headers['user-agent'] || ''
       const isBotRequest = isBot(ua)
@@ -2289,7 +2222,7 @@ export default abstract class Server<
       // be static so we can collect revalidate and populate the
       // cache if there are no dynamic data requirements
       opts.supportsDynamicResponse =
-        !isSSG && !isBotRequest && !query.amp && isSupportedDocument
+        !isSSG && !isBotRequest && isSupportedDocument
     }
 
     // In development, we always want to generate dynamic HTML.
@@ -2329,6 +2262,11 @@ export default abstract class Server<
       isDynamicRoute(pathname) &&
       (components.getStaticPaths || isAppPath)
     ) {
+      let getStaticPathsStart: bigint | undefined
+      if (opts.dev) {
+        getStaticPathsStart = process.hrtime.bigint()
+      }
+
       const pathsResults = await this.getStaticPaths({
         pathname,
         urlPathname,
@@ -2336,7 +2274,16 @@ export default abstract class Server<
         page: components.page,
         isAppPath,
       })
-      if (isAppPath && this.nextConfig.experimental.cacheComponents) {
+
+      if (opts.dev && getStaticPathsStart && pathsResults.staticPaths?.length) {
+        addRequestMeta(
+          req,
+          'devGenerateStaticParamsDuration',
+          process.hrtime.bigint() - getStaticPathsStart
+        )
+      }
+
+      if (isAppPath && this.nextConfig.cacheComponents) {
         if (pathsResults.prerenderedRoutes?.length) {
           let smallestFallbackRouteParams = null
           for (const route of pathsResults.prerenderedRoutes) {
@@ -2356,7 +2303,7 @@ export default abstract class Server<
           if (smallestFallbackRouteParams) {
             addRequestMeta(
               req,
-              'devValidatingFallbackParams',
+              'devFallbackParams',
               createOpaqueFallbackRouteParams(smallestFallbackRouteParams)!
             )
           }
@@ -2382,7 +2329,6 @@ export default abstract class Server<
 
     for (const normalizer of [
       this.normalizers.segmentPrefetchRSC,
-      this.normalizers.prefetchRSC,
       this.normalizers.rsc,
     ]) {
       if (normalizer?.match(initPathname)) {
@@ -2402,22 +2348,13 @@ export default abstract class Server<
     addRequestMeta(request, 'distDir', this.distDir)
     addRequestMeta(request, 'query', query)
     addRequestMeta(request, 'params', opts.params)
-    addRequestMeta(request, 'ampValidator', this.renderOpts.ampValidator)
     addRequestMeta(request, 'minimalMode', this.minimalMode)
 
     if (opts.err) {
       addRequestMeta(request, 'invokeError', opts.err)
     }
 
-    const handler: (
-      req: ServerRequest | IncomingMessage,
-      res: ServerResponse | HTTPServerResponse,
-      ctx: {
-        waitUntil: ReturnType<Server['getWaitUntil']>
-      }
-    ) => Promise<void> = components.ComponentMod.handler
-
-    const maybeDevRequest =
+    const maybeDevRequest: ServerRequest | IncomingMessage =
       // we need to capture fetch metrics when they are set
       // and can't wait for handler to resolve as the fetch
       // metrics are logged on response close which happens
@@ -2440,7 +2377,14 @@ export default abstract class Server<
           })
         : request
 
-    await handler(maybeDevRequest, response, {
+    // @ts-expect-error This isn't entirely correct, but the ServerRequest type param seems overly
+    // generic anyway.
+    let handlerReq: IncomingMessage = maybeDevRequest
+    // @ts-expect-error This isn't entirely correct, but the ServerResponse type param seems overly
+    // generic anyway.
+    let handlerRes: HTTPServerResponse = response
+
+    await components.ComponentMod.handler(handlerReq, handlerRes, {
       waitUntil: this.getWaitUntil(),
     })
 
@@ -2538,7 +2482,7 @@ export default abstract class Server<
   protected abstract getMiddleware(): Promise<MiddlewareRoutingItem | undefined>
   protected abstract getFallbackErrorComponents(
     url?: string
-  ): Promise<LoadComponentsReturnType | null>
+  ): Promise<LoadComponentsReturnType<ErrorModule> | null>
   protected abstract getRoutesManifest(): NormalizedRouteManifest | undefined
 
   private async renderToResponseImpl(
@@ -2565,11 +2509,30 @@ export default abstract class Server<
       i18n: this.i18nProvider?.fromRequest(req, pathname),
     }
 
+    const existingMatch = getRequestMeta(ctx.req, 'match')
+
+    let fastPath = true
+    // when a specific invoke-output is meant to be matched
+    // ensure a prior dynamic route/page doesn't take priority
+    const invokeOutput = getRequestMeta(ctx.req, 'invokeOutput')
+
+    if (
+      (!this.minimalMode &&
+        typeof invokeOutput === 'string' &&
+        isDynamicRoute(invokeOutput || '') &&
+        invokeOutput !== existingMatch?.definition.pathname) ||
+      // Parallel routes are matched in `existingMatch` but since currently
+      // there can be multiple matches it's not guaranteed to be the right match
+      // therefor we need to opt-out of the fast path for parallel routes.
+      existingMatch?.definition.page.includes('/@')
+    ) {
+      fastPath = false
+    }
+
     try {
-      for await (const match of this.matchers.matchAll(pathname, options)) {
-        // when a specific invoke-output is meant to be matched
-        // ensure a prior dynamic route/page doesn't take priority
-        const invokeOutput = getRequestMeta(ctx.req, 'invokeOutput')
+      for await (const match of fastPath && existingMatch
+        ? [existingMatch]
+        : this.matchers.matchAll(pathname, options)) {
         if (
           !this.minimalMode &&
           typeof invokeOutput === 'string' &&

@@ -145,7 +145,7 @@ export default (
   const isStandalone = api.caller(
     // NOTE: `transformMode` may be undefined if the user configured `babel-loader` themselves. In
     // this case, we should assume we're in 'default' mode.
-    (caller: any) => caller.transformMode === 'standalone'
+    (caller: any) => !!caller && caller.transformMode === 'standalone'
   )
   const isServer = api.caller((caller: any) => !!caller && caller.isServer)
 
@@ -318,7 +318,6 @@ export default (
           : (require('styled-jsx/babel') as typeof import('styled-jsx/babel')),
         styledJsxOptions(options['styled-jsx']),
       ],
-      require('./plugins/amp-attributes') as typeof import('./plugins/amp-attributes'),
       isProduction && [
         require('next/dist/compiled/babel/plugin-transform-react-remove-prop-types') as typeof import('next/dist/compiled/babel/plugin-transform-react-remove-prop-types'),
         {
