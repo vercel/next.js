@@ -1074,11 +1074,11 @@ describe('ReactRefreshLogBox app', () => {
          "description": "test",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (3:11) @ __rspack_default_export
+         "source": "index.js (3:11) @ default
        > 3 |     throw new Error('test')
            |           ^",
          "stack": [
-           "__rspack_default_export index.js (3:11)",
+           "default index.js (3:11)",
            "Page app/page.js (4:10)",
          ],
        }
