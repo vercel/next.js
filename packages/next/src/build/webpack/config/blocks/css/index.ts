@@ -15,6 +15,7 @@ import { getPostCssPlugins } from './plugins'
 import { nonNullable } from '../../../../../lib/non-nullable'
 import { WEBPACK_LAYERS } from '../../../../../lib/constants'
 import { getRspackCore } from '../../../../../shared/lib/get-rspack'
+import { createPathAliasImporter } from '../../../loaders/sass-importer'
 
 // RegExps for all Style Sheet variants
 export const regexLikeCss = /\.(css|scss|sass)$/
@@ -164,6 +165,14 @@ export const css = curry(async function css(
       ctx.experimental.useLightningcss
     )
 
+  // Create custom Sass importer for path aliases from tsconfig.json/jsconfig.json
+  const pathAliasImporter = ctx.resolvedBaseUrl
+    ? createPathAliasImporter(
+        ctx.resolvedBaseUrl.baseUrl,
+        ctx.jsConfig?.compilerOptions?.paths
+      )
+    : undefined
+
   const sassPreprocessors: webpack.RuleSetUseItem[] = [
     // First, process files with `sass-loader`: this inlines content, and
     // compiles away the proprietary syntax.
@@ -174,7 +183,13 @@ export const css = curry(async function css(
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
         sourceMap: true,
-        sassOptions,
+        sassOptions: pathAliasImporter
+          ? {
+              ...sassOptions,
+              // Add custom importer to resolve path aliases (e.g., #stylesheets/*, @components/*)
+              importers: [pathAliasImporter],
+            }
+          : sassOptions,
         additionalData: sassPrependData || sassAdditionalData,
       },
     },
