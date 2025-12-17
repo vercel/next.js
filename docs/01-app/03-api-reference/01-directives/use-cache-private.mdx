@@ -14,9 +14,9 @@ related:
 
 The `'use cache: private'` directive allows functions to access runtime request APIs like `cookies()`, `headers()`, and `searchParams` within a cached scope. However, results are **never stored on the server**, they're cached only in the browser's memory and do not persist across page reloads.
 
-When possible, read runtime values outside the cached scope and [pass them as arguments](/docs/app/getting-started/cache-components#with-runtime-data) to regular `use cache` functions. Only reach for `'use cache: private'` when:
+Reach for `'use cache: private'` when:
 
-- Your function requires access to runtime request APIs and refactoring is not practical
+- You can't extract runtime values outside the cached scope and [pass them as arguments](/docs/app/getting-started/cache-components#with-runtime-data) to a regular `use cache` function
 - Compliance requirements prevent storing certain data on the server, even temporarily
 
 Because this directive accesses runtime data, the function executes on every server render and is excluded from running during [static shell](/docs/app/getting-started/cache-components#how-rendering-works-with-cache-components) generation.
