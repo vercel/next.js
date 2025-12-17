@@ -5,7 +5,7 @@ description: Parses the User-Agent header and returns structured information abo
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-The `userAgent` helper parses the request's `User-Agent` header and returns structured information about the client's browser, device, engine, OS, CPU, and whether the client is a known bot.
+The `userAgent` helper parses the request's `User-Agent` header and returns structured information about the client's browser, device, engine, OS, CPU and whether or not the client is a known bot.
 
 ```ts filename="proxy.ts" switcher
 import { NextRequest, NextResponse, userAgent } from 'next/server'
@@ -41,15 +41,12 @@ export function proxy(request) {
 
 ## Reference
 
-From a Request in Middleware or Route Handlers, parse and inspect User Agent fields.
-
 ```ts
-import { userAgent } from 'next/server'
+import { userAgent, userAgentFromString } from 'next/server'
 
+// From a Request (e.g. Proxy, Route Handler)
 const ua = userAgent(request)
 ```
-
-`request` can be either a standard [Web API `Request`](https://developer.mozilla.org/docs/Web/API/Request) or a [`NextRequest`](/docs/app/api-reference/functions/next-request).
 
 ### When you only have the User-Agent string
 
@@ -65,8 +62,6 @@ const ua = userAgentFromString(uaString)
 
 ## Returns
 
-Both helpers return a structured object describing the client and a bot flag.
-
 ```ts
 type UserAgent = {
   isBot: boolean
@@ -74,7 +69,14 @@ type UserAgent = {
   browser: { name?: string; version?: string; major?: string }
   device: {
     model?: string
-    type?: string
+    type?:
+      | 'mobile'
+      | 'tablet'
+      | 'console'
+      | 'smarttv'
+      | 'wearable'
+      | 'embedded'
+      | undefined
     vendor?: string
   }
   engine: { name?: string; version?: string }
@@ -94,8 +96,6 @@ type UserAgent = {
 <AppOnly>
 
 ## Example: Route Handler
-
-Return JSON with `isBot` and a device hint.
 
 ```ts filename="app/api/ua/route.ts" switcher
 import { NextResponse, userAgent } from 'next/server'
@@ -123,8 +123,8 @@ export function GET(request) {
 
 > **Good to know**
 >
-> - Works in [Middleware](/docs/app/api-reference/file-conventions/middleware) and [Route Handlers](/docs/app/api-reference/file-conventions/route) with `userAgent(request)`.
-> - In App Router, read the header with [`headers()`](/docs/app/api-reference/functions/headers) and use `userAgentFromString`.
+> - Works in [Proxy](/docs/app/api-reference/file-conventions/proxy) and [Route Handlers](/docs/app/api-reference/file-conventions/route) with `userAgent(request)`.
+> - In App Router, read the header with `headers()` and use `userAgentFromString`.
 > - User-Agent strings can be spoofed or empty. Avoid using them for security decisions.
 
 </AppOnly>
@@ -132,8 +132,6 @@ export function GET(request) {
 <PagesOnly>
 
 ## Example: API Route
-
-In Pages Router API Routes, parse the `User-Agent` header from `req`.
 
 ```ts filename="pages/api/ua.ts" switcher
 import type { NextApiRequest, NextApiResponse } from 'next'
@@ -164,7 +162,8 @@ export default function handler(req, res) {
 
 > **Good to know**
 >
-> - In [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props) and [API Routes](/docs/pages/building-your-application/routing/api-routes), use `userAgentFromString(req.headers['user-agent'])`.
+> - Works in [Proxy](/docs/app/api-reference/file-conventions/proxy) with `userAgent(request)`.
+> - In `getServerSideProps` and API Routes, use `userAgentFromString(req.headers['user-agent'])`.
 > - User-Agent strings can be spoofed or empty. Avoid using them for security decisions.
 
 </PagesOnly>
