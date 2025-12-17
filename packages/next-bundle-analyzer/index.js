@@ -7,7 +7,7 @@ module.exports =
     if (process.env.TURBOPACK) {
       console.warn(
         'The Next Bundle Analyzer is not compatible with Turbopack builds, no report will be generated.\n\n' +
-          'Consider trying the new Turbopack analyzer via `next analyze`.\n\n' +
+          'Consider trying the new Turbopack analyzer via `next experimental-analyze`.\n\n' +
           'See https://nextjs.org/docs/app/guides/package-bundling for more information\n\n' +
           'To run this analysis pass the `--webpack` flag to `next build`'
       )
