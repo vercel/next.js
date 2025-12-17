@@ -3,6 +3,7 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
 } from '../../../shared/lib/app-router-types'
+import type { NavigationSeed } from '../segment-cache/navigation'
 import type { FetchServerResponseResult } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
@@ -48,12 +49,10 @@ export interface ServerActionMutable extends Mutable {
  */
 export interface RefreshAction {
   type: typeof ACTION_REFRESH
-  origin: Location['origin']
 }
 
 export interface HmrRefreshAction {
   type: typeof ACTION_HMR_REFRESH
-  origin: Location['origin']
 }
 
 export type ServerActionDispatcher = (
@@ -133,27 +132,25 @@ export type AppHistoryState = {
 
 /**
  * Server-patch applies the provided Flight data to the cache and router tree.
- * - Only triggered in layout-router.
- * - Creates a new cache and router state with the Flight data applied.
  */
 export interface ServerPatchAction {
   type: typeof ACTION_SERVER_PATCH
-  navigatedAt: number
-  serverResponse: FetchServerResponseResult
   previousTree: FlightRouterState
+  url: URL
+  nextUrl: string | null
+  seed: NavigationSeed | null
+  mpa: boolean
 }
 
 /**
  * PrefetchKind defines the type of prefetching that should be done.
  * - `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully.
  * - `full` - prefetch the page data fully.
- * - `temporary` - a temporary prefetch entry is added to the cache, this is used when prefetch={false} is used in next/link or when you push a route programmatically.
  */
 
 export enum PrefetchKind {
   AUTO = 'auto',
   FULL = 'full',
-  TEMPORARY = 'temporary',
 }
 
 /**

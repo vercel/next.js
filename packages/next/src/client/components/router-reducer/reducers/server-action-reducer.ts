@@ -60,6 +60,8 @@ import {
   ActionDidRevalidateStaticAndDynamic,
   type ActionRevalidationKind,
 } from '../../../../shared/lib/action-revalidation-kind'
+import { isExternalURL } from '../../app-router-utils'
+import { FreshnessPolicy } from '../ppr-navigations'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -299,6 +301,10 @@ export function serverActionReducer(
         }
       }
 
+      const pendingPush = redirectType !== RedirectType.replace
+      state.pushRef.pendingPush = pendingPush
+      mutable.pendingPush = pendingPush
+
       if (redirectLocation !== undefined) {
         // If the action triggered a redirect, the action promise will be rejected with
         // a redirect so that it's handled by RedirectBoundary as we won't have a valid
@@ -306,29 +312,36 @@ export function serverActionReducer(
         // the component that called the action as the error boundary will remount the tree.
         // The status code doesn't matter here as the action handler will have already sent
         // a response with the correct status code.
-        const redirectHref = createHrefFromUrl(redirectLocation, false)
         const resolvedRedirectType = redirectType || RedirectType.push
-        const redirectError = getRedirectError(
-          hasBasePath(redirectHref)
-            ? removeBasePath(redirectHref)
-            : redirectHref,
-          resolvedRedirectType
-        )
-        // We mark the error as handled because we don't want the redirect to be tried later by
-        // the RedirectBoundary, in case the user goes back and `Activity` triggers the redirect
-        // again, as it's run within an effect.
-        // We don't actually need the RedirectBoundary to do a router.push because we already
-        // have all the necessary RSC data to render the new page within a single roundtrip.
-        ;(redirectError as any).handled = true
-        reject(redirectError)
+
+        if (isExternalURL(redirectLocation)) {
+          // External redirect. Triggers an MPA navigation.
+          const redirectHref = redirectLocation.href
+          const redirectError = createRedirectErrorForAction(
+            redirectHref,
+            resolvedRedirectType
+          )
+          reject(redirectError)
+          return handleExternalUrl(state, mutable, redirectHref, pendingPush)
+        } else {
+          // Internal redirect. Triggers an SPA navigation.
+          const redirectWithBasepath = createHrefFromUrl(
+            redirectLocation,
+            false
+          )
+          const redirectHref = hasBasePath(redirectWithBasepath)
+            ? removeBasePath(redirectWithBasepath)
+            : redirectWithBasepath
+          const redirectError = createRedirectErrorForAction(
+            redirectHref,
+            resolvedRedirectType
+          )
+          reject(redirectError)
+        }
       } else {
         // If there's no redirect, resolve the action with the result.
         resolve(actionResult)
       }
-
-      const pendingPush = redirectType !== RedirectType.replace
-      state.pushRef.pendingPush = pendingPush
-      mutable.pendingPush = pendingPush
 
       // Check if we can bail out without updating any state.
       if (
@@ -376,8 +389,10 @@ export function serverActionReducer(
 
       // If the action triggered a revalidation of the cache, we should also
       // refresh all the dynamic data.
-      const shouldRefreshDynamicData =
-        revalidationKind !== ActionDidNotRevalidate
+      const freshnessPolicy =
+        revalidationKind === ActionDidNotRevalidate
+          ? FreshnessPolicy.Default
+          : FreshnessPolicy.RefreshAll
 
       // The server may have sent back new data. If so, we will perform a
       // "seeded" navigation that uses the data from the response.
@@ -396,20 +411,23 @@ export function serverActionReducer(
           // will use this to render the new page. If this happens to be only a
           // subset of the data needed to render the new page, we'll initiate a
           // new fetch, like we would for a normal navigation.
-          const seedFlightRouterState = normalizedFlightData.tree
-          const seedRenderedSearch = flightDataRenderedSearch
-          const seedData = normalizedFlightData.seedData
-          const seedHead = normalizedFlightData.head
+          const redirectCanonicalUrl = createHrefFromUrl(redirectUrl)
+          const navigationSeed = {
+            tree: normalizedFlightData.tree,
+            renderedSearch: flightDataRenderedSearch,
+            data: normalizedFlightData.seedData,
+            head: normalizedFlightData.head,
+          }
+          const now = Date.now()
           const result = navigateToSeededRoute(
+            now,
             redirectUrl,
+            redirectCanonicalUrl,
+            navigationSeed,
             currentUrl,
             state.cache,
             currentFlightRouterState,
-            seedFlightRouterState,
-            seedRenderedSearch,
-            seedData,
-            seedHead,
-            shouldRefreshDynamicData,
+            freshnessPolicy,
             nextUrl,
             shouldScroll
           )
@@ -431,7 +449,7 @@ export function serverActionReducer(
         state.cache,
         currentFlightRouterState,
         nextUrl,
-        shouldRefreshDynamicData,
+        freshnessPolicy,
         shouldScroll,
         mutable
       )
@@ -450,4 +468,18 @@ export function serverActionReducer(
       return state
     }
   )
+}
+
+function createRedirectErrorForAction(
+  redirectHref: string,
+  resolvedRedirectType: RedirectType
+) {
+  const redirectError = getRedirectError(redirectHref, resolvedRedirectType)
+  // We mark the error as handled because we don't want the redirect to be tried later by
+  // the RedirectBoundary, in case the user goes back and `Activity` triggers the redirect
+  // again, as it's run within an effect.
+  // We don't actually need the RedirectBoundary to do a router.push because we already
+  // have all the necessary RSC data to render the new page within a single roundtrip.
+  ;(redirectError as any).handled = true
+  return redirectError
 }

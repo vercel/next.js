@@ -2,7 +2,7 @@ use std::{borrow::Cow, future::Future};
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
 use swc_core::{
     common::{DUMMY_SP, GLOBALS, Span, Spanned, source_map::SmallPos},
@@ -50,7 +50,6 @@ use crate::{
     Copy,
     Debug,
     TraceRawVcs,
-    Serialize,
     Deserialize,
     NonLocalValue,
     Encode,
@@ -73,7 +72,6 @@ pub enum NextSegmentDynamic {
     Copy,
     Debug,
     TraceRawVcs,
-    Serialize,
     Deserialize,
     NonLocalValue,
     Encode,
@@ -92,18 +90,7 @@ pub enum NextSegmentFetchCache {
 }
 
 #[derive(
-    Default,
-    PartialEq,
-    Eq,
-    Clone,
-    Copy,
-    Debug,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub enum NextRevalidate {
     #[default]
@@ -308,19 +295,7 @@ impl Issue for NextSegmentConfigParsingIssue {
 }
 
 #[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TaskInput,
-    NonLocalValue,
-    TraceRawVcs,
-    Encode,
-    Decode,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, NonLocalValue, TraceRawVcs, Encode, Decode,
 )]
 pub enum ParseSegmentMode {
     Base,

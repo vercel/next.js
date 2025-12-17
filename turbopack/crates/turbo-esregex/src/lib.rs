@@ -10,14 +10,12 @@ use bincode::{
     error::{DecodeError, EncodeError},
     impl_borrow_decode,
 };
-use serde::{Deserialize, Serialize};
 
 /// A simple regular expression implementation following ecmascript semantics
 ///
 /// Delegates to the `regex` crate when possible and `regress` otherwise.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 #[turbo_tasks::value(eq = "manual", shared, serialization = "custom")]
-#[serde(into = "RegexForm", try_from = "RegexForm")]
 pub struct EsRegex {
     #[turbo_tasks(trace_ignore)]
     delegate: EsRegexImpl,
@@ -43,30 +41,6 @@ impl PartialEq for EsRegex {
     }
 }
 impl Eq for EsRegex {}
-
-impl TryFrom<RegexForm> for EsRegex {
-    type Error = anyhow::Error;
-
-    fn try_from(value: RegexForm) -> std::result::Result<Self, Self::Error> {
-        EsRegex::new(&value.pattern, &value.flags)
-    }
-}
-
-/// This is the serializable form for the `EsRegex` struct
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-struct RegexForm {
-    pattern: String,
-    flags: String,
-}
-
-impl From<EsRegex> for RegexForm {
-    fn from(value: EsRegex) -> Self {
-        Self {
-            pattern: value.pattern,
-            flags: value.flags,
-        }
-    }
-}
 
 impl Encode for EsRegex {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
@@ -235,11 +209,13 @@ mod tests {
     use super::{EsRegex, EsRegexImpl};
 
     #[test]
-    fn round_trip_serialize() {
+    fn round_trip_bincode() {
         let regex = EsRegex::new("[a-z]", "i").unwrap();
-        let serialized = serde_json::to_string(&regex).unwrap();
-        let parsed = serde_json::from_str::<EsRegex>(&serialized).unwrap();
-        assert_eq!(regex, parsed);
+        let config = bincode::config::standard();
+        let encoded = bincode::encode_to_vec(&regex, config).unwrap();
+        let (decoded, len) = bincode::decode_from_slice::<EsRegex, _>(&encoded, config).unwrap();
+        assert_eq!(regex, decoded);
+        assert_eq!(len, encoded.len());
     }
 
     #[test]

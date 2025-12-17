@@ -1,5 +1,6 @@
 #[doc(hidden)]
 pub mod macro_helpers;
+pub mod serde_self_describing;
 
 use std::{any::Any, ptr::copy_nonoverlapping};
 
@@ -468,76 +469,6 @@ pub mod mime_option {
                 .0;
 
             assert_eq!(mime1.0, mime2.0);
-        }
-    }
-}
-
-/// Encode/decode as a serialized string encoded using `serde_json`.
-///
-/// This encodes less efficiently than `#[bincode(with_serde)]` would, but avoids [bincode's known
-/// compatibility issues][serde-issues]. Use this for infrequently-serialized types and when you're
-/// unsure if the underlying type may trigger a serde compatibility issue.
-///
-/// In the future this could be replaced with a more efficient serde-compatible self-describing
-/// format with a compact binary representation (e.g. pot or MessagePack), but `serde_json` is
-/// convenient because it avoids introducing additional dependencies.
-///
-/// [serde-issues]: https://docs.rs/bincode/latest/bincode/serde/index.html#known-issues
-pub mod serde_json {
-    use super::*;
-
-    pub fn encode<E: Encoder, T: serde::Serialize>(
-        value: &T,
-        encoder: &mut E,
-    ) -> Result<(), EncodeError> {
-        let json_str =
-            ::serde_json::to_string(value).map_err(|e| EncodeError::OtherString(e.to_string()))?;
-        Encode::encode(&json_str, encoder)
-    }
-
-    pub fn decode<Context, D: Decoder<Context = Context>, T: serde::de::DeserializeOwned>(
-        decoder: &mut D,
-    ) -> Result<T, DecodeError> {
-        let json_str: String = Decode::decode(decoder)?;
-        ::serde_json::from_str(&json_str).map_err(|e| DecodeError::OtherString(e.to_string()))
-    }
-
-    pub fn borrow_decode<
-        'de,
-        Context,
-        D: BorrowDecoder<'de, Context = Context>,
-        T: serde::de::Deserialize<'de>,
-    >(
-        decoder: &mut D,
-    ) -> Result<T, DecodeError> {
-        let json_str: &str = BorrowDecode::borrow_decode(decoder)?;
-        ::serde_json::from_str(json_str).map_err(|e| DecodeError::OtherString(e.to_string()))
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use ::serde_json::{Value, json};
-        use bincode::{decode_from_slice, encode_to_vec};
-
-        use super::*;
-
-        #[test]
-        fn test_roundtrip() {
-            let cfg = bincode::config::standard();
-
-            #[derive(Encode, Decode)]
-            struct Wrapper(#[bincode(with = "crate::serde_json")] Value);
-
-            let value1 = Wrapper(json!({
-                "key1": [1, 2, 3],
-                "key2": [4, 5, 6]
-            }));
-
-            let value2: Wrapper = decode_from_slice(&encode_to_vec(&value1, cfg).unwrap(), cfg)
-                .unwrap()
-                .0;
-
-            assert_eq!(value1.0, value2.0);
         }
     }
 }
