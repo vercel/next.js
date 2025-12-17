@@ -168,14 +168,10 @@ pub async fn get_server_resolve_options_context(
     )
     .await?;
 
-    // Load packages that should be external but NOT traced for standalone output.
-    // These are dev-only packages that should not be included in the standalone output.
-    let untraced_packages: Vec<RcStr> = load_next_js_jsonc_file(
-        project_path.clone(),
-        rcstr!("dist/lib/server-external-untraced-packages.jsonc"),
-    )
-    .await
-    .unwrap_or_default();
+    // Read devDependencies from package.json - these should not be traced for
+    // standalone output since they are not needed at runtime.
+    let untraced_packages =
+        crate::util::get_dev_dependencies(project_path.clone()).await.unwrap_or_default();
     let untraced_packages = ResolvedVc::cell(untraced_packages);
 
     let mut transpiled_packages = get_transpiled_packages(next_config, project_path.clone())

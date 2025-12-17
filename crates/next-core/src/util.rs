@@ -366,6 +366,26 @@ pub async fn load_next_js_jsonc_file<T: DeserializeOwned>(
     }
 }
 
+/// Reads devDependencies from the project's package.json.
+/// These are packages that should not be traced for standalone output
+/// since they are not needed at runtime.
+pub async fn get_dev_dependencies(project_path: FileSystemPath) -> Result<Vec<RcStr>> {
+    let package_json_path = project_path.join("package.json")?;
+    let content = &*package_json_path.read().await?;
+
+    match content.parse_json_with_comments_ref() {
+        FileJsonContent::Content(value) => {
+            if let Some(dev_deps) = value.get("devDependencies") {
+                if let Some(obj) = dev_deps.as_object() {
+                    return Ok(obj.keys().map(|k| RcStr::from(k.as_str())).collect());
+                }
+            }
+            Ok(Vec::new())
+        }
+        _ => Ok(Vec::new()),
+    }
+}
+
 pub fn styles_rule_condition() -> RuleCondition {
     RuleCondition::any(vec![
         RuleCondition::all(vec![
