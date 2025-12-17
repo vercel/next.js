@@ -213,8 +213,8 @@ program
   .option('--no-mangling', 'Disables mangling.')
   .option('--profile', 'Enables production profiling for React.')
   .option(
-    '-o, --output [path]',
-    'Only write analysis files to disk. Does not start the server. Optionally specify a custom output path (defaults to .next/diagnostics/analyze).'
+    '-o, --output',
+    'Only write analysis files to disk. Does not start the server.'
   )
   .addOption(
     new Option(

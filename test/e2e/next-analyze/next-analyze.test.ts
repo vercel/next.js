@@ -49,7 +49,7 @@ describe('next experimental-analyze', () => {
   })
   ;['-o', '--output'].forEach((flag) => {
     describe(`with ${flag} flag`, () => {
-      it('writes output to default path when no path is specified', async () => {
+      it('writes output to .next/diagnostics/analyze path', async () => {
         const defaultOutputPath = path.join(
           next.testDir,
           '.next/diagnostics/analyze'
@@ -69,48 +69,17 @@ describe('next experimental-analyze', () => {
         expect(stdout).toContain('.next/diagnostics/analyze')
 
         expect(existsSync(defaultOutputPath)).toBe(true)
-        expect(existsSync(path.join(defaultOutputPath, 'index.html'))).toBe(
-          true
-        )
-        expect(
-          existsSync(path.join(defaultOutputPath, 'data', 'routes.json'))
-        ).toBe(true)
+        for (const file of [
+          'index.html',
+          'data/routes.json',
+          'data/modules.data',
+          'data/analyze.data',
+        ]) {
+          expect(existsSync(path.join(defaultOutputPath, file))).toBe(true)
+        }
 
         const routesJson = readFileSync(
           path.join(defaultOutputPath, 'data', 'routes.json'),
-          'utf-8'
-        )
-        const routes = JSON.parse(routesJson)
-        expect(routes).toEqual(['/', '/_not-found'])
-      })
-
-      it('writes output to custom path', async () => {
-        const customOutputPath = path.join(
-          next.testDir,
-          'nested/output/directory'
-        )
-
-        const { code, stderr, stdout } = await runNextCommand(
-          ['experimental-analyze', flag, 'nested/output/directory'],
-          {
-            cwd: next.testDir,
-            stderr: true,
-            stdout: true,
-          }
-        )
-
-        expect(code).toBe(0)
-        expect(stderr).not.toContain('Error')
-        expect(stdout).toContain('nested/output/directory')
-
-        expect(existsSync(customOutputPath)).toBe(true)
-        expect(existsSync(path.join(customOutputPath, 'index.html'))).toBe(true)
-        expect(
-          existsSync(path.join(customOutputPath, 'data', 'routes.json'))
-        ).toBe(true)
-
-        const routesJson = readFileSync(
-          path.join(customOutputPath, 'data', 'routes.json'),
           'utf-8'
         )
         const routes = JSON.parse(routesJson)
