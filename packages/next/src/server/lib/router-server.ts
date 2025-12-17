@@ -414,7 +414,7 @@ export async function initialize(opts: {
           req.url = removePathPrefix(origUrl, config.assetPrefix)
         }
 
-        if (resHeaders) {
+        if (resHeaders !== null) {
           for (const key of Object.keys(resHeaders)) {
             res.setHeader(key, resHeaders[key])
           }
@@ -441,8 +441,10 @@ export async function initialize(opts: {
       })
 
       // apply any response headers from routing
-      for (const key of Object.keys(resHeaders || {})) {
-        res.setHeader(key, resHeaders[key])
+      if (resHeaders !== null) {
+        for (const key of Object.keys(resHeaders)) {
+          res.setHeader(key, resHeaders[key])
+        }
       }
 
       // handle redirect
