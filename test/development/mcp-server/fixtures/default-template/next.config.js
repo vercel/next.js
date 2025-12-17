@@ -10,5 +10,5 @@ module.exports = {
       config.cache = false
     }
     return config
-  }
+  },
 }
