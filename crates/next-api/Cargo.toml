@@ -14,6 +14,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+bincode = { workspace = true }
 byteorder = { workspace = true }
 either = { workspace = true }
 futures = { workspace = true }
@@ -26,6 +27,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 swc_core = { workspace = true }
 tracing = { workspace = true }
+turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
@@ -36,9 +38,11 @@ turbopack = { workspace = true }
 turbopack-analyze = { workspace = true }
 turbopack-browser = { workspace = true }
 turbopack-core = { workspace = true }
+turbopack-css = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 turbopack-node = { workspace = true }
 turbopack-nodejs = { workspace = true }
+turbopack-resolve = { workspace = true }
 turbopack-wasm = { workspace = true }
 urlencoding = { workspace = true }
 

@@ -21,12 +21,11 @@ import {
   createOpaqueFallbackRouteParams,
   type OpaqueFallbackRouteParams,
 } from '../../server/request/fallback-params'
-import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
+import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
 import {
   isHtmlBotRequest,
   shouldServeStreamingMetadata,
 } from '../../server/lib/streaming-metadata'
-import { createServerModuleMap } from '../../server/app-render/action-utils'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta'
 import {
@@ -171,6 +170,7 @@ export async function handler(
     nextConfig,
     parsedUrl,
     interceptionRoutePatterns,
+    deploymentId,
   } = prepareResult
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
@@ -400,13 +400,10 @@ export async function handler(
   // set the reference manifests to our global store so Server Action's
   // encryption util can access to them at the top level of the page module.
   if (serverActionsManifest && clientReferenceManifest) {
-    setReferenceManifestsSingleton({
+    setManifestsSingleton({
       page: srcPage,
       clientReferenceManifest,
       serverActionsManifest,
-      serverModuleMap: createServerModuleMap({
-        serverActionsManifest,
-      }),
     })
   }
 
@@ -540,8 +537,6 @@ export async function handler(
           nextFontManifest,
           reactLoadableManifest,
           subresourceIntegrityManifest,
-          serverActionsManifest,
-          clientReferenceManifest,
           setCacheStatus: routerServerContext?.setCacheStatus,
           setIsrStatus: routerServerContext?.setIsrStatus,
           setReactDebugChannel: routerServerContext?.setReactDebugChannel,
@@ -565,7 +560,7 @@ export async function handler(
           trailingSlash: nextConfig.trailingSlash,
           images: nextConfig.images,
           previewProps: prerenderManifest.preview,
-          deploymentId: nextConfig.deploymentId,
+          deploymentId: deploymentId,
           enableTainting: nextConfig.experimental.taint,
           htmlLimitedBots: nextConfig.htmlLimitedBots,
           reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,

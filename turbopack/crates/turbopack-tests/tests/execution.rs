@@ -8,8 +8,9 @@ mod util;
 use std::{env, path::PathBuf};
 
 use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use dunce::canonicalize;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -25,8 +26,6 @@ use turbo_tasks_fs::{
 use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
-    css::chunk::CssChunkType,
-    ecmascript::{TreeShakingMode, chunk::EcmascriptChunkType},
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
 };
 use turbopack_core::{
@@ -46,6 +45,8 @@ use turbopack_core::{
         options::{ImportMap, ImportMapping},
     },
 };
+use turbopack_css::chunk::CssChunkType;
+use turbopack_ecmascript::{TreeShakingMode, chunk::EcmascriptChunkType};
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{
     debug::should_debug,
@@ -68,7 +69,7 @@ struct RunTestResult {
 }
 
 #[turbo_tasks::value]
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct JsResult {
     uncaught_exceptions: Vec<String>,
@@ -233,7 +234,7 @@ async fn run_inner_operation(
 }
 
 #[derive(
-    PartialEq, Eq, Debug, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue,
+    PartialEq, Eq, Debug, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
@@ -359,7 +360,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .defines(
             compile_time_defines!(
                 process.turbopack = true,
-                process.env.TURBOPACK = true,
+                process.env.TURBOPACK = "1",
                 process.env.NODE_ENV = "production",
             )
             .resolved_cell(),
@@ -476,7 +477,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 
     let entries = get_evaluate_entries(jest_entry_asset, asset_context, None);
 
-    let mut module_graph = ModuleGraph::from_modules(entries.graph_entries(), false);
+    let mut module_graph = ModuleGraph::from_modules(entries.graph_entries(), false, true);
 
     let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
         Some(

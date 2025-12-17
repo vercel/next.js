@@ -38,6 +38,7 @@ impl EcmascriptDevChunkContentEntry {
 
 #[turbo_tasks::value(transparent)]
 pub struct EcmascriptBrowserChunkContentEntries(
+    #[bincode(with = "turbo_bincode::indexmap")]
     FxIndexMap<ReadRef<ModuleId>, EcmascriptDevChunkContentEntry>,
 );
 

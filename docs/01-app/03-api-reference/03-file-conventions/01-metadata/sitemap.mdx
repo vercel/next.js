@@ -350,7 +350,7 @@ export async function generateSitemaps() {
 }
 
 export default async function sitemap(props: {
-  id: Promise<number>
+  id: Promise<string>
 }): Promise<MetadataRoute.Sitemap> {
   const id = await props.id
   // Google's limit is 50,000 URLs per sitemap
@@ -420,7 +420,7 @@ type Sitemap = Array<{
 
 | Version    | Changes                                                      |
 | ---------- | ------------------------------------------------------------ |
-| `v16.0.0`  | `id` is now a promise that resolves to a number.             |
+| `v16.0.0`  | `id` is now a promise that resolves to a `string`.           |
 | `v14.2.0`  | Add localizations support.                                   |
 | `v13.4.14` | Add `changeFrequency` and `priority` attributes to sitemaps. |
 | `v13.3.0`  | `sitemap` introduced.                                        |

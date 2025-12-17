@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
+use bincode::{Decode, Encode};
 use petgraph::{
     Direction,
     graph::{DiGraph, EdgeIndex, NodeIndex},
@@ -47,18 +48,32 @@ pub mod chunk_group_info;
 pub mod merged_modules;
 pub mod module_batch;
 pub(crate) mod module_batches;
+mod side_effect_module_info;
 pub(crate) mod style_groups;
 mod traced_di_graph;
 
 pub use self::module_batches::BatchingConfig;
 
 #[derive(
-    Debug, Copy, Clone, Eq, PartialOrd, Ord, Hash, PartialEq, Serialize, Deserialize, TraceRawVcs,
+    Debug,
+    Copy,
+    Clone,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    Encode,
+    Decode,
 )]
 pub struct GraphNodeIndex {
     #[turbo_tasks(trace_ignore)]
     graph_idx: u32,
     #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
     node_idx: NodeIndex,
 }
 impl GraphNodeIndex {
@@ -73,14 +88,26 @@ impl GraphNodeIndex {
 unsafe impl NonLocalValue for GraphNodeIndex {}
 
 #[derive(
-    Debug, Copy, Clone, Eq, PartialOrd, Ord, Hash, PartialEq, Serialize, Deserialize, TraceRawVcs,
+    Debug,
+    Copy,
+    Clone,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct GraphEdgeIndex {
-    #[turbo_tasks(trace_ignore)]
     graph_idx: u32,
     #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
     edge_idx: EdgeIndex,
 }
+
 impl GraphEdgeIndex {
     fn new(graph_idx: u32, edge_idx: EdgeIndex) -> Self {
         Self {
@@ -90,11 +117,10 @@ impl GraphEdgeIndex {
     }
 }
 
-unsafe impl NonLocalValue for GraphEdgeIndex {}
-
 #[turbo_tasks::value]
 #[derive(Clone, Debug)]
 pub struct VisitedModules {
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub modules: FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
     next_graph_idx: u32,
 }
@@ -208,6 +234,7 @@ pub struct SingleModuleGraph {
     //
     // This contains Vcs, but they are already contained in the graph, so no need to trace this.
     #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
     modules: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 
     #[turbo_tasks(trace_ignore)]
@@ -240,6 +267,7 @@ impl SingleModuleGraph {
         entries: &GraphEntriesT,
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         let emit_spans = tracing::enabled!(Level::INFO);
         let root_edges = entries
@@ -263,6 +291,7 @@ impl SingleModuleGraph {
                     visited_modules,
                     emit_spans,
                     include_traced,
+                    include_binding_usage,
                 },
             )
             .await
@@ -783,16 +812,26 @@ impl ModuleGraph {
     pub fn from_entry_module(
         module: ResolvedVc<Box<dyn Module>>,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Vc<Self> {
         Self::from_single_graph(SingleModuleGraph::new_with_entries(
             Vc::cell(vec![ChunkGroupEntry::Entry(vec![module])]),
             include_traced,
+            include_binding_usage,
         ))
     }
 
     #[turbo_tasks::function]
-    pub fn from_modules(modules: Vc<GraphEntries>, include_traced: bool) -> Vc<Self> {
-        Self::from_single_graph(SingleModuleGraph::new_with_entries(modules, include_traced))
+    pub fn from_modules(
+        modules: Vc<GraphEntries>,
+        include_traced: bool,
+        include_binding_usage: bool,
+    ) -> Vc<Self> {
+        Self::from_single_graph(SingleModuleGraph::new_with_entries(
+            modules,
+            include_traced,
+            include_binding_usage,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -912,7 +951,7 @@ impl ModuleGraph {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TaskInput, TraceRawVcs, NonLocalValue,
+    Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub struct SingleModuleGraphWithBindingUsage {
     pub graph: ResolvedVc<SingleModuleGraph>,
@@ -1068,7 +1107,7 @@ impl ModuleGraphRef {
     ///    - Receives the module and the `state`
     ///    - Can return [GraphTraversalAction]s to control the traversal
     /// * `visit_postorder` - Called after visiting children of a node.
-    pub fn traverse_nodes_from_entries_dfs<S>(
+    pub fn traverse_nodes_dfs<S>(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         state: &mut S,
@@ -1129,7 +1168,7 @@ impl ModuleGraphRef {
     ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
     ///    - Can return [GraphTraversalAction]s to control the traversal
-    pub fn traverse_edges_from_entries_bfs(
+    pub fn traverse_edges_bfs(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         mut visitor: impl FnMut(
@@ -1170,55 +1209,6 @@ impl ModuleGraphRef {
         Ok(())
     }
 
-    /// Traverses all reachable edges exactly once and calls the visitor with the edge source and
-    /// target.
-    ///
-    /// This means that target nodes can be revisited (once per incoming edge).
-    ///
-    /// * `entry` - The entry module to start the traversal from
-    /// * `visitor` - Called before visiting the children of a node.
-    ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
-    ///      &SingleModuleGraphNode, state &S
-    ///    - Can return [GraphTraversalAction]s to control the traversal
-    pub fn traverse_edges_from_entry_dfs(
-        &self,
-        entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
-        mut visitor: impl FnMut(
-            Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData)>,
-            ResolvedVc<Box<dyn Module>>,
-        ) -> GraphTraversalAction,
-    ) -> Result<()> {
-        let mut stack = entries
-            .into_iter()
-            .map(|e| self.get_entry(e))
-            .collect::<Result<Vec<_>>>()?;
-        let mut visited = FxHashSet::default();
-        for entry_node in &stack {
-            visitor(None, self.get_node(*entry_node)?.module());
-        }
-        while let Some(node) = stack.pop() {
-            if visited.insert(node) {
-                let node_weight = self.get_node(node)?;
-                for (edge, succ) in self.iter_graphs_neighbors_rev(node, Direction::Outgoing) {
-                    let succ_weight = self.get_node(succ)?;
-                    let action = visitor(
-                        Some((node_weight.module(), self.get_edge(edge)?)),
-                        succ_weight.module(),
-                    );
-                    if !self.should_visit_node(succ_weight, Direction::Outgoing) {
-                        continue;
-                    }
-                    let succ = succ_weight.target_idx(Direction::Outgoing).unwrap_or(succ);
-                    if !visited.contains(&succ) && action == GraphTraversalAction::Continue {
-                        stack.push(succ);
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
     /// Traverses all edges exactly once (in an unspecified order) and calls the visitor with the
     /// edge source and target.
     ///
@@ -1227,7 +1217,7 @@ impl ModuleGraphRef {
     /// * `visitor` - Called before visiting the children of a node.
     ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode
-    pub fn traverse_all_edges_unordered(
+    pub fn traverse_edges_unordered(
         &self,
         mut visitor: impl FnMut(
             Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData)>,
@@ -1236,7 +1226,9 @@ impl ModuleGraphRef {
     ) -> Result<()> {
         let entries = self.graphs.iter().flat_map(|g| g.entry_modules());
 
-        self.traverse_edges_from_entries_dfs(
+        // Despite the name we need to do a DFS to respect 'reachability' if an edge was trimmed we
+        // should not follow it, and this is a reasonable way to do that.
+        self.traverse_edges_dfs(
             entries,
             &mut (),
             |parent, target, _| {
@@ -1265,7 +1257,7 @@ impl ModuleGraphRef {
     /// * `visit_postorder` - Called after visiting the children of a node. Return
     ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
-    pub fn traverse_edges_from_entries_dfs<S>(
+    pub fn traverse_edges_dfs<S>(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         state: &mut S,
@@ -1280,7 +1272,7 @@ impl ModuleGraphRef {
             &mut S,
         ) -> Result<()>,
     ) -> Result<()> {
-        self.traverse_edges_from_entries_dfs_impl::<S>(
+        self.traverse_edges_dfs_impl::<S>(
             entries,
             state,
             visit_preorder,
@@ -1305,7 +1297,7 @@ impl ModuleGraphRef {
     /// * `visit_postorder` - Called after visiting the parents of a node. Return
     ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
-    pub fn traverse_edges_from_entries_dfs_reversed<S>(
+    pub fn traverse_edges_reverse_dfs<S>(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         state: &mut S,
@@ -1320,7 +1312,7 @@ impl ModuleGraphRef {
             &mut S,
         ) -> Result<()>,
     ) -> Result<()> {
-        self.traverse_edges_from_entries_dfs_impl::<S>(
+        self.traverse_edges_dfs_impl::<S>(
             entries,
             state,
             visit_preorder,
@@ -1329,7 +1321,7 @@ impl ModuleGraphRef {
         )
     }
 
-    fn traverse_edges_from_entries_dfs_impl<S>(
+    fn traverse_edges_dfs_impl<S>(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         state: &mut S,
@@ -1459,10 +1451,17 @@ impl ModuleGraphRef {
             );
         }
 
+        let mut visit_order = 0usize;
+        let mut order = || {
+            let order = visit_order;
+            visit_order += 1;
+            order
+        };
         #[derive(PartialEq, Eq)]
         struct NodeWithPriority<T: Ord> {
             node: GraphNodeIndex,
             priority: T,
+            visit_order: usize,
         }
         impl<T: Ord> PartialOrd for NodeWithPriority<T> {
             fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -1475,8 +1474,9 @@ impl ModuleGraphRef {
 
                 self.priority
                     .cmp(&other.priority)
-                    // include GraphNodeIndex for total and deterministic ordering
-                    .then(other.node.cmp(&self.node))
+                    // Use visit_order, so when there are ties we prioritize earlier discovered
+                    // nodes, reverting to a BFS in the the case where all priorities are equal
+                    .then(self.visit_order.cmp(&other.visit_order))
             }
         }
 
@@ -1488,6 +1488,7 @@ impl ModuleGraphRef {
                     Ok(NodeWithPriority {
                         node: self.get_entry(m)?,
                         priority,
+                        visit_order: order(),
                     })
                 })
                 .collect::<Result<Vec<_>>>()?,
@@ -1519,6 +1520,7 @@ impl ModuleGraphRef {
                     queue.push(NodeWithPriority {
                         node: succ,
                         priority: priority(succ_weight.module(), state)?,
+                        visit_order: order(),
                     });
                 }
             }
@@ -1534,8 +1536,15 @@ impl SingleModuleGraph {
     pub async fn new_with_entries(
         entries: Vc<GraphEntries>,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(&*entries.await?, &Default::default(), include_traced).await
+        SingleModuleGraph::new_inner(
+            &*entries.await?,
+            &Default::default(),
+            include_traced,
+            include_binding_usage,
+        )
+        .await
     }
 
     #[turbo_tasks::function]
@@ -1543,11 +1552,13 @@ impl SingleModuleGraph {
         entries: Vc<GraphEntries>,
         visited_modules: Vc<VisitedModules>,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             &*entries.await?,
             &visited_modules.await?.modules,
             include_traced,
+            include_binding_usage,
         )
         .await
     }
@@ -1558,9 +1569,15 @@ impl SingleModuleGraph {
         entries: GraphEntriesT,
         visited_modules: Vc<VisitedModules>,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(&entries, &visited_modules.await?.modules, include_traced)
-            .await
+        SingleModuleGraph::new_inner(
+            &entries,
+            &visited_modules.await?.modules,
+            include_traced,
+            include_binding_usage,
+        )
+        .await
     }
 }
 
@@ -1689,6 +1706,9 @@ struct SingleModuleGraphBuilder<'a> {
 
     /// Whether to walk ChunkingType::Traced references
     include_traced: bool,
+
+    /// Whether to read ChunkableModuleReference::binding_usage()
+    include_binding_usage: bool,
 }
 impl
     Visit<(
@@ -1753,10 +1773,15 @@ impl
         let visited_modules = self.visited_modules;
         let emit_spans = self.emit_spans;
         let include_traced = self.include_traced;
+        let include_binding_usage = self.include_binding_usage;
         async move {
             Ok(match (module, chunkable_ref_target) {
                 (Some(module), None) => {
-                    let refs_cell = primary_chunkable_referenced_modules(*module, include_traced);
+                    let refs_cell = primary_chunkable_referenced_modules(
+                        *module,
+                        include_traced,
+                        include_binding_usage,
+                    );
                     let refs = match refs_cell.await {
                         Ok(refs) => refs,
                         Err(e) => {
@@ -1885,7 +1910,7 @@ pub mod tests {
     use crate::{
         asset::{Asset, AssetContent},
         ident::AssetIdent,
-        module::Module,
+        module::{Module, ModuleSideEffects},
         module_graph::{
             GraphEntries, GraphTraversalAction, ModuleGraph, ModuleGraphRef, SingleModuleGraph,
             VisitedModules, chunk_group_info::ChunkGroupEntry,
@@ -1910,7 +1935,7 @@ pub mod tests {
                 let mut preorder_visits = Vec::new();
                 let mut postorder_visits = Vec::new();
 
-                graph.traverse_edges_from_entries_dfs(
+                graph.traverse_edges_dfs(
                     entry_modules,
                     &mut (),
                     |parent, target, _| {
@@ -1970,7 +1995,7 @@ pub mod tests {
                 let mut preorder_visits = Vec::new();
                 let mut postorder_visits = Vec::new();
 
-                graph.traverse_edges_from_entries_dfs(
+                graph.traverse_edges_dfs(
                     entry_modules,
                     &mut (),
                     |parent, target, _| {
@@ -2067,6 +2092,64 @@ pub mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_traverse_edges_fixed_point_no_priority_is_bfs() {
+        run_graph_test(
+            vec![rcstr!("a.js")],
+            {
+                let mut deps = FxHashMap::default();
+                // a simple triangle
+                //        a
+                //      b   c
+                //   d    e    f
+                deps.insert(rcstr!("a.js"), vec![rcstr!("b.js"), rcstr!("c.js")]);
+                deps.insert(rcstr!("b.js"), vec![rcstr!("d.js"), rcstr!("e.js")]);
+                deps.insert(rcstr!("c.js"), vec![rcstr!("e.js"), rcstr!("f.js")]);
+                deps
+            },
+            |graph, entry_modules, module_to_name| {
+                let mut visits = Vec::new();
+                let mut count = 0;
+
+                graph.traverse_edges_fixed_point_with_priority(
+                    entry_modules.into_iter().map(|m| (m, 0)),
+                    &mut (),
+                    |parent, target, _| {
+                        visits.push((
+                            parent.map(|(node, _, _)| module_to_name.get(&node).unwrap().clone()),
+                            module_to_name.get(&target).unwrap().clone(),
+                        ));
+                        count += 1;
+
+                        // We are a cycle so we need to break the loop eventually
+                        Ok(if count < 6 {
+                            GraphTraversalAction::Continue
+                        } else {
+                            GraphTraversalAction::Skip
+                        })
+                    },
+                    |_, _| Ok(0),
+                )?;
+
+                assert_eq!(
+                    vec![
+                        (None, rcstr!("a.js")),
+                        (Some(rcstr!("a.js")), rcstr!("c.js")),
+                        (Some(rcstr!("a.js")), rcstr!("b.js")),
+                        (Some(rcstr!("b.js")), rcstr!("e.js")),
+                        (Some(rcstr!("b.js")), rcstr!("d.js")),
+                        (Some(rcstr!("c.js")), rcstr!("f.js")),
+                        (Some(rcstr!("c.js")), rcstr!("e.js")),
+                    ],
+                    visits
+                );
+
+                Ok(())
+            },
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_reverse_edges_through_layered_graph() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
@@ -2107,6 +2190,7 @@ pub mod tests {
             let parent_graph = SingleModuleGraph::new_with_entries(
                 GraphEntries::cell(GraphEntries(vec![ChunkGroupEntry::Entry(vec![b_module])])),
                 false,
+                false,
             );
 
             let module_graph = ModuleGraph::from_graphs(vec![
@@ -2115,6 +2199,7 @@ pub mod tests {
                     GraphEntries::cell(GraphEntries(vec![ChunkGroupEntry::Entry(vec![a_module])])),
                     VisitedModules::from_graph(parent_graph),
                     false,
+                    false,
                 ),
             ])
             .await?;
@@ -2122,7 +2207,7 @@ pub mod tests {
             // test traversing forward from a in the child graph
             {
                 let mut visited_forward = Vec::new();
-                child_graph.traverse_edges_from_entries_dfs(
+                child_graph.traverse_edges_dfs(
                     vec![a_module],
                     &mut (),
                     |_parent, child, _state_| {
@@ -2173,7 +2258,7 @@ pub mod tests {
                     .next()
                     .unwrap();
                 let mut visited_reverse = Vec::new();
-                child_graph.traverse_edges_from_entries_dfs_reversed(
+                child_graph.traverse_edges_reverse_dfs(
                     vec![d_module],
                     &mut (),
                     |_parent, child, _state_| {
@@ -2195,7 +2280,7 @@ pub mod tests {
             // VisitedModule in this graph
             {
                 let mut visited_reverse = Vec::new();
-                child_graph.traverse_edges_from_entries_dfs_reversed(
+                child_graph.traverse_edges_reverse_dfs(
                     vec![b_module],
                     &mut (),
                     |_parent, child, _state_| {
@@ -2281,6 +2366,10 @@ pub mod tests {
 
             Ok(Vc::cell(references))
         }
+        #[turbo_tasks::function]
+        fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+            ModuleSideEffects::SideEffectful.cell()
+        }
     }
 
     /// Constructs a graph based on the provided dependency adjacency lists and calls the given test
@@ -2339,6 +2428,7 @@ pub mod tests {
                 GraphEntries::cell(GraphEntries(vec![ChunkGroupEntry::Entry(
                     entry_modules.clone(),
                 )])),
+                false,
                 false,
             );
 

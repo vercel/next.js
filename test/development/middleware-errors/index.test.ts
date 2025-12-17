@@ -37,7 +37,11 @@ describe('middleware - development errors', () => {
               // TODO(veil): Sourcemap to original name i.e. "default"
               '\n    at __TURBOPACK__default__export__ (middleware.js:3:15)' +
               '\n  1 |'
-          : '\n⨯ Error: boom' +
+          : isRspack
+            ? '\n⨯ Error: boom' +
+              '\n    at __rspack_default_export (middleware.js:3:15)' +
+              '\n  1 |'
+            : '\n⨯ Error: boom' +
               '\n    at default (middleware.js:3:15)' +
               '\n  1 |'
       )
@@ -134,7 +138,12 @@ describe('middleware - development errors', () => {
               // TODO(veil): Sourcemap to original name i.e. "default"
               '\n    at __TURBOPACK__default__export__ (middleware.js:7:9)' +
               "\n  2 |       import { NextResponse } from 'next/server'"
-          : '\n⨯ unhandledRejection:  Error: async boom!' +
+          : isRspack
+            ? '\n⨯ unhandledRejection:  Error: async boom!' +
+              '\n    at throwError (middleware.js:4:15)' +
+              '\n    at __rspack_default_export (middleware.js:7:9)' +
+              "\n  2 |       import { NextResponse } from 'next/server'"
+            : '\n⨯ unhandledRejection:  Error: async boom!' +
               '\n    at throwError (middleware.js:4:15)' +
               '\n    at default (middleware.js:7:9)' +
               "\n  2 |       import { NextResponse } from 'next/server'"
@@ -297,7 +306,13 @@ describe('middleware - development errors', () => {
           ? '\n⨯ Error: booooom!' +
               // TODO(veil): Should be sourcemapped
               '\n    at module evaluation (middleware.js:3:13)'
-          : '\n⨯ Error: booooom!' +
+          : isRspack
+            ? '\n⨯ Error: booooom!' +
+              `\n    at <unknown> (${getDistDir()}/server/edge-runtime-webpack.js:35)` +
+              '\n    at eval (middleware.js:3:13)' +
+              `\n    at (middleware)/./middleware.js (${getDistDir()}/server/middleware.js:26:1)` +
+              '\n    at __webpack_require__ '
+            : '\n⨯ Error: booooom!' +
               // TODO: Should be anonymous method without a method name
               '\n    at <unknown> (middleware.js:3)' +
               // TODO: Should be ignore-listed

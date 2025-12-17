@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import type { Request, Response } from 'playwright'
 
 describe('app dir - basepath', () => {
@@ -75,23 +75,38 @@ describe('app dir - basepath', () => {
       let rscRequests = []
       const browser = await next.browser(path, {
         beforePageLoad(page) {
-          page.on('request', (request) => {
-            return request.allHeaders().then((headers) => {
+          page.on('request', async (request) => {
+            let headers: { [key: string]: string }
+            try {
+              headers = await request.allHeaders()
+            } catch (e) {
               if (
-                headers['rsc'] === '1' &&
-                // Prefetches also include `rsc`
-                headers['next-router-prefetch'] !== '1'
+                e.message.includes(
+                  'Target page, context or browser has been closed'
+                )
               ) {
-                rscRequests.push(request.url())
+                // Ignore errors caused by closed browser during test teardown
+                return
               }
-            })
+              throw e
+            }
+
+            if (
+              headers['rsc'] === '1' &&
+              // Prefetches also include `rsc`
+              headers['next-router-prefetch'] !== '1'
+            ) {
+              rscRequests.push(request.url())
+            }
           })
         },
       })
+
       await browser.elementByCss('button').click()
       await retry(async () => {
-        expect(rscRequests.length).toBe(1)
-        expect(rscRequests[0]).toContain(`${next.url}${path}`)
+        expect(rscRequests).toEqual([
+          expect.stringContaining(`${next.url}${path}`),
+        ])
       })
     }
   )
@@ -133,7 +148,9 @@ describe('app dir - basepath', () => {
       })
 
       await browser.elementById(buttonId).click()
-      await check(() => browser.url(), /\/base\/another/)
+      await retry(async () =>
+        expect(await browser.url()).toContain('/base/another')
+      )
 
       expect(await browser.waitForElementByCss('#page-2').text()).toBe(`Page 2`)
 
@@ -149,8 +166,8 @@ describe('app dir - basepath', () => {
       const request = requests[0]
       const response = responses[0]
 
-      expect(request.method()).toEqual('POST')
       expect(request.url()).toEqual(`${next.url}${initialPagePath}`)
+      expect(request.method()).toEqual('POST')
       expect(response.status()).toEqual(303)
     }
   )
@@ -181,7 +198,9 @@ describe('app dir - basepath', () => {
     })
 
     await browser.elementById('redirect-absolute-external').click()
-    await check(() => browser.url(), /\/outsideBasePath/)
+    await retry(async () =>
+      expect(await browser.url()).toContain('/outsideBasePath')
+    )
 
     // We expect to see two requests, first a POST invoking the server
     // action. And second a GET request resolving the redirect.
@@ -191,11 +210,11 @@ describe('app dir - basepath', () => {
     const [firstRequest, secondRequest] = requests
     const [firstResponse, secondResponse] = responses
 
-    expect(firstRequest.method()).toEqual('POST')
     expect(firstRequest.url()).toEqual(`${next.url}${initialPagePath}`)
+    expect(firstRequest.method()).toEqual('POST')
 
-    expect(secondRequest.method()).toEqual('GET')
     expect(secondRequest.url()).toEqual(`${next.url}${destinationPagePath}`)
+    expect(secondRequest.method()).toEqual('GET')
 
     expect(firstResponse.status()).toEqual(303)
     // Since this is an external request to a resource outside of NextJS

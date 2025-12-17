@@ -1,17 +1,14 @@
 use std::collections::BTreeSet;
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::{
-    css::chunk::CssChunkType,
-    module_options::{
-        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule,
-        TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
-    },
-    resolve_options_context::ResolveOptionsContext,
+use turbopack::module_options::{
+    CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule,
+    TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
+    side_effect_free_packages_glob,
 };
 use turbopack_browser::{
     BrowserChunkingContext, ChunkSuffix, ContentHashing, CurrentChunkMethod,
@@ -28,17 +25,21 @@ use turbopack_core::{
     module_graph::binding_usage_info::OptionBindingUsageInfo,
     resolve::{parse::Request, pattern::Pattern},
 };
+use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType};
 use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
 };
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
-use super::transforms::get_next_client_transforms_rules;
 use crate::{
     mode::NextMode,
     next_build::get_postcss_package_mapping,
-    next_client::runtime_entry::{RuntimeEntries, RuntimeEntry},
+    next_client::{
+        runtime_entry::{RuntimeEntries, RuntimeEntry},
+        transforms::get_next_client_transforms_rules,
+    },
     next_config::NextConfig,
     next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{
@@ -325,6 +326,7 @@ pub async fn get_client_module_options_context(
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
             source_maps,
+            infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             ..Default::default()
         },
         css: CssOptionsContext {
@@ -336,7 +338,11 @@ pub async fn get_client_module_options_context(
         execution_context: Some(execution_context),
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         enable_postcss_transform,
-        side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
+        side_effect_free_packages: Some(
+            side_effect_free_packages_glob(next_config.optimize_package_imports())
+                .to_resolved()
+                .await?,
+        ),
         keep_last_successful_parse: next_mode.is_development(),
         analyze_mode: if next_mode.is_development() {
             AnalyzeMode::CodeGeneration
@@ -407,7 +413,7 @@ pub async fn get_client_module_options_context(
     Ok(module_options_context)
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
 pub struct ClientChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,

@@ -15,7 +15,7 @@ use turbopack_core::{
     },
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
-        AliasPattern, ModuleResolveResult, handle_resolve_error,
+        AliasPattern, ModuleResolveResult, RequestKey, handle_resolve_error,
         node::node_cjs_resolve_options,
         options::{
             ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
@@ -479,9 +479,14 @@ pub async fn type_resolve(
 pub async fn as_typings_result(result: Vc<ModuleResolveResult>) -> Result<Vc<ModuleResolveResult>> {
     let mut result = result.owned().await?;
     result.primary = IntoIterator::into_iter(take(&mut result.primary))
-        .map(|(mut k, v)| {
-            k.conditions.insert("types".to_string(), true);
-            (k, v)
+        .map(|(k, v)| {
+            (
+                RequestKey {
+                    request: k.request.clone(),
+                    conditions: k.conditions.extend([(rcstr!("types"), true)]),
+                },
+                v,
+            )
         })
         .collect();
     Ok(result.cell())

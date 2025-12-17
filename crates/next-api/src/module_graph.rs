@@ -19,13 +19,13 @@ use turbo_tasks::{
     CollectiblesSource, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::css::{CssModuleAsset, ModuleCssAsset};
 use turbopack_core::{
     context::AssetContext,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraphWithBindingUsage},
 };
+use turbopack_css::{CssModuleAsset, ModuleCssAsset};
 
 use crate::{
     client_references::{ClientManifestEntryType, ClientReferenceData, map_client_references},
@@ -173,7 +173,7 @@ impl NextDynamicGraph {
 
             // module -> the client reference entry (if any)
             let mut state_map = FxHashMap::default();
-            graph.traverse_edges_from_entries_dfs(
+            graph.traverse_edges_dfs(
                 entries,
                 &mut (),
                 |parent_info, node, _| {
@@ -351,7 +351,7 @@ impl ServerActionsGraph {
                 }
 
                 let mut result = FxIndexMap::default();
-                graph.traverse_nodes_from_entries_dfs(
+                graph.traverse_nodes_dfs(
                     vec![entry],
                     &mut result,
                     |node, result| {
@@ -460,6 +460,7 @@ impl ClientReferencesGraphs {
         entry: Vc<Box<dyn Module>>,
         has_layout_segments: bool,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Result<Vc<ClientReferenceGraphResult>> {
         let span = tracing::info_span!("collect all client references for endpoint");
         async move {
@@ -477,7 +478,9 @@ impl ClientReferencesGraphs {
                 // messes up the order of the server_component_entries.
                 let server_entries = async {
                     if has_layout_segments {
-                        let server_entries = find_server_entries(entry, include_traced).await?;
+                        let server_entries =
+                            find_server_entries(entry, include_traced, include_binding_usage)
+                                .await?;
                         Ok(Some(server_entries))
                     } else {
                         Ok(None)
@@ -556,7 +559,7 @@ impl ClientReferencesGraph {
             let mut server_components = FxIndexSet::default();
 
             // Perform a DFS traversal to find all server components included by this page.
-            graph.traverse_nodes_from_entries_dfs(
+            graph.traverse_nodes_dfs(
                 entries,
                 &mut (),
                 |node, _| {
@@ -612,7 +615,7 @@ impl ClientReferencesGraph {
             // necessarily rendered at the same time (not-found, or parallel routes), we need to
             // determine the order of client references individually for each server component.
             for sc in server_components.iter().copied() {
-                graph.traverse_nodes_from_entries_dfs(
+                graph.traverse_nodes_dfs(
                     std::iter::once(ResolvedVc::upcast(sc)),
                     &mut (),
                     |node, _| {
@@ -758,7 +761,7 @@ impl Issue for CssGlobalImportIssue {
 type FxModuleNameMap = FxIndexMap<ResolvedVc<Box<dyn Module>>, RcStr>;
 
 #[turbo_tasks::value(transparent)]
-struct ModuleNameMap(pub FxModuleNameMap);
+struct ModuleNameMap(#[bincode(with = "turbo_bincode::indexmap")] pub FxModuleNameMap);
 
 #[tracing::instrument(level = "info", name = "validate pages css imports", skip_all)]
 #[turbo_tasks::function]
@@ -783,7 +786,7 @@ async fn validate_pages_css_imports_individual(
 
     let mut candidates = vec![];
 
-    graph.traverse_edges_from_entries_dfs(
+    graph.traverse_edges_dfs(
         entries,
         &mut (),
         |parent_info, node, _| {

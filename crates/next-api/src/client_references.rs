@@ -1,18 +1,18 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use next_core::{
     next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
     next_server_component::server_component_module::NextServerComponentModule,
 };
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
-use turbopack::css::chunk::CssChunkPlaceable;
 use turbopack_core::{module::Module, module_graph::SingleModuleGraph};
+use turbopack_css::chunk::CssChunkPlaceable;
 
 #[derive(
-    Copy, Clone, Serialize, Deserialize, Eq, PartialEq, TraceRawVcs, ValueDebugFormat, NonLocalValue,
+    Copy, Clone, Eq, PartialEq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 pub enum ClientManifestEntryType {
     EcmascriptClientReference {

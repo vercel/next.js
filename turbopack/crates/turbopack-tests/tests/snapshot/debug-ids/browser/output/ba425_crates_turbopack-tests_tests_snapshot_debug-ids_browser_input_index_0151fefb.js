@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="683a00e2-39b4-f14a-ae2f-75a281be4c75")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="daa7096d-88eb-4aef-8d70-6aae41560fce")}catch(e){}}();
 (globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([
     "output/ba425_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js",
     {"otherChunks":["output/aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0b8736b3.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -261,9 +261,29 @@ function commonJsRequire(id) {
 }
 contextPrototype.r = commonJsRequire;
 /**
+ * Remove fragments and query parameters since they are never part of the context map keys
+ *
+ * This matches how we parse patterns at resolving time.  Arguably we should only do this for
+ * strings passed to `import` but the resolve does it for `import` and `require` and so we do
+ * here as well.
+ */ function parseRequest(request) {
+    // Per the URI spec fragments can contain `?` characters, so we should trim it off first
+    // https://datatracker.ietf.org/doc/html/rfc3986#section-3.5
+    const hashIndex = request.indexOf('#');
+    if (hashIndex !== -1) {
+        request = request.substring(0, hashIndex);
+    }
+    const queryIndex = request.indexOf('?');
+    if (queryIndex !== -1) {
+        request = request.substring(0, queryIndex);
+    }
+    return request;
+}
+/**
  * `require.context` and require/import expression runtime.
  */ function moduleContext(map) {
     function moduleContext(id) {
+        id = parseRequest(id);
         if (hasOwnProperty.call(map, id)) {
             return map[id].module();
         }
@@ -275,6 +295,7 @@ contextPrototype.r = commonJsRequire;
         return Object.keys(map);
     };
     moduleContext.resolve = (id)=>{
+        id = parseRequest(id);
         if (hasOwnProperty.call(map, id)) {
             return map[id].id();
         }
@@ -618,7 +639,7 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkUrl) {
     let entry = instrumentedBackendLoadChunks.get(thenable);
     if (entry === undefined) {
         const resolve = instrumentedBackendLoadChunks.set.bind(instrumentedBackendLoadChunks, thenable, loadedChunk);
-        entry = thenable.then(resolve).catch((error)=>{
+        entry = thenable.then(resolve).catch((cause)=>{
             let loadReason;
             switch(sourceType){
                 case 0:
@@ -633,9 +654,11 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkUrl) {
                 default:
                     invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
             }
-            throw new Error(`Failed to load chunk ${chunkUrl} ${loadReason}${error ? `: ${error}` : ''}`, error ? {
-                cause: error
+            let error = new Error(`Failed to load chunk ${chunkUrl} ${loadReason}${cause ? `: ${cause}` : ''}`, cause ? {
+                cause
             } : undefined);
+            error.name = 'ChunkLoadError';
+            throw error;
         });
         instrumentedBackendLoadChunks.set(thenable, entry);
     }
@@ -669,7 +692,7 @@ browserContextPrototype.P = resolveAbsolutePath;
     let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
 self.TURBOPACK_CHUNK_SUFFIX = ${JSON.stringify(CHUNK_SUFFIX)};
 self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
-importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c + self.TURBOPACK_CHUNK_SUFFIX).reverse());`;
+importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`;
     let blob = new Blob([
         bootstrap
     ], {
@@ -1835,5 +1858,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=683a00e2-39b4-f14a-ae2f-75a281be4c75
+//# debugId=daa7096d-88eb-4aef-8d70-6aae41560fce
 //# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0151fefb.js.map

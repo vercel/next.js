@@ -1053,6 +1053,21 @@ describe('ReactRefreshLogBox app', () => {
          ],
        }
       `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "test",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "index.js (3:11) @ __rspack_default_export
+       > 3 |     throw new Error('test')
+           |           ^",
+         "stack": [
+           "__rspack_default_export index.js (3:11)",
+           "Page app/page.js (4:10)",
+         ],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -1501,7 +1516,7 @@ describe('ReactRefreshLogBox app', () => {
        }
       `)
     } else if (isRspack) {
-      await expect(browser).toDisplayRedbox(`
+      await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "Failed to compile",
          "environmentLabel": null,
