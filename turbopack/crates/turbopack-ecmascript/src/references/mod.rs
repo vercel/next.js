@@ -3566,22 +3566,26 @@ impl<'a> ModuleReferencesVisitor<'a> {
 }
 
 impl<'a> ModuleReferencesVisitor<'a> {
-    /// Returns true if the given export identifier is considered "live".  This means it might
+    /// Returns the liveness of a given export identifier.  An export is live if it might
     /// change values after module evaluation.
-    fn is_export_ident_live(&self, id: Id) -> bool {
+    fn get_export_ident_liveness(&self, id: Id) -> Liveness {
         if let Some(crate::analyzer::graph::VarMeta {
             value: _,
             assignment_scopes: assignment_kinds,
         }) = self.var_graph.values.get(&id)
         {
             // If all assignments are in module scope, the export is not live.
-            *assignment_kinds != crate::analyzer::graph::AssignmentScopes::AllInModuleEvalScope
+            if *assignment_kinds != crate::analyzer::graph::AssignmentScopes::AllInModuleEvalScope {
+                Liveness::Live
+            } else {
+                Liveness::Constant
+            }
         } else {
             // If we haven't computed a value for it, that means it might be
             // A free variable
             // an imported variable
             // In those cases, we just assume that the value is live since we don't know anything
-            true
+            Liveness::Live
         }
     }
 }
@@ -3693,11 +3697,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                             } else {
                                 let liveness = match orig {
                                     ModuleExportName::Ident(ident) => {
-                                        if self.is_export_ident_live(ident.to_id()) {
-                                            Liveness::Live
-                                        } else {
-                                            Liveness::Constant
-                                        }
+                                        self.get_export_ident_liveness(ident.to_id())
                                     }
                                     ModuleExportName::Str(_) => Liveness::Constant,
                                 };
@@ -3734,11 +3734,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         {
             let decl: &Decl = &export.decl;
             let insert_export_binding = &mut |id: &Atom, ctx: SyntaxContext| {
-                let liveness = if self.is_export_ident_live((id.clone(), ctx)) {
-                    Liveness::Live
-                } else {
-                    Liveness::Constant
-                };
+                let liveness = self.get_export_ident_liveness((id.clone(), ctx));
                 let name: RcStr = id.as_str().into();
                 self.esm_exports
                     .insert(name.clone(), EsmExport::LocalBinding(name, liveness));
@@ -3804,11 +3800,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 let export = match ident {
                     Some(ident) => EsmExport::LocalBinding(
                         ident.sym.as_str().into(),
-                        if self.is_export_ident_live(ident.to_id()) {
-                            Liveness::Live
-                        } else {
-                            Liveness::Constant
-                        },
+                        self.get_export_ident_liveness(ident.to_id()),
                     ),
                     // If there is no name, like `export default function(){}` then it is not live.
                     None => EsmExport::LocalBinding(
