@@ -34,6 +34,9 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
   private isEdgeServerCacheEnabled = false
 
   public async afterCompile(multiCompiler: MultiCompiler): Promise<void> {
+    // Always initialize the fallback error watcher for Rspack.
+    // Rspack may restore/retain the previous build's error state, so without this
+    // a page that previously failed to build might not be rebuilt on the next request.
     await super.buildFallbackError()
 
     const rspackStartSpan = this.hotReloaderSpan.traceChild(
