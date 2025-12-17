@@ -151,11 +151,10 @@ describe('Cache Components Dev Errors', () => {
         } else if (isRspack) {
           await expect(browser).toDisplayRedbox(`
            {
-             "description": "  × Module build failed:",
+             "description": "  ╰─▶   × Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
              "environmentLabel": null,
              "label": "Build Error",
              "source": "./app/page.tsx
-             × Module build failed:
              ╰─▶   × Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
                    │    ,-[1:1]
                    │  1 | export const revalidate = 10

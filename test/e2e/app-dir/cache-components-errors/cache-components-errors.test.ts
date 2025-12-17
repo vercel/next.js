@@ -1102,7 +1102,7 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                  {
-                   "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
+                   "description": "(0 , next_headers__rspack_import_1.cookies)(...).get is not a function",
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies/page.tsx (18:36) @ CookiesReadingComponent
@@ -1284,7 +1284,7 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                  {
-                   "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
+                   "description": "(0 , next_headers__rspack_import_1.cookies)(...).get is not a function",
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies-runtime/page.tsx (24:36) @ CookiesReadingComponent
@@ -1438,7 +1438,7 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                  {
-                   "description": "(0 , <webpack-module-id>.headers)(...).get is not a function",
+                   "description": "(0 , next_headers__rspack_import_1.headers)(...).get is not a function",
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
                    "source": "app/sync-headers/page.tsx (18:40) @ HeadersReadingComponent
@@ -1620,7 +1620,7 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                  {
-                   "description": "(0 , <webpack-module-id>.headers)(...).get is not a function",
+                   "description": "(0 , next_headers__rspack_import_1.headers)(...).get is not a function",
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-headers-runtime/page.tsx (24:40) @ HeadersReadingComponent

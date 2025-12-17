@@ -47,11 +47,10 @@ describe('ReactRefreshLogBox app', () => {
     } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x "getStaticProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.js
-         × Module build failed:
          ╰─▶   × Error:   x "getStaticProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching
                │   |
                │

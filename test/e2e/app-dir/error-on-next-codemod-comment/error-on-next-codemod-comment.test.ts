@@ -40,7 +40,6 @@ describe('app-dir - error-on-next-codemod-comment', () => {
       } else if (process.env.NEXT_RSPACK) {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
          "./app/page.tsx
-           × Module build failed:
            ╰─▶   × Error:   x You have an unresolved @next/codemod comment "remove jsx of next line" that needs review.
                  │   | After review, either remove the comment if you made the necessary changes or replace "@next-codemod-error" with "@next-codemod-ignore" to bypass the build error if no action at this line can be taken.
                  │

@@ -7,6 +7,6 @@
   },
   "types": "index.d.ts",
   "dependencies": {
-    "@next/rspack-core": "1.0.1"
+    "@next/rspack-core": "1.0.2"
   }
 }

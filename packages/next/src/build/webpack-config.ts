@@ -2263,6 +2263,15 @@ export default async function getBaseWebpackConfig(
   if (isRspack) {
     // The layers experiment is now stable in Rspack
     delete webpack5Config.experiments!.layers
+
+    if (!webpack5Config.node) {
+      webpack5Config.node = {}
+    }
+    // NOTE: Rspack's defaults differ from webpack.
+    if (isClient || isEdgeServer) {
+      webpack5Config.node.__dirname = 'mock'
+      webpack5Config.node.__filename = 'mock'
+    }
   }
 
   webpack5Config.module!.parser = {
