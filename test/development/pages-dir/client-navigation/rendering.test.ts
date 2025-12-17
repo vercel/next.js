@@ -244,7 +244,7 @@ describe('Client Navigation rendering', () => {
            ],
          }
         `)
-      } else {
+      } else if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
            "description": "This is an expected error",
@@ -255,6 +255,20 @@ describe('Client Navigation rendering', () => {
              |         ^",
            "stack": [
              "__rspack_default_export pages/error-inside-page.js (2:9)",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "This is an expected error",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/error-inside-page.js (2:9) @ default
+         > 2 |   throw new Error('This is an expected error')
+             |         ^",
+           "stack": [
+             "default pages/error-inside-page.js (2:9)",
            ],
          }
         `)

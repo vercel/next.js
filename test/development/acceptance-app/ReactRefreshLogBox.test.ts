@@ -1053,7 +1053,7 @@ describe('ReactRefreshLogBox app', () => {
          ],
        }
       `)
-    } else {
+    } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
          "description": "test",
@@ -1064,6 +1064,21 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "__rspack_default_export index.js (3:11)",
+           "Page app/page.js (4:10)",
+         ],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "test",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "index.js (3:11) @ default
+       > 3 |     throw new Error('test')
+           |           ^",
+         "stack": [
+           "default index.js (3:11)",
            "Page app/page.js (4:10)",
          ],
        }
