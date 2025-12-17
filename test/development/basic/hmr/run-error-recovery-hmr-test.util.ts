@@ -442,25 +442,23 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         } else if (process.env.NEXT_RSPACK) {
           expect(trimEndMultiline(await getRedboxSource(browser)))
             .toMatchInlineSnapshot(`
-              "./components/parse-error.xyz
-                × Module parse failed:
-                ╰─▶   × JavaScript parse error: Expression expected
-                        ╭─[3:0]
-                      1 │ This
-                      2 │ is
-                      3 │ }}}
-                        · ─
-                      4 │ invalid
-                      5 │ js
-                        ╰────
-
-                help:
-                      You may need an appropriate loader to handle this file type.
-
-              Import trace for requested module:
-              ./components/parse-error.xyz
-              ./pages/hmr/about8.js"
-            `)
+          "./components/parse-error.xyz
+           × Module parse failed:
+           ╰─▶   × JavaScript parse error: Expression expected
+                  ╭─[3:0]
+                1 │ This
+                2 │ is
+                3 │ }}}
+                  · ─
+                4 │ invalid
+                5 │ js
+                  ╰────
+           help:
+                 You may need an appropriate loader to handle this file type.
+         Import trace for requested module:
+         ./components/parse-error.xyz
+         ./pages/hmr/about8.js"
+        `)
         } else {
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
                       "./components/parse-error.xyz
