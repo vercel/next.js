@@ -1,4 +1,3 @@
-import url from 'url'
 import http from 'http'
 import fs from 'fs-extra'
 import { join } from 'path'
@@ -287,9 +286,11 @@ describe('i18n Support', () => {
           } else {
             expect(res.status).toBe(307)
 
-            const parsed = url.parse(res.headers.get('location'), true)
+            const parsed = new URL(res.headers.get('location'))
             expect(parsed.pathname).toBe(`/${locale}/`)
-            expect(parsed.query).toEqual({})
+            expect(Object.fromEntries(parsed.searchParams.entries())).toEqual(
+              {}
+            )
           }
         }
       })
@@ -485,9 +486,11 @@ describe('i18n Support', () => {
           } else {
             expect(res.status).toBe(307)
 
-            const parsed = url.parse(res.headers.get('location'), true)
+            const parsed = new URL(res.headers.get('location'))
             expect(parsed.pathname).toBe(`/${locale}`)
-            expect(parsed.query).toEqual({})
+            expect(Object.fromEntries(parsed.searchParams.entries())).toEqual(
+              {}
+            )
           }
         }
       })
