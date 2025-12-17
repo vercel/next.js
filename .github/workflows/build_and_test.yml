@@ -902,6 +902,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      browser: 'firefox webkit'
       afterBuild: |
         pnpm playwright install
 
