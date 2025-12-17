@@ -34,6 +34,8 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
   private isEdgeServerCacheEnabled = false
 
   public async afterCompile(multiCompiler: MultiCompiler): Promise<void> {
+    await super.buildFallbackError()
+
     const rspackStartSpan = this.hotReloaderSpan.traceChild(
       'rspack-after-compile'
     )
@@ -170,7 +172,7 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
         if (entry.status !== BUILT) return
         const result =
           /^(client|server|edge-server)@(app|pages|root)@(.*)/g.exec(entryName)
-        const [, key /* pageType */, , page] = result! // this match should always happen
+        const [, key /* pageType */, ,] = result! // this match should always happen
         if (key === 'client' && !this.isClientCacheEnabled) return
         if (key === 'server' && !this.isServerCacheEnabled) return
         if (key === 'edge-server' && !this.isEdgeServerCacheEnabled) return
