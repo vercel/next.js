@@ -1,8 +1,5 @@
-use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::glob::Glob;
+use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
 
 use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences, source::OptionSource};
 
@@ -13,9 +10,8 @@ pub enum StyleType {
     GlobalStyle,
 }
 
-#[derive(
-    Serialize, Deserialize, Hash, Eq, PartialEq, Debug, NonLocalValue, TraceRawVcs, Encode, Decode,
-)]
+#[derive(Hash, Debug, Copy, Clone)]
+#[turbo_tasks::value(shared)]
 pub enum ModuleSideEffects {
     /// Analysis determined that the module evaluation is side effect free
     /// the module may still be side effectful based on its imports.
@@ -64,12 +60,7 @@ pub trait Module: Asset {
 
     /// Returns true if the module is marked as side effect free in package.json or by other means.
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        _side_effect_free_packages: Vc<Glob>,
-    ) -> Vc<bool> {
-        Vc::cell(false)
-    }
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects>;
 }
 
 #[turbo_tasks::value_trait]

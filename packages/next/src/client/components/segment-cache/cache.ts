@@ -66,7 +66,7 @@ import {
   deleteFromCacheMap,
   isValueExpired,
   type CacheMap,
-  type MapEntry,
+  type UnknownMapEntry,
 } from './cache-map'
 import {
   appendSegmentRequestKeyPart,
@@ -87,10 +87,6 @@ import {
 import { STATIC_STALETIME_MS } from '../router-reducer/reducers/navigate-reducer'
 import { pingVisibleLinks } from '../links'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
-import {
-  DOC_PREFETCH_RANGE_HEADER_VALUE,
-  doesExportedHtmlMatchBuildId,
-} from '../../../shared/lib/segment-cache/output-export-prefetch-encoding'
 import { FetchStrategy } from './types'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 
@@ -166,7 +162,7 @@ type RouteCacheEntryShared = {
   couldBeIntercepted: boolean
 
   // Map-related fields.
-  ref: null | MapEntry<RouteCacheEntry>
+  ref: UnknownMapEntry | null
   size: number
   staleAt: number
   version: number
@@ -223,7 +219,7 @@ type SegmentCacheEntryShared = {
   fetchStrategy: FetchStrategy
 
   // Map-related fields.
-  ref: null | MapEntry<SegmentCacheEntry>
+  ref: UnknownMapEntry | null
   size: number
   staleAt: number
   version: number
@@ -1337,30 +1333,40 @@ export async function fetchRouteOnCacheMiss(
       // location, but we shouldn't assume or expect that they also redirect all
       // the segment files, too.
       //
-      // To check whether the page is redirected, we perform a range request of
-      // the first N bytes of the HTML document. The canonical URL is determined
-      // from the response.
+      // To check whether the page is redirected, previously we perform a range
+      // request of 64 bytes of the HTML document to check if the target page
+      // is part of this app (by checking if build id matches). Only if the target
+      // page is part of this app do we determine the final canonical URL.
       //
-      // Then we can use the canonical URL to request the route tree.
+      // However, as mentioned in https://github.com/vercel/next.js/pull/85903,
+      // some popular static hosting providers (like Cloudflare Pages or Render.com)
+      // do not support range requests, in the worst case, the entire HTML instead
+      // of 64 bytes could be returned, which is wasteful.
+      //
+      // So instead, we drops the check for build id here, and simply perform
+      // a HEAD request to rejects 1xx/4xx/5xx responses, and then determine the
+      // final URL after redirects.
       //
       // NOTE: We could embed the route tree into the HTML document, to avoid
       // a second request. We're not doing that currently because it would make
       // the HTML document larger and affect normal page loads.
-      const htmlResponse = await fetch(url, {
-        headers: {
-          Range: DOC_PREFETCH_RANGE_HEADER_VALUE,
-        },
+      const headResponse = await fetch(url, {
+        method: 'HEAD',
       })
-      const partialHtml = await htmlResponse.text()
-      if (!doesExportedHtmlMatchBuildId(partialHtml, getAppBuildId())) {
-        // The target page is not part of this app, or it belongs to a
-        // different build.
+      if (headResponse.status < 200 || headResponse.status >= 400) {
+        // The target page responded w/o a successful status code
+        // Could be a WAF serving a 403, or a 5xx from a backend
+        //
+        // Note that we can't use headResponse.ok here, because
+        // Response#ok returns `false` with 3xx responses.
         rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
         return null
       }
-      urlAfterRedirects = htmlResponse.redirected
-        ? new URL(htmlResponse.url)
+
+      urlAfterRedirects = headResponse.redirected
+        ? new URL(headResponse.url)
         : url
+
       response = await fetchPrefetchResponse(
         addSegmentPathToUrlInOutputExportMode(urlAfterRedirects, segmentPath),
         headers

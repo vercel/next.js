@@ -34,7 +34,6 @@ use next_core::{
     segment_config::{NextSegmentConfig, ParseSegmentMode},
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
-use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -70,10 +69,8 @@ use turbopack_core::{
     source_map::SourceMapAsset,
     virtual_output::VirtualOutputAsset,
 };
-use turbopack_ecmascript::{
-    resolve::cjs_resolve, single_file_ecmascript_output::SingleFileEcmascriptOutput,
-};
-use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
+use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
+use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::ResolveOptionsContext};
 
 use crate::{
     dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
@@ -1069,27 +1066,13 @@ pub fn app_entry_point_to_route(
 #[turbo_tasks::value(transparent)]
 struct OutputAssetsWithAvailability((ResolvedVc<OutputAssets>, AvailabilityInfo));
 
-#[derive(
-    Copy,
-    Clone,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    Debug,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
 enum AppPageEndpointType {
     Html,
     Rsc,
 }
 
-#[derive(
-    Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
 enum AppEndpointType {
     Page {
         ty: AppPageEndpointType,

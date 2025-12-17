@@ -2,7 +2,6 @@ use std::fmt::Display;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 
@@ -36,8 +35,6 @@ impl InnerAssets {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    Serialize,
-    Deserialize,
     Debug,
     Default,
     Clone,
@@ -54,19 +51,7 @@ pub enum CommonJsReferenceSubType {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    Copy,
-    Hash,
-    TaskInput,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
 )]
 pub enum ImportWithType {
     Json,
@@ -78,8 +63,6 @@ pub enum ImportWithType {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    Serialize,
-    Deserialize,
     Debug,
     Default,
     Clone,
@@ -220,8 +203,6 @@ impl ImportContext {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    Serialize,
-    Deserialize,
     Debug,
     Default,
     Clone,
@@ -250,8 +231,6 @@ pub enum CssReferenceSubType {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    Serialize,
-    Deserialize,
     Debug,
     Default,
     Clone,
@@ -270,19 +249,7 @@ pub enum UrlReferenceSubType {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    Copy,
-    Hash,
-    TaskInput,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
 )]
 pub enum TypeScriptReferenceSubType {
     Custom(u8),
@@ -290,19 +257,7 @@ pub enum TypeScriptReferenceSubType {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    Copy,
-    Hash,
-    TaskInput,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
 )]
 pub enum WorkerReferenceSubType {
     WebWorker,
@@ -316,19 +271,7 @@ pub enum WorkerReferenceSubType {
 // TODO(sokra) this was next.js specific values. We want to solve this in a
 // different way.
 #[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    Copy,
-    Hash,
-    TaskInput,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
 )]
 pub enum EntryReferenceSubType {
     Web,
@@ -352,8 +295,6 @@ pub enum EntryReferenceSubType {
     Eq,
     TraceRawVcs,
     NonLocalValue,
-    Serialize,
-    Deserialize,
     Debug,
     Default,
     Clone,

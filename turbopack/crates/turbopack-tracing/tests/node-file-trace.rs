@@ -24,7 +24,7 @@ use rstest::*;
 use rstest_reuse::{
     *, {self},
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tokio::{process::Command, time::timeout};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -705,7 +705,7 @@ fn assert_output(
     })
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 struct BenchSuite {
     suite: String,
     node_duration: String,

@@ -3,7 +3,6 @@ use std::future::IntoFuture;
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
@@ -12,10 +11,9 @@ use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 
-use super::{Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext};
 use crate::{
     chunk::{
-        batch_info,
+        Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext, batch_info,
         chunk_item_batch::{
             ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,
             ChunkItemOrBatchWithAsyncModuleInfo,
@@ -50,18 +48,7 @@ struct BatchChunkItemsWithInfo(
     FxHashMap<ChunkItemOrBatchWithAsyncModuleInfo, ResolvedVc<ChunkItemsWithInfo>>,
 );
 
-#[derive(
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    ValueDebugFormat,
-    Encode,
-    Decode,
-)]
+#[derive(Clone, PartialEq, Eq, TraceRawVcs, NonLocalValue, ValueDebugFormat, Encode, Decode)]
 enum ChunkItemOrBatchWithInfo {
     ChunkItem {
         chunk_item: ChunkItemWithAsyncModuleInfo,
