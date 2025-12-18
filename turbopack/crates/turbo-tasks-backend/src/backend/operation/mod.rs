@@ -10,7 +10,7 @@ mod update_collectible;
 use std::{
     fmt::{Debug, Formatter},
     mem::transmute,
-    sync::{Arc, atomic::Ordering},
+    sync::atomic::Ordering,
 };
 
 use bincode::{Decode, Encode};
@@ -103,7 +103,7 @@ where
     _operation_guard: Option<OperationGuard<'e, B>>,
     transaction: TransactionState<'e, 'tx, B>,
     #[cfg(debug_assertions)]
-    active_task_locks: Arc<std::sync::atomic::AtomicU8>,
+    active_task_locks: std::sync::Arc<std::sync::atomic::AtomicU8>,
 }
 
 impl<'e, 'tx, B: BackingStorage> ExecuteContextImpl<'e, 'tx, B>
@@ -120,7 +120,7 @@ where
             _operation_guard: Some(backend.start_operation()),
             transaction: TransactionState::None,
             #[cfg(debug_assertions)]
-            active_task_locks: Arc::new(std::sync::atomic::AtomicU8::new(0)),
+            active_task_locks: std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0)),
         }
     }
 
@@ -135,7 +135,7 @@ where
             _operation_guard: Some(backend.start_operation()),
             transaction: TransactionState::Borrowed(transaction),
             #[cfg(debug_assertions)]
-            active_task_locks: Arc::new(std::sync::atomic::AtomicU8::new(0)),
+            active_task_locks: std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0)),
         }
     }
 
@@ -584,7 +584,7 @@ impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<
             _operation_guard: None,
             transaction: TransactionState::None,
             #[cfg(debug_assertions)]
-            active_task_locks: Arc::new(std::sync::atomic::AtomicU8::new(0)),
+            active_task_locks: std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0)),
         }
     }
 }
@@ -740,7 +740,7 @@ pub struct TaskGuardImpl<'a, B: BackingStorage> {
     #[cfg(debug_assertions)]
     category: TaskDataCategory,
     #[cfg(debug_assertions)]
-    active_task_locks: Arc<std::sync::atomic::AtomicU8>,
+    active_task_locks: std::sync::Arc<std::sync::atomic::AtomicU8>,
 }
 
 #[cfg(debug_assertions)]
