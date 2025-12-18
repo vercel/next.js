@@ -31,6 +31,7 @@ pub enum RuleCondition {
     ContentTypeStartsWith(String),
     ContentTypeEmpty,
     ResourcePathEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
+    ResourceQueryEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
     ResourceContentEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
     /// For paths that are within the same filesystem as the `base`, it need to
     /// match the relative path from base to resource. This includes `./` or
@@ -269,6 +270,10 @@ impl RuleCondition {
                     }
                     RuleCondition::ResourcePathEsRegex(regex) => {
                         return Ok(regex.is_match(&path.path));
+                    }
+                    RuleCondition::ResourceQueryEsRegex(regex) => {
+                        let ident = source.ident().await?;
+                        return Ok(regex.is_match(&ident.query));
                     }
                     RuleCondition::ResourceContentEsRegex(regex) => {
                         let content = source.content().file_content().await?;

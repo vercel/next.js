@@ -117,6 +117,7 @@ export type TurbopackRuleCondition =
   | TurbopackLoaderBuiltinCondition
   | {
       path?: string | RegExp
+      query?: RegExp
       content?: RegExp
     }
 

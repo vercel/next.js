@@ -949,6 +949,7 @@ function bindingToApi(
         path?:
           | { type: 'regex'; value: { source: string; flags: string } }
           | { type: 'glob'; value: string }
+        query?: { source: string; flags: string }
         content?: { source: string; flags: string }
       }
 
@@ -984,6 +985,7 @@ function bindingToApi(
                   value: regexComponents(cond.path),
                 }
               : { type: 'glob', value: cond.path },
+        query: cond.query && regexComponents(cond.query),
         content: cond.content && regexComponents(cond.content),
       }
     }

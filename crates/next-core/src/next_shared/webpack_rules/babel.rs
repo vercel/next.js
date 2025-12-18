@@ -193,6 +193,7 @@ pub async fn get_babel_loader_rules(
                 ReactCompilerCompilationMode::Annotation => {
                     loader_conditions.push(ConditionItem::Base {
                         path: None,
+                        query: None,
                         content: Some(
                             EsRegex::new(r#"['"]use memo['"]"#, "")
                                 .expect("valid const regex")
@@ -203,6 +204,7 @@ pub async fn get_babel_loader_rules(
                 ReactCompilerCompilationMode::Infer => {
                     loader_conditions.push(ConditionItem::Base {
                         path: None,
+                        query: None,
                         // Matches declaration or useXXX or </ (closing jsx) or /> (self closing
                         // jsx)
                         content: Some(

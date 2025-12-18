@@ -56,6 +56,7 @@ pub enum ConditionItem {
     Builtin(RcStr),
     Base {
         path: Option<ConditionPath>,
+        query: Option<ResolvedVc<EsRegex>>,
         content: Option<ResolvedVc<EsRegex>>,
     },
 }

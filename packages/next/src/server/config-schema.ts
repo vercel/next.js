@@ -128,6 +128,7 @@ const zTurbopackCondition: zod.ZodType<TurbopackRuleCondition> = z.union([
   zTurbopackLoaderBuiltinCondition,
   z.strictObject({
     path: z.union([z.string(), z.instanceof(RegExp)]).optional(),
+    query: z.instanceof(RegExp).optional(),
     content: z.instanceof(RegExp).optional(),
   }),
 ])

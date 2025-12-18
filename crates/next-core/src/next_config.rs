@@ -702,6 +702,8 @@ pub enum ConfigConditionItem {
         #[serde(default)]
         path: Option<ConfigConditionPath>,
         #[serde(default)]
+        query: Option<RegexComponents>,
+        #[serde(default)]
         content: Option<RegexComponents>,
     },
 }
@@ -723,8 +725,16 @@ impl TryFrom<ConfigConditionItem> for ConditionItem {
             ConfigConditionItem::Builtin(cond) => {
                 ConditionItem::Builtin(RcStr::from(cond.as_str()))
             }
-            ConfigConditionItem::Base { path, content } => ConditionItem::Base {
+            ConfigConditionItem::Base {
+                path,
+                query,
+                content,
+            } => ConditionItem::Base {
                 path: path.map(ConditionPath::try_from).transpose()?,
+                query: query
+                    .map(EsRegex::try_from)
+                    .transpose()?
+                    .map(EsRegex::resolved_cell),
                 content: content
                     .map(EsRegex::try_from)
                     .transpose()?
@@ -2077,6 +2087,10 @@ mod tests {
                         "browser",
                         {
                             "path": { "type": "glob", "value": "*.svg"},
+                            "query": {
+                                "source": "@someQuery",
+                                "flags": ""
+                            },
                             "content": {
                                 "source": "@someTag",
                                 "flags": ""
@@ -2107,6 +2121,10 @@ mod tests {
                                 ),
                                 ConfigConditionItem::Base {
                                     path: Some(ConfigConditionPath::Glob(rcstr!("*.svg"))),
+                                    query: Some(RegexComponents {
+                                        source: rcstr!("@someQuery"),
+                                        flags: rcstr!(""),
+                                    }),
                                     content: Some(RegexComponents {
                                         source: rcstr!("@someTag"),
                                         flags: rcstr!(""),
