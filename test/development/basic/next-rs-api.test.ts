@@ -219,6 +219,11 @@ async function main() {
         afterFiles: [],
         fallback: [],
       },
+      previewProps: {
+        previewModeId: 'development',
+        previewModeEncryptionKey: '12345',
+        previewModeSigningKey: '12345',
+      },
     }),
     buildId: 'development',
     encryptionKey: '12345',
@@ -376,6 +381,11 @@ describe('next.rs api', () => {
           beforeFiles: [],
           afterFiles: [],
           fallback: [],
+        },
+        previewProps: {
+          previewModeId: 'development',
+          previewModeEncryptionKey: '12345',
+          previewModeSigningKey: '12345',
         },
       }),
       buildId: 'development',

@@ -13,7 +13,7 @@ import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until
 import { getServerUtils } from '../server-utils'
 import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
 import { CloseController, trackStreamConsumed } from './web-on-close'
-import { getEdgePreviewProps } from './get-edge-preview-props'
+import { getPreviewProps } from './get-preview-props'
 import { WebNextRequest } from '../../server/base-http/web'
 
 export interface WrapOptions {
@@ -93,7 +93,7 @@ export class EdgeRouteModuleWrapper {
     const waitUntil = evt.waitUntil.bind(evt)
     const closeController = new CloseController()
 
-    const previewProps = getEdgePreviewProps()
+    const previewProps = getPreviewProps()
 
     // Create the context for the handler. This contains the params from the
     // match (if any).

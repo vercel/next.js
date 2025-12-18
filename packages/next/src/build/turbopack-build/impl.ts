@@ -73,6 +73,7 @@ export async function turbopackBuild(): Promise<{
         // Implemented separately in Turbopack, doesn't have to be passed here.
         middlewareMatchers: undefined,
         rewrites,
+        previewProps,
       }),
       buildId,
       encryptionKey,

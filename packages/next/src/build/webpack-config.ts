@@ -2029,6 +2029,7 @@ export default async function getBaseWebpackConfig(
           middlewareMatchers,
           omitNonDeterministic: isCompileMode,
           rewrites,
+          previewProps,
         })
       ),
       isClient &&
@@ -2106,10 +2107,6 @@ export default async function getBaseWebpackConfig(
           edgeEnvironments: {
             __NEXT_BUILD_ID: buildId,
             NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: encryptionKey,
-            __NEXT_PREVIEW_MODE_ID: previewProps.previewModeId,
-            __NEXT_PREVIEW_MODE_SIGNING_KEY: previewProps.previewModeSigningKey,
-            __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
-              previewProps.previewModeEncryptionKey,
           },
         }),
       isClient &&

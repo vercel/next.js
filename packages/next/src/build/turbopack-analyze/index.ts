@@ -67,6 +67,11 @@ export async function turbopackAnalyze(
           afterFiles: [],
           fallback: [],
         },
+        previewProps: {
+          previewModeId: '',
+          previewModeEncryptionKey: '',
+          previewModeSigningKey: '',
+        },
       }),
       buildId: 'analyze-build',
       encryptionKey: '',
