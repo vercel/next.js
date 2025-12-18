@@ -17865,17 +17865,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-app-type-declarations/test/index.test.ts": {
-    "passed": [
-      "TypeScript App Type Declarations should not touch an existing correct next-env.d.ts",
-      "TypeScript App Type Declarations should overwrite next-env.d.ts if an incorrect one exists",
-      "TypeScript App Type Declarations should write a new next-env.d.ts if none exist"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/typescript-baseurl/test/index.test.ts": {
     "passed": ["TypeScript Features default behavior should render the page"],
     "failed": [],
@@ -19626,6 +19615,17 @@
   "test/production/typescript-checked-side-effect-imports/index.test.ts": {
     "passed": [
       "Imports of server/client-only with noUncheckedSideEffectImports Should build without typescript errors"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/typescript-app-type-declarations/test/index.test.ts": {
+    "passed": [
+      "TypeScript App Type Declarations should not create next-env.d.ts in project root",
+      "TypeScript App Type Declarations should not modify existing next-env.d.ts in project root",
+      "TypeScript App Type Declarations should overwrite next-env.d.ts in .next/types if incorrect"
     ],
     "failed": [],
     "pending": [],
