@@ -2,7 +2,7 @@
 
 import { darken, lighten, readableColor } from 'polished'
 import type React from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { AnalyzeData } from '@/lib/analyze-data'
 import {
   computeTreemapLayoutFromAnalyze,
@@ -718,13 +718,16 @@ export function TreemapVisualizer({
   const [hoveredNode, setHoveredNode] = useState<LayoutNode | null>(null)
   const [shouldDimOthers, setShouldDimOthers] = useState(false)
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const [cssDimensions, setCssDimensions] = useState({
-    width: 1200,
-    height: 800,
-  })
-  const [canvasDimensions, setCanvasDimensions] = useState({
-    width: 1200,
-    height: 800,
+  const [dimensions, setDimensions] = useState<{
+    cssWidth: number
+    cssHeight: number
+    canvasWidth: number
+    canvasHeight: number
+  }>({
+    cssWidth: 1200,
+    cssHeight: 800,
+    canvasWidth: 1200,
+    canvasHeight: 800,
   })
   const [, _setTheme] = useState<'light' | 'dark'>('light')
 
@@ -785,15 +788,22 @@ export function TreemapVisualizer({
     if (!container) return
 
     const updateSize = () => {
-      const rect = container.getBoundingClientRect()
       const dpr = window.devicePixelRatio || 1
-      setCssDimensions({
-        width: Math.floor(rect.width),
-        height: Math.floor(rect.height),
-      })
-      setCanvasDimensions({
-        width: Math.floor(rect.width * dpr),
-        height: Math.floor(rect.height * dpr),
+      setDimensions((dimensions) => {
+        const rect = container.getBoundingClientRect()
+        if (
+          dimensions.cssWidth === Math.floor(rect.width) &&
+          dimensions.cssHeight === Math.floor(rect.height)
+        ) {
+          return dimensions
+        }
+
+        return {
+          cssWidth: Math.floor(rect.width),
+          cssHeight: Math.floor(rect.height),
+          canvasWidth: Math.floor(rect.width * dpr),
+          canvasHeight: Math.floor(rect.height * dpr),
+        }
       })
     }
 
@@ -813,8 +823,8 @@ export function TreemapVisualizer({
       {
         x: 0,
         y: 12 * focusedAncestorChain.length,
-        width: cssDimensions.width,
-        height: cssDimensions.height,
+        width: dimensions.cssWidth,
+        height: dimensions.cssHeight,
       },
       filterSource,
       sizeMode
@@ -826,8 +836,8 @@ export function TreemapVisualizer({
         focusedLayout,
         focusedAncestorChain,
         analyzeData,
-        cssDimensions.width,
-        cssDimensions.height,
+        dimensions.cssWidth,
+        dimensions.cssHeight,
         12
       )
     }
@@ -837,13 +847,13 @@ export function TreemapVisualizer({
     analyzeData,
     focusedSourceIndex,
     focusedAncestorChain,
-    cssDimensions.width,
-    cssDimensions.height,
+    dimensions.cssWidth,
+    dimensions.cssHeight,
     filterSource,
     sizeMode,
   ])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -854,7 +864,7 @@ export function TreemapVisualizer({
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
 
-    ctx.clearRect(0, 0, cssDimensions.width, cssDimensions.height)
+    ctx.clearRect(0, 0, dimensions.cssWidth, dimensions.cssHeight)
 
     drawTreemap(
       ctx,
@@ -871,8 +881,8 @@ export function TreemapVisualizer({
     layout,
     hoveredAncestorChain,
     selectedAncestorChain,
-    cssDimensions.width,
-    cssDimensions.height,
+    dimensions.cssWidth,
+    dimensions.cssHeight,
     isMouseInTreemap,
     focusedAncestorChain,
     searchQuery,
@@ -1005,8 +1015,8 @@ export function TreemapVisualizer({
     >
       <canvas
         ref={canvasRef}
-        width={canvasDimensions.width}
-        height={canvasDimensions.height}
+        width={dimensions.canvasWidth}
+        height={dimensions.canvasHeight}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onClick={handleClick}
