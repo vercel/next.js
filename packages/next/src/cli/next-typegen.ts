@@ -58,6 +58,7 @@ const nextTypegen = async (
     dir: baseDir,
     distDir: nextConfig.distDir,
     typeCheckPreflight: false,
+    typedRoutes: nextConfig.typedRoutes,
     tsconfigPath: nextConfig.typescript.tsconfigPath,
     disableStaticImages: nextConfig.images.disableStaticImages,
     hasAppDir: !!appDir,

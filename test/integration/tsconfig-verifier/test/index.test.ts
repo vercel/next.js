@@ -53,14 +53,13 @@ import path from 'path'
          },
          "include": [
            "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
            "**/*.mts",
            "**/*.ts",
            "**/*.tsx"
          ],
          "exclude": [
-           "node_modules"
+           "node_modules",
+           ".next"
          ]
        }
        "
@@ -110,14 +109,13 @@ import path from 'path'
          },
          "include": [
            "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
            "**/*.mts",
            "**/*.ts",
            "**/*.tsx"
          ],
          "exclude": [
-           "node_modules"
+           "node_modules",
+           ".next"
          ]
        }
        "
@@ -186,14 +184,13 @@ import path from 'path'
          ,
          "include": [
            "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
            "**/*.mts",
            "**/*.ts",
            "**/*.tsx"
          ],
          "exclude": [
-           "node_modules"
+           "node_modules",
+           ".next"
          ]
        }
        // end comment
@@ -241,14 +238,13 @@ import path from 'path'
          },
          "include": [
            "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
            "**/*.mts",
            "**/*.ts",
            "**/*.tsx"
          ],
          "exclude": [
-           "node_modules"
+           "node_modules",
+           ".next"
          ]
        }
        "
@@ -295,14 +291,13 @@ import path from 'path'
          },
          "include": [
            "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
            "**/*.mts",
            "**/*.ts",
            "**/*.tsx"
          ],
          "exclude": [
-           "node_modules"
+           "node_modules",
+           ".next"
          ]
        }
        "
@@ -353,14 +348,13 @@ import path from 'path'
          },
          "include": [
            "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
            "**/*.mts",
            "**/*.ts",
            "**/*.tsx"
          ],
          "exclude": [
-           "node_modules"
+           "node_modules",
+           ".next"
          ]
        }
        "
@@ -411,14 +405,13 @@ import path from 'path'
          },
          "include": [
            "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
            "**/*.mts",
            "**/*.ts",
            "**/*.tsx"
          ],
          "exclude": [
-           "node_modules"
+           "node_modules",
+           ".next"
          ]
        }
        "
@@ -466,14 +459,13 @@ import path from 'path'
          },
          "include": [
            "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
            "**/*.mts",
            "**/*.ts",
            "**/*.tsx"
          ],
          "exclude": [
-           "node_modules"
+           "node_modules",
+           ".next"
          ]
        }
        "
@@ -524,14 +516,13 @@ import path from 'path'
          },
          "include": [
            "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
            "**/*.mts",
            "**/*.ts",
            "**/*.tsx"
          ],
          "exclude": [
-           "node_modules"
+           "node_modules",
+           ".next"
          ]
        }
        "
@@ -582,14 +573,13 @@ import path from 'path'
          },
          "include": [
            "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
            "**/*.mts",
            "**/*.ts",
            "**/*.tsx"
          ],
          "exclude": [
-           "node_modules"
+           "node_modules",
+           ".next"
          ]
        }
        "
@@ -630,7 +620,6 @@ import path from 'path'
          },
          "include": [
            "next-env.d.ts",
-           ".next/types/**/*.ts",
            "**/*.mts",
            "**/*.ts",
            "**/*.tsx"
@@ -689,7 +678,6 @@ import path from 'path'
         },
         "include": [
           "next-env.d.ts",
-          ".next/types/**/*.ts",
           "**/*.mts",
           "**/*.ts",
           "**/*.tsx"
@@ -751,7 +739,6 @@ import path from 'path'
         },
         "include": [
           "next-env.d.ts",
-          ".next/types/**/*.ts",
           "**/*.mts",
           "**/*.ts",
           "**/*.tsx"
@@ -822,7 +809,6 @@ import path from 'path'
                 },
                 "include": [
                   "next-env.d.ts",
-                  ".next/types/**/*.ts",
                   "**/*.ts",
                   "**/*.tsx"
                 ],

@@ -9,17 +9,14 @@ import { writeConfigurationDefaults } from './writeConfigurationDefaults'
 
 describe('writeConfigurationDefaults()', () => {
   let consoleLogSpy: jest.SpyInstance
-  let distDir: string
   let hasAppDir: boolean
   let tmpDir: string
   let tsConfigPath: string
   let isFirstTimeSetup: boolean
   let hasPagesDir: boolean
-  let isolatedDevBuild = true
 
   beforeEach(async () => {
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation()
-    distDir = '.next'
     tmpDir = await mkdtemp(join(tmpdir(), 'nextjs-test-'))
     tsConfigPath = join(tmpDir, 'tsconfig.json')
     isFirstTimeSetup = false
@@ -45,9 +42,7 @@ describe('writeConfigurationDefaults()', () => {
         tsConfigPath,
         isFirstTimeSetup,
         hasAppDir,
-        distDir,
-        hasPagesDir,
-        isolatedDevBuild
+        hasPagesDir
       )
 
       const tsConfig = JSON.parse(
@@ -82,11 +77,10 @@ describe('writeConfigurationDefaults()', () => {
          },
          "exclude": [
            "node_modules",
+           ".next",
          ],
          "include": [
            "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
            "**/*.mts",
            "**/*.ts",
            "**/*.tsx",
@@ -107,9 +101,9 @@ describe('writeConfigurationDefaults()', () => {
          	- strict was set to false
          	- noEmit was set to true
          	- incremental was set to true
-         	- include was set to ['next-env.d.ts', '.next/types/**/*.ts', '.next/dev/types/**/*.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
+         	- include was set to ['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
          	- plugins was updated to add { name: 'next' }
-         	- exclude was set to ['node_modules']
+         	- exclude was set to ['node_modules', '.next']
 
          The following mandatory changes were made to your tsconfig.json:
 
@@ -135,9 +129,7 @@ describe('writeConfigurationDefaults()', () => {
         tsConfigPath,
         isFirstTimeSetup,
         hasAppDir,
-        distDir,
-        hasPagesDir,
-        isolatedDevBuild
+        hasPagesDir
       )
 
       expect(stripAnsi(consoleLogSpy.mock.calls.flat().join('\n'))).not.toMatch(
@@ -147,15 +139,13 @@ describe('writeConfigurationDefaults()', () => {
 
     describe('with tsconfig extends', () => {
       let tsConfigBasePath: string
-      let nextAppTypes: string
 
       beforeEach(() => {
         tsConfigBasePath = join(tmpDir, 'tsconfig.base.json')
-        nextAppTypes = `${distDir}/types/**/*.ts`
       })
 
       it('should not change tsconfig with extends', async () => {
-        const include = ['**/*.ts', '**/*.tsx', nextAppTypes, '**/*.mts']
+        const include = ['**/*.ts', '**/*.tsx', '**/*.mts']
         const content = { extends: './tsconfig.base.json' }
         const baseContent = { include }
 
@@ -168,9 +158,7 @@ describe('writeConfigurationDefaults()', () => {
             tsConfigPath,
             isFirstTimeSetup,
             hasAppDir,
-            distDir,
-            hasPagesDir,
-            isolatedDevBuild
+            hasPagesDir
           )
         ).resolves.not.toThrow()
 

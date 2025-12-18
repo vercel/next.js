@@ -39,6 +39,7 @@ export async function verifyTypeScriptSetup({
   cacheDir,
   tsconfigPath,
   typeCheckPreflight,
+  typedRoutes,
   disableStaticImages,
   hasAppDir,
   hasPagesDir,
@@ -52,6 +53,7 @@ export async function verifyTypeScriptSetup({
   cacheDir?: string
   tsconfigPath: string | undefined
   typeCheckPreflight: boolean
+  typedRoutes: boolean
   disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
@@ -134,9 +136,7 @@ export async function verifyTypeScriptSetup({
       resolvedTsConfigPath,
       intent.firstTimeSetup,
       hasAppDir,
-      distDir,
-      hasPagesDir,
-      isolatedDevBuild
+      hasPagesDir
     )
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
@@ -146,6 +146,7 @@ export async function verifyTypeScriptSetup({
       imageImportsEnabled: !disableStaticImages,
       hasPagesDir,
       hasAppDir,
+      typedRoutes,
     })
 
     let result

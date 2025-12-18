@@ -4,9 +4,7 @@ import * as CommentJson from 'next/dist/compiled/comment-json'
 import semver from 'next/dist/compiled/semver'
 import os from 'os'
 import type { CompilerOptions } from 'typescript'
-import { getTypeDefinitionGlobPatterns } from './type-paths'
 import * as Log from '../../build/output/log'
-import { defaultConfig } from '../../server/config-shared'
 
 type DesiredCompilerOptionsShape = {
   [K in keyof CompilerOptions]:
@@ -188,9 +186,7 @@ export async function writeConfigurationDefaults(
   tsConfigPath: string,
   isFirstTimeSetup: boolean,
   hasAppDir: boolean,
-  distDir: string,
-  hasPagesDir: boolean,
-  isolatedDevBuild: boolean | undefined
+  hasPagesDir: boolean
 ): Promise<void> {
   if (isFirstTimeSetup) {
     writeFileSync(tsConfigPath, '{}' + os.EOL)
@@ -269,51 +265,15 @@ export async function writeConfigurationDefaults(
     }
   }
 
-  const resolvedIsolatedDevBuild =
-    isolatedDevBuild === undefined
-      ? defaultConfig.experimental.isolatedDevBuild
-      : isolatedDevBuild
-
-  // Get type definition glob patterns using shared utility to ensure consistency
-  // with other TypeScript infrastructure (e.g., runTypeCheck.ts)
-  const nextAppTypes = getTypeDefinitionGlobPatterns(
-    distDir,
-    resolvedIsolatedDevBuild
-  )
-
   if (!('include' in userTsConfig)) {
-    userTsConfig.include = hasAppDir
-      ? ['next-env.d.ts', ...nextAppTypes, '**/*.mts', '**/*.ts', '**/*.tsx']
-      : ['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
+    // Use next-env to include more Next.js specific types.
+    // We don't want to churn tsconfig since that's checked into version control.
+    userTsConfig.include = ['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
     suggestedActions.push(
       cyan('include') +
         ' was set to ' +
-        bold(
-          hasAppDir
-            ? `['next-env.d.ts', ${nextAppTypes.map((type) => `'${type}'`).join(', ')}, '**/*.mts', '**/*.ts', '**/*.tsx']`
-            : `['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']`
-        )
+        bold(`['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']`)
     )
-  } else if (hasAppDir) {
-    const missingFromResolved = []
-    for (const type of nextAppTypes) {
-      if (!userTsConfig.include.includes(type)) {
-        missingFromResolved.push(type)
-      }
-    }
-
-    if (missingFromResolved.length > 0) {
-      if (!Array.isArray(userTsConfig.include)) {
-        userTsConfig.include = []
-      }
-
-      missingFromResolved.forEach((item) => {
-        userTsConfig.include.push(item)
-        suggestedActions.push(
-          cyan('include') + ' was updated to add ' + bold(`'${item}'`)
-        )
-      })
-    }
   }
 
   // Enable the Next.js typescript plugin.
@@ -374,9 +334,9 @@ export async function writeConfigurationDefaults(
   }
 
   if (!('exclude' in userTsConfig)) {
-    userTsConfig.exclude = ['node_modules']
+    userTsConfig.exclude = ['node_modules', '.next']
     suggestedActions.push(
-      cyan('exclude') + ' was set to ' + bold(`['node_modules']`)
+      cyan('exclude') + ' was set to ' + bold(`['node_modules', '.next']`)
     )
   }
 

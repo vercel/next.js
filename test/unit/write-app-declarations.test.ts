@@ -24,6 +24,10 @@ describe('find config', () => {
         : '') +
       `import "./.next/types/routes.d.ts";` +
       eol +
+      `import "./.next/types/cache-life.d.ts";` +
+      eol +
+      `import "./.next/types/validator.ts";` +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -38,6 +42,7 @@ describe('find config', () => {
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
+      typedRoutes: false,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -52,6 +57,10 @@ describe('find config', () => {
         : '') +
       `import "./.next/types/routes.d.ts";` +
       eol +
+      `import "./.next/types/cache-life.d.ts";` +
+      eol +
+      `import "./.next/types/validator.ts";` +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -66,6 +75,7 @@ describe('find config', () => {
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
+      typedRoutes: false,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -80,6 +90,10 @@ describe('find config', () => {
         : '') +
       `import "./.next/types/routes.d.ts";` +
       eol +
+      `import "./.next/types/cache-life.d.ts";` +
+      eol +
+      `import "./.next/types/validator.ts";` +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -92,6 +106,7 @@ describe('find config', () => {
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
+      typedRoutes: false,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -103,6 +118,7 @@ describe('find config', () => {
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: true,
+      typedRoutes: false,
     })
 
     await expect(fs.readFile(declarationFile, 'utf8')).resolves.not.toContain(
@@ -115,6 +131,7 @@ describe('find config', () => {
       imageImportsEnabled,
       hasPagesDir: true,
       hasAppDir: true,
+      typedRoutes: false,
     })
 
     await expect(fs.readFile(declarationFile, 'utf8')).resolves.toContain(
