@@ -570,6 +570,7 @@ export function generateValidatorFile(
   }
 
   if (pagesApiRouteValidations) {
+    // TODO: Use PageConfig which is breaking since configs have to be exported as PageConfig or const
     typeDefinitions += `type ApiRouteConfig = {
   default: (req: any, res: any) => ReturnType<NextApiHandler>
   config?: {

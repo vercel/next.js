@@ -1,6 +1,4 @@
-import { PageConfig } from 'next'
-
-export const config: PageConfig = {
+export const config = {
   runtime: 'nodejs',
 }
 
