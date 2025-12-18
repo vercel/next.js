@@ -498,14 +498,14 @@ export function generateValidatorFile(
 
   if (appPageValidations) {
     typeDefinitions += `type AppPageConfig<Route extends AppRoutes = AppRoutes> = {
-  default: React.ComponentType<{ params: Promise<ParamMap[Route]> } & any> | ((props: { params: Promise<ParamMap[Route]> } & any) => React.ReactNode | Promise<React.ReactNode> | never | void | Promise<void>)
+  default: React.JSXElementConstructor<PageProps<Route>>
   generateStaticParams?: (props: { params: ParamMap[Route] }) => Promise<any[]> | any[]
   generateMetadata?: (
-    props: { params: Promise<ParamMap[Route]> } & any,
+    props: PageProps<Route>,
     parent: ResolvingMetadata
   ) => Promise<any> | any
   generateViewport?: (
-    props: { params: Promise<ParamMap[Route]> } & any,
+    props: PageProps<Route>,
     parent: ResolvingViewport
   ) => Promise<any> | any
   metadata?: any
@@ -664,6 +664,7 @@ export function generateRouteTypesFile(
     'AppRoutes',
     'PageRoutes',
     'LayoutRoutes',
+    'PageProps',
     'RedirectRoutes',
     'RewriteRoutes',
     'ParamMap',

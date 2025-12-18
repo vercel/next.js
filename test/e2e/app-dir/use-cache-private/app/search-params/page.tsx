@@ -1,7 +1,7 @@
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ [key: string]: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   'use cache: private'
 
