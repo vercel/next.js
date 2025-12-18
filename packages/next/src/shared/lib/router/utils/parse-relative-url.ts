@@ -54,7 +54,8 @@ export function parseRelativeUrl(
   )
     ? // 'http://localhost:3000///' would be received as '///' in Node.js' IncomingMessage
       // See https://nodejs.org/api/http.html#messageurl
-      new URL(`${resolvedBase.origin}${url}`)
+      // Not using `origin` to support other protocols
+      new URL(`${resolvedBase.protocol}//${resolvedBase.host}${url}`)
     : new URL(url, resolvedBase)
 
   if (origin !== globalBase.origin) {
