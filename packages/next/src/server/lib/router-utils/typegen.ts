@@ -569,18 +569,13 @@ export function generateValidatorFile(
 `
   }
 
+  // Conditionally import types from next/types, merged into a single statement
+  const nextTypes: string[] = []
   if (pagesApiRouteValidations) {
+    nextTypes.push('PageConfig')
     typeDefinitions += `type ApiRouteConfig = {
   default: (req: any, res: any) => ReturnType<NextApiHandler>
-  config?: {
-    api?: {
-      bodyParser?: boolean | { sizeLimit?: string }
-      responseLimit?: string | number | boolean
-      externalResolver?: boolean
-    }
-    runtime?: 'edge' | 'experimental-edge' | 'nodejs' | string // necessary unless config is exported as const
-    maxDuration?: number
-  }
+  config?: PageConfig
 }
 
 `
@@ -617,8 +612,6 @@ export function generateValidatorFile(
     ? "import type { NextRequest } from 'next/server.js'\n"
     : ''
 
-  // Conditionally import types from next/types, merged into a single statement
-  const nextTypes: string[] = []
   if (pagesApiRouteValidations) {
     nextTypes.push('NextApiHandler')
   }
