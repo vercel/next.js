@@ -31,6 +31,11 @@ export type Manifest = {
         | 'window-controls-overlay'
       )[]
     | undefined
+  edge_side_panel?:
+    | {
+        preferred_width?: number | undefined
+      }
+    | undefined
   file_handlers?:
     | {
         action: string
