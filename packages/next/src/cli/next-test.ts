@@ -142,6 +142,7 @@ async function runPlaywright(
       distDir: nextConfig.distDir,
       typeCheckPreflight: false,
       tsconfigPath: nextConfig.typescript.tsconfigPath,
+      disableStaticImages: nextConfig.images.disableStaticImages,
       hasAppDir: !!appDir,
       hasPagesDir: !!pagesDir,
       isolatedDevBuild: nextConfig.experimental.isolatedDevBuild,

@@ -8,29 +8,16 @@ import {
   launchApp,
   nextBuild,
   killApp,
-  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
-// Dynamic types (image types, navigation compat) are now generated in .next/types/
-// In dev mode with isolatedDevBuild (default), types are in .next/dev/types/
-const dynamicTypesFileBuild = join(appDir, '.next/types/next-env.d.ts')
-const dynamicTypesFileDev = join(appDir, '.next/dev/types/next-env.d.ts')
 let appPort
 let app
 let output
 
 const handleOutput = (msg) => {
   output += msg
-}
-
-// Helper to read dynamic types file with retry (file may be written async)
-async function readDynamicTypesFile(isDev: boolean) {
-  const filePath = isDev ? dynamicTypesFileDev : dynamicTypesFileBuild
-  return retry(async () => {
-    return await fs.readFile(filePath, 'utf8')
-  })
 }
 
 describe('TypeScript Image Component', () => {
@@ -42,7 +29,10 @@ describe('TypeScript Image Component', () => {
         expect(stderr).toMatch(/Failed to compile/)
         expect(stderr).toMatch(/is not assignable to type/)
         expect(code).toBe(1)
-        const envTypes = await readDynamicTypesFile(false)
+        const envTypes = await fs.readFile(
+          join(appDir, 'next-env.d.ts'),
+          'utf8'
+        )
         expect(envTypes).toContain('image-types/global')
       })
 
@@ -57,7 +47,10 @@ describe('TypeScript Image Component', () => {
         expect(stderr).toMatch(/is not assignable to type/)
         expect(code).toBe(1)
         await fs.writeFile(nextConfig, content)
-        const envTypes = await readDynamicTypesFile(false)
+        const envTypes = await fs.readFile(
+          join(appDir, 'next-env.d.ts'),
+          'utf8'
+        )
         expect(envTypes).not.toContain('image-types/global')
       })
     }
@@ -76,7 +69,10 @@ describe('TypeScript Image Component', () => {
       afterAll(() => killApp(app))
 
       it('should have image types when enabled', async () => {
-        const envTypes = await readDynamicTypesFile(true)
+        const envTypes = await fs.readFile(
+          join(appDir, 'next-env.d.ts'),
+          'utf8'
+        )
         expect(envTypes).toContain('image-types/global')
       })
 
@@ -103,7 +99,7 @@ describe('TypeScript Image Component', () => {
       const app = await launchApp(appDir, await findPort())
       await killApp(app)
       await fs.writeFile(nextConfig, content)
-      const envTypes = await readDynamicTypesFile(true)
+      const envTypes = await fs.readFile(join(appDir, 'next-env.d.ts'), 'utf8')
       expect(envTypes).not.toContain('image-types/global')
     })
   })

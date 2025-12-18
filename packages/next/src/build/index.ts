@@ -224,7 +224,6 @@ import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
   writeValidatorFile,
-  writeDynamicTypesFile,
 } from '../server/lib/router-utils/route-types-utils'
 import { Lockfile } from './lockfile'
 import {
@@ -1485,12 +1484,6 @@ export default async function build(
             config
           )
           await writeValidatorFile(routeTypesManifest, validatorFilePath)
-          await writeDynamicTypesFile({
-            distDir,
-            imageImportsEnabled: !config.images.disableStaticImages,
-            hasPagesDir: !!pagesDir,
-            hasAppDir: !!appDir,
-          })
         })
 
       // Turbopack already handles conflicting app and page routes.

@@ -52,6 +52,7 @@ import path from 'path'
            "strictNullChecks": true
          },
          "include": [
+           "next-env.d.ts",
            ".next/types/**/*.ts",
            ".next/dev/types/**/*.ts",
            "**/*.mts",
@@ -108,6 +109,7 @@ import path from 'path'
            "strictNullChecks": true
          },
          "include": [
+           "next-env.d.ts",
            ".next/types/**/*.ts",
            ".next/dev/types/**/*.ts",
            "**/*.mts",
@@ -183,6 +185,7 @@ import path from 'path'
          // in-object comment 2
          ,
          "include": [
+           "next-env.d.ts",
            ".next/types/**/*.ts",
            ".next/dev/types/**/*.ts",
            "**/*.mts",
@@ -237,6 +240,7 @@ import path from 'path'
            "strictNullChecks": true
          },
          "include": [
+           "next-env.d.ts",
            ".next/types/**/*.ts",
            ".next/dev/types/**/*.ts",
            "**/*.mts",
@@ -290,6 +294,7 @@ import path from 'path'
            "strictNullChecks": true
          },
          "include": [
+           "next-env.d.ts",
            ".next/types/**/*.ts",
            ".next/dev/types/**/*.ts",
            "**/*.mts",
@@ -347,6 +352,7 @@ import path from 'path'
            "strictNullChecks": true
          },
          "include": [
+           "next-env.d.ts",
            ".next/types/**/*.ts",
            ".next/dev/types/**/*.ts",
            "**/*.mts",
@@ -404,6 +410,7 @@ import path from 'path'
            "strictNullChecks": true
          },
          "include": [
+           "next-env.d.ts",
            ".next/types/**/*.ts",
            ".next/dev/types/**/*.ts",
            "**/*.mts",
@@ -458,6 +465,7 @@ import path from 'path'
            "strictNullChecks": true
          },
          "include": [
+           "next-env.d.ts",
            ".next/types/**/*.ts",
            ".next/dev/types/**/*.ts",
            "**/*.mts",
@@ -515,6 +523,7 @@ import path from 'path'
            "strictNullChecks": true
          },
          "include": [
+           "next-env.d.ts",
            ".next/types/**/*.ts",
            ".next/dev/types/**/*.ts",
            "**/*.mts",
@@ -572,6 +581,7 @@ import path from 'path'
            "strictNullChecks": true
          },
          "include": [
+           "next-env.d.ts",
            ".next/types/**/*.ts",
            ".next/dev/types/**/*.ts",
            "**/*.mts",
@@ -619,6 +629,7 @@ import path from 'path'
            "strictNullChecks": true
          },
          "include": [
+           "next-env.d.ts",
            ".next/types/**/*.ts",
            "**/*.mts",
            "**/*.ts",
@@ -677,6 +688,7 @@ import path from 'path'
           "strictNullChecks": true
         },
         "include": [
+          "next-env.d.ts",
           ".next/types/**/*.ts",
           "**/*.mts",
           "**/*.ts",
@@ -738,6 +750,7 @@ import path from 'path'
           "strictNullChecks": true
         },
         "include": [
+          "next-env.d.ts",
           ".next/types/**/*.ts",
           "**/*.mts",
           "**/*.ts",
@@ -808,6 +821,7 @@ import path from 'path'
                   "strictNullChecks": true
                 },
                 "include": [
+                  "next-env.d.ts",
                   ".next/types/**/*.ts",
                   "**/*.ts",
                   "**/*.tsx"

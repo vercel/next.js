@@ -282,16 +282,19 @@ export async function writeConfigurationDefaults(
   )
 
   if (!('include' in userTsConfig)) {
-    // Always include .next/types for dynamic types (image imports, route types, etc.)
-    userTsConfig.include = [...nextAppTypes, '**/*.mts', '**/*.ts', '**/*.tsx']
+    userTsConfig.include = hasAppDir
+      ? ['next-env.d.ts', ...nextAppTypes, '**/*.mts', '**/*.ts', '**/*.tsx']
+      : ['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
     suggestedActions.push(
       cyan('include') +
         ' was set to ' +
         bold(
-          `[${nextAppTypes.map((type) => `'${type}'`).join(', ')}, '**/*.mts', '**/*.ts', '**/*.tsx']`
+          hasAppDir
+            ? `['next-env.d.ts', ${nextAppTypes.map((type) => `'${type}'`).join(', ')}, '**/*.mts', '**/*.ts', '**/*.tsx']`
+            : `['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']`
         )
     )
-  } else {
+  } else if (hasAppDir) {
     const missingFromResolved = []
     for (const type of nextAppTypes) {
       if (!userTsConfig.include.includes(type)) {
