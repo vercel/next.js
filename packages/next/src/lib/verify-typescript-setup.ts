@@ -9,6 +9,7 @@ import * as log from '../build/output/log'
 
 import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
 import type { TypeCheckResult } from './typescript/runTypeCheck'
+import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
 import { installDependencies } from './install-dependencies'
 import { isCI } from '../server/ci-info'
@@ -38,6 +39,7 @@ export async function verifyTypeScriptSetup({
   cacheDir,
   tsconfigPath,
   typeCheckPreflight,
+  disableStaticImages,
   hasAppDir,
   hasPagesDir,
   isolatedDevBuild,
@@ -50,6 +52,7 @@ export async function verifyTypeScriptSetup({
   cacheDir?: string
   tsconfigPath: string | undefined
   typeCheckPreflight: boolean
+  disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
   isolatedDevBuild: boolean | undefined
@@ -135,6 +138,16 @@ export async function verifyTypeScriptSetup({
       hasPagesDir,
       isolatedDevBuild
     )
+    // Write out the necessary `next-env.d.ts` file to correctly register
+    // Next.js' types:
+    await writeAppTypeDeclarations({
+      baseDir: dir,
+      distDir,
+      imageImportsEnabled: !disableStaticImages,
+      hasPagesDir,
+      hasAppDir,
+    })
+
     let result
     if (typeCheckPreflight) {
       const { runTypeCheck } =

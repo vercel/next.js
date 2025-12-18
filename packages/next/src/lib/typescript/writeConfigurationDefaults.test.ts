@@ -84,6 +84,7 @@ describe('writeConfigurationDefaults()', () => {
            "node_modules",
          ],
          "include": [
+           "next-env.d.ts",
            ".next/types/**/*.ts",
            ".next/dev/types/**/*.ts",
            "**/*.mts",
@@ -106,7 +107,7 @@ describe('writeConfigurationDefaults()', () => {
          	- strict was set to false
          	- noEmit was set to true
          	- incremental was set to true
-         	- include was set to ['.next/types/**/*.ts', '.next/dev/types/**/*.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
+         	- include was set to ['next-env.d.ts', '.next/types/**/*.ts', '.next/dev/types/**/*.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
          	- plugins was updated to add { name: 'next' }
          	- exclude was set to ['node_modules']
 
