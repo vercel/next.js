@@ -13,6 +13,8 @@ import {
 import { SpecialModule } from '@/lib/types'
 import { formatBytes } from '@/lib/utils'
 
+const UI_FONT = 'system-ui, sans-serif'
+
 interface TreemapVisualizerProps {
   analyzeData: AnalyzeData
   sourceIndex: number
@@ -307,7 +309,7 @@ function drawTreemap(
 
         const { titleFontSize } = calculateTitleFontSizes(titleBarHeight)
         ctx.fillStyle = colors.text
-        ctx.font = `600 ${titleFontSize}px sans-serif`
+        ctx.font = `600 ${titleFontSize}px ${UI_FONT}`
         ctx.textAlign = 'left'
         ctx.textBaseline = 'middle'
         ctx.fillText(
@@ -421,14 +423,10 @@ function drawTreemap(
       const sizeFontSize = 10
       const lineHeight = fontSize + 2
 
-      // Check if we have space for both name and size
-      const hasSpaceForSize = rect.height > 50
-
-      ctx.font = `${fontSize}px sans-serif`
+      ctx.font = `${fontSize}px ${UI_FONT}`
       const displayName = truncateTextWithEllipsisIfNeeded(ctx, name, maxWidth)
-
+      const hasSpaceForSize = rect.height > 50
       if (hasSpaceForSize) {
-        ctx.font = `${fontSize}px sans-serif`
         ctx.fillText(
           displayName,
           rect.x + rect.width / 2,
@@ -436,7 +434,7 @@ function drawTreemap(
         )
 
         ctx.globalAlpha = opacity * 0.75
-        ctx.font = `${sizeFontSize}px sans-serif`
+        ctx.font = `${sizeFontSize}px ${UI_FONT}`
         ctx.fillText(
           sizeText,
           rect.x + rect.width / 2,
@@ -445,7 +443,6 @@ function drawTreemap(
         ctx.globalAlpha = opacity
       } else {
         // Only name fits, draw it centered
-        ctx.font = `${fontSize}px sans-serif`
         ctx.fillText(
           displayName,
           rect.x + rect.width / 2,
@@ -497,12 +494,12 @@ function drawTreemap(
       ctx.textBaseline = 'middle'
 
       // Measure size text first to reserve space
-      ctx.font = `${sizeFontSize}px sans-serif`
+      ctx.font = `${sizeFontSize}px ${UI_FONT}`
       const sizeWidth = measureTextCached(ctx, sizeText)
 
       const nameX = rect.x + 8
       const availableNameWidth = Math.max(0, rect.width - 16 - sizeWidth - gap)
-      ctx.font = `600 ${titleFontSize}px sans-serif`
+      ctx.font = `600 ${titleFontSize}px ${UI_FONT}`
       const displayName = truncateTextWithEllipsisIfNeeded(
         ctx,
         name,
@@ -518,7 +515,7 @@ function drawTreemap(
 
       // Only draw size text if it fits within bounds
       if (sizeX + sizeWidth <= rect.x + rect.width - 8) {
-        ctx.font = `${sizeFontSize}px sans-serif`
+        ctx.font = `${sizeFontSize}px ${UI_FONT}`
         ctx.fillStyle = colors.textMuted
         ctx.fillText(sizeText, sizeX, centerY)
       }
@@ -566,12 +563,12 @@ function drawTreemap(
 
       ctx.textBaseline = 'middle'
 
-      ctx.font = `${sizeFontSize}px sans-serif`
+      ctx.font = `${sizeFontSize}px ${UI_FONT}`
       const sizeWidth = measureTextCached(ctx, sizeText)
 
       const nameX = rect.x + 8
       const availableNameWidth = Math.max(0, rect.width - 16 - sizeWidth - gap)
-      ctx.font = `600 ${titleFontSize}px sans-serif`
+      ctx.font = `600 ${titleFontSize}px ${UI_FONT}`
       const displayName = truncateTextWithEllipsisIfNeeded(
         ctx,
         name,
@@ -587,7 +584,7 @@ function drawTreemap(
 
       // Only draw size text if it fits within bounds
       if (sizeX + sizeWidth <= rect.x + rect.width - 8) {
-        ctx.font = `${sizeFontSize}px sans-serif`
+        ctx.font = `${sizeFontSize}px ${UI_FONT}`
         ctx.fillStyle = colors.textMuted
         ctx.fillText(sizeText, sizeX, centerY)
       }
