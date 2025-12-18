@@ -1721,14 +1721,16 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                     hoisted: _,
                 } => {}
                 ChunkingType::Traced => {
-                    span = tracing::info_span!(parent: span, "traced reference");
+                    let _span = span.entered();
+                    span = tracing::info_span!("traced reference");
                 }
                 ChunkingType::Async => {
-                    span = tracing::info_span!(parent: span, "async reference");
+                    let _span = span.entered();
+                    span = tracing::info_span!("async reference");
                 }
                 ChunkingType::Isolated { _ty: ty, merge_tag } => {
+                    let _span = span.entered();
                     span = tracing::info_span!(
-                        parent: span,
                         "isolated reference",
                         ty = debug(&ty),
                         merge_tag = debug(&merge_tag)
@@ -1738,11 +1740,8 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                     inherit_async: _,
                     merge_tag,
                 } => {
-                    span = tracing::info_span!(
-                        parent: span,
-                        "shared reference",
-                        merge_tag = debug(&merge_tag)
-                    );
+                    let _span = span.entered();
+                    span = tracing::info_span!("shared reference", merge_tag = debug(&merge_tag));
                 }
             };
         }
