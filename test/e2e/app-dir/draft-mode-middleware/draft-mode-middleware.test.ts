@@ -1,9 +1,21 @@
-import { nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { join } from 'path'
 
-describe('app-dir - draft-mode-middleware', () => {
+const isNodeMiddleware = process.env.TEST_NODE_MIDDLEWARE === 'true'
+
+describe(`app-dir - draft-mode-middleware-${isNodeMiddleware ? 'node' : 'edge'}`, () => {
   const { next, skipped } = nextTestSetup({
-    files: __dirname,
+    files: {
+      app: new FileRef(join(__dirname, 'app')),
+      'middleware.ts': new FileRef(
+        join(
+          __dirname,
+          isNodeMiddleware ? 'middleware-node.ts' : 'middleware-edge.ts'
+        )
+      ),
+      'middleware-edge.ts': new FileRef(join(__dirname, 'middleware-edge.ts')),
+    },
     skipDeployment: true,
   })
 
