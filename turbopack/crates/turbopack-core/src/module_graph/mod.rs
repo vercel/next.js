@@ -270,15 +270,12 @@ impl SingleModuleGraph {
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         let emit_spans = tracing::enabled!(Level::INFO);
-        let root_nodes =
-            entries
-                .iter()
-                .flat_map(|e| e.entries())
-                .map(|e| async move {
-                    Ok(SingleModuleGraphBuilderNode::new_module(emit_spans, e).await?)
-                })
-                .try_join()
-                .await?;
+        let root_nodes = entries
+            .iter()
+            .flat_map(|e| e.entries())
+            .map(|e| SingleModuleGraphBuilderNode::new_module(emit_spans, e))
+            .try_join()
+            .await?;
 
         let children_nodes_iter = AdjacencyMap::new()
             .visit(
@@ -1661,8 +1658,7 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                 }
             };
 
-            Ok(refs
-                .iter()
+            refs.iter()
                 .flat_map(|(reference, resolved)| {
                     resolved.modules.iter().map(|m| {
                         (
@@ -1689,7 +1685,7 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                     ))
                 })
                 .try_join()
-                .await?)
+                .await
         }
     }
 
