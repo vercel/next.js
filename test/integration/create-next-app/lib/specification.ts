@@ -55,7 +55,6 @@ export const projectSpecification: ProjectSpecification = {
         'pages/_app.tsx',
         'pages/api/hello.ts',
         'tsconfig.json',
-        'next-env.d.ts',
       ],
       deps: [],
       devDeps: [
@@ -73,12 +72,7 @@ export const projectSpecification: ProjectSpecification = {
       devDeps: [],
     },
     ts: {
-      files: [
-        'pages/index.tsx',
-        'pages/_app.tsx',
-        'tsconfig.json',
-        'next-env.d.ts',
-      ],
+      files: ['pages/index.tsx', 'pages/_app.tsx', 'tsconfig.json'],
       deps: [],
       devDeps: [
         '@types/node',
@@ -102,7 +96,6 @@ export const projectSpecification: ProjectSpecification = {
     },
     ts: {
       files: [
-        'next-env.d.ts',
         'pages/_app.tsx',
         'pages/api/hello.ts',
         'pages/index.tsx',
@@ -133,7 +126,6 @@ export const projectSpecification: ProjectSpecification = {
     },
     ts: {
       files: [
-        'next-env.d.ts',
         'pages/_app.tsx',
         'pages/index.tsx',
         'postcss.config.mjs',
@@ -164,12 +156,7 @@ export const projectSpecification: ProjectSpecification = {
         '@types/react-dom',
         'typescript',
       ],
-      files: [
-        'app/page.tsx',
-        'app/layout.tsx',
-        'tsconfig.json',
-        'next-env.d.ts',
-      ],
+      files: ['app/page.tsx', 'app/layout.tsx', 'tsconfig.json'],
     },
   },
   'app-api': {
@@ -181,12 +168,7 @@ export const projectSpecification: ProjectSpecification = {
     ts: {
       deps: ['next', ...(process.env.NEXT_RSPACK ? ['next-rspack'] : [])],
       devDeps: ['@types/node', '@types/react', 'typescript'],
-      files: [
-        'app/route.ts',
-        'app/[slug]/route.ts',
-        'tsconfig.json',
-        'next-env.d.ts',
-      ],
+      files: ['app/route.ts', 'app/[slug]/route.ts', 'tsconfig.json'],
     },
   },
   'app-empty': {
@@ -203,12 +185,7 @@ export const projectSpecification: ProjectSpecification = {
         '@types/react-dom',
         'typescript',
       ],
-      files: [
-        'app/page.tsx',
-        'app/layout.tsx',
-        'tsconfig.json',
-        'next-env.d.ts',
-      ],
+      files: ['app/page.tsx', 'app/layout.tsx', 'tsconfig.json'],
     },
   },
   'app-tw': {
@@ -235,7 +212,6 @@ export const projectSpecification: ProjectSpecification = {
       files: [
         'app/layout.tsx',
         'app/page.tsx',
-        'next-env.d.ts',
         'postcss.config.mjs',
         'tsconfig.json',
       ],
@@ -265,7 +241,6 @@ export const projectSpecification: ProjectSpecification = {
       files: [
         'app/layout.tsx',
         'app/page.tsx',
-        'next-env.d.ts',
         'postcss.config.mjs',
         'tsconfig.json',
       ],
