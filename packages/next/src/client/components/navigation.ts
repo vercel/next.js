@@ -11,12 +11,12 @@ import {
   PathnameContext,
   PathParamsContext,
   NavigationPromisesContext,
+  ReadonlyURLSearchParams,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import {
   computeSelectedLayoutSegment,
   getSelectedLayoutSegmentPath,
 } from '../../shared/lib/segment'
-import { ReadonlyURLSearchParams } from './readonly-url-search-params'
 
 const useDynamicRouteParams =
   typeof window === 'undefined'
@@ -61,15 +61,15 @@ export function useSearchParams(): ReadonlyURLSearchParams {
   // In the case where this is `null`, the compat types added in
   // `next-env.d.ts` will add a new overload that changes the return type to
   // include `null`.
-  const readonlySearchParams = useMemo(() => {
+  const readonlySearchParams = useMemo((): ReadonlyURLSearchParams => {
     if (!searchParams) {
       // When the router is not ready in pages, we won't have the search params
       // available.
-      return null
+      return null!
     }
 
     return new ReadonlyURLSearchParams(searchParams)
-  }, [searchParams]) as ReadonlyURLSearchParams
+  }, [searchParams])
 
   // Instrument with Suspense DevTools (dev-only)
   if (process.env.NODE_ENV !== 'production' && 'use' in React) {
@@ -286,12 +286,16 @@ export { unstable_isUnrecognizedActionError } from './unrecognized-action-error'
 
 // Shared components APIs
 export {
+  // We need the same class that was used to instantiate the context value
+  // Otherwise instanceof checks will fail in usercode
+  ReadonlyURLSearchParams,
+}
+export {
   notFound,
   forbidden,
   unauthorized,
   redirect,
   permanentRedirect,
   RedirectType,
-  ReadonlyURLSearchParams,
   unstable_rethrow,
 } from './navigation.react-server'
