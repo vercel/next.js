@@ -1,4 +1,3 @@
-import url from 'url'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
@@ -69,8 +68,9 @@ describe.each([[''], ['/docs']])(
           }
         )
 
-        const { pathname, hostname } = url.parse(
-          res.headers.get('location') || ''
+        const { pathname, hostname } = new URL(
+          res.headers.get('location') || '',
+          'http://n'
         )
         expect(res.status).toBe(308)
         expect(pathname).toBe(basePath + '/%2fexample.com')

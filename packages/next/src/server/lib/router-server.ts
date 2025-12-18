@@ -7,8 +7,9 @@ import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
 import '../node-environment'
 import '../require-hook'
 
-import url from 'url'
 import path from 'path'
+import { parseReqUrl } from '../../lib/url'
+import { formatUrl } from '../../shared/lib/router/utils/format-url'
 import loadConfig from '../config'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
@@ -368,7 +369,7 @@ export async function initialize(opts: {
           req.url = removePathPrefix(origUrl, config.assetPrefix)
         }
 
-        const parsedUrl = url.parse(req.url || '/')
+        const parsedUrl = parseReqUrl(req.url || '/')
 
         const hotReloaderResult = await development.bundler.hotReloader.run(
           req,
@@ -449,7 +450,7 @@ export async function initialize(opts: {
 
       // handle redirect
       if (!bodyStream && statusCode && statusCode > 300 && statusCode < 400) {
-        const destination = url.format(parsedUrl)
+        const destination = formatUrl(parsedUrl)
         res.statusCode = statusCode
         res.setHeader('location', destination)
 
@@ -508,14 +509,9 @@ export async function initialize(opts: {
         if (!(req.method === 'GET' || req.method === 'HEAD')) {
           res.setHeader('Allow', ['GET', 'HEAD'])
           res.statusCode = 405
-          return await invokeRender(
-            url.parse('/405', true),
-            '/405',
-            handleIndex,
-            {
-              invokeStatus: 405,
-            }
-          )
+          return await invokeRender(parseReqUrl('/405'), '/405', handleIndex, {
+            invokeStatus: 405,
+          })
         }
 
         try {
@@ -574,7 +570,7 @@ export async function initialize(opts: {
             const invokeStatus = err.statusCode
             res.statusCode = err.statusCode
             return await invokeRender(
-              url.parse(invokePath, true),
+              parseReqUrl(invokePath),
               invokePath,
               handleIndex,
               {
@@ -684,7 +680,7 @@ export async function initialize(opts: {
           console.error(err)
         }
         res.statusCode = Number(invokeStatus)
-        return await invokeRender(url.parse(invokePath, true), invokePath, 0, {
+        return await invokeRender(parseReqUrl(invokePath), invokePath, 0, {
           invokeStatus: res.statusCode,
         })
       } catch (err2) {

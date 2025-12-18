@@ -15,35 +15,62 @@ export function parseUrl(url: string): URL | undefined {
   return parsed
 }
 
-export function parseReqUrl(url: string): UrlWithParsedQuery | undefined {
-  const parsedUrl: URL | undefined = parseUrl(url)
+export function parseReqUrl(url: string): UrlWithParsedQuery {
+  const parsedUrl = parseUrl(url)
 
+  // Return fallback for invalid URLs (matches url.parse behavior which never returns undefined)
   if (!parsedUrl) {
-    return
+    return {
+      query: {},
+      hash: '',
+      search: '',
+      path: url,
+      pathname: url,
+      href: url,
+      host: '',
+      hostname: '',
+      protocol: '',
+      port: '',
+      auth: '',
+      slashes: null,
+    }
   }
 
   const query: Record<string, string | string[]> = {}
-
   for (const key of parsedUrl.searchParams.keys()) {
     const values = parsedUrl.searchParams.getAll(key)
     query[key] = values.length > 1 ? values : values[0]
   }
 
-  const legacyUrl: UrlWithParsedQuery = {
+  const shared = {
     query,
     hash: parsedUrl.hash,
     search: parsedUrl.search,
-    path: parsedUrl.pathname,
+    path: `${parsedUrl.pathname}${parsedUrl.search}`,
     pathname: parsedUrl.pathname,
-    href: `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`,
-    host: '',
-    hostname: '',
+    port: parsedUrl.port || '',
     auth: '',
-    protocol: '',
-    slashes: null,
-    port: '',
   }
-  return legacyUrl
+
+  if (!isFullStringUrl(url)) {
+    return {
+      ...shared,
+      href: `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`,
+      host: '',
+      hostname: '',
+      protocol: '',
+      slashes: null,
+    }
+  }
+
+  return {
+    ...shared,
+    href: parsedUrl.href,
+    host: parsedUrl.host,
+    hostname: parsedUrl.hostname,
+    protocol: parsedUrl.protocol,
+    slashes: true,
+  }
 }
 
 export function stripNextRscUnionQuery(relativeUrl: string): string {

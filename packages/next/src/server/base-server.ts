@@ -46,7 +46,8 @@ import type { PathnameNormalizer } from './normalizers/request/pathname-normaliz
 import type { InstrumentationModule } from './instrumentation/types'
 
 import * as path from 'path'
-import { format as formatUrl, parse as parseUrl } from 'url'
+import { parseReqUrl } from '../lib/url'
+import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { formatHostname } from './lib/format-hostname'
 import {
   APP_PATHS_MANIFEST,
@@ -648,7 +649,7 @@ export default abstract class Server<
     }
 
     if (req.url) {
-      const parsed = parseUrl(req.url)
+      const parsed = parseReqUrl(req.url)
       parsed.pathname = parsedUrl.pathname
       req.url = formatUrl(parsed)
     }
@@ -953,7 +954,7 @@ export default abstract class Server<
           throw new Error('Invariant: url can not be undefined')
         }
 
-        parsedUrl = parseUrl(req.url!, true)
+        parsedUrl = parseReqUrl(req.url!) as NextUrlWithParsedQuery
       }
 
       if (!parsedUrl.pathname) {
@@ -2052,7 +2053,7 @@ export default abstract class Server<
     // Compute the iSSG cache key. We use the rewroteUrl since
     // pages with fallback: false are allowed to be rewritten to
     // and we need to look up the path by the rewritten path
-    let urlPathname = parseUrl(req.url || '').pathname || '/'
+    let urlPathname = parseReqUrl(req.url || '').pathname || '/'
 
     let resolvedUrlPathname = getRequestMeta(req, 'rewroteURL') || urlPathname
 
@@ -2324,7 +2325,9 @@ export default abstract class Server<
     const request = isNodeNextRequest(req) ? req.originalRequest : req
     const response = isNodeNextResponse(res) ? res.originalResponse : res
 
-    const parsedInitUrl = parseUrl(getRequestMeta(req, 'initURL') || req.url)
+    const parsedInitUrl = parseReqUrl(
+      getRequestMeta(req, 'initURL') || req.url || ''
+    )
     let initPathname = parsedInitUrl.pathname || '/'
 
     for (const normalizer of [
@@ -2963,7 +2966,7 @@ export default abstract class Server<
     parsedUrl?: Pick<NextUrlWithParsedQuery, 'pathname' | 'query'>,
     setHeaders = true
   ): Promise<void> {
-    const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(req.url!, true)
+    const { pathname, query } = parsedUrl ?? parseReqUrl(req.url!)
 
     // Ensure the locales are provided on the request meta.
     if (this.nextConfig.i18n) {

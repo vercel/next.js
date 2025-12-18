@@ -1,6 +1,5 @@
 import { execSync } from 'node:child_process'
 import { lookup } from 'node:dns/promises'
-import url from 'node:url'
 
 function getProxy(): string | undefined {
   if (process.env.https_proxy) {
@@ -27,9 +26,14 @@ export async function getOnline(): Promise<boolean> {
       return false
     }
 
-    const { hostname } = url.parse(proxy)
-    if (!hostname) {
+    let hostname: string
+    try {
+      hostname = new URL(proxy).hostname
+    } catch {
       // Invalid proxy URL
+      return false
+    }
+    if (!hostname) {
       return false
     }
 

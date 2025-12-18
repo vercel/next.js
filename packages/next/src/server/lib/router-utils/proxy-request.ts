@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextUrlWithParsedQuery } from '../../request-meta'
 
-import url from 'url'
+import { formatUrl } from '../../../shared/lib/router/utils/format-url'
 import { stringifyQuery } from '../../server-route-utils'
 import { Duplex } from 'stream'
 import { DetachedPromise } from '../../../lib/detached-promise'
@@ -18,7 +18,7 @@ export async function proxyRequest(
   delete (parsedUrl as any).query
   parsedUrl.search = stringifyQuery(req as any, query)
 
-  const target = url.format(parsedUrl)
+  const target = formatUrl(parsedUrl)
   const HttpProxy =
     require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
 

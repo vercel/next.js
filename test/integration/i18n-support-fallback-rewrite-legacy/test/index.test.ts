@@ -1,4 +1,3 @@
-import url from 'url'
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
@@ -18,6 +17,17 @@ const nextConfig = new File(join(appDir, 'next.config.js'))
 let appPort
 let app
 
+function formatUrl({
+  pathname,
+  query,
+}: {
+  pathname: string
+  query: Record<string, string>
+}) {
+  const search = new URLSearchParams(query).toString()
+  return pathname + (search ? `?${search}` : '')
+}
+
 function runTests() {
   it('should not rewrite for index page', async () => {
     for (const [pathname, query] of [
@@ -28,13 +38,13 @@ function runTests() {
       ['/en', { hello: 'world' }],
       ['/fr', { hello: 'world' }],
     ] as const) {
-      const asPath = url.format({ pathname, query })
+      const asPath = formatUrl({ pathname, query })
       const browser = await webdriver(appPort, asPath)
 
       expect(JSON.parse(await browser.elementByCss('#router').text())).toEqual({
         index: true,
         pathname: '/',
-        asPath: url.format({ pathname: '/', query }),
+        asPath: formatUrl({ pathname: '/', query }),
         query,
       })
       await waitFor(1000)
@@ -42,7 +52,7 @@ function runTests() {
       expect(JSON.parse(await browser.elementByCss('#router').text())).toEqual({
         index: true,
         pathname: '/',
-        asPath: url.format({ pathname: '/', query }),
+        asPath: formatUrl({ pathname: '/', query }),
         query,
       })
     }
@@ -57,13 +67,13 @@ function runTests() {
       ['/en/dynamic/first', { hello: 'world' }],
       ['/fr/dynamic/first', { hello: 'world' }],
     ] as const) {
-      const asPath = url.format({ pathname, query })
+      const asPath = formatUrl({ pathname, query })
       const browser = await webdriver(appPort, asPath)
 
       expect(JSON.parse(await browser.elementByCss('#router').text())).toEqual({
         dynamic: true,
         pathname: '/dynamic/[slug]',
-        asPath: url.format({ pathname: '/dynamic/first', query }),
+        asPath: formatUrl({ pathname: '/dynamic/first', query }),
         query: {
           ...query,
           slug: 'first',
@@ -74,7 +84,7 @@ function runTests() {
       expect(JSON.parse(await browser.elementByCss('#router').text())).toEqual({
         dynamic: true,
         pathname: '/dynamic/[slug]',
-        asPath: url.format({ pathname: '/dynamic/first', query }),
+        asPath: formatUrl({ pathname: '/dynamic/first', query }),
         query: {
           ...query,
           slug: 'first',

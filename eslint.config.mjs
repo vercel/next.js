@@ -396,6 +396,21 @@ export default defineConfig([
       '@next/internal/typechecked-require': 'error',
       'jsdoc/no-types': 'error',
       'jsdoc/no-undefined-types': 'error',
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.object.name='url'][callee.property.name='parse']",
+          message:
+            'url.parse() is deprecated (DEP0169). Use parseReqUrl from src/lib/url.ts instead.',
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='url'][callee.property.name='format']",
+          message:
+            'url.format() is deprecated (DEP0169). Use formatUrl from src/shared/lib/router/utils/format-url.ts instead.',
+        },
+      ],
     },
   },
   {

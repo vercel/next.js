@@ -10,7 +10,7 @@ import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 import { createDefineEnv } from '../../../build/swc'
 import { installBindings } from '../../../build/swc/install-bindings'
 import fs from 'fs'
-import url from 'url'
+import { parseReqUrl } from '../../../lib/url'
 import path from 'path'
 import qs from 'querystring'
 import Watchpack from 'next/dist/compiled/watchpack'
@@ -1213,7 +1213,7 @@ async function startWatcher(
   opts.fsChecker.devVirtualFsItems.add(devTurbopackMiddlewareManifestPath)
 
   async function requestHandler(req: IncomingMessage, res: ServerResponse) {
-    const parsedUrl = url.parse(req.url || '/')
+    const parsedUrl = parseReqUrl(req.url || '/')
 
     if (parsedUrl.pathname?.includes(clientPagesManifestPath)) {
       res.statusCode = 200

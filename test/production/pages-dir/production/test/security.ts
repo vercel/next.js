@@ -2,7 +2,6 @@
 import webdriver from 'next-webdriver'
 import { readFileSync } from 'fs'
 import http from 'http'
-import url from 'url'
 import { join } from 'path'
 import { getBrowserBodyText, waitFor, fetchViaHTTP } from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
@@ -215,12 +214,11 @@ export default (next: NextInstance) => {
         }
       )
 
-      const { pathname, hostname } = url.parse(
-        res.headers.get('location') || ''
-      )
+      const location = res.headers.get('location') || ''
+      const parsedUrl = new URL(location, 'http://n')
       expect(res.status).toBe(307)
-      expect(pathname).toBe(encodeURI('/\\google.com/about'))
-      expect(hostname).toBeOneOf(['localhost', '127.0.0.1'])
+      expect(parsedUrl.pathname).toBe(encodeURI('/\\google.com/about'))
+      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
     })
 
     it('should handle encoded value in the pathname correctly %', async () => {
@@ -233,12 +231,11 @@ export default (next: NextInstance) => {
         }
       )
 
-      const { pathname, hostname } = url.parse(
-        res.headers.get('location') || ''
-      )
+      const location = res.headers.get('location') || ''
+      const parsedUrl = new URL(location, 'http://n')
       expect(res.status).toBe(307)
-      expect(pathname).toBe('/%25google.com/about')
-      expect(hostname).toBeOneOf(['localhost', '127.0.0.1'])
+      expect(parsedUrl.pathname).toBe('/%25google.com/about')
+      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
     })
 
     it('should handle encoded value in the query correctly', async () => {
@@ -251,13 +248,12 @@ export default (next: NextInstance) => {
         }
       )
 
-      const { pathname, hostname, query } = url.parse(
-        res.headers.get('location') || ''
-      )
+      const location = res.headers.get('location') || ''
+      const parsedUrl = new URL(location, 'http://n')
       expect(res.status).toBe(308)
-      expect(pathname).toBe('/trailing-redirect')
-      expect(hostname).toBeOneOf(['localhost', '127.0.0.1'])
-      expect(query).toBe(
+      expect(parsedUrl.pathname).toBe('/trailing-redirect')
+      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
+      expect(parsedUrl.search.slice(1)).toBe(
         'url=https%3A%2F%2Fgoogle.com%2Fimage%3Fcrop%3Dfocalpoint%26w%3D24&w=1200&q=100'
       )
     })
@@ -272,12 +268,11 @@ export default (next: NextInstance) => {
         }
       )
 
-      const { pathname, hostname } = url.parse(
-        res.headers.get('location') || ''
-      )
+      const location = res.headers.get('location') || ''
+      const parsedUrl = new URL(location, 'http://n')
       expect(res.status).toBe(307)
-      expect(pathname).toBe('/%2fgoogle.com/about')
-      expect(hostname).not.toBe('google.com')
+      expect(parsedUrl.pathname).toBe('/%2fgoogle.com/about')
+      expect(parsedUrl.hostname).not.toBe('google.com')
     })
 
     it('should handle encoded value in the pathname to query correctly (/)', async () => {
@@ -290,14 +285,13 @@ export default (next: NextInstance) => {
         }
       )
 
-      const { pathname, hostname, query } = url.parse(
-        res.headers.get('location') || ''
-      )
+      const location = res.headers.get('location') || ''
+      const parsedUrl = new URL(location, 'http://n')
       expect(res.status).toBe(307)
-      expect(pathname).toBe('/about')
-      expect(query).toBe('foo=%2Fgoogle.com')
-      expect(hostname).not.toBe('google.com')
-      expect(hostname).not.toMatch(/google/)
+      expect(parsedUrl.pathname).toBe('/about')
+      expect(parsedUrl.search.slice(1)).toBe('foo=%2Fgoogle.com')
+      expect(parsedUrl.hostname).not.toBe('google.com')
+      expect(parsedUrl.hostname).not.toMatch(/google/)
     })
 
     it('should handle encoded / value for trailing slash correctly', async () => {
@@ -308,12 +302,11 @@ export default (next: NextInstance) => {
         { redirect: 'manual' }
       )
 
-      const { pathname, hostname } = url.parse(
-        res.headers.get('location') || ''
-      )
+      const location = res.headers.get('location') || ''
+      const parsedUrl = new URL(location, 'http://n')
       expect(res.status).toBe(308)
-      expect(pathname).toBe('/%2fexample.com')
-      expect(hostname).not.toBe('example.com')
+      expect(parsedUrl.pathname).toBe('/%2fexample.com')
+      expect(parsedUrl.hostname).not.toBe('example.com')
     })
 
     if (global.browserName !== 'internet explorer') {

@@ -8,8 +8,8 @@ import type { Header } from '../../../lib/load-custom-routes'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { NextUrlWithParsedQuery } from '../../request-meta'
 
-import url from 'url'
 import path from 'node:path'
+import { parseReqUrl } from '../../../lib/url'
 import setupDebug from 'next/dist/compiled/debug'
 import { getCloneableBody } from '../../body-streams'
 import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
@@ -124,7 +124,7 @@ export function getResolveRoutes(
     let finished = false
     let resHeaders: Record<string, string | string[]> = {}
     let matchedOutput: FsOutput | null = null
-    let parsedUrl = url.parse(req.url || '', true) as NextUrlWithParsedQuery
+    let parsedUrl = parseReqUrl(req.url || '') as NextUrlWithParsedQuery
     let didRewrite = false
 
     const urlParts = (req.url || '').split('?', 1)
@@ -142,7 +142,9 @@ export function getResolveRoutes(
     // handle trailing slash as that is handled the same as a next.config.js
     // redirect
     if (urlNoQuery?.match(/(\\|\/\/)/)) {
-      parsedUrl = url.parse(normalizeRepeatedSlashes(req.url!), true)
+      parsedUrl = parseReqUrl(
+        normalizeRepeatedSlashes(req.url!)
+      ) as NextUrlWithParsedQuery
       return {
         parsedUrl,
         resHeaders,
@@ -662,7 +664,7 @@ export function getResolveRoutes(
               const destination = getRelativeURL(value, initUrl)
               resHeaders['x-middleware-rewrite'] = destination
 
-              parsedUrl = url.parse(destination, true)
+              parsedUrl = parseReqUrl(destination) as NextUrlWithParsedQuery
 
               if (parsedUrl.protocol) {
                 return {
@@ -697,7 +699,7 @@ export function getResolveRoutes(
                 // Process as redirect: update parsedUrl and convert to relative URL
                 const rel = getRelativeURL(value, initUrl)
                 resHeaders['location'] = rel
-                parsedUrl = url.parse(rel, true)
+                parsedUrl = parseReqUrl(rel) as NextUrlWithParsedQuery
 
                 return {
                   parsedUrl,

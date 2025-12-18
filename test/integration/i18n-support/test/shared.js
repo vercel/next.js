@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import url from 'url'
 import glob from 'glob'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
@@ -492,7 +491,7 @@ export function runTests(ctx) {
       ['#to-gssp-slug', '/gssp/first'],
     ]) {
       const href = await browser.elementByCss(element).getAttribute('href')
-      const { hostname, pathname: hrefPathname } = url.parse(href)
+      const { hostname, pathname: hrefPathname } = new URL(href, 'http://n')
       expect(hostname).not.toBe('example.com')
       expect(hrefPathname).toBe(`${ctx.basePath || ''}/go${pathname}`)
     }
@@ -511,7 +510,7 @@ export function runTests(ctx) {
       ['#to-gssp-slug', '/gssp/first'],
     ]) {
       const href = await browser.elementByCss(element).getAttribute('href')
-      const { hostname, pathname: hrefPathname } = url.parse(href)
+      const { hostname, pathname: hrefPathname } = new URL(href, 'http://n')
       expect(hostname).not.toBe('example.com')
       expect(hrefPathname).toBe(`${ctx.basePath || ''}/go-BE${pathname}`)
     }
@@ -1897,7 +1896,7 @@ export function runTests(ctx) {
       })
       expect(res.status).toBe(308)
 
-      const parsed = url.parse(res.headers.get('location'), true)
+      const parsed = new URL(res.headers.get('location'), 'http://n')
       expect(parsed.pathname).toBe(path)
 
       if (hostname === 'localhost') {
@@ -1905,7 +1904,7 @@ export function runTests(ctx) {
       } else {
         expect(parsed.hostname).toBe(hostname)
       }
-      expect(parsed.query).toEqual(query)
+      expect(Object.fromEntries(parsed.searchParams)).toEqual(query)
     }
   })
 
@@ -1933,7 +1932,7 @@ export function runTests(ctx) {
       expect(res.status).toBe(shouldRedirect ? 307 : 200)
 
       if (shouldRedirect) {
-        const parsed = url.parse(res.headers.get('location'), true)
+        const parsed = new URL(res.headers.get('location'), 'http://n')
         expect(parsed.pathname).toBe(
           `${ctx.basePath}${locale || ''}${pathname || '/somewhere-else'}`
         )
@@ -2201,9 +2200,12 @@ export function runTests(ctx) {
     ).toEqual({})
     expect(await browser.elementByCss('html').getAttribute('lang')).toBe('fr')
 
-    let parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    let parsedUrl = new URL(
+      await browser.eval('window.location.href'),
+      'http://n'
+    )
     expect(parsedUrl.pathname).toBe(`${ctx.basePath}/fr/another`)
-    expect(parsedUrl.query).toEqual({})
+    expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
 
     await browser.eval('window.history.back()')
     await browser.waitForElementByCss('#links')
@@ -2223,9 +2225,11 @@ export function runTests(ctx) {
       'en-US'
     )
 
-    parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    parsedUrl = new URL(await browser.eval('window.location.href'), 'http://n')
     expect(parsedUrl.pathname).toBe(`${ctx.basePath}/links`)
-    expect(parsedUrl.query).toEqual({ nextLocale: 'fr' })
+    expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({
+      nextLocale: 'fr',
+    })
 
     await browser.eval('window.history.forward()')
     await browser.waitForElementByCss('#another')
@@ -2245,9 +2249,9 @@ export function runTests(ctx) {
     ).toEqual({})
     expect(await browser.elementByCss('html').getAttribute('lang')).toBe('fr')
 
-    parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    parsedUrl = new URL(await browser.eval('window.location.href'), 'http://n')
     expect(parsedUrl.pathname).toBe(`${ctx.basePath}/fr/another`)
-    expect(parsedUrl.query).toEqual({})
+    expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
     expect(await browser.eval('window.beforeNav')).toBe(1)
     expect(await browser.eval('window.caughtWarns')).toEqual([])
   })
@@ -2293,9 +2297,12 @@ export function runTests(ctx) {
     ).toEqual({ slug: 'first' })
     expect(await browser.elementByCss('html').getAttribute('lang')).toBe('nl')
 
-    let parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    let parsedUrl = new URL(
+      await browser.eval('window.location.href'),
+      'http://n'
+    )
     expect(parsedUrl.pathname).toBe(`${ctx.basePath}/nl/gsp/fallback/first`)
-    expect(parsedUrl.query).toEqual({})
+    expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
 
     await browser.eval('window.history.back()')
     await browser.waitForElementByCss('#links')
@@ -2315,9 +2322,11 @@ export function runTests(ctx) {
       'en-US'
     )
 
-    parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    parsedUrl = new URL(await browser.eval('window.location.href'), 'http://n')
     expect(parsedUrl.pathname).toBe(`${ctx.basePath}/links`)
-    expect(parsedUrl.query).toEqual({ nextLocale: 'nl' })
+    expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({
+      nextLocale: 'nl',
+    })
 
     await browser.eval('window.history.forward()')
     await browser.waitForElementByCss('#gsp')
@@ -2337,9 +2346,9 @@ export function runTests(ctx) {
     ).toEqual({ slug: 'first' })
     expect(await browser.elementByCss('html').getAttribute('lang')).toBe('nl')
 
-    parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    parsedUrl = new URL(await browser.eval('window.location.href'), 'http://n')
     expect(parsedUrl.pathname).toBe(`${ctx.basePath}/nl/gsp/fallback/first`)
-    expect(parsedUrl.query).toEqual({})
+    expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
     expect(await browser.eval('window.beforeNav')).toBe(1)
     expect(await browser.eval('window.caughtWarns')).toEqual([])
   })
@@ -2415,9 +2424,12 @@ export function runTests(ctx) {
     ).toEqual({})
     expect(await browser.elementByCss('html').getAttribute('lang')).toBe('fr')
 
-    let parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    let parsedUrl = new URL(
+      await browser.eval('window.location.href'),
+      'http://n'
+    )
     expect(parsedUrl.pathname).toBe(`${ctx.basePath}/fr/another`)
-    expect(parsedUrl.query).toEqual({})
+    expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
 
     await browser.eval('window.history.back()')
     await browser.waitForElementByCss('#links')
@@ -2439,9 +2451,11 @@ export function runTests(ctx) {
       'en-US'
     )
 
-    parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    parsedUrl = new URL(await browser.eval('window.location.href'), 'http://n')
     expect(parsedUrl.pathname).toBe(`${ctx.basePath}/locale-false`)
-    expect(parsedUrl.query).toEqual({ nextLocale: 'fr' })
+    expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({
+      nextLocale: 'fr',
+    })
 
     await browser.eval('window.history.forward()')
     await browser.waitForElementByCss('#another')
@@ -2461,9 +2475,9 @@ export function runTests(ctx) {
     ).toEqual({})
     expect(await browser.elementByCss('html').getAttribute('lang')).toBe('fr')
 
-    parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    parsedUrl = new URL(await browser.eval('window.location.href'), 'http://n')
     expect(parsedUrl.pathname).toBe(`${ctx.basePath}/fr/another`)
-    expect(parsedUrl.query).toEqual({})
+    expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
     expect(await browser.eval('window.beforeNav')).toBe(1)
     expect(await browser.eval('window.caughtWarns')).toEqual([])
   })
@@ -2511,9 +2525,12 @@ export function runTests(ctx) {
     ).toEqual({ slug: 'first' })
     expect(await browser.elementByCss('html').getAttribute('lang')).toBe('nl')
 
-    let parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    let parsedUrl = new URL(
+      await browser.eval('window.location.href'),
+      'http://n'
+    )
     expect(parsedUrl.pathname).toBe(`${ctx.basePath}/nl/gsp/fallback/first`)
-    expect(parsedUrl.query).toEqual({})
+    expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
 
     await browser.eval('window.history.back()')
     await browser.waitForElementByCss('#links')
@@ -2535,9 +2552,11 @@ export function runTests(ctx) {
       'en-US'
     )
 
-    parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    parsedUrl = new URL(await browser.eval('window.location.href'), 'http://n')
     expect(parsedUrl.pathname).toBe(`${ctx.basePath}/locale-false`)
-    expect(parsedUrl.query).toEqual({ nextLocale: 'nl' })
+    expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({
+      nextLocale: 'nl',
+    })
 
     await browser.eval('window.history.forward()')
     await browser.waitForElementByCss('#gsp')
@@ -2557,9 +2576,9 @@ export function runTests(ctx) {
     ).toEqual({ slug: 'first' })
     expect(await browser.elementByCss('html').getAttribute('lang')).toBe('nl')
 
-    parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    parsedUrl = new URL(await browser.eval('window.location.href'), 'http://n')
     expect(parsedUrl.pathname).toBe(`${ctx.basePath}/nl/gsp/fallback/first`)
-    expect(parsedUrl.query).toEqual({})
+    expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
     expect(await browser.eval('window.beforeNav')).toBe(1)
     expect(await browser.eval('window.caughtWarns')).toEqual([])
   })
@@ -2814,13 +2833,13 @@ export function runTests(ctx) {
           }
 
           if (shouldRedirect) {
-            const parsedUrl = url.parse(res.headers.get('location'), true)
+            const parsedUrl = new URL(res.headers.get('location'), 'http://n')
 
             const expectedPathname = `/${
               expectedDomainItem.defaultLocale === locale ? '' : locale
             }`
             expect(parsedUrl.pathname).toBe(expectedPathname)
-            expect(parsedUrl.query).toEqual({})
+            expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
             expect(parsedUrl.hostname).toBe(expectedDomainItem.domain)
           } else {
             const html = await res.text()
@@ -2972,12 +2991,12 @@ export function runTests(ctx) {
         expect(props.is404).toBe(true)
         expect(props.locale).toBe(locale)
 
-        const parsedUrl = url.parse(
+        const parsedUrl = new URL(
           await browser.eval('window.location.href'),
-          true
+          'http://n'
         )
         expect(parsedUrl.pathname).toBe(`${ctx.basePath}/${locale}/not-found`)
-        expect(parsedUrl.query).toEqual({})
+        expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
       }
     }
   })
@@ -3004,7 +3023,8 @@ export function runTests(ctx) {
     expect(await browser.elementByCss('#router-pathname').text()).toBe('/frank')
     expect(await browser.elementByCss('#router-as-path').text()).toBe('/frank')
     expect(
-      url.parse(await browser.eval(() => window.location.href)).pathname
+      new URL(await browser.eval(() => window.location.href), 'http://n')
+        .pathname
     ).toBe(`${ctx.basePath}/fr/frank`)
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
@@ -3048,14 +3068,14 @@ export function runTests(ctx) {
     expect(props.locale).toBe('en')
     expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
 
-    const parsedUrl = url.parse(
+    const parsedUrl = new URL(
       await browser.eval('window.location.href'),
-      true
+      'http://n'
     )
     expect(parsedUrl.pathname).toBe(
       `${ctx.basePath}/en/not-found/fallback/first`
     )
-    expect(parsedUrl.query).toEqual({})
+    expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
 
     if (ctx.isDev) {
       // make sure page doesn't reload un-necessarily in development
@@ -3084,14 +3104,14 @@ export function runTests(ctx) {
     expect(props.locale).toBe('en')
     expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
 
-    const parsedUrl = url.parse(
+    const parsedUrl = new URL(
       await browser.eval('window.location.href'),
-      true
+      'http://n'
     )
     expect(parsedUrl.pathname).toBe(
       `${ctx.basePath}/en/not-found/fallback/first`
     )
-    expect(parsedUrl.query).toEqual({})
+    expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
 
     if (ctx.isDev) {
       // make sure page doesn't reload un-necessarily in development
@@ -3119,14 +3139,14 @@ export function runTests(ctx) {
     expect(props.locale).toBe('en')
     expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
 
-    const parsedUrl = url.parse(
+    const parsedUrl = new URL(
       await browser.eval('window.location.href'),
-      true
+      'http://n'
     )
     expect(parsedUrl.pathname).toBe(
       `${ctx.basePath}/en/not-found/blocking-fallback/first`
     )
-    expect(parsedUrl.query).toEqual({})
+    expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
 
     if (ctx.isDev) {
       // make sure page doesn't reload un-necessarily in development
@@ -3155,14 +3175,14 @@ export function runTests(ctx) {
     expect(props.locale).toBe('en')
     expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
 
-    const parsedUrl = url.parse(
+    const parsedUrl = new URL(
       await browser.eval('window.location.href'),
-      true
+      'http://n'
     )
     expect(parsedUrl.pathname).toBe(
       `${ctx.basePath}/en/not-found/blocking-fallback/first`
     )
-    expect(parsedUrl.query).toEqual({})
+    expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
 
     if (ctx.isDev) {
       // make sure page doesn't reload un-necessarily in development
@@ -3290,9 +3310,9 @@ export function runTests(ctx) {
     )
     expect(res.status).toBe(307)
 
-    const parsedUrl = url.parse(res.headers.get('location'), true)
+    const parsedUrl = new URL(res.headers.get('location'), 'http://n')
     expect(parsedUrl.pathname).toBe(`${ctx.basePath}/nl-NL`)
-    expect(parsedUrl.query).toEqual({})
+    expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
 
     const res2 = await fetchViaHTTP(
       ctx.appPort,
@@ -3307,9 +3327,11 @@ export function runTests(ctx) {
     )
     expect(res2.status).toBe(307)
 
-    const parsedUrl2 = url.parse(res2.headers.get('location'), true)
+    const parsedUrl2 = new URL(res2.headers.get('location'), 'http://n')
     expect(parsedUrl2.pathname).toBe(`${ctx.basePath}/en`)
-    expect(parsedUrl2.query).toEqual({ hello: 'world' })
+    expect(Object.fromEntries(parsedUrl2.searchParams)).toEqual({
+      hello: 'world',
+    })
   })
 
   it('should use default locale for / without accept-language', async () => {
@@ -3450,7 +3472,8 @@ export function runTests(ctx) {
       expect(await browser.elementByCss('#router-pathname').text()).toBe('/')
       expect(await browser.elementByCss('#router-as-path').text()).toBe('/')
       expect(
-        url.parse(await browser.eval(() => window.location.href)).pathname
+        new URL(await browser.eval(() => window.location.href), 'http://n')
+          .pathname
       ).toBe(`${ctx.basePath || '/'}`)
     }
 
@@ -3478,7 +3501,8 @@ export function runTests(ctx) {
       '/another'
     )
     expect(
-      url.parse(await browser.eval(() => window.location.href)).pathname
+      new URL(await browser.eval(() => window.location.href), 'http://n')
+        .pathname
     ).toBe(`${ctx.basePath}/another`)
 
     await browser.elementByCss('#to-index').click()
@@ -3504,7 +3528,8 @@ export function runTests(ctx) {
     expect(await browser.elementByCss('#router-pathname').text()).toBe('/gsp')
     expect(await browser.elementByCss('#router-as-path').text()).toBe('/gsp')
     expect(
-      url.parse(await browser.eval(() => window.location.href)).pathname
+      new URL(await browser.eval(() => window.location.href), 'http://n')
+        .pathname
     ).toBe(`${ctx.basePath}/gsp`)
 
     await browser.elementByCss('#to-index').click()
