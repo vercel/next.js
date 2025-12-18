@@ -49,10 +49,13 @@ export function parseRelativeUrl(
         )
       : globalBase
 
-  const { pathname, searchParams, search, hash, href, origin } = new URL(
-    url,
-    resolvedBase
+  const { pathname, searchParams, search, hash, href, origin } = url.startsWith(
+    '/'
   )
+    ? // 'http://localhost:3000///' would be received as '///' in Node.js' IncomingMessage
+      // See https://nodejs.org/api/http.html#messageurl
+      new URL(`${resolvedBase.origin}${url}`)
+    : new URL(url, resolvedBase)
 
   if (origin !== globalBase.origin) {
     throw new Error(`invariant: invalid relative URL, router received ${url}`)
