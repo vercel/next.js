@@ -1451,10 +1451,17 @@ impl ModuleGraphRef {
             );
         }
 
+        let mut visit_order = 0usize;
+        let mut order = || {
+            let order = visit_order;
+            visit_order += 1;
+            order
+        };
         #[derive(PartialEq, Eq)]
         struct NodeWithPriority<T: Ord> {
             node: GraphNodeIndex,
             priority: T,
+            visit_order: usize,
         }
         impl<T: Ord> PartialOrd for NodeWithPriority<T> {
             fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -1467,8 +1474,9 @@ impl ModuleGraphRef {
 
                 self.priority
                     .cmp(&other.priority)
-                    // include GraphNodeIndex for total and deterministic ordering
-                    .then(other.node.cmp(&self.node))
+                    // Use visit_order, so when there are ties we prioritize earlier discovered
+                    // nodes, reverting to a BFS in the the case where all priorities are equal
+                    .then(self.visit_order.cmp(&other.visit_order))
             }
         }
 
@@ -1480,6 +1488,7 @@ impl ModuleGraphRef {
                     Ok(NodeWithPriority {
                         node: self.get_entry(m)?,
                         priority,
+                        visit_order: order(),
                     })
                 })
                 .collect::<Result<Vec<_>>>()?,
@@ -1511,6 +1520,7 @@ impl ModuleGraphRef {
                     queue.push(NodeWithPriority {
                         node: succ,
                         priority: priority(succ_weight.module(), state)?,
+                        visit_order: order(),
                     });
                 }
             }
@@ -2071,6 +2081,64 @@ pub mod tests {
                         // we start following the cycle again
                         (Some(rcstr!("a.js")), rcstr!("b.js")),
                         (Some(rcstr!("b.js")), rcstr!("c.js")),
+                    ],
+                    visits
+                );
+
+                Ok(())
+            },
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_traverse_edges_fixed_point_no_priority_is_bfs() {
+        run_graph_test(
+            vec![rcstr!("a.js")],
+            {
+                let mut deps = FxHashMap::default();
+                // a simple triangle
+                //        a
+                //      b   c
+                //   d    e    f
+                deps.insert(rcstr!("a.js"), vec![rcstr!("b.js"), rcstr!("c.js")]);
+                deps.insert(rcstr!("b.js"), vec![rcstr!("d.js"), rcstr!("e.js")]);
+                deps.insert(rcstr!("c.js"), vec![rcstr!("e.js"), rcstr!("f.js")]);
+                deps
+            },
+            |graph, entry_modules, module_to_name| {
+                let mut visits = Vec::new();
+                let mut count = 0;
+
+                graph.traverse_edges_fixed_point_with_priority(
+                    entry_modules.into_iter().map(|m| (m, 0)),
+                    &mut (),
+                    |parent, target, _| {
+                        visits.push((
+                            parent.map(|(node, _, _)| module_to_name.get(&node).unwrap().clone()),
+                            module_to_name.get(&target).unwrap().clone(),
+                        ));
+                        count += 1;
+
+                        // We are a cycle so we need to break the loop eventually
+                        Ok(if count < 6 {
+                            GraphTraversalAction::Continue
+                        } else {
+                            GraphTraversalAction::Skip
+                        })
+                    },
+                    |_, _| Ok(0),
+                )?;
+
+                assert_eq!(
+                    vec![
+                        (None, rcstr!("a.js")),
+                        (Some(rcstr!("a.js")), rcstr!("c.js")),
+                        (Some(rcstr!("a.js")), rcstr!("b.js")),
+                        (Some(rcstr!("b.js")), rcstr!("e.js")),
+                        (Some(rcstr!("b.js")), rcstr!("d.js")),
+                        (Some(rcstr!("c.js")), rcstr!("f.js")),
+                        (Some(rcstr!("c.js")), rcstr!("e.js")),
                     ],
                     visits
                 );

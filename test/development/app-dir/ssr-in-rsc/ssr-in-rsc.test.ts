@@ -192,11 +192,10 @@ describe('react-dom/server in React Server environment', () => {
     } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "<FIXME-nextjs-internal-source>
-         × Module build failed:
          ╰─▶   × Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
                │   | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
                │    ,-[1:1]
@@ -341,9 +340,8 @@ describe('react-dom/server in React Server environment', () => {
     } else if (isRspack) {
       expect(redbox).toMatchInlineSnapshot(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.",
          "source": "./app/exports/app-code/react-dom-server-node-implicit/page.js
-         × Module build failed:
          ╰─▶   × Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
                │   | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
                │    ,-[1:1]
