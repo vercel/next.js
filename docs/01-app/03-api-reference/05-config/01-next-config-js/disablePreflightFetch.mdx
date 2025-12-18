@@ -1,0 +1,16 @@
+---
+title: disablePreflightFetch
+description: Disable client-side preflight fetches during prefetching.
+---
+
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+By default, Next.js may issue additional "preflight" requests during client-side prefetching (for example, a background `HEAD` request) to avoid downloading full payloads or to validate a route before fetching more data.
+
+If you need to **disable** these preflight requests, open `next.config.js` and set `disablePreflightFetch`:
+
+```js filename="next.config.js"
+module.exports = {
+  disablePreflightFetch: true,
+}
+```
