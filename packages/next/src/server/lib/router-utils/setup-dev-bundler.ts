@@ -85,6 +85,7 @@ import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
   writeValidatorFile,
+  writeDynamicTypesFile,
 } from './route-types-utils'
 import { writeCacheLifeTypes } from './cache-life-type-utils'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
@@ -145,7 +146,6 @@ async function verifyTypeScript(opts: SetupOpts) {
     distDir: opts.nextConfig.distDir,
     typeCheckPreflight: false,
     tsconfigPath: opts.nextConfig.typescript.tsconfigPath,
-    disableStaticImages: opts.nextConfig.images.disableStaticImages,
     hasAppDir: !!opts.appDir,
     hasPagesDir: !!opts.pagesDir,
     isolatedDevBuild: opts.nextConfig.experimental.isolatedDevBuild,
@@ -215,10 +215,14 @@ async function startWatcher(
         )
       })()
     : await (async () => {
-        const HotReloaderWebpack = (
-          require('../../dev/hot-reloader-webpack') as typeof import('../../dev/hot-reloader-webpack')
-        ).default
-        return new HotReloaderWebpack(opts.dir, {
+        const HotReloader = process.env.NEXT_RSPACK
+          ? (
+              require('../../dev/hot-reloader-rspack') as typeof import('../../dev/hot-reloader-rspack')
+            ).default
+          : (
+              require('../../dev/hot-reloader-webpack') as typeof import('../../dev/hot-reloader-webpack')
+            ).default
+        return new HotReloader(opts.dir, {
           isSrcDir: opts.isSrcDir,
           appDir,
           pagesDir,
@@ -261,6 +265,12 @@ async function startWatcher(
     path.join(distTypesDir, 'routes.d.ts'),
     opts.nextConfig
   )
+  await writeDynamicTypesFile({
+    distDir,
+    imageImportsEnabled: !opts.nextConfig.images.disableStaticImages,
+    hasPagesDir: !!pagesDir,
+    hasAppDir: !!appDir,
+  })
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: DevRoutesManifest = {
