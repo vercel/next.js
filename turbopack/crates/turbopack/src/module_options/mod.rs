@@ -210,6 +210,7 @@ impl ModuleOptions {
                     enable_exports_info_inlining,
                     source_maps: ecmascript_source_maps,
                     inline_helpers,
+                    infer_module_side_effects,
                     ..
                 },
             enable_mdx,
@@ -285,6 +286,7 @@ impl ModuleOptions {
             enable_typeof_window_inlining,
             enable_exports_info_inlining,
             inline_helpers,
+            infer_module_side_effects,
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();

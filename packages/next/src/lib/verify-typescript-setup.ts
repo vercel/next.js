@@ -9,7 +9,6 @@ import * as log from '../build/output/log'
 
 import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
 import type { TypeCheckResult } from './typescript/runTypeCheck'
-import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
 import { installDependencies } from './install-dependencies'
 import { isCI } from '../server/ci-info'
@@ -37,27 +36,32 @@ export async function verifyTypeScriptSetup({
   dir,
   distDir,
   cacheDir,
-  intentDirs,
   tsconfigPath,
   typeCheckPreflight,
-  disableStaticImages,
   hasAppDir,
   hasPagesDir,
   isolatedDevBuild,
+  appDir,
+  pagesDir,
+  debugBuildPaths,
 }: {
   dir: string
   distDir: string
   cacheDir?: string
   tsconfigPath: string | undefined
-  intentDirs: string[]
   typeCheckPreflight: boolean
-  disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
   isolatedDevBuild: boolean | undefined
+  appDir?: string
+  pagesDir?: string
+  debugBuildPaths?: { app?: string[]; pages?: string[] }
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const tsConfigFileName = tsconfigPath || 'tsconfig.json'
   const resolvedTsConfigPath = path.join(dir, tsConfigFileName)
+
+  // Construct intentDirs from appDir and pagesDir for getTypeScriptIntent
+  const intentDirs = [pagesDir, appDir].filter(Boolean) as string[]
 
   try {
     // Check if the project uses TypeScript:
@@ -131,16 +135,6 @@ export async function verifyTypeScriptSetup({
       hasPagesDir,
       isolatedDevBuild
     )
-    // Write out the necessary `next-env.d.ts` file to correctly register
-    // Next.js' types:
-    await writeAppTypeDeclarations({
-      baseDir: dir,
-      distDir,
-      imageImportsEnabled: !disableStaticImages,
-      hasPagesDir,
-      hasAppDir,
-    })
-
     let result
     if (typeCheckPreflight) {
       const { runTypeCheck } =
@@ -159,7 +153,9 @@ export async function verifyTypeScriptSetup({
         resolvedTsConfigPath,
         cacheDir,
         hasAppDir,
-        isolatedDevBuild
+        isolatedDevBuild,
+        { app: appDir, pages: pagesDir },
+        debugBuildPaths
       )
     }
     return { result, version: typescriptVersion }

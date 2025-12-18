@@ -170,7 +170,6 @@ describe('mcp-server get_errors tool', () => {
 
        \`\`\`
        ./app/build-error/page.tsx
-         × Module build failed:
          ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
                │    ,-[4:1]
                │  1 | export default function BuildErrorPage() {

@@ -10,6 +10,7 @@ import {
   generateRouteTypesFile,
   generateLinkTypesFile,
   generateValidatorFile,
+  generateDynamicTypesFile,
 } from './typegen'
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
 import {
@@ -381,4 +382,36 @@ export async function writeValidatorFile(
   }
 
   await fs.promises.writeFile(filePath, generateValidatorFile(manifest))
+}
+
+/**
+ * Writes the dynamic types file (.next/types/next-env.d.ts) that contains
+ * config-dependent type references (image imports, navigation compat, etc.)
+ */
+export async function writeDynamicTypesFile({
+  distDir,
+  imageImportsEnabled,
+  hasPagesDir,
+  hasAppDir,
+}: {
+  distDir: string
+  imageImportsEnabled: boolean
+  hasPagesDir: boolean
+  hasAppDir: boolean
+}) {
+  const typesDir = path.join(distDir, 'types')
+  const filePath = path.join(typesDir, 'next-env.d.ts')
+
+  // Directory should already be created by writeRouteTypesManifest, but ensure it exists
+  if (!fs.existsSync(typesDir)) {
+    await fs.promises.mkdir(typesDir, { recursive: true })
+  }
+
+  const content = generateDynamicTypesFile({
+    imageImportsEnabled,
+    hasPagesDir,
+    hasAppDir,
+  })
+
+  await fs.promises.writeFile(filePath, content)
 }

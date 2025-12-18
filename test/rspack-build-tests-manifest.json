@@ -9635,6 +9635,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/next-analyze/next-analyze.test.ts": {
+    "passed": ["next experimental-analyze skips in non-Turbopack tests"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/next-config-warnings/esm-externals-false/esm-externals-false.test.ts": {
     "passed": [
       "next-config-warnings - esm-externals-false should contain esmExternals feature usage in telemetry",
@@ -19987,17 +19994,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-app-type-declarations/test/index.test.ts": {
-    "passed": [
-      "TypeScript App Type Declarations should not touch an existing correct next-env.d.ts",
-      "TypeScript App Type Declarations should overwrite next-env.d.ts if an incorrect one exists",
-      "TypeScript App Type Declarations should write a new next-env.d.ts if none exist"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/typescript-baseurl/test/index.test.ts": {
     "passed": ["TypeScript Features default behavior should render the page"],
     "failed": [],
@@ -21057,9 +21053,15 @@
   },
   "test/production/debug-build-path/debug-build-paths.test.ts": {
     "passed": [
+      "debug-build-paths explicit path formats should build dynamic route with literal [slug] path",
       "debug-build-paths explicit path formats should build multiple pages routes",
       "debug-build-paths explicit path formats should build single page with pages/ prefix",
-      "debug-build-paths glob pattern matching should match app and pages routes with glob patterns"
+      "debug-build-paths glob pattern matching should match app and pages routes with glob patterns",
+      "debug-build-paths glob pattern matching should match hybrid pattern with literal [slug] and glob **",
+      "debug-build-paths glob pattern matching should match multiple app routes with explicit patterns",
+      "debug-build-paths glob pattern matching should match nested routes with app/blog/**/page.tsx pattern",
+      "debug-build-paths typechecking with debug-build-paths should fail typechecking when route with type error is included",
+      "debug-build-paths typechecking with debug-build-paths should skip typechecking for excluded app routes"
     ],
     "failed": [],
     "pending": [],
@@ -21115,8 +21117,19 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/production/deterministic-build/index.test.ts": {
-    "passed": ["deterministic build should have same md5 file across build"],
+  "test/production/deterministic-build/deployment-id.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "deterministic build - changing deployment id should produce identical build outputs even when changing deployment id"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/deterministic-build/no-change.test.ts": {
+    "passed": [
+      "deterministic build - no-change build should have same md5 file across build"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -21980,6 +21993,22 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/standalone-mode/runtimeServerDeploymentId/index.test.ts": {
+    "passed": [
+      "standalone mode: runtimeServerDeploymentId it should load api/pages-route",
+      "standalone mode: runtimeServerDeploymentId it should load api/pages-route-edge",
+      "standalone mode: runtimeServerDeploymentId it should load app-page",
+      "standalone mode: runtimeServerDeploymentId it should load app-page-edge",
+      "standalone mode: runtimeServerDeploymentId it should load app-route",
+      "standalone mode: runtimeServerDeploymentId it should load app-route-edge",
+      "standalone mode: runtimeServerDeploymentId it should load pages-page",
+      "standalone mode: runtimeServerDeploymentId it should load pages-page-edge"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/standalone-mode/tracing-side-effects-false/tracing-side-effects-false.test.ts": {
     "passed": [
       "standalone mode - tracing-side-effects-false should trace sideeffect imports even when sideEffects is false"
@@ -22064,6 +22093,17 @@
   "test/production/typescript-checked-side-effect-imports/index.test.ts": {
     "passed": [
       "Imports of server/client-only with noUncheckedSideEffectImports Should build without typescript errors"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/typescript-app-type-declarations/test/index.test.ts": {
+    "passed": [
+      "TypeScript App Type Declarations should not create next-env.d.ts in project root",
+      "TypeScript App Type Declarations should not modify existing next-env.d.ts in project root",
+      "TypeScript App Type Declarations should overwrite next-env.d.ts in .next/types if incorrect"
     ],
     "failed": [],
     "pending": [],
