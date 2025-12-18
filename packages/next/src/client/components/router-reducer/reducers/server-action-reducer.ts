@@ -51,7 +51,7 @@ import { revalidateEntireCache } from '../../segment-cache/cache'
 import { getDeploymentId } from '../../../../shared/lib/deployment-id'
 import {
   convertServerPatchToFullTree,
-  navigateToSeededRoute,
+  navigateToKnownRoute,
   navigate as navigateUsingSegmentCache,
 } from '../../segment-cache/navigation'
 import type { NormalizedSearch } from '../../segment-cache/cache-key'
@@ -407,7 +407,7 @@ export function serverActionReducer(
           flightDataRenderedSearch
         )
         const now = Date.now()
-        const result = navigateToSeededRoute(
+        const result = navigateToKnownRoute(
           now,
           redirectUrl,
           redirectCanonicalUrl,

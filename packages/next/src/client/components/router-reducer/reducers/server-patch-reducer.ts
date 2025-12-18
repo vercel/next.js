@@ -6,7 +6,7 @@ import type {
   Mutable,
 } from '../router-reducer-types'
 import { handleExternalUrl, handleNavigationResult } from './navigate-reducer'
-import { navigateToSeededRoute } from '../../segment-cache/navigation'
+import { navigateToKnownRoute } from '../../segment-cache/navigation'
 import { refreshReducer } from './refresh-reducer'
 import { FreshnessPolicy } from '../ppr-navigations'
 
@@ -45,7 +45,7 @@ export function serverPatchReducer(
   const pendingPush = false
   const shouldScroll = true
   const now = Date.now()
-  const result = navigateToSeededRoute(
+  const result = navigateToKnownRoute(
     now,
     retryUrl,
     retryCanonicalUrl,
