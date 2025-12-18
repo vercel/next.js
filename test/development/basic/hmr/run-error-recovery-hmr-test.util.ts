@@ -163,16 +163,16 @@ export function runErrorRecoveryHmrTest(nextConfig: {
 
         if (process.env.IS_TURBOPACK_TEST) {
           expect(source).toMatchInlineSnapshot(`
-       "./pages/hmr/about2.js (7:1)
-       Parsing ecmascript source code failed
-         5 |     div
-         6 |   )
-       > 7 | }
-           | ^
-         8 |
+                  "./pages/hmr/about2.js (7:1)
+                  Parsing ecmascript source code failed
+                    5 |     div
+                    6 |   )
+                  > 7 | }
+                      | ^
+                    8 |
 
-       Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
-      `)
+                  Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
+                `)
         } else if (process.env.NEXT_RSPACK) {
           expect(trimEndMultiline(source)).toMatchInlineSnapshot(`
            "./pages/hmr/about2.js
@@ -200,28 +200,28 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           `)
         } else {
           expect(source).toMatchInlineSnapshot(`
-          "./pages/hmr/about2.js
-          Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-             ,-[7:1]
-           4 |       <p>This is the about page.</p>
-           5 |     div
-           6 |   )
-           7 | }
-             : ^
-             \`----
-            x Expected '</', got '<eof>'
-             ,-[7:3]
-           5 |     div
-           6 |   )
-           7 | }
-             \`----
+                     "./pages/hmr/about2.js
+                     Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+                        ,-[7:1]
+                      4 |       <p>This is the about page.</p>
+                      5 |     div
+                      6 |   )
+                      7 | }
+                        : ^
+                        \`----
+                       x Expected '</', got '<eof>'
+                        ,-[7:3]
+                      5 |     div
+                      6 |   )
+                      7 | }
+                        \`----
 
-          Caused by:
-              Syntax Error
+                     Caused by:
+                         Syntax Error
 
-          Import trace for requested module:
-          ./pages/hmr/about2.js"
-        `)
+                     Import trace for requested module:
+                     ./pages/hmr/about2.js"
+                  `)
         }
       }
     )
@@ -442,25 +442,25 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         } else if (process.env.NEXT_RSPACK) {
           expect(trimEndMultiline(await getRedboxSource(browser)))
             .toMatchInlineSnapshot(`
-         "./components/parse-error.xyz
-           × Module parse failed:
-           ╰─▶   × JavaScript parse error: Expression expected
-                  ╭─[3:0]
-                1 │ This
-                2 │ is
-                3 │ }}}
-                  · ─
-                4 │ invalid
-                5 │ js
-                  ╰────
+           "./components/parse-error.xyz
+             × Module parse failed:
+             ╰─▶   × JavaScript parse error: Expression expected
+                    ╭─[3:0]
+                  1 │ This
+                  2 │ is
+                  3 │ }}}
+                    · ─
+                  4 │ invalid
+                  5 │ js
+                    ╰────
 
-           help:
-                 You may need an appropriate loader to handle this file type.
+             help:
+                   You may need an appropriate loader to handle this file type.
 
-         Import trace for requested module:
-         ./components/parse-error.xyz
-         ./pages/hmr/about8.js"
-        `)
+           Import trace for requested module:
+           ./components/parse-error.xyz
+           ./pages/hmr/about8.js"
+          `)
         } else {
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
                       "./components/parse-error.xyz
@@ -513,26 +513,26 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         if (process.env.IS_TURBOPACK_TEST) {
           expect(next.normalizeTestDirContent(redboxSource))
             .toMatchInlineSnapshot(`
-         "./components/parse-error.js (3:1)
-         Parsing ecmascript source code failed
-           1 | This
-           2 | is
-         > 3 | }}}
-             | ^
-           4 | invalid
-           5 | js
+                    "./components/parse-error.js (3:1)
+                    Parsing ecmascript source code failed
+                      1 | This
+                      2 | is
+                    > 3 | }}}
+                        | ^
+                      4 | invalid
+                      5 | js
 
-         Expression expected
+                    Expression expected
 
-         Import traces:
-           Browser:
-             ./components/parse-error.js
-             ./pages/hmr/about9.js
+                    Import traces:
+                      Browser:
+                        ./components/parse-error.js
+                        ./pages/hmr/about9.js
 
-           SSR:
-             ./components/parse-error.js
-             ./pages/hmr/about9.js"
-        `)
+                      SSR:
+                        ./components/parse-error.js
+                        ./pages/hmr/about9.js"
+                  `)
         } else if (process.env.NEXT_RSPACK) {
           expect(trimEndMultiline(next.normalizeTestDirContent(redboxSource)))
             .toMatchInlineSnapshot(`

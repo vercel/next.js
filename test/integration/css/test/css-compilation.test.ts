@@ -91,6 +91,10 @@ module.exports = {
                 expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
                   `"@media (min-width:480px) and (not (min-width:768px)){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px,0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
                 )
+              } else if (process.env.NEXT_RSPACK && useLightningcss) {
+                expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
+                  `"@media (min-width:480px) and (not (min-width:768px)){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px,0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
+                )
               } else if (useLightningcss) {
                 expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
                   `"@media (min-width:480px) and (not (min-width:768px)){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0,0)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
@@ -127,6 +131,38 @@ module.exports = {
                 expect(sourceMapContentParsed).toMatchInlineSnapshot(`
                  {
                    "mappings": "AAAA,qDACE,2BAKF,0DAIA,kDAIA,uCAIA",
+                   "names": [],
+                   "sourcesContent": [
+                     "@media (480px <= width < 768px) {
+                   ::placeholder {
+                     color: green;
+                   }
+                 }
+
+                 .flex-parsing {
+                   flex: 0 0 calc(50% - var(--vertical-gutter));
+                 }
+
+                 .transform-parsing {
+                   transform: translate3d(0px, 0px);
+                 }
+
+                 .css-grid-shorthand {
+                   grid-column: span 2;
+                 }
+
+                 .g-docs-sidenav .filter::-webkit-input-placeholder {
+                   opacity: 80%;
+                 }
+                 ",
+                   ],
+                   "version": 3,
+                 }
+                `)
+              } else if (process.env.NEXT_RSPACK && !useLightningcss) {
+                expect(sourceMapContentParsed).toMatchInlineSnapshot(`
+                 {
+                   "mappings": "AAAA,+CACE,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,WACF",
                    "names": [],
                    "sourcesContent": [
                      "@media (480px <= width < 768px) {
