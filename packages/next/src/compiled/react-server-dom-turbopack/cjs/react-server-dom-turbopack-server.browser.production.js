@@ -2276,16 +2276,23 @@ ReactPromise.prototype.then = function (resolve, reject) {
     case "fulfilled":
       if ("function" === typeof resolve) {
         for (
-          var inspectedValue = this.value, cycleProtection = 0;
+          var inspectedValue = this.value,
+            cycleProtection = 0,
+            visited = new Set();
           inspectedValue instanceof ReactPromise;
 
         ) {
           cycleProtection++;
-          if (inspectedValue === this || 1e3 < cycleProtection) {
+          if (
+            inspectedValue === this ||
+            visited.has(inspectedValue) ||
+            1e3 < cycleProtection
+          ) {
             "function" === typeof reject &&
               reject(Error("Cannot have cyclic thenables."));
             return;
           }
+          visited.add(inspectedValue);
           if ("fulfilled" === inspectedValue.status)
             inspectedValue = inspectedValue.value;
           else break;
