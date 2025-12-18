@@ -95,5 +95,3 @@ export async function middleware(request) {
     },
   })
 }
-
-export const runtime = 'nodejs'
