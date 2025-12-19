@@ -1,7 +1,6 @@
 'use client'
 
 import type React from 'react'
-import { SizeMode } from '@/lib/treemap-layout'
 
 import { useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
@@ -25,9 +24,8 @@ import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
 import { fetchStrict } from '@/lib/utils'
 import { formatBytes } from '@/lib/utils'
+import { SizeMode } from '@/lib/treemap-layout'
 import {
-  File,
-  FileArchive,
   Monitor,
   Server,
   FileCode,
@@ -93,7 +91,6 @@ export default function Home() {
     client?: boolean
   } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [sizeMode, setSizeMode] = useState(SizeMode.Compressed)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -174,8 +171,6 @@ export default function Home() {
         analyzeData={analyzeData}
         selectedRoute={selectedRoute}
         setSelectedRoute={setSelectedRoute}
-        sizeMode={sizeMode}
-        setSizeMode={setSizeMode}
         environmentFilter={environmentFilter}
         setEnvironmentFilter={setEnvironmentFilter}
         setSelectedSourceIndex={setSelectedSourceIndex}
@@ -227,7 +222,7 @@ export default function Home() {
                 onHoveredNodeChange={setHoveredNodeInfo}
                 searchQuery={searchQuery}
                 filterSource={filterSource}
-                sizeMode={sizeMode}
+                sizeMode={SizeMode.Compressed}
               />
             </div>
 
@@ -260,7 +255,7 @@ export default function Home() {
                   {hoveredNodeInfo.name}
                 </span>
                 <span className="ml-2 text-muted-foreground">
-                  {`${formatBytes(hoveredNodeInfo.size)} ${sizeMode}`}
+                  {`${formatBytes(hoveredNodeInfo.size)} compressed`}
                 </span>
                 {(hoveredNodeInfo.server || hoveredNodeInfo.client) && (
                   <span className="ml-2 inline-flex gap-1">
@@ -306,8 +301,6 @@ function TopBar({
   analyzeData,
   selectedRoute,
   setSelectedRoute,
-  sizeMode,
-  setSizeMode,
   environmentFilter,
   setEnvironmentFilter,
   setSelectedSourceIndex,
@@ -320,8 +313,6 @@ function TopBar({
   analyzeData: AnalyzeData | undefined
   selectedRoute: string | null
   setSelectedRoute: (route: string | null) => void
-  sizeMode: SizeMode
-  setSizeMode: (mode: SizeMode) => void
   environmentFilter: Environment
   setEnvironmentFilter: (env: Environment) => void
   setSelectedSourceIndex: (index: number | null) => void
@@ -348,35 +339,12 @@ function TopBar({
         {analyzeData && (
           <>
             <Select
-              value={sizeMode}
-              onValueChange={(value: SizeMode) => setSizeMode(value)}
-            >
-              <SelectTrigger className="w-fit min-w-[120px] h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={SizeMode.Uncompressed} className="text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <File className="h-3.5 w-3.5" />
-                    <span className="text-xs">Uncompressed</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value={SizeMode.Compressed} className="text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <FileArchive className="h-3.5 w-3.5" />
-                    <span className="text-xs">Compressed</span>
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select
               value={environmentFilter}
               onValueChange={(value: Environment) =>
                 setEnvironmentFilter(value)
               }
             >
-              <SelectTrigger className="w-fit min-w-[100px]">
+              <SelectTrigger className="w-28">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -401,6 +369,7 @@ function TopBar({
               onValueChange={setTypeFilter}
               selectionName={{ singular: 'file type', plural: 'file types' }}
               triggerIcon={<FileCode className="h-3.5 w-3.5" />}
+              triggerClassName="w-36"
               aria-label="Filter by file type"
             />
 
