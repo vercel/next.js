@@ -12,6 +12,16 @@
 "production" !== process.env.NODE_ENV &&
   (function () {
     function _defineProperty(obj, key, value) {
+      a: if ("object" == typeof key && key) {
+        var e = key[Symbol.toPrimitive];
+        if (void 0 !== e) {
+          key = e.call(key, "string");
+          if ("object" != typeof key) break a;
+          throw new TypeError("@@toPrimitive must return a primitive value.");
+        }
+        key = String(key);
+      }
+      key = "symbol" == typeof key ? key : key + "";
       key in obj
         ? Object.defineProperty(obj, key, {
             value: value,
@@ -458,6 +468,11 @@
         return "$" + (iterable ? "x" : "X") + streamId.toString(16);
       }
       function resolveToJSON(key, value) {
+        "__proto__" === key &&
+          console.error(
+            "Expected not to serialize an object with own property `__proto__`. When parsed this property will be omitted.%s",
+            describeObjectForErrorMessage(this, key)
+          );
         var originalValue = this[key];
         "object" !== typeof originalValue ||
           originalValue === value ||
@@ -702,17 +717,20 @@
         if ("undefined" === typeof value) return "$undefined";
         if ("function" === typeof value) {
           parentReference = knownServerReferences.get(value);
-          if (void 0 !== parentReference)
-            return (
-              (key = JSON.stringify(
-                { id: parentReference.id, bound: parentReference.bound },
-                resolveToJSON
-              )),
-              null === formData && (formData = new FormData()),
-              (parentReference = nextPartId++),
-              formData.set(formFieldPrefix + parentReference, key),
-              "$h" + parentReference.toString(16)
+          if (void 0 !== parentReference) {
+            key = writtenObjects.get(value);
+            if (void 0 !== key) return key;
+            key = JSON.stringify(
+              { id: parentReference.id, bound: parentReference.bound },
+              resolveToJSON
             );
+            null === formData && (formData = new FormData());
+            parentReference = nextPartId++;
+            formData.set(formFieldPrefix + parentReference, key);
+            key = "$h" + parentReference.toString(16);
+            writtenObjects.set(value, key);
+            return key;
+          }
           if (
             void 0 !== temporaryReferences &&
             -1 === key.indexOf(":") &&
@@ -1368,10 +1386,17 @@
               value.then(fulfill, reject);
               return;
             }
-          value = value[path[i]];
+          var name = path[i];
+          if (
+            "object" === typeof value &&
+            null !== value &&
+            hasOwnProperty.call(value, name)
+          )
+            value = value[name];
+          else throw Error("Invalid reference.");
         }
         i = map(response, value, parentObject, key);
-        parentObject[key] = i;
+        "__proto__" !== key && (parentObject[key] = i);
         "" === key && null === handler.value && (handler.value = i);
         if (
           parentObject[0] === REACT_ELEMENT_TYPE &&
@@ -1489,7 +1514,7 @@
             metaData.bound,
             response._encodeFormAction
           );
-          parentObject[key] = resolvedValue;
+          "__proto__" !== key && (parentObject[key] = resolvedValue);
           "" === key &&
             null === handler.value &&
             (handler.value = resolvedValue);
@@ -1763,13 +1788,14 @@
             }
           case "Y":
             return (
-              Object.defineProperty(parentObject, key, {
-                get: function () {
-                  return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
-                },
-                enumerable: !0,
-                configurable: !1
-              }),
+              "__proto__" !== key &&
+                Object.defineProperty(parentObject, key, {
+                  get: function () {
+                    return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
+                  },
+                  enumerable: !0,
+                  configurable: !1
+                }),
               null
             );
           default:
@@ -2728,101 +2754,109 @@
     }
     function createFromJSONCallback(response) {
       return function (key, value) {
-        if ("string" === typeof value)
-          return parseModelString(response, this, key, value);
-        if ("object" === typeof value && null !== value) {
-          if (value[0] === REACT_ELEMENT_TYPE) {
-            var type = value[1];
-            key = value[4];
-            var stack = value[5],
-              validated = value[6];
-            value = {
-              $$typeof: REACT_ELEMENT_TYPE,
-              type: type,
-              key: value[2],
-              props: value[3],
-              _owner: null === key ? response._debugRootOwner : key
-            };
-            Object.defineProperty(value, "ref", {
-              enumerable: !1,
-              get: nullRefGetter
-            });
-            value._store = {};
-            Object.defineProperty(value._store, "validated", {
-              configurable: !1,
-              enumerable: !1,
-              writable: !0,
-              value: validated
-            });
-            Object.defineProperty(value, "_debugInfo", {
-              configurable: !1,
-              enumerable: !1,
-              writable: !0,
-              value: null
-            });
-            validated = response._rootEnvironmentName;
-            null !== key && null != key.env && (validated = key.env);
-            var normalizedStackTrace = null;
-            null === key && null != response._debugRootStack
-              ? (normalizedStackTrace = response._debugRootStack)
-              : null !== stack &&
-                (normalizedStackTrace = createFakeJSXCallStackInDEV(
-                  response,
-                  stack,
-                  validated
-                ));
-            Object.defineProperty(value, "_debugStack", {
-              configurable: !1,
-              enumerable: !1,
-              writable: !0,
-              value: normalizedStackTrace
-            });
-            normalizedStackTrace = null;
-            supportsCreateTask &&
-              null !== stack &&
-              ((type = console.createTask.bind(console, getTaskName(type))),
-              (stack = buildFakeCallStack(response, stack, validated, type)),
-              (type =
-                null === key
-                  ? null
-                  : initializeFakeTask(response, key, validated)),
-              null === type
-                ? ((type = response._debugRootTask),
-                  (normalizedStackTrace =
-                    null != type ? type.run(stack) : stack()))
-                : (normalizedStackTrace = type.run(stack)));
-            Object.defineProperty(value, "_debugTask", {
-              configurable: !1,
-              enumerable: !1,
-              writable: !0,
-              value: normalizedStackTrace
-            });
-            null !== key && initializeFakeStack(response, key);
-            null !== initializingHandler
-              ? ((stack = initializingHandler),
-                (initializingHandler = stack.parent),
-                stack.errored
-                  ? ((key = createErrorChunk(response, stack.value)),
-                    (stack = {
-                      name: getComponentNameFromType(value.type) || "",
-                      owner: value._owner
-                    }),
-                    (stack.debugStack = value._debugStack),
-                    supportsCreateTask && (stack.debugTask = value._debugTask),
-                    (key._debugInfo = [stack]),
-                    (value = createLazyChunkWrapper(key)))
-                  : 0 < stack.deps &&
-                    ((key = new ReactPromise("blocked", null, null, response)),
-                    (stack.value = value),
-                    (stack.chunk = key),
-                    (value = Object.freeze.bind(Object, value.props)),
-                    key.then(value, value),
-                    (value = createLazyChunkWrapper(key))))
-              : Object.freeze(value.props);
+        if ("__proto__" !== key) {
+          if ("string" === typeof value)
+            return parseModelString(response, this, key, value);
+          if ("object" === typeof value && null !== value) {
+            if (value[0] === REACT_ELEMENT_TYPE) {
+              var type = value[1];
+              key = value[4];
+              var stack = value[5],
+                validated = value[6];
+              value = {
+                $$typeof: REACT_ELEMENT_TYPE,
+                type: type,
+                key: value[2],
+                props: value[3],
+                _owner: null === key ? response._debugRootOwner : key
+              };
+              Object.defineProperty(value, "ref", {
+                enumerable: !1,
+                get: nullRefGetter
+              });
+              value._store = {};
+              Object.defineProperty(value._store, "validated", {
+                configurable: !1,
+                enumerable: !1,
+                writable: !0,
+                value: validated
+              });
+              Object.defineProperty(value, "_debugInfo", {
+                configurable: !1,
+                enumerable: !1,
+                writable: !0,
+                value: null
+              });
+              validated = response._rootEnvironmentName;
+              null !== key && null != key.env && (validated = key.env);
+              var normalizedStackTrace = null;
+              null === key && null != response._debugRootStack
+                ? (normalizedStackTrace = response._debugRootStack)
+                : null !== stack &&
+                  (normalizedStackTrace = createFakeJSXCallStackInDEV(
+                    response,
+                    stack,
+                    validated
+                  ));
+              Object.defineProperty(value, "_debugStack", {
+                configurable: !1,
+                enumerable: !1,
+                writable: !0,
+                value: normalizedStackTrace
+              });
+              normalizedStackTrace = null;
+              supportsCreateTask &&
+                null !== stack &&
+                ((type = console.createTask.bind(console, getTaskName(type))),
+                (stack = buildFakeCallStack(response, stack, validated, type)),
+                (type =
+                  null === key
+                    ? null
+                    : initializeFakeTask(response, key, validated)),
+                null === type
+                  ? ((type = response._debugRootTask),
+                    (normalizedStackTrace =
+                      null != type ? type.run(stack) : stack()))
+                  : (normalizedStackTrace = type.run(stack)));
+              Object.defineProperty(value, "_debugTask", {
+                configurable: !1,
+                enumerable: !1,
+                writable: !0,
+                value: normalizedStackTrace
+              });
+              null !== key && initializeFakeStack(response, key);
+              null !== initializingHandler
+                ? ((stack = initializingHandler),
+                  (initializingHandler = stack.parent),
+                  stack.errored
+                    ? ((key = createErrorChunk(response, stack.value)),
+                      (stack = {
+                        name: getComponentNameFromType(value.type) || "",
+                        owner: value._owner
+                      }),
+                      (stack.debugStack = value._debugStack),
+                      supportsCreateTask &&
+                        (stack.debugTask = value._debugTask),
+                      (key._debugInfo = [stack]),
+                      (value = createLazyChunkWrapper(key)))
+                    : 0 < stack.deps &&
+                      ((key = new ReactPromise(
+                        "blocked",
+                        null,
+                        null,
+                        response
+                      )),
+                      (stack.value = value),
+                      (stack.chunk = key),
+                      (value = Object.freeze.bind(Object, value.props)),
+                      key.then(value, value),
+                      (value = createLazyChunkWrapper(key))))
+                : Object.freeze(value.props);
+            }
+            return value;
           }
           return value;
         }
-        return value;
       };
     }
     function noServerCall() {
