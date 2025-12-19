@@ -688,18 +688,12 @@ export function generateValidatorFileStrict(
             ? `${type}<${JSON.stringify(route)}>`
             : type
 
-        // NOTE: we previously used `satisfies` here, but it's not supported by TypeScript 4.8 and below.
-        // If we ever raise the TS minimum version, we can switch back.
-
         return `// Validate ${filePath}
 {
-  type __IsExpected<Specific extends ${typeWithRoute}> = Specific
   const handler = {} as typeof import(${JSON.stringify(
     importPath.replace(/\.tsx?$/, '.js')
   )})
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
+  handler satisfies ${typeWithRoute}
 }`
       })
       .join('\n\n')

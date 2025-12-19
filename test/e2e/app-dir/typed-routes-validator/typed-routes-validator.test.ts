@@ -1,6 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import { getDistDir } from 'next-test-utils'
 
+const strictRouteTypes =
+  process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
+
 describe('typed-routes-validator', () => {
   const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
@@ -55,9 +58,15 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('app/invalid/page.tsx')
 
       expect(exitCode).toBe(1)
-      expect(cliOutput).toMatch(
-        /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'AppPageConfig</
-      )
+      if (strictRouteTypes) {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'AppPageConfig</
+        )
+      } else {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'AppPageConfig</
+        )
+      }
     })
 
     it('should pass type checking with valid page props', async () => {
@@ -92,9 +101,15 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('app/invalid/page.tsx')
 
       expect(exitCode).toBe(1)
-      expect(cliOutput).toMatch(
-        /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'AppPageConfig</
-      )
+      if (strictRouteTypes) {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'AppPageConfig</
+        )
+      } else {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'AppPageConfig</
+        )
+      }
     })
 
     it('should pass type checking with valid route handler exports', async () => {
@@ -150,9 +165,15 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('app/invalid/route.ts')
 
       expect(exitCode).toBe(1)
-      expect(cliOutput).toMatch(
-        /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'RouteHandlerConfig</
-      )
+      if (strictRouteTypes) {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'RouteHandlerConfig</
+        )
+      } else {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'RouteHandlerConfig</
+        )
+      }
     })
 
     it('should fail type checking with invalid route handler params', async () => {
@@ -171,9 +192,15 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('app/invalid-2/route.ts')
 
       expect(exitCode).toBe(1)
-      expect(cliOutput).toMatch(
-        /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'RouteHandlerConfig</
-      )
+      if (strictRouteTypes) {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'RouteHandlerConfig</
+        )
+      } else {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'RouteHandlerConfig</
+        )
+      }
     })
 
     it('should pass type checking with valid layout exports', async () => {
@@ -212,9 +239,15 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('app/invalid/layout.tsx')
 
       expect(exitCode).toBe(1)
-      expect(cliOutput).toMatch(
-        /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'LayoutConfig</
-      )
+      if (strictRouteTypes) {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'LayoutConfig</
+        )
+      } else {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'LayoutConfig</
+        )
+      }
     })
 
     it('should pass type checking with valid API route exports', async () => {
@@ -256,9 +289,15 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('pages/api/invalid-api.ts')
 
       expect(exitCode).toBe(1)
-      expect(cliOutput).toMatch(
-        /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'ApiRouteConfig'/
-      )
+      if (strictRouteTypes) {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'ApiRouteConfig'/
+        )
+      } else {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'ApiRouteConfig'/
+        )
+      }
     })
   }
 })
