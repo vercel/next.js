@@ -1100,7 +1100,7 @@ impl AggregationUpdateQueue {
                     upper_id,
                     new_follower_ids,
                 } => {
-                    if new_follower_ids.len() == 1 && new_follower_ids[0].1 == 1 {
+                    if new_follower_ids.len() == 1 {
                         let (id, count) = new_follower_ids[0];
                         self.inner_of_upper_has_new_follower(ctx, id, upper_id, count);
                     } else {
