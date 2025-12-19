@@ -441,11 +441,13 @@ impl MetaFile {
         value_block_cache: &BlockCache,
     ) -> Result<MetaBatchLookupResult> {
         if key_family != self.family {
+            #[cfg(feature = "stats")]
             return Ok(MetaBatchLookupResult {
-                #[cfg(feature = "stats")]
                 family_miss: true,
                 ..Default::default()
             });
+            #[cfg(not(feature = "stats"))]
+            return Ok(MetaBatchLookupResult {});
         }
         #[allow(unused_mut, reason = "It's used when stats are enabled")]
         let mut lookup_result = MetaBatchLookupResult::default();
