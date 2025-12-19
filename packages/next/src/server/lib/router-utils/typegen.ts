@@ -739,7 +739,7 @@ export function generateValidatorFileStrict(
 
   if (appPageValidations) {
     typeDefinitions += `type AppPageConfig<Route extends AppRoutes = AppRoutes> = {
-  default: React.ComponentType<PageProps<Route>> | ((props: PageProps<Route>) => React.ReactNode | Promise<React.ReactNode> | never | void | Promise<void>)
+  default: React.JSXElementConstructor<PageProps<Route>>
   generateStaticParams?: (props: { params: ParamMap[Route] }) => Promise<any[]> | any[]
   generateMetadata?: (
     props: PageProps<Route>,
