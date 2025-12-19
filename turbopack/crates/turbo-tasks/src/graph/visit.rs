@@ -1,4 +1,4 @@
-use std::future::Future;
+use std::{future::Future, iter::Map};
 
 use anyhow::Result;
 use tracing::Span;
@@ -7,17 +7,20 @@ use super::VisitControlFlow;
 
 /// A trait that allows a graph traversal to visit the edges of a node
 /// transitively.
-pub trait Visit<Node, Abort = !, Impl = ()> {
-    type Edge;
-    type EdgesIntoIter: IntoIterator<Item = Self::Edge>;
+pub trait Visit<Node, Edge = (), Impl = ()> {
+    type EdgesIntoIter: IntoIterator<Item = (Node, Edge)>;
     type EdgesFuture: Future<Output = Result<Self::EdgesIntoIter>> + Send;
 
-    /// Visits an edge to get to the neighbor node. Should return a
+    /// Visits an edge. Should return a
     /// [`VisitControlFlow`] that indicates whether to:
     /// * continue visiting the neighbor node edges;
     /// * skip visiting the neighbor node's edges;
     /// * abort the traversal entirely.
-    fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<Node, Abort>;
+    fn visit(&mut self, node: &Node, edge: Option<&Edge>) -> VisitControlFlow {
+        let _ = node;
+        let _ = edge;
+        VisitControlFlow::Continue
+    }
 
     /// Returns a future that resolves to the outgoing edges of the given `node`.
     ///
@@ -28,11 +31,9 @@ pub trait Visit<Node, Abort = !, Impl = ()> {
     ///   returns a node reference that's only valid for the lifetime of its `&mut self` reference.
     fn edges(&mut self, node: &Node) -> Self::EdgesFuture;
 
-    /// Returns a [Span] for the given `node`, under which all edges are
-    /// processed.
-    fn span(&mut self, node: &Node) -> Span {
-        let _ = node;
-        Span::current()
+    /// Returns a [Span] for the given `node`, under which all edges are processed.
+    fn span(&mut self, _node: &Node, _edge: Option<&Edge>) -> Span {
+        Span::none()
     }
 }
 
@@ -41,45 +42,94 @@ pub trait Visit<Node, Abort = !, Impl = ()> {
 // kinds of `FnMut`.
 // See https://users.rust-lang.org/t/conflicting-implementation-when-implementing-traits-for-fn/53359/3
 
-pub struct ImplRef;
+pub struct ImplWithEdgeRef;
 
-impl<Node, VisitFn, NeighFut, NeighIt> Visit<Node, !, ImplRef> for VisitFn
+impl<Node, Edge, VisitFn, NeighFut, NeighIt> Visit<Node, Edge, ImplWithEdgeRef> for VisitFn
 where
     VisitFn: FnMut(&Node) -> NeighFut,
     NeighFut: Future<Output = Result<NeighIt>> + Send,
-    NeighIt: IntoIterator<Item = Node>,
+    NeighIt: IntoIterator<Item = (Node, Edge)>,
 {
-    type Edge = Node;
     type EdgesIntoIter = NeighIt;
     type EdgesFuture = NeighFut;
-
-    fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<Node> {
-        VisitControlFlow::Continue(edge)
-    }
 
     fn edges(&mut self, node: &Node) -> Self::EdgesFuture {
         (self)(node)
     }
 }
 
+pub struct ImplWithEdgeValue;
+
+impl<Node, Edge, VisitFn, NeighFut, NeighIt> Visit<Node, Edge, ImplWithEdgeValue> for VisitFn
+where
+    Node: Clone,
+    VisitFn: FnMut(Node) -> NeighFut,
+    NeighFut: Future<Output = Result<NeighIt>> + Send,
+    NeighIt: IntoIterator<Item = (Node, Edge)>,
+{
+    type EdgesIntoIter = NeighIt;
+    type EdgesFuture = NeighFut;
+
+    fn edges(&mut self, node: &Node) -> Self::EdgesFuture {
+        (self)(node.clone())
+    }
+}
+
+pub struct ImplRef;
+
+impl<Node, VisitFn, NeighFut, NeighIt> Visit<Node, (), ImplRef> for VisitFn
+where
+    VisitFn: FnMut(&Node) -> NeighFut,
+    NeighFut: Future<Output = Result<NeighIt>> + Send,
+    NeighIt: IntoIterator<Item = Node>,
+{
+    type EdgesIntoIter = Map<NeighIt::IntoIter, fn(Node) -> (Node, ())>;
+    type EdgesFuture = NoEdgeFuture<NeighFut>;
+
+    fn edges(&mut self, node: &Node) -> Self::EdgesFuture {
+        NoEdgeFuture((self)(node))
+    }
+}
+
 pub struct ImplValue;
 
-impl<Node, VisitFn, NeighFut, NeighIt> Visit<Node, !, ImplValue> for VisitFn
+impl<Node, VisitFn, NeighFut, NeighIt> Visit<Node, (), ImplValue> for VisitFn
 where
     Node: Clone,
     VisitFn: FnMut(Node) -> NeighFut,
     NeighFut: Future<Output = Result<NeighIt>> + Send,
     NeighIt: IntoIterator<Item = Node>,
 {
-    type Edge = Node;
-    type EdgesIntoIter = NeighIt;
-    type EdgesFuture = NeighFut;
-
-    fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<Node> {
-        VisitControlFlow::Continue(edge)
-    }
+    type EdgesIntoIter = Map<NeighIt::IntoIter, fn(Node) -> (Node, ())>;
+    type EdgesFuture = NoEdgeFuture<NeighFut>;
 
     fn edges(&mut self, node: &Node) -> Self::EdgesFuture {
-        (self)(node.clone())
+        NoEdgeFuture((self)(node.clone()))
+    }
+}
+
+pub struct NoEdgeFuture<F>(F);
+
+impl<F, Node, NeighIt> Future for NoEdgeFuture<F>
+where
+    F: Future<Output = Result<NeighIt>> + Send,
+    NeighIt: IntoIterator<Item = Node>,
+{
+    type Output = Result<Map<NeighIt::IntoIter, fn(Node) -> (Node, ())>>;
+
+    fn poll(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        let future = unsafe { self.map_unchecked_mut(|s| &mut s.0) };
+        future.poll(cx).map(|res| {
+            res.map(|it| {
+                fn map_fn<Node>(node: Node) -> (Node, ()) {
+                    (node, ())
+                }
+                let f: fn(Node) -> (Node, ()) = map_fn;
+                it.into_iter().map(f)
+            })
+        })
     }
 }
