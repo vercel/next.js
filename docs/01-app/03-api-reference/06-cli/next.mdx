@@ -26,15 +26,16 @@ The following options are available:
 
 The following commands are available:
 
-| Command                                | Description                                                                                                   |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| [`dev`](#next-dev-options)             | Starts Next.js in development mode with Hot Module Reloading, error reporting, and more.                      |
-| [`build`](#next-build-options)         | Creates an optimized production build of your application. Displaying information about each route.           |
-| [`start`](#next-start-options)         | Starts Next.js in production mode. The application should be compiled with `next build` first.                |
-| [`info`](#next-info-options)           | Prints relevant details about the current system which can be used to report Next.js bugs.                    |
-| [`telemetry`](#next-telemetry-options) | Allows you to enable or disable Next.js' completely anonymous telemetry collection.                           |
-| [`typegen`](#next-typegen-options)     | Generates TypeScript definitions for routes, pages, layouts, and route handlers without running a full build. |
-| [`upgrade`](#next-upgrade-options)     | Upgrades your Next.js application to the latest version.                                                      |
+| Command                                                      | Description                                                                                                   |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| [`dev`](#next-dev-options)                                   | Starts Next.js in development mode with Hot Module Reloading, error reporting, and more.                      |
+| [`build`](#next-build-options)                               | Creates an optimized production build of your application. Displaying information about each route.           |
+| [`start`](#next-start-options)                               | Starts Next.js in production mode. The application should be compiled with `next build` first.                |
+| [`info`](#next-info-options)                                 | Prints relevant details about the current system which can be used to report Next.js bugs.                    |
+| [`telemetry`](#next-telemetry-options)                       | Allows you to enable or disable Next.js' completely anonymous telemetry collection.                           |
+| [`typegen`](#next-typegen-options)                           | Generates TypeScript definitions for routes, pages, layouts, and route handlers without running a full build. |
+| [`upgrade`](#next-upgrade-options)                           | Upgrades your Next.js application to the latest version.                                                      |
+| [`experimental-analyze`](#next-experimental-analyze-options) | Analyzes bundle output using Turbopack. Does not produce build artifacts.                                     |
 
 > **Good to know**: Running `next` without a command is an alias for `next dev`.
 
@@ -200,6 +201,43 @@ The following options are available for the `next upgrade` command:
 | `--revision <revision>` | Specify a Next.js version or tag to upgrade to (e.g., `latest`, `canary`, `15.0.0`). Defaults to the release channel you have currently installed. |
 | `--verbose`             | Show verbose output during the upgrade process.                                                                                                    |
 
+### `next experimental-analyze` options
+
+`next experimental-analyze` analyzes your application's bundle output using [Turbopack](/docs/app/api-reference/turbopack). This command helps you understand the size and composition of your bundles, including JavaScript, CSS, and other assets. This command doesn't produce an application build.
+
+```bash filename="Terminal"
+npx next experimental-analyze
+```
+
+By default, the command starts a local server after analysis completes, allowing you to explore your bundle composition in the browser. The analyzer lets you:
+
+- Filter bundles by route and switch between client and server views
+- View the full import chain showing why a module is included
+- Trace imports across server-to-client component boundaries and dynamic imports
+
+See [Package Bundling](/docs/app/guides/package-bundling) for optimization strategies.
+
+To write the analysis output to disk without starting the server, use the `--output` flag. The output is written to `.next/diagnostics/analyze` and contains static files that can be copied elsewhere or shared with others:
+
+```bash filename="Terminal"
+# Write output to .next/diagnostics/analyze
+npx next experimental-analyze --output
+
+# Copy the output for comparison with a future analysis
+cp -r .next/diagnostics/analyze ./analyze-before-refactor
+```
+
+The following options are available for the `next experimental-analyze` command:
+
+| Option          | Description                                                                                                                                   |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-h, --help`    | Show all available options.                                                                                                                   |
+| `[directory]`   | A directory on which to analyze the application. If not provided, the current directory will be used.                                         |
+| `--no-mangling` | Disables [mangling](https://en.wikipedia.org/wiki/Name_mangling). This may affect performance and should only be used for debugging purposes. |
+| `--profile`     | Enables production [profiling for React](https://react.dev/reference/react/Profiler). This may affect performance.                            |
+| `-o, --output`  | Write analysis files to disk without starting the server. Output is written to `.next/diagnostics/analyze`.                                   |
+| `--port <port>` | Specify a port number to serve the analyzer on. (default: 4000, env: PORT)                                                                    |
+
 ## Examples
 
 ### Debugging prerender errors
@@ -298,6 +336,7 @@ NODE_OPTIONS='--inspect' next
 
 | Version   | Changes                                                                         |
 | --------- | ------------------------------------------------------------------------------- |
+| `v16.1.0` | Add the `next experimental-analyze` command                                     |
 | `v16.0.0` | The JS bundle size metrics have been removed from `next build`                  |
 | `v15.5.0` | Add the `next typegen` command                                                  |
 | `v15.4.0` | Add `--debug-prerender` option for `next build` to help debug prerender errors. |

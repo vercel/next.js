@@ -707,6 +707,9 @@ jobs:
         env:
           PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
           NEXT_SKIP_NATIVE_POSTINSTALL: 1
+          # This uses the webpack bundle analyzer and for consistent results we need to use webpack.
+          # Once there is an equivalent analyzer for turbopack, we can remove this.
+          IS_WEBPACK_TEST: 1
 
   upload_turbopack_bytesize:
     if: ${{ needs.deploy-target.outputs.value != 'automated-preview'}}
