@@ -13,11 +13,16 @@ appBootstrap((assetPrefix) => {
     hydrate(instrumentationHooks, assetPrefix)
   } finally {
     if (process.env.NODE_ENV !== 'production') {
+      const enableCacheIndicator = process.env.__NEXT_CACHE_COMPONENTS
       const { getOwnerStack } =
         require('../next-devtools/userspace/app/errors/stitched-error') as typeof import('../next-devtools/userspace/app/errors/stitched-error')
       const { renderAppDevOverlay } =
         require('next/dist/compiled/next-devtools') as typeof import('next/dist/compiled/next-devtools')
-      renderAppDevOverlay(getOwnerStack, isRecoverableError)
+      renderAppDevOverlay(
+        getOwnerStack,
+        isRecoverableError,
+        enableCacheIndicator
+      )
     }
   }
 })

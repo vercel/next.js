@@ -1,31 +1,31 @@
 use std::collections::BTreeSet;
 
 use anyhow::{Result, bail};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
-    css::chunk::CssChunkType,
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, ExternalsTracingOptions, JsxTransformOptions,
         ModuleOptionsContext, ModuleRule, TypescriptTransformOptions,
+        side_effect_free_packages_glob,
     },
-    resolve_options_context::ResolveOptionsContext,
     transition::Transition,
 };
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, MangleType, MinifyType, SourceMapsType,
+        ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, SourceMapsType,
         module_id_strategies::ModuleIdStrategy,
     },
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
     free_var_references,
-    module_graph::export_usage::OptionExportUsageInfo,
+    module_graph::binding_usage_info::OptionBindingUsageInfo,
     target::CompileTarget,
 };
+use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
     AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior,
 };
@@ -37,11 +37,8 @@ use turbopack_node::{
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
 };
 use turbopack_nodejs::NodeJsChunkingContext;
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
-use super::{
-    resolve::ExternalCjsModulesResolvePlugin,
-    transforms::{get_next_server_internal_transforms_rules, get_next_server_transforms_rules},
-};
 use crate::{
     app_structure::CollectedRootParams,
     mode::NextMode,
@@ -49,7 +46,10 @@ use crate::{
     next_config::NextConfig,
     next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_server_import_map},
-    next_server::resolve::ExternalPredicate,
+    next_server::{
+        resolve::{ExternalCjsModulesResolvePlugin, ExternalPredicate},
+        transforms::{get_next_server_internal_transforms_rules, get_next_server_transforms_rules},
+    },
     next_shared::{
         resolve::{
             ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
@@ -73,7 +73,7 @@ use crate::{
     },
     util::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
-        get_transpiled_packages, internal_assets_conditions, load_next_js_templateon,
+        get_transpiled_packages, internal_assets_conditions, load_next_js_jsonc_file,
         module_styles_rule_condition,
     },
 };
@@ -162,9 +162,9 @@ pub async fn get_server_resolve_options_context(
             .await?;
 
     // Always load these predefined packages as external.
-    let mut external_packages: Vec<RcStr> = load_next_js_templateon(
+    let mut external_packages: Vec<RcStr> = load_next_js_jsonc_file(
         project_path.clone(),
-        rcstr!("dist/lib/server-external-packages.json"),
+        rcstr!("dist/lib/server-external-packages.jsonc"),
     )
     .await?;
 
@@ -199,7 +199,6 @@ pub async fn get_server_resolve_options_context(
     external_packages.retain(|item| !transpiled_packages.contains(item));
 
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
-        project_path.clone(),
         project_path.root().owned().await?,
         ExternalPredicate::Only(ResolvedVc::cell(external_packages)).cell(),
         *next_config.import_externals().await?,
@@ -214,11 +213,17 @@ pub async fn get_server_resolve_options_context(
         custom_conditions.push(rcstr!("react-server"));
     };
 
+    if *next_config.enable_cache_components().await?
+        // Middleware shouldn't use the "next-js" condition because it doesn't have all Next.js APIs available
+        && !matches!(ty, ServerContextType::Middleware { .. } |  ServerContextType::Instrumentation { .. })
+    {
+        custom_conditions.push(rcstr!("next-js"));
+    };
+
     let external_cjs_modules_plugin = if *next_config.bundle_pages_router_dependencies().await? {
         server_external_packages_plugin
     } else {
         ExternalCjsModulesResolvePlugin::new(
-            project_path.clone(),
             project_path.root().owned().await?,
             ExternalPredicate::AllExcept(ResolvedVc::cell(transpiled_packages)).cell(),
             *next_config.import_externals().await?,
@@ -414,7 +419,7 @@ pub async fn get_tracing_compile_time_info() -> Result<Vc<CompileTimeInfo>> {
     */
     .defines(
         compile_time_defines!(
-            process.env.TURBOPACK = true,
+            process.env.TURBOPACK = "1",
             // process.env.NODE_ENV = "production",
         )
         .resolved_cell(),
@@ -570,17 +575,14 @@ pub async fn get_server_module_options_context(
     .flatten()
     .collect();
 
-    let source_maps = if *next_config.server_source_maps().await? {
-        SourceMapsType::Full
-    } else {
-        SourceMapsType::None
-    };
+    let source_maps = *next_config.server_source_maps().await?;
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
             import_externals: *next_config.import_externals().await?,
             ignore_dynamic_requests: true,
             source_maps,
+            infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             ..Default::default()
         },
         execution_context: Some(execution_context),
@@ -591,7 +593,11 @@ pub async fn get_server_module_options_context(
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
-        side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
+        side_effect_free_packages: Some(
+            side_effect_free_packages_glob(next_config.optimize_package_imports())
+                .to_resolved()
+                .await?,
+        ),
         analyze_mode: if next_mode.is_development() {
             AnalyzeMode::CodeGeneration
         } else {
@@ -980,7 +986,7 @@ pub async fn get_server_module_options_context(
     Ok(module_options_context)
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
 pub struct ServerChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,
@@ -988,19 +994,22 @@ pub struct ServerChunkingContextOptions {
     pub node_root_to_root_path: RcStr,
     pub environment: Vc<Environment>,
     pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
-    pub export_usage: Vc<OptionExportUsageInfo>,
-    pub turbo_minify: Vc<bool>,
-    pub turbo_source_maps: Vc<bool>,
+    pub export_usage: Vc<OptionBindingUsageInfo>,
+    pub unused_references: Vc<OptionBindingUsageInfo>,
+    pub minify: Vc<bool>,
+    pub source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub nested_async_chunking: Vc<bool>,
     pub debug_ids: Vc<bool>,
+    pub client_root: FileSystemPath,
+    pub asset_prefix: RcStr,
 }
 
+/// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
 #[turbo_tasks::function]
 pub async fn get_server_chunking_context_with_client_assets(
     options: ServerChunkingContextOptions,
-    client_root: FileSystemPath,
-    asset_prefix: Option<RcStr>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let ServerChunkingContextOptions {
         mode,
@@ -1010,11 +1019,15 @@ pub async fn get_server_chunking_context_with_client_assets(
         environment,
         module_id_strategy,
         export_usage,
-        turbo_minify,
-        turbo_source_maps,
+        unused_references,
+        minify,
+        source_maps,
         no_mangling,
         scope_hoisting,
+        nested_async_chunking,
         debug_ids,
+        client_root,
+        asset_prefix,
     } = options;
 
     let next_mode = mode.await?;
@@ -1031,8 +1044,8 @@ pub async fn get_server_chunking_context_with_client_assets(
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
-    .asset_prefix(asset_prefix)
-    .minify_type(if *turbo_minify.await? {
+    .asset_prefix(Some(asset_prefix))
+    .minify_type(if *minify.await? {
         MinifyType::Minify {
             // React needs deterministic function names to work correctly.
             mangle: (!*no_mangling.await?).then_some(MangleType::Deterministic),
@@ -1040,19 +1053,20 @@ pub async fn get_server_chunking_context_with_client_assets(
     } else {
         MinifyType::NoMinify
     })
-    .source_maps(if *turbo_source_maps.await? {
-        SourceMapsType::Full
-    } else {
-        SourceMapsType::None
-    })
+    .source_maps(*source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
+    .unused_references(*unused_references.await?)
     .file_tracing(next_mode.is_production())
-    .debug_ids(*debug_ids.await?);
+    .debug_ids(*debug_ids.await?)
+    .nested_async_availability(*nested_async_chunking.await?);
 
-    if next_mode.is_development() {
-        builder = builder.use_file_source_map_uris();
+    builder = builder.source_map_source_type(if next_mode.is_development() {
+        SourceMapSourceType::AbsoluteFileUri
     } else {
+        SourceMapSourceType::RelativeUri
+    });
+    if next_mode.is_production() {
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
@@ -1076,6 +1090,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     Ok(builder.build())
 }
 
+// By default, assets are server assets, but the StructuredImageModuleType ones are on the client
 #[turbo_tasks::function]
 pub async fn get_server_chunking_context(
     options: ServerChunkingContextOptions,
@@ -1088,11 +1103,15 @@ pub async fn get_server_chunking_context(
         environment,
         module_id_strategy,
         export_usage,
-        turbo_minify,
-        turbo_source_maps,
+        unused_references,
+        minify,
+        source_maps,
         no_mangling,
         scope_hoisting,
+        nested_async_chunking,
         debug_ids,
+        client_root,
+        asset_prefix,
     } = options;
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1108,27 +1127,29 @@ pub async fn get_server_chunking_context(
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
-    .minify_type(if *turbo_minify.await? {
+    .client_roots_override(rcstr!("client"), client_root.clone())
+    .asset_root_path_override(rcstr!("client"), client_root.join("static/media")?)
+    .asset_prefix_override(rcstr!("client"), asset_prefix)
+    .minify_type(if *minify.await? {
         MinifyType::Minify {
             mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
         }
     } else {
         MinifyType::NoMinify
     })
-    .source_maps(if *turbo_source_maps.await? {
-        SourceMapsType::Full
-    } else {
-        SourceMapsType::None
-    })
+    .source_maps(*source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
+    .unused_references(*unused_references.await?)
     .file_tracing(next_mode.is_production())
-    .debug_ids(*debug_ids.await?);
+    .debug_ids(*debug_ids.await?)
+    .nested_async_availability(*nested_async_chunking.await?);
 
     if next_mode.is_development() {
-        builder = builder.use_file_source_map_uris()
+        builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);
     } else {
         builder = builder
+            .source_map_source_type(SourceMapSourceType::RelativeUri)
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {

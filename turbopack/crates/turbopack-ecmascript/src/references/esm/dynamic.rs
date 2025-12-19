@@ -1,5 +1,5 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     common::{DUMMY_SP, util::take::Take},
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
@@ -23,12 +23,14 @@ use turbopack_core::{
 };
 use turbopack_resolve::ecmascript::esm_resolve;
 
-use super::super::pattern_mapping::{PatternMapping, ResolveType};
 use crate::{
     analyzer::imports::ImportAnnotations,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
+    references::{
+        AstPath,
+        pattern_mapping::{PatternMapping, ResolveType},
+    },
 };
 
 #[turbo_tasks::value]
@@ -121,7 +123,9 @@ impl IntoCodeGenReference for EsmAsyncAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
 pub struct EsmAsyncAssetReferenceCodeGen {
     path: AstPath,
     reference: ResolvedVc<EsmAsyncAssetReference>,

@@ -76,6 +76,12 @@ export type AdapterOptions = {
   bypassNextUrl?: boolean
 }
 
+// This has to be compatible with what the Vercel builder does as well:
+// https://github.com/vercel/vercel/blob/0e0a6eb9f12216202ae2f5ee37e4ada1796361fd/packages/next/src/edge-function-source/get-edge-function.ts#L112-L136
+export type EdgeHandler = (opts: {
+  request: AdapterOptions['request']
+}) => Promise<FetchEventResult>
+
 let propagator: <T>(request: NextRequestHint, fn: () => T) => T = (
   request,
   fn
@@ -239,7 +245,10 @@ export async function adapter(
   response = await propagator(request, () => {
     // we only care to make async storage available for middleware
     const isMiddleware =
-      params.page === '/middleware' || params.page === '/src/middleware'
+      params.page === '/middleware' ||
+      params.page === '/src/middleware' ||
+      params.page === '/proxy' ||
+      params.page === '/src/proxy'
 
     if (isMiddleware) {
       // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),
@@ -286,9 +295,9 @@ export async function adapter(
               renderOpts: {
                 cacheLifeProfiles:
                   params.request.nextConfig?.experimental?.cacheLife,
+                cacheComponents: false,
                 experimental: {
                   isRoutePPREnabled: false,
-                  cacheComponents: false,
                   authInterrupts:
                     !!params.request.nextConfig?.experimental?.authInterrupts,
                 },

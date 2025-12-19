@@ -1,15 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox } from 'next-test-utils'
+import { waitForRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('use-cache-segment-configs', () => {
-  const { next, skipped, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, skipped, isNextDev, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
     skipDeployment: true,
   })
-
-  const isRspack = !!process.env.NEXT_RSPACK
 
   if (skipped) {
     return
@@ -19,7 +17,7 @@ describe('use-cache-segment-configs', () => {
     if (isNextDev) {
       const browser = await next.browser('/runtime')
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
 
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
@@ -37,11 +35,10 @@ describe('use-cache-segment-configs', () => {
       } else if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "  × Module build failed:",
+           "description": "  ╰─▶   × Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "<FIXME-nextjs-internal-source>
-           × Module build failed:
            ╰─▶   × Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
                  │    ,-[1:1]
                  │  1 | export const runtime = 'edge'
@@ -100,7 +97,6 @@ describe('use-cache-segment-configs', () => {
         expect(buildOutput).toMatchInlineSnapshot(`
          "
          // TODO(veil): Fix broken import trace for Webpack loader resource.
-           × Module build failed:
            ╰─▶   × Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
                  │    ,-[1:1]
                  │  1 | export const runtime = 'edge'

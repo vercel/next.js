@@ -254,6 +254,120 @@ describe('getImageProps()', () => {
       ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
     ])
   })
+  it('should handle 16px image', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 16,
+      height: 16,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['id', 'my-image'],
+      ['loading', 'lazy'],
+      ['width', 16],
+      ['height', 16],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      ['srcSet', '/_next/image?url=%2Ftest.png&w=32&q=75 1x'],
+      ['src', '/_next/image?url=%2Ftest.png&w=32&q=75'],
+    ])
+  })
+  it('should handle 32px image', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 32,
+      height: 32,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['id', 'my-image'],
+      ['loading', 'lazy'],
+      ['width', 32],
+      ['height', 32],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=%2Ftest.png&w=32&q=75 1x, /_next/image?url=%2Ftest.png&w=64&q=75 2x',
+      ],
+      ['src', '/_next/image?url=%2Ftest.png&w=64&q=75'],
+    ])
+  })
+  it('should handle 256px image', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 256,
+      height: 256,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['id', 'my-image'],
+      ['loading', 'lazy'],
+      ['width', 256],
+      ['height', 256],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=%2Ftest.png&w=256&q=75 1x, /_next/image?url=%2Ftest.png&w=640&q=75 2x',
+      ],
+      ['src', '/_next/image?url=%2Ftest.png&w=640&q=75'],
+    ])
+  })
+  it('should handle 512px image', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 512,
+      height: 512,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['id', 'my-image'],
+      ['loading', 'lazy'],
+      ['width', 512],
+      ['height', 512],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=1080&q=75 2x',
+      ],
+      ['src', '/_next/image?url=%2Ftest.png&w=1080&q=75'],
+    ])
+  })
+  it('should handle 3072px image', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 3072,
+      height: 3072,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['id', 'my-image'],
+      ['loading', 'lazy'],
+      ['width', 3072],
+      ['height', 3072],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      ['srcSet', '/_next/image?url=%2Ftest.png&w=3840&q=75 1x'],
+      ['src', '/_next/image?url=%2Ftest.png&w=3840&q=75'],
+    ])
+  })
   it('should handle sizes', async () => {
     const { props } = getImageProps({
       alt: 'a nice desc',
@@ -460,26 +574,6 @@ describe('getImageProps()', () => {
       ['src', '/test.svg'],
     ])
   })
-  it('should auto unoptimized for relative svg with query', async () => {
-    const { props } = getImageProps({
-      alt: 'a nice desc',
-      src: '/test.svg?v=1',
-      width: 100,
-      height: 200,
-    })
-    expect(warningMessages).toStrictEqual([
-      'Image with src "/test.svg?v=1" is using a query string which is not configured in images.localPatterns. This config will be required starting in Next.js 16.\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns',
-    ])
-    expect(Object.entries(props)).toStrictEqual([
-      ['alt', 'a nice desc'],
-      ['loading', 'lazy'],
-      ['width', 100],
-      ['height', 200],
-      ['decoding', 'async'],
-      ['style', { color: 'transparent' }],
-      ['src', '/test.svg?v=1'],
-    ])
-  })
   it('should auto unoptimized for absolute svg', async () => {
     const { props } = getImageProps({
       alt: 'a nice desc',
@@ -546,7 +640,37 @@ describe('getImageProps()', () => {
       delete process.env.NEXT_DEPLOYMENT_ID
     }
   })
-  it('should not add query string for relative local image when NEXT_DEPLOYMENT_ID defined', async () => {
+  it('should add query string for imported local image from microfrontend when NEXT_DEPLOYMENT_ID defined', async () => {
+    try {
+      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: '/microfrontend/_next/static/media/test.abc123.png', // simulating microfrontend path
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        [
+          'srcSet',
+          '/_next/image?url=%2Fmicrofrontend%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=128&q=75&dpl=dpl_123 1x, /_next/image?url=%2Fmicrofrontend%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123 2x',
+        ],
+        [
+          'src',
+          '/_next/image?url=%2Fmicrofrontend%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123',
+        ],
+      ])
+    } finally {
+      delete process.env.NEXT_DEPLOYMENT_ID
+    }
+  })
+  it('should add query string for relative local image when NEXT_DEPLOYMENT_ID defined', async () => {
     try {
       process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
       const { props } = getImageProps({
@@ -565,9 +689,9 @@ describe('getImageProps()', () => {
         ['style', { color: 'transparent' }],
         [
           'srcSet',
-          '/_next/image?url=%2Ftest.png&w=128&q=75 1x, /_next/image?url=%2Ftest.png&w=256&q=75 2x',
+          '/_next/image?url=%2Ftest.png&w=128&q=75&dpl=dpl_123 1x, /_next/image?url=%2Ftest.png&w=256&q=75&dpl=dpl_123 2x',
         ],
-        ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
+        ['src', '/_next/image?url=%2Ftest.png&w=256&q=75&dpl=dpl_123'],
       ])
     } finally {
       delete process.env.NEXT_DEPLOYMENT_ID
@@ -598,6 +722,99 @@ describe('getImageProps()', () => {
           'src',
           '/_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=256&q=75',
         ],
+      ])
+    } finally {
+      delete process.env.NEXT_DEPLOYMENT_ID
+    }
+  })
+  it('should add query string with question mark for unoptimized relative svg when NEXT_DEPLOYMENT_ID defined', async () => {
+    try {
+      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: '/test.svg',
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        ['src', '/test.svg?dpl=dpl_123'],
+      ])
+    } finally {
+      delete process.env.NEXT_DEPLOYMENT_ID
+    }
+  })
+  it('should add query string with ampersand for unoptimized relative svg when NEXT_DEPLOYMENT_ID defined', async () => {
+    try {
+      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: '/test.svg?v=1',
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        ['src', '/test.svg?v=1&dpl=dpl_123'],
+      ])
+    } finally {
+      delete process.env.NEXT_DEPLOYMENT_ID
+    }
+  })
+  it('should not add query string for unoptimized absolute remote svg when NEXT_DEPLOYMENT_ID defined', async () => {
+    try {
+      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: 'http://example.com/test.svg',
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        ['src', 'http://example.com/test.svg'],
+      ])
+    } finally {
+      delete process.env.NEXT_DEPLOYMENT_ID
+    }
+  })
+  it('should not add query string for unoptimized with no protocol when NEXT_DEPLOYMENT_ID defined', async () => {
+    try {
+      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: '//example.com/test.png',
+        unoptimized: true,
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        ['src', '//example.com/test.png'],
       ])
     } finally {
       delete process.env.NEXT_DEPLOYMENT_ID

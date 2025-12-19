@@ -1,5 +1,4 @@
 use std::{
-    borrow::Cow,
     cmp::max,
     fmt::{Debug, Display},
     future::Future,
@@ -71,9 +70,6 @@ impl FormattingMode {
 struct NodeJsPoolProcess {
     child: Option<Child>,
     connection: TcpStream,
-    assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    assets_root: FileSystemPath,
-    project_dir: FileSystemPath,
     stdout_handler: OutputStreamHandler<ChildStdout, Stdout>,
     stderr_handler: OutputStreamHandler<ChildStderr, Stderr>,
     debug: bool,
@@ -104,39 +100,6 @@ impl Eq for NodeJsPoolProcess {}
 impl PartialEq for NodeJsPoolProcess {
     fn eq(&self, other: &Self) -> bool {
         self.cmp(other) == std::cmp::Ordering::Equal
-    }
-}
-
-impl NodeJsPoolProcess {
-    pub async fn apply_source_mapping<'a>(
-        &self,
-        text: &'a str,
-        formatting_mode: FormattingMode,
-    ) -> Result<Cow<'a, str>> {
-        let text = unmangle_identifiers(text, |content| formatting_mode.magic_identifier(content));
-        match text {
-            Cow::Borrowed(text) => {
-                apply_source_mapping(
-                    text,
-                    *self.assets_for_source_mapping,
-                    self.assets_root.clone(),
-                    self.project_dir.clone(),
-                    formatting_mode,
-                )
-                .await
-            }
-            Cow::Owned(ref text) => {
-                let cow = apply_source_mapping(
-                    text,
-                    *self.assets_for_source_mapping,
-                    self.assets_root.clone(),
-                    self.project_dir.clone(),
-                    formatting_mode,
-                )
-                .await?;
-                Ok(Cow::Owned(cow.into_owned()))
-            }
-        }
     }
 }
 
@@ -456,9 +419,6 @@ impl NodeJsPoolProcess {
         let mut process = Self {
             child: Some(child),
             connection,
-            assets_for_source_mapping,
-            assets_root: assets_root.clone(),
-            project_dir: project_dir.clone(),
             stdout_handler,
             stderr_handler,
             debug,
@@ -725,7 +685,7 @@ static ACTIVE_POOLS: Lazy<IdleProcessQueues> = Lazy::new(Default::default);
 ///
 /// The worker will *not* use the env of the parent process by default. All env
 /// vars need to be provided to make the execution as pure as possible.
-#[turbo_tasks::value(into = "new", cell = "new", serialization = "none", eq = "manual")]
+#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual", shared)]
 pub struct NodeJsPool {
     cwd: PathBuf,
     entrypoint: PathBuf,
@@ -956,18 +916,6 @@ impl NodeJsOperation {
         if self.allow_process_reuse {
             self.stats.lock().remove_worker();
             self.allow_process_reuse = false;
-        }
-    }
-
-    pub async fn apply_source_mapping<'a>(
-        &self,
-        text: &'a str,
-        formatting_mode: FormattingMode,
-    ) -> Result<Cow<'a, str>> {
-        if let Some(process) = self.process.as_ref() {
-            process.apply_source_mapping(text, formatting_mode).await
-        } else {
-            Ok(Cow::Borrowed(text))
         }
     }
 }

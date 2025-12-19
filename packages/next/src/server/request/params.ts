@@ -19,6 +19,7 @@ import {
   type StaticPrerenderStore,
   throwInvariantForMissingStore,
   type PrerenderStoreModernRuntime,
+  type RequestStore,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -31,6 +32,7 @@ import {
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
+import { RenderStage } from '../app-render/staged-rendering'
 
 export type ParamValue = string | Array<string> | undefined
 export type Params = Record<string, ParamValue>
@@ -70,7 +72,8 @@ export function createParamsFromClient(
           return createRenderParamsInDev(
             underlyingParams,
             devFallbackParams,
-            workStore
+            workStore,
+            workUnitStore
           )
         } else {
           return createRenderParamsInProd(underlyingParams)
@@ -120,7 +123,8 @@ export function createServerParamsForRoute(
           return createRenderParamsInDev(
             underlyingParams,
             devFallbackParams,
-            workStore
+            workStore,
+            workUnitStore
           )
         } else {
           return createRenderParamsInProd(underlyingParams)
@@ -165,7 +169,8 @@ export function createServerParamsForServerSegment(
           return createRenderParamsInDev(
             underlyingParams,
             devFallbackParams,
-            workStore
+            workStore,
+            workUnitStore
           )
         } else {
           return createRenderParamsInProd(underlyingParams)
@@ -298,7 +303,8 @@ function createRenderParamsInProd(underlyingParams: Params): Promise<Params> {
 function createRenderParamsInDev(
   underlyingParams: Params,
   devFallbackParams: OpaqueFallbackRouteParams | null | undefined,
-  workStore: WorkStore
+  workStore: WorkStore,
+  requestStore: RequestStore
 ): Promise<Params> {
   let hasFallbackParams = false
   if (devFallbackParams) {
@@ -313,7 +319,8 @@ function createRenderParamsInDev(
   return makeDynamicallyTrackedParamsWithDevWarnings(
     underlyingParams,
     hasFallbackParams,
-    workStore
+    workStore,
+    requestStore
   )
 }
 
@@ -445,8 +452,28 @@ function makeUntrackedParams(underlyingParams: Params): Promise<Params> {
 function makeDynamicallyTrackedParamsWithDevWarnings(
   underlyingParams: Params,
   hasFallbackParams: boolean,
-  store: WorkStore
+  workStore: WorkStore,
+  requestStore: RequestStore
 ): Promise<Params> {
+  if (requestStore.asyncApiPromises && hasFallbackParams) {
+    // We wrap each instance of params in a `new Promise()`, because deduping
+    // them across requests doesn't work anyway and this let us show each
+    // await a different set of values. This is important when all awaits
+    // are in third party which would otherwise track all the way to the
+    // internal params.
+    const sharedParamsParent = requestStore.asyncApiPromises.sharedParamsParent
+    const promise: Promise<Params> = new Promise((resolve, reject) => {
+      sharedParamsParent.then(() => resolve(underlyingParams), reject)
+    })
+    // @ts-expect-error
+    promise.displayName = 'params'
+    return instrumentParamsPromiseWithDevWarnings(
+      underlyingParams,
+      promise,
+      workStore
+    )
+  }
+
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
     return cachedParams
@@ -456,10 +483,28 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
   // supports copying with spread and we don't want to unnecessarily
   // instrument the promise with spreadable properties of ReactPromise.
   const promise = hasFallbackParams
-    ? makeDevtoolsIOAwarePromise(underlyingParams)
+    ? makeDevtoolsIOAwarePromise(
+        underlyingParams,
+        requestStore,
+        RenderStage.Runtime
+      )
     : // We don't want to force an environment transition when this params is not part of the fallback params set
       Promise.resolve(underlyingParams)
 
+  const proxiedPromise = instrumentParamsPromiseWithDevWarnings(
+    underlyingParams,
+    promise,
+    workStore
+  )
+  CachedParams.set(underlyingParams, proxiedPromise)
+  return proxiedPromise
+}
+
+function instrumentParamsPromiseWithDevWarnings(
+  underlyingParams: Params,
+  promise: Promise<Params>,
+  workStore: WorkStore
+): Promise<Params> {
   // Track which properties we should warn for.
   const proxiedProperties = new Set<string>()
 
@@ -472,7 +517,7 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     }
   })
 
-  const proxiedPromise = new Proxy(promise, {
+  return new Proxy(promise, {
     get(target, prop, receiver) {
       if (typeof prop === 'string') {
         if (
@@ -480,7 +525,7 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
           proxiedProperties.has(prop)
         ) {
           const expression = describeStringPropertyAccess('params', prop)
-          warnForSyncAccess(store.route, expression)
+          warnForSyncAccess(workStore.route, expression)
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
@@ -493,13 +538,10 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     },
     ownKeys(target) {
       const expression = '`...params` or similar expression'
-      warnForSyncAccess(store.route, expression)
+      warnForSyncAccess(workStore.route, expression)
       return Reflect.ownKeys(target)
     },
   })
-
-  CachedParams.set(underlyingParams, proxiedPromise)
-  return proxiedPromise
 }
 
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(

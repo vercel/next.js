@@ -6,8 +6,13 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{
+    BorrowDecode, Decode, Encode,
+    de::{BorrowDecoder, Decoder},
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+};
 use futures::{Stream as StreamTrait, StreamExt, TryStreamExt};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Streams allow for streaming values from source to sink.
 ///
@@ -147,23 +152,36 @@ impl<T: Clone + PartialEq + Send> PartialEq for Stream<T> {
 }
 impl<T: Clone + Eq + Send> Eq for Stream<T> {}
 
-impl<T: Clone + Serialize + Send> Serialize for Stream<T> {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::Error;
-        let lock = self.inner.lock().map_err(Error::custom)?;
+impl<T: Clone + Encode + Send> Encode for Stream<T> {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        let lock = self
+            .inner
+            .lock()
+            .map_err(|_| EncodeError::Other("failed to lock stream, lock is poisoned?"))?;
         match &*lock {
             StreamState {
                 pulled,
                 source: None,
-            } => pulled.serialize(serializer),
-            _ => Err(Error::custom("cannot serialize open stream")),
+            } => Encode::encode(pulled, encoder),
+            _ => Err(EncodeError::Other("cannot encode open stream")),
         }
     }
 }
 
-impl<'de, T: Clone + Send + Deserialize<'de>> Deserialize<'de> for Stream<T> {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let data = <Vec<T>>::deserialize(deserializer)?;
+impl<Context, T: Clone + Send + Decode<Context>> Decode<Context> for Stream<T> {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let data = <Vec<T>>::decode(decoder)?;
+        Ok(Stream::new_closed(data))
+    }
+}
+
+impl<'de, Context, T: Clone + Send + BorrowDecode<'de, Context>> BorrowDecode<'de, Context>
+    for Stream<T>
+{
+    fn borrow_decode<D: BorrowDecoder<'de, Context = Context>>(
+        decoder: &mut D,
+    ) -> Result<Self, DecodeError> {
+        let data = <Vec<T>>::borrow_decode(decoder)?;
         Ok(Stream::new_closed(data))
     }
 }

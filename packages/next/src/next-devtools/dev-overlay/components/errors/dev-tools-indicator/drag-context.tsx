@@ -39,7 +39,9 @@ export function DragProvider({
     () => ({
       register,
       unregister,
-      handles: handlesRef.current,
+      handles:
+        // eslint-disable-next-line react-hooks/refs -- TODO
+        handlesRef.current,
       disabled,
     }),
     [register, unregister, disabled]

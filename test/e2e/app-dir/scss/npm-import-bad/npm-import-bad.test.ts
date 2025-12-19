@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { isNextStart, nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
+import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 
 describe('CSS Import from node_modules', () => {
   const { next, skipped, isTurbopack, isRspack } = nextTestSetup({
@@ -32,7 +32,7 @@ describe('CSS Import from node_modules', () => {
     it('should show a build error', async () => {
       const browser = await next.browser('/')
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       const errorSource = await getRedboxSource(browser)
 
       if (isTurbopack) {
@@ -52,8 +52,7 @@ describe('CSS Import from node_modules', () => {
         `)
       } else if (isRspack) {
         expect(errorSource).toMatchInlineSnapshot(`
-         "./node_modules/.pnpm/next@file+..+next-repo-9363c99f3d71d8f039ab2f44b0982247ca3f251f6a3cb48f6f97e14bd6290b68_3cf165911481a65b93532bfb8e2c9025/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[8].oneOf[14].use[1]!./node_modules/.pnpm/next@file+..+next-repo-9363c99f3d71d8f039ab2f44b0982247ca3f251f6a3cb48f6f97e14bd6290b68_3cf165911481a65b93532bfb8e2c9025/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[8].oneOf[14].use[2]!./node_modules/.pnpm/next@file+..+next-repo-9363c99f3d71d8f039ab2f44b0982247ca3f251f6a3cb48f6f97e14bd6290b68_3cf165911481a65b93532bfb8e2c9025/node_modules/next/dist/build/webpack/loaders/resolve-url-loader/index.js??ruleSet[1].rules[8].oneOf[14].use[3]!./node_modules/.pnpm/next@file+..+next-repo-9363c99f3d71d8f039ab2f44b0982247ca3f251f6a3cb48f6f97e14bd6290b68_3cf165911481a65b93532bfb8e2c9025/node_modules/next/dist/compiled/sass-loader/cjs.js??ruleSet[1].rules[8].oneOf[14].use[4]!./styles/global.scss
-           × Module build failed:
+         "./node_modules/.pnpm/next@file+..+next-repo-8fa5cfcca6029b56fbac0f566cc3851341e4c064ae33fb2a225547c1fab39f23+packa_apujtevk23v6mt6lxsvypt6azu/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[9].oneOf[14].use[1]!./node_modules/.pnpm/next@file+..+next-repo-8fa5cfcca6029b56fbac0f566cc3851341e4c064ae33fb2a225547c1fab39f23+packa_apujtevk23v6mt6lxsvypt6azu/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[9].oneOf[14].use[2]!./node_modules/.pnpm/next@file+..+next-repo-8fa5cfcca6029b56fbac0f566cc3851341e4c064ae33fb2a225547c1fab39f23+packa_apujtevk23v6mt6lxsvypt6azu/node_modules/next/dist/build/webpack/loaders/resolve-url-loader/index.js??ruleSet[1].rules[9].oneOf[14].use[3]!./node_modules/.pnpm/next@file+..+next-repo-8fa5cfcca6029b56fbac0f566cc3851341e4c064ae33fb2a225547c1fab39f23+packa_apujtevk23v6mt6lxsvypt6azu/node_modules/next/dist/compiled/sass-loader/cjs.js??ruleSet[1].rules[9].oneOf[14].use[4]!./styles/global.scss
            ╰─▶   × Error: RspackResolver(NotFound("nprogress/nprogress.css"))"
         `)
       } else {

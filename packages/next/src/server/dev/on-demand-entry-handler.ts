@@ -8,7 +8,6 @@ import type {
 } from '../../shared/lib/app-router-types'
 import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../route-definitions/route-definition'
-import type HotReloaderWebpack from './hot-reloader-webpack'
 
 import createDebug from 'next/dist/compiled/debug'
 import { EventEmitter } from 'events'
@@ -39,6 +38,7 @@ import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   HMR_MESSAGE_SENT_TO_SERVER,
+  type NextJsHotReloaderInterface,
 } from './hot-reloader-types'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../../lib/scheduler'
@@ -87,12 +87,18 @@ function convertDynamicParamTypeToSyntax(
 ) {
   switch (dynamicParamTypeShort) {
     case 'c':
-    case 'ci':
+    case 'ci(..)(..)':
+    case 'ci(.)':
+    case 'ci(..)':
+    case 'ci(...)':
       return `[...${param}]`
     case 'oc':
       return `[[...${param}]]`
     case 'd':
-    case 'di':
+    case 'di(..)(..)':
+    case 'di(.)':
+    case 'di(..)':
+    case 'di(...)':
       return `[${param}]`
     default:
       throw new Error('Unknown dynamic param type')
@@ -193,7 +199,6 @@ interface EntryType {
 }
 
 // Shadowing check in ESLint does not account for enum
-// eslint-disable-next-line no-shadow
 export const enum EntryTypes {
   ENTRY,
   CHILD_ENTRY,
@@ -543,7 +548,7 @@ export function onDemandEntryHandler({
   rootDir,
   appDir,
 }: {
-  hotReloader: HotReloaderWebpack
+  hotReloader: NextJsHotReloaderInterface
   maxInactiveAge: number
   multiCompiler: webpack.MultiCompiler
   nextConfig: NextConfigComplete
@@ -886,7 +891,11 @@ export function onDemandEntryHandler({
 
       if (hasNewEntry) {
         const routePage = isApp ? route.page : normalizeAppPath(route.page)
-        reportTrigger(routePage, url)
+        // If proxy file, remove the leading slash from "/proxy" to "proxy".
+        reportTrigger(
+          isMiddlewareFile(routePage) ? routePage.slice(1) : routePage,
+          url
+        )
       }
 
       if (entriesThatShouldBeInvalidated.length > 0) {

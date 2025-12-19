@@ -43,6 +43,7 @@ export function useDelayedRender(active = false, options: Options = {}) {
     let unmountTimeout: Timeout | undefined
 
     if (active) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional cascading update
       setMounted(true)
       if (enterDelay <= 0) {
         setRendered(true)

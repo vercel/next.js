@@ -1,10 +1,6 @@
 import type { NextConfigComplete } from '../server/config-shared'
 import loadConfig from '../server/config'
 import * as Log from '../build/output/log'
-import {
-  PHASE_DEVELOPMENT_SERVER,
-  PHASE_PRODUCTION_BUILD,
-} from '../shared/lib/constants'
 
 const unsupportedTurbopackNextConfigOptions = [
   // Left to be implemented (priority)
@@ -45,10 +41,10 @@ const unsupportedTurbopackNextConfigOptions = [
 /**  */
 export async function validateTurboNextConfig({
   dir,
-  isDev,
+  configPhase,
 }: {
   dir: string
-  isDev?: boolean
+  configPhase: Parameters<typeof loadConfig>[0]
 }) {
   const { defaultConfig } =
     require('../server/config-shared') as typeof import('../server/config-shared')
@@ -65,16 +61,15 @@ export async function validateTurboNextConfig({
   const unsupportedConfig: string[] = []
   let rawNextConfig: NextConfigComplete = {} as NextConfigComplete
 
-  const phase = isDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD
   try {
     rawNextConfig = interopDefault(
-      await loadConfig(phase, dir, {
+      await loadConfig(configPhase, dir, {
         rawConfig: true,
       })
     )
 
     if (typeof rawNextConfig === 'function') {
-      rawNextConfig = (rawNextConfig as any)(phase, {
+      rawNextConfig = (rawNextConfig as any)(configPhase, {
         defaultConfig,
       })
     }
@@ -152,15 +147,20 @@ export async function validateTurboNextConfig({
   if (process.env.TURBOPACK === 'auto' && hasWebpackConfig && !hasTurboConfig) {
     const configFile = rawNextConfig.configFileName ?? 'your Next config file'
     Log.error(
-      `ERROR: This build is using Turbopack, with a \`webpack\` config and no \`turbopack\` config. This may be a mistake.
+      `ERROR: This build is using Turbopack, with a \`webpack\` config and no \`turbopack\` config.
+   This may be a mistake.
 
-  As of Next.js 16 turbopack is enabled by default and custom webpack configurations may need to be migrated to Turbopack.
+   As of Next.js 16 Turbopack is enabled by default and
+   custom webpack configurations may need to be migrated to Turbopack.
 
-  NOTE: your \`webpack\` config may have been added by a configuration plugin.
+   NOTE: your \`webpack\` config may have been added by a configuration plugin.
 
-  To configure Turbopack, see https://nextjs.org/docs/app/api-reference/next-config-js/turbopack
+   To configure Turbopack, see https://nextjs.org/docs/app/api-reference/next-config-js/turbopack
 
-  TIP: Many applications work fine under Turbopack with no configuration, if that is the case for you, you can silence this error by passing the \`--turbopack\` or \`--webpack\` flag explicitly or simply setting an empty turbopack config in ${configFile} (e.g. \`turbopack: {}\`).`
+   TIP: Many applications work fine under Turbopack with no configuration,
+   if that is the case for you, you can silence this error by passing the
+   \`--turbopack\` or \`--webpack\` flag explicitly or simply setting an 
+   empty turbopack config in ${configFile} (e.g. \`turbopack: {}\`).`
     )
 
     process.exit(1)

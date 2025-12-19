@@ -19,18 +19,20 @@ on:
         description: Override the proxy address to use for the test
         default: ''
         type: string
+      continueOnError:
+        description: whether the tests should continue on failure
+        default: false
+        type: boolean
 
 env:
+  TURBO_TEAM: 'vercel'
+  TURBO_CACHE: 'remote:rw'
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
-  TURBO_TEAM: 'vercel'
-  TURBO_CACHE: 'remote:rw'
-  TURBO_API: ${{ secrets.HOSTED_TURBO_API }}
-  TURBO_TOKEN: ${{ secrets.HOSTED_TURBO_TOKEN }}
   DD_ENV: 'ci'
 
-run-name: test-e2e-deploy ${{ inputs.nextVersion || 'canary' }}
+run-name: test-e2e-deploy ${{ inputs.nextVersion || (github.event_name == 'release' && github.event.release.tag_name) || 'canary' }}
 
 jobs:
   setup:
@@ -83,8 +85,9 @@ jobs:
         NEXT_E2E_TEST_TIMEOUT=240000 \
         NEXT_TEST_MODE=deploy \
         IS_WEBPACK_TEST=1 \
+        NEXT_TEST_CONTINUE_ON_ERROR="${{ github.event.inputs.continueOnError || false }}" \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
-        NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || 'canary' }}" \
+        NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
         node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
       skipNativeBuild: 'yes'

@@ -6,8 +6,14 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 use indexmap::map::Entry;
-use serde::{Deserialize, Serialize, de::Visitor};
 use tokio::runtime::Handle;
 use turbo_dyn_eq_hash::{
     DynEq, DynHash, impl_eq_for_dyn, impl_hash_for_dyn, impl_partial_eq_for_dyn,
@@ -106,43 +112,23 @@ impl TraceRawVcs for Invalidator {
     }
 }
 
-impl Serialize for Invalidator {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_newtype_struct("Invalidator", &self.task)
+impl Encode for Invalidator {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        Encode::encode(&self.task, encoder)
     }
 }
 
-impl<'de> Deserialize<'de> for Invalidator {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct V;
-
-        impl<'de> Visitor<'de> for V {
-            type Value = Invalidator;
-
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "an Invalidator")
-            }
-
-            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                Ok(Invalidator {
-                    task: TaskId::deserialize(deserializer)?,
-                    turbo_tasks: with_turbo_tasks(Arc::downgrade),
-                    handle: tokio::runtime::Handle::current(),
-                })
-            }
-        }
-        deserializer.deserialize_newtype_struct("Invalidator", V)
+impl<Context> Decode<Context> for Invalidator {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(Invalidator {
+            task: Decode::decode(decoder)?,
+            turbo_tasks: with_turbo_tasks(Arc::downgrade),
+            handle: tokio::runtime::Handle::current(),
+        })
     }
 }
+
+impl_borrow_decode!(Invalidator);
 
 /// A user-facing reason why a task was invalidated. This should only be used
 /// for invalidation that were triggered by the user.

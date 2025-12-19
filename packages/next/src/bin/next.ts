@@ -2,23 +2,32 @@
 
 import '../server/require-hook'
 
-import { Argument, Command, Option } from 'next/dist/compiled/commander'
+import {
+  Argument,
+  Command,
+  InvalidArgumentError,
+  Option,
+} from 'next/dist/compiled/commander'
 
 import { warn } from '../build/output/log'
 import semver from 'next/dist/compiled/semver'
 import { bold, cyan, italic } from '../lib/picocolors'
 import { formatCliHelpOutput } from '../lib/format-cli-help-output'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import { parseValidPositiveInteger } from '../server/lib/utils'
+import {
+  getParsedDebugAddress,
+  parseValidPositiveInteger,
+  type DebugAddress,
+} from '../server/lib/utils'
 import {
   SUPPORTED_TEST_RUNNERS_LIST,
   type NextTestOptions,
 } from '../cli/next-test.js'
 import type { NextTelemetryOptions } from '../cli/next-telemetry.js'
 import type { NextStartOptions } from '../cli/next-start.js'
-import type { NextLintOptions } from '../cli/next-lint.js'
 import type { NextInfoOptions } from '../cli/next-info.js'
 import type { NextDevOptions } from '../cli/next-dev.js'
+import type { NextAnalyzeOptions } from '../cli/next-analyze.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 
@@ -58,8 +67,6 @@ class NextRootCommand extends Command {
   createCommand(name: string) {
     const command = new Command(name)
 
-    command.addOption(new Option('--inspect').hideHelp())
-
     command.hook('preAction', (event) => {
       const commandName = event.name()
       const defaultEnv = commandName === 'dev' ? 'development' : 'production'
@@ -82,7 +89,7 @@ class NextRootCommand extends Command {
       ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
       ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
-      if (event.getOptionValue('inspect') === true) {
+      if (commandName !== 'dev' && event.getOptionValue('inspect') === true) {
         console.error(
           `\`--inspect\` flag is deprecated. Use env variable NODE_OPTIONS instead: NODE_OPTIONS='--inspect' next ${commandName}`
         )
@@ -92,6 +99,22 @@ class NextRootCommand extends Command {
 
     return command
   }
+}
+
+function parseValidInspectAddress(value: string): DebugAddress {
+  const address = getParsedDebugAddress(value)
+
+  if (Number.isNaN(address.port)) {
+    throw new InvalidArgumentError(
+      'The given value is not a valid inspect address. ' +
+        'Did you mean to pass an app path?\n' +
+        `Try switching the order of the arguments or set the default address explicitly e.g.\n` +
+        `next dev ${value} --inspect\n` +
+        `next dev --inspect= ${value}`
+    )
+  }
+
+  return address
 }
 
 const program = new NextRootCommand()
@@ -124,12 +147,15 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
+  .option(
+    '--experimental-analyze',
+    'Analyze bundle output. Only compatible with Turbopack.'
+  )
   .option('-d, --debug', 'Enables a more verbose build output.')
   .option(
     '--debug-prerender',
     'Enables debug mode for prerendering. Not for production use!'
   )
-  .option('--no-lint', 'Disables linting.')
   .option('--no-mangling', 'Disables mangling.')
   .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Builds only App Router routes.')
@@ -152,14 +178,65 @@ program
     '--experimental-upload-trace, <traceUrl>',
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
   )
-  .action((directory: string, options: NextBuildOptions) =>
+  .option(
+    '--experimental-next-config-strip-types',
+    'Use Node.js native TypeScript resolution for next.config.(ts|mts)'
+  )
+  .option(
+    '--debug-build-paths <patterns>',
+    'Comma-separated glob patterns or explicit paths for selective builds. Examples: "app/*", "app/page.tsx", "app/**/page.tsx"'
+  )
+  .action((directory: string, options: NextBuildOptions) => {
+    if (options.experimentalNextConfigStripTypes) {
+      process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+    }
+
     // ensure process exits after build completes so open handles/connections
     // don't cause process to hang
-    import('../cli/next-build.js').then((mod) =>
+    return import('../cli/next-build.js').then((mod) =>
       mod.nextBuild(options, directory).then(() => process.exit(0))
     )
-  )
+  })
   .usage('[directory] [options]')
+
+program
+  .command('experimental-analyze')
+  .description(
+    'Analyze production bundle output with an interactive web ui. Does not produce an application build. Only compatible with Turbopack.'
+  )
+  .argument(
+    '[directory]',
+    `A directory on which to analyze the application. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .option('--no-mangling', 'Disables mangling.')
+  .option('--profile', 'Enables production profiling for React.')
+  .option(
+    '-o, --output',
+    'Only write analysis files to disk. Does not start the server.'
+  )
+  .addOption(
+    new Option(
+      '--port <port>',
+      'Specify a port number to serve the analyzer on.'
+    )
+      .implies({ serve: true })
+      .argParser(parseValidPositiveInteger)
+      .default(4000)
+      .env('PORT')
+  )
+  .action((directory: string, options: NextAnalyzeOptions) => {
+    return import('../cli/next-analyze.js')
+      .then((mod) => mod.nextAnalyze(options, directory))
+      .then(() => {
+        if (options.output) {
+          // The Next.js process is held open by something on the event loop. Exit manually like the `build` command does.
+          // TODO: Fix the underlying issue so this is not necessary.
+          process.exit(0)
+        }
+      })
+  })
 
 program
   .command('dev', { isDefault: true })
@@ -171,6 +248,12 @@ program
     `A directory on which to build the application. ${italic(
       'If no directory is provided, the current directory will be used.'
     )}`
+  )
+  .addOption(
+    new Option(
+      '--inspect [[host:]port]',
+      'Allows inspecting server-side code. See https://nextjs.org/docs/app/guides/debugging#server-side-code'
+    ).argParser(parseValidInspectAddress)
   )
   .option('--turbo', 'Starts development mode using Turbopack.')
   .option('--turbopack', 'Starts development mode using Turbopack.')
@@ -210,8 +293,15 @@ program
     '--experimental-upload-trace, <traceUrl>',
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
   )
+  .option(
+    '--experimental-next-config-strip-types',
+    'Use Node.js native TypeScript resolution for next.config.(ts|mts)'
+  )
   .action(
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
+      if (options.experimentalNextConfigStripTypes) {
+        process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+      }
       const portSource = _optionValueSources.port
       import('../cli/next-dev.js').then((mod) =>
         mod.nextDev(options, portSource, directory)
@@ -238,94 +328,6 @@ program
   .action((options: NextInfoOptions) =>
     import('../cli/next-info.js').then((mod) => mod.nextInfo(options))
   )
-
-program
-  .command('lint')
-  .description(
-    'Runs ESLint for all files in the `/src`, `/app`, `/pages`, `/components`, and `/lib` directories. It also provides a guided setup to install any required dependencies if ESLint is not already configured in your application.'
-  )
-  .argument(
-    '[directory]',
-    `A base directory on which to lint the application. ${italic(
-      'If no directory is provided, the current directory will be used.'
-    )}`
-  )
-  .option(
-    '-d, --dir, <dirs...>',
-    'Include directory, or directories, to run ESLint.'
-  )
-  .option('--file, <files...>', 'Include file, or files, to run ESLint.')
-  .addOption(
-    new Option(
-      '--ext, [exts...]',
-      'Specify JavaScript file extensions.'
-    ).default(['.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx'])
-  )
-  .option(
-    '-c, --config, <config>',
-    'Uses this configuration file, overriding all other configuration options.'
-  )
-  .option(
-    '--resolve-plugins-relative-to, <rprt>',
-    'Specify a directory where plugins should be resolved from.'
-  )
-  .option(
-    '--strict',
-    'Creates a `.eslintrc.json` file using the Next.js strict configuration.'
-  )
-  .option(
-    '--rulesdir, <rulesdir...>',
-    'Uses additional rules from this directory(s).'
-  )
-  .option('--fix', 'Automatically fix linting issues.')
-  .option(
-    '--fix-type <fixType>',
-    'Specify the types of fixes to apply (e.g., problem, suggestion, layout).'
-  )
-  .option('--ignore-path <path>', 'Specify a file to ignore.')
-  .option('--no-ignore', 'Disables the `--ignore-path` option.')
-  .option('--quiet', 'Reports errors only.')
-  .addOption(
-    new Option(
-      '--max-warnings [maxWarnings]',
-      'Specify the number of warnings before triggering a non-zero exit code.'
-    )
-      .argParser(parseValidPositiveInteger)
-      .default(-1)
-  )
-  .option(
-    '-o, --output-file, <outputFile>',
-    'Specify a file to write report to.'
-  )
-  .option('-f, --format, <format>', 'Uses a specific output format.')
-  .option(
-    '--no-inline-config',
-    'Prevents comments from changing config or rules.'
-  )
-  .addOption(
-    new Option(
-      '--report-unused-disable-directives-severity <level>',
-      'Specify severity level for unused eslint-disable directives.'
-    ).choices(['error', 'off', 'warn'])
-  )
-  .option('--no-cache', 'Disables caching.')
-  .option('--cache-location, <cacheLocation>', 'Specify a location for cache.')
-  .addOption(
-    new Option(
-      '--cache-strategy, [cacheStrategy]',
-      'Specify a strategy to use for detecting changed files in the cache.'
-    ).default('metadata')
-  )
-  .option(
-    '--error-on-unmatched-pattern',
-    'Reports errors when any file patterns are unmatched.'
-  )
-  .action((directory: string, options: NextLintOptions) =>
-    import('../cli/next-lint.js').then((mod) =>
-      mod.nextLint(options, directory)
-    )
-  )
-  .usage('[directory] [options]')
 
 program
   .command('start')
@@ -357,11 +359,18 @@ program
       'Specify the maximum amount of milliseconds to wait before closing inactive connections.'
     ).argParser(parseValidPositiveInteger)
   )
-  .action((directory: string, options: NextStartOptions) =>
-    import('../cli/next-start.js').then((mod) =>
+  .option(
+    '--experimental-next-config-strip-types',
+    'Use Node.js native TypeScript resolution for next.config.(ts|mts)'
+  )
+  .action((directory: string, options: NextStartOptions) => {
+    if (options.experimentalNextConfigStripTypes) {
+      process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+    }
+    return import('../cli/next-start.js').then((mod) =>
       mod.nextStart(options, directory)
     )
-  )
+  })
   .usage('[directory] [options]')
 
 program
@@ -404,6 +413,36 @@ program
     )
   )
   .usage('[directory] [options]')
+
+const nextVersion = process.env.__NEXT_VERSION || 'unknown'
+program
+  .command('upgrade')
+  .description(
+    'Upgrade Next.js apps to desired versions with a single command.'
+  )
+  .argument(
+    '[directory]',
+    `A Next.js project directory to upgrade. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .usage('[directory] [options]')
+  .option(
+    '--revision <revision>',
+    'Specify the target Next.js version using an NPM dist tag (e.g. "latest", "canary", "rc", "beta") or an exact version number (e.g. "15.0.0").',
+    nextVersion.includes('-canary.')
+      ? 'canary'
+      : nextVersion.includes('-rc.')
+        ? 'rc'
+        : nextVersion.includes('-beta.')
+          ? 'beta'
+          : 'latest'
+  )
+  .option('--verbose', 'Verbose output', false)
+  .action(async (directory, options) => {
+    const mod = await import('../cli/next-upgrade.js')
+    mod.spawnNextUpgrade(directory, options)
+  })
 
 program
   .command('experimental-test')

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Context as _;
 use napi::bindgen_prelude::*;
+use napi_derive::napi;
 use swc_core::{
     base::{config::ParseOptions, try_with_handler},
     common::{

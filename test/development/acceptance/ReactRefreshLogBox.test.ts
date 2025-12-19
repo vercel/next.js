@@ -13,11 +13,10 @@ import { outdent } from 'outdent'
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('ReactRefreshLogBox', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { isTurbopack, next, isRspack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
-  const isRspack = !!process.env.NEXT_RSPACK
 
   test('should strip whitespace correctly with newline', async () => {
     await using sandbox = await createSandbox(next)
@@ -122,13 +121,13 @@ describe('ReactRefreshLogBox', () => {
            "description": "no",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "index.js (3:7) @ {module evaluation}
+           "source": "index.js (3:7) @ module evaluation
          > 3 | throw new Error('no')
              |       ^",
            "stack": [
-             "{module evaluation} index.js (3:7)",
-             "{module evaluation} pages/index.js (1:1)",
-             "{module evaluation} pages/index.js (1:1)",
+             "module evaluation index.js (3:7)",
+             "module evaluation pages/index.js (1:1)",
+             "module evaluation pages/index.js (1:1)",
              "<FIXME-next-dist-dir>",
            ],
          }
@@ -163,13 +162,13 @@ describe('ReactRefreshLogBox', () => {
            "description": "no",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "index.js (3:7) @ {module evaluation}
+           "source": "index.js (3:7) @ module evaluation
          > 3 | throw new Error('no')
              |       ^",
            "stack": [
-             "{module evaluation} index.js (3:7)",
-             "{module evaluation} pages/index.js (1:1)",
-             "{module evaluation} pages/index.js (1:1)",
+             "module evaluation index.js (3:7)",
+             "module evaluation pages/index.js (1:1)",
+             "module evaluation pages/index.js (1:1)",
              "<FIXME-next-dist-dir>",
            ],
          }
@@ -425,7 +424,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
 
     await session.patch(
       'index.js',
@@ -456,11 +455,10 @@ describe('ReactRefreshLogBox', () => {
     } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
                │    ,-[7:1]
                │  4 |       <p>lol</p>
@@ -547,7 +545,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('hello')
@@ -664,7 +662,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('hello new')
@@ -689,7 +687,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
 
     // Syntax error
     await session.patch('index.module.css', `.button`)
@@ -710,11 +708,10 @@ describe('ReactRefreshLogBox', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × SyntaxError",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css
-         × Module build failed:
          ╰─▶   × SyntaxError
                │
                │ (1:1) <FIXME-project-root>/index.module.css Unknown word
@@ -772,11 +769,10 @@ describe('ReactRefreshLogBox', () => {
     } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × CssSyntaxError",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css
-         × Module build failed:
          ╰─▶   × CssSyntaxError
                │
                │ (1:1) Selector "button" is not pure (pure selectors must contain at least one local class or id)
@@ -829,7 +825,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await browser.elementByCss('button').click()
 
     if (isReact18) {
@@ -880,7 +876,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await browser.elementByCss('button').click()
 
     if (isReact18) {
@@ -931,7 +927,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await browser.elementByCss('button').click()
 
     if (isReact18) {
@@ -982,7 +978,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await browser.elementByCss('button').click()
 
     if (isReact18) {
@@ -1033,7 +1029,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await browser.elementByCss('button').click()
 
     if (isReact18) {
@@ -1116,7 +1112,7 @@ describe('ReactRefreshLogBox', () => {
         }
       `
     )
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await session.patch(
       'index.js',
       outdent`
@@ -1166,7 +1162,7 @@ describe('ReactRefreshLogBox', () => {
         }
       `
     )
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await session.patch(
       'index.js',
       outdent`
@@ -1212,7 +1208,7 @@ describe('ReactRefreshLogBox', () => {
         }
       `
     )
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await session.patch(
       'index.js',
       outdent`

@@ -22,6 +22,9 @@ export function runHotModuleReloadHmrTest(nextConfig: {
         const text = await browser.elementByCss('p').text()
         expect(text).toBe('This is the contact page.')
 
+        expect(next.cliOutput).toMatch(/GET .*\/hmr\/contact 200/)
+        let cliOutputLength = next.cliOutput.length
+
         // Rename the file to mimic a deleted page
         await next.renameFile(contactPagePath, newContactPagePath)
 
@@ -30,6 +33,10 @@ export function runHotModuleReloadHmrTest(nextConfig: {
             /This page could not be found/
           )
         })
+        expect(next.cliOutput.slice(cliOutputLength)).toMatch(
+          /GET .*\/hmr\/contact 404/
+        )
+        cliOutputLength = next.cliOutput.length
 
         // Rename the file back to the original filename
         await next.renameFile(newContactPagePath, contactPagePath)
@@ -40,8 +47,9 @@ export function runHotModuleReloadHmrTest(nextConfig: {
             /This is the contact page/
           )
         })
-
-        expect(next.cliOutput).toContain('Compiled /_error')
+        expect(next.cliOutput.slice(cliOutputLength)).toMatch(
+          /GET .*\/hmr\/contact 200/
+        )
       } finally {
         await next
           .renameFile(newContactPagePath, contactPagePath)

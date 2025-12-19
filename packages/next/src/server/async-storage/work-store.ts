@@ -25,12 +25,13 @@ export type WorkStoreContext = {
     cacheLifeProfiles?: { [profile: string]: CacheLife }
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean
+    cacheComponents: boolean
     fetchCache?: AppSegmentConfig['fetchCache']
     isPossibleServerAction?: boolean
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
-      'isRoutePPREnabled' | 'cacheComponents' | 'authInterrupts'
+      'isRoutePPREnabled' | 'authInterrupts'
     >
 
     /**
@@ -138,12 +139,13 @@ export function createWorkStore({
     nonce,
 
     afterContext: createAfterContext(renderOpts),
-    cacheComponentsEnabled: renderOpts.experimental.cacheComponents,
+    cacheComponentsEnabled: renderOpts.cacheComponents,
     dev: isDevelopment,
     previouslyRevalidatedTags,
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),
     runInCleanSnapshot: createSnapshot(),
     shouldTrackFetchMetrics,
+    reactServerErrorsByDigest: new Map(),
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context

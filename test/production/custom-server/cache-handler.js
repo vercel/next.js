@@ -6,7 +6,7 @@ const defaultCacheHandler =
   require('next/dist/server/lib/cache-handlers/default.external').default
 
 /**
- * @type {import('next/dist/server/lib/cache-handlers/types').CacheHandlerV2}
+ * @type {import('next/dist/server/lib/cache-handlers/types').CacheHandler}
  */
 const cacheHandler = {
   async get(cacheKey) {
@@ -23,12 +23,12 @@ const cacheHandler = {
     return defaultCacheHandler.refreshTags()
   },
 
-  async getExpiration(...tags) {
-    return defaultCacheHandler.getExpiration(...tags)
+  async getExpiration(tags) {
+    return defaultCacheHandler.getExpiration(tags)
   },
 
-  async expireTags(...tags) {
-    return defaultCacheHandler.expireTags(...tags)
+  async updateTags(tags) {
+    return defaultCacheHandler.updateTags(tags)
   },
 }
 

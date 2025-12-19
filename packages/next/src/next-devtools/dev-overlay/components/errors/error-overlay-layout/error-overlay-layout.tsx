@@ -158,7 +158,10 @@ export function ErrorOverlayLayout({
                     generateErrorInfo={generateErrorInfo}
                   />
                 </div>
-                <ErrorMessage errorMessage={errorMessage} />
+                <ErrorMessage
+                  errorMessage={errorMessage}
+                  errorType={errorType}
+                />
               </ErrorOverlayDialogHeader>
 
               <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>

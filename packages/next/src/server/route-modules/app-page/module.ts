@@ -39,13 +39,12 @@ if (process.env.NEXT_RUNTIME !== 'edge') {
   vendoredReactSSR =
     require('./vendored/ssr/entrypoints') as typeof import('./vendored/ssr/entrypoints')
 
-  // In Node environments we augment console logging with information contextual to a React render.
-  // This patching is global so we need to register the cacheSignal getter from our bundled React instances
-  // here when we load them rather than in the external module itself when the patch is applied.
-  const { registerGetCacheSignal } =
-    require('../../node-environment-extensions/console-dim.external') as typeof import('../../node-environment-extensions/console-dim.external')
-  registerGetCacheSignal(vendoredReactRSC.React.cacheSignal)
-  registerGetCacheSignal(vendoredReactSSR.React.cacheSignal)
+  // In Node environments we need to access the correct React instance from external modules such
+  // as global patches. We register the loaded React instances here.
+  const { registerServerReact, registerClientReact } =
+    require('../../runtime-reacts.external') as typeof import('../../runtime-reacts.external')
+  registerServerReact(vendoredReactRSC.React)
+  registerClientReact(vendoredReactSSR.React)
 }
 
 /**
@@ -114,25 +113,6 @@ export class AppPageRouteModule extends RouteModule<
       context.fallbackRouteParams,
       context.renderOpts,
       context.serverComponentsHmrCache,
-      false,
-      context.sharedContext
-    )
-  }
-
-  public warmup(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    context: AppPageRouteHandlerContext
-  ): Promise<RenderResult> {
-    return renderToHTMLOrFlight(
-      req,
-      res,
-      context.page,
-      context.query,
-      context.fallbackRouteParams,
-      context.renderOpts,
-      context.serverComponentsHmrCache,
-      true,
       context.sharedContext
     )
   }

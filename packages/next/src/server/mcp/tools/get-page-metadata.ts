@@ -14,6 +14,7 @@ import type {
   SegmentTrieData,
 } from '../../../shared/lib/mcp-page-metadata-types'
 import type { SegmentTrieNode } from '../../../next-devtools/dev-overlay/segment-explorer-trie'
+import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
 
 export function registerGetPageMetadataTool(
   server: McpServer,
@@ -28,6 +29,9 @@ export function registerGetPageMetadataTool(
       inputSchema: {},
     },
     async (_request) => {
+      // Track telemetry
+      mcpTelemetryTracker.recordToolCall('mcp/get_page_metadata')
+
       try {
         const connectionCount = getActiveConnectionCount()
         if (connectionCount === 0) {

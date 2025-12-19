@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox, check, getDistDir, retry } from 'next-test-utils'
+import { waitForNoRedbox, check, getDistDir, retry } from 'next-test-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -155,13 +155,11 @@ describe('app dir - external dependency', () => {
   })
   it('should not apply swc optimizer transform for external packages in browser layer in web worker', async () => {
     const browser = await next.browser('/browser')
-    // eslint-disable-next-line jest/no-standalone-expect
     expect(await browser.elementByCss('#worker-state').text()).toBe('default')
 
     await browser.elementByCss('button').click()
 
     await retry(async () => {
-      // eslint-disable-next-line jest/no-standalone-expect
       expect(await browser.elementByCss('#worker-state').text()).toBe(
         'worker.js:browser-module/other'
       )
@@ -251,7 +249,7 @@ describe('app dir - external dependency', () => {
     expect($('#transpile-cjs-lib').text()).toBe('transpile-cjs-lib')
 
     const browser = await next.browser('/cjs/client')
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 
   it('should export client module references in esm', async () => {

@@ -1,4 +1,5 @@
 use std::{
+    fmt::Display,
     future::Future,
     hash::BuildHasherDefault,
     mem::take,
@@ -12,6 +13,7 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
+use bincode::{Decode, Encode};
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use tokio::{select, sync::mpsc::Receiver, task_local};
@@ -20,11 +22,11 @@ use tracing::{Instrument, instrument};
 
 use crate::{
     Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
-    ResolvedVc, SharedReference, TaskId, TraitMethod, ValueTypeId, Vc, VcRead, VcValueTrait,
-    VcValueType,
+    ReadOutputOptions, ResolvedVc, SharedReference, TaskId, TraitMethod, ValueTypeId, Vc, VcRead,
+    VcValueTrait, VcValueType,
     backend::{
         Backend, CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
-        TransientTaskType, TurboTasksExecutionError, TypedCellContent,
+        TransientTaskType, TurboTasksExecutionError, TypedCellContent, VerificationMode,
     },
     capture_future::CaptureFuture,
     event::{Event, EventListener},
@@ -103,27 +105,10 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn try_read_task_output(
         &self,
         task: TaskId,
-        consistency: ReadConsistency,
-    ) -> Result<Result<RawVc, EventListener>>;
-
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    fn try_read_task_output_untracked(
-        &self,
-        task: TaskId,
-        consistency: ReadConsistency,
+        options: ReadOutputOptions,
     ) -> Result<Result<RawVc, EventListener>>;
 
     fn try_read_task_cell(
-        &self,
-        task: TaskId,
-        index: CellId,
-        options: ReadCellOptions,
-    ) -> Result<Result<TypedCellContent, EventListener>>;
-
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
         index: CellId,
@@ -158,7 +143,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
-    fn try_read_own_task_cell_untracked(
+    fn try_read_own_task_cell(
         &self,
         current_task: TaskId,
         index: CellId,
@@ -171,7 +156,14 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         index: CellId,
         options: ReadCellOptions,
     ) -> Result<TypedCellContent>;
-    fn update_own_task_cell(&self, task: TaskId, index: CellId, content: CellContent);
+    fn update_own_task_cell(
+        &self,
+        task: TaskId,
+        index: CellId,
+        is_serializable_cell_content: bool,
+        content: CellContent,
+        verification_mode: VerificationMode,
+    );
     fn mark_own_task_as_finished(&self, task: TaskId);
     fn set_own_task_aggregation_number(&self, task: TaskId, aggregation_number: u32);
     fn mark_own_task_as_session_dependent(&self, task: TaskId);
@@ -277,7 +269,7 @@ pub struct UpdateInfo {
     placeholder_for_future_fields: (),
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub enum TaskPersistence {
     /// Tasks that may be persisted across sessions using serialization.
     Persistent,
@@ -289,28 +281,65 @@ pub enum TaskPersistence {
     /// type [`TransientValue`][crate::value::TransientValue] or
     /// [`TransientInstance`][crate::value::TransientInstance].
     Transient,
-
-    /// Tasks that are persisted only for the lifetime of the nearest non-`Local` parent caller.
-    ///
-    /// This task does not have a unique task id, and is not shared with the backend. Instead it
-    /// uses the parent task's id.
-    ///
-    /// This is useful for functions that have a low cache hit rate. Those functions could be
-    /// converted to non-task functions, but that would break their function signature. This
-    /// provides a mechanism for skipping caching without changing the function signature.
-    Local,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+impl Display for TaskPersistence {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TaskPersistence::Persistent => write!(f, "persistent"),
+            TaskPersistence::Transient => write!(f, "transient"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
 pub enum ReadConsistency {
     /// The default behavior for most APIs. Reads are faster, but may return stale values, which
     /// may later trigger re-computation.
+    #[default]
     Eventual,
     /// Ensures all dependencies are fully resolved before returning the cell or output data, at
     /// the cost of slower reads.
     ///
     /// Top-level code that returns data to the user should use strongly consistent reads.
     Strong,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
+pub enum ReadTracking {
+    /// Reads are tracked as dependencies of the current task.
+    #[default]
+    Tracked,
+    /// The read is only tracked when there is an error, otherwise it is untracked.
+    ///
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    TrackOnlyError,
+    /// The read is not tracked as a dependency of the current task.
+    ///
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    Untracked,
+}
+
+impl ReadTracking {
+    pub fn should_track(&self, is_err: bool) -> bool {
+        match self {
+            ReadTracking::Tracked => true,
+            ReadTracking::TrackOnlyError => is_err,
+            ReadTracking::Untracked => false,
+        }
+    }
+}
+
+impl Display for ReadTracking {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReadTracking::Tracked => write!(f, "tracked"),
+            ReadTracking::TrackOnlyError => write!(f, "track only error"),
+            ReadTracking::Untracked => write!(f, "untracked"),
+        }
+    }
 }
 
 pub struct TurboTasks<B: Backend + 'static> {
@@ -550,7 +579,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             .scope(
                 self.pin(),
                 CURRENT_TASK_STATE.scope(current_task_state, async {
-                    let (result, _duration, _alloc_info) = CaptureFuture::new(future).await;
+                    let result = CaptureFuture::new(future).await;
 
                     // wait for all spawned local tasks using `local` to finish
                     let ltt =
@@ -592,42 +621,23 @@ impl<B: Backend + 'static> TurboTasks<B> {
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
     ) -> RawVc {
-        match persistence {
-            TaskPersistence::Local => {
-                let task_type = LocalTaskSpec {
-                    task_type: LocalTaskType::Native { native_fn },
-                    this,
-                    arg,
-                };
-                self.schedule_local_task(task_type, persistence)
-            }
-            TaskPersistence::Transient => {
-                let task_type = CachedTaskType {
-                    native_fn,
-                    this,
-                    arg,
-                };
-
-                RawVc::TaskOutput(self.backend.get_or_create_transient_task(
-                    task_type,
-                    current_task_if_available("turbo_function calls"),
-                    self,
-                ))
-            }
-            TaskPersistence::Persistent => {
-                let task_type = CachedTaskType {
-                    native_fn,
-                    this,
-                    arg,
-                };
-
-                RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-                    task_type,
-                    current_task_if_available("turbo_function calls"),
-                    self,
-                ))
-            }
-        }
+        let task_type = CachedTaskType {
+            native_fn,
+            this,
+            arg,
+        };
+        RawVc::TaskOutput(match persistence {
+            TaskPersistence::Transient => self.backend.get_or_create_transient_task(
+                task_type,
+                current_task_if_available("turbo_function calls"),
+                self,
+            ),
+            TaskPersistence::Persistent => self.backend.get_or_create_persistent_task(
+                task_type,
+                current_task_if_available("turbo_function calls"),
+                self,
+            ),
+        })
     }
 
     pub fn dynamic_call(
@@ -708,7 +718,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     };
 
                     async {
-                        let (result, duration, alloc_info) = CaptureFuture::new(future).await;
+                        let result = CaptureFuture::new(future).await;
 
                         // wait for all spawned local tasks using `local` to finish
                         let ltt = CURRENT_TASK_STATE
@@ -722,7 +732,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
                             Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
                         };
 
-                        this.backend.task_execution_result(task_id, result, &*this);
                         let FinishedTaskState {
                             stateful,
                             has_invalidator,
@@ -731,8 +740,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                             .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
                         this.backend.task_execution_completed(
                             task_id,
-                            duration,
-                            alloc_info.memory_usage(),
+                            result,
                             &cell_counters,
                             stateful,
                             has_invalidator,
@@ -768,12 +776,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
         &self,
         ty: LocalTaskSpec,
         // if this is a `LocalTaskType::Resolve*`, we may spawn another task with this persistence,
-        // if this is a `LocalTaskType::Native`, persistence is unused.
-        //
-        // TODO: In the rare case that we're crossing a transient->persistent boundary, we should
-        // force `LocalTaskType::Native` to be spawned as real tasks, so that any cells they create
-        // have the correct persistence. This is not an issue for resolution stub task, as they
-        // don't end up owning any cells.
         persistence: TaskPersistence,
     ) -> RawVc {
         let task_type = ty.task_type;
@@ -804,23 +806,42 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
         let this = self.pin();
         let future = async move {
-            let TaskExecutionSpec { future, span } =
-                crate::task::local_task::get_local_task_execution_spec(&*this, &ty, persistence);
+            let span = match &ty.task_type {
+                LocalTaskType::ResolveNative { native_fn } => native_fn.resolve_span(),
+                LocalTaskType::ResolveTrait { trait_method } => trait_method.resolve_span(),
+            };
             async move {
-                let (result, _duration, _memory_usage) = CaptureFuture::new(future).await;
-
-                let result = match result {
-                    Ok(Ok(raw_vc)) => Ok(raw_vc),
-                    Ok(Err(err)) => Err(err.into()),
-                    Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
+                let result = match ty.task_type {
+                    LocalTaskType::ResolveNative { native_fn } => {
+                        LocalTaskType::run_resolve_native(
+                            native_fn,
+                            ty.this,
+                            &*ty.arg,
+                            persistence,
+                            this,
+                        )
+                        .await
+                    }
+                    LocalTaskType::ResolveTrait { trait_method } => {
+                        LocalTaskType::run_resolve_trait(
+                            trait_method,
+                            ty.this.unwrap(),
+                            &*ty.arg,
+                            persistence,
+                            this,
+                        )
+                        .await
+                    }
                 };
 
-                let local_task = LocalTask::Done {
-                    output: match result {
-                        Ok(raw_vc) => OutputContent::Link(raw_vc),
-                        Err(err) => OutputContent::Error(err.with_task_context(task_type)),
-                    },
+                let output = match result {
+                    Ok(raw_vc) => OutputContent::Link(raw_vc),
+                    Err(err) => OutputContent::Error(
+                        TurboTasksExecutionError::from(err).with_task_context(task_type, None),
+                    ),
                 };
+
+                let local_task = LocalTask::Done { output };
 
                 let done_event = CURRENT_TASK_STATE.with(move |gts| {
                     let mut gts_write = gts.write().unwrap();
@@ -927,8 +948,16 @@ impl<B: Backend + 'static> TurboTasks<B> {
         id: TaskId,
         consistency: ReadConsistency,
     ) -> Result<()> {
-        // INVALIDATION: This doesn't return a value, only waits for it to be ready.
-        read_task_output_untracked(self, id, consistency).await?;
+        read_task_output(
+            self,
+            id,
+            ReadOutputOptions {
+                // INVALIDATION: This doesn't return a value, only waits for it to be ready.
+                tracking: ReadTracking::Untracked,
+                consistency,
+            },
+        )
+        .await?;
         Ok(())
     }
 
@@ -1217,23 +1246,14 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
     fn try_read_task_output(
         &self,
         task: TaskId,
-        consistency: ReadConsistency,
+        options: ReadOutputOptions,
     ) -> Result<Result<RawVc, EventListener>> {
         self.backend.try_read_task_output(
             task,
             current_task_if_available("reading Vcs"),
-            consistency,
+            options,
             self,
         )
-    }
-
-    fn try_read_task_output_untracked(
-        &self,
-        task: TaskId,
-        consistency: ReadConsistency,
-    ) -> Result<Result<RawVc, EventListener>> {
-        self.backend
-            .try_read_task_output(task, None, consistency, self)
     }
 
     fn try_read_task_cell(
@@ -1251,24 +1271,14 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         )
     }
 
-    fn try_read_task_cell_untracked(
-        &self,
-        task: TaskId,
-        index: CellId,
-        options: ReadCellOptions,
-    ) -> Result<Result<TypedCellContent, EventListener>> {
-        self.backend
-            .try_read_task_cell(task, index, None, options, self)
-    }
-
-    fn try_read_own_task_cell_untracked(
+    fn try_read_own_task_cell(
         &self,
         current_task: TaskId,
         index: CellId,
         options: ReadCellOptions,
     ) -> Result<TypedCellContent> {
         self.backend
-            .try_read_own_task_cell_untracked(current_task, index, options, self)
+            .try_read_own_task_cell(current_task, index, options, self)
     }
 
     fn try_read_local_output(
@@ -1340,12 +1350,25 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         index: CellId,
         options: ReadCellOptions,
     ) -> Result<TypedCellContent> {
-        // INVALIDATION: don't need to track a dependency to itself
-        self.try_read_own_task_cell_untracked(task, index, options)
+        self.try_read_own_task_cell(task, index, options)
     }
 
-    fn update_own_task_cell(&self, task: TaskId, index: CellId, content: CellContent) {
-        self.backend.update_task_cell(task, index, content, self);
+    fn update_own_task_cell(
+        &self,
+        task: TaskId,
+        index: CellId,
+        is_serializable_cell_content: bool,
+        content: CellContent,
+        verification_mode: VerificationMode,
+    ) {
+        self.backend.update_task_cell(
+            task,
+            index,
+            is_serializable_cell_content,
+            content,
+            verification_mode,
+            self,
+        );
     }
 
     fn connect_task(&self, task: TaskId) {
@@ -1619,7 +1642,7 @@ pub fn current_task_for_testing() -> Option<TaskId> {
     CURRENT_TASK_STATE.with(|ts| ts.read().unwrap().task_id)
 }
 
-/// Marks the current task as dirty when restored from persistent cache.
+/// Marks the current task as dirty when restored from filesystem cache.
 pub fn mark_session_dependent() {
     with_turbo_tasks(|tt| {
         tt.mark_own_task_as_session_dependent(current_task("turbo_tasks::mark_session_dependent()"))
@@ -1686,25 +1709,10 @@ pub fn emit<T: VcValueTrait + ?Sized>(collectible: ResolvedVc<T>) {
 pub(crate) async fn read_task_output(
     this: &dyn TurboTasksApi,
     id: TaskId,
-    consistency: ReadConsistency,
+    options: ReadOutputOptions,
 ) -> Result<RawVc> {
     loop {
-        match this.try_read_task_output(id, consistency)? {
-            Ok(result) => return Ok(result),
-            Err(listener) => listener.await,
-        }
-    }
-}
-
-/// INVALIDATION: Be careful with this, it will not track dependencies, so
-/// using it could break cache invalidation.
-pub(crate) async fn read_task_output_untracked(
-    this: &dyn TurboTasksApi,
-    id: TaskId,
-    consistency: ReadConsistency,
-) -> Result<RawVc> {
-    loop {
-        match this.try_read_task_output_untracked(id, consistency)? {
+        match this.try_read_task_output(id, options)? {
             Ok(result) => return Ok(result),
             Err(listener) => listener.await,
         }
@@ -1730,10 +1738,11 @@ pub(crate) async fn read_task_cell(
 ///
 /// Mutations should not outside of the task that that owns this cell. Doing so
 /// is a logic error, and may lead to incorrect caching behavior.
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy)]
 pub struct CurrentCellRef {
     current_task: TaskId,
     index: CellId,
+    is_serializable_cell_content: bool,
 }
 
 type VcReadRepr<T> = <<T as VcValueType>::Read as VcRead<T>>::Repr;
@@ -1762,11 +1771,26 @@ impl CurrentCellRef {
     ) {
         let tt = turbo_tasks();
         let cell_content = tt
-            .read_own_task_cell(self.current_task, self.index, ReadCellOptions::default())
+            .read_own_task_cell(
+                self.current_task,
+                self.index,
+                ReadCellOptions {
+                    // INVALIDATION: Reading our own cell must be untracked
+                    tracking: ReadTracking::Untracked,
+                    is_serializable_cell_content: self.is_serializable_cell_content,
+                    final_read_hint: false,
+                },
+            )
             .ok();
         let update = functor(cell_content.as_ref().and_then(|cc| cc.1.0.as_ref()));
         if let Some(update) = update {
-            tt.update_own_task_cell(self.current_task, self.index, CellContent(Some(update)))
+            tt.update_own_task_cell(
+                self.current_task,
+                self.index,
+                self.is_serializable_cell_content,
+                CellContent(Some(update)),
+                VerificationMode::EqualityCheck,
+            )
         }
     }
 
@@ -1848,7 +1872,7 @@ impl CurrentCellRef {
     }
 
     /// Unconditionally updates the content of the cell.
-    pub fn update<T>(&self, new_value: T)
+    pub fn update<T>(&self, new_value: T, verification_mode: VerificationMode)
     where
         T: VcValueType,
     {
@@ -1856,9 +1880,11 @@ impl CurrentCellRef {
         tt.update_own_task_cell(
             self.current_task,
             self.index,
+            self.is_serializable_cell_content,
             CellContent(Some(SharedReference::new(triomphe::Arc::new(
                 <T::Read as VcRead<T>>::value_to_repr(new_value),
             )))),
+            verification_mode,
         )
     }
 
@@ -1870,19 +1896,42 @@ impl CurrentCellRef {
     ///
     /// The [`SharedReference`] is expected to use the `<T::Read as
     /// VcRead<T>>::Repr` type for its representation of the value.
-    pub fn update_with_shared_reference(&self, shared_ref: SharedReference) {
+    pub fn update_with_shared_reference(
+        &self,
+        shared_ref: SharedReference,
+        verification_mode: VerificationMode,
+    ) {
         let tt = turbo_tasks();
-        let content = tt
-            .read_own_task_cell(self.current_task, self.index, ReadCellOptions::default())
-            .ok();
-        let update = if let Some(TypedCellContent(_, CellContent(Some(shared_ref_exp)))) = content {
-            // pointer equality (not value equality)
-            shared_ref_exp != shared_ref
+        let update = if matches!(verification_mode, VerificationMode::EqualityCheck) {
+            let content = tt
+                .read_own_task_cell(
+                    self.current_task,
+                    self.index,
+                    ReadCellOptions {
+                        // INVALIDATION: Reading our own cell must be untracked
+                        tracking: ReadTracking::Untracked,
+                        is_serializable_cell_content: self.is_serializable_cell_content,
+                        final_read_hint: false,
+                    },
+                )
+                .ok();
+            if let Some(TypedCellContent(_, CellContent(Some(shared_ref_exp)))) = content {
+                // pointer equality (not value equality)
+                shared_ref_exp != shared_ref
+            } else {
+                true
+            }
         } else {
             true
         };
         if update {
-            tt.update_own_task_cell(self.current_task, self.index, CellContent(Some(shared_ref)))
+            tt.update_own_task_cell(
+                self.current_task,
+                self.index,
+                self.is_serializable_cell_content,
+                CellContent(Some(shared_ref)),
+                verification_mode,
+            )
         }
     }
 }
@@ -1893,7 +1942,11 @@ impl From<CurrentCellRef> for RawVc {
     }
 }
 
-pub fn find_cell_by_type(ty: ValueTypeId) -> CurrentCellRef {
+pub fn find_cell_by_type<T: VcValueType>() -> CurrentCellRef {
+    find_cell_by_id(T::get_value_type_id(), T::has_serialization())
+}
+
+pub fn find_cell_by_id(ty: ValueTypeId, is_serializable_cell_content: bool) -> CurrentCellRef {
     CURRENT_TASK_STATE.with(|ts| {
         let current_task = current_task("celling turbo_tasks values");
         let mut ts = ts.write().unwrap();
@@ -1904,6 +1957,7 @@ pub fn find_cell_by_type(ty: ValueTypeId) -> CurrentCellRef {
         CurrentCellRef {
             current_task,
             index: CellId { type_id: ty, index },
+            is_serializable_cell_content,
         }
     })
 }

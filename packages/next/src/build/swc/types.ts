@@ -5,9 +5,13 @@ import type {
   RefCell,
   NapiTurboEngineOptions,
   NapiSourceDiagnostic,
+  NapiProjectOptions,
+  NapiPartialProjectOptions,
 } from './generated-native'
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
+
+export type Lockfile = { __napiType: 'Lockfile' }
 
 export interface Binding {
   isWasm: boolean
@@ -63,6 +67,11 @@ export interface Binding {
     injections: Record<string, string>,
     imports: Record<string, string | null>
   ): string
+
+  lockfileTryAcquire(path: string): Promise<Lockfile | null>
+  lockfileTryAcquireSync(path: string): Lockfile | null
+  lockfileUnlock(lockfile: Lockfile): Promise<void>
+  lockfileUnlockSync(lockfile: Lockfile): void
 }
 
 export type StyledString =
@@ -137,6 +146,7 @@ export type TurbopackResult<T = {}> = T & {
 
 export interface Middleware {
   endpoint: Endpoint
+  isProxy: boolean
 }
 
 export interface Instrumentation {
@@ -223,6 +233,8 @@ export interface UpdateInfo {
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
 
+  writeAnalyzeData(appDirOnly: boolean): Promise<TurbopackResult<void>>
+
   writeAllEntrypointsToDisk(
     appDirOnly: boolean
   ): Promise<TurbopackResult<Partial<RawEntrypoints>>>
@@ -255,7 +267,7 @@ export interface Project {
     eventTypes?: string[]
   ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
 
-  invalidatePersistentCache(): Promise<void>
+  invalidateFileSystemCache(): Promise<void>
 
   shutdown(): Promise<void>
 
@@ -357,27 +369,8 @@ export type WrittenEndpoint =
       config: EndpointConfig
     }
 
-export interface ProjectOptions {
-  /**
-   * An absolute root path (Unix or Windows path) from which all files must be nested under. Trying
-   * to access a file outside this root will fail, so think of this as a chroot.
-   * E.g. `/home/user/projects/my-repo`.
-   */
-  rootPath: string
-
-  /**
-   * A path which contains the app/pages directories, relative to `root_path`, always a Unix path.
-   * E.g. `apps/my-app`
-   */
-  projectPath: string
-
-  /**
-   * A path where to emit the build outputs, relative to [`Project::project_path`], always a Unix
-   * path. Corresponds to next.config.js's `distDir`.
-   * E.g. `.next`
-   */
-  distDir: string
-
+export interface ProjectOptions
+  extends Omit<NapiProjectOptions, 'nextConfig' | 'env'> {
   /**
    * The next.config.js contents.
    */
@@ -387,53 +380,21 @@ export interface ProjectOptions {
    * A map of environment variables to use when compiling code.
    */
   env: Record<string, string>
+}
 
-  defineEnv: DefineEnv
+export interface PartialProjectOptions
+  extends Omit<NapiPartialProjectOptions, 'nextConfig' | 'env'> {
+  rootPath: NapiProjectOptions['rootPath']
+  projectPath: NapiProjectOptions['projectPath']
+  /**
+   * The next.config.js contents.
+   */
+  nextConfig?: NextConfigComplete
 
   /**
-   * Whether to watch the filesystem for file changes.
+   * A map of environment variables to use when compiling code.
    */
-  watch: {
-    enable: boolean
-    pollIntervalMs?: number
-  }
-
-  /**
-   * The mode in which Next.js is running.
-   */
-  dev: boolean
-
-  /**
-   * The server actions encryption key.
-   */
-  encryptionKey: string
-
-  /**
-   * The build id.
-   */
-  buildId: string
-
-  /**
-   * Options for draft mode.
-   */
-  previewProps: __ApiPreviewProps
-
-  /**
-   * The browserslist query to use for targeting browsers.
-   */
-  browserslistQuery: string
-
-  /**
-   * When the code is minified, this opts out of the default mangling of local
-   * names for variables, functions etc., which can be useful for
-   * debugging/profiling purposes.
-   */
-  noMangling: boolean
-
-  /**
-   * The version of Node.js that is available/currently running.
-   */
-  currentNodeJsVersion: string
+  env?: Record<string, string>
 }
 
 export interface DefineEnv {

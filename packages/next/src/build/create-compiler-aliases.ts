@@ -238,6 +238,7 @@ export function createAppRouterApiAliases(isServerOnlyLayer: boolean) {
 
   if (isServerOnlyLayer) {
     mapping['navigation'] = 'next/dist/api/navigation.react-server'
+    mapping['link'] = 'next/dist/client/app-dir/link.react-server'
   }
 
   const aliasMap: Record<string, string> = {}

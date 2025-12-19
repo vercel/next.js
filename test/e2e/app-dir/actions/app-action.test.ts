@@ -1,9 +1,7 @@
-/* eslint-disable jest/no-standalone-expect */
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   retry,
-  check,
   waitFor,
   getRedboxSource,
   getDistDir,
@@ -528,8 +526,14 @@ describe('app-dir action handling', () => {
 
     // navigate to server
     await browser.elementByCss('#navigate-server').click()
-    // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
-    await check(() => browser.url(), `${next.url}/server`, true, 2)
+    // intentionally bailing after 2s so we don't retry to the point where the async function resolves
+    await retry(
+      async () => {
+        expect(await browser.url()).toEqual(`${next.url}/server`)
+      },
+      2000,
+      1000
+    )
 
     browser = await next.browser('/server')
 
@@ -537,8 +541,14 @@ describe('app-dir action handling', () => {
 
     // navigate to client
     await browser.elementByCss('#navigate-client').click()
-    // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
-    await check(() => browser.url(), `${next.url}/client`, true, 2)
+    // intentionally bailing after 2s so we don't retry to the point where the async function resolves
+    await retry(
+      async () => {
+        expect(await browser.url()).toEqual(`${next.url}/client`)
+      },
+      2000,
+      1000
+    )
   })
 
   it('should not block router.back() while a server action is in flight', async () => {
@@ -550,8 +560,14 @@ describe('app-dir action handling', () => {
 
     await browser.back()
 
-    // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
-    await check(() => browser.url(), `${next.url}/`, true, 2)
+    // intentionally bailing after 2s so we don't retry to the point where the async function resolves
+    await retry(
+      async () => {
+        expect(await browser.url()).toEqual(`${next.url}/`)
+      },
+      2000,
+      1000
+    )
   })
 
   it('should trigger a refresh for a server action that also dispatches a navigation event', async () => {
@@ -751,7 +767,8 @@ describe('app-dir action handling', () => {
     expect(newRandom).not.toBe(initialRandom)
   })
 
-  it('should reset the form state when the action redirects to itself', async () => {
+  // TODO(client-segment-cache): re-enable when this optimization is added back
+  it.skip('should reset the form state when the action redirects to itself', async () => {
     const browser = await next.browser('/self-redirect')
     const requests = []
     browser.on('request', async (req) => {
@@ -978,7 +995,7 @@ describe('app-dir action handling', () => {
             origContent + '\n\nexport const foo = 1'
           )
 
-          await assertHasRedbox(browser)
+          await waitForRedbox(browser)
           expect(await getRedboxSource(browser)).toContain(
             'Only async functions are allowed to be exported in a "use server" file.'
           )
@@ -1300,7 +1317,7 @@ describe('app-dir action handling', () => {
       }, 5000)
     })
 
-    it('should handle unstable_expirePath', async () => {
+    it('should handle revalidatePath', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
@@ -1323,7 +1340,7 @@ describe('app-dir action handling', () => {
       })
     })
 
-    it('should handle unstable_expireTag', async () => {
+    it('should handle revalidateTag', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
@@ -1347,7 +1364,7 @@ describe('app-dir action handling', () => {
     })
 
     // TODO: investigate flakey behavior with revalidate
-    it.skip('should handle unstable_expireTag + redirect', async () => {
+    it.skip('should handle revalidateTag + redirect', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()

@@ -74,13 +74,13 @@ pub trait ValueDebugFormat {
 
 impl ValueDebugFormat for String {
     fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString<'_> {
-        ValueDebugFormatString::Sync(format!("{self:#?}"))
+        ValueDebugFormatString::Sync(format!("{self:?}"))
     }
 }
 
 impl ValueDebugFormat for RcStr {
-    fn value_debug_format(&self, _: usize) -> ValueDebugFormatString<'_> {
-        ValueDebugFormatString::Sync(self.to_string())
+    fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString<'_> {
+        ValueDebugFormatString::Sync(format!("{self:?}"))
     }
 }
 

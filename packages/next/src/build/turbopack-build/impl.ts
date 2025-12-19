@@ -1,8 +1,9 @@
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import { isPersistentCachingEnabledForBuild } from '../../shared/lib/turbopack/utils'
+import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
-import { createDefineEnv, loadBindings } from '../swc'
+import { createDefineEnv, getBindingsSync } from '../swc'
+import { installBindings } from '../swc/install-bindings'
 import {
   handleRouteType,
   rawEntrypointsToEntrypoints,
@@ -27,7 +28,7 @@ export async function turbopackBuild(): Promise<{
 }> {
   await validateTurboNextConfig({
     dir: NextBuildContext.dir!,
-    isDev: false,
+    configPhase: PHASE_PRODUCTION_BUILD,
   })
 
   const config = NextBuildContext.config!
@@ -42,12 +43,12 @@ export async function turbopackBuild(): Promise<{
   const currentNodeJsVersion = process.versions.node
 
   const startTime = process.hrtime()
-  const bindings = await loadBindings(config?.experimental?.useWasmBinary)
+  const bindings = getBindingsSync() // our caller should have already loaded these
   const dev = false
 
   const supportedBrowsers = getSupportedBrowsers(dir, dev)
 
-  const persistentCaching = isPersistentCachingEnabledForBuild(config)
+  const persistentCaching = isFileSystemCacheEnabledForBuild(config)
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
   const project = await bindings.turbo.createProject(
     {
@@ -78,6 +79,8 @@ export async function turbopackBuild(): Promise<{
       previewProps,
       browserslistQuery: supportedBrowsers.join(', '),
       noMangling,
+      writeRoutesHashesManifest:
+        !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
       currentNodeJsVersion,
     },
     {
@@ -193,6 +196,10 @@ export async function turbopackBuild(): Promise<{
       entrypoints: currentEntrypoints,
     })
 
+    if (NextBuildContext.analyze) {
+      await project.writeAnalyzeData(appDirOnly)
+    }
+
     const shutdownPromise = project.shutdown()
 
     const time = process.hrtime(startTime)
@@ -210,17 +217,21 @@ export async function turbopackBuild(): Promise<{
 let shutdownPromise: Promise<void> | undefined
 export async function workerMain(workerData: {
   buildContext: typeof NextBuildContext
-}): Promise<Awaited<ReturnType<typeof turbopackBuild>>> {
+}): Promise<
+  Omit<Awaited<ReturnType<typeof turbopackBuild>>, 'shutdownPromise'>
+> {
   // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, workerData.buildContext)
 
   /// load the config because it's not serializable
-  NextBuildContext.config = await loadConfig(
+  const config = (NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
     NextBuildContext.dir!,
-    { debugPrerender: NextBuildContext.debugPrerender }
-  )
-
+    {
+      debugPrerender: NextBuildContext.debugPrerender,
+      reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+    }
+  ))
   // Matches handling in build/index.ts
   // https://github.com/vercel/next.js/blob/84f347fc86f4efc4ec9f13615c215e4b9fb6f8f0/packages/next/src/build/index.ts#L815-L818
   // Ensures the `config.distDir` option is matched.
@@ -233,10 +244,24 @@ export async function workerMain(workerData: {
     distDir: NextBuildContext.config.distDir,
   })
   setGlobal('telemetry', telemetry)
+  // Install bindings early so we can access synchronously later
+  await installBindings(config.experimental?.useWasmBinary)
 
-  const result = await turbopackBuild()
-  shutdownPromise = result.shutdownPromise
-  return result
+  try {
+    const {
+      shutdownPromise: resultShutdownPromise,
+      buildTraceContext,
+      duration,
+    } = await turbopackBuild()
+    shutdownPromise = resultShutdownPromise
+    return {
+      buildTraceContext,
+      duration,
+    }
+  } finally {
+    // Always flush telemetry before worker exits (waits for async operations like setTimeout in debug mode)
+    await telemetry.flush()
+  }
 }
 
 export async function waitForShutdown(): Promise<void> {

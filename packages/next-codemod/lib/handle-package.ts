@@ -123,6 +123,13 @@ export function runInstallation(
   try {
     execa.sync(packageManager, ['install'], {
       cwd: options.cwd,
+      env: {
+        ...process.env,
+        // In case NODE_ENV=production is set, we still want dev dependencies to
+        // be installed. Otherwise we won't be able to check for peer dependencies.
+        // --production=false is not implemented by every package manager.
+        NODE_ENV: 'development',
+      },
       stdio: 'inherit',
       shell: true,
     })

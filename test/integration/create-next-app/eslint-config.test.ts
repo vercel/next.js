@@ -63,7 +63,6 @@ describe('create-next-app ESLint configuration', () => {
       expect(packageJson.scripts.lint).toBe('eslint')
       expect(packageJson.devDependencies.eslint).toBeTruthy()
       expect(packageJson.devDependencies['eslint-config-next']).toBeTruthy()
-      expect(packageJson.devDependencies['@eslint/eslintrc']).toBeTruthy()
     })
   })
 

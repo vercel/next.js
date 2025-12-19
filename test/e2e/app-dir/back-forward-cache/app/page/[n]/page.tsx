@@ -18,3 +18,7 @@ export default async function Page({
     </>
   )
 }
+
+export function generateStaticParams() {
+  return [{ n: '1' }, { n: '2' }]
+}

@@ -5,8 +5,8 @@ import type { EdgeAppRouteLoaderQuery } from './webpack/loaders/next-edge-app-ro
 import type { NextConfigComplete } from '../server/config-shared'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type {
-  MiddlewareConfig,
-  MiddlewareMatcher,
+  ProxyConfig,
+  ProxyMatcher,
   PageStaticInfo,
 } from './analysis/get-page-static-info'
 import type { LoadedEnvFiles } from '@next/env'
@@ -41,6 +41,7 @@ import type { __ApiPreviewProps } from '../server/api-utils'
 import {
   isMiddlewareFile,
   isMiddlewareFilename,
+  isProxyFile,
   isInstrumentationHookFile,
   isInstrumentationHookFilename,
 } from './utils'
@@ -460,60 +461,65 @@ export async function createPagesMapping({
   appDirOnly: boolean
 }): Promise<MappedPages> {
   const isAppRoute = pagesType === 'app'
-  const pages: MappedPages = {}
-  const promises = pagePaths.map<Promise<void>>(async (pagePath) => {
-    // Do not process .d.ts files as routes
-    if (pagePath.endsWith('.d.ts') && pageExtensions.includes('ts')) {
-      return
-    }
 
-    let pageKey = getPageFromPath(pagePath, pageExtensions)
-    if (isAppRoute) {
-      pageKey = pageKey.replace(/%5F/g, '_')
-      if (pageKey === UNDERSCORE_NOT_FOUND_ROUTE) {
-        pageKey = UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
+  const promises = pagePaths.map<Promise<[string, string] | undefined>>(
+    async (pagePath) => {
+      // Do not process .d.ts files as routes
+      if (pagePath.endsWith('.d.ts') && pageExtensions.includes('ts')) {
+        return
       }
-      if (pageKey === UNDERSCORE_GLOBAL_ERROR_ROUTE) {
-        pageKey = UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+
+      let pageKey = getPageFromPath(pagePath, pageExtensions)
+      if (isAppRoute) {
+        pageKey = pageKey.replace(/%5F/g, '_')
+        if (pageKey === UNDERSCORE_NOT_FOUND_ROUTE) {
+          pageKey = UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
+        }
+        if (pageKey === UNDERSCORE_GLOBAL_ERROR_ROUTE) {
+          pageKey = UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+        }
       }
-    }
 
-    const normalizedPath = normalizePathSep(
-      join(
-        pagesType === 'pages'
-          ? PAGES_DIR_ALIAS
-          : pagesType === 'app'
-            ? APP_DIR_ALIAS
-            : ROOT_DIR_ALIAS,
-        pagePath
+      const normalizedPath = normalizePathSep(
+        join(
+          pagesType === 'pages'
+            ? PAGES_DIR_ALIAS
+            : pagesType === 'app'
+              ? APP_DIR_ALIAS
+              : ROOT_DIR_ALIAS,
+          pagePath
+        )
       )
-    )
 
-    let route = pagesType === 'app' ? normalizeMetadataRoute(pageKey) : pageKey
+      let route =
+        pagesType === 'app' ? normalizeMetadataRoute(pageKey) : pageKey
 
-    if (
-      pagesType === 'app' &&
-      isMetadataRouteFile(pagePath, pageExtensions, true)
-    ) {
-      const filePath = join(appDir!, pagePath)
-      const staticInfo = await getPageStaticInfo({
-        nextConfig: {},
-        pageFilePath: filePath,
-        isDev,
-        page: pageKey,
-        pageType: pagesType,
-      })
+      if (
+        pagesType === 'app' &&
+        isMetadataRouteFile(pagePath, pageExtensions, true)
+      ) {
+        const filePath = join(appDir!, pagePath)
+        const staticInfo = await getPageStaticInfo({
+          nextConfig: {},
+          pageFilePath: filePath,
+          isDev,
+          page: pageKey,
+          pageType: pagesType,
+        })
 
-      route = normalizeMetadataPageToRoute(
-        route,
-        !!(staticInfo.generateImageMetadata || staticInfo.generateSitemaps)
-      )
+        route = normalizeMetadataPageToRoute(
+          route,
+          !!(staticInfo.generateImageMetadata || staticInfo.generateSitemaps)
+        )
+      }
+
+      return [route, normalizedPath]
     }
+  )
 
-    pages[route] = normalizedPath
-  })
-
-  await Promise.all(promises)
+  const pages: MappedPages = Object.fromEntries(
+    (await Promise.all(promises)).filter((entry) => entry != null)
+  )
 
   switch (pagesType) {
     case PAGE_TYPES.ROOT: {
@@ -551,6 +557,12 @@ export async function createPagesMapping({
       // added or removed.
       const root = isDev && pagesDir ? PAGES_DIR_ALIAS : 'next/dist/pages'
 
+      // If there are no user pages routes, treat this as app-dir-only mode.
+      // The pages/ folder could be present and the initial appDirOnly is treated as false, but no valid routes are found.
+      if (Object.keys(pages).length === 0 && !appDirOnly) {
+        appDirOnly = true
+      }
+
       return {
         // Don't add default pages entries if this is an app-router-only build
         ...((isDev || !appDirOnly) && {
@@ -571,7 +583,7 @@ export interface CreateEntrypointsParams {
   buildId: string
   config: NextConfigComplete
   envFiles: LoadedEnvFiles
-  isDev?: boolean
+  isDev: boolean
   pages: MappedPages
   pagesDir?: string
   previewMode: __ApiPreviewProps
@@ -593,12 +605,12 @@ export function getEdgeServerEntry(opts: {
   isServerComponent: boolean
   page: string
   pages: MappedPages
-  middleware?: Partial<MiddlewareConfig>
+  middleware?: Partial<ProxyConfig>
   pagesType: PAGE_TYPES
   appDirLoader?: string
   hasInstrumentationHook?: boolean
   preferredRegion: string | string[] | undefined
-  middlewareConfig?: MiddlewareConfig
+  middlewareConfig?: ProxyConfig
 }) {
   if (
     opts.pagesType === 'app' &&
@@ -609,14 +621,11 @@ export function getEdgeServerEntry(opts: {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
       appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
-      nextConfig: Buffer.from(JSON.stringify(opts.config)).toString('base64'),
       preferredRegion: opts.preferredRegion,
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
       ).toString('base64'),
-      cacheHandlers: JSON.stringify(
-        opts.config.experimental.cacheHandlers || {}
-      ),
+      cacheHandlers: JSON.stringify(opts.config.cacheHandlers || {}),
     }
 
     return {
@@ -642,6 +651,7 @@ export function getEdgeServerEntry(opts: {
     return {
       import: `next-middleware-loader?${stringify(loaderParams)}!`,
       layer: WEBPACK_LAYERS.middleware,
+      filename: opts.isDev ? 'middleware.js' : undefined,
     }
   }
 
@@ -671,9 +681,6 @@ export function getEdgeServerEntry(opts: {
     dev: opts.isDev,
     isServerComponent: opts.isServerComponent,
     page: opts.page,
-    stringifiedConfig: Buffer.from(JSON.stringify(opts.config)).toString(
-      'base64'
-    ),
     pagesType: opts.pagesType,
     appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
     sriEnabled: !opts.isDev && !!opts.config.experimental.sri?.algorithm,
@@ -683,7 +690,7 @@ export function getEdgeServerEntry(opts: {
       JSON.stringify(opts.middlewareConfig || {})
     ).toString('base64'),
     serverActions: opts.config.experimental.serverActions,
-    cacheHandlers: JSON.stringify(opts.config.experimental.cacheHandlers || {}),
+    cacheHandlers: JSON.stringify(opts.config.cacheHandlers || {}),
   }
 
   return {
@@ -764,6 +771,11 @@ export function runDependingOnPageType<T>(params: {
     return
   }
 
+  if (isProxyFile(params.page)) {
+    params.onServer()
+    return
+  }
+
   if (isMiddlewareFile(params.page)) {
     if (params.pageRuntime === 'nodejs') {
       params.onServer()
@@ -830,7 +842,7 @@ export async function createEntrypoints(
   const edgeServer: webpack.EntryObject = {}
   const server: webpack.EntryObject = {}
   const client: webpack.EntryObject = {}
-  let middlewareMatchers: MiddlewareMatcher[] | undefined = undefined
+  let middlewareMatchers: ProxyMatcher[] | undefined = undefined
 
   let appPathsPerRoute: Record<string, string[]> = {}
   if (appDir && appPaths) {

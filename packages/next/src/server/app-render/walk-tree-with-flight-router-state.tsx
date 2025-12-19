@@ -18,7 +18,7 @@ import type { AppRenderContext } from './app-render'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
 import { createComponentTree } from './create-component-tree'
-import { getSegmentParam } from './get-segment-param'
+import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
 
 /**
  * Use router state to decide at what common layout to render the page.
@@ -252,7 +252,6 @@ export async function walkTreeWithFlightRouterState({
   )
   if (layoutPath) {
     getLinkAndScriptTags(
-      ctx.clientReferenceManifest,
       layoutPath,
       injectedCSSWithCurrentLayout,
       injectedJSWithCurrentLayout,
@@ -307,5 +306,5 @@ const canSegmentBeOverridden = (
     return false
   }
 
-  return getSegmentParam(existingSegment)?.param === segment[0]
+  return getSegmentParam(existingSegment)?.paramName === segment[0]
 }

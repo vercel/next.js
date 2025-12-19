@@ -16,6 +16,7 @@ use num_traits::identities::Zero;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHasher;
 use swc_core::{
+    atoms::Wtf8Atom,
     common::Mark,
     ecma::{
         ast::{Id, Ident, Lit},
@@ -24,9 +25,9 @@ use swc_core::{
 };
 use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, Vc};
 use turbopack_core::compile_time_info::{
-    CompileTimeDefineValue, DefinableNameSegment, FreeVarReference,
+    CompileTimeDefineValue, DefinableNameSegment, FreeVarReference, FreeVarReferenceVcs,
 };
 
 use self::imports::ImportAnnotations;
@@ -40,6 +41,7 @@ pub mod builtin;
 pub mod graph;
 pub mod imports;
 pub mod linker;
+pub mod side_effects;
 pub mod top_level_await;
 pub mod well_known;
 
@@ -251,7 +253,9 @@ impl From<&'_ str> for ConstantValue {
 impl From<Lit> for ConstantValue {
     fn from(v: Lit) -> Self {
         match v {
-            Lit::Str(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
+            Lit::Str(v) => {
+                ConstantValue::Str(ConstantString::Atom(v.value.to_atom_lossy().into_owned()))
+            }
             Lit::Bool(v) => {
                 if v.value {
                     ConstantValue::True
@@ -285,7 +289,7 @@ impl Display for ConstantValue {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ModuleValue {
-    pub module: Atom,
+    pub module: Wtf8Atom,
     pub annotations: ImportAnnotations,
 }
 
@@ -567,7 +571,7 @@ impl From<String> for JsValue {
 
 impl From<swc_core::ecma::ast::Str> for JsValue {
     fn from(v: swc_core::ecma::ast::Str) -> Self {
-        ConstantValue::Str(v.value.into()).into()
+        ConstantValue::Str(ConstantString::Atom(v.value.to_atom_lossy().into_owned())).into()
     }
 }
 
@@ -787,7 +791,7 @@ impl Display for JsValue {
                 module: name,
                 annotations,
             }) => {
-                write!(f, "Module({name}, {annotations})")
+                write!(f, "Module({}, {annotations})", name.to_string_lossy())
             }
             JsValue::Unknown { .. } => write!(f, "???"),
             JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({obj:?})"),
@@ -1713,7 +1717,7 @@ impl JsValue {
                 module: name,
                 annotations,
             }) => {
-                format!("module<{name}, {annotations}>")
+                format!("module<{}, {annotations}>", name.to_string_lossy())
             }
             JsValue::Unknown {
                 original_value: inner,
@@ -1788,7 +1792,11 @@ impl JsValue {
                         "module",
                         "The Node.js `module` module: https://nodejs.org/api/module.html",
                     ),
-                    WellKnownObjectKind::ChildProcess | WellKnownObjectKind::ChildProcessDefault => (
+                    WellKnownObjectKind::WorkerThreadsModule | WellKnownObjectKind::WorkerThreadsModuleDefault => (
+                        "worker_threads",
+                        "The Node.js `worker_threads` module: https://nodejs.org/api/worker_threads.html",
+                    ),
+                    WellKnownObjectKind::ChildProcessModule | WellKnownObjectKind::ChildProcessModuleDefault => (
                         "child_process",
                         "The Node.js child_process module: https://nodejs.org/api/child_process.html",
                     ),
@@ -1796,7 +1804,7 @@ impl JsValue {
                         "os",
                         "The Node.js os module: https://nodejs.org/api/os.html",
                     ),
-                    WellKnownObjectKind::NodeProcess => (
+                    WellKnownObjectKind::NodeProcessModule => (
                         "process",
                         "The Node.js process module: https://nodejs.org/api/process.html",
                     ),
@@ -1954,6 +1962,10 @@ impl JsValue {
                       "load/loadSync".to_string(),
                       "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node"
                     ),
+                    WellKnownFunctionKind::NodeWorkerConstructor => (
+                      "Worker".to_string(),
+                      "The Node.js worker_threads Worker constructor: https://nodejs.org/api/worker_threads.html#worker_threads_class_worker"
+                    ),
                     WellKnownFunctionKind::WorkerConstructor => (
                       "Worker".to_string(),
                       "The standard Worker constructor: https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker"
@@ -2086,19 +2098,16 @@ impl JsValue {
     ///
     /// Uses the `VarGraph` to verify that the first segment is not a local
     /// variable/was not reassigned.
-    pub fn match_free_var_reference<'a, T>(
+    pub fn match_free_var_reference(
         &self,
         var_graph: &VarGraph,
-        free_var_references: &'a FxIndexMap<
-            DefinableNameSegment,
-            FxIndexMap<Vec<DefinableNameSegment>, T>,
-        >,
+        free_var_references: &FxIndexMap<DefinableNameSegment, FreeVarReferenceVcs>,
         prop: &DefinableNameSegment,
-    ) -> Option<&'a T> {
+    ) -> Option<ResolvedVc<FreeVarReference>> {
         if let Some(def_name_len) = self.get_definable_name_len()
             && let Some(references) = free_var_references.get(prop)
         {
-            for (name, value) in references {
+            for (name, value) in &references.0 {
                 if name.len() != def_name_len {
                     continue;
                 }
@@ -2109,7 +2118,7 @@ impl JsValue {
                         let first_str: &str = first_str;
                         if var_graph
                             .free_var_ids
-                            .get(&first_str.into())
+                            .get(&Atom::from(first_str))
                             .is_some_and(|id| var_graph.values.contains_key(id))
                         {
                             // `typeof foo...` but `foo` was reassigned
@@ -2117,7 +2126,7 @@ impl JsValue {
                         }
                     }
 
-                    return Some(value);
+                    return Some(*value);
                 }
             }
         }
@@ -3468,11 +3477,13 @@ pub enum WellKnownObjectKind {
     ModuleModuleDefault,
     UrlModule,
     UrlModuleDefault,
-    ChildProcess,
-    ChildProcessDefault,
+    WorkerThreadsModule,
+    WorkerThreadsModuleDefault,
+    ChildProcessModule,
+    ChildProcessModuleDefault,
     OsModule,
     OsModuleDefault,
-    NodeProcess,
+    NodeProcessModule,
     NodeProcessArgv,
     NodeProcessEnv,
     NodePreGyp,
@@ -3492,9 +3503,10 @@ impl WellKnownObjectKind {
             Self::PathModule => Some(&["path"]),
             Self::FsModule => Some(&["fs"]),
             Self::UrlModule => Some(&["url"]),
-            Self::ChildProcess => Some(&["child_process"]),
+            Self::ChildProcessModule => Some(&["child_process"]),
             Self::OsModule => Some(&["os"]),
-            Self::NodeProcess => Some(&["process"]),
+            Self::WorkerThreadsModule => Some(&["worker_threads"]),
+            Self::NodeProcessModule => Some(&["process"]),
             Self::NodeProcessArgv => Some(&["process", "argv"]),
             Self::NodeProcessEnv => Some(&["process", "env"]),
             Self::NodeBuffer => Some(&["Buffer"]),
@@ -3623,6 +3635,8 @@ pub enum WellKnownFunctionKind {
     NodeResolveFrom,
     NodeProtobufLoad,
     WorkerConstructor,
+    // The worker_threads Worker class
+    NodeWorkerConstructor,
     URLConstructor,
 }
 
@@ -3689,7 +3703,7 @@ pub mod test_utils {
             ) => match &args[0] {
                 JsValue::Constant(ConstantValue::Str(v)) => {
                     JsValue::promise(JsValue::Module(ModuleValue {
-                        module: v.as_atom().into_owned(),
+                        module: v.as_atom().into_owned().into(),
                         annotations: ImportAnnotations::default(),
                     }))
                 }
@@ -3797,7 +3811,7 @@ pub mod test_utils {
                 ),
                 "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
                 "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-                "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
+                "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule),
                 "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
                 "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
                 _ => v.into_unknown(true, "unknown global"),

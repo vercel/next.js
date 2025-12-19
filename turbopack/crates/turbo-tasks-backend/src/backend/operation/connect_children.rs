@@ -12,7 +12,7 @@ use crate::{
         Operation, TaskGuard, aggregation_update::InnerOfUppersHasNewFollowersJob,
         get_aggregation_number, get_uppers, is_aggregating_node,
     },
-    data::CachedDataItem,
+    data::{CachedDataItem, CachedDataItemType},
 };
 
 pub fn connect_children(
@@ -27,12 +27,13 @@ pub fn connect_children(
 
     let parent_aggregation = get_aggregation_number(&parent_task);
 
-    for &new_child in new_children.iter() {
-        parent_task.add_new(CachedDataItem::Child {
+    parent_task.extend_new(
+        CachedDataItemType::Child,
+        new_children.iter().map(|&new_child| CachedDataItem::Child {
             task: new_child,
             value: (),
-        });
-    }
+        }),
+    );
 
     let new_follower_ids: SmallVec<_> = new_children.into_iter().collect();
 

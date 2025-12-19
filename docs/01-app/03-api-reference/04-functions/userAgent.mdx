@@ -7,10 +7,10 @@ description: The userAgent helper extends the Web Request API with additional pr
 
 The `userAgent` helper extends the [Web Request API](https://developer.mozilla.org/docs/Web/API/Request) with additional properties and methods to interact with the user agent object from the request.
 
-```ts filename="middleware.ts" switcher
+```ts filename="proxy.ts" switcher
 import { NextRequest, NextResponse, userAgent } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const url = request.nextUrl
   const { device } = userAgent(request)
 
@@ -23,10 +23,10 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-```js filename="middleware.js" switcher
+```js filename="proxy.js" switcher
 import { NextResponse, userAgent } from 'next/server'
 
-export function middleware(request) {
+export function proxy(request) {
   const url = request.nextUrl
   const { device } = userAgent(request)
 

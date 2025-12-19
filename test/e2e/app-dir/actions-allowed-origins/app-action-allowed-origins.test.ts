@@ -26,4 +26,17 @@ describe('app-dir action allowed origins', () => {
       return await browser.elementByCss('#res').text()
     }, 'hi')
   })
+
+  it('should not crash for requests from privacy sensitive contexts', async function () {
+    const res = await next.fetch('/', {
+      method: 'POST',
+      headers: {
+        Origin: 'null',
+        'Content-type': 'application/x-www-form-urlencoded',
+        'Sec-Fetch-Site': 'same-origin',
+      },
+    })
+
+    expect({ status: res.status }).toEqual({ status: 200 })
+  })
 })

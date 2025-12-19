@@ -1,6 +1,6 @@
 Error.stackTraceLimit = 100
 module.exports = function withRspack(config) {
-  if (process.env.NEXT_RSPACK === 'true') {
+  if (process.env.NEXT_RSPACK) {
     // we have already been called.  This can happen when using build workers.
     return config
   }

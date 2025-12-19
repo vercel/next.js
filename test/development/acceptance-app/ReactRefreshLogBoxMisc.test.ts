@@ -4,11 +4,10 @@ import path from 'path'
 import { outdent } from 'outdent'
 
 describe('ReactRefreshLogBox app', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { isTurbopack, next, isRspack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
-  const isRspack = !!process.env.NEXT_RSPACK
 
   test('server-side only compilation errors', async () => {
     await using sandbox = await createSandbox(next)
@@ -48,11 +47,10 @@ describe('ReactRefreshLogBox app', () => {
     } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x "getStaticProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.js
-         × Module build failed:
          ╰─▶   × Error:   x "getStaticProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching
                │   |
                │

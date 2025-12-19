@@ -12,6 +12,10 @@ export async function generateMetadata(_: {
   // cache hit (from the RDC), but omitting unused params from cache keys (and
   // upgrading cache keys when they are used) is not yet implemented.
 
+  // Make sure this cache doesn't resolve instantly,
+  // so that if it causes a cache miss, it's noticeable.
+  await new Promise((resolve) => setTimeout(resolve, 5))
+
   return { title: new Date().toISOString() }
 }
 

@@ -30,6 +30,7 @@ import type { HmrMessageSentToBrowser } from './hot-reloader-types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { devIndicatorServerState } from './dev-indicator-server-state'
 import { createBinaryHmrMessageData } from './messages'
+import type { NextConfigComplete } from '../config-shared'
 
 function isMiddlewareStats(stats: webpack.Stats) {
   for (const key of stats.compilation.entrypoints.keys()) {
@@ -70,31 +71,21 @@ function getStatsForSyncEvent(
 }
 
 export class WebpackHotMiddleware {
-  private clients = new Set<ws>()
-  private clientsByRequestId: Map<string, ws> = new Map()
-
-  clientLatestStats: { ts: number; stats: webpack.Stats } | null
-  middlewareLatestStats: { ts: number; stats: webpack.Stats } | null
-  serverLatestStats: { ts: number; stats: webpack.Stats } | null
-  closed: boolean
-  versionInfo: VersionInfo
-  devtoolsFrontendUrl: string | undefined
-  devToolsConfig: DevToolsConfig
+  private clientsWithoutHtmlRequestId = new Set<ws>()
+  private clientsByHtmlRequestId: Map<string, ws> = new Map()
+  private closed = false
+  private clientLatestStats: { ts: number; stats: webpack.Stats } | null = null
+  private middlewareLatestStats: { ts: number; stats: webpack.Stats } | null =
+    null
+  private serverLatestStats: { ts: number; stats: webpack.Stats } | null = null
 
   constructor(
     compilers: webpack.Compiler[],
-    versionInfo: VersionInfo,
-    devtoolsFrontendUrl: string | undefined,
-    devToolsConfig: DevToolsConfig
+    private versionInfo: VersionInfo,
+    private devtoolsFrontendUrl: string | undefined,
+    private config: NextConfigComplete,
+    private devToolsConfig: DevToolsConfig
   ) {
-    this.clientLatestStats = null
-    this.middlewareLatestStats = null
-    this.serverLatestStats = null
-    this.closed = false
-    this.versionInfo = versionInfo
-    this.devtoolsFrontendUrl = devtoolsFrontendUrl
-    this.devToolsConfig = devToolsConfig || ({} as DevToolsConfig)
-
     compilers[0].hooks.invalid.tap(
       'webpack-hot-middleware',
       this.onClientInvalid
@@ -172,20 +163,20 @@ export class WebpackHotMiddleware {
    * and we still want to show the client overlay with the error while
    * the error page should be rendered just fine.
    */
-  onHMR = (client: ws, requestId: string | null) => {
+  onHMR = (client: ws, htmlRequestId: string | null) => {
     if (this.closed) return
 
-    this.clients.add(client)
-
-    if (requestId) {
-      this.clientsByRequestId.set(requestId, client)
+    if (htmlRequestId) {
+      this.clientsByHtmlRequestId.set(htmlRequestId, client)
+    } else {
+      this.clientsWithoutHtmlRequestId.add(client)
     }
 
     client.addEventListener('close', () => {
-      this.clients.delete(client)
-
-      if (requestId) {
-        this.clientsByRequestId.delete(requestId)
+      if (htmlRequestId) {
+        this.clientsByHtmlRequestId.delete(htmlRequestId)
+      } else {
+        this.clientsWithoutHtmlRequestId.delete(client)
       }
     })
 
@@ -237,8 +228,8 @@ export class WebpackHotMiddleware {
     })
   }
 
-  getClient = (requestId: string): ws | undefined => {
-    return this.clientsByRequestId.get(requestId)
+  getClient = (htmlRequestId: string): ws | undefined => {
+    return this.clientsByHtmlRequestId.get(htmlRequestId)
   }
 
   publishToClient = (client: ws, message: HmrMessageSentToBrowser) => {
@@ -259,7 +250,32 @@ export class WebpackHotMiddleware {
       return
     }
 
-    for (const wsClient of this.clients) {
+    for (const wsClient of [
+      ...this.clientsWithoutHtmlRequestId,
+      ...this.clientsByHtmlRequestId.values(),
+    ]) {
+      this.publishToClient(wsClient, message)
+    }
+  }
+
+  publishToLegacyClients = (message: HmrMessageSentToBrowser) => {
+    if (this.closed) {
+      return
+    }
+
+    // Clients with a request ID are inferred App Router clients. If Cache
+    // Components is not enabled, we consider those legacy clients. Pages
+    // Router clients are also considered legacy clients. TODO: Maybe mark
+    // clients as App Router / Pages Router clients explicitly, instead of
+    // inferring it from the presence of a request ID.
+
+    if (!this.config.cacheComponents) {
+      for (const wsClient of this.clientsByHtmlRequestId.values()) {
+        this.publishToClient(wsClient, message)
+      }
+    }
+
+    for (const wsClient of this.clientsWithoutHtmlRequestId) {
       this.publishToClient(wsClient, message)
     }
   }
@@ -273,28 +289,36 @@ export class WebpackHotMiddleware {
     // https://github.com/webpack/tapable/issues/32#issuecomment-350644466
     this.closed = true
 
-    for (const wsClient of this.clients) {
+    for (const wsClient of [
+      ...this.clientsWithoutHtmlRequestId,
+      ...this.clientsByHtmlRequestId.values(),
+    ]) {
       // it's okay to not cleanly close these websocket connections, this is dev
       wsClient.terminate()
     }
 
-    this.clients.clear()
-    this.clientsByRequestId.clear()
+    this.clientsWithoutHtmlRequestId.clear()
+    this.clientsByHtmlRequestId.clear()
   }
 
-  deleteClient = (client: ws, requestId: string | null) => {
-    this.clients.delete(client)
-
-    if (requestId) {
-      this.clientsByRequestId.delete(requestId)
+  deleteClient = (client: ws, htmlRequestId: string | null) => {
+    if (htmlRequestId) {
+      this.clientsByHtmlRequestId.delete(htmlRequestId)
+    } else {
+      this.clientsWithoutHtmlRequestId.delete(client)
     }
   }
 
   hasClients = () => {
-    return this.clients.size > 0
+    return (
+      this.clientsWithoutHtmlRequestId.size + this.clientsByHtmlRequestId.size >
+      0
+    )
   }
 
   getClientCount = () => {
-    return this.clients.size
+    return (
+      this.clientsWithoutHtmlRequestId.size + this.clientsByHtmlRequestId.size
+    )
   }
 }
