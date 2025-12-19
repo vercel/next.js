@@ -44,8 +44,8 @@ where
         let mut futures = FuturesUnordered::new();
         let mut is_abort = false;
 
-        // Populate `futures` with all the roots, `root_edges` isn't required to be `Send`, so this
-        // has to happen outside of the future. We could require `root_edges` to be `Send` in the
+        // Populate `futures` with all the roots, `root_nodes` isn't required to be `Send`, so this
+        // has to happen outside of the future. We could require `root_nodes` to be `Send` in the
         // future.
         for node in root_nodes {
             match visit.visit(&node, None) {

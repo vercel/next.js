@@ -32,9 +32,7 @@ pub trait Visit<Node, Edge = (), Impl = ()> {
     fn edges(&mut self, node: &Node) -> Self::EdgesFuture;
 
     /// Returns a [Span] for the given `node`, under which all edges are processed.
-    fn span(&mut self, node: &Node, edge: Option<&Edge>) -> Span {
-        let _ = node;
-        let _ = edge;
+    fn span(&mut self, _node: &Node, _edge: Option<&Edge>) -> Span {
         Span::none()
     }
 }

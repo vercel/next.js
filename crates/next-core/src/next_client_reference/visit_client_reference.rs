@@ -261,7 +261,7 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
 
     fn span(&mut self, node: &FindServerEntriesNode, _edge: Option<&()>) -> tracing::Span {
         if !self.emit_spans {
-            return Span::current();
+            return Span::none();
         }
         match node {
             FindServerEntriesNode::ClientReference => {
