@@ -12,7 +12,8 @@ use crate::{
     backend::dynamic_storage::DynamicStorage,
     data::{
         AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
-        CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, OutputValue,
+        CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, Dirtiness,
+        OutputValue,
     },
     data_storage::{AutoMapStorage, OptionStorage},
     utils::{
@@ -102,6 +103,12 @@ bitfield! {
     pub data_snapshot, set_data_snapshot: 5;
     /// Prefetched dependencies
     pub prefetched, set_prefetched: 6;
+    pub immutable, set_immutable: 7;
+    pub has_invalidator, set_has_invalidator: 8;
+    pub stateful, set_stateful: 9;
+    pub current_session_clean, set_current_session_clean: 10;
+    /// Dirty state: 2 bits to encode None (0), Dirty (1), SessionDependent (2)
+    pub u8, dirty_state, set_dirty_state: 12, 11;
 }
 
 impl InnerStorageState {
@@ -135,6 +142,26 @@ impl InnerStorageState {
     pub fn any_modified(&self) -> bool {
         self.meta_modified() || self.data_modified()
     }
+
+    /// Get the dirty state as an Option<Dirtiness>
+    /// Encoding: 0 = None, 1 = Dirty, 2 = SessionDependent
+    pub fn get_dirty(&self) -> Option<crate::data::Dirtiness> {
+        match self.dirty_state() {
+            0 => None,
+            1 => Some(crate::data::Dirtiness::Dirty),
+            2 => Some(crate::data::Dirtiness::SessionDependent),
+            _ => None, // Invalid state, treat as None
+        }
+    }
+
+    /// Set the dirty state from an Option<Dirtiness>
+    pub fn set_dirty(&mut self, dirtiness: Option<crate::data::Dirtiness>) {
+        match dirtiness {
+            None => self.set_dirty_state(0),
+            Some(crate::data::Dirtiness::Dirty) => self.set_dirty_state(1),
+            Some(crate::data::Dirtiness::SessionDependent) => self.set_dirty_state(2),
+        }
+    }
 }
 
 pub struct InnerStorageSnapshot {
@@ -145,6 +172,12 @@ pub struct InnerStorageSnapshot {
     dynamic: DynamicStorage,
     pub meta_modified: bool,
     pub data_modified: bool,
+    // Bitfield-backed items
+    stateful: bool,
+    immutable: bool,
+    has_invalidator: bool,
+    current_session_clean: bool,
+    dirty: Option<crate::data::Dirtiness>,
 }
 
 impl From<&InnerStorage> for InnerStorageSnapshot {
@@ -157,6 +190,11 @@ impl From<&InnerStorage> for InnerStorageSnapshot {
             dynamic: inner.dynamic.snapshot_for_persisting(),
             meta_modified: inner.state.meta_modified(),
             data_modified: inner.state.data_modified(),
+            stateful: inner.state.stateful(),
+            immutable: inner.state.immutable(),
+            has_invalidator: inner.state.has_invalidator(),
+            current_session_clean: inner.state.current_session_clean(),
+            dirty: inner.state.get_dirty(),
         }
     }
 }
@@ -192,6 +230,36 @@ impl InnerStorageSnapshot {
                     CachedDataItemValueRef::OutputDependent { value },
                 )
             }))
+            .chain(self.stateful.then_some({
+                (
+                    CachedDataItemKey::Stateful {},
+                    CachedDataItemValueRef::Stateful { value: &() },
+                )
+            }))
+            .chain(self.immutable.then_some({
+                (
+                    CachedDataItemKey::Immutable {},
+                    CachedDataItemValueRef::Immutable { value: &() },
+                )
+            }))
+            .chain(self.has_invalidator.then_some({
+                (
+                    CachedDataItemKey::HasInvalidator {},
+                    CachedDataItemValueRef::HasInvalidator { value: &() },
+                )
+            }))
+            .chain(self.current_session_clean.then_some({
+                (
+                    CachedDataItemKey::CurrentSessionClean {},
+                    CachedDataItemValueRef::CurrentSessionClean { value: &() },
+                )
+            }))
+            .chain(self.dirty.as_ref().map(|v| {
+                (
+                    CachedDataItemKey::Dirty {},
+                    CachedDataItemValueRef::Dirty { value: v },
+                )
+            }))
     }
 
     pub fn len(&self) -> usize {
@@ -201,6 +269,11 @@ impl InnerStorageSnapshot {
             + self.output.len()
             + self.upper.len()
             + self.output_dependent.len()
+            + (self.stateful as usize)
+            + (self.immutable as usize)
+            + (self.has_invalidator as usize)
+            + (self.current_session_clean as usize)
+            + (self.dirty.is_some() as usize)
     }
 }
 
@@ -232,6 +305,216 @@ impl InnerStorage {
 
     pub fn state_mut(&mut self) -> &mut InnerStorageState {
         &mut self.state
+    }
+
+    // Bitfield-backed storage operations
+    // These handle CachedDataItem variants that are stored as bits in InnerStorageState
+
+    /// Try to add a bitfield-backed item. Returns Some(true) if added, Some(false) if already
+    /// present, None if not a bitfield item.
+    fn try_add_bitfield(&mut self, item: &CachedDataItem) -> Option<bool> {
+        match item {
+            CachedDataItem::Stateful { .. } => {
+                if !self.state.stateful() {
+                    self.state.set_stateful(true);
+                    Some(true)
+                } else {
+                    Some(false)
+                }
+            }
+            CachedDataItem::Immutable { .. } => {
+                if !self.state.immutable() {
+                    self.state.set_immutable(true);
+                    Some(true)
+                } else {
+                    Some(false)
+                }
+            }
+            CachedDataItem::HasInvalidator { .. } => {
+                if !self.state.has_invalidator() {
+                    self.state.set_has_invalidator(true);
+                    Some(true)
+                } else {
+                    Some(false)
+                }
+            }
+            CachedDataItem::CurrentSessionClean { .. } => {
+                if !self.state.current_session_clean() {
+                    self.state.set_current_session_clean(true);
+                    Some(true)
+                } else {
+                    Some(false)
+                }
+            }
+            CachedDataItem::Dirty { value } => {
+                if self.state.get_dirty().is_none() {
+                    self.state.set_dirty(Some(*value));
+                    Some(true)
+                } else {
+                    Some(false)
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// Try to insert a bitfield-backed item. Returns Some(old_value) if it's a bitfield item, None
+    /// otherwise.
+    fn try_insert_bitfield(
+        &mut self,
+        item: &CachedDataItem,
+    ) -> Option<Option<CachedDataItemValue>> {
+        match item {
+            CachedDataItem::Stateful { .. } => {
+                let had_value = self.state.stateful();
+                self.state.set_stateful(true);
+                Some(had_value.then(|| CachedDataItemValue::Stateful { value: () }))
+            }
+            CachedDataItem::Immutable { .. } => {
+                let had_value = self.state.immutable();
+                self.state.set_immutable(true);
+                Some(had_value.then(|| CachedDataItemValue::Immutable { value: () }))
+            }
+            CachedDataItem::HasInvalidator { .. } => {
+                let had_value = self.state.has_invalidator();
+                self.state.set_has_invalidator(true);
+                Some(had_value.then(|| CachedDataItemValue::HasInvalidator { value: () }))
+            }
+            CachedDataItem::CurrentSessionClean { .. } => {
+                let had_value = self.state.current_session_clean();
+                self.state.set_current_session_clean(true);
+                Some(had_value.then(|| CachedDataItemValue::CurrentSessionClean { value: () }))
+            }
+            CachedDataItem::Dirty { value } => {
+                let old_value = self.state.get_dirty();
+                self.state.set_dirty(Some(*value));
+                Some(old_value.map(|v| CachedDataItemValue::Dirty { value: v }))
+            }
+            _ => None,
+        }
+    }
+
+    /// Try to remove a bitfield-backed item. Returns Some(old_value) if it's a bitfield item, None
+    /// otherwise.
+    fn try_remove_bitfield(
+        &mut self,
+        key: &CachedDataItemKey,
+    ) -> Option<Option<CachedDataItemValue>> {
+        match key {
+            CachedDataItemKey::Stateful { .. } => {
+                let had_value = self.state.stateful();
+                self.state.set_stateful(false);
+                Some(had_value.then(|| CachedDataItemValue::Stateful { value: () }))
+            }
+            CachedDataItemKey::Immutable { .. } => {
+                let had_value = self.state.immutable();
+                self.state.set_immutable(false);
+                Some(had_value.then(|| CachedDataItemValue::Immutable { value: () }))
+            }
+            CachedDataItemKey::HasInvalidator { .. } => {
+                let had_value = self.state.has_invalidator();
+                self.state.set_has_invalidator(false);
+                Some(had_value.then(|| CachedDataItemValue::HasInvalidator { value: () }))
+            }
+            CachedDataItemKey::CurrentSessionClean { .. } => {
+                let had_value = self.state.current_session_clean();
+                self.state.set_current_session_clean(false);
+                Some(had_value.then(|| CachedDataItemValue::CurrentSessionClean { value: () }))
+            }
+            CachedDataItemKey::Dirty { .. } => {
+                let old_value = self.state.get_dirty();
+                self.state.set_dirty(None);
+                Some(old_value.map(|v| CachedDataItemValue::Dirty { value: v }))
+            }
+            _ => None,
+        }
+    }
+
+    /// Try to get a bitfield-backed item. Returns Some(Some(value)) if present, Some(None) if
+    /// absent, None if not a bitfield item. Note: Dirty is not supported via get() because it
+    /// has a non-unit value and we can't return a reference to a bitfield. Use contains_key()
+    /// and then access via dynamic storage or use a different method.
+    fn try_get_bitfield(
+        &self,
+        key: &CachedDataItemKey,
+    ) -> Option<Option<CachedDataItemValueRef<'_>>> {
+        match key {
+            CachedDataItemKey::Stateful { .. } => Some(
+                self.state
+                    .stateful()
+                    .then_some(CachedDataItemValueRef::Stateful { value: &() }),
+            ),
+            CachedDataItemKey::Immutable { .. } => Some(
+                self.state
+                    .immutable()
+                    .then_some(CachedDataItemValueRef::Immutable { value: &() }),
+            ),
+            CachedDataItemKey::HasInvalidator { .. } => Some(
+                self.state
+                    .has_invalidator()
+                    .then_some(CachedDataItemValueRef::HasInvalidator { value: &() }),
+            ),
+            CachedDataItemKey::CurrentSessionClean { .. } => Some(
+                self.state
+                    .current_session_clean()
+                    .then_some(CachedDataItemValueRef::CurrentSessionClean { value: &() }),
+            ),
+            CachedDataItemKey::Dirty {} => {
+                Some(
+                    self.state
+                        .get_dirty()
+                        .map(|d| CachedDataItemValueRef::Dirty {
+                            value: match d {
+                                Dirtiness::Dirty => &Dirtiness::Dirty,
+                                Dirtiness::SessionDependent => &Dirtiness::SessionDependent,
+                            },
+                        }),
+                )
+            }
+            _ => None,
+        }
+    }
+
+    /// Try to check if a bitfield-backed item exists. Returns Some(exists) if it's a bitfield item,
+    /// None otherwise.
+    fn try_contains_bitfield(&self, key: &CachedDataItemKey) -> Option<bool> {
+        match key {
+            CachedDataItemKey::Stateful { .. } => Some(self.state.stateful()),
+            CachedDataItemKey::Immutable { .. } => Some(self.state.immutable()),
+            CachedDataItemKey::HasInvalidator { .. } => Some(self.state.has_invalidator()),
+            CachedDataItemKey::CurrentSessionClean { .. } => {
+                Some(self.state.current_session_clean())
+            }
+            CachedDataItemKey::Dirty { .. } => Some(self.state.get_dirty().is_some()),
+            _ => None,
+        }
+    }
+
+    /// Check if a key is a bitfield item (for methods that don't support bitfield access)
+    fn is_bitfield_key(&self, key: &CachedDataItemKey) -> bool {
+        matches!(
+            key,
+            CachedDataItemKey::Stateful { .. }
+                | CachedDataItemKey::Immutable { .. }
+                | CachedDataItemKey::HasInvalidator { .. }
+                | CachedDataItemKey::CurrentSessionClean { .. }
+                | CachedDataItemKey::Dirty { .. }
+        )
+    }
+
+    /// Count bitfield items for a given type. Returns Some(count) if it's a bitfield type, None
+    /// otherwise.
+    fn try_count_bitfield(&self, ty: CachedDataItemType) -> Option<usize> {
+        match ty {
+            CachedDataItemType::Stateful => Some(self.state.stateful() as usize),
+            CachedDataItemType::Immutable => Some(self.state.immutable() as usize),
+            CachedDataItemType::HasInvalidator => Some(self.state.has_invalidator() as usize),
+            CachedDataItemType::CurrentSessionClean => {
+                Some(self.state.current_session_clean() as usize)
+            }
+            CachedDataItemType::Dirty => Some(self.state.get_dirty().is_some() as usize),
+            _ => None,
+        }
     }
 }
 
@@ -451,54 +734,89 @@ macro_rules! generate_inner_storage {
     ($($config:tt)*) => {
         impl InnerStorage {
             pub fn add(&mut self, item: CachedDataItem) -> bool {
+                // Check bitfield storage first
+                if let Some(result) = self.try_add_bitfield(&item) {
+                    return result;
+                }
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(CachedDataItem: self, item, value, none, add(value): $($config)*);
                 self.dynamic.add(item)
             }
 
             pub fn extend(&mut self, ty: CachedDataItemType, items: impl Iterator<Item = CachedDataItem>) -> bool {
+                // Note: extend is not optimized for bitfield items because it takes an iterator
+                // and we'd need to buffer it. It's rarely used for these items anyway.
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(extend: self, ty, items: $($config)*);
                 self.dynamic.extend(ty, items)
             }
 
             pub fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
+                // Check bitfield storage first
+                if let Some(result) = self.try_insert_bitfield(&item) {
+                    return result;
+                }
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(CachedDataItem: self, item, value, option_value, insert(value): $($config)*);
                 self.dynamic.insert(item)
             }
 
             pub fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
+                // Check bitfield storage first
+                if let Some(result) = self.try_remove_bitfield(key) {
+                    return result;
+                }
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_value, remove(): $($config)*);
                 self.dynamic.remove(key)
             }
 
             pub fn count(&self, ty: CachedDataItemType) -> usize {
+                // Check bitfield storage first
+                if let Some(result) = self.try_count_bitfield(ty) {
+                    return result;
+                }
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(CachedDataItemType: self, ty, none, len(): $($config)*);
                 self.dynamic.count(ty)
             }
 
             pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>> {
+                // Check bitfield storage first
+                if let Some(result) = self.try_get_bitfield(key) {
+                    return result;
+                }
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_ref, get(): $($config)*);
                 self.dynamic.get(key)
             }
 
             pub fn contains_key(&self, key: &CachedDataItemKey) -> bool {
+                // Check bitfield storage first
+                if let Some(result) = self.try_contains_bitfield(key) {
+                    return result;
+                }
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, none, contains_key(): $($config)*);
                 self.dynamic.contains_key(key)
             }
 
             pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
+                // Bitfield items don't support mutable access (they're just flags)
+                // Return None for bitfield keys so they fall through to dynamic storage
+                if self.is_bitfield_key(key) {
+                    return None;
+                }
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_ref_mut, get_mut(): $($config)*);
                 self.dynamic.get_mut(key)
             }
 
             pub fn shrink_to_fit(&mut self, ty: CachedDataItemType) {
+                // Bitfield types don't need shrinking
+                if self.try_count_bitfield(ty).is_some() {
+                    return;
+                }
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(CachedDataItemType: self, ty, none, shrink_to_fit(): $($config)*);
                 self.dynamic.shrink_to_fit(ty)
@@ -509,6 +827,49 @@ macro_rules! generate_inner_storage {
                 key: CachedDataItemKey,
                 update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
             ) {
+                // Check bitfield storage first - but we need to do this without moving `update`
+                if self.is_bitfield_key(&key) {
+                    // Handle bitfield update inline to avoid moving the closure
+                    match &key {
+                        CachedDataItemKey::Stateful { .. } => {
+                            let old = self.state.stateful().then(|| CachedDataItemValue::Stateful { value: () });
+                            let new = update(old);
+                            self.state.set_stateful(new.is_some());
+                            return;
+                        }
+                        CachedDataItemKey::Immutable { .. } => {
+                            let old = self.state.immutable().then(|| CachedDataItemValue::Immutable { value: () });
+                            let new = update(old);
+                            self.state.set_immutable(new.is_some());
+                            return;
+                        }
+                        CachedDataItemKey::HasInvalidator { .. } => {
+                            let old = self.state.has_invalidator().then(|| CachedDataItemValue::HasInvalidator { value: () });
+                            let new = update(old);
+                            self.state.set_has_invalidator(new.is_some());
+                            return;
+                        }
+                        CachedDataItemKey::CurrentSessionClean { .. } => {
+                            let old = self.state.current_session_clean().then(|| CachedDataItemValue::CurrentSessionClean { value: () });
+                            let new = update(old);
+                            self.state.set_current_session_clean(new.is_some());
+                            return;
+                        }
+                        CachedDataItemKey::Dirty { .. } => {
+                            let old = self.state.get_dirty().map(|v| CachedDataItemValue::Dirty { value: v });
+                            let new = update(old);
+                            self.state.set_dirty(new.and_then(|v| {
+                                if let CachedDataItemValue::Dirty { value } = v {
+                                    Some(value)
+                                } else {
+                                    None
+                                }
+                            }));
+                            return;
+                        }
+                        _ => unreachable!("is_bitfield_key returned true for non-bitfield key"),
+                    }
+                }
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(update: self, key, update: $($config)*);
                 self.dynamic.update(key, update)
@@ -522,6 +883,65 @@ macro_rules! generate_inner_storage {
             where
                 F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
             {
+                // Handle bitfield types - they can be extracted if the predicate matches
+                match ty {
+                    CachedDataItemType::Stateful => {
+                        if self.state.stateful() {
+                            let key = CachedDataItemKey::Stateful {};
+                            let value_ref = CachedDataItemValueRef::Stateful { value: &() };
+                            if f(key, value_ref) {
+                                self.state.set_stateful(false);
+                                return InnerStorageIter::Bitfield(Some(CachedDataItem::Stateful { value: () }));
+                            }
+                        }
+                        return InnerStorageIter::Bitfield(None);
+                    }
+                    CachedDataItemType::Immutable => {
+                        if self.state.immutable() {
+                            let key = CachedDataItemKey::Immutable {};
+                            let value_ref = CachedDataItemValueRef::Immutable { value: &() };
+                            if f(key, value_ref) {
+                                self.state.set_immutable(false);
+                                return InnerStorageIter::Bitfield(Some(CachedDataItem::Immutable { value: () }));
+                            }
+                        }
+                        return InnerStorageIter::Bitfield(None);
+                    }
+                    CachedDataItemType::HasInvalidator => {
+                        if self.state.has_invalidator() {
+                            let key = CachedDataItemKey::HasInvalidator {};
+                            let value_ref = CachedDataItemValueRef::HasInvalidator { value: &() };
+                            if f(key, value_ref) {
+                                self.state.set_has_invalidator(false);
+                                return InnerStorageIter::Bitfield(Some(CachedDataItem::HasInvalidator { value: () }));
+                            }
+                        }
+                        return InnerStorageIter::Bitfield(None);
+                    }
+                    CachedDataItemType::CurrentSessionClean => {
+                        if self.state.current_session_clean() {
+                            let key = CachedDataItemKey::CurrentSessionClean {};
+                            let value_ref = CachedDataItemValueRef::CurrentSessionClean { value: &() };
+                            if f(key, value_ref) {
+                                self.state.set_current_session_clean(false);
+                                return InnerStorageIter::Bitfield(Some(CachedDataItem::CurrentSessionClean { value: () }));
+                            }
+                        }
+                        return InnerStorageIter::Bitfield(None);
+                    }
+                    CachedDataItemType::Dirty => {
+                        if let Some(dirty_value) = self.state.get_dirty() {
+                            let key = CachedDataItemKey::Dirty {};
+                            let value_ref = CachedDataItemValueRef::Dirty { value: &dirty_value };
+                            if f(key, value_ref) {
+                                self.state.set_dirty(None);
+                                return InnerStorageIter::Bitfield(Some(CachedDataItem::Dirty { value: dirty_value }));
+                            }
+                        }
+                        return InnerStorageIter::Bitfield(None);
+                    }
+                    _ => {}
+                }
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(extract_if: self, ty, f: $($config)*);
                 InnerStorageIter::Dynamic(self.dynamic.extract_if(ty, f))
@@ -533,6 +953,12 @@ macro_rules! generate_inner_storage {
                 f: impl FnOnce() -> CachedDataItemValue,
             ) -> CachedDataItemValueRefMut<'_>
             {
+                // Bitfield items don't support mutable access
+                // For these items, we just insert them and panic since they shouldn't be used this way
+                // In practice, bitfield items are only accessed via add/contains_key, not get_mut_or_insert_with
+                if self.is_bitfield_key(&key) {
+                    panic!("get_mut_or_insert_with not supported for bitfield items: {:?}", key);
+                }
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(get_mut_or_insert_with: self, key, f: $($config)*);
                 self.dynamic.get_mut_or_insert_with(key, f)
@@ -543,6 +969,47 @@ macro_rules! generate_inner_storage {
                 ty: CachedDataItemType,
             ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)>
             {
+                // Handle bitfield types - return an iterator with at most one element
+                // Note: Dirty is NOT supported via iter() because we can't return a reference to a bitfield value
+                match ty {
+                    CachedDataItemType::Stateful => {
+                        if self.state.stateful() {
+                            let item = (CachedDataItemKey::Stateful {}, CachedDataItemValueRef::Stateful { value: &() });
+                            return InnerStorageIter::Bitfield(Some(item));
+                        } else {
+                            return InnerStorageIter::Bitfield(None);
+                        }
+                    }
+                    CachedDataItemType::Immutable => {
+                        if self.state.immutable() {
+                            let item = (CachedDataItemKey::Immutable {}, CachedDataItemValueRef::Immutable { value: &() });
+                            return InnerStorageIter::Bitfield(Some(item));
+                        } else {
+                            return InnerStorageIter::Bitfield(None);
+                        }
+                    }
+                    CachedDataItemType::HasInvalidator => {
+                        if self.state.has_invalidator() {
+                            let item = (CachedDataItemKey::HasInvalidator {}, CachedDataItemValueRef::HasInvalidator { value: &() });
+                            return InnerStorageIter::Bitfield(Some(item));
+                        } else {
+                            return InnerStorageIter::Bitfield(None);
+                        }
+                    }
+                    CachedDataItemType::CurrentSessionClean => {
+                        if self.state.current_session_clean() {
+                            let item = (CachedDataItemKey::CurrentSessionClean {}, CachedDataItemValueRef::CurrentSessionClean { value: &() });
+                            return InnerStorageIter::Bitfield(Some(item));
+                        } else {
+                            return InnerStorageIter::Bitfield(None);
+                        }
+                    }
+                    // Dirty is not supported via iter() - can't return a reference to a bitfield value
+                    CachedDataItemType::Dirty => {
+                        return InnerStorageIter::Bitfield(None);
+                    }
+                    _ => {}
+                }
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(iter: self, ty: $($config)*);
                 InnerStorageIter::Dynamic(self.dynamic.iter(ty))
@@ -559,15 +1026,16 @@ generate_inner_storage!(
     Upper task => upper,
 );
 
-enum InnerStorageIter<A, B, C, D, E> {
+enum InnerStorageIter<A, B, C, D, E, T> {
     AggregationNumber(A),
     OutputDependent(B),
     Output(C),
     Upper(D),
     Dynamic(E),
+    Bitfield(Option<T>),
 }
 
-impl<T, A, B, C, D, E> Iterator for InnerStorageIter<A, B, C, D, E>
+impl<T, A, B, C, D, E> Iterator for InnerStorageIter<A, B, C, D, E, T>
 where
     A: Iterator<Item = T>,
     B: Iterator<Item = T>,
@@ -584,6 +1052,7 @@ where
             InnerStorageIter::Output(iter) => iter.next(),
             InnerStorageIter::Upper(iter) => iter.next(),
             InnerStorageIter::Dynamic(iter) => iter.next(),
+            InnerStorageIter::Bitfield(item) => item.take(),
         }
     }
 }
@@ -619,6 +1088,41 @@ impl InnerStorage {
                     CachedDataItemValueRef::OutputDependent { value },
                 )
             }))
+            .chain(self.state.stateful().then_some({
+                (
+                    CachedDataItemKey::Stateful {},
+                    CachedDataItemValueRef::Stateful { value: &() },
+                )
+            }))
+            .chain(self.state.immutable().then_some({
+                (
+                    CachedDataItemKey::Immutable {},
+                    CachedDataItemValueRef::Immutable { value: &() },
+                )
+            }))
+            .chain(self.state.has_invalidator().then_some({
+                (
+                    CachedDataItemKey::HasInvalidator {},
+                    CachedDataItemValueRef::HasInvalidator { value: &() },
+                )
+            }))
+            .chain(self.state.current_session_clean().then_some({
+                (
+                    CachedDataItemKey::CurrentSessionClean {},
+                    CachedDataItemValueRef::CurrentSessionClean { value: &() },
+                )
+            }))
+            .chain(self.state.get_dirty().map(|d| {
+                (
+                    CachedDataItemKey::Dirty {},
+                    CachedDataItemValueRef::Dirty {
+                        value: match d {
+                            Dirtiness::Dirty => &Dirtiness::Dirty,
+                            Dirtiness::SessionDependent => &Dirtiness::SessionDependent,
+                        },
+                    },
+                )
+            }))
     }
 
     pub fn len(&self) -> usize {
@@ -628,6 +1132,11 @@ impl InnerStorage {
             + self.output.len()
             + self.upper.len()
             + self.output_dependent.len()
+            + (self.state.stateful() as usize)
+            + (self.state.immutable() as usize)
+            + (self.state.has_invalidator() as usize)
+            + (self.state.current_session_clean() as usize)
+            + (self.state.get_dirty().is_some() as usize)
     }
 }
 

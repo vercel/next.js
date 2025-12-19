@@ -141,7 +141,7 @@ transient_traits!(ActivenessState);
 impl Eq for ActivenessState {}
 
 #[derive(Debug, Clone, Copy, Encode, Decode, PartialEq, Eq)]
-pub enum Dirtyness {
+pub enum Dirtiness {
     Dirty,
     SessionDependent,
 }
@@ -225,7 +225,7 @@ pub enum CachedDataItem {
 
     // State
     Dirty {
-        value: Dirtyness,
+        value: Dirtiness,
     },
     CurrentSessionClean {
         // TODO: bgw: Add a way to skip the entire enum variant in bincode (generating an error
@@ -241,9 +241,10 @@ pub enum CachedDataItem {
     },
 
     // Cells
+    #[bincode(with = "cell_data_bincode")]
     CellData {
         cell: CellId,
-        value: TypedSharedReference,
+        value: SharedReference,
     },
     TransientCellData {
         #[bincode(skip, default = "unreachable_decode")]
@@ -376,6 +377,45 @@ pub enum CachedDataItem {
     },
 }
 
+// Customized encoding/decoding for CellData
+// This allows us to serialize a SharedReference leveraging the type_id from the cell_id
+mod cell_data_bincode {
+    use bincode::{Decode, Encode};
+    use turbo_tasks::{CellId, SharedReference, TypedSharedReference};
+
+    use super::CachedDataItem;
+
+    pub fn encode<E: bincode::enc::Encoder>(
+        cell_id: &CellId,
+        value: &SharedReference,
+        encoder: &mut E,
+    ) -> Result<(), bincode::error::EncodeError> {
+        Encode::encode(&cell_id.index, encoder)?;
+        // This clone seems unnecessary.  We would need to inline TypedSharedReference encode to
+        // remove it.
+        value.clone().into_typed(cell_id.type_id).encode(encoder)
+    }
+    pub fn decode<Context, D: bincode::de::Decoder<Context = Context>>(
+        decoder: &mut D,
+    ) -> Result<CachedDataItem, bincode::error::DecodeError> {
+        let index = <u32 as Decode<Context>>::decode(decoder)?;
+        let reference = TypedSharedReference::decode(decoder)?;
+
+        Ok(CachedDataItem::CellData {
+            cell: CellId {
+                type_id: reference.type_id,
+                index,
+            },
+            value: reference.into_untyped(),
+        })
+    }
+    pub fn borrow_decode<'de, Context, D: bincode::de::BorrowDecoder<'de, Context = Context>>(
+        decoder: &mut D,
+    ) -> Result<CachedDataItem, bincode::error::DecodeError> {
+        decode(decoder)
+    }
+}
+
 fn unreachable_decode<T>() -> T {
     unreachable!("CachedDataItem variant should not have been encoded, cannot decode")
 }
@@ -387,7 +427,10 @@ impl CachedDataItem {
         value: TypedSharedReference,
     ) -> Self {
         if is_serializable_cell_content {
-            CachedDataItem::CellData { cell, value }
+            CachedDataItem::CellData {
+                cell,
+                value: value.into_untyped(),
+            }
         } else {
             CachedDataItem::TransientCellData {
                 cell,

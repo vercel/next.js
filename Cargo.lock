@@ -563,7 +563,7 @@ dependencies = [
 [[package]]
 name = "bincode"
 version = "2.0.1"
-source = "git+https://github.com/bgw/bincode.git?branch=bgw%2Fpatches#19f09c5f6895d769883c10b3d374f761ab7fe83d"
+source = "git+https://github.com/lukesandberg/bincode.git?branch=customize_enum_variant#673ff4a740aacd7f5bf57d5f95f3967edf82d304"
 dependencies = [
  "bincode_derive",
  "serde",
@@ -573,7 +573,7 @@ dependencies = [
 [[package]]
 name = "bincode_derive"
 version = "2.0.1"
-source = "git+https://github.com/bgw/bincode.git?branch=bgw%2Fpatches#19f09c5f6895d769883c10b3d374f761ab7fe83d"
+source = "git+https://github.com/lukesandberg/bincode.git?branch=customize_enum_variant#673ff4a740aacd7f5bf57d5f95f3967edf82d304"
 dependencies = [
  "virtue",
 ]

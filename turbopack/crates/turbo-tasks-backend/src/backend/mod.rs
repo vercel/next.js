@@ -61,7 +61,7 @@ use crate::{
     backing_storage::BackingStorage,
     data::{
         ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
-        CachedDataItemValueRef, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
+        CachedDataItemValueRef, CellRef, CollectibleRef, CollectiblesRef, Dirtiness,
         InProgressCellState, InProgressState, InProgressStateInner, OutputValue, RootType,
     },
     utils::{
@@ -2017,7 +2017,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // find all outdated data items (removed cells, outdated edges)
         // Note: For persistent tasks we only want to call extract_if when there are actual cells to
         // remove to avoid tracking that as modification.
-        if task_id.is_transient() || iter_many!(task, CellData { cell }
+        if task_id.is_transient() || iter_many!(task, CellData { cell, }
             if cell_counters.get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index) => cell
         ).count() > 0 {
             removed_data.extend(task.extract_if(CachedDataItemType::CellData, |key, _| {
@@ -2370,28 +2370,28 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         ));
 
         // Grab the old dirty state
-        let old_dirtyness = get!(task, Dirty).cloned();
-        let (old_self_dirty, old_current_session_self_clean) = match old_dirtyness {
+        let old_dirtiness = get!(task, Dirty).cloned();
+        let (old_self_dirty, old_current_session_self_clean) = match old_dirtiness {
             None => (false, false),
-            Some(Dirtyness::Dirty) => (true, false),
-            Some(Dirtyness::SessionDependent) => {
+            Some(Dirtiness::Dirty) => (true, false),
+            Some(Dirtiness::SessionDependent) => {
                 let clean_in_current_session = get!(task, CurrentSessionClean).is_some();
                 (true, clean_in_current_session)
             }
         };
 
         // Compute the new dirty state
-        let (new_dirtyness, new_self_dirty, new_current_session_self_clean) = if session_dependent {
-            (Some(Dirtyness::SessionDependent), true, true)
+        let (new_dirtiness, new_self_dirty, new_current_session_self_clean) = if session_dependent {
+            (Some(Dirtiness::SessionDependent), true, true)
         } else {
             (None, false, false)
         };
 
         // Update the dirty state
-        if old_dirtyness != new_dirtyness {
-            if let Some(value) = new_dirtyness {
+        if old_dirtiness != new_dirtiness {
+            if let Some(value) = new_dirtiness {
                 task.insert(CachedDataItem::Dirty { value });
-            } else if old_dirtyness.is_some() {
+            } else if old_dirtiness.is_some() {
                 task.remove(&CachedDataItemKey::Dirty {});
             }
         }
@@ -2403,7 +2403,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        // Propagate dirtyness changes
+        // Propagate dirtiness changes
         let data_update = if old_self_dirty != new_self_dirty
             || old_current_session_self_clean != new_current_session_self_clean
         {

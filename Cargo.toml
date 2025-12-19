@@ -482,6 +482,6 @@ vergen-gitcl = { version = "1.0.8", features = ["cargo"] }
 webbrowser = "1.0.6"
 
 [patch.crates-io]
-bincode = { git = "https://github.com/bgw/bincode.git", branch = "bgw/patches" }
+bincode = { git = "https://github.com/lukesandberg/bincode.git", branch = "customize_enum_variant" }
 virtue = { git = "https://github.com/bgw/virtue.git", branch = "bgw/fix-generic-default-parsing" }
 mdxjs = { git = "https://github.com/mischnic/mdxjs-rs.git", branch = "swc-core-32" }

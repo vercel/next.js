@@ -27,7 +27,7 @@ use crate::{
     backing_storage::BackingStorage,
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemType, CachedDataItemValue,
-        CachedDataItemValueRef, CachedDataItemValueRefMut, Dirtyness,
+        CachedDataItemValueRef, CachedDataItemValueRefMut, Dirtiness,
     },
 };
 
@@ -409,16 +409,16 @@ pub trait TaskGuard: Debug {
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>>;
     fn is_immutable(&self) -> bool;
     fn is_dirty(&self) -> bool {
-        get!(self, Dirty).is_some_and(|dirtyness| match dirtyness {
-            Dirtyness::Dirty => true,
-            Dirtyness::SessionDependent => get!(self, CurrentSessionClean).is_none(),
+        get!(self, Dirty).is_some_and(|dirtiness| match dirtiness {
+            Dirtiness::Dirty => true,
+            Dirtiness::SessionDependent => get!(self, CurrentSessionClean).is_none(),
         })
     }
-    fn dirtyness_and_session(&self) -> Option<(Dirtyness, bool)> {
+    fn dirtiness_and_session(&self) -> Option<(Dirtiness, bool)> {
         match get!(self, Dirty)? {
-            Dirtyness::Dirty => Some((Dirtyness::Dirty, false)),
-            Dirtyness::SessionDependent => Some((
-                Dirtyness::SessionDependent,
+            Dirtiness::Dirty => Some((Dirtiness::Dirty, false)),
+            Dirtiness::SessionDependent => Some((
+                Dirtiness::SessionDependent,
                 get!(self, CurrentSessionClean).is_some(),
             )),
         }
@@ -427,8 +427,8 @@ pub trait TaskGuard: Debug {
     fn dirty(&self) -> (bool, bool) {
         match get!(self, Dirty) {
             None => (false, false),
-            Some(Dirtyness::Dirty) => (true, false),
-            Some(Dirtyness::SessionDependent) => (true, get!(self, CurrentSessionClean).is_some()),
+            Some(Dirtiness::Dirty) => (true, false),
+            Some(Dirtiness::SessionDependent) => (true, get!(self, CurrentSessionClean).is_some()),
         }
     }
     fn dirty_containers(&self) -> impl Iterator<Item = TaskId> {
@@ -470,22 +470,24 @@ pub trait TaskGuard: Debug {
         is_serializable_cell_content: bool,
         cell: CellId,
     ) -> Option<TypedSharedReference> {
-        if is_serializable_cell_content {
+        let reference = if is_serializable_cell_content {
             remove!(self, CellData { cell })
         } else {
-            remove!(self, TransientCellData { cell }).map(|sr| sr.into_typed(cell.type_id))
-        }
+            remove!(self, TransientCellData { cell })
+        };
+        reference.map(|sr| sr.into_typed(cell.type_id))
     }
     fn get_cell_data(
         &self,
         is_serializable_cell_content: bool,
         cell: CellId,
     ) -> Option<TypedSharedReference> {
-        if is_serializable_cell_content {
-            get!(self, CellData { cell }).cloned()
+        let reference = if is_serializable_cell_content {
+            get!(self, CellData { cell })
         } else {
-            get!(self, TransientCellData { cell }).map(|sr| sr.clone().into_typed(cell.type_id))
-        }
+            get!(self, TransientCellData { cell })
+        };
+        reference.map(|sr| sr.clone().into_typed(cell.type_id))
     }
     fn has_cell_data(&self, is_serializable_cell_content: bool, cell: CellId) -> bool {
         if is_serializable_cell_content {

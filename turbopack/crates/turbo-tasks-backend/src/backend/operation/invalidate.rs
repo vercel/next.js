@@ -14,7 +14,7 @@ use crate::{
         storage::{get, get_mut, remove},
     },
     data::{
-        CachedDataItem, CachedDataItemKey, CachedDataItemValue, Dirtyness, InProgressState,
+        CachedDataItem, CachedDataItemKey, CachedDataItemValue, Dirtiness, InProgressState,
         InProgressStateInner,
     },
 };
@@ -232,11 +232,11 @@ pub fn make_task_dirty_internal(
         *stale = true;
     }
     let old = task.insert(CachedDataItem::Dirty {
-        value: Dirtyness::Dirty,
+        value: Dirtiness::Dirty,
     });
     let (old_self_dirty, old_current_session_self_clean) = match old {
         Some(CachedDataItemValue::Dirty {
-            value: Dirtyness::Dirty,
+            value: Dirtiness::Dirty,
         }) => {
             #[cfg(feature = "trace_task_dirty")]
             let _span = tracing::trace_span!(
@@ -250,7 +250,7 @@ pub fn make_task_dirty_internal(
             return;
         }
         Some(CachedDataItemValue::Dirty {
-            value: Dirtyness::SessionDependent,
+            value: Dirtiness::SessionDependent,
         }) => {
             // It was a session-dependent dirty before, so we need to remove that clean count
             let was_current_session_clean = remove!(task, CurrentSessionClean).is_some();
