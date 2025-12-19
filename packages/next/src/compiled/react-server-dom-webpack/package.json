@@ -52,8 +52,8 @@
     "webpack-sources": "^3.2.0"
   },
   "peerDependencies": {
-    "react": "19.2.0-canary-7288a7d9-20251211",
-    "react-dom": "19.2.0-canary-7288a7d9-20251211",
+    "react": "19.2.0-canary-9aa4f723-20260123",
+    "react-dom": "19.2.0-canary-9aa4f723-20260123",
     "webpack": "^5.59.0"
   }
 }
