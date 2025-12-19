@@ -93,11 +93,11 @@ export default async function Page({ params }) {
 Here's how this example works:
 
 1. During `next build`, all known blog posts are generated
-2. All requests made to these pages (e.g. `/blog/1`) are cached and instantaneous
-3. After 60 seconds has passed, the next request will still return the cached (now stale) page
-4. The cache is invalidated and a new version of the page begins generating in the background
+2. All requests made to these pages (e.g., `/blog/1`) are cached and instantaneous
+3. After 60 seconds have passed, the next request will still return the cached (now stale) page
+4. The cache is invalidated, and a new version of the page begins generating in the background
 5. Once generated successfully, the next request will return the updated page and cache it for subsequent requests
-6. If `/blog/26` is requested, and it exists, the page will be generated on-demand. This behavior can be changed by using a different [dynamicParams](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) value. However, if the post does not exist, then 404 is returned.
+6. If `/blog/26` is requested, and it exists, the page will be generated on demand. This behavior can be changed by using a different [dynamicParams](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) value. However, if the post does not exist, then 404 is returned.
 
 </AppOnly>
 
@@ -192,11 +192,11 @@ export default function Page({ post }) {
 Here's how this example works:
 
 1. During `next build`, all known blog posts are generated
-2. All requests made to these pages (e.g. `/blog/1`) are cached and instantaneous
-3. After 60 seconds has passed, the next request will still return the cached (now stale) page
-4. The cache is invalidated and a new version of the page begins generating in the background
+2. All requests made to these pages (e.g., `/blog/1`) are cached and instantaneous
+3. After 60 seconds have passed, the next request will still return the cached (now stale) page
+4. The cache is invalidated, and a new version of the page begins generating in the background
 5. Once generated successfully, the next request will return the updated page and cache it for subsequent requests
-6. If `/blog/26` is requested, and it exists, the page will be generated on-demand. This behavior can be changed by using a different [fallback](/docs/pages/api-reference/functions/get-static-paths#fallback-false) value. However, if the post does not exist, then 404 is returned.
+6. If `/blog/26` is requested, and it exists, the page will be generated on demand. This behavior can be changed by using a different [fallback](/docs/pages/api-reference/functions/get-static-paths#fallback-false) value. However, if the post does not exist, then 404 is returned.
 
 </PagesOnly>
 
@@ -281,11 +281,11 @@ We recommend setting a high revalidation time. For instance, 1 hour instead of 1
 
 ### On-demand revalidation with `revalidatePath`
 
-For a more precise method of revalidation, invalidate cached pages on-demand with the `revalidatePath` function.
+For a more precise method of revalidation, invalidate cached pages on demand with the `revalidatePath` function.
 
 For example, this Server Action would get called after adding a new post. Regardless of how you retrieve your data in your Server Component, either using `fetch` or connecting to a database, this will invalidate the cache for the entire route. The next request to that route will trigger regeneration and serve fresh data, which will then be cached for subsequent requests.
 
-> **Note:** `revalidatePath` invalidates the cache entries but regeneration happens on the next request. If you want to eagerly regenerate the cache entry immediately instead of waiting for the next request, you can use the Pages router [`res.revalidate`](docs/pages/guides/incremental-static-regeneration#on-demand-validation-with-resrevalidate) method. We're working on adding new methods to provide eager regeneration capabilities for the App Router.
+> **Note:** `revalidatePath` invalidates the cache entries, but regeneration happens on the next request. If you want to eagerly regenerate the cache entry immediately instead of waiting for the next request, you can use the Pages router [`res.revalidate`](docs/pages/guides/incremental-static-regeneration#on-demand-validation-with-resrevalidate) method. We're working on adding new methods to provide eager regeneration capabilities for the App Router.
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -403,7 +403,7 @@ export async function createPost() {
 
 ### On-demand validation with `res.revalidate()`
 
-For a more precise method of revalidation, use `res.revalidate` to generate a new page on-demand from an API Router.
+For a more precise method of revalidation, use `res.revalidate` to generate a new page on demand from an API Router.
 
 For example, this API Route can be called at `/api/revalidate?secret=<token>` to revalidate a given blog post. Create a secret token only known by your Next.js app. This secret will be used to prevent unauthorized access to the revalidation API Route.
 
@@ -440,7 +440,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // This should be the actual path not a rewritten path
+    // This should be the actual path, not a rewritten path
     // e.g. for "/posts/[id]" this should be "/posts/1"
     await res.revalidate('/posts/1')
     return res.json({ revalidated: true })
@@ -452,7 +452,7 @@ export default async function handler(req, res) {
 }
 ```
 
-If you are using on-demand revalidation, you do not need to specify a `revalidate` time inside of `getStaticProps`. Next.js will use the default value of `false` (no revalidation) and only revalidate the page on-demand when `res.revalidate()` is called.
+If you are using on-demand revalidation, you do not need to specify a `revalidate` time inside of `getStaticProps`. Next.js will use the default value of `false` (no revalidation) and only revalidate the page on demand when `res.revalidate()` is called.
 
 </PagesOnly>
 
@@ -536,7 +536,7 @@ export async function getStaticProps({ params }) {
 
 ### Customizing the cache location
 
-You can configure the Next.js cache location if you want to persist cached pages and data to durable storage, or share the cache across multiple containers or instances of your Next.js application. [Learn more](/docs/app/guides/self-hosting#caching-and-isr).
+You can configure the Next.js cache location to persist cached pages and data to durable storage, or share the cache across multiple containers or instances of your Next.js application. [Learn more](/docs/app/guides/self-hosting#caching-and-isr).
 
 ## Troubleshooting
 
@@ -564,7 +564,7 @@ This will allow you to test ISR behavior as it would work in a production enviro
 NEXT_PRIVATE_DEBUG_CACHE=1
 ```
 
-This will make the Next.js server console log ISR cache hits and misses. You can inspect the output to see which pages are generated during `next build`, as well as how pages are updated as paths are accessed on-demand.
+This will make the Next.js server console log ISR cache hits and misses. You can inspect the output to see which pages are generated during `next build`, as well as how pages are updated as paths are accessed on demand.
 
 ## Caveats
 
@@ -572,7 +572,7 @@ This will make the Next.js server console log ISR cache hits and misses. You can
 
 - ISR is only supported when using the Node.js runtime (default).
 - ISR is not supported when creating a [Static Export](/docs/app/guides/static-exports).
-- If you have multiple `fetch` requests in a statically rendered route, and each has a different `revalidate` frequency, the lowest time will be used for ISR. However, those revalidate frequencies will still be respected by the [Data Cache](/docs/app/guides/caching#data-cache).
+- If you have multiple `fetch` requests in a statically rendered route, and each has a different `revalidate` frequency, the lowest time will be used for ISR. However, those `revalidate` frequencies will still be respected by the [Data Cache](/docs/app/guides/caching#data-cache).
 - If any of the `fetch` requests used on a route have a `revalidate` time of `0`, or an explicit `no-store`, the route will be [dynamically rendered](/docs/app/guides/caching#dynamic-rendering).
 - Proxy won't be executed for on-demand ISR requests, meaning any path rewrites or logic in Proxy will not be applied. Ensure you are revalidating the exact path. For example, `/post/1` instead of a rewritten `/post-1`.
 
