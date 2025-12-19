@@ -137,8 +137,10 @@ export default function RootLayout({ children }) {
 
 - The root layout **must** define `<html>` and `<body>` tags.
   - You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, you should use the [Metadata API](/docs/app/getting-started/metadata-and-og-images) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
-- You can use [route groups](/docs/app/api-reference/file-conventions/route-groups) to create **multiple root layouts**.
-  - Navigating **across multiple root layouts** will cause a **full page load** (as opposed to a client-side navigation). For example, navigating from `/cart` that uses `app/(shop)/layout.js` to `/blog` that uses `app/(marketing)/layout.js` will cause a full page load. This **only** applies to multiple root layouts.
+- You can create **multiple root layouts**. Any layout without a `layout.js` above it is a root layout. Two common approaches:
+  - Using [route groups](/docs/app/api-reference/file-conventions/route-groups) like `app/(shop)/layout.js` and `app/(marketing)/layout.js`
+  - Omitting `app/layout.js` so layouts in subdirectories like `app/dashboard/layout.js` and `app/blog/layout.js` each become root layouts for their respective directories.
+  - Navigating **across multiple root layouts** will cause a **full page load** (as opposed to a client-side navigation).
 - The root layout can be under a **dynamic segment**, for example when implementing [internationalization](/docs/app/guides/internationalization) with `app/[lang]/layout.js`.
 
 ## Caveats
