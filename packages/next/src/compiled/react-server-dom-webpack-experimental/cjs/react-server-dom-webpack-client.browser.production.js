@@ -445,14 +445,17 @@ function processReply(
     if ("undefined" === typeof value) return "$undefined";
     if ("function" === typeof value) {
       parentReference = knownServerReferences.get(value);
-      if (void 0 !== parentReference)
-        return (
-          (key = JSON.stringify(parentReference, resolveToJSON)),
-          null === formData && (formData = new FormData()),
-          (parentReference = nextPartId++),
-          formData.set(formFieldPrefix + parentReference, key),
-          "$h" + parentReference.toString(16)
-        );
+      if (void 0 !== parentReference) {
+        key = writtenObjects.get(value);
+        if (void 0 !== key) return key;
+        key = JSON.stringify(parentReference, resolveToJSON);
+        null === formData && (formData = new FormData());
+        parentReference = nextPartId++;
+        formData.set(formFieldPrefix + parentReference, key);
+        key = "$h" + parentReference.toString(16);
+        writtenObjects.set(value, key);
+        return key;
+      }
       if (
         void 0 !== temporaryReferences &&
         -1 === key.indexOf(":") &&
@@ -730,10 +733,17 @@ function waitForReference(
           value.then(fulfill, reject);
           return;
         }
-      value = value[path[i]];
+      var name = path[i];
+      if (
+        "object" === typeof value &&
+        null !== value &&
+        hasOwnProperty.call(value, name)
+      )
+        value = value[name];
+      else throw Error("Invalid reference.");
     }
     i = map(response, value, parentObject, key);
-    parentObject[key] = i;
+    "__proto__" !== key && (parentObject[key] = i);
     "" === key && null === handler.value && (handler.value = i);
     if (
       parentObject[0] === REACT_ELEMENT_TYPE &&
@@ -809,7 +819,7 @@ function loadServerReference(response, metaData, parentObject, key) {
         boundArgs.unshift(null);
         resolvedValue = resolvedValue.bind.apply(resolvedValue, boundArgs);
       }
-      parentObject[key] = resolvedValue;
+      "__proto__" !== key && (parentObject[key] = resolvedValue);
       "" === key && null === handler.value && (handler.value = resolvedValue);
       if (
         parentObject[0] === REACT_ELEMENT_TYPE &&
@@ -1124,8 +1134,8 @@ function startReadableStream(response, id, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$52 = createPendingChunk(response);
-        chunk$52.then(
+        var chunk$53 = createPendingChunk(response);
+        chunk$53.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -1133,10 +1143,10 @@ function startReadableStream(response, id, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$52;
+        previousBlockedChunk = chunk$53;
         chunk.then(function () {
-          previousBlockedChunk === chunk$52 && (previousBlockedChunk = null);
-          resolveModelChunk(chunk$52, json);
+          previousBlockedChunk === chunk$53 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$53, json);
         });
       }
     },
@@ -1271,8 +1281,8 @@ function mergeBuffer(buffer, lastChunk) {
   for (var l = buffer.length, byteLength = lastChunk.length, i = 0; i < l; i++)
     byteLength += buffer[i].byteLength;
   byteLength = new Uint8Array(byteLength);
-  for (var i$53 = (i = 0); i$53 < l; i$53++) {
-    var chunk = buffer[i$53];
+  for (var i$54 = (i = 0); i$54 < l; i$54++) {
+    var chunk = buffer[i$54];
     byteLength.set(chunk, i);
     i += chunk.byteLength;
   }
@@ -1461,42 +1471,44 @@ function processFullBinaryRow(response, id, tag, buffer, chunk) {
 }
 function createFromJSONCallback(response) {
   return function (key, value) {
-    if ("string" === typeof value)
-      return parseModelString(response, this, key, value);
-    if ("object" === typeof value && null !== value) {
-      if (value[0] === REACT_ELEMENT_TYPE) {
-        if (
-          ((key = {
-            $$typeof: REACT_ELEMENT_TYPE,
-            type: value[1],
-            key: value[2],
-            ref: null,
-            props: value[3]
-          }),
-          null !== initializingHandler)
-        )
+    if ("__proto__" !== key) {
+      if ("string" === typeof value)
+        return parseModelString(response, this, key, value);
+      if ("object" === typeof value && null !== value) {
+        if (value[0] === REACT_ELEMENT_TYPE) {
           if (
-            ((value = initializingHandler),
-            (initializingHandler = value.parent),
-            value.errored)
+            ((key = {
+              $$typeof: REACT_ELEMENT_TYPE,
+              type: value[1],
+              key: value[2],
+              ref: null,
+              props: value[3]
+            }),
+            null !== initializingHandler)
           )
-            (key = new ReactPromise("rejected", null, value.value, response)),
-              (key = createLazyChunkWrapper(key));
-          else if (0 < value.deps) {
-            var blockedChunk = new ReactPromise(
-              "blocked",
-              null,
-              null,
-              response
-            );
-            value.value = key;
-            value.chunk = blockedChunk;
-            key = createLazyChunkWrapper(blockedChunk);
-          }
-      } else key = value;
-      return key;
+            if (
+              ((value = initializingHandler),
+              (initializingHandler = value.parent),
+              value.errored)
+            )
+              (key = new ReactPromise("rejected", null, value.value, response)),
+                (key = createLazyChunkWrapper(key));
+            else if (0 < value.deps) {
+              var blockedChunk = new ReactPromise(
+                "blocked",
+                null,
+                null,
+                response
+              );
+              value.value = key;
+              value.chunk = blockedChunk;
+              key = createLazyChunkWrapper(blockedChunk);
+            }
+        } else key = value;
+        return key;
+      }
+      return value;
     }
-    return value;
   };
 }
 function createResponseFromOptions(options) {
