@@ -314,6 +314,7 @@ jobs:
               --service nextjs \
               --tags test.type:nextjs \
               --tags test_session.name:"${{ inputs.stepName }}" \
+              --tags runner.name:"${{ runner.name }}" \
               ./test/test-junit-report
           fi
           if [ -d ./test/turbopack-test-junit-report ]; then
@@ -321,6 +322,7 @@ jobs:
               --service nextjs \
               --tags test.type:turbopack \
               --tags test_session.name:"${{ inputs.stepName }}" \
+              --tags runner.name:"${{ runner.name }}" \
               ./test/turbopack-test-junit-report
           fi
 
