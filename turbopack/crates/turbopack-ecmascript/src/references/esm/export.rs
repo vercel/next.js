@@ -398,7 +398,7 @@ pub async fn expand_star_exports(
                     if key == "default" {
                         continue;
                     }
-                    esm_exports.entry(key.clone()).or_insert_with(|| asset);
+                    esm_exports.entry(key.clone()).or_insert(asset);
                 }
                 for esm_ref in exports.star_exports.iter() {
                     if let ReferencedAsset::Some(asset) =

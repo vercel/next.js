@@ -6,7 +6,8 @@ function leafX() {}
 function leafY() {}
 __turbopack_context__.s([
     "leafY",
-    ()=>leafY
+    0,
+    leafY
 ]);
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/remove-unused-imports/exports/input/library/shared.js [test] (ecmascript)", ((__turbopack_context__) => {
@@ -22,7 +23,8 @@ function sharedY() {
 }
 __turbopack_context__.s([
     "sharedY",
-    ()=>sharedY
+    0,
+    sharedY
 ]);
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/remove-unused-imports/exports/input/library/y.js [test] (ecmascript)", ((__turbopack_context__) => {
@@ -36,7 +38,8 @@ function y() {
 }
 __turbopack_context__.s([
     "y",
-    ()=>y
+    0,
+    y
 ]);
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/remove-unused-imports/exports/input/a.js [test] (ecmascript)", ((__turbopack_context__) => {
@@ -57,7 +60,8 @@ function used() {
 }
 __turbopack_context__.s([
     "used",
-    ()=>used
+    0,
+    used
 ]);
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/remove-unused-imports/exports/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
