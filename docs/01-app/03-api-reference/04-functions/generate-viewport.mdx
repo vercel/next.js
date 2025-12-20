@@ -182,8 +182,6 @@ When [Cache Components](/docs/app/getting-started/cache-components) is enabled, 
 
 Unlike metadata, viewport cannot be streamed because it affects initial page load UI. If `generateViewport` defers to request time, the page would need to block until resolved.
 
-To ensure, that having a deferred viewport on an otherwise fully prerenderable page or layout is intentional, an error is raised. To resolve this error, you have two options.
-
 If viewport depends on external data but not runtime data, use `use cache`:
 
 ```tsx filename="app/layout.tsx" highlight={2}
