@@ -195,7 +195,7 @@ Provide params ahead of time to prerender pages at build time. You can prerender
 
 During the build process, the route is executed with each sample param to collect the HTML result. If dynamic content or runtime data are accessed incorrectly, the build will fail.
 
-```tsx filename="app/blog/[slug]/page.tsx" highlight={5-7,10,22,24}
+```tsx filename="app/blog/[slug]/page.tsx" highlight={3-5,8,19}
 import { Suspense } from 'react'
 
 export async function generateStaticParams() {
