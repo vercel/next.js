@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "examples/image-alt-text-test"
   ],
   "scripts": {
     "new-error": "turbo gen error",
@@ -11,7 +12,7 @@
     "clean": "lerna clean -y && lerna bootstrap && lerna run clean && lerna exec 'node ../../scripts/rm.mjs dist'",
     "build": "turbo run build --remote-cache-timeout 60 --summarize true",
     "lerna": "lerna",
-    "dev": "turbo run dev --parallel --filter='!@next/bundle-analyzer-ui'",
+    "dev": "turbo run dev --parallel",
     "pack-next": "tsx scripts/pack-next.ts",
     "test-types": "tsc",
     "test-unit": "jest test/unit/ packages/next/ packages/font",

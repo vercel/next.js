@@ -48,6 +48,13 @@ test/traces
 # examples
 examples/**/out/*
 examples/**/.env*.local
+# local example artifacts
+examples/image-alt-text-test/.next
+examples/image-alt-text-test/.turbo
+examples/image-alt-text-test/node_modules
+# bundle-analyzer mock data
+apps/bundle-analyzer/public/data/*.data
+apps/bundle-analyzer/public/data/routes.json
 
 pr-stats.md
 test-timings.json

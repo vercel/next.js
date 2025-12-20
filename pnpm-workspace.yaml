@@ -1,5 +1,6 @@
 packages:
   - 'apps/*'
+  - 'examples/*'
   - 'packages/*'
   - 'bench/*'
   - 'crates/*/js'

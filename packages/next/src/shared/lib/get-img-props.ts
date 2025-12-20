@@ -2,6 +2,7 @@ import { warnOnce } from './utils/warn-once'
 import { getDeploymentId } from './deployment-id'
 import { getImageBlurSvg } from './image-blur-svg'
 import { imageConfigDefault } from './image-config'
+import { generateAltFromSrc } from './generate-alt-text'
 import type {
   ImageConfigComplete,
   ImageLoaderProps,
@@ -30,7 +31,7 @@ export type ImageProps = Omit<
   'src' | 'srcSet' | 'ref' | 'alt' | 'width' | 'height' | 'loading'
 > & {
   src: string | StaticImport
-  alt: string
+  alt?: string
   width?: number | `${number}`
   height?: number | `${number}`
   fill?: boolean
@@ -269,6 +270,7 @@ function generateImgAttrs({
 export function getImgProps(
   {
     src,
+    alt,
     sizes,
     unoptimized = false,
     priority = false,
@@ -734,6 +736,9 @@ export function getImgProps(
     loader,
   })
 
+  // Generate alt text if not provided
+  const finalAlt = alt ?? generateAltFromSrc(src)
+
   const loadingFinal = isLazy ? 'lazy' : loading
 
   if (process.env.NODE_ENV !== 'production') {
@@ -750,6 +755,7 @@ export function getImgProps(
 
   const props: ImgProps = {
     ...rest,
+    alt: finalAlt,
     loading: loadingFinal,
     fetchPriority,
     width: widthInt,
