@@ -86,7 +86,7 @@ export default async function Page() {
 }
 ```
 
-> **Good to know**: You can verify that a route was fully prerendered by checking the build output summary. Alternatively see what content was added to the static shell of any page by viewing the page source in your browser.
+> **Good to know**: You can verify that a route was fully prerendered by checking the build output summary. Alternatively, see what content was added to the static shell of any page by viewing the page source in your browser.
 
 ## Defer rendering to request time
 
@@ -102,12 +102,11 @@ External systems provide content asynchronously, which often takes an unpredicta
 
 In general, when you need the latest data from the source on each request (like real-time feeds or personalized content), defer rendering by providing fallback UI with a Suspense boundary.
 
-For example the `DynamicContent` component below uses multiple operations that are not automatically prerendered.
+For example, the `DynamicContent` component below uses multiple operations that are not automatically prerendered.
 
 ```tsx filename="page.tsx"
 import { Suspense } from 'react'
 import fs from 'node:fs/promises'
-import { setTimeout } from 'node:timers/promises'
 
 async function DynamicContent() {
   // Network request
@@ -120,7 +119,7 @@ async function DynamicContent() {
   const file = await fs.readFile('..', 'utf-8')
 
   // Simulating external system delay
-  await setTimeout(100) // from 'node:timers/promises'
+  await new Promise((resolve) => setTimeout(resolve, 100))
 
   return <div>Not in the static shell</div>
 }
@@ -174,7 +173,7 @@ async function RuntimeData({ searchParams }) {
 }
 ```
 
-To use the `RuntimeData` component in, wrap it in a `<Suspense>` boundary:
+To use the `RuntimeData` component, wrap it in a `<Suspense>` boundary:
 
 ```tsx filename="page.tsx"
 export default async function Page(props) {
@@ -575,7 +574,7 @@ export default function Page() {
 
 ### `dynamic = "force-static"`
 
-Start by removing it. When unhandled dynamic or runtime data access is detected during development and built time, Next.js raises an error. Otherwise, the [prerendering](#automatically-prerendered-content) step automatically extracts the static HTML shell.
+Start by removing it. When unhandled dynamic or runtime data access is detected during development and build time, Next.js raises an error. Otherwise, the [prerendering](#automatically-prerendered-content) step automatically extracts the static HTML shell.
 
 For dynamic data access, add [`use cache`](#using-use-cache) as close to the data access as possible with a long [`cacheLife`](/docs/app/api-reference/functions/cacheLife) like `'max'` to maintain cached behavior. If needed, add it at the top of the page or layout.
 
