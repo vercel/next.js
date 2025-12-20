@@ -266,13 +266,11 @@ pub async fn expand_output_assets(
     inner_output_assets: bool,
 ) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
     let edges = AdjacencyMap::new()
-        .skip_duplicates()
         .visit(inputs, async |input| {
             get_referenced_assets(inner_output_assets, input).await
         })
         .await
         .completed()?
-        .into_inner()
         .into_postorder_topological();
 
     let mut assets = Vec::new();

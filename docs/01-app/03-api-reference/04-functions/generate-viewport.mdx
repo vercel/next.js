@@ -6,6 +6,8 @@ related:
   description: View all the Metadata API options.
   links:
     - app/api-reference/file-conventions/metadata
+    - app/getting-started/cache-components
+    - app/api-reference/config/next-config-js/cacheComponents
 ---
 
 You can customize the initial viewport of the page with the static `viewport` object or the dynamic `generateViewport` function.
@@ -173,6 +175,52 @@ export const viewport = {
 ```html filename="<head> output" hideLineNumbers
 <meta name="color-scheme" content="dark" />
 ```
+
+## With Cache Components
+
+When [Cache Components](/docs/app/getting-started/cache-components) is enabled, `generateViewport` follows the same rules as other components. If viewport accesses runtime data (`cookies()`, `headers()`, `params`, `searchParams`) or performs uncached data fetching, it defers to request time.
+
+Unlike metadata, viewport cannot be streamed because it affects initial page load UI. If `generateViewport` defers to request time, the page would need to block until resolved.
+
+To ensure, that having a deferred viewport on an otherwise fully prerenderable page or layout is intentional, an error is raised. To resolve this error, you have two options.
+
+If viewport depends on external data but not runtime data, use `use cache`:
+
+```tsx filename="app/layout.tsx" highlight={2}
+export async function generateViewport() {
+  'use cache'
+  const { width, initialScale } = await db.query('viewport-size')
+  return { width, initialScale }
+}
+```
+
+If viewport genuinely requires runtime data, wrap the document `<body>` in a Suspense boundary to signal that the entire route should be dynamic:
+
+```tsx filename="app/layout.tsx" highlight={1,11-15}
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+
+export async function generateViewport() {
+  const cookieJar = await cookies()
+  return {
+    themeColor: cookieJar.get('theme-color')?.value,
+  }
+}
+
+export default function RootLayout({ children }) {
+  return (
+    <Suspense>
+      <html>
+        <body>{children}</body>
+      </html>
+    </Suspense>
+  )
+}
+```
+
+Caching is preferred because it allows static shell generation. Wrapping the document `body` in Suspense means there is no static shell or content to immediately send when a request arrives, making the entire route block until ready on every request.
+
+> **Good to know**: Use [multiple root layouts](/docs/app/api-reference/file-conventions/layout#root-layout) to isolate fully dynamic viewport to specific routes, while still letting other routes in your application generate a static shell.
 
 ## Types
 
