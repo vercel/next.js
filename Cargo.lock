@@ -9505,6 +9505,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bincode 2.0.1",
+ "flate2",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",

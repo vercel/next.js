@@ -215,10 +215,14 @@ async function startWatcher(
         )
       })()
     : await (async () => {
-        const HotReloaderWebpack = (
-          require('../../dev/hot-reloader-webpack') as typeof import('../../dev/hot-reloader-webpack')
-        ).default
-        return new HotReloaderWebpack(opts.dir, {
+        const HotReloader = process.env.NEXT_RSPACK
+          ? (
+              require('../../dev/hot-reloader-rspack') as typeof import('../../dev/hot-reloader-rspack')
+            ).default
+          : (
+              require('../../dev/hot-reloader-webpack') as typeof import('../../dev/hot-reloader-webpack')
+            ).default
+        return new HotReloader(opts.dir, {
           isSrcDir: opts.isSrcDir,
           appDir,
           pagesDir,

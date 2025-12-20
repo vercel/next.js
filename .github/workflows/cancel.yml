@@ -13,5 +13,5 @@ jobs:
     steps:
       - uses: styfle/cancel-workflow-action@0.12.1
         with:
-          workflow_id: 444921, 444987, 57419851
+          workflow_id: 57419851
           access_token: ${{ github.token }}
