@@ -2,8 +2,7 @@ use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ValueDefault, ValueToString, Vc};
 
-use super::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent};
-use crate::RawDirectoryContent;
+use crate::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent};
 
 #[turbo_tasks::value]
 pub struct VirtualFileSystem {
@@ -67,7 +66,11 @@ impl FileSystem for VirtualFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn write_link(&self, _fs_path: FileSystemPath, _target: Vc<LinkContent>) -> Result<Vc<()>> {
+    fn write_symbolic_link_dir(
+        &self,
+        _fs_path: FileSystemPath,
+        _target: Vc<LinkContent>,
+    ) -> Result<Vc<()>> {
         bail!("Writing is not possible on the virtual file system")
     }
 
