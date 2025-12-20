@@ -184,9 +184,13 @@ impl<'a> SpanRef<'a> {
 
     // TODO(sokra) use events instead of children for visualizing span graphs
     #[allow(dead_code)]
-    pub fn events(&self) -> impl Iterator<Item = SpanEventRef<'a>> {
+    pub fn events(&self) -> impl DoubleEndedIterator<Item = SpanEventRef<'a>> {
         self.span.events.iter().map(|event| match event {
-            &SpanEvent::SelfTime { start, end } => SpanEventRef::SelfTime { start, end },
+            &SpanEvent::SelfTime { start, end } => SpanEventRef::SelfTime {
+                store: self.store,
+                start,
+                end,
+            },
             SpanEvent::Child { index } => SpanEventRef::Child {
                 span: SpanRef {
                     span: &self.store.spans[index.get()],
@@ -471,7 +475,7 @@ impl<'a> SpanRef<'a> {
                             .and_modify(|_, v| v.push(span.index()))
                             .or_insert_with(|| (format!("{name}={value}"), vec![span.index()]));
                     }
-                    if !span.is_complete() && !span.time_data().ignore_self_time {
+                    if !span.is_complete() && span.span.name != "thread" {
                         let name = "incomplete_span";
                         index
                             .raw_entry_mut()
@@ -545,6 +549,45 @@ impl Debug for SpanRef<'_> {
 #[allow(dead_code)]
 #[derive(Copy, Clone)]
 pub enum SpanEventRef<'a> {
-    SelfTime { start: Timestamp, end: Timestamp },
-    Child { span: SpanRef<'a> },
+    SelfTime {
+        store: &'a Store,
+        start: Timestamp,
+        end: Timestamp,
+    },
+    Child {
+        span: SpanRef<'a>,
+    },
+}
+
+impl SpanEventRef<'_> {
+    pub fn start(&self) -> Timestamp {
+        match self {
+            SpanEventRef::SelfTime { start, .. } => *start,
+            SpanEventRef::Child { span } => span.start(),
+        }
+    }
+
+    pub fn total_time(&self) -> Timestamp {
+        match self {
+            SpanEventRef::SelfTime { start, end, .. } => end.saturating_sub(*start),
+            SpanEventRef::Child { span } => span.total_time(),
+        }
+    }
+
+    pub fn corrected_self_time(&self) -> Timestamp {
+        match self {
+            SpanEventRef::SelfTime { store, start, end } => {
+                let duration = *end - *start;
+                if !duration.is_zero() {
+                    store.set_max_self_time_lookup(*end);
+                    store.self_time_tree.as_ref().map_or(duration, |tree| {
+                        tree.lookup_range_corrected_time(*start, *end)
+                    })
+                } else {
+                    Timestamp::ZERO
+                }
+            }
+            SpanEventRef::Child { span } => span.corrected_self_time(),
+        }
+    }
 }

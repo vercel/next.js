@@ -13,6 +13,7 @@ import {
   getOriginalStackFrames,
 } from './middleware-webpack'
 import { WebpackHotMiddleware } from './hot-middleware'
+import * as inspector from 'inspector'
 import { join, relative, isAbsolute, posix, dirname } from 'path'
 import {
   createEntrypoints,
@@ -81,7 +82,6 @@ import type { HmrMessageSentToBrowser } from './hot-reloader-types'
 import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
-import { getNodeDebugType, getParsedNodeOptions } from '../lib/utils'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get-dev-overlay-font-middleware'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
@@ -96,6 +96,7 @@ import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
 } from '../../next-devtools/server/devtools-config-middleware'
+import { getAttachNodejsDebuggerMiddleware } from '../../next-devtools/server/attach-nodejs-debugger-middleware'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   connectReactDebugChannel,
@@ -114,6 +115,11 @@ import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
+import {
+  sendSerializedErrorsToClient,
+  sendSerializedErrorsToClientForHtmlRequest,
+  setErrorsRscStreamForHtmlRequest,
+} from './serialized-errors'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -220,18 +226,18 @@ function erroredPages(compilation: webpack.Compilation) {
 export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private hasAppRouterEntrypoints: boolean
   private hasPagesRouterEntrypoints: boolean
-  private dir: string
-  private buildId: string
+  protected dir: string
+  protected buildId: string
   private encryptionKey: string
-  private middlewares: ((
+  protected middlewares: ((
     req: IncomingMessage,
     res: ServerResponse,
     next: () => void
   ) => Promise<void>)[]
-  private pagesDir?: string
-  private distDir: string
+  protected pagesDir?: string
+  protected distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
-  private config: NextConfigComplete
+  protected config: NextConfigComplete
   private clientStats: webpack.Stats | null
   private clientError: Error | null = null
   private serverError: Error | null = null
@@ -240,13 +246,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private serverChunkNames?: Set<string>
   private prevChunkNames?: Set<any>
   private onDemandEntries?: ReturnType<typeof onDemandEntryHandler>
-  private previewProps: __ApiPreviewProps
+  protected previewProps: __ApiPreviewProps
   private watcher: any
   private rewrites: CustomRoutes['rewrites']
   private fallbackWatcher: any
-  private hotReloaderSpan: Span
+  protected hotReloaderSpan: Span
   private pagesMapping: { [key: string]: string } = {}
-  private appDir?: string
+  protected appDir?: string
   private telemetry: Telemetry
   private resetFetch: () => void
   private lockfile: Lockfile | undefined
@@ -645,6 +651,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           htmlRequestId,
           this.sendToClient.bind(this, client)
         )
+
+        sendSerializedErrorsToClientForHtmlRequest(
+          htmlRequestId,
+          this.sendToClient.bind(this, client)
+        )
+
         if (enableCacheComponents) {
           const status = this.cacheStatusesByRequestId.get(htmlRequestId)
           if (status) {
@@ -861,17 +873,15 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     this.versionInfo = await this.tracedGetVersionInfo(startSpan)
 
-    const nodeOptions = getParsedNodeOptions()
-    const nodeDebugType = getNodeDebugType(nodeOptions)
-    if (nodeDebugType && !this.devtoolsFrontendUrl) {
-      const debugPort = process.debugPort
+    const inspectorURLRaw = inspector.url()
+    if (inspectorURLRaw !== undefined) {
+      const inspectorURL = new URL(inspectorURLRaw)
+
       let debugInfo
       try {
-        // It requires to use 127.0.0.1 instead of localhost for server-side fetching.
         const debugInfoList = await fetch(
-          `http://127.0.0.1:${debugPort}/json/list`
+          `http://${inspectorURL.host}/json/list`
         ).then((res) => res.json())
-        // There will be only one item for current process, so always get the first item.
         debugInfo = debugInfoList[0]
       } catch {}
       if (debugInfo) {
@@ -1232,6 +1242,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.multiCompiler = getWebpackBundler()(
       this.activeWebpackConfigs
     ) as unknown as webpack.MultiCompiler
+
+    await this.afterCompile(this.multiCompiler)
 
     // Copy over the filesystem so that it is shared between all compilers.
     const inputFileSystem = this.multiCompiler.compilers[0].inputFileSystem
@@ -1633,7 +1645,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }),
     })
 
-    this.middlewares = [
+    this.middlewares.push(
       getOverlayMiddleware({
         rootDirectory: this.dir,
         isSrcDir: this.isSrcDir,
@@ -1669,6 +1681,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           })
         },
       }),
+      getAttachNodejsDebuggerMiddleware(),
       ...(this.config.experimental.mcpServer
         ? [
             getMcpMiddleware({
@@ -1683,9 +1696,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
             }),
           ]
-        : []),
-    ]
-
+        : [])
+    )
     setStackFrameResolver(async (request) => {
       return getOriginalStackFrames({
         isServer: request.isServer,
@@ -1699,6 +1711,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       })
     })
   }
+
+  protected async afterCompile(_multiCompiler: webpack.MultiCompiler) {}
 
   public invalidate(
     { reloadAfterInvalidation }: { reloadAfterInvalidation: boolean } = {
@@ -1798,6 +1812,25 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         debugChannel,
         this.sendToClient.bind(this, client)
       )
+    }
+  }
+
+  public sendErrorsToBrowser(
+    errorsRscStream: ReadableStream<Uint8Array>,
+    htmlRequestId: string
+  ): void {
+    const client = this.webpackHotMiddleware?.getClient(htmlRequestId)
+
+    if (client) {
+      // If the client is connected, we can send the errors immediately.
+      sendSerializedErrorsToClient(
+        errorsRscStream,
+        this.sendToClient.bind(this, client)
+      )
+    } else {
+      // Otherwise, store the errors stream so that we can send it when the
+      // client connects.
+      setErrorsRscStreamForHtmlRequest(htmlRequestId, errorsRscStream)
     }
   }
 

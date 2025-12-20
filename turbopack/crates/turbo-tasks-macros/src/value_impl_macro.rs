@@ -73,66 +73,71 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
         let mut errors = Vec::new();
 
         for item in items.iter() {
-            if let ImplItem::Fn(ImplItemFn {
+            let ImplItem::Fn(ImplItemFn {
                 attrs,
                 vis,
                 defaultness: _,
                 sig,
                 block,
             }) = item
-            {
-                let ident = &sig.ident;
-                let (func_args, attrs) = split_function_attributes(attrs);
-                let func_args = match func_args {
-                    Ok(None) => {
-                        item.span()
-                            .unwrap()
-                            .error("#[turbo_tasks::function] attribute missing")
-                            .emit();
-                        FunctionArguments::default()
-                    }
-                    Ok(Some(func_args)) => func_args,
-                    Err(error) => {
-                        errors.push(error.to_compile_error());
-                        FunctionArguments::default()
-                    }
+            else {
+                continue;
+            };
+
+            let ident = &sig.ident;
+            let (func_args, attrs) = split_function_attributes(attrs);
+            let func_args = match func_args {
+                Ok(None) => {
+                    item.span()
+                        .unwrap()
+                        .error("#[turbo_tasks::function] attribute missing")
+                        .emit();
+                    FunctionArguments::default()
+                }
+                Ok(Some(func_args)) => func_args,
+                Err(error) => {
+                    errors.push(error.to_compile_error());
+                    FunctionArguments::default()
+                }
+            };
+            let is_self_used = func_args.operation.is_some() || is_self_used(block);
+
+            let Some(turbo_fn) = TurboFn::new(
+                sig,
+                DefinitionContext::ValueInherentImpl,
+                func_args,
+                is_self_used,
+            ) else {
+                return quote! {
+                    // An error occurred while parsing the function signature.
                 };
-                let is_self_used = func_args.operation.is_some() || is_self_used(block);
+            };
 
-                let Some(turbo_fn) =
-                    TurboFn::new(sig, DefinitionContext::ValueInherentImpl, func_args)
-                else {
-                    return quote! {
-                        // An error occurred while parsing the function signature.
-                    };
-                };
+            let inline_function_ident = turbo_fn.inline_ident();
+            let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
+            let inline_attrs = filter_inline_attributes(attrs.iter().copied());
+            let function_path_string = format!("{ty}::{ident}", ty = ty.to_token_stream());
+            let native_fn = NativeFn {
+                function_global_name: global_name(&function_path_string),
+                function_path_string,
+                function_path: parse_quote! { <#ty>::#inline_function_ident },
+                is_method: turbo_fn.is_method(),
+                is_self_used,
+                filter_trait_call_args: None, // not a trait method
+            };
 
-                let inline_function_ident = turbo_fn.inline_ident();
-                let (inline_signature, inline_block) =
-                    turbo_fn.inline_signature_and_block(block, is_self_used);
-                let inline_attrs = filter_inline_attributes(attrs.iter().copied());
-                let function_path_string = format!("{ty}::{ident}", ty = ty.to_token_stream());
-                let native_fn = NativeFn {
-                    function_global_name: global_name(&function_path_string),
-                    function_path_string,
-                    function_path: parse_quote! { <#ty>::#inline_function_ident },
-                    is_method: turbo_fn.is_method(),
-                    is_self_used,
-                    filter_trait_call_args: None, // not a trait method
-                };
+            let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
+            let native_function_ty = native_fn.ty();
+            let native_function_def = native_fn.definition();
 
-                let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
-                let native_function_ty = native_fn.ty();
-                let native_function_def = native_fn.definition();
+            let turbo_signature = turbo_fn.signature();
+            let turbo_block = turbo_fn.static_block(&native_function_ident);
+            exposed_impl_items.push(quote! {
+                #(#attrs)*
+                #vis #turbo_signature #turbo_block
+            });
 
-                let turbo_signature = turbo_fn.signature();
-                let turbo_block = turbo_fn.static_block(&native_function_ident);
-                exposed_impl_items.push(quote! {
-                    #(#attrs)*
-                    #vis #turbo_signature #turbo_block
-                });
-
-                all_definitions.push(quote! {
+            all_definitions.push(quote! {
                     #[doc(hidden)]
                     impl #ty {
                         // By declaring the native function's body within an `impl` block, we ensure
@@ -153,7 +158,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
                     }
                 })
-            }
         }
 
         quote! {
@@ -207,11 +211,15 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         continue;
                     }
                 };
+                // operations are not currently compatible with methods
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
-                let Some(turbo_fn) =
-                    TurboFn::new(sig, DefinitionContext::ValueTraitImpl, func_args)
-                else {
+                let Some(turbo_fn) = TurboFn::new(
+                    sig,
+                    DefinitionContext::ValueTraitImpl,
+                    func_args,
+                    is_self_used,
+                ) else {
                     return quote! {
                         // An error occurred while parsing the function signature.
                     };
@@ -222,8 +230,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     &format!("{ty_ident}_{trait_ident}_{ident}_inline"),
                     ident.span(),
                 );
-                let (inline_signature, inline_block) =
-                    turbo_fn.inline_signature_and_block(block, is_self_used);
+                let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
                 let native_fn = NativeFn {
                     // This global name breaks the pattern.  It isn't clear if it is intentional

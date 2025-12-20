@@ -6,7 +6,6 @@ use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, ValueToString, 
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
     ModuleAssetContext,
-    ecmascript::AnalyzeMode,
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext,
         TypescriptTransformOptions,
@@ -20,11 +19,12 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{IssueReporter, IssueSeverity, handle_issues},
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     reference::all_assets_from_entries,
     reference_type::ReferenceType,
     traced_asset::TracedAsset,
 };
+use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 pub async fn node_file_trace(
@@ -150,7 +150,7 @@ async fn to_graph(asset: ResolvedVc<Box<dyn OutputAsset>>, max_depth: usize) -> 
 
     let mut result = vec![];
     while let Some((depth, asset)) = queue.pop() {
-        let references = asset.references().await?;
+        let references = asset.references().all_assets().await?;
         let mut indent = String::new();
         for _ in 0..depth {
             indent.push_str("  ");

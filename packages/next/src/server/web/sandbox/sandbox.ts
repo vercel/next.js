@@ -1,4 +1,4 @@
-import type { NodejsRequestData, FetchEventResult, RequestData } from '../types'
+import type { NodejsRequestData, FetchEventResult } from '../types'
 import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import {
@@ -16,6 +16,7 @@ import {
   RouterServerContextSymbol,
   routerServerGlobal,
 } from '../../lib/router-utils/router-server-context'
+import type { EdgeHandler } from '../adapter'
 
 export const ErrorSource = Symbol('SandboxError')
 
@@ -104,9 +105,7 @@ export async function getRuntimeContext(
 export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
   const runtime = await getRuntimeContext(params)
 
-  const edgeFunction: (args: {
-    request: RequestData
-  }) => Promise<FetchEventResult> = (
+  const edgeFunction: EdgeHandler = (
     await runtime.context._ENTRIES[`middleware_${params.name}`]
   ).default
 

@@ -46,6 +46,7 @@ import RootErrorBoundary from './errors/root-error-boundary'
 import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
+import { getDeploymentIdQueryOrEmptyString } from '../../shared/lib/deployment-id'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -70,6 +71,7 @@ function HistoryUpdater({
       renderedSearch,
     }
 
+    // TODO: Use Navigation API if available
     const historyState = {
       ...(pushRef.preserveCustomHistoryState ? window.history.state : {}),
       // Identifier is shortened intentionally.
@@ -101,19 +103,6 @@ function HistoryUpdater({
   }, [appRouterState.nextUrl, appRouterState.tree])
 
   return null
-}
-
-export function createEmptyCacheNode(): CacheNode {
-  return {
-    lazyData: null,
-    rsc: null,
-    prefetchRsc: null,
-    head: null,
-    prefetchHead: null,
-    parallelRoutes: new Map(),
-    loading: null,
-    navigatedAt: -1,
-  }
 }
 
 function copyNextJsInternalHistoryState(data: any) {
@@ -328,6 +317,7 @@ function Router({
       _unused: string,
       url?: string | URL | null
     ): void {
+      // TODO: Warn when Navigation API is available (navigation.navigate() should be used)
       // Avoid a loop when Next.js internals trigger pushState/replaceState
       if (data?.__NA || data?._N) {
         return originalPushState(data, _unused, url)
@@ -352,6 +342,7 @@ function Router({
       _unused: string,
       url?: string | URL | null
     ): void {
+      // TODO: Warn when Navigation API is available (navigation.navigate() should be used)
       // Avoid a loop when Next.js internals trigger pushState/replaceState
       if (data?.__NA || data?._N) {
         return originalReplaceState(data, _unused, url)
@@ -619,9 +610,7 @@ function RuntimeStyles() {
     }
   }, [renderedStylesSize, forceUpdate])
 
-  const dplId = process.env.NEXT_DEPLOYMENT_ID
-    ? `?dpl=${process.env.NEXT_DEPLOYMENT_ID}`
-    : ''
+  const dplId = getDeploymentIdQueryOrEmptyString()
   return [...runtimeStyles].map((href, i) => (
     <link
       key={i}

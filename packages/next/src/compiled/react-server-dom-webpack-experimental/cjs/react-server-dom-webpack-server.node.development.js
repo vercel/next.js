@@ -924,8 +924,10 @@
         case "Function.resolve":
         case "Function.all":
         case "Function.allSettled":
+        case "Function.any":
         case "Function.race":
         case "Function.try":
+        case "Function.withResolvers":
           return !0;
         default:
           return !1;
@@ -1424,9 +1426,17 @@
               callOnAllReadyIfReady(request);
           else
             try {
-              (streamTask.model = entry.value),
-                request.pendingChunks++,
-                tryStreamTask(request, streamTask),
+              request.pendingChunks++,
+                (streamTask.model = entry.value),
+                isByteStream
+                  ? emitTypedArrayChunk(
+                      request,
+                      streamTask.id,
+                      "b",
+                      streamTask.model,
+                      !1
+                    )
+                  : tryStreamTask(request, streamTask),
                 enqueueFlush(request),
                 reader.read().then(progress, error);
             } catch (x$0) {
@@ -1463,7 +1473,8 @@
         } catch (x) {
           supportsBYOB = !1;
         }
-      var reader = stream.getReader(),
+      var isByteStream = supportsBYOB,
+        reader = stream.getReader(),
         streamTask = createTask(
           request,
           task.model,
@@ -1478,7 +1489,7 @@
         );
       request.pendingChunks++;
       task =
-        streamTask.id.toString(16) + ":" + (supportsBYOB ? "r" : "R") + "\n";
+        streamTask.id.toString(16) + ":" + (isByteStream ? "r" : "R") + "\n";
       request.completedRegularChunks.push(task);
       request.cacheController.signal.addEventListener("abort", abortStream);
       reader.read().then(progress, error);
@@ -1793,7 +1804,12 @@
       Component = task.keyPath;
       componentDebugInfo = task.implicitSlot;
       null !== key
-        ? (task.keyPath = null === Component ? key : Component + "," + key)
+        ? (task.keyPath =
+            key === REACT_OPTIMISTIC_KEY || Component === REACT_OPTIMISTIC_KEY
+              ? REACT_OPTIMISTIC_KEY
+              : null === Component
+                ? key
+                : Component + "," + key)
         : null === Component && (task.implicitSlot = !0);
       request = renderModelDestructive(request, task, emptyRoot, "", props);
       task.keyPath = Component;
@@ -2022,7 +2038,13 @@
           validated
         );
       ref = task.keyPath;
-      null === key ? (key = ref) : null !== ref && (key = ref + "," + key);
+      null === key
+        ? (key = ref)
+        : null !== ref &&
+          (key =
+            ref === REACT_OPTIMISTIC_KEY || key === REACT_OPTIMISTIC_KEY
+              ? REACT_OPTIMISTIC_KEY
+              : ref + "," + key);
       newFormatContext = null;
       ref = task.debugOwner;
       null !== ref && outlineComponentInfo(request, ref);
@@ -2053,116 +2075,144 @@
     function visitAsyncNode(request, task, node, visited, cutOff) {
       if (visited.has(node)) return visited.get(node);
       visited.set(node, null);
-      request = visitAsyncNodeImpl(request, task, node, visited, cutOff);
+      a: if (0 <= node.end && node.end <= request.timeOrigin) request = null;
+      else {
+        var previousIONode = null;
+        if (
+          null !== node.previous &&
+          ((previousIONode = visitAsyncNode(
+            request,
+            task,
+            node.previous,
+            visited,
+            cutOff
+          )),
+          void 0 === previousIONode)
+        ) {
+          request = void 0;
+          break a;
+        }
+        switch (node.tag) {
+          case 0:
+            request = node;
+            break;
+          case 3:
+            request = previousIONode;
+            break;
+          case 1:
+            var awaited = node.awaited,
+              promise = node.promise.deref();
+            if (null !== awaited)
+              if (
+                ((cutOff = visitAsyncNode(
+                  request,
+                  task,
+                  awaited,
+                  visited,
+                  cutOff
+                )),
+                void 0 === cutOff)
+              ) {
+                request = void 0;
+                break;
+              } else
+                null !== cutOff
+                  ? (previousIONode =
+                      1 === cutOff.tag
+                        ? cutOff
+                        : (null !== node.stack &&
+                              hasUnfilteredFrame(request, node.stack)) ||
+                            (void 0 !== promise &&
+                              "string" === typeof promise.displayName &&
+                              (null === cutOff.stack ||
+                                !hasUnfilteredFrame(request, cutOff.stack)))
+                          ? node
+                          : cutOff)
+                  : request.status === ABORTING &&
+                    node.start < request.abortTime &&
+                    node.end > request.abortTime &&
+                    ((null !== node.stack &&
+                      hasUnfilteredFrame(request, node.stack)) ||
+                      (void 0 !== promise &&
+                        "string" === typeof promise.displayName)) &&
+                    (previousIONode = node);
+            void 0 !== promise &&
+              ((cutOff = promise._debugInfo),
+              null == cutOff ||
+                visited.has(cutOff) ||
+                (visited.set(cutOff, null),
+                forwardDebugInfo(request, task, cutOff)));
+            request = previousIONode;
+            break;
+          case 4:
+            request = previousIONode;
+            break;
+          case 2:
+            awaited = node.awaited;
+            if (null !== awaited)
+              if (
+                ((promise = visitAsyncNode(
+                  request,
+                  task,
+                  awaited,
+                  visited,
+                  cutOff
+                )),
+                void 0 === promise)
+              ) {
+                request = void 0;
+                break;
+              } else if (null !== promise) {
+                var startTime = node.start,
+                  endTime = node.end;
+                startTime < cutOff
+                  ? ((previousIONode = promise),
+                    null !== node.stack &&
+                      isAwaitInUserspace(request, node.stack) &&
+                      void 0 !==
+                        (null === awaited.promise
+                          ? void 0
+                          : awaited.promise.deref()) &&
+                      serializeIONode(request, promise, awaited.promise))
+                  : null !== node.stack &&
+                      isAwaitInUserspace(request, node.stack)
+                    ? (request.status === ABORTING &&
+                        startTime > request.abortTime) ||
+                      (serializeIONode(request, promise, awaited.promise),
+                      visited.set(promise, null),
+                      null != node.owner &&
+                        outlineComponentInfo(request, node.owner),
+                      (cutOff = (0, request.environmentName)()),
+                      advanceTaskTime(request, task, startTime),
+                      request.pendingChunks++,
+                      emitDebugChunk(request, task.id, {
+                        awaited: promise,
+                        env: cutOff,
+                        owner: node.owner,
+                        stack:
+                          null === node.stack
+                            ? null
+                            : filterStackTrace(request, node.stack)
+                      }),
+                      markOperationEndTime(request, task, endTime),
+                      request.status === ABORTING && (previousIONode = void 0))
+                    : (previousIONode = promise);
+              }
+            cutOff = node.promise.deref();
+            void 0 !== cutOff &&
+              ((cutOff = cutOff._debugInfo),
+              null == cutOff ||
+                visited.has(cutOff) ||
+                (visited.set(cutOff, null),
+                forwardDebugInfo(request, task, cutOff)));
+            request = previousIONode;
+            break;
+          default:
+            throw Error("Unknown AsyncSequence tag. This is a bug in React.");
+        }
+      }
       null !== request && visited.set(node, request);
       return request;
-    }
-    function visitAsyncNodeImpl(request, task, node, visited, cutOff) {
-      if (0 <= node.end && node.end <= request.timeOrigin) return null;
-      var previousIONode = null;
-      if (
-        null !== node.previous &&
-        ((previousIONode = visitAsyncNode(
-          request,
-          task,
-          node.previous,
-          visited,
-          cutOff
-        )),
-        void 0 === previousIONode)
-      )
-        return;
-      switch (node.tag) {
-        case 0:
-          return node;
-        case 3:
-          return previousIONode;
-        case 1:
-          var awaited = node.awaited,
-            promise = node.promise.deref();
-          if (null !== awaited) {
-            cutOff = visitAsyncNode(request, task, awaited, visited, cutOff);
-            if (void 0 === cutOff) break;
-            null !== cutOff
-              ? (previousIONode =
-                  1 === cutOff.tag
-                    ? cutOff
-                    : (null !== node.stack &&
-                          hasUnfilteredFrame(request, node.stack)) ||
-                        (void 0 !== promise &&
-                          "string" === typeof promise.displayName &&
-                          (null === cutOff.stack ||
-                            !hasUnfilteredFrame(request, cutOff.stack)))
-                      ? node
-                      : cutOff)
-              : request.status === ABORTING &&
-                node.start < request.abortTime &&
-                node.end > request.abortTime &&
-                ((null !== node.stack &&
-                  hasUnfilteredFrame(request, node.stack)) ||
-                  (void 0 !== promise &&
-                    "string" === typeof promise.displayName)) &&
-                (previousIONode = node);
-          }
-          void 0 !== promise &&
-            ((node = promise._debugInfo),
-            null == node ||
-              visited.has(node) ||
-              (visited.set(node, null), forwardDebugInfo(request, task, node)));
-          return previousIONode;
-        case 4:
-          return previousIONode;
-        case 2:
-          awaited = node.awaited;
-          if (null !== awaited) {
-            promise = visitAsyncNode(request, task, awaited, visited, cutOff);
-            if (void 0 === promise) break;
-            if (null !== promise) {
-              var startTime = node.start,
-                endTime = node.end;
-              startTime < cutOff
-                ? ((previousIONode = promise),
-                  null !== node.stack &&
-                    isAwaitInUserspace(request, node.stack) &&
-                    void 0 !==
-                      (null === awaited.promise
-                        ? void 0
-                        : awaited.promise.deref()) &&
-                    serializeIONode(request, promise, awaited.promise))
-                : null !== node.stack && isAwaitInUserspace(request, node.stack)
-                  ? (request.status === ABORTING &&
-                      startTime > request.abortTime) ||
-                    (serializeIONode(request, promise, awaited.promise),
-                    visited.set(promise, null),
-                    null != node.owner &&
-                      outlineComponentInfo(request, node.owner),
-                    (cutOff = (0, request.environmentName)()),
-                    advanceTaskTime(request, task, startTime),
-                    request.pendingChunks++,
-                    emitDebugChunk(request, task.id, {
-                      awaited: promise,
-                      env: cutOff,
-                      owner: node.owner,
-                      stack:
-                        null === node.stack
-                          ? null
-                          : filterStackTrace(request, node.stack)
-                    }),
-                    markOperationEndTime(request, task, endTime),
-                    request.status === ABORTING && (previousIONode = void 0))
-                  : (previousIONode = promise);
-            }
-          }
-          node = node.promise.deref();
-          void 0 !== node &&
-            ((node = node._debugInfo),
-            null == node ||
-              visited.has(node) ||
-              (visited.set(node, null), forwardDebugInfo(request, task, node)));
-          return previousIONode;
-        default:
-          throw Error("Unknown AsyncSequence tag. This is a bug in React.");
-      }
     }
     function emitAsyncSequence(
       request,
@@ -2408,7 +2458,7 @@
     function serializeServerReference(request, serverReference) {
       var writtenServerReferences = request.writtenServerReferences,
         existingId = writtenServerReferences.get(serverReference);
-      if (void 0 !== existingId) return "$F" + existingId.toString(16);
+      if (void 0 !== existingId) return "$h" + existingId.toString(16);
       existingId = serverReference.$$bound;
       existingId = null === existingId ? null : Promise.resolve(existingId);
       var id = serverReference.$$id,
@@ -2434,7 +2484,7 @@
           : { id: id, bound: existingId };
       request = outlineModel(request, existingId);
       writtenServerReferences.set(serverReference, request);
-      return "$F" + request.toString(16);
+      return "$h" + request.toString(16);
     }
     function serializeLargeTextString(request, text) {
       request.pendingChunks++;
@@ -2670,7 +2720,9 @@
               void 0 === value._debugTask
             ) {
               var key = "";
-              null !== value.key && (key = ' key="' + value.key + '"');
+              null !== value.key &&
+                value.key !== REACT_OPTIMISTIC_KEY &&
+                (key = ' key="' + value.key + '"');
               console.error(
                 "Attempted to render <%s%s> without development properties. This is not supported. It can happen if:\n- The element is created with a production version of React but rendered in development.\n- The element was cloned with a custom function instead of `React.cloneElement`.\nThe props of this element may help locate this element: %o",
                 value.type,
@@ -2828,7 +2880,7 @@
         if (value instanceof Date) return "$D" + value.toJSON();
         elementReference = getPrototypeOf(value);
         if (
-          elementReference !== ObjectPrototype &&
+          elementReference !== ObjectPrototype$1 &&
           (null === elementReference ||
             null !== getPrototypeOf(elementReference))
         )
@@ -3529,7 +3581,7 @@
           return serializeDebugBlob(request, value);
         if (getIteratorFn(value)) return Array.from(value);
         request = getPrototypeOf(value);
-        if (request !== ObjectPrototype && null !== request) {
+        if (request !== ObjectPrototype$1 && null !== request) {
           counter = Object.create(null);
           for (env in value)
             if (hasOwnProperty.call(value, env) || isGetter(request, env))
@@ -4416,37 +4468,65 @@
         if ("fulfilled" === moduleExports.status)
           moduleExports = moduleExports.value;
         else throw moduleExports.reason;
-      return "*" === metadata[2]
-        ? moduleExports
-        : "" === metadata[2]
-          ? moduleExports.__esModule
-            ? moduleExports.default
-            : moduleExports
-          : moduleExports[metadata[2]];
+      if ("*" === metadata[2]) return moduleExports;
+      if ("" === metadata[2])
+        return moduleExports.__esModule ? moduleExports.default : moduleExports;
+      if (hasOwnProperty.call(moduleExports, metadata[2]))
+        return moduleExports[metadata[2]];
     }
-    function Chunk(status, value, reason, response) {
+    function ReactPromise(status, value, reason) {
       this.status = status;
       this.value = value;
       this.reason = reason;
-      this._response = response;
     }
-    function createPendingChunk(response) {
-      return new Chunk("pending", null, null, response);
+    function wakeChunk(response, listeners, value) {
+      for (var i = 0; i < listeners.length; i++) {
+        var listener = listeners[i];
+        "function" === typeof listener
+          ? listener(value)
+          : fulfillReference(response, listener, value);
+      }
     }
-    function wakeChunk(listeners, value) {
-      for (var i = 0; i < listeners.length; i++) (0, listeners[i])(value);
+    function rejectChunk(response, listeners, error) {
+      for (var i = 0; i < listeners.length; i++) {
+        var listener = listeners[i];
+        "function" === typeof listener
+          ? listener(error)
+          : rejectReference(response, listener.handler, error);
+      }
     }
-    function triggerErrorOnChunk(chunk, error) {
+    function resolveBlockedCycle(resolvedChunk, reference) {
+      var referencedChunk = reference.handler.chunk;
+      if (null === referencedChunk) return null;
+      if (referencedChunk === resolvedChunk) return reference.handler;
+      reference = referencedChunk.value;
+      if (null !== reference)
+        for (
+          referencedChunk = 0;
+          referencedChunk < reference.length;
+          referencedChunk++
+        ) {
+          var listener = reference[referencedChunk];
+          if (
+            "function" !== typeof listener &&
+            ((listener = resolveBlockedCycle(resolvedChunk, listener)),
+            null !== listener)
+          )
+            return listener;
+        }
+      return null;
+    }
+    function triggerErrorOnChunk(response, chunk, error) {
       if ("pending" !== chunk.status && "blocked" !== chunk.status)
         chunk.reason.error(error);
       else {
         var listeners = chunk.reason;
         chunk.status = "rejected";
         chunk.reason = error;
-        null !== listeners && wakeChunk(listeners, error);
+        null !== listeners && rejectChunk(response, listeners, error);
       }
     }
-    function resolveModelChunk(chunk, value, id) {
+    function resolveModelChunk(response, chunk, value, id) {
       if ("pending" !== chunk.status)
         (chunk = chunk.reason),
           "C" === value[0]
@@ -4457,42 +4537,74 @@
           rejectListeners = chunk.reason;
         chunk.status = "resolved_model";
         chunk.value = value;
-        chunk.reason = id;
+        chunk.reason = _defineProperty({ id: id }, RESPONSE_SYMBOL, response);
         if (null !== resolveListeners)
-          switch ((initializeModelChunk(chunk), chunk.status)) {
+          a: switch ((initializeModelChunk(chunk), chunk.status)) {
             case "fulfilled":
-              wakeChunk(resolveListeners, chunk.value);
+              wakeChunk(response, resolveListeners, chunk.value);
               break;
-            case "pending":
             case "blocked":
-            case "cyclic":
+              for (value = 0; value < resolveListeners.length; value++)
+                if (
+                  ((id = resolveListeners[value]), "function" !== typeof id)
+                ) {
+                  var cyclicHandler = resolveBlockedCycle(chunk, id);
+                  if (null !== cyclicHandler)
+                    switch (
+                      (fulfillReference(response, id, cyclicHandler.value),
+                      resolveListeners.splice(value, 1),
+                      value--,
+                      null !== rejectListeners &&
+                        ((id = rejectListeners.indexOf(id)),
+                        -1 !== id && rejectListeners.splice(id, 1)),
+                      chunk.status)
+                    ) {
+                      case "fulfilled":
+                        wakeChunk(response, resolveListeners, chunk.value);
+                        break a;
+                      case "rejected":
+                        null !== rejectListeners &&
+                          rejectChunk(response, rejectListeners, chunk.reason);
+                        break a;
+                    }
+                }
+            case "pending":
               if (chunk.value)
-                for (value = 0; value < resolveListeners.length; value++)
-                  chunk.value.push(resolveListeners[value]);
+                for (
+                  response = 0;
+                  response < resolveListeners.length;
+                  response++
+                )
+                  chunk.value.push(resolveListeners[response]);
               else chunk.value = resolveListeners;
               if (chunk.reason) {
                 if (rejectListeners)
-                  for (value = 0; value < rejectListeners.length; value++)
-                    chunk.reason.push(rejectListeners[value]);
+                  for (
+                    resolveListeners = 0;
+                    resolveListeners < rejectListeners.length;
+                    resolveListeners++
+                  )
+                    chunk.reason.push(rejectListeners[resolveListeners]);
               } else chunk.reason = rejectListeners;
               break;
             case "rejected":
-              rejectListeners && wakeChunk(rejectListeners, chunk.reason);
+              rejectListeners &&
+                wakeChunk(response, rejectListeners, chunk.reason);
           }
       }
     }
     function createResolvedIteratorResultChunk(response, value, done) {
-      return new Chunk(
+      return new ReactPromise(
         "resolved_model",
         (done ? '{"done":true,"value":' : '{"done":false,"value":') +
           value +
           "}",
-        -1,
-        response
+        _defineProperty({ id: -1 }, RESPONSE_SYMBOL, response)
       );
     }
-    function resolveIteratorResultChunk(chunk, value, done) {
+    function resolveIteratorResultChunk(response, chunk, value, done) {
       resolveModelChunk(
+        response,
         chunk,
         (done ? '{"done":true,"value":' : '{"done":false,"value":') +
           value +
@@ -4500,38 +4612,68 @@
         -1
       );
     }
-    function loadServerReference$1(
-      response,
-      id,
-      bound,
-      parentChunk,
-      parentObject,
-      key
-    ) {
+    function loadServerReference$1(response, metaData, parentObject, key) {
+      var id = metaData.id;
+      if ("string" !== typeof id || "then" === key) return null;
       var serverReference = resolveServerReference(response._bundlerConfig, id);
-      id = preloadModule(serverReference);
-      if (bound)
-        bound = Promise.all([bound, id]).then(function (_ref) {
-          _ref = _ref[0];
-          var fn = requireModule(serverReference);
-          return fn.bind.apply(fn, [null].concat(_ref));
-        });
-      else if (id)
-        bound = Promise.resolve(id).then(function () {
-          return requireModule(serverReference);
-        });
+      id = metaData.bound;
+      var promise = preloadModule(serverReference);
+      if (promise)
+        id instanceof ReactPromise && (promise = Promise.all([promise, id]));
+      else if (id instanceof ReactPromise) promise = Promise.resolve(id);
       else return requireModule(serverReference);
-      bound.then(
-        createModelResolver(
-          parentChunk,
-          parentObject,
-          key,
-          !1,
-          response,
-          createModel,
-          []
-        ),
-        createModelReject(parentChunk)
+      if (initializingHandler) {
+        var handler = initializingHandler;
+        handler.deps++;
+      } else
+        handler = initializingHandler = {
+          chunk: null,
+          value: null,
+          reason: null,
+          deps: 1,
+          errored: !1
+        };
+      promise.then(
+        function () {
+          var resolvedValue = requireModule(serverReference);
+          if (metaData.bound) {
+            var promiseValue = metaData.bound.value;
+            promiseValue = Array.isArray(promiseValue)
+              ? promiseValue.slice(0)
+              : [];
+            promiseValue.unshift(null);
+            resolvedValue = resolvedValue.bind.apply(
+              resolvedValue,
+              promiseValue
+            );
+          }
+          parentObject[key] = resolvedValue;
+          "" === key &&
+            null === handler.value &&
+            (handler.value = resolvedValue);
+          handler.deps--;
+          0 === handler.deps &&
+            ((resolvedValue = handler.chunk),
+            null !== resolvedValue &&
+              "blocked" === resolvedValue.status &&
+              ((promiseValue = resolvedValue.value),
+              (resolvedValue.status = "fulfilled"),
+              (resolvedValue.value = handler.value),
+              (resolvedValue.reason = null),
+              null !== promiseValue &&
+                wakeChunk(response, promiseValue, handler.value)));
+        },
+        function (error) {
+          if (!handler.errored) {
+            handler.errored = !0;
+            handler.value = null;
+            handler.reason = error;
+            var chunk = handler.chunk;
+            null !== chunk &&
+              "blocked" === chunk.status &&
+              triggerErrorOnChunk(response, chunk, error);
+          }
+        }
       );
       return null;
     }
@@ -4573,53 +4715,70 @@
                 value[i],
                 parentObj
               )),
-              void 0 !== parentObj ? (value[i] = parentObj) : delete value[i]);
+              void 0 !== parentObj || "__proto__" === i
+                ? (value[i] = parentObj)
+                : delete value[i]);
       return value;
     }
     function initializeModelChunk(chunk) {
-      var prevChunk = initializingChunk,
-        prevBlocked = initializingChunkBlockedModel;
-      initializingChunk = chunk;
-      initializingChunkBlockedModel = null;
-      var rootReference =
-          -1 === chunk.reason ? void 0 : chunk.reason.toString(16),
-        resolvedModel = chunk.value;
-      chunk.status = "cyclic";
+      var prevHandler = initializingHandler;
+      initializingHandler = null;
+      var _chunk$reason = chunk.reason,
+        response = _chunk$reason[RESPONSE_SYMBOL];
+      _chunk$reason = _chunk$reason.id;
+      _chunk$reason =
+        -1 === _chunk$reason ? void 0 : _chunk$reason.toString(16);
+      var resolvedModel = chunk.value;
+      chunk.status = "blocked";
       chunk.value = null;
       chunk.reason = null;
       try {
         var rawModel = JSON.parse(resolvedModel),
           value = reviveModel(
-            chunk._response,
+            response,
             { "": rawModel },
             "",
             rawModel,
-            rootReference
-          );
-        if (
-          null !== initializingChunkBlockedModel &&
-          0 < initializingChunkBlockedModel.deps
-        )
-          (initializingChunkBlockedModel.value = value),
-            (chunk.status = "blocked");
-        else {
-          var resolveListeners = chunk.value;
-          chunk.status = "fulfilled";
-          chunk.value = value;
-          null !== resolveListeners && wakeChunk(resolveListeners, value);
+            _chunk$reason
+          ),
+          resolveListeners = chunk.value;
+        if (null !== resolveListeners)
+          for (
+            chunk.value = null, chunk.reason = null, rawModel = 0;
+            rawModel < resolveListeners.length;
+            rawModel++
+          ) {
+            var listener = resolveListeners[rawModel];
+            "function" === typeof listener
+              ? listener(value)
+              : fulfillReference(response, listener, value);
+          }
+        if (null !== initializingHandler) {
+          if (initializingHandler.errored) throw initializingHandler.reason;
+          if (0 < initializingHandler.deps) {
+            initializingHandler.value = value;
+            initializingHandler.chunk = chunk;
+            return;
+          }
         }
+        chunk.status = "fulfilled";
+        chunk.value = value;
+        chunk.reason = null;
       } catch (error) {
         (chunk.status = "rejected"), (chunk.reason = error);
       } finally {
-        (initializingChunk = prevChunk),
-          (initializingChunkBlockedModel = prevBlocked);
+        initializingHandler = prevHandler;
       }
     }
     function reportGlobalError(response, error) {
       response._closed = !0;
       response._closedReason = error;
       response._chunks.forEach(function (chunk) {
-        "pending" === chunk.status && triggerErrorOnChunk(chunk, error);
+        "pending" === chunk.status
+          ? triggerErrorOnChunk(response, chunk, error)
+          : "fulfilled" === chunk.status &&
+            null !== chunk.reason &&
+            chunk.reason.error(error);
       });
     }
     function getChunk(response, id) {
@@ -4628,50 +4787,64 @@
       chunk ||
         ((chunk = response._formData.get(response._prefix + id)),
         (chunk =
-          null != chunk
-            ? new Chunk("resolved_model", chunk, id, response)
+          "string" === typeof chunk
+            ? new ReactPromise(
+                "resolved_model",
+                chunk,
+                _defineProperty({ id: id }, RESPONSE_SYMBOL, response)
+              )
             : response._closed
-              ? new Chunk("rejected", null, response._closedReason, response)
-              : createPendingChunk(response)),
+              ? new ReactPromise("rejected", null, response._closedReason)
+              : new ReactPromise("pending", null, null)),
         chunks.set(id, chunk));
       return chunk;
     }
-    function createModelResolver(
-      chunk,
-      parentObject,
-      key,
-      cyclic,
-      response,
-      map,
-      path
-    ) {
-      if (initializingChunkBlockedModel) {
-        var blocked = initializingChunkBlockedModel;
-        cyclic || blocked.deps++;
-      } else
-        blocked = initializingChunkBlockedModel = {
-          deps: cyclic ? 0 : 1,
-          value: null
-        };
-      return function (value) {
-        for (var i = 1; i < path.length; i++) value = value[path[i]];
-        parentObject[key] = map(response, value);
-        "" === key &&
-          null === blocked.value &&
-          (blocked.value = parentObject[key]);
-        blocked.deps--;
-        0 === blocked.deps &&
-          "blocked" === chunk.status &&
-          ((value = chunk.value),
-          (chunk.status = "fulfilled"),
-          (chunk.value = blocked.value),
-          null !== value && wakeChunk(value, blocked.value));
-      };
+    function fulfillReference(response, reference, value) {
+      var handler = reference.handler,
+        parentObject = reference.parentObject,
+        key = reference.key,
+        map = reference.map,
+        path = reference.path;
+      try {
+        for (var i = 1; i < path.length; i++) {
+          var name = path[i];
+          if (
+            "object" !== typeof value ||
+            null === value ||
+            (getPrototypeOf(value) !== ObjectPrototype &&
+              getPrototypeOf(value) !== ArrayPrototype) ||
+            !hasOwnProperty.call(value, name)
+          )
+            throw Error("Invalid reference.");
+          value = value[name];
+        }
+        var mappedValue = map(response, value, parentObject, key);
+        parentObject[key] = mappedValue;
+        "" === key && null === handler.value && (handler.value = mappedValue);
+      } catch (error) {
+        rejectReference(response, reference.handler, error);
+        return;
+      }
+      handler.deps--;
+      0 === handler.deps &&
+        ((reference = handler.chunk),
+        null !== reference &&
+          "blocked" === reference.status &&
+          ((value = reference.value),
+          (reference.status = "fulfilled"),
+          (reference.value = handler.value),
+          (reference.reason = handler.reason),
+          null !== value && wakeChunk(response, value, handler.value)));
     }
-    function createModelReject(chunk) {
-      return function (error) {
-        return triggerErrorOnChunk(chunk, error);
-      };
+    function rejectReference(response, handler, error) {
+      handler.errored ||
+        ((handler.errored = !0),
+        (handler.value = null),
+        (handler.reason = error),
+        (handler = handler.chunk),
+        null !== handler &&
+          "blocked" === handler.status &&
+          triggerErrorOnChunk(response, handler, error));
     }
     function getOutlinedModel(response, reference, parentObject, key, map) {
       reference = reference.split(":");
@@ -4683,29 +4856,63 @@
       }
       switch (id.status) {
         case "fulfilled":
-          parentObject = id.value;
-          for (key = 1; key < reference.length; key++)
-            parentObject = parentObject[reference[key]];
-          return map(response, parentObject);
+          id = id.value;
+          for (var i = 1; i < reference.length; i++) {
+            var name = reference[i];
+            if (
+              "object" !== typeof id ||
+              null === id ||
+              (getPrototypeOf(id) !== ObjectPrototype &&
+                getPrototypeOf(id) !== ArrayPrototype) ||
+              !hasOwnProperty.call(id, name)
+            )
+              throw Error("Invalid reference.");
+            id = id[name];
+          }
+          return map(response, id, parentObject, key);
         case "pending":
         case "blocked":
-        case "cyclic":
-          var parentChunk = initializingChunk;
-          id.then(
-            createModelResolver(
-              parentChunk,
-              parentObject,
-              key,
-              "cyclic" === id.status,
-              response,
-              map,
-              reference
-            ),
-            createModelReject(parentChunk)
+          return (
+            initializingHandler
+              ? ((response = initializingHandler), response.deps++)
+              : (response = initializingHandler =
+                  {
+                    chunk: null,
+                    value: null,
+                    reason: null,
+                    deps: 1,
+                    errored: !1
+                  }),
+            (parentObject = {
+              handler: response,
+              parentObject: parentObject,
+              key: key,
+              map: map,
+              path: reference
+            }),
+            null === id.value
+              ? (id.value = [parentObject])
+              : id.value.push(parentObject),
+            null === id.reason
+              ? (id.reason = [parentObject])
+              : id.reason.push(parentObject),
+            null
           );
-          return null;
         default:
-          throw id.reason;
+          return (
+            initializingHandler
+              ? ((initializingHandler.errored = !0),
+                (initializingHandler.value = null),
+                (initializingHandler.reason = id.reason))
+              : (initializingHandler = {
+                  chunk: null,
+                  value: null,
+                  reason: id.reason,
+                  deps: 0,
+                  errored: !0
+                }),
+            null
+          );
       }
     }
     function createMap(response, model) {
@@ -4717,8 +4924,8 @@
     function extractIterator(response, model) {
       return model[Symbol.iterator]();
     }
-    function createModel(response, model) {
-      return model;
+    function createModel(response, model, parentObject, key) {
+      return "then" === key && "function" === typeof model ? null : model;
     }
     function parseTypedArray(
       response,
@@ -4729,44 +4936,77 @@
       parentKey
     ) {
       reference = parseInt(reference.slice(2), 16);
-      reference = response._formData.get(response._prefix + reference);
-      reference =
-        constructor === ArrayBuffer
-          ? reference.arrayBuffer()
-          : reference.arrayBuffer().then(function (buffer) {
-              return new constructor(buffer);
-            });
-      bytesPerElement = initializingChunk;
+      bytesPerElement = response._prefix + reference;
+      if (response._chunks.has(reference))
+        throw Error("Already initialized typed array.");
+      reference = response._formData.get(bytesPerElement).arrayBuffer();
+      if (initializingHandler) {
+        var handler = initializingHandler;
+        handler.deps++;
+      } else
+        handler = initializingHandler = {
+          chunk: null,
+          value: null,
+          reason: null,
+          deps: 1,
+          errored: !1
+        };
       reference.then(
-        createModelResolver(
-          bytesPerElement,
-          parentObject,
-          parentKey,
-          !1,
-          response,
-          createModel,
-          []
-        ),
-        createModelReject(bytesPerElement)
+        function (buffer) {
+          buffer =
+            constructor === ArrayBuffer ? buffer : new constructor(buffer);
+          parentObject[parentKey] = buffer;
+          "" === parentKey &&
+            null === handler.value &&
+            (handler.value = buffer);
+          handler.deps--;
+          if (
+            0 === handler.deps &&
+            ((buffer = handler.chunk),
+            null !== buffer && "blocked" === buffer.status)
+          ) {
+            var resolveListeners = buffer.value;
+            buffer.status = "fulfilled";
+            buffer.value = handler.value;
+            buffer.reason = null;
+            null !== resolveListeners &&
+              wakeChunk(response, resolveListeners, handler.value);
+          }
+        },
+        function (error) {
+          if (!handler.errored) {
+            handler.errored = !0;
+            handler.value = null;
+            handler.reason = error;
+            var chunk = handler.chunk;
+            null !== chunk &&
+              "blocked" === chunk.status &&
+              triggerErrorOnChunk(response, chunk, error);
+          }
+        }
       );
       return null;
     }
     function resolveStream(response, id, stream, controller) {
       var chunks = response._chunks;
-      stream = new Chunk("fulfilled", stream, controller, response);
+      stream = new ReactPromise("fulfilled", stream, controller);
       chunks.set(id, stream);
       response = response._formData.getAll(response._prefix + id);
       for (id = 0; id < response.length; id++)
         (chunks = response[id]),
-          "C" === chunks[0]
-            ? controller.close(
-                "C" === chunks ? '"$undefined"' : chunks.slice(1)
-              )
-            : controller.enqueueModel(chunks);
+          "string" === typeof chunks &&
+            ("C" === chunks[0]
+              ? controller.close(
+                  "C" === chunks ? '"$undefined"' : chunks.slice(1)
+                )
+              : controller.enqueueModel(chunks));
     }
     function parseReadableStream(response, reference, type) {
       reference = parseInt(reference.slice(2), 16);
-      var controller = null;
+      if (response._chunks.has(reference))
+        throw Error("Already initialized stream.");
+      var controller = null,
+        closed = !1;
       type = new ReadableStream({
         type: type,
         start: function (c) {
@@ -4777,7 +5017,11 @@
       resolveStream(response, reference, type, {
         enqueueModel: function (json) {
           if (null === previousBlockedChunk) {
-            var chunk = new Chunk("resolved_model", json, -1, response);
+            var chunk = new ReactPromise(
+              "resolved_model",
+              json,
+              _defineProperty({ id: -1 }, RESPONSE_SYMBOL, response)
+            );
             initializeModelChunk(chunk);
             "fulfilled" === chunk.status
               ? controller.enqueue(chunk.value)
@@ -4792,7 +5036,7 @@
                 (previousBlockedChunk = chunk));
           } else {
             chunk = previousBlockedChunk;
-            var _chunk = createPendingChunk(response);
+            var _chunk = new ReactPromise("pending", null, null);
             _chunk.then(
               function (v) {
                 return controller.enqueue(v);
@@ -4804,29 +5048,33 @@
             previousBlockedChunk = _chunk;
             chunk.then(function () {
               previousBlockedChunk === _chunk && (previousBlockedChunk = null);
-              resolveModelChunk(_chunk, json, -1);
+              resolveModelChunk(response, _chunk, json, -1);
             });
           }
         },
         close: function () {
-          if (null === previousBlockedChunk) controller.close();
-          else {
-            var blockedChunk = previousBlockedChunk;
-            previousBlockedChunk = null;
-            blockedChunk.then(function () {
-              return controller.close();
-            });
-          }
+          if (!closed)
+            if (((closed = !0), null === previousBlockedChunk))
+              controller.close();
+            else {
+              var blockedChunk = previousBlockedChunk;
+              previousBlockedChunk = null;
+              blockedChunk.then(function () {
+                return controller.close();
+              });
+            }
         },
         error: function (error) {
-          if (null === previousBlockedChunk) controller.error(error);
-          else {
-            var blockedChunk = previousBlockedChunk;
-            previousBlockedChunk = null;
-            blockedChunk.then(function () {
-              return controller.error(error);
-            });
-          }
+          if (!closed)
+            if (((closed = !0), null === previousBlockedChunk))
+              controller.error(error);
+            else {
+              var blockedChunk = previousBlockedChunk;
+              previousBlockedChunk = null;
+              blockedChunk.then(function () {
+                return controller.error(error);
+              });
+            }
         }
       });
       return type;
@@ -4841,6 +5089,8 @@
     }
     function parseAsyncIterable(response, reference, iterator) {
       reference = parseInt(reference.slice(2), 16);
+      if (response._chunks.has(reference))
+        throw Error("Already initialized stream.");
       var buffer = [],
         closed = !1,
         nextWriteIndex = 0,
@@ -4853,13 +5103,12 @@
               );
             if (nextReadIndex === buffer.length) {
               if (closed)
-                return new Chunk(
+                return new ReactPromise(
                   "fulfilled",
                   { done: !0, value: void 0 },
-                  null,
-                  response
+                  null
                 );
-              buffer[nextReadIndex] = createPendingChunk(response);
+              buffer[nextReadIndex] = new ReactPromise("pending", null, null);
             }
             return buffer[nextReadIndex++];
           });
@@ -4873,34 +5122,55 @@
                 value,
                 !1
               ))
-            : resolveIteratorResultChunk(buffer[nextWriteIndex], value, !1);
+            : resolveIteratorResultChunk(
+                response,
+                buffer[nextWriteIndex],
+                value,
+                !1
+              );
           nextWriteIndex++;
         },
         close: function (value) {
-          closed = !0;
-          nextWriteIndex === buffer.length
-            ? (buffer[nextWriteIndex] = createResolvedIteratorResultChunk(
+          if (!closed)
+            for (
+              closed = !0,
+                nextWriteIndex === buffer.length
+                  ? (buffer[nextWriteIndex] = createResolvedIteratorResultChunk(
+                      response,
+                      value,
+                      !0
+                    ))
+                  : resolveIteratorResultChunk(
+                      response,
+                      buffer[nextWriteIndex],
+                      value,
+                      !0
+                    ),
+                nextWriteIndex++;
+              nextWriteIndex < buffer.length;
+
+            )
+              resolveIteratorResultChunk(
                 response,
-                value,
+                buffer[nextWriteIndex++],
+                '"$undefined"',
                 !0
-              ))
-            : resolveIteratorResultChunk(buffer[nextWriteIndex], value, !0);
-          for (nextWriteIndex++; nextWriteIndex < buffer.length; )
-            resolveIteratorResultChunk(
-              buffer[nextWriteIndex++],
-              '"$undefined"',
-              !0
-            );
+              );
         },
         error: function (error) {
-          closed = !0;
-          for (
-            nextWriteIndex === buffer.length &&
-            (buffer[nextWriteIndex] = createPendingChunk(response));
-            nextWriteIndex < buffer.length;
+          if (!closed)
+            for (
+              closed = !0,
+                nextWriteIndex === buffer.length &&
+                  (buffer[nextWriteIndex] = new ReactPromise(
+                    "pending",
+                    null,
+                    null
+                  ));
+              nextWriteIndex < buffer.length;
 
-          )
-            triggerErrorOnChunk(buffer[nextWriteIndex++], error);
+            )
+              triggerErrorOnChunk(response, buffer[nextWriteIndex++], error);
         }
       });
       return iterator;
@@ -4914,24 +5184,10 @@
             return (
               (obj = parseInt(value.slice(2), 16)), getChunk(response, obj)
             );
-          case "F":
+          case "h":
             return (
               (value = value.slice(2)),
-              (value = getOutlinedModel(
-                response,
-                value,
-                obj,
-                key,
-                createModel
-              )),
-              loadServerReference$1(
-                response,
-                value.id,
-                value.bound,
-                initializingChunk,
-                obj,
-                key
-              )
+              getOutlinedModel(response, value, obj, key, loadServerReference$1)
             );
           case "T":
             if (
@@ -5067,10 +5323,12 @@
     function resolveField(response, key, value) {
       response._formData.append(key, value);
       var prefix = response._prefix;
-      key.startsWith(prefix) &&
-        ((response = response._chunks),
-        (key = +key.slice(prefix.length)),
-        (prefix = response.get(key)) && resolveModelChunk(prefix, value, key));
+      if (key.startsWith(prefix)) {
+        var chunks = response._chunks;
+        key = +key.slice(prefix.length);
+        (chunks = chunks.get(key)) &&
+          resolveModelChunk(response, chunks, value, key);
+      }
     }
     function close(response) {
       reportGlobalError(response, Error("Connection closed."));
@@ -5256,6 +5514,7 @@
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
+      REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
       scheduleMicrotask = queueMicrotask,
       currentView = null,
       writtenBytes = 0,
@@ -5265,6 +5524,13 @@
       SERVER_REFERENCE_TAG = Symbol.for("react.server.reference"),
       FunctionBind = Function.prototype.bind,
       ArraySlice = Array.prototype.slice,
+      serverReferenceToString = {
+        value: function () {
+          return "function () { [omitted code] }";
+        },
+        configurable: !0,
+        writable: !0
+      },
       PROMISE_PROTOTYPE = Promise.prototype,
       deepProxyHandlers = {
         get: function (target, name) {
@@ -5816,7 +6082,7 @@
       patchConsole(console, "table"),
       patchConsole(console, "trace"),
       patchConsole(console, "warn"));
-    var ObjectPrototype = Object.prototype,
+    var ObjectPrototype$1 = Object.prototype,
       stringify = JSON.stringify,
       ABORTING = 12,
       CLOSED = 14,
@@ -5836,33 +6102,58 @@
       debugNoOutline = null,
       emptyRoot = {},
       decoderOptions = { stream: !0 },
-      chunkCache = new Map();
-    Chunk.prototype = Object.create(Promise.prototype);
-    Chunk.prototype.then = function (resolve, reject) {
+      chunkCache = new Map(),
+      RESPONSE_SYMBOL = Symbol();
+    ReactPromise.prototype = Object.create(Promise.prototype);
+    ReactPromise.prototype.then = function (resolve, reject) {
       switch (this.status) {
         case "resolved_model":
           initializeModelChunk(this);
       }
       switch (this.status) {
         case "fulfilled":
-          resolve(this.value);
+          if ("function" === typeof resolve) {
+            for (
+              var inspectedValue = this.value,
+                cycleProtection = 0,
+                visited = new Set();
+              inspectedValue instanceof ReactPromise;
+
+            ) {
+              cycleProtection++;
+              if (
+                inspectedValue === this ||
+                visited.has(inspectedValue) ||
+                1e3 < cycleProtection
+              ) {
+                "function" === typeof reject &&
+                  reject(Error("Cannot have cyclic thenables."));
+                return;
+              }
+              visited.add(inspectedValue);
+              if ("fulfilled" === inspectedValue.status)
+                inspectedValue = inspectedValue.value;
+              else break;
+            }
+            resolve(this.value);
+          }
           break;
         case "pending":
         case "blocked":
-        case "cyclic":
-          resolve &&
+          "function" === typeof resolve &&
             (null === this.value && (this.value = []),
             this.value.push(resolve));
-          reject &&
+          "function" === typeof reject &&
             (null === this.reason && (this.reason = []),
             this.reason.push(reject));
           break;
         default:
-          reject(this.reason);
+          "function" === typeof reject && reject(this.reason);
       }
     };
-    var initializingChunk = null,
-      initializingChunkBlockedModel = null;
+    var ObjectPrototype = Object.prototype,
+      ArrayPrototype = Array.prototype,
+      initializingHandler = null;
     exports.createClientModuleProxy = function (moduleId) {
       moduleId = registerClientReferenceImpl({}, moduleId, !1);
       return new Proxy(moduleId, proxyHandlers$1);
@@ -5971,38 +6262,50 @@
         pendingFiles = 0,
         queuedFields = [];
       busboyStream.on("field", function (name, value) {
-        0 < pendingFiles
-          ? queuedFields.push(name, value)
-          : resolveField(response, name, value);
+        if (0 < pendingFiles) queuedFields.push(name, value);
+        else
+          try {
+            resolveField(response, name, value);
+          } catch (error) {
+            busboyStream.destroy(error);
+          }
       });
       busboyStream.on("file", function (name, value, _ref2) {
         var filename = _ref2.filename,
           mimeType = _ref2.mimeType;
         if ("base64" === _ref2.encoding.toLowerCase())
-          throw Error(
-            "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
+          busboyStream.destroy(
+            Error(
+              "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
+            )
           );
-        pendingFiles++;
-        var JSCompiler_object_inline_chunks_251 = [];
-        value.on("data", function (chunk) {
-          JSCompiler_object_inline_chunks_251.push(chunk);
-        });
-        value.on("end", function () {
-          var blob = new Blob(JSCompiler_object_inline_chunks_251, {
-            type: mimeType
+        else {
+          pendingFiles++;
+          var JSCompiler_object_inline_chunks_286 = [];
+          value.on("data", function (chunk) {
+            JSCompiler_object_inline_chunks_286.push(chunk);
           });
-          response._formData.append(name, blob, filename);
-          pendingFiles--;
-          if (0 === pendingFiles) {
-            for (blob = 0; blob < queuedFields.length; blob += 2)
-              resolveField(
-                response,
-                queuedFields[blob],
-                queuedFields[blob + 1]
-              );
-            queuedFields.length = 0;
-          }
-        });
+          value.on("end", function () {
+            try {
+              var blob = new Blob(JSCompiler_object_inline_chunks_286, {
+                type: mimeType
+              });
+              response._formData.append(name, blob, filename);
+              pendingFiles--;
+              if (0 === pendingFiles) {
+                for (blob = 0; blob < queuedFields.length; blob += 2)
+                  resolveField(
+                    response,
+                    queuedFields[blob],
+                    queuedFields[blob + 1]
+                  );
+                queuedFields.length = 0;
+              }
+            } catch (error) {
+              busboyStream.destroy(error);
+            }
+          });
+        }
       });
       busboyStream.on("finish", function () {
         close(response);
@@ -6118,7 +6421,8 @@
         },
         $$bound: { value: null, configurable: !0 },
         $$location: { value: Error("react-stack-top-frame"), configurable: !0 },
-        bind: { value: bind, configurable: !0 }
+        bind: { value: bind, configurable: !0 },
+        toString: serverReferenceToString
       });
     };
     exports.renderToPipeableStream = function (model, webpackMap, options) {

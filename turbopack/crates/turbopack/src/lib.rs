@@ -9,27 +9,15 @@
 
 pub mod evaluate_context;
 pub mod global_module_ids;
-mod graph;
 pub mod module_options;
 pub mod transition;
 
 use anyhow::{Result, bail};
-use css::{CssModuleAsset, ModuleCssAsset};
-use ecmascript::{
-    EcmascriptModuleAsset, EcmascriptModuleAssetType, TreeShakingMode,
-    chunk::EcmascriptChunkPlaceable,
-    references::{FollowExportsResult, follow_reexports},
-    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
-};
-use graph::{AggregatedGraph, AggregatedGraphNodeContent, aggregate};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{
-    FileSystemPath,
-    glob::{Glob, GlobOptions},
-};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks_fs::FileSystemPath;
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
@@ -38,9 +26,9 @@ use turbopack_core::{
     context::{AssetContext, ProcessResult},
     ident::Layer,
     issue::{IssueExt, IssueSource, module::ModuleIssue},
-    module::Module,
+    module::{Module, ModuleSideEffects},
     node_addon_module::NodeAddonModule,
-    output::OutputAsset,
+    output::{ExpandedOutputAssets, OutputAsset},
     raw_module::RawModule,
     reference_type::{
         CssReferenceSubType, EcmaScriptModulesReferenceSubType, ImportContext, ImportWithType,
@@ -53,26 +41,34 @@ use turbopack_core::{
     },
     source::Source,
 };
-pub use turbopack_css as css;
-pub use turbopack_ecmascript as ecmascript;
+use turbopack_css::{CssModuleAsset, ModuleCssAsset};
 use turbopack_ecmascript::{
-    AnalyzeMode,
+    AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, TreeShakingMode,
+    chunk::EcmascriptChunkPlaceable,
     inlined_bytes_module::InlinedBytesJsModule,
-    references::external_module::{
-        CachedExternalModule, CachedExternalTracingMode, CachedExternalType,
+    references::{
+        FollowExportsResult,
+        external_module::{CachedExternalModule, CachedExternalTracingMode, CachedExternalType},
+        follow_reexports,
     },
-    side_effect_optimization::locals::module::EcmascriptModuleLocalsModule,
+    side_effect_optimization::{
+        facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
+    },
     tree_shake::asset::EcmascriptModulePartAsset,
 };
 use turbopack_json::JsonModuleAsset;
-pub use turbopack_resolve::{resolve::resolve_options, resolve_options_context};
-use turbopack_resolve::{resolve_options_context::ResolveOptionsContext, typescript::type_resolve};
+use turbopack_resolve::{
+    resolve::resolve_options, resolve_options_context::ResolveOptionsContext,
+    typescript::type_resolve,
+};
 use turbopack_static::{css::StaticUrlCssModule, ecma::StaticUrlJsModule};
 use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySource};
 
-use self::transition::{Transition, TransitionOptions};
-use crate::module_options::{
-    CssOptionsContext, CustomModuleType, EcmascriptOptionsContext, TypescriptTransformOptions,
+use crate::{
+    module_options::{
+        CssOptionsContext, CustomModuleType, EcmascriptOptionsContext, TypescriptTransformOptions,
+    },
+    transition::{Transition, TransitionOptions},
 };
 
 async fn apply_module_type(
@@ -84,8 +80,14 @@ async fn apply_module_type(
     css_import_context: Option<ResolvedVc<ImportContext>>,
     runtime_code: bool,
 ) -> Result<Vc<ProcessResult>> {
+    let tree_shaking_mode = module_asset_context
+        .module_options_context()
+        .await?
+        .tree_shaking_mode;
+    let is_evaluation = matches!(&part, Some(ModulePart::Evaluation));
+
     let module_type = &*module_type.await?;
-    Ok(ProcessResult::Module(match module_type {
+    let module = match module_type {
         ModuleType::Ecmascript {
             preprocess,
             main,
@@ -123,6 +125,10 @@ async fn apply_module_type(
             }
             .to_resolved()
             .await?;
+            let side_effect_free_packages = module_asset_context
+                .module_options_context()
+                .await?
+                .side_effect_free_packages;
             let mut builder = EcmascriptModuleAsset::builder(
                 source,
                 ResolvedVc::upcast(context_for_module),
@@ -136,6 +142,7 @@ async fn apply_module_type(
                     .compile_time_info()
                     .to_resolved()
                     .await?,
+                side_effect_free_packages,
             );
             match module_type {
                 ModuleType::Ecmascript { .. } => {
@@ -166,26 +173,19 @@ async fn apply_module_type(
             if runtime_code {
                 ResolvedVc::upcast(module)
             } else {
-                let options_value = options.await?;
-                if options_value.tree_shaking_mode.is_some()
-                    && matches!(&part, Some(ModulePart::Evaluation))
-                {
+                // Check side effect free on the intermediate module before following reexports
+                // This can skip the module earlier and could skip more modules than only doing it
+                // at the end. Also we avoid parsing/analyzing the module in this
+                // case, because we would need to parse/analyze it for reexports.
+                if tree_shaking_mode.is_some() && is_evaluation {
                     // If we are tree shaking, skip the evaluation part if the module is marked as
                     // side effect free.
-                    let side_effect_free_packages = module_asset_context
-                        .side_effect_free_packages()
-                        .resolve()
-                        .await?;
-
-                    if *module
-                        .is_marked_as_side_effect_free(side_effect_free_packages)
-                        .await?
-                    {
+                    if *module.side_effects().await? == ModuleSideEffects::SideEffectFree {
                         return Ok(ProcessResult::Ignore.cell());
                     }
                 }
 
-                match options_value.tree_shaking_mode {
+                match tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
                         Vc::upcast(EcmascriptModulePartAsset::select_part(
                             *module,
@@ -203,11 +203,6 @@ async fn apply_module_type(
                                     }
                                 }
                                 ModulePart::Export(_) => {
-                                    let side_effect_free_packages = module_asset_context
-                                        .side_effect_free_packages()
-                                        .resolve()
-                                        .await?;
-
                                     if *module.get_exports().split_locals_and_reexports().await? {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(
@@ -219,16 +214,11 @@ async fn apply_module_type(
                                                 .await?,
                                             ),
                                             part,
-                                            side_effect_free_packages,
                                         )
                                         .await?
                                     } else {
-                                        apply_reexport_tree_shaking(
-                                            Vc::upcast(*module),
-                                            part,
-                                            side_effect_free_packages,
-                                        )
-                                        .await?
+                                        apply_reexport_tree_shaking(Vc::upcast(*module), part)
+                                            .await?
                                     }
                                 }
                                 _ => bail!(
@@ -301,21 +291,29 @@ async fn apply_module_type(
                 .to_resolved()
                 .await?
         }
-    })
-    .cell())
+    };
+
+    if tree_shaking_mode.is_some() && is_evaluation {
+        // If we are tree shaking, skip the evaluation part if the module is marked as
+        // side effect free.
+        if *module.side_effects().await? == ModuleSideEffects::SideEffectFree {
+            return Ok(ProcessResult::Ignore.cell());
+        }
+    }
+
+    Ok(ProcessResult::Module(module).cell())
 }
 
 async fn apply_reexport_tree_shaking(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     part: ModulePart,
-    side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<Box<dyn Module>>> {
     if let ModulePart::Export(export) = &part {
         let FollowExportsResult {
             module: final_module,
             export_name: new_export,
             ..
-        } = &*follow_reexports(module, export.clone(), side_effect_free_packages, true).await?;
+        } = &*follow_reexports(module, export.clone(), true).await?;
         let module = if let Some(new_export) = new_export {
             if *new_export == *export {
                 Vc::upcast(**final_module)
@@ -549,7 +547,8 @@ async fn process_default_internal(
         _ => None,
     };
 
-    for (i, rule) in options.await?.rules.iter().enumerate() {
+    let options_value = options.await?;
+    for (i, rule) in options_value.rules.iter().enumerate() {
         if has_type_attribute && current_module_type.is_some() {
             continue;
         }
@@ -712,7 +711,7 @@ async fn process_default_internal(
         return Ok(ProcessResult::Unknown(current_source).cell());
     };
 
-    apply_module_type(
+    let module = apply_module_type(
         current_source,
         module_asset_context,
         module_type.cell(),
@@ -725,7 +724,9 @@ async fn process_default_internal(
         },
         matches!(reference_type, ReferenceType::Runtime),
     )
-    .await
+    .await?;
+
+    Ok(module)
 }
 
 #[turbo_tasks::function]
@@ -873,8 +874,36 @@ impl AssetContext for ModuleAssetContext {
                                 ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
                             }
                         }
-                        ResolveResultItem::External { name, ty, traced } => {
+                        ResolveResultItem::External {
+                            name,
+                            ty,
+                            traced,
+                            target,
+                        } => {
                             let replacement = if replace_externals {
+                                // Determine the package folder, `target` is the full path to the
+                                // resolved file.
+                                let target = if let Some(mut target) = target {
+                                    loop {
+                                        let parent = target.parent();
+                                        if parent.is_root() {
+                                            break;
+                                        }
+                                        if parent.file_name() == "node_modules" {
+                                            break;
+                                        }
+                                        if parent.file_name().starts_with("@")
+                                            && parent.parent().file_name() == "node_modules"
+                                        {
+                                            break;
+                                        }
+                                        target = parent;
+                                    }
+                                    Some(target)
+                                } else {
+                                    None
+                                };
+
                                 let analyze_mode = if traced == ExternalTraced::Traced
                                     && let Some(options) = &self
                                         .module_options_context()
@@ -882,15 +911,22 @@ impl AssetContext for ModuleAssetContext {
                                         .enable_externals_tracing
                                 {
                                     // result.affecting_sources can be ignored for tracing, as this
-                                    // request will later be resolved relative to tracing_root
-                                    // anyway.
+                                    // request will later be resolved relative to tracing_root (or
+                                    // the .next/node_modules/lodash-1238123 symlink) anyway.
 
                                     let options = options.await?;
                                     let origin = PlainResolveOrigin::new(
                                         Vc::upcast(externals_tracing_module_context(
                                             *options.compile_time_info,
                                         )),
-                                        options.tracing_root.join("_")?,
+                                        // If target is specified, a symlink will be created to
+                                        // make the folder
+                                        // itself available, but we still need to trace
+                                        // resolving the individual file(s) inside the package.
+                                        target
+                                            .as_ref()
+                                            .unwrap_or(&options.tracing_root)
+                                            .join("_")?,
                                     );
                                     CachedExternalTracingMode::Traced {
                                         origin: ResolvedVc::upcast(origin.to_resolved().await?),
@@ -899,7 +935,8 @@ impl AssetContext for ModuleAssetContext {
                                     CachedExternalTracingMode::Untraced
                                 };
 
-                                replace_external(&name, ty, import_externals, analyze_mode).await?
+                                replace_external(&name, ty, target, import_externals, analyze_mode)
+                                    .await?
                             } else {
                                 None
                             };
@@ -959,69 +996,6 @@ impl AssetContext for ModuleAssetContext {
             },
         )
     }
-
-    #[turbo_tasks::function]
-    async fn side_effect_free_packages(&self) -> Result<Vc<Glob>> {
-        let pkgs = &self.module_options_context.await?.side_effect_free_packages;
-
-        let mut globs = String::new();
-        globs.push_str("**/node_modules/{");
-        globs.push_str(&pkgs.join(","));
-        globs.push_str("}/**");
-
-        Ok(Glob::new(globs.into(), GlobOptions::default()))
-    }
-}
-
-#[turbo_tasks::function]
-pub async fn emit_with_completion(
-    asset: Vc<Box<dyn OutputAsset>>,
-    output_dir: FileSystemPath,
-) -> Result<()> {
-    emit_assets_aggregated(asset, output_dir)
-        .as_side_effect()
-        .await
-}
-
-#[turbo_tasks::function(operation)]
-pub fn emit_with_completion_operation(
-    asset: ResolvedVc<Box<dyn OutputAsset>>,
-    output_dir: FileSystemPath,
-) -> Vc<()> {
-    emit_with_completion(*asset, output_dir)
-}
-
-#[turbo_tasks::function]
-async fn emit_assets_aggregated(
-    asset: Vc<Box<dyn OutputAsset>>,
-    output_dir: FileSystemPath,
-) -> Result<()> {
-    let aggregated = aggregate(asset);
-    emit_aggregated_assets(aggregated, output_dir)
-        .as_side_effect()
-        .await
-}
-
-#[turbo_tasks::function]
-async fn emit_aggregated_assets(
-    aggregated: Vc<AggregatedGraph>,
-    output_dir: FileSystemPath,
-) -> Result<()> {
-    match &*aggregated.content().await? {
-        AggregatedGraphNodeContent::Asset(asset) => {
-            emit_asset_into_dir(**asset, output_dir)
-                .as_side_effect()
-                .await?;
-        }
-        AggregatedGraphNodeContent::Children(children) => {
-            for aggregated in children {
-                emit_aggregated_assets(**aggregated, output_dir.clone())
-                    .as_side_effect()
-                    .await?;
-            }
-        }
-    }
-    Ok(())
 }
 
 #[turbo_tasks::function]
@@ -1047,10 +1021,37 @@ pub async fn emit_asset_into_dir(
     Ok(())
 }
 
+#[turbo_tasks::function]
+pub async fn emit_assets_into_dir(
+    assets: Vc<ExpandedOutputAssets>,
+    output_dir: FileSystemPath,
+) -> Result<()> {
+    let assets = assets.await?;
+    let paths = assets.iter().map(|&asset| asset.path()).try_join().await?;
+    for (&asset, path) in assets.iter().zip(paths.iter()) {
+        if path.is_inside_ref(&output_dir) {
+            emit_asset(*asset).as_side_effect().await?;
+        }
+    }
+    Ok(())
+}
+
+#[turbo_tasks::function(operation)]
+pub async fn emit_assets_into_dir_operation(
+    assets: ResolvedVc<ExpandedOutputAssets>,
+    output_dir: FileSystemPath,
+) -> Result<Vc<()>> {
+    emit_assets_into_dir(*assets, output_dir)
+        .as_side_effect()
+        .await?;
+    Ok(Vc::cell(()))
+}
+
 /// Replaces the externals in the result with `ExternalModuleAsset` instances.
 pub async fn replace_external(
     name: &RcStr,
     ty: ExternalType,
+    target: Option<FileSystemPath>,
     import_externals: bool,
     analyze_mode: CachedExternalTracingMode,
 ) -> Result<Option<ModuleResolveResultItem>> {
@@ -1071,7 +1072,7 @@ pub async fn replace_external(
         }
     };
 
-    let module = CachedExternalModule::new(name.clone(), external_type, analyze_mode)
+    let module = CachedExternalModule::new(name.clone(), target, external_type, analyze_mode)
         .to_resolved()
         .await?;
 

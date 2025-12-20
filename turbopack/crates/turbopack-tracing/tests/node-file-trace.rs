@@ -24,7 +24,7 @@ use rstest::*;
 use rstest_reuse::{
     *, {self},
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tokio::{process::Command, time::timeout};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -33,24 +33,25 @@ use turbo_tasks::{
 use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
-    ModuleAssetContext,
-    ecmascript::AnalyzeMode,
-    emit_with_completion_operation,
+    ModuleAssetContext, emit_assets_into_dir_operation,
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext,
         TypescriptTransformOptions,
     },
 };
 use turbopack_core::{
+    chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     rebase::RebasedAsset,
+    reference::all_assets_from_entry,
     reference_type::ReferenceType,
 };
+use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 #[global_allocator]
@@ -373,10 +374,12 @@ async fn node_file_trace_operation(
                 enable_typescript_transform: Some(
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
+                // enable_types is required here to ensure .d.ts files are collected.
                 enable_types: true,
                 ..Default::default()
             },
             css: CssOptionsContext {
+                source_maps: SourceMapsType::None,
                 enable_raw_css: true,
                 ..Default::default()
             },
@@ -407,8 +410,11 @@ async fn node_file_trace_operation(
     let rebased = RebasedAsset::new(module, input_dir.clone(), output_dir.clone())
         .to_resolved()
         .await?;
+    let assets = all_assets_from_entry(Vc::upcast(*rebased))
+        .to_resolved()
+        .await?;
 
-    let emit_op = emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir.clone());
+    let emit_op = emit_assets_into_dir_operation(assets, output_dir.clone());
     emit_op.read_strongly_consistent().await?;
     apply_effects(emit_op).await?;
 
@@ -699,7 +705,7 @@ fn assert_output(
     })
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 struct BenchSuite {
     suite: String,
     node_duration: String,
@@ -746,7 +752,7 @@ async fn print_graph(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
     let mut queue = Vec::new();
     queue.push((0, asset));
     while let Some((depth, asset)) = queue.pop() {
-        let references = asset.references().await?;
+        let references = asset.references().all_assets().await?;
         let mut indent = String::new();
         for _ in 0..depth {
             indent.push_str("  ");

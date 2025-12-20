@@ -143,13 +143,14 @@ async function verifyTypeScript(opts: SetupOpts) {
   const verifyResult = await verifyTypeScriptSetup({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
-    intentDirs: [opts.pagesDir, opts.appDir].filter(Boolean) as string[],
     typeCheckPreflight: false,
     tsconfigPath: opts.nextConfig.typescript.tsconfigPath,
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
     hasAppDir: !!opts.appDir,
     hasPagesDir: !!opts.pagesDir,
     isolatedDevBuild: opts.nextConfig.experimental.isolatedDevBuild,
+    appDir: opts.appDir,
+    pagesDir: opts.pagesDir,
   })
 
   if (verifyResult.version) {
@@ -214,10 +215,14 @@ async function startWatcher(
         )
       })()
     : await (async () => {
-        const HotReloaderWebpack = (
-          require('../../dev/hot-reloader-webpack') as typeof import('../../dev/hot-reloader-webpack')
-        ).default
-        return new HotReloaderWebpack(opts.dir, {
+        const HotReloader = process.env.NEXT_RSPACK
+          ? (
+              require('../../dev/hot-reloader-rspack') as typeof import('../../dev/hot-reloader-rspack')
+            ).default
+          : (
+              require('../../dev/hot-reloader-webpack') as typeof import('../../dev/hot-reloader-webpack')
+            ).default
+        return new HotReloader(opts.dir, {
           isSrcDir: opts.isSrcDir,
           appDir,
           pagesDir,

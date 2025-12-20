@@ -414,5 +414,7 @@ export async function workerMain(workerData: {
     result.buildTraceContext!.chunksTrace!.entryNameFilesMap = entryNameFilesMap
   }
   NextBuildContext.nextBuildSpan.stop()
+  await telemetry.flush()
+
   return { ...result, debugTraceEvents: getTraceEvents() }
 }

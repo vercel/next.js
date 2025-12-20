@@ -1,6 +1,9 @@
 import type { RenderOptsPartial as AppRenderOptsPartial } from '../server/app-render/types'
 import type { RenderOptsPartial as PagesRenderOptsPartial } from '../server/render'
-import type { LoadComponentsReturnType } from '../server/load-components'
+import type {
+  GenericComponentMod,
+  LoadComponentsReturnType,
+} from '../server/load-components'
 import type { OutgoingHttpHeaders } from 'http'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { CacheControl } from '../server/lib/cache-control'
@@ -12,6 +15,7 @@ import type {
 import type { FetchMetrics } from '../server/base-http'
 import type { RouteMetadata } from './routes/types'
 import type { RenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
+import type { StaticWorker } from '../build'
 
 export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
   path: string
@@ -85,10 +89,12 @@ export type ExportPagesResult = {
 export type WorkerRenderOptsPartial = PagesRenderOptsPartial &
   AppRenderOptsPartial
 
-export type WorkerRenderOpts = WorkerRenderOptsPartial &
-  LoadComponentsReturnType
+export type WorkerRenderOpts<
+  NextModule extends GenericComponentMod = GenericComponentMod,
+> = WorkerRenderOptsPartial & LoadComponentsReturnType<NextModule>
 
 export interface ExportAppOptions {
+  staticWorker?: StaticWorker
   outdir: string
   enabledDirectories: NextEnabledDirectories
   silent?: boolean

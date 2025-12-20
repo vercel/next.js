@@ -95,22 +95,7 @@ describe('loadConfig', () => {
         /`experimental\.ppr` has been merged into `cacheComponents`/
       )
     })
-
-    it('errors when using persistentCachingForBuild if not in canary', async () => {
-      await expect(
-        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-          customConfig: {
-            experimental: {
-              turbopackFileSystemCacheForBuild: true,
-            },
-          },
-        })
-      ).rejects.toThrow(
-        /The experimental feature "experimental.turbopackFileSystemCacheForBuild" can only be enabled when using the latest canary version of Next.js./
-      )
-    })
   })
-
   describe('with a canary version', () => {
     beforeAll(() => {
       process.env.__NEXT_VERSION = '15.4.0-canary.35'

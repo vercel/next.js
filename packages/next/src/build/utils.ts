@@ -1,14 +1,18 @@
-import type { NextConfigComplete } from '../server/config-shared'
+import type {
+  NextConfigComplete,
+  NextConfigRuntime,
+} from '../server/config-shared'
 import type { ExperimentalPPRConfig } from '../server/lib/experimental/ppr'
 import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
 import type { ServerRuntime } from '../types'
 import type { BuildManifest } from '../server/get-page-files'
-import type {
-  CustomRoutes,
-  Header,
-  Redirect,
-  Rewrite,
+import {
+  normalizeRouteRegex,
+  type CustomRoutes,
+  type Header,
+  type Redirect,
+  type Rewrite,
 } from '../lib/load-custom-routes'
 import type {
   EdgeFunctionDefinition,
@@ -72,12 +76,26 @@ import { buildPagesStaticPaths } from './static-paths/pages'
 import type { PrerenderedRoute } from './static-paths/types'
 import type { CacheControl } from '../server/lib/cache-control'
 import { formatExpire, formatRevalidate } from './output/format'
-import type { AppRouteRouteModule } from '../server/route-modules/app-route/module'
+import type {
+  AppRouteModule,
+  AppRouteRouteModule,
+} from '../server/route-modules/app-route/module'
 import { formatIssue, isRelevantWarning } from '../shared/lib/turbopack/utils'
 import type { TurbopackResult } from './swc/types'
-import type { FunctionsConfigManifest } from './index'
+import type { FunctionsConfigManifest, ManifestRoute } from './index'
+import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { parseAppRoute } from '../shared/lib/router/routes/app'
 
 export type ROUTER_TYPE = 'pages' | 'app'
+
+export type DynamicManifestRoute = ManifestRoute & {
+  /**
+   * The source page that this route is based on. This is used to determine the
+   * source page for the route and is only relevant for app pages where PPR is
+   * enabled and the page differs from the source page.
+   */
+  sourcePage: string | undefined
+}
 
 // Use `print()` for expected console output
 const print = console.log
@@ -817,7 +835,9 @@ export async function isPageStatic({
       let isRoutePPREnabled: boolean = false
 
       if (pageType === 'app') {
-        const ComponentMod: AppPageModule = componentsResult.ComponentMod
+        // @ts-expect-error pageType is app, so we can assume AppPageModule | AppRouteModule
+        const ComponentMod: AppPageModule | AppRouteModule =
+          componentsResult.ComponentMod
 
         let segments: AppSegment[]
         try {
@@ -859,14 +879,17 @@ export async function isPageStatic({
           appConfig.revalidate = 0
         }
 
+        const route = parseAppRoute(page, true)
+
         // If the page is dynamic and we're not in edge runtime, then we need to
         // build the static paths. The edge runtime doesn't support static
         // paths.
-        if (isDynamicRoute(page) && !pathIsEdgeRuntime) {
+        if (route.dynamicSegments.length > 0 && !pathIsEdgeRuntime) {
           ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
             await buildAppStaticPaths({
               dir,
               page,
+              route,
               cacheComponents,
               authInterrupts,
               segments,
@@ -1063,11 +1086,14 @@ export async function hasCustomGetInitialProps({
   let mod = ComponentMod
 
   if (checkingApp) {
+    // @ts-expect-error very dynamic code
     mod = (await mod._app) || mod.default || mod
   } else {
+    // @ts-expect-error very dynamic code
     mod = mod.default || mod
   }
   mod = await mod
+  // @ts-expect-error very dynamic code
   return mod.getInitialProps !== mod.origGetInitialProps
 }
 
@@ -1090,7 +1116,7 @@ export async function getDefinedNamedExports({
   })
 
   return Object.keys(ComponentMod).filter((key) => {
-    return typeof ComponentMod[key] !== 'undefined'
+    return typeof ComponentMod[key as keyof typeof ComponentMod] !== 'undefined'
   })
 }
 
@@ -1188,7 +1214,7 @@ export async function copyTracedFiles(
   pageKeys: readonly string[],
   appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
-  serverConfig: NextConfigComplete,
+  serverConfig: NextConfigRuntime,
   middlewareManifest: MiddlewareManifest,
   hasNodeMiddleware: boolean,
   hasInstrumentationHook: boolean,
@@ -1599,3 +1625,39 @@ export function collectMeta({
 export const RSPACK_DEFAULT_LAYERS_REGEX = new RegExp(
   `^(|${[WEBPACK_LAYERS.pagesDirBrowser, WEBPACK_LAYERS.pagesDirEdge, WEBPACK_LAYERS.pagesDirNode].join('|')})$`
 )
+
+/**
+ * Converts a page to a manifest route.
+ *
+ * @param page The page to convert to a route.
+ * @returns A route object.
+ */
+export function pageToRoute(page: string): ManifestRoute
+/**
+ * Converts a page to a dynamic manifest route.
+ *
+ * @param page The page to convert to a route.
+ * @param sourcePage The source page that this route is based on. This is used
+ * to determine the source page for the route and is only relevant for app
+ * pages when PPR is enabled on them.
+ * @returns A route object.
+ */
+export function pageToRoute(
+  page: string,
+  sourcePage: string | undefined
+): DynamicManifestRoute
+export function pageToRoute(
+  page: string,
+  sourcePage?: string
+): DynamicManifestRoute | ManifestRoute {
+  const routeRegex = getNamedRouteRegex(page, {
+    prefixRouteKeys: true,
+  })
+  return {
+    sourcePage,
+    page,
+    regex: normalizeRouteRegex(routeRegex.re.source),
+    routeKeys: routeRegex.routeKeys,
+    namedRegex: routeRegex.namedRegex,
+  }
+}

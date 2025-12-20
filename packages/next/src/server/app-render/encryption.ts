@@ -12,10 +12,12 @@ import {
   decrypt,
   encrypt,
   getActionEncryptionKey,
-  getClientReferenceManifestForRsc,
-  getServerModuleMap,
   stringToUint8Array,
 } from './encryption-utils'
+import {
+  getClientReferenceManifest,
+  getServerModuleMap,
+} from './manifests-singleton'
 import {
   getCacheSignal,
   getPrerenderResumeDataCache,
@@ -111,7 +113,7 @@ export const encryptActionBoundArgs = React.cache(
       ? getCacheSignal(workUnitStore)
       : undefined
 
-    const { clientModules } = getClientReferenceManifestForRsc()
+    const { clientModules } = getClientReferenceManifest()
 
     // Create an error before any asynchronous calls, to capture the original
     // call stack in case we need it when the serialization errors.
@@ -250,7 +252,7 @@ export async function decryptActionBoundArgs(
   }
 
   const { edgeRscModuleMapping, rscModuleMapping } =
-    getClientReferenceManifestForRsc()
+    getClientReferenceManifest()
 
   // Using Flight to deserialize the args from the string.
   const deserialized = await createFromReadableStream(

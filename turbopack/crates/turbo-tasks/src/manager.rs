@@ -13,6 +13,7 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
+use bincode::{Decode, Encode};
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use tokio::{select, sync::mpsc::Receiver, task_local};
@@ -159,6 +160,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         &self,
         task: TaskId,
         index: CellId,
+        is_serializable_cell_content: bool,
         content: CellContent,
         verification_mode: VerificationMode,
     );
@@ -267,7 +269,7 @@ pub struct UpdateInfo {
     placeholder_for_future_fields: (),
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub enum TaskPersistence {
     /// Tasks that may be persisted across sessions using serialization.
     Persistent,
@@ -279,6 +281,15 @@ pub enum TaskPersistence {
     /// type [`TransientValue`][crate::value::TransientValue] or
     /// [`TransientInstance`][crate::value::TransientInstance].
     Transient,
+}
+
+impl Display for TaskPersistence {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TaskPersistence::Persistent => write!(f, "persistent"),
+            TaskPersistence::Transient => write!(f, "transient"),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
@@ -826,7 +837,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 let output = match result {
                     Ok(raw_vc) => OutputContent::Link(raw_vc),
                     Err(err) => OutputContent::Error(
-                        TurboTasksExecutionError::from(err).with_task_context(task_type),
+                        TurboTasksExecutionError::from(err).with_task_context(task_type, None),
                     ),
                 };
 
@@ -1346,11 +1357,18 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         &self,
         task: TaskId,
         index: CellId,
+        is_serializable_cell_content: bool,
         content: CellContent,
         verification_mode: VerificationMode,
     ) {
-        self.backend
-            .update_task_cell(task, index, content, verification_mode, self);
+        self.backend.update_task_cell(
+            task,
+            index,
+            is_serializable_cell_content,
+            content,
+            verification_mode,
+            self,
+        );
     }
 
     fn connect_task(&self, task: TaskId) {
@@ -1720,10 +1738,11 @@ pub(crate) async fn read_task_cell(
 ///
 /// Mutations should not outside of the task that that owns this cell. Doing so
 /// is a logic error, and may lead to incorrect caching behavior.
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy)]
 pub struct CurrentCellRef {
     current_task: TaskId,
     index: CellId,
+    is_serializable_cell_content: bool,
 }
 
 type VcReadRepr<T> = <<T as VcValueType>::Read as VcRead<T>>::Repr;
@@ -1758,7 +1777,8 @@ impl CurrentCellRef {
                 ReadCellOptions {
                     // INVALIDATION: Reading our own cell must be untracked
                     tracking: ReadTracking::Untracked,
-                    ..Default::default()
+                    is_serializable_cell_content: self.is_serializable_cell_content,
+                    final_read_hint: false,
                 },
             )
             .ok();
@@ -1767,6 +1787,7 @@ impl CurrentCellRef {
             tt.update_own_task_cell(
                 self.current_task,
                 self.index,
+                self.is_serializable_cell_content,
                 CellContent(Some(update)),
                 VerificationMode::EqualityCheck,
             )
@@ -1859,6 +1880,7 @@ impl CurrentCellRef {
         tt.update_own_task_cell(
             self.current_task,
             self.index,
+            self.is_serializable_cell_content,
             CellContent(Some(SharedReference::new(triomphe::Arc::new(
                 <T::Read as VcRead<T>>::value_to_repr(new_value),
             )))),
@@ -1888,7 +1910,8 @@ impl CurrentCellRef {
                     ReadCellOptions {
                         // INVALIDATION: Reading our own cell must be untracked
                         tracking: ReadTracking::Untracked,
-                        ..Default::default()
+                        is_serializable_cell_content: self.is_serializable_cell_content,
+                        final_read_hint: false,
                     },
                 )
                 .ok();
@@ -1905,6 +1928,7 @@ impl CurrentCellRef {
             tt.update_own_task_cell(
                 self.current_task,
                 self.index,
+                self.is_serializable_cell_content,
                 CellContent(Some(shared_ref)),
                 verification_mode,
             )
@@ -1918,7 +1942,11 @@ impl From<CurrentCellRef> for RawVc {
     }
 }
 
-pub fn find_cell_by_type(ty: ValueTypeId) -> CurrentCellRef {
+pub fn find_cell_by_type<T: VcValueType>() -> CurrentCellRef {
+    find_cell_by_id(T::get_value_type_id(), T::has_serialization())
+}
+
+pub fn find_cell_by_id(ty: ValueTypeId, is_serializable_cell_content: bool) -> CurrentCellRef {
     CURRENT_TASK_STATE.with(|ts| {
         let current_task = current_task("celling turbo_tasks values");
         let mut ts = ts.write().unwrap();
@@ -1929,6 +1957,7 @@ pub fn find_cell_by_type(ty: ValueTypeId) -> CurrentCellRef {
         CurrentCellRef {
             current_task,
             index: CellId { type_id: ty, index },
+            is_serializable_cell_content,
         }
     })
 }
