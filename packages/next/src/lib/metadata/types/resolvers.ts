@@ -24,3 +24,7 @@ export type MetadataContext = {
   trailingSlash: boolean
   isStaticMetadataRouteFile: boolean
 }
+
+export type MetadataContextWithBasePath = MetadataContext & {
+  basePath?: string
+}

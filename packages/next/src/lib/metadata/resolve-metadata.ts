@@ -13,6 +13,7 @@ import type { Twitter } from './types/twitter-types'
 import type { OpenGraph } from './types/opengraph-types'
 import type { AppDirModules } from '../../build/webpack/loaders/next-app-loader'
 import type { MetadataContext } from './types/resolvers'
+import type { MetadataContextWithBasePath } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type {
   AbsoluteTemplateString,
@@ -156,6 +157,35 @@ function normalizeMetadataBase(metadataBase: string | URL | null): URL | null {
   return metadataBase
 }
 
+function applyBasePathToIcons(
+  icons: ResolvedIcons | null,
+  basePath?: string
+): ResolvedIcons | null {
+  if (!icons || !basePath) return icons
+
+  const apply = (icon: IconDescriptor) => {
+    if (
+      icon.url instanceof URL ||
+      !icon.url.startsWith('/') ||
+      icon.url.startsWith(basePath)
+    ) {
+      return icon
+    }
+
+    return {
+      ...icon,
+      url: `${basePath}${icon.url}`,
+    }
+  }
+
+  return {
+    ...icons,
+    icon: icons.icon?.map(apply),
+    apple: icons.apple?.map(apply),
+    other: icons.other?.map(apply),
+  }
+}
+
 async function mergeStaticMetadata(
   metadataBase: MetadataBaseURL,
   source: Metadata | null,
@@ -206,6 +236,7 @@ async function mergeStaticMetadata(
 
   return target
 }
+
 
 /**
  * Merges the given metadata with the resolved metadata. Returns a new object.
@@ -293,12 +324,19 @@ async function mergeMetadata(
         )
         break
 
-      case 'icons': {
-        newResolvedMetadata.icons = convertUrlsToStrings(
-          resolveIcons(metadata.icons)
-        )
-        break
-      }
+        case 'icons': {
+          const resolvedIcons = resolveIcons(metadata.icons)
+
+          const ctx = metadataContext as MetadataContextWithBasePath
+
+          newResolvedMetadata.icons = convertUrlsToStrings(
+            applyBasePathToIcons(resolvedIcons, ctx.basePath)
+          )
+
+          break
+        }
+
+
       case 'appleWebApp':
         newResolvedMetadata.appleWebApp = resolveAppleWebApp(
           metadata.appleWebApp
