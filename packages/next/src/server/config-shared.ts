@@ -318,6 +318,7 @@ export interface ExperimentalConfig {
   fetchCacheKeyPrefix?: string
   imgOptConcurrency?: number | null
   imgOptTimeoutInSeconds?: number
+  imgFetchTimeoutInSeconds?: number
   imgOptMaxInputPixels?: number
   imgOptSequentialRead?: boolean | null
   imgOptSkipMetadata?: boolean | null
@@ -1518,6 +1519,7 @@ export const defaultConfig = Object.freeze({
     memoryBasedWorkersCount: false,
     imgOptConcurrency: null,
     imgOptTimeoutInSeconds: 7,
+    imgFetchTimeoutInSeconds: 7,
     imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
     imgOptSequentialRead: null,
     imgOptSkipMetadata: null,
@@ -1667,6 +1669,7 @@ export interface NextConfigRuntime {
     | 'imgOptSequentialRead'
     | 'imgOptSkipMetadata'
     | 'imgOptTimeoutInSeconds'
+    | 'imgFetchTimeoutInSeconds'
     | 'proxyClientMaxBodySize'
     | 'proxyTimeout'
     | 'testProxy'
@@ -1722,6 +1725,7 @@ export function getNextConfigRuntime(
         imgOptSequentialRead: ex.imgOptSequentialRead,
         imgOptSkipMetadata: ex.imgOptSkipMetadata,
         imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
+        imgFetchTimeoutInSeconds: ex.imgFetchTimeoutInSeconds,
         proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
         proxyTimeout: ex.proxyTimeout,
         testProxy: ex.testProxy,

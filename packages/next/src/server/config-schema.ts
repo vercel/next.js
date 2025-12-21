@@ -217,6 +217,7 @@ export const experimentalSchema = {
   gzipSize: z.boolean().optional(),
   imgOptConcurrency: z.number().int().optional().nullable(),
   imgOptTimeoutInSeconds: z.number().int().optional(),
+  imgFetchTimeoutInSeconds: z.number().int().nonnegative().finite().optional(),
   imgOptMaxInputPixels: z.number().int().optional(),
   imgOptSequentialRead: z.boolean().optional().nullable(),
   imgOptSkipMetadata: z.boolean().optional().nullable(),

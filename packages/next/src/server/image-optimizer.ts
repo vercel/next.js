@@ -585,9 +585,11 @@ export class ImageOptimizerCache {
 }
 export class ImageError extends Error {
   statusCode: number
+  code?: string
 
-  constructor(statusCode: number, message: string) {
+  constructor(statusCode: number, message: string, code?: string) {
     super(message)
+    this.code = code
 
     // ensure an error status is used > 400
     if (statusCode >= 400) {
@@ -708,10 +710,33 @@ function isRedirect(statusCode: number) {
   return [301, 302, 303, 307, 308].includes(statusCode)
 }
 
+function isFetchTimeoutError(err: Error, timeoutSignalUsed: boolean): boolean {
+  if (err.name === 'TimeoutError') {
+    return true
+  }
+
+  if (timeoutSignalUsed && err.name === 'AbortError') {
+    return true
+  }
+
+  if (isError(err.cause)) {
+    if (err.cause.name === 'TimeoutError') {
+      return true
+    }
+
+    if (timeoutSignalUsed && err.cause.name === 'AbortError') {
+      return true
+    }
+  }
+
+  return false
+}
+
 export async function fetchExternalImage(
   href: string,
   dangerouslyAllowLocalIP: boolean,
-  count = 3
+  count = 3,
+  timeoutInSeconds?: number
 ): Promise<ImageUpstream> {
   if (!dangerouslyAllowLocalIP) {
     const { hostname } = new URL(href)
@@ -735,18 +760,26 @@ export async function fetchExternalImage(
       throw new ImageError(400, '"url" parameter is not allowed')
     }
   }
-  const res = await fetch(href, {
-    signal: AbortSignal.timeout(7_000),
-    redirect: 'manual',
-  }).catch((err) => err as Error)
+  const resolvedTimeoutInSeconds =
+    typeof timeoutInSeconds === 'number' ? timeoutInSeconds : 7
+  const requestInit: RequestInit = { redirect: 'manual' }
+
+  const timeoutSignalUsed = resolvedTimeoutInSeconds > 0
+
+  if (timeoutSignalUsed) {
+    requestInit.signal = AbortSignal.timeout(resolvedTimeoutInSeconds * 1000)
+  }
+
+  const res = await fetch(href, requestInit).catch((err) => err as Error)
 
   if (res instanceof Error) {
     const err = res as Error
-    if (err.name === 'TimeoutError') {
+    if (isFetchTimeoutError(err, timeoutSignalUsed)) {
       Log.error('upstream image response timed out for', href)
       throw new ImageError(
         504,
-        '"url" parameter is valid but upstream response timed out'
+        '"url" parameter is valid but upstream response timed out. Consider increasing experimental.imgFetchTimeoutInSeconds, using the unoptimized prop, or configuring a custom loader.',
+        'IMAGE_FETCH_TIMEOUT'
       )
     }
     throw err
@@ -766,7 +799,12 @@ export async function fetchExternalImage(
       )
     }
     const redirect = new URL(locationHeader, href).href
-    return fetchExternalImage(redirect, dangerouslyAllowLocalIP, count - 1)
+    return fetchExternalImage(
+      redirect,
+      dangerouslyAllowLocalIP,
+      count - 1,
+      timeoutInSeconds
+    )
   }
 
   if (!res.ok) {

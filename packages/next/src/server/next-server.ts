@@ -784,7 +784,8 @@ export default class NextNodeServer extends BaseServer<
         ? await fetchExternalImage(
             href,
             this.nextConfig.images.dangerouslyAllowLocalIP,
-            this.nextConfig.images.maximumRedirects
+            this.nextConfig.images.maximumRedirects,
+            this.nextConfig.experimental.imgFetchTimeoutInSeconds
           )
         : await fetchInternalImage(
             href,

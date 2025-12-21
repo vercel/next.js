@@ -414,6 +414,8 @@ module.exports = {
 }
 ```
 
+> **Good to know**: If the Image Optimization API times out fetching a remote image, you can increase `experimental.imgFetchTimeoutInSeconds` in `next.config.js`, use the `unoptimized` prop, or configure a custom `loader`/`loaderFile`. Setting `experimental.imgFetchTimeoutInSeconds` to `0` disables the upstream fetch timeout (no `AbortSignal.timeout`), which can lead to unbounded upstream waits.
+
 #### `overrideSrc`
 
 When providing the `src` prop to the `<Image>` component, both the `srcset` and `src` attributes are generated automatically for the resulting `<img>`.
