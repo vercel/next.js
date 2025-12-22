@@ -1,5 +1,6 @@
 use std::{
-    fmt::Display,
+    cmp::Reverse,
+    fmt::{Debug, Display},
     future::Future,
     hash::{BuildHasher, BuildHasherDefault},
     mem::take,
@@ -19,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tokio::{select, sync::mpsc::Receiver, task_local};
 use tokio_util::task::TaskTracker;
-use tracing::{Instrument, instrument};
+use tracing::{Instrument, Span, instrument};
 
 use crate::{
     Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
@@ -37,6 +38,7 @@ use crate::{
     macro_helpers::NativeFunction,
     magic_any::MagicAny,
     message_queue::{CompilationEvent, CompilationEventQueue},
+    priority_runner::{Executor, PriorityRunner},
     raw_vc::{CellId, RawVc},
     registry,
     serialization_invalidation::SerializationInvalidator,
@@ -242,7 +244,7 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync +
     unsafe fn reuse_transient_task_id(&self, id: Unused<TaskId>);
 
     /// Schedule a task for execution.
-    fn schedule(&self, task: TaskId);
+    fn schedule(&self, task: TaskId, priority: TaskPriority);
 
     /// Schedule a foreground backend job for execution.
     fn schedule_backend_foreground_job(&self, job: B::BackendJob);
@@ -399,6 +401,31 @@ impl Display for ReadTracking {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct TaskPriority {
+    priority: Reverse<u32>,
+}
+
+impl TaskPriority {
+    pub fn new(priority: u32) -> Self {
+        Self {
+            priority: Reverse(priority),
+        }
+    }
+
+    pub fn root() -> Self {
+        Self {
+            priority: Reverse(0),
+        }
+    }
+}
+
+impl Display for TaskPriority {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.priority.0)
+    }
+}
+
 pub struct TurboTasks<B: Backend + 'static> {
     this: Weak<Self>,
     backend: B,
@@ -409,6 +436,8 @@ pub struct TurboTasks<B: Backend + 'static> {
     currently_scheduled_foreground_jobs: AtomicUsize,
     currently_scheduled_background_jobs: AtomicUsize,
     scheduled_tasks: AtomicUsize,
+    priority_runner:
+        Arc<PriorityRunner<TurboTasks<B>, (TaskId, Span), TaskPriority, TurboTasksExecutor>>,
     start: Mutex<Option<Instant>>,
     aggregated_update: Mutex<(Option<(Duration, usize)>, InvalidationReasonSet)>,
     /// Event that is triggered when currently_scheduled_foreground_jobs becomes non-zero
@@ -535,6 +564,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             currently_scheduled_foreground_jobs: AtomicUsize::new(0),
             currently_scheduled_background_jobs: AtomicUsize::new(0),
             scheduled_tasks: AtomicUsize::new(0),
+            priority_runner: Arc::new(PriorityRunner::new(TurboTasksExecutor)),
             start: Default::default(),
             aggregated_update: Default::default(),
             event_foreground_done: Event::new(|| {
@@ -574,7 +604,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             })),
             self,
         );
-        self.schedule(id);
+        self.schedule(id, TaskPriority::root());
         id
     }
 
@@ -598,7 +628,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             })),
             self,
         );
-        self.schedule(id);
+        self.schedule(id, TaskPriority::root());
     }
 
     pub async fn run_once<T: TraceRawVcs + Send + 'static>(
@@ -745,80 +775,12 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     #[track_caller]
-    pub(crate) fn schedule(&self, task_id: TaskId) {
+    pub(crate) fn schedule(&self, task_id: TaskId, priority: TaskPriority) {
         self.begin_foreground_job();
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
 
-        let this = self.pin();
-        let future = async move {
-            let mut schedule_again = true;
-            while schedule_again {
-                // it's okay for execution ids to overflow and wrap, they're just used for an assert
-                let execution_id = this.execution_id_factory.wrapping_get();
-                let current_task_state =
-                    Arc::new(RwLock::new(CurrentTaskState::new(task_id, execution_id)));
-                let single_execution_future = async {
-                    if this.stopped.load(Ordering::Acquire) {
-                        this.backend.task_execution_canceled(task_id, &*this);
-                        return false;
-                    }
-
-                    let Some(TaskExecutionSpec { future, span }) =
-                        this.backend.try_start_task_execution(task_id, &*this)
-                    else {
-                        return false;
-                    };
-
-                    async {
-                        let result = CaptureFuture::new(future).await;
-
-                        // wait for all spawned local tasks using `local` to finish
-                        let ltt = CURRENT_TASK_STATE
-                            .with(|ts| ts.read().unwrap().local_task_tracker.clone());
-                        ltt.close();
-                        ltt.wait().await;
-
-                        let result = match result {
-                            Ok(Ok(raw_vc)) => Ok(raw_vc),
-                            Ok(Err(err)) => Err(err.into()),
-                            Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
-                        };
-
-                        let FinishedTaskState { has_invalidator } =
-                            this.finish_current_task_state();
-                        let cell_counters = CURRENT_TASK_STATE
-                            .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
-                        this.backend.task_execution_completed(
-                            task_id,
-                            result,
-                            &cell_counters,
-                            has_invalidator,
-                            &*this,
-                        )
-                    }
-                    .instrument(span)
-                    .await
-                };
-                schedule_again = CURRENT_TASK_STATE
-                    .scope(current_task_state, single_execution_future)
-                    .await;
-            }
-            this.finish_foreground_job();
-            anyhow::Ok(())
-        };
-
-        let future = TURBO_TASKS.scope(self.pin(), future).in_current_span();
-
-        #[cfg(feature = "tokio_tracing")]
-        {
-            let description = self.backend.get_task_description(task_id);
-            tokio::task::Builder::new()
-                .name(&description)
-                .spawn(future)
-                .unwrap();
-        }
-        #[cfg(not(feature = "tokio_tracing"))]
-        tokio::task::spawn(future);
+        self.priority_runner
+            .schedule(&self.pin(), (task_id, Span::current()), priority);
     }
 
     fn schedule_local_task(
@@ -1193,6 +1155,74 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 }
 
+struct TurboTasksExecutor;
+
+impl<B: Backend> Executor<TurboTasks<B>, (TaskId, Span)> for TurboTasksExecutor {
+    type Future = impl Future<Output = ()> + Send + 'static;
+
+    fn execute(&self, this: &Arc<TurboTasks<B>>, (task_id, span): (TaskId, Span)) -> Self::Future {
+        let this2 = this.clone();
+        let this = this.clone();
+        let future = async move {
+            let mut schedule_again = true;
+            while schedule_again {
+                // it's okay for execution ids to overflow and wrap, they're just used for an assert
+                let execution_id = this.execution_id_factory.wrapping_get();
+                let current_task_state =
+                    Arc::new(RwLock::new(CurrentTaskState::new(task_id, execution_id)));
+                let single_execution_future = async {
+                    if this.stopped.load(Ordering::Acquire) {
+                        this.backend.task_execution_canceled(task_id, &*this);
+                        return false;
+                    }
+
+                    let Some(TaskExecutionSpec { future, span }) =
+                        this.backend.try_start_task_execution(task_id, &*this)
+                    else {
+                        return false;
+                    };
+
+                    async {
+                        let result = CaptureFuture::new(future).await;
+
+                        // wait for all spawned local tasks using `local` to finish
+                        let ltt = CURRENT_TASK_STATE
+                            .with(|ts| ts.read().unwrap().local_task_tracker.clone());
+                        ltt.close();
+                        ltt.wait().await;
+
+                        let result = match result {
+                            Ok(Ok(raw_vc)) => Ok(raw_vc),
+                            Ok(Err(err)) => Err(err.into()),
+                            Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
+                        };
+
+                        let FinishedTaskState { has_invalidator } =
+                            this.finish_current_task_state();
+                        let cell_counters = CURRENT_TASK_STATE
+                            .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
+                        this.backend.task_execution_completed(
+                            task_id,
+                            result,
+                            &cell_counters,
+                            has_invalidator,
+                            &*this,
+                        )
+                    }
+                    .instrument(span)
+                    .await
+                };
+                schedule_again = CURRENT_TASK_STATE
+                    .scope(current_task_state, single_execution_future)
+                    .await;
+            }
+            this.finish_foreground_job();
+        };
+
+        TURBO_TASKS.scope(this2, future).instrument(span)
+    }
+}
+
 struct FinishedTaskState {
     /// True if the task uses an external invalidator
     has_invalidator: bool,
@@ -1505,8 +1535,8 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
     }
 
     #[track_caller]
-    fn schedule(&self, task: TaskId) {
-        self.schedule(task)
+    fn schedule(&self, task: TaskId, priority: TaskPriority) {
+        self.schedule(task, priority)
     }
 
     fn program_duration_until(&self, instant: Instant) -> Duration {
