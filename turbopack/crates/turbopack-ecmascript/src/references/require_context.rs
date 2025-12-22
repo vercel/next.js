@@ -2,7 +2,6 @@ use std::{borrow::Cow, collections::VecDeque, sync::Arc};
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::{
@@ -20,7 +19,7 @@ use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -29,7 +28,7 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     issue::IssueSource,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
@@ -325,17 +324,7 @@ impl IntoCodeGenReference for RequireContextAssetReference {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Hash,
-    Debug,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct RequireContextAssetReferenceCodeGen {
     path: AstPath,
@@ -445,11 +434,8 @@ impl Module for RequireContextAsset {
     }
 
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        _side_effect_free_packages: Vc<Glob>,
-    ) -> Vc<bool> {
-        Vc::cell(true)
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectFree.cell()
     }
 }
 

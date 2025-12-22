@@ -1,6 +1,5 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs};
 use turbopack_core::{
     chunk::{
@@ -12,18 +11,7 @@ use turbopack_core::{
 use crate::chunk::EcmascriptChunkItemWithAsyncInfo;
 
 #[derive(
-    Debug,
-    Clone,
-    Hash,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    TaskInput,
-    Encode,
-    Decode,
+    Debug, Clone, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
 )]
 pub enum EcmascriptChunkItemOrBatchWithAsyncInfo {
     ChunkItem(EcmascriptChunkItemWithAsyncInfo),

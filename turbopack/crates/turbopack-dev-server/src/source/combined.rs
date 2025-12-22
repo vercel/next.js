@@ -3,11 +3,10 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
-use super::{
-    ContentSource,
+use crate::source::{
+    ContentSource, ContentSources,
     route_tree::{RouteTree, RouteTrees},
 };
-use crate::source::ContentSources;
 
 /// Combines multiple [ContentSource]s by trying all content sources in order.
 ///

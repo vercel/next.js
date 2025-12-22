@@ -24,7 +24,7 @@ use rstest::*;
 use rstest_reuse::{
     *, {self},
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tokio::{process::Command, time::timeout};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -40,6 +40,7 @@ use turbopack::{
     },
 };
 use turbopack_core::{
+    chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -373,10 +374,12 @@ async fn node_file_trace_operation(
                 enable_typescript_transform: Some(
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
+                // enable_types is required here to ensure .d.ts files are collected.
                 enable_types: true,
                 ..Default::default()
             },
             css: CssOptionsContext {
+                source_maps: SourceMapsType::None,
                 enable_raw_css: true,
                 ..Default::default()
             },
@@ -702,7 +705,7 @@ fn assert_output(
     })
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 struct BenchSuite {
     suite: String,
     node_duration: String,

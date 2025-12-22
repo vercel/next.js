@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -10,7 +9,7 @@ use turbopack_core::{
         MergeableModulesExposed,
     },
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::ModuleReferences,
     resolve::ModulePart,
@@ -73,9 +72,8 @@ impl Module for EcmascriptModuleLocalsModule {
     }
 
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(&self, side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
-        self.module
-            .is_marked_as_side_effect_free(side_effect_free_packages)
+    fn side_effects(&self) -> Vc<ModuleSideEffects> {
+        self.module.side_effects()
     }
 }
 
@@ -155,10 +153,10 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
                 EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(..) => {
                     // not included in locals module
                 }
-                EsmExport::LocalBinding(local_name, mutable) => {
+                EsmExport::LocalBinding(local_name, liveness) => {
                     exports.insert(
                         name.clone(),
-                        EsmExport::LocalBinding(local_name.clone(), *mutable),
+                        EsmExport::LocalBinding(local_name.clone(), *liveness),
                     );
                 }
                 EsmExport::Error => {

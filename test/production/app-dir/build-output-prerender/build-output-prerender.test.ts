@@ -67,7 +67,7 @@ describe('build-output-prerender', () => {
           // TODO(veil): Why is the location incomplete unless we enable --no-mangling?
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
            "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-               at c (app/client/page.tsx:4:28)
+               at <unknown> (app/client/page.tsx:4:28)
              2 |
              3 | export default function Page() {
            > 4 |   return <p>Current time: {new Date().toISOString()}</p>

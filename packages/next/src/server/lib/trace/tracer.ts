@@ -157,6 +157,12 @@ interface NextTracer {
    * through the OpenTelemetry propagator API.
    */
   getTracePropagationData(): ClientTraceDataEntry[]
+
+  /**
+   * Executes a function with the given span set as the active span in the context.
+   * This allows child spans created within the function to automatically parent to this span.
+   */
+  withSpan<T>(span: Span, fn: () => T): T
 }
 
 type NextAttributeNames =
@@ -478,6 +484,11 @@ class NextTracerImpl implements NextTracer {
     if (attributes && !attributes.has(key)) {
       attributes.set(key, value)
     }
+  }
+
+  public withSpan<T>(span: Span, fn: () => T): T {
+    const spanContext = trace.setSpan(context.active(), span)
+    return context.with(spanContext, fn)
   }
 }
 
