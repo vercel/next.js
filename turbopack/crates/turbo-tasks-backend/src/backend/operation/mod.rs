@@ -565,7 +565,11 @@ where
     }
 
     fn schedule_task(&self, task: Self::TaskGuardImpl) {
-        let priority = TaskPriority::root();
+        let priority = if get!(task, Output).is_some() {
+            TaskPriority::new(get!(task, LeafDistance).copied().unwrap_or_default().min)
+        } else {
+            TaskPriority::root()
+        };
         self.turbo_tasks.schedule(task.id(), priority);
     }
 
