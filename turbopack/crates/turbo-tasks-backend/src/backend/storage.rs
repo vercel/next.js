@@ -1055,22 +1055,25 @@ macro_rules! update {
 }
 
 macro_rules! update_count {
-    ($task:ident, $key:ident $input:tt, -$update:expr) => {{
-        let update = $update;
-        let mut state_change = false;
-        $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
-            #[allow(unused_comparisons, reason = "type of update might be unsigned, where update < 0 is always false")]
-            if let Some(old) = old {
-                let new = old - update;
-                state_change = old <= 0 && new > 0 || old > 0 && new <= 0;
-                (new != 0).then_some(new)
-            } else {
-                state_change = update < 0;
-                (update != 0).then_some(-update)
+    ($task:ident, $key:ident $input:tt, -$update:expr) => {
+        match $update {
+            update => {
+                let mut state_change = false;
+                $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
+                    #[allow(unused_comparisons, reason = "type of update might be unsigned, where update < 0 is always false")]
+                    if let Some(old) = old {
+                        let new = old - update;
+                        state_change = old <= 0 && new > 0 || old > 0 && new <= 0;
+                        (new != 0).then_some(new)
+                    } else {
+                        state_change = update < 0;
+                        (update != 0).then_some(-update)
+                    }
+                });
+                state_change
             }
-        });
-        state_change
-    }};
+        }
+    };
     ($task:ident, $key:ident $input:tt, $update:expr) => {
         match $update {
             update => {
@@ -1091,8 +1094,44 @@ macro_rules! update_count {
     };
     ($task:ident, $key:ident, -$update:expr) => {
         $crate::backend::storage::update_count!($task, $key {}, -$update)
-    };    ($task:ident, $key:ident, $update:expr) => {
+    };
+    ($task:ident, $key:ident, $update:expr) => {
         $crate::backend::storage::update_count!($task, $key {}, $update)
+    };
+}
+
+macro_rules! update_count_and_get {
+    ($task:ident, $key:ident $input:tt, -$update:expr) => {
+        match $update {
+            update => {
+                let mut new = 0;
+                $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
+                    let old = old.unwrap_or(0);
+                    new = old - update;
+                    (new != 0).then_some(new)
+                });
+                new
+            }
+        }
+    };
+    ($task:ident, $key:ident $input:tt, $update:expr) => {
+        match $update {
+            update => {
+                let mut new = 0;
+                $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
+                    let old = old.unwrap_or(0);
+                    new = old + update;
+                    (new != 0).then_some(new)
+                });
+                new
+            }
+        }
+    };
+    ($task:ident, $key:ident, -$update:expr) => {
+        $crate::backend::storage::update_count_and_get!($task, $key {}, -$update)
+    };
+    ($task:ident, $key:ident, $update:expr) => {
+        $crate::backend::storage::update_count_and_get!($task, $key {}, $update)
     };
 }
 
@@ -1122,6 +1161,7 @@ pub(crate) use iter_many;
 pub(crate) use remove;
 pub(crate) use update;
 pub(crate) use update_count;
+pub(crate) use update_count_and_get;
 
 pub struct SnapshotGuard<'l> {
     storage: &'l Storage,

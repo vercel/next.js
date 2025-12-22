@@ -20,7 +20,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Vc};
-use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
+use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
@@ -127,7 +127,7 @@ pub(crate) async fn build_server_actions_loader(
     let file = File::from(contents.build());
     let source = VirtualSource::new_with_ident(
         AssetIdent::from_path(path).with_modifier(rcstr!("server actions loader")),
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
     let import_map = import_map.into_iter().map(|(k, v)| (v, k)).collect();
     let module = asset_context
@@ -209,7 +209,9 @@ async fn build_manifest(
     Ok(ResolvedVc::upcast(
         VirtualOutputAsset::new(
             manifest_path,
-            AssetContent::file(File::from(serde_json::to_string_pretty(&manifest)?).into()),
+            AssetContent::file(
+                FileContent::Content(File::from(serde_json::to_string_pretty(&manifest)?)).cell(),
+            ),
         )
         .to_resolved()
         .await?,
@@ -432,6 +434,7 @@ impl AllActions {
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub struct ActionMap {
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub actions: FxIndexMap<String, String>,
     pub entry_path: String,
     pub entry_query: String,
@@ -444,7 +447,10 @@ struct OptionActionMap(Option<ResolvedVc<ActionMap>>);
 type LayerAndActions = (ActionLayer, ResolvedVc<ActionMap>);
 /// A mapping of every module module containing Server Actions, mapping to its layer and actions.
 #[turbo_tasks::value(transparent)]
-pub struct AllModuleActions(FxIndexMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>);
+pub struct AllModuleActions(
+    #[bincode(with = "turbo_bincode::indexmap")]
+    FxIndexMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>,
+);
 
 #[turbo_tasks::function]
 pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllModuleActions>> {

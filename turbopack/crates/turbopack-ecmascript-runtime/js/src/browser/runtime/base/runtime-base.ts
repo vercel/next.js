@@ -13,13 +13,15 @@
 
 // Used in WebWorkers to tell the runtime about the chunk base path
 declare var TURBOPACK_WORKER_LOCATION: string
+// Used in WebWorkers to tell the runtime about the chunk suffix
+declare var TURBOPACK_CHUNK_SUFFIX: string
 // Used in WebWorkers to tell the runtime about the current chunk url since it can't be detected via document.currentScript
 // Note it's stored in reversed order to use push and pop
 declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 
 // Injected by rust code
 declare var CHUNK_BASE_PATH: string
-declare var CHUNK_SUFFIX_PATH: string
+declare var CHUNK_SUFFIX: string
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
   R: ResolvePathFromModule
@@ -248,7 +250,7 @@ function loadChunkByUrlInternal(
       thenable,
       loadedChunk
     )
-    entry = thenable.then(resolve).catch((error) => {
+    entry = thenable.then(resolve).catch((cause) => {
       let loadReason: string
       switch (sourceType) {
         case SourceType.Runtime:
@@ -266,16 +268,14 @@ function loadChunkByUrlInternal(
             (sourceType) => `Unknown source type: ${sourceType}`
           )
       }
-      throw new Error(
+      let error = new Error(
         `Failed to load chunk ${chunkUrl} ${loadReason}${
-          error ? `: ${error}` : ''
+          cause ? `: ${cause}` : ''
         }`,
-        error
-          ? {
-              cause: error,
-            }
-          : undefined
+        cause ? { cause } : undefined
       )
+      error.name = 'ChunkLoadError'
+      throw error
     })
     instrumentedBackendLoadChunks.set(thenable, entry)
   }
@@ -322,6 +322,7 @@ function getWorkerBlobURL(chunks: ChunkPath[]): string {
   // It is important to reverse the array so when bootstrapping we can infer what chunk is being
   // evaluated by poping urls off of this array.  See `getPathFromScript`
   let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
+self.TURBOPACK_CHUNK_SUFFIX = ${JSON.stringify(CHUNK_SUFFIX)};
 self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
 importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`
   let blob = new Blob([bootstrap], { type: 'text/javascript' })
@@ -345,7 +346,7 @@ function getChunkRelativeUrl(chunkPath: ChunkPath | ChunkListPath): ChunkUrl {
   return `${CHUNK_BASE_PATH}${chunkPath
     .split('/')
     .map((p) => encodeURIComponent(p))
-    .join('/')}${CHUNK_SUFFIX_PATH}` as ChunkUrl
+    .join('/')}${CHUNK_SUFFIX}` as ChunkUrl
 }
 
 /**

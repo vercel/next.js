@@ -4,13 +4,13 @@ use anyhow::{Result, bail};
 use either::Either;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::File;
+use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{ChunkingContext, MinifyType, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMapAsset},
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
@@ -140,12 +140,12 @@ impl VersionedContent for EcmascriptBrowserChunkContent {
         let this = self.await?;
 
         Ok(AssetContent::file(
-            File::from(
+            FileContent::Content(File::from(
                 self.code()
                     .to_rope_with_magic_comments(|| *this.source_map)
                     .await?,
-            )
-            .into(),
+            ))
+            .cell(),
         ))
     }
 
@@ -166,12 +166,12 @@ impl MergeableVersionedContent for EcmascriptBrowserChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.code().generate_source_map()
     }
 
     #[turbo_tasks::function]
-    async fn by_section(self: Vc<Self>, section: RcStr) -> Result<Vc<OptionStringifiedSourceMap>> {
+    async fn by_section(self: Vc<Self>, section: RcStr) -> Result<Vc<FileContent>> {
         // Weirdly, the ContentSource will have already URL decoded the ModuleId, and we
         // can't reparse that via serde.
         if let Ok(id) = ModuleId::parse(&section) {
@@ -184,6 +184,6 @@ impl GenerateSourceMap for EcmascriptBrowserChunkContent {
             }
         }
 
-        Ok(Vc::cell(None))
+        Ok(FileContent::NotFound.cell())
     }
 }

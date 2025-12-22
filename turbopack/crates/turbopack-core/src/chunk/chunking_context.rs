@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
@@ -6,21 +7,24 @@ use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::Trace
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
-use super::{ChunkableModule, EvaluatableAssets, availability_info::AvailabilityInfo};
 use crate::{
     asset::Asset,
-    chunk::{ChunkItem, ChunkType, ModuleId},
+    chunk::{
+        ChunkItem, ChunkType, ChunkableModule, EvaluatableAssets, ModuleId,
+        availability_info::AvailabilityInfo,
+    },
     environment::Environment,
     ident::AssetIdent,
     module::Module,
     module_graph::{
-        ModuleGraph, chunk_group_info::ChunkGroup, export_usage::ModuleExportUsage,
+        ModuleGraph, binding_usage_info::ModuleExportUsage, chunk_group_info::ChunkGroup,
         module_batches::BatchingConfig,
     },
     output::{
         ExpandOutputAssetsInput, OutputAsset, OutputAssets, OutputAssetsReferences,
         OutputAssetsWithReferenced, expand_output_assets,
     },
+    reference::ModuleReference,
 };
 
 #[derive(
@@ -31,11 +35,12 @@ use crate::{
     PartialEq,
     Eq,
     Hash,
-    Serialize,
     Deserialize,
     TraceRawVcs,
     DeterministicHash,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum MangleType {
@@ -44,7 +49,7 @@ pub enum MangleType {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, TaskInput, Clone, Copy, Hash, DeterministicHash)]
+#[derive(Debug, TaskInput, Clone, Copy, Hash, DeterministicHash, Deserialize)]
 pub enum MinifyType {
     // TODO instead of adding a new property here,
     // refactor that to Minify(MinifyOptions) to allow defaults on MinifyOptions
@@ -85,6 +90,8 @@ pub enum SourceMapsType {
     TraceRawVcs,
     DeterministicHash,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum ChunkGroupType {
     Entry,
@@ -220,11 +227,11 @@ pub struct EntryChunkGroupResult {
     PartialEq,
     Eq,
     Hash,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub struct ChunkingConfig {
     /// Try to avoid creating more than 1 chunk smaller than this size.
@@ -247,7 +254,7 @@ pub struct ChunkingConfig {
 pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Copy, Hash, TaskInput, Default)]
+#[derive(Debug, Clone, Copy, Hash, TaskInput, Default, Deserialize)]
 pub enum SourceMapSourceType {
     AbsoluteFileUri,
     RelativeUri,
@@ -438,6 +445,12 @@ pub trait ChunkingContext {
         self: Vc<Self>,
         module: Vc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleExportUsage>>;
+
+    #[turbo_tasks::function]
+    async fn is_reference_unused(
+        self: Vc<Self>,
+        reference: Vc<Box<dyn ModuleReference>>,
+    ) -> Result<Vc<bool>>;
 
     /// Returns whether debug IDs are enabled for this chunking context.
     #[turbo_tasks::function]

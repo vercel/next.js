@@ -44,11 +44,14 @@ import { traceGlobals } from '../../trace/shared'
 import { findPageFile } from '../lib/find-page-file'
 import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
-import { loadDefaultErrorComponents } from '../load-default-error-components'
+import {
+  loadDefaultErrorComponents,
+  type ErrorModule,
+} from '../load-default-error-components'
 import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
-import { defaultConfig } from '../config-shared'
+import { defaultConfig, type NextConfigComplete } from '../config-shared'
 import { isMiddlewareFile } from '../../build/utils'
 import { formatServerError } from '../../lib/format-server-error'
 import { DevRouteMatcherManager } from '../route-matcher-managers/dev-route-matcher-manager'
@@ -92,6 +95,8 @@ const ReactDevOverlay: PagesDevOverlayBridgeType = (props) => {
 }
 
 export interface Options extends ServerOptions {
+  // Override type to make the full config available instead of only NextConfigRuntime
+  conf: NextConfigComplete
   /**
    * Tells of Next.js is running from the `next dev` command
    */
@@ -109,6 +114,9 @@ export interface Options extends ServerOptions {
 }
 
 export default class DevServer extends Server {
+  // Override type to make the full config available instead of only NextConfigRuntime
+  protected readonly nextConfig: NextConfigComplete
+
   /**
    * The promise that resolves when the server is ready. When this is unset
    * the server is ready.
@@ -168,6 +176,7 @@ export default class DevServer extends Server {
       Error.stackTraceLimit = 50
     } catch {}
     super({ ...options, dev: true })
+    this.nextConfig = options.conf
     this.bundlerService = options.bundlerService
     this.startServerSpan =
       options.startServerSpan ?? trace('start-next-dev-server')
@@ -519,7 +528,8 @@ export default class DevServer extends Server {
               requestEnd,
               getRequestMeta(req, 'devRequestTimingMiddlewareStart'),
               getRequestMeta(req, 'devRequestTimingMiddlewareEnd'),
-              getRequestMeta(req, 'devRequestTimingInternalsEnd')
+              getRequestMeta(req, 'devRequestTimingInternalsEnd'),
+              getRequestMeta(req, 'devGenerateStaticParamsDuration')
             )
           })
         }
@@ -985,7 +995,7 @@ export default class DevServer extends Server {
 
   protected async getFallbackErrorComponents(
     url?: string
-  ): Promise<LoadComponentsReturnType | null> {
+  ): Promise<LoadComponentsReturnType<ErrorModule> | null> {
     await this.bundlerService.getFallbackErrorComponents(url)
     return await loadDefaultErrorComponents(this.distDir)
   }
@@ -999,7 +1009,9 @@ export default class DevServer extends Server {
   ) {
     await super.instrumentationOnRequestError(...args)
 
-    const err = args[0]
-    this.logErrorWithOriginalStack(err, 'app-dir')
+    const [err, , , silenceLog] = args
+    if (!silenceLog) {
+      this.logErrorWithOriginalStack(err, 'app-dir')
+    }
   }
 }

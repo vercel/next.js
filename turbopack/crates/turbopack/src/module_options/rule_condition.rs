@@ -4,8 +4,8 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use either::Either;
-use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use turbo_esregex::EsRegex;
 use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, trace::TraceRawVcs};
@@ -14,7 +14,7 @@ use turbopack_core::{
     asset::Asset, reference_type::ReferenceType, source::Source, virtual_source::VirtualSource,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
+#[derive(Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum RuleCondition {
     All(Vec<RuleCondition>),
     Any(Vec<RuleCondition>),
