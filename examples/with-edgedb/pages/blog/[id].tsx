@@ -1,10 +1,9 @@
 import React, { useState } from "react";
 import { GetServerSidePropsContext, InferGetServerSidePropsType } from "next";
+import { Streamdown } from "streamdown";
 import Layout from "../../components/Layout";
 import Router from "next/router";
 import { client, e } from "../../client";
-
-import Streamdown from "streamdown";
 
 async function update(
   id: string,

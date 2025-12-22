@@ -1,5 +1,5 @@
 import React from "react";
-import Streamdown from "streamdown";
+import { Streamdown } from "streamdown";
 import Link from "next/link";
 import { PostProps } from "../pages/blog/[id]";
 
