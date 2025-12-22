@@ -8,6 +8,9 @@
 // stdlib into our source tree
 #![feature(normalize_lexically)]
 #![feature(trivial_bounds)]
+// Junction points are used on Windows. We could use a third-party crate for this if the junction
+// API isn't eventually stabilized.
+#![cfg_attr(windows, feature(junction_point))]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![allow(clippy::mutable_key_type)]
 
@@ -120,7 +123,7 @@ pub const MAX_SAFE_FILE_NAME_LENGTH: usize = 200;
 pub fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>> {
     /// Here we check if the path is too long for windows, and if so, attempt to canonicalize it
     /// to a UNC path.
-    #[cfg(target_family = "windows")]
+    #[cfg(windows)]
     fn validate_path_length_inner(path: &Path) -> Result<Cow<'_, Path>> {
         const MAX_PATH_LENGTH_WINDOWS: usize = 260;
         const UNC_PREFIX: &str = "\\\\?\\";
@@ -141,7 +144,7 @@ pub fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>> {
     /// Here we are only going to check if the total length exceeds, or the last segment exceeds.
     /// This heuristic is primarily to avoid long file names, and it makes the operation much
     /// cheaper.
-    #[cfg(not(target_family = "windows"))]
+    #[cfg(not(windows))]
     fn validate_path_length_inner(path: &Path) -> Result<Cow<'_, Path>> {
         const MAX_FILE_NAME_LENGTH_UNIX: usize = 255;
         // macOS reports a limit of 1024, but I (@arlyon) have had issues with paths above 1016
@@ -240,6 +243,7 @@ pub trait FileSystem: ValueToString {
     fn raw_read_dir(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<RawDirectoryContent>;
     #[turbo_tasks::function]
     fn write(self: Vc<Self>, fs_path: FileSystemPath, content: Vc<FileContent>) -> Vc<()>;
+    /// See [`FileSystemPath::write_symbolic_link_dir`].
     #[turbo_tasks::function]
     fn write_link(self: Vc<Self>, fs_path: FileSystemPath, target: Vc<LinkContent>) -> Vc<()>;
     #[turbo_tasks::function]
@@ -819,13 +823,13 @@ impl FileSystem for DiskFileSystem {
             if let Some(normalized_linked_path) = full_path.parent().and_then(|p| {
                 normalize_path(&sys_to_unix(p.join(&file).to_string_lossy().as_ref()))
             }) {
-                #[cfg(target_family = "windows")]
+                #[cfg(windows)]
                 {
                     file = PathBuf::from(normalized_linked_path);
                 }
                 // `normalize_path` stripped the leading `/` of the path
                 // add it back here or the `strip_prefix` will return `Err`
-                #[cfg(not(target_family = "windows"))]
+                #[cfg(not(windows))]
                 {
                     file = PathBuf::from(format!("/{normalized_linked_path}"));
                 }
@@ -966,7 +970,7 @@ impl FileSystem for DiskFileSystem {
                             unreachable!()
                         };
                         std::io::copy(&mut file.read(), &mut f)?;
-                        #[cfg(target_family = "unix")]
+                        #[cfg(unix)]
                         f.set_permissions(file.meta.permissions.into())?;
                         f.flush()?;
 
@@ -986,7 +990,7 @@ impl FileSystem for DiskFileSystem {
                             full_path.set_extension(ext);
                             let mut f = std::fs::File::create(&full_path)?;
                             std::io::copy(&mut file.read(), &mut f)?;
-                            #[cfg(target_family = "unix")]
+                            #[cfg(unix)]
                             f.set_permissions(file.meta.permissions.into())?;
                             f.flush()?;
                         }
@@ -1031,9 +1035,9 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write_link(&self, fs_path: FileSystemPath, target: Vc<LinkContent>) -> Result<()> {
-        // You might be tempted to use `mark_session_dependent` here, but
-        // `write_link` purely declares a side effect and does not need to be reexecuted in the next
-        // session. All side effects are reexecuted in general.
+        // You might be tempted to use `mark_session_dependent` here, but we purely declare a side
+        // effect and does not need to be re-executed in the next session. All side effects are
+        // re-executed in general.
 
         // Check if path is denied - if so, return an error
         if self.inner.is_path_denied(&fs_path) {
@@ -1042,9 +1046,10 @@ impl FileSystem for DiskFileSystem {
                 fs_path.value_to_string().await?
             );
         }
-        let full_path = self.to_sys_path(&fs_path);
 
         let content = target.await?;
+
+        let full_path = self.to_sys_path(&fs_path);
         let inner = self.inner.clone();
         let invalidator = turbo_tasks::get_invalidator();
 
@@ -1064,7 +1069,7 @@ impl FileSystem for DiskFileSystem {
                 .transpose()?
                 .unwrap_or_default();
 
-            // TODO(sokra) preform a untracked read here, register an invalidator and get
+            // TODO(sokra) perform a untracked read here, register an invalidator and get
             // all existing invalidators
             let old_content = match retry_blocking(full_path.clone().into_owned(), |path| {
                 std::fs::read_link(path)
@@ -1080,8 +1085,17 @@ impl FileSystem for DiskFileSystem {
                 Err(_) => None,
             };
             let is_equal = match (&*content, &old_content) {
+                // TODO(bgw): Is this logic correct? This might give us `is_equal = false` when it
+                // shouldn't, and cause us to do extra work.
+                // - `old_content` may have windows path separators, but `LinkContent` normalizes
+                //   them.
+                // - Windows junction points are always transformed to absolute before being stored.
+                // - `LinkContent`'s target field stores absolute paths as relative to the project
+                //   root, but `old_target` is relative to the real filesystem's root.
+                // We should compute the final target `Path` first, and then it with that value, not
+                // the normalized format stored in
                 (LinkContent::Link { target, link_type }, Some((old_is_absolute, old_target))) => {
-                    Path::new(&**target) == old_target
+                    Path::new(target) == old_target
                         && link_type.contains(LinkType::ABSOLUTE) == *old_is_absolute
                 }
                 (LinkContent::NotFound, None) => true,
@@ -1102,6 +1116,23 @@ impl FileSystem for DiskFileSystem {
 
             match &*content {
                 LinkContent::Link { target, link_type } => {
+                    let is_directory = link_type.contains(LinkType::DIRECTORY);
+                    let target_path = if link_type.contains(LinkType::ABSOLUTE) {
+                        Path::new(&inner.root).join(unix_to_sys(target).as_ref())
+                    } else {
+                        let relative_target = PathBuf::from(unix_to_sys(target).as_ref());
+                        if cfg!(windows) && is_directory {
+                            // Windows junction points must always be stored as absolute
+                            full_path
+                                .parent()
+                                .unwrap_or(&full_path)
+                                .join(relative_target)
+                        } else {
+                            relative_target
+                        }
+                    };
+                    let full_path = full_path.into_owned();
+
                     let create_directory = old_content.is_none();
                     if create_directory && let Some(parent) = full_path.parent() {
                         inner.create_directory(parent).await.with_context(|| {
@@ -1113,28 +1144,13 @@ impl FileSystem for DiskFileSystem {
                         })?;
                     }
 
-                    let link_type = *link_type;
-                    let target_path = if link_type.contains(LinkType::ABSOLUTE) {
-                        Path::new(&inner.root).join(unix_to_sys(target).as_ref())
-                    } else {
-                        PathBuf::from(unix_to_sys(target).as_ref())
-                    };
-                    let full_path = full_path.into_owned();
-
                     if old_content.is_some() {
-                        // Remove existing symlink before creating a new one. At least on Unix,
-                        // symlink(2) fails with EEXIST if the link already exists instead of
-                        // overwriting it
-                        retry_blocking(full_path.clone(), |path| std::fs::remove_file(path))
+                        // Remove existing symlink before creating a new one. On Unix, symlink(2)
+                        // fails with EEXIST if the link already exists instead of overwriting it.
+                        // Windows has similar behavior with junction points.
+                        remove_symbolic_link_dir_helper(&full_path)
                             .concurrency_limited(&inner.write_semaphore)
                             .await
-                            .or_else(|err| {
-                                if err.kind() == ErrorKind::NotFound {
-                                    Ok(())
-                                } else {
-                                    Err(err)
-                                }
-                            })
                             .with_context(|| {
                                 anyhow!("removing existing symlink {} failed", full_path.display())
                             })?;
@@ -1146,41 +1162,43 @@ impl FileSystem for DiskFileSystem {
                             name = display(target_path.display())
                         )
                         .entered();
-                        // we use the sync std method here because `symlink` is fast
-                        // if we put it into a task, it will be slower
-                        #[cfg(not(target_family = "windows"))]
+                        #[cfg(not(windows))]
                         {
                             std::os::unix::fs::symlink(target_path, &full_path)
                         }
-                        #[cfg(target_family = "windows")]
+                        #[cfg(windows)]
                         {
-                            if link_type.contains(LinkType::DIRECTORY) {
-                                std::os::windows::fs::symlink_dir(target_path, &full_path)
+                            if is_directory {
+                                std::os::windows::fs::junction_point(target_path, &full_path)
                             } else {
                                 std::os::windows::fs::symlink_file(target_path, &full_path)
                             }
                         }
                     })
                     .await
-                    .with_context(|| format!("create symlink to {target}"))?;
+                    .with_context(|| {
+                        #[cfg(not(windows))]
+                        let message = format!("failed to create symlink to {target}");
+                        #[cfg(windows)]
+                        let message = if is_directory {
+                            format!("failed to create junction point to {target}")
+                        } else {
+                            format!(
+                                "failed to create symlink to {target}\n\
+                                (Note: creating file symlinks on Windows require developer mode or admin permissions: https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode)"
+                            )
+                        };
+                        message
+                    })?;
                 }
                 LinkContent::Invalid => {
-                    anyhow::bail!("invalid symlink target: {}", full_path.display())
+                    bail!("invalid symlink target: {}", full_path.display())
                 }
                 LinkContent::NotFound => {
-                    retry_blocking(full_path.clone().into_owned(), |path| {
-                        std::fs::remove_file(path)
-                    })
-                    .concurrency_limited(&inner.write_semaphore)
-                    .await
-                    .or_else(|err| {
-                        if err.kind() == ErrorKind::NotFound {
-                            Ok(())
-                        } else {
-                            Err(err)
-                        }
-                    })
-                    .with_context(|| anyhow!("removing {} failed", full_path.display()))?;
+                    remove_symbolic_link_dir_helper(&full_path)
+                        .concurrency_limited(&inner.write_semaphore)
+                        .await
+                        .with_context(|| anyhow!("removing {} failed", full_path.display()))?;
                 }
             }
 
@@ -1216,6 +1234,44 @@ impl FileSystem for DiskFileSystem {
 
         Ok(FileMeta::cell(meta.into()))
     }
+}
+
+async fn remove_symbolic_link_dir_helper(path: impl AsRef<Path>) -> Result<()> {
+    let path = path.as_ref();
+    retry_blocking(path.to_owned(), move |path| {
+        if cfg!(windows) {
+            // Junction points on Windows are treated as directories, and therefore need
+            // `remove_dir`:
+            //
+            // > `RemoveDirectory` can be used to remove a directory junction. Since the target
+            // > directory and its contents will remain accessible through its canonical path, the
+            // > target directory itself is not affected by removing a junction which targets it.
+            //
+            // -- https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-removedirectoryw
+            //
+            // However, Next 16.1.0 shipped with symlinks, before we switched to junction links on
+            // Windows, and `remove_dir` won't work on symlinks. So try to remove it as a directory
+            // (junction) first, and then fall back to removing it as a file (symlink).
+            std::fs::remove_dir(path).or_else(|err| {
+                if err.kind() == ErrorKind::NotADirectory {
+                    std::fs::remove_file(path)
+                } else {
+                    Err(err)
+                }
+            })
+        } else {
+            std::fs::remove_file(path)
+        }
+    })
+    .await
+    .or_else(|err| {
+        if err.kind() == ErrorKind::NotFound {
+            Ok(())
+        } else {
+            Err(err)
+        }
+    })
+    .with_context(|| format!("removing existing symlink {path:?} failed"))
 }
 
 #[turbo_tasks::value_impl]
@@ -1615,7 +1671,24 @@ impl FileSystemPath {
         self.fs().write(self.clone(), content)
     }
 
-    pub fn write_link(&self, target: Vc<LinkContent>) -> Vc<()> {
+    /// Creates a symbolic link to a directory on *nix platforms, or a directory junction point on
+    /// Windows.
+    ///
+    /// [Windows supports symbolic links][windows-symlink], but they [can require elevated
+    /// privileges][windows-privileges] if "developer mode" is not enabled, so we can't safely use
+    /// them. Using junction points [matches the behavior of pnpm][pnpm-windows].
+    ///
+    /// This only supports directories because Windows junction points are incompatible with files.
+    /// To ensure compatibility, this will return an error if the target is a file, even on
+    /// platforms with full symlink support.
+    ///
+    /// **We intentionally do not provide an API for symlinking a file**, as we cannot support that
+    /// on all Windows configurations.
+    ///
+    /// [windows-symlink]: https://blogs.windows.com/windowsdeveloper/2016/12/02/symlinks-windows-10/
+    /// [windows-privileges]: https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/create-symbolic-links
+    /// [pnpm-windows]: https://pnpm.io/faq#does-it-work-on-windows
+    pub fn write_symbolic_link_dir(&self, target: Vc<LinkContent>) -> Vc<()> {
         self.fs().write_link(self.clone(), target)
     }
 
@@ -1733,7 +1806,7 @@ pub enum Permissions {
 
 // Only handle the permissions on unix platform for now
 
-#[cfg(target_family = "unix")]
+#[cfg(unix)]
 impl From<Permissions> for std::fs::Permissions {
     fn from(perm: Permissions) -> Self {
         use std::os::unix::fs::PermissionsExt;
@@ -1745,7 +1818,7 @@ impl From<Permissions> for std::fs::Permissions {
     }
 }
 
-#[cfg(target_family = "unix")]
+#[cfg(unix)]
 impl From<std::fs::Permissions> for Permissions {
     fn from(perm: std::fs::Permissions) -> Self {
         use std::os::unix::fs::PermissionsExt;
@@ -1762,7 +1835,7 @@ impl From<std::fs::Permissions> for Permissions {
     }
 }
 
-#[cfg(not(target_family = "unix"))]
+#[cfg(not(unix))]
 impl From<std::fs::Permissions> for Permissions {
     fn from(_: std::fs::Permissions) -> Self {
         Permissions::default()
@@ -1871,16 +1944,28 @@ bitflags! {
   }
 }
 
+/// The contents of a symbolic link. On Windows, this may be a junction point.
+///
+/// When reading, we treat symbolic links and junction points on Windows as equivalent. When
+/// creating a new link, we always create junction points, because symlink creation may fail if
+/// Windows "developer mode" is not enabled and we're running in an unprivileged environment.
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub enum LinkContent {
-    // for the relative link, the target is raw value read from the link
-    // for the absolute link, the target is stripped of the root path while reading
-    // We don't use the `FileSystemPath` here for now, because the `FileSystemPath` is always
-    // normalized, which means in `fn write_link` we couldn't restore the raw value of the file
-    // link because there is only **dist** path in `fn write_link`, and we need the raw path if
-    // we want to restore the link value in `fn write_link`
-    Link { target: RcStr, link_type: LinkType },
+    /// A valid symbolic link pointing to `target`.
+    ///
+    /// When reading a relative link, the target is raw value read from the link.
+    ///
+    /// When reading an absolute link, the target is stripped of the root path while reading. This
+    /// ensures we don't store absolute paths inside of the persistent cache.
+    ///
+    /// We don't use the [`FileSystemPath`] to store the target, because the [`FileSystemPath`] is
+    /// always normalized. In [`FileSystemPath::write_symbolic_link_dir`] we need to compare
+    /// `target` with the value returned by [`sys::fs::read_link`].
+    Link {
+        target: RcStr,
+        link_type: LinkType,
+    },
     // Invalid means the link is invalid it points out of the filesystem root
     Invalid,
     // The target was not found

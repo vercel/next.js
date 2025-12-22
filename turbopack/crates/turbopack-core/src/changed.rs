@@ -27,11 +27,9 @@ pub async fn any_content_changed_of_module(
     root: ResolvedVc<Box<dyn Module>>,
 ) -> Result<Vc<Completion>> {
     let completions = AdjacencyMap::new()
-        .skip_duplicates()
         .visit([root], get_referenced_modules)
         .await
         .completed()?
-        .into_inner()
         .into_postorder_topological()
         .map(|m| content_changed(*ResolvedVc::upcast(m)))
         .map(|v| v.to_resolved())
