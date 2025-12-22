@@ -234,9 +234,21 @@ export default async function RootLayout({
   return (
     <html lang={lang}>
       <head>
-        <link rel="alternate" hrefLang="en-US" href="https://example.com/en-US" />
-        <link rel="alternate" hrefLang="nl-NL" href="https://example.com/nl-NL" />
-        <link rel="alternate" hrefLang="x-default" href="https://example.com/en-US" />
+        <link
+          rel="alternate"
+          hrefLang="en-US"
+          href="https://example.com/en-US"
+        />
+        <link
+          rel="alternate"
+          hrefLang="nl-NL"
+          href="https://example.com/nl-NL"
+        />
+        <link
+          rel="alternate"
+          hrefLang="x-default"
+          href="https://example.com/en-US"
+        />
       </head>
       <body>{children}</body>
     </html>
@@ -251,9 +263,21 @@ export default async function RootLayout({ children, params }) {
   return (
     <html lang={lang}>
       <head>
-        <link rel="alternate" hrefLang="en-US" href="https://example.com/en-US" />
-        <link rel="alternate" hrefLang="nl-NL" href="https://example.com/nl-NL" />
-        <link rel="alternate" hrefLang="x-default" href="https://example.com/en-US" />
+        <link
+          rel="alternate"
+          hrefLang="en-US"
+          href="https://example.com/en-US"
+        />
+        <link
+          rel="alternate"
+          hrefLang="nl-NL"
+          href="https://example.com/nl-NL"
+        />
+        <link
+          rel="alternate"
+          hrefLang="x-default"
+          href="https://example.com/en-US"
+        />
       </head>
       <body>{children}</body>
     </html>
@@ -332,8 +356,14 @@ type Dictionary = {
 }
 
 const dictionaries = {
-  en: () => import('./dictionaries/en.json').then((module) => module.default as Dictionary),
-  nl: () => import('./dictionaries/nl.json').then((module) => module.default as Dictionary),
+  en: () =>
+    import('./dictionaries/en.json').then(
+      (module) => module.default as Dictionary
+    ),
+  nl: () =>
+    import('./dictionaries/nl.json').then(
+      (module) => module.default as Dictionary
+    ),
 }
 
 export type Locale = keyof typeof dictionaries
@@ -341,7 +371,7 @@ export type Locale = keyof typeof dictionaries
 export const hasLocale = (locale: string): locale is Locale =>
   locale in dictionaries
 
-export const getDictionary = async (locale: Locale): Promise<Dictionary> => 
+export const getDictionary = async (locale: Locale): Promise<Dictionary> =>
   dictionaries[locale]()
 ```
 
