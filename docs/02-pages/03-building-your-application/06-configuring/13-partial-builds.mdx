@@ -1,0 +1,322 @@
+# BUILD_ONLY Environment Variable Feature
+
+## Overview
+The `BUILD_ONLY` environment variable allows you to selectively build only specific routes during the Next.js build process. This is useful for:
+- Development when working on specific pages
+- CI/CD pipelines to reduce build time
+- Faster iteration when focusing on particular features
+
+## Usage
+
+### Basic Syntax
+```bash
+BUILD_ONLY="route1,route2,route3" npm run build
+```
+
+### Examples
+
+#### Build only the home page and a specific route:
+```bash
+BUILD_ONLY="/,/about" npm run build
+```
+
+#### Build multiple routes (no leading slash also works):
+```bash
+BUILD_ONLY="api/users,api/posts,dashboard" npm run build
+```
+
+#### Build with defaults automatically included:
+```bash
+BUILD_ONLY="ip,foo,bar" npm run build
+```
+This will build: `/_app`, `/_document`, `/_error`, `/404`, `/500`, `/ip`, `/foo`, `/bar`
+
+## Default Routes
+
+The following routes are **always included** in the build, even if not explicitly specified:
+- `/_app` - App wrapper
+- `/_document` - HTML document wrapper
+- `/_error` - Error page
+- `/404` - Not found page
+- `/500` - Server error page
+
+## Implementation Details
+
+### Where It Works
+The feature is implemented in [packages/next/src/build/index.ts](packages/next/src/build/index.ts) at line 1361, where pages are filtered before the build process begins.
+
+### How It Works
+1. The environment variable `BUILD_ONLY` is read during build initialization
+2. Routes are parsed by splitting on commas and normalizing with leading slashes
+3. Default routes are automatically added to the build set
+4. The page list is filtered to only include specified routes + defaults
+5. If no matching pages are found, a warning is logged
+
+### Route Normalization
+- Routes with leading slashes are used as-is: `/about` → `/about`
+- Routes without leading slashes get one added: `about` → `/about`
+- Whitespace is trimmed: ` about ` → `/about`
+
+## Error Handling
+
+If you specify routes that don't exist in your pages directory, a warning will be logged:
+```
+BUILD_ONLY environment variable specified but no matching pages found. 
+Specified: foo,bar,baz
+Available pages: /, /api/hello, /about, ...
+```
+
+The build will continue but with no pages (other than defaults) being built.
+
+## Notes
+
+- This feature only affects the pages router. App router pages are not filtered by `BUILD_ONLY`.
+- Default pages (_app, _document, _error, etc.) are always built regardless of the `BUILD_ONLY` setting.
+- Case-sensitive: `/About` is different from `/about`
+
+
+# BUILD_ONLY Usage Examples
+
+## Example Project Structure
+Assume you have a Next.js project with these pages:
+```
+pages/
+  ├── _app.tsx
+  ├── _document.tsx
+  ├── _error.tsx
+  ├── 404.tsx
+  ├── 500.tsx
+  ├── index.tsx
+  ├── about.tsx
+  ├── contact.tsx
+  ├── [slug].tsx
+  ├── [seo]/
+  │   └── ip.tsx
+  ├── [...catchAll].tsx
+  └── api/
+      ├── users.ts
+      ├── posts.ts
+      └── hello.ts
+```
+
+## Usage Examples
+
+### Example 1: Build Only Homepage
+```bash
+BUILD_ONLY="/" npm run build
+```
+**What gets built:**
+- `/_app` (default)
+- `/_document` (default)
+- `/_error` (default)
+- `/404` (default)
+- `/500` (default)
+- `/` (specified)
+
+### Example 2: Build Multiple Pages
+```bash
+BUILD_ONLY="/,/about,/contact" npm run build
+```
+**What gets built:**
+- All defaults: `/_app`, `/_document`, `/_error`, `/404`, `/500`
+- Your pages: `/`, `/about`, `/contact`
+
+### Example 3: Build API Routes
+```bash
+BUILD_ONLY="api/users,api/posts" npm run build
+```
+**What gets built:**
+- All defaults
+- `/api/users`
+- `/api/posts`
+
+### Example 4: Mix of Pages and APIs
+```bash
+BUILD_ONLY="/,/about,api/users,api/posts" npm run build
+```
+**What gets built:**
+- All defaults
+- `/`
+- `/about`
+- `/api/users`
+- `/api/posts`
+
+### Example 5: Routes Without Leading Slashes
+```bash
+BUILD_ONLY="about,contact" npm run build
+# Equivalent to: BUILD_ONLY="/about,/contact" npm run build
+```
+**What gets built:**
+- All defaults
+- `/about`
+- `/contact`
+
+### Example 6: Routes with Extra Whitespace
+```bash
+BUILD_ONLY=" / , /about , api/users " npm run build
+```
+**What gets built:**
+- All defaults (whitespace is trimmed)
+- `/`
+- `/about`
+- `/api/users`
+
+### Example 7: Dynamic Routes
+```bash
+BUILD_ONLY="/[slug],/[slug]/details" npm run build
+```
+**What gets built:**
+- All defaults
+- `/[slug]` (dynamic route)
+- `/[slug]/details` (nested dynamic route)
+
+### Example 8: Nested Routes with Parameters
+```bash
+BUILD_ONLY="/[seo]/ip,/user/profile" npm run build
+```
+**What gets built:**
+- All defaults
+- `/[seo]/ip` (nested dynamic route like pages/[seo]/ip.tsx)
+- `/user/profile` (static nested route like pages/user/profile.tsx)
+
+### Example 9: Catch-all Routes
+```bash
+BUILD_ONLY="/[...catchAll],/api/[...slug]" npm run build
+```
+**What gets built:**
+- All defaults
+- `/[...catchAll]` (catch-all route)
+- `/api/[...slug]` (nested catch-all route)
+
+## Workflow Examples
+
+### During Development
+While working on a specific feature:
+```bash
+# Only build the page you're working on
+BUILD_ONLY="/dashboard" npm run build
+
+# Or multiple related pages
+BUILD_ONLY="/dashboard,/dashboard/settings" npm run build
+```
+
+### In CI/CD Pipeline
+For faster builds in pull request checks:
+```bash
+# Only build changed pages to validate they work
+BUILD_ONLY="/new-feature,/new-feature/details" npm run build && npm test
+```
+
+### Quick Testing
+To verify a specific page builds without errors:
+```bash
+BUILD_ONLY="/contact" npm run build
+```
+
+## Important Notes
+
+⚠️ **Default routes are ALWAYS included:**
+These pages are always built, even if not in BUILD_ONLY:
+- `/_app` - Your app wrapper
+- `/_document` - HTML document
+- `/_error` - Error boundary
+- `/404` - Not found page
+- `/500` - Server error page
+
+✅ **Supported route formats:**
+- Static routes: `/`, `/about`, `/contact`
+- Dynamic routes: `/[slug]`, `/[id]`
+- Nested static routes: `/user/profile`, `/api/users`
+- Nested dynamic routes: `/[seo]/ip`, `/[category]/[item]`
+- Catch-all routes: `/[...catchAll]`, `/api/[...slug]`
+- Optional catch-all: `/[[...slug]]`
+
+✅ **To build ONLY defaults** (without any other pages):
+```bash
+BUILD_ONLY="" npm run build
+# or just omit the variable
+npm run build
+```
+
+❌ **To build nothing** won't work (defaults always included)
+
+## Error Handling
+
+If you specify routes that don't exist:
+```bash
+BUILD_ONLY="/nonexistent,/page" npm run build
+```
+
+You'll see a warning:
+```
+BUILD_ONLY environment variable specified but no matching pages found. 
+Specified: /nonexistent,/page
+Available pages: /, /about, /contact, /404, /500, /api/users, /api/posts, /api/hello
+```
+
+The build continues with just the defaults (since no specified pages matched).
+
+## Performance Impact
+
+### Without BUILD_ONLY
+- Builds all pages: 15 routes × ~500ms each = ~7.5s
+
+### With BUILD_ONLY (building 2 pages + 5 defaults)
+- Builds 7 routes total: 7 routes × ~500ms each = ~3.5s
+- **Saves ~4 seconds per build**
+
+This compounds over many builds during development!
+
+## Real-World Use Cases
+
+### 1. Feature Branch Development
+```bash
+# Working on the "new-checkout" feature
+BUILD_ONLY="/checkout,/checkout/payment,/checkout/review" npm run build
+```
+
+### 2. Hot Fix for Specific Pages
+```bash
+# Only validating the pages you changed
+BUILD_ONLY="/profile,/settings" npm run build
+```
+
+### 3. CI Testing Strategy
+```bash
+# Each developer only tests their changed pages
+if [ "$CHANGED_FILES" = "pages/api/*" ]; then
+  BUILD_ONLY="api/users,api/posts" npm run build
+else
+  npm run build
+fi
+```
+
+### 4. Monorepo Multi-Apps
+```bash
+# Build only the pages for one app
+BUILD_ONLY="/app1-page,/app1-settings" npm run build
+```
+
+### 5. Building Nested Routes
+```bash
+# When you have pages/[seo]/ip.tsx
+BUILD_ONLY="/[seo]/ip" npm run build
+```
+
+### 6. Complex Nested Structure
+Given this file structure:
+```
+pages/
+  ├── dashboard/
+  │   ├── index.tsx        → route: /dashboard
+  │   ├── settings.tsx      → route: /dashboard/settings
+  │   └── [id]/
+  │       └── details.tsx   → route: /dashboard/[id]/details
+  └── [seo]/
+      └── ip.tsx           → route: /[seo]/ip
+```
+
+Build only specific nested routes:
+```bash
+BUILD_ONLY="/dashboard,/dashboard/settings,/dashboard/[id]/details,/[seo]/ip" npm run build
+```
