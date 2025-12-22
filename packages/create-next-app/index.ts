@@ -57,7 +57,7 @@ const program = new Command(packageJson.name)
   .option('--src-dir', "Initialize inside a 'src/' directory.")
   .option('--turbopack', 'Enable Turbopack as the bundler.')
   .option('--webpack', 'Enable Webpack as the bundler.')
-  .option('--rspack', 'Enable Rspack as the bundler')
+  .option('--rspack', 'Enable Rspack as the bundler.')
   .option(
     '--import-alias <prefix/*>',
     'Specify import alias to use (default "@/*").'
