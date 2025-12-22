@@ -1358,7 +1358,35 @@ export default async function build(
       })
       NextBuildContext.mappedRootPaths = mappedRootPaths
 
-      const pagesPageKeys = Object.keys(mappedPages)
+      let pagesPageKeys = Object.keys(mappedPages)
+
+      // Apply BUILD_ONLY filter if specified via environment variable
+      // Supports all route formats: /, /about, /api/users, /[slug], /[slug]/details, /[...catchAll]
+      const buildOnlyEnv = process.env.BUILD_ONLY
+      if (buildOnlyEnv) {
+        const buildOnlyRoutes = new Set(
+          buildOnlyEnv.split(',').map((route) => {
+            // Normalize routes to have leading slash
+            return route.trim().startsWith('/') ? route.trim() : `/${route.trim()}`
+          })
+        )
+
+        // Always include these default routes
+        const defaultRoutes = new Set(['/_app', '/_document', '/_error', '/404', '/500'])
+        defaultRoutes.forEach((route) => buildOnlyRoutes.add(route))
+
+        // Filter pages to only include those in BUILD_ONLY and defaults
+        // This includes: static routes (/) dynamic routes (/[slug]) and nested routes (/[seo]/ip)
+        pagesPageKeys = pagesPageKeys.filter((page) => buildOnlyRoutes.has(page))
+
+        if (pagesPageKeys.length === 0) {
+          Log.warn(
+            `BUILD_ONLY environment variable specified but no matching pages found. ` +
+              `Specified: ${buildOnlyEnv}\n` +
+              `Available pages: ${Object.keys(mappedPages).join(', ')}`
+          )
+        }
+      }
 
       const conflictingAppPagePaths: [pagePath: string, appPath: string][] = []
       const appPageKeys = new Set<string>()
