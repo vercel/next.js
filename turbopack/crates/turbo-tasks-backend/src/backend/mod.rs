@@ -1271,7 +1271,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        // Only when it should write regularily to the storage, we schedule the initial snapshot
+        // Only when it should write regularly to the storage, we schedule the initial snapshot
         // job.
         if matches!(self.options.storage_mode, Some(StorageMode::ReadWrite)) {
             // Schedule the snapshot job
