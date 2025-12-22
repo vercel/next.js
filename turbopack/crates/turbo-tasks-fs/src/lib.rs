@@ -245,11 +245,7 @@ pub trait FileSystem: ValueToString {
     fn write(self: Vc<Self>, fs_path: FileSystemPath, content: Vc<FileContent>) -> Vc<()>;
     /// See [`FileSystemPath::write_symbolic_link_dir`].
     #[turbo_tasks::function]
-    fn write_symbolic_link_dir(
-        self: Vc<Self>,
-        fs_path: FileSystemPath,
-        target: Vc<LinkContent>,
-    ) -> Vc<()>;
+    fn write_link(self: Vc<Self>, fs_path: FileSystemPath, target: Vc<LinkContent>) -> Vc<()>;
     #[turbo_tasks::function]
     fn metadata(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<FileMeta>;
 }
@@ -1038,11 +1034,7 @@ impl FileSystem for DiskFileSystem {
     }
 
     #[turbo_tasks::function(fs)]
-    async fn write_symbolic_link_dir(
-        &self,
-        fs_path: FileSystemPath,
-        target: Vc<LinkContent>,
-    ) -> Result<()> {
+    async fn write_link(&self, fs_path: FileSystemPath, target: Vc<LinkContent>) -> Result<()> {
         // You might be tempted to use `mark_session_dependent` here, but we purely declare a side
         // effect and does not need to be re-executed in the next session. All side effects are
         // re-executed in general.
@@ -1056,14 +1048,6 @@ impl FileSystem for DiskFileSystem {
         }
 
         let content = target.await?;
-        if let LinkContent::Link { link_type, .. } = &*content
-            && !link_type.contains(LinkType::DIRECTORY)
-        {
-            bail!(
-                "Only symbolic links to directories are supported, to ensure cross-platform \
-                 compatibility with Windows junction points"
-            )
-        }
 
         let full_path = self.to_sys_path(&fs_path);
         let inner = self.inner.clone();
@@ -1132,11 +1116,12 @@ impl FileSystem for DiskFileSystem {
 
             match &*content {
                 LinkContent::Link { target, link_type } => {
+                    let is_directory = link_type.contains(LinkType::DIRECTORY);
                     let target_path = if link_type.contains(LinkType::ABSOLUTE) {
                         Path::new(&inner.root).join(unix_to_sys(target).as_ref())
                     } else {
                         let relative_target = PathBuf::from(unix_to_sys(target).as_ref());
-                        if cfg!(windows) {
+                        if cfg!(windows) && is_directory {
                             // Windows junction points must always be stored as absolute
                             full_path
                                 .parent()
@@ -1183,11 +1168,28 @@ impl FileSystem for DiskFileSystem {
                         }
                         #[cfg(windows)]
                         {
-                            std::os::windows::fs::junction_point(target_path, &full_path)
+                            if is_directory {
+                                std::os::windows::fs::junction_point(target_path, &full_path)
+                            } else {
+                                std::os::windows::fs::symlink_file(target_path, &full_path)
+                            }
                         }
                     })
                     .await
-                    .with_context(|| format!("create symlink to {target}"))?;
+                    .with_context(|| {
+                        #[cfg(not(windows))]
+                        let message = format!("failed to create symlink to {target}");
+                        #[cfg(windows)]
+                        let message = if is_directory {
+                            format!("failed to create junction point to {target}")
+                        } else {
+                            format!(
+                                "failed to create symlink to {target}\n\
+                                (Note: creating file symlinks on Windows require developer mode or admin permissions: https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode)"
+                            )
+                        };
+                        message
+                    })?;
                 }
                 LinkContent::Invalid => {
                     bail!("invalid symlink target: {}", full_path.display())
@@ -1236,7 +1238,7 @@ impl FileSystem for DiskFileSystem {
 
 async fn remove_symbolic_link_dir_helper(path: impl AsRef<Path>) -> Result<()> {
     let path = path.as_ref();
-    retry_blocking(path.to_owned(), |path| {
+    retry_blocking(path.to_owned(), move |path| {
         if cfg!(windows) {
             // Junction points on Windows are treated as directories, and therefore need
             // `remove_dir`:
@@ -1687,7 +1689,7 @@ impl FileSystemPath {
     /// [windows-privileges]: https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/create-symbolic-links
     /// [pnpm-windows]: https://pnpm.io/faq#does-it-work-on-windows
     pub fn write_symbolic_link_dir(&self, target: Vc<LinkContent>) -> Vc<()> {
-        self.fs().write_symbolic_link_dir(self.clone(), target)
+        self.fs().write_link(self.clone(), target)
     }
 
     pub fn metadata(&self) -> Vc<FileMeta> {
@@ -2559,11 +2561,7 @@ impl FileSystem for NullFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn write_symbolic_link_dir(
-        &self,
-        _fs_path: FileSystemPath,
-        _target: Vc<LinkContent>,
-    ) -> Vc<()> {
+    fn write_link(&self, _fs_path: FileSystemPath, _target: Vc<LinkContent>) -> Vc<()> {
         Vc::default()
     }
 
@@ -2946,7 +2944,7 @@ mod tests {
             target: RcStr,
         ) -> anyhow::Result<()> {
             let write_file = |f| {
-                fs.write_symbolic_link_dir(
+                fs.write_link(
                     f,
                     LinkContent::Link {
                         target: format!("{target}/data.txt").into(),
@@ -2960,7 +2958,7 @@ mod tests {
             write_file(path.join("symlink-file")?).await?;
 
             let write_dir = |f| {
-                fs.write_symbolic_link_dir(
+                fs.write_link(
                     f,
                     LinkContent::Link {
                         target: target.clone(),

@@ -66,11 +66,7 @@ impl FileSystem for VirtualFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn write_symbolic_link_dir(
-        &self,
-        _fs_path: FileSystemPath,
-        _target: Vc<LinkContent>,
-    ) -> Result<Vc<()>> {
+    fn write_link(&self, _fs_path: FileSystemPath, _target: Vc<LinkContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible on the virtual file system")
     }
 

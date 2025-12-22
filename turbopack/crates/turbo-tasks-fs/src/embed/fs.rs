@@ -75,11 +75,7 @@ impl FileSystem for EmbeddedFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn write_symbolic_link_dir(
-        &self,
-        _path: FileSystemPath,
-        _target: Vc<LinkContent>,
-    ) -> Result<Vc<()>> {
+    fn write_link(&self, _path: FileSystemPath, _target: Vc<LinkContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible to the embedded filesystem")
     }
 

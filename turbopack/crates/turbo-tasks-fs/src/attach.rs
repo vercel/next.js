@@ -125,7 +125,7 @@ impl FileSystem for AttachedFileSystem {
     }
 
     #[turbo_tasks::function(fs)]
-    async fn write_symbolic_link_dir(
+    async fn write_link(
         self: Vc<Self>,
         path: FileSystemPath,
         target: Vc<LinkContent>,
