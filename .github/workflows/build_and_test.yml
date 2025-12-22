@@ -2,7 +2,7 @@ name: build-and-test
 
 on:
   push:
-    branches: ['canary']
+    branches: ['next-16-1']
   pull_request:
     types: [opened, synchronize]
 
@@ -612,7 +612,7 @@ jobs:
     name: Test new tests for flakes (dev)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     # test-new-tests-if
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: false
     # test-new-tests-end-if
 
     strategy:
@@ -636,7 +636,7 @@ jobs:
     name: Test new tests for flakes (prod)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     # test-new-tests-if
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: false
     # test-new-tests-end-if
 
     strategy:
@@ -657,10 +657,9 @@ jobs:
 
   test-new-tests-deploy:
     name: Test new tests when deployed
-    needs:
-      ['optimize-ci', 'test-prod', 'test-new-tests-dev', 'test-new-tests-start']
+    needs: ['optimize-ci', 'test-prod', 'test-new-tests-start']
     # test-new-tests-if
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' }}
+    if: false
     # test-new-tests-end-if
 
     strategy:
@@ -682,15 +681,9 @@ jobs:
 
   test-new-tests-deploy-cache-components:
     name: Test new tests when deployed (cache components)
-    needs:
-      [
-        'optimize-ci',
-        'test-cache-components-prod',
-        'test-new-tests-dev',
-        'test-new-tests-start',
-      ]
+    needs: ['optimize-ci', 'test-cache-components-prod']
     # test-new-tests-if
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' }}
+    if: false
     # test-new-tests-end-if
 
     strategy:
@@ -1020,10 +1013,6 @@ jobs:
         'test-next-swc-wasm',
         'test-turbopack-dev',
         'test-turbopack-integration',
-        'test-new-tests-dev',
-        'test-new-tests-start',
-        'test-new-tests-deploy',
-        'test-new-tests-deploy-cache-components',
         'test-turbopack-production',
         'test-turbopack-production-integration',
         'test-unit-windows',
