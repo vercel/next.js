@@ -16,6 +16,7 @@ describe('writeConfigurationDefaults()', () => {
   let isFirstTimeSetup: boolean
   let hasPagesDir: boolean
   let isolatedDevBuild = true
+  let experimentalStrictRouteTypes = true
 
   beforeEach(async () => {
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation()
@@ -47,7 +48,8 @@ describe('writeConfigurationDefaults()', () => {
         hasAppDir,
         distDir,
         hasPagesDir,
-        isolatedDevBuild
+        isolatedDevBuild,
+        experimentalStrictRouteTypes
       )
 
       const tsConfig = JSON.parse(
@@ -137,7 +139,8 @@ describe('writeConfigurationDefaults()', () => {
         hasAppDir,
         distDir,
         hasPagesDir,
-        isolatedDevBuild
+        isolatedDevBuild,
+        experimentalStrictRouteTypes
       )
 
       expect(stripAnsi(consoleLogSpy.mock.calls.flat().join('\n'))).not.toMatch(
@@ -170,7 +173,8 @@ describe('writeConfigurationDefaults()', () => {
             hasAppDir,
             distDir,
             hasPagesDir,
-            isolatedDevBuild
+            isolatedDevBuild,
+            experimentalStrictRouteTypes
           )
         ).resolves.not.toThrow()
 
