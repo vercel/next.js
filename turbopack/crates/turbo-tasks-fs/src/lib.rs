@@ -1069,52 +1069,17 @@ impl FileSystem for DiskFileSystem {
                 .transpose()?
                 .unwrap_or_default();
 
-            // TODO(sokra) perform a untracked read here, register an invalidator and get
-            // all existing invalidators
-            let old_content = match retry_blocking(full_path.clone().into_owned(), |path| {
-                std::fs::read_link(path)
-            })
-            .concurrency_limited(&inner.read_semaphore)
-            .instrument(tracing::info_span!(
-                "read symlink before write",
-                name = display(full_path.display())
-            ))
-            .await
-            {
-                Ok(res) => Some((res.is_absolute(), res)),
-                Err(_) => None,
-            };
-            let is_equal = match (&*content, &old_content) {
-                // TODO(bgw): Is this logic correct? This might give us `is_equal = false` when it
-                // shouldn't, and cause us to do extra work.
-                // - `old_content` may have windows path separators, but `LinkContent` normalizes
-                //   them.
-                // - Windows junction points are always transformed to absolute before being stored.
-                // - `LinkContent`'s target field stores absolute paths as relative to the project
-                //   root, but `old_target` is relative to the real filesystem's root.
-                // We should compute the final target `Path` first, and then it with that value, not
-                // the normalized format stored in
-                (LinkContent::Link { target, link_type }, Some((old_is_absolute, old_target))) => {
-                    Path::new(target) == old_target
-                        && link_type.contains(LinkType::ABSOLUTE) == *old_is_absolute
-                }
-                (LinkContent::NotFound, None) => true,
-                _ => false,
-            };
-            if is_equal {
-                if !old_invalidators.is_empty() {
-                    for (invalidator, write_content) in old_invalidators {
-                        inner.invalidator_map.insert(
-                            full_path.clone().into_owned(),
-                            invalidator,
-                            write_content,
-                        );
-                    }
-                }
-                return Ok(());
+            enum OsSpecificLinkContent {
+                Link {
+                    #[cfg(windows)]
+                    is_directory: bool,
+                    target: PathBuf,
+                },
+                NotFound,
+                Invalid,
             }
 
-            match &*content {
+            let os_specific_link_content = match &*content {
                 LinkContent::Link { target, link_type } => {
                     let is_directory = link_type.contains(LinkType::DIRECTORY);
                     let target_path = if link_type.contains(LinkType::ABSOLUTE) {
@@ -1131,6 +1096,59 @@ impl FileSystem for DiskFileSystem {
                             relative_target
                         }
                     };
+                    OsSpecificLinkContent::Link {
+                        #[cfg(windows)]
+                        is_directory,
+                        target: target_path,
+                    }
+                }
+                LinkContent::Invalid => OsSpecificLinkContent::Invalid,
+                LinkContent::NotFound => OsSpecificLinkContent::NotFound,
+            };
+
+            // TODO(sokra) perform a untracked read here, register an invalidator and get
+            // all existing invalidators
+            let old_content = match retry_blocking(full_path.clone().into_owned(), |path| {
+                std::fs::read_link(path)
+            })
+            .concurrency_limited(&inner.read_semaphore)
+            .instrument(tracing::info_span!(
+                "read symlink before write",
+                name = display(full_path.display())
+            ))
+            .await
+            {
+                Ok(res) => Some((res.is_absolute(), res)),
+                Err(_) => None,
+            };
+            let is_equal = match (&os_specific_link_content, &old_content) {
+                (
+                    OsSpecificLinkContent::Link { target, .. },
+                    Some((old_is_absolute, old_target)),
+                ) => target == old_target && target.is_absolute() == *old_is_absolute,
+                (OsSpecificLinkContent::NotFound, None) => true,
+                _ => false,
+            };
+            if is_equal {
+                if !old_invalidators.is_empty() {
+                    for (invalidator, write_content) in old_invalidators {
+                        inner.invalidator_map.insert(
+                            full_path.clone().into_owned(),
+                            invalidator,
+                            write_content,
+                        );
+                    }
+                }
+                return Ok(());
+            }
+
+            match os_specific_link_content {
+                OsSpecificLinkContent::Link {
+                    target,
+                    #[cfg(windows)]
+                    is_directory,
+                    ..
+                } => {
                     let full_path = full_path.into_owned();
 
                     let create_directory = old_content.is_none();
@@ -1156,7 +1174,7 @@ impl FileSystem for DiskFileSystem {
                             })?;
                     }
 
-                    retry_blocking(target_path, move |target_path| {
+                    retry_blocking(target.clone(), move |target_path| {
                         let _span = tracing::info_span!(
                             "write symlink",
                             name = display(target_path.display())
@@ -1178,23 +1196,24 @@ impl FileSystem for DiskFileSystem {
                     .await
                     .with_context(|| {
                         #[cfg(not(windows))]
-                        let message = format!("failed to create symlink to {target}");
+                        let message = format!("failed to create symlink to {}", target.display());
                         #[cfg(windows)]
                         let message = if is_directory {
-                            format!("failed to create junction point to {target}")
+                            format!("failed to create junction point to {}", target.display())
                         } else {
                             format!(
-                                "failed to create symlink to {target}\n\
-                                (Note: creating file symlinks on Windows require developer mode or admin permissions: https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode)"
+                                "failed to create symlink to {}\n\
+                                (Note: creating file symlinks on Windows require developer mode or admin permissions: https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode)",
+                                target.display()
                             )
                         };
                         message
                     })?;
                 }
-                LinkContent::Invalid => {
+                OsSpecificLinkContent::Invalid => {
                     bail!("invalid symlink target: {}", full_path.display())
                 }
-                LinkContent::NotFound => {
+                OsSpecificLinkContent::NotFound => {
                     remove_symbolic_link_dir_helper(&full_path)
                         .concurrency_limited(&inner.write_semaphore)
                         .await

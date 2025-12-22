@@ -245,6 +245,29 @@ pub mod tests {
         glob::{Glob, GlobOptions},
     };
 
+    fn symlink<P: AsRef<std::path::Path>, Q: AsRef<std::path::Path>>(
+        target: Q,
+        path: P,
+    ) -> std::io::Result<()> {
+        assert!(target.as_ref().is_absolute());
+        let _ = std::fs::remove_dir(&path);
+        let _ = std::fs::remove_file(&path);
+
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(target, path)
+        }
+        #[cfg(windows)]
+        {
+            let metadata = std::fs::metadata(&target).ok();
+            if metadata.is_none_or(|m| m.is_file()) {
+                std::os::windows::fs::symlink_file(target, path)
+            } else {
+                std::os::windows::fs::junction_point(target, path)
+            }
+        }
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn read_glob_basic() {
         let scratch = tempfile::tempdir().unwrap();
@@ -313,11 +336,8 @@ pub mod tests {
         .unwrap();
     }
 
-    #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn read_glob_symlinks() {
-        use std::os::unix::fs::symlink;
-
         let scratch = tempfile::tempdir().unwrap();
         {
             // root.js
@@ -420,10 +440,8 @@ pub mod tests {
         path.track_glob(Glob::new(rcstr!("**"), GlobOptions::default()), false)
     }
 
-    #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn track_glob_invalidations() {
-        use std::os::unix::fs::symlink;
         let scratch = tempfile::tempdir().unwrap();
 
         // Create a simple directory with 2 files, a subdirectory and a dotfile
@@ -506,13 +524,10 @@ pub mod tests {
         .unwrap();
     }
 
-    #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn track_glob_symlinks_loop() {
         let scratch = tempfile::tempdir().unwrap();
         {
-            use std::os::unix::fs::symlink;
-
             // Create a simple directory with 1 file and a symlink pointing at at a file in a
             // subdirectory
             let path = scratch.path();
@@ -562,13 +577,10 @@ pub mod tests {
     }
 
     // Reproduces an issue where a dead symlink would cause a panic when tracking/reading a glob
-    #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn dead_symlinks() {
         let scratch = tempfile::tempdir().unwrap();
         {
-            use std::os::unix::fs::symlink;
-
             // Create a simple directory with 1 file and a symlink pointing at a non-existent file
             let path = scratch.path();
             let sub = &path.join("sub");
@@ -625,13 +637,10 @@ pub mod tests {
     }
 
     // Reproduces an issue where a dead symlink would cause a panic when tracking/reading a glob
-    #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn symlink_escapes_fs_root() {
         let scratch = tempfile::tempdir().unwrap();
         {
-            use std::os::unix::fs::symlink;
-
             // Create a simple directory with 1 file and a symlink pointing at a non-existent file
             let path = scratch.path();
             let sub = &path.join("sub");
@@ -657,13 +666,10 @@ pub mod tests {
         .unwrap();
     }
 
-    #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn read_glob_symlinks_loop() {
         let scratch = tempfile::tempdir().unwrap();
         {
-            use std::os::unix::fs::symlink;
-
             // Create a simple directory with 1 file and a symlink pointing at at a file in a
             // subdirectory
             let path = scratch.path();

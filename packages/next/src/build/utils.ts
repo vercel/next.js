@@ -1276,7 +1276,7 @@ export async function copyTracedFiles(
               await fs.symlink(symlink, fileOutputPath)
             } catch (err: any) {
               // Windows doesn't support creating symlinks without elevated privileges, unless
-              // "Developer Mode" is turned on. If we failed to crate a symlink due to EPERM, try
+              // "Developer Mode" is turned on. If we failed to create a symlink due to EPERM, try
               // creating a junction point instead.
               //
               // Ideally we'd just preserve the input file type (junction point or symlink), but
