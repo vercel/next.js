@@ -16,7 +16,8 @@ use std::{
 
 use bincode::{Decode, Encode};
 use turbo_tasks::{
-    CellId, FxIndexMap, KeyValuePair, TaskId, TurboTasksBackendApi, TypedSharedReference,
+    CellId, FxIndexMap, KeyValuePair, TaskId, TaskPriority, TurboTasksBackendApi,
+    TypedSharedReference,
 };
 
 use crate::{
@@ -564,7 +565,8 @@ where
     }
 
     fn schedule_task(&self, task: Self::TaskGuardImpl) {
-        self.turbo_tasks.schedule(task.id());
+        let priority = TaskPriority::root();
+        self.turbo_tasks.schedule(task.id(), priority);
     }
 
     fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&mut self, op: &T) {
