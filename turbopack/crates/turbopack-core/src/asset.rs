@@ -98,7 +98,7 @@ impl AssetContent {
                 path.write(**file).as_side_effect().await?;
             }
             AssetContent::Redirect { target, link_type } => {
-                path.write_link(
+                path.write_symbolic_link_dir(
                     LinkContent::Link {
                         target: target.clone(),
                         link_type: *link_type,

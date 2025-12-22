@@ -130,7 +130,10 @@ impl FileSystem for AttachedFileSystem {
         path: FileSystemPath,
         target: Vc<LinkContent>,
     ) -> Result<Vc<()>> {
-        Ok(self.get_inner_fs_path(path).await?.write_link(target))
+        Ok(self
+            .get_inner_fs_path(path)
+            .await?
+            .write_symbolic_link_dir(target))
     }
 
     #[turbo_tasks::function]
