@@ -100,7 +100,6 @@ impl<
             // free capacity so we can just push the task to the queue.
             // It will be picked up by existing workers.
             inner.queue.push(HeapItem { priority, task });
-            println!("Queue not empty, pushing task to queue.");
             return;
         }
         // The queue is empty, so we might have free capacity to spawn a new worker.
@@ -108,8 +107,6 @@ impl<
         if active_polls < self.target_workers {
             // We have free capacity, spawn a new worker to execute this task immediately.
             drop(inner);
-
-            println!("Only {} active polls, spawning new worker.", active_polls);
 
             let future = self.executor.execute(execute_context, task);
             WorkerFuture::spawn(future, execute_context.clone(), self.clone(), true);
@@ -124,11 +121,8 @@ impl<
             if active_polls >= self.target_workers
                 || !self.spawn_worker_if_work_available(&execute_context, true)
             {
-                println!("Queue empty, pushing task to queue, no free capacity.");
                 // Undo the added active poll since we didn't spawn a new worker.
                 self.active_polls.fetch_sub(1, Ordering::Relaxed);
-            } else {
-                println!("Queue empty, pushing task to queue, spawn a new worker.");
             }
         }
     }
@@ -136,10 +130,6 @@ impl<
     fn pop_future_from_worker(&self, execute_context: &Arc<C>) -> Option<E::Future> {
         let mut inner = self.inner.lock();
         if let Some(heap_item) = inner.queue.pop() {
-            println!(
-                "pop_future_from_worker: found task in queue with priority {:?}.",
-                heap_item.priority
-            );
             Some(self.executor.execute(execute_context, heap_item.task))
         } else {
             None
@@ -259,8 +249,6 @@ impl<
                     // The current future is still pending, we need to suspend this worker.
                     // But we if there are free capacity we can spawn a new worker to pick up
                     // other tasks in the queue.
-
-                    println!("WorkerFuture: Future is pending. Try to spawn a new worker...");
 
                     // Quick check if we can spawn a new worker from the existing active poll.
                     let active_polls = this.runner.active_polls.load(Ordering::Relaxed) - 1;
