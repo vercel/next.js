@@ -1,34 +1,44 @@
-use std::{collections::VecDeque, hash::Hash};
+use std::{
+    collections::{VecDeque, hash_map::Entry},
+    hash::Hash,
+};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks_macros::{TraceRawVcs, ValueDebugFormat};
 
-use crate::{
-    self as turbo_tasks, NonLocalValue,
-    graph::graph_store::{GraphNode, GraphStore},
-};
+use crate::{self as turbo_tasks, NonLocalValue, graph::graph_store::GraphStore};
 
 /// A graph traversal that builds an adjacency map
 #[derive(Debug, Clone, TraceRawVcs, ValueDebugFormat)]
-pub struct AdjacencyMap<T> {
-    adjacency_map: FxHashMap<T, Vec<T>>,
+pub struct AdjacencyMap<T, E> {
+    adjacency_map: FxHashMap<T, Vec<(T, E)>>,
     roots: Vec<T>,
 }
 
-unsafe impl<T> NonLocalValue for AdjacencyMap<T> where T: NonLocalValue {}
-
-impl<T> PartialEq for AdjacencyMap<T>
+unsafe impl<T, E> NonLocalValue for AdjacencyMap<T, E>
+where
+    T: NonLocalValue,
+    E: NonLocalValue,
+{
+}
+impl<T, E> PartialEq for AdjacencyMap<T, E>
 where
     T: Eq + Hash,
+    E: Eq,
 {
     fn eq(&self, other: &Self) -> bool {
         self.adjacency_map == other.adjacency_map && self.roots == other.roots
     }
 }
 
-impl<T> Eq for AdjacencyMap<T> where T: Eq + Hash {}
+impl<T, E> Eq for AdjacencyMap<T, E>
+where
+    T: Eq + Hash,
+    E: Eq,
+{
+}
 
-impl<T> Default for AdjacencyMap<T>
+impl<T, E> Default for AdjacencyMap<T, E>
 where
     T: Eq + Hash + Clone,
 {
@@ -37,7 +47,7 @@ where
     }
 }
 
-impl<T> AdjacencyMap<T>
+impl<T, E> AdjacencyMap<T, E>
 where
     T: Eq + Hash + Clone,
 {
@@ -55,39 +65,60 @@ where
     }
 
     /// Returns an iterator over the children of the given node
-    pub fn get(&self, node: &T) -> Option<impl Iterator<Item = &T>> {
+    pub fn get(&self, node: &T) -> Option<impl Iterator<Item = &(T, E)>> {
         self.adjacency_map.get(node).map(|vec| vec.iter())
     }
-}
 
-impl<T> GraphStore for AdjacencyMap<T>
-where
-    T: Eq + Hash + Clone + Send,
-{
-    type Node = T;
-    type Handle = T;
+    /// Returns the number of nodes in the graph
+    pub fn len(&self) -> usize {
+        self.adjacency_map.len()
+    }
 
-    fn insert(&mut self, from_handle: Option<T>, node: GraphNode<T>) -> Option<(Self::Handle, &T)> {
-        let vec = if let Some(from_handle) = from_handle {
-            self.adjacency_map
-                .entry(from_handle)
-                .or_insert_with(|| Vec::with_capacity(1))
-        } else {
-            &mut self.roots
-        };
-
-        vec.push(node.node().clone());
-        Some((node.into_node(), vec.last().unwrap()))
+    /// Returns true if the graph is empty
+    pub fn is_empty(&self) -> bool {
+        self.adjacency_map.is_empty()
     }
 }
 
-impl<T> AdjacencyMap<T>
+impl<T, E> GraphStore for AdjacencyMap<T, E>
+where
+    T: Eq + Hash + Clone + Send,
+    E: Send,
+{
+    type Node = T;
+    type Edge = E;
+    type Handle = T;
+
+    fn insert(&mut self, from: Option<(&T, E)>, node: T) {
+        if let Some((from_node, edge)) = from {
+            let vec = self
+                .adjacency_map
+                .entry(from_node.clone())
+                .or_insert_with(|| Vec::with_capacity(1));
+            vec.push((node, edge));
+        } else {
+            self.roots.push(node);
+        };
+    }
+
+    fn try_enter(&mut self, node: &T) -> Option<T> {
+        match self.adjacency_map.entry(node.clone()) {
+            Entry::Occupied(_) => None,
+            Entry::Vacant(e) => {
+                e.insert(Vec::new());
+                Some(node.clone())
+            }
+        }
+    }
+}
+
+impl<T, E> AdjacencyMap<T, E>
 where
     T: Eq + Hash + Clone,
 {
     /// Returns an owned iterator over the nodes in postorder topological order,
     /// starting from the roots.
-    pub fn into_postorder_topological(self) -> IntoPostorderTopologicalIter<T> {
+    pub fn into_postorder_topological(self) -> IntoPostorderTopologicalIter<T, E> {
         IntoPostorderTopologicalIter {
             adjacency_map: self.adjacency_map,
             stack: self
@@ -102,7 +133,7 @@ where
 
     /// Returns an owned iterator over all edges (node pairs) in reverse breadth first order,
     /// starting from the roots.
-    pub fn into_breadth_first_edges(self) -> IntoBreadthFirstEdges<T> {
+    pub fn into_breadth_first_edges(self) -> IntoBreadthFirstEdges<T, E> {
         IntoBreadthFirstEdges {
             adjacency_map: self.adjacency_map,
             queue: self
@@ -117,7 +148,7 @@ where
 
     /// Returns an iterator over the nodes in postorder topological order,
     /// starting from the roots.
-    pub fn postorder_topological(&self) -> PostorderTopologicalIter<'_, T> {
+    pub fn postorder_topological(&self) -> PostorderTopologicalIter<'_, T, E> {
         PostorderTopologicalIter {
             adjacency_map: &self.adjacency_map,
             stack: self
@@ -135,7 +166,7 @@ where
     pub fn postorder_topological_from_node<'graph>(
         &'graph self,
         node: &'graph T,
-    ) -> PostorderTopologicalIter<'graph, T> {
+    ) -> PostorderTopologicalIter<'graph, T, E> {
         PostorderTopologicalIter {
             adjacency_map: &self.adjacency_map,
             stack: vec![(ReverseTopologicalPass::Pre, node)],
@@ -152,18 +183,19 @@ enum ReverseTopologicalPass {
 
 /// An iterator over the nodes of a graph in postorder topological order, starting
 /// from the roots.
-pub struct IntoPostorderTopologicalIter<T>
+pub struct IntoPostorderTopologicalIter<T, E>
 where
     T: Eq + Hash + Clone,
 {
-    adjacency_map: FxHashMap<T, Vec<T>>,
+    adjacency_map: FxHashMap<T, Vec<(T, E)>>,
     stack: Vec<(ReverseTopologicalPass, T)>,
     visited: FxHashSet<T>,
 }
 
-impl<T> Iterator for IntoPostorderTopologicalIter<T>
+impl<T, E> Iterator for IntoPostorderTopologicalIter<T, E>
 where
     T: Eq + Hash + Clone,
+    E: Clone,
 {
     type Item = T;
 
@@ -191,7 +223,7 @@ where
                         neighbors
                             .iter()
                             .rev()
-                            .map(|neighbor| (ReverseTopologicalPass::Pre, neighbor.clone())),
+                            .map(|(neighbor, _)| (ReverseTopologicalPass::Pre, neighbor.clone())),
                     );
                 }
             }
@@ -201,20 +233,21 @@ where
     }
 }
 
-pub struct IntoBreadthFirstEdges<T>
+pub struct IntoBreadthFirstEdges<T, E>
 where
     T: Eq + std::hash::Hash + Clone,
 {
-    adjacency_map: FxHashMap<T, Vec<T>>,
-    queue: VecDeque<(Option<T>, T)>,
+    adjacency_map: FxHashMap<T, Vec<(T, E)>>,
+    queue: VecDeque<(Option<(T, E)>, T)>,
     expanded: FxHashSet<T>,
 }
 
-impl<T> Iterator for IntoBreadthFirstEdges<T>
+impl<T, E> Iterator for IntoBreadthFirstEdges<T, E>
 where
     T: Eq + std::hash::Hash + Clone,
+    E: Clone,
 {
-    type Item = (Option<T>, T);
+    type Item = (Option<(T, E)>, T);
 
     fn next(&mut self) -> Option<Self::Item> {
         let (parent, current) = self.queue.pop_front()?;
@@ -225,9 +258,9 @@ where
 
         if self.expanded.insert(current.clone()) {
             self.queue.extend(
-                neighbors
-                    .iter()
-                    .map(|neighbor| (Some(current.clone()), neighbor.clone())),
+                neighbors.iter().map(|(neighbor, edge)| {
+                    (Some((current.clone(), edge.clone())), neighbor.clone())
+                }),
             );
         }
 
@@ -237,16 +270,16 @@ where
 
 /// An iterator over the nodes of a graph in postorder topological order, starting
 /// from the roots.
-pub struct PostorderTopologicalIter<'graph, T>
+pub struct PostorderTopologicalIter<'graph, T, E>
 where
     T: Eq + Hash + Clone,
 {
-    adjacency_map: &'graph FxHashMap<T, Vec<T>>,
+    adjacency_map: &'graph FxHashMap<T, Vec<(T, E)>>,
     stack: Vec<(ReverseTopologicalPass, &'graph T)>,
     visited: FxHashSet<&'graph T>,
 }
 
-impl<'graph, T> Iterator for PostorderTopologicalIter<'graph, T>
+impl<'graph, T, E> Iterator for PostorderTopologicalIter<'graph, T, E>
 where
     T: Eq + Hash + Clone,
 {
@@ -276,7 +309,7 @@ where
                         neighbors
                             .iter()
                             .rev()
-                            .map(|neighbor| (ReverseTopologicalPass::Pre, neighbor)),
+                            .map(|(neighbor, _)| (ReverseTopologicalPass::Pre, neighbor)),
                     );
                 }
             }

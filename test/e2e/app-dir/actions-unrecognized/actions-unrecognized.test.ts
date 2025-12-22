@@ -82,7 +82,7 @@ describe('unrecognized server actions', () => {
     )
   }
 
-  it('should 404 when POSTing a urlencoded action to a nonexistent page', async () => {
+  it('should error when POSTing a urlencoded action to a nonexistent page', async () => {
     const res = await next.fetch('/non-existent-route', {
       method: 'POST',
       headers: {
@@ -92,7 +92,8 @@ describe('unrecognized server actions', () => {
       body: 'foo=bar',
     })
 
-    expect(res.status).toBe(404)
+    // On Vercel, this would hit the 404 route which is a static page, and returns a 405 instead.
+    expect(res.status).toBe(isNextDeploy ? 405 : 404)
   })
 
   describe.each(['nodejs', 'edge'])(
