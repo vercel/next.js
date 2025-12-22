@@ -1639,7 +1639,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let mut task = ctx.task(task_id, TaskDataCategory::All);
             if let Some(tasks) = task.prefetch() {
                 drop(task);
-                ctx.prepare_tasks(tasks.into_iter());
+                ctx.prepare_tasks(tasks);
                 task = ctx.task(task_id, TaskDataCategory::All);
             }
             let in_progress = remove!(task, InProgress)?;

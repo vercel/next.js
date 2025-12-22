@@ -561,7 +561,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                 },
                 &keys,
             )?;
-            Ok(bytes
+            bytes
                 .into_iter()
                 .map(|opt_bytes| {
                     if let Some(bytes) = opt_bytes {
@@ -571,7 +571,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                         Ok(Vec::new())
                     }
                 })
-                .collect::<Result<Vec<_>>>()?)
+                .collect::<Result<Vec<_>>>()
         }
         inner
             .with_tx(tx, |tx| lookup(&inner.database, tx, task_ids, category))

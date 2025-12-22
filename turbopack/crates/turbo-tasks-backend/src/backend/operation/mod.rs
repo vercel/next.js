@@ -215,12 +215,11 @@ where
     }
 
     fn get_tx(&self) -> Option<&<B as BackingStorageSealed>::ReadTransaction<'tx>> {
-        let tx = match &self.transaction {
+        match &self.transaction {
             TransactionState::None => unreachable!(),
             TransactionState::Borrowed(tx) => *tx,
             TransactionState::Owned(tx) => tx.as_ref(),
-        };
-        tx
+        }
     }
 
     fn prepare_tasks_with_callback(
@@ -307,7 +306,7 @@ where
                 self.restore_task_data_batch(&tasks_to_restore_for_data, TaskDataCategory::Data)
             {
                 data.into_iter()
-                    .zip(tasks_to_restore_for_data_indicies.into_iter())
+                    .zip(tasks_to_restore_for_data_indicies)
                     .for_each(|(items, idx)| {
                         tasks[idx].2 = Some(items);
                     });
@@ -322,7 +321,7 @@ where
                 self.restore_task_data_batch(&tasks_to_restore_for_meta, TaskDataCategory::Meta)
             {
                 data.into_iter()
-                    .zip(tasks_to_restore_for_meta_indicies.into_iter())
+                    .zip(tasks_to_restore_for_meta_indicies)
                     .for_each(|(items, idx)| {
                         tasks[idx].3 = Some(items);
                     });
