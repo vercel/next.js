@@ -13,28 +13,30 @@ use std::{
 
 use parking_lot::Mutex;
 use pin_project_lite::pin_project;
+use tokio::sync::oneshot::{Receiver, Sender};
 
-pub trait Executor<C, T>: Send + Sync {
+pub trait Executor<C, T, P>: Send + Sync {
     type Future: Future<Output = ()> + Send;
 
-    fn execute(&self, execute_context: &Arc<C>, task: T) -> Self::Future;
+    fn execute(&self, execute_context: &Arc<C>, task: T, priority: P) -> Self::Future;
 }
 
-impl<C, T, F, Fut> Executor<C, T> for F
+impl<C, T, P, F, Fut> Executor<C, T, P> for F
 where
-    F: Fn(&Arc<C>, T) -> Fut + Send + Sync,
+    F: Fn(&Arc<C>, T, P) -> Fut + Send + Sync,
     Fut: Future<Output = ()> + Send,
 {
     type Future = Fut;
 
-    fn execute(&self, execute_context: &Arc<C>, task: T) -> Self::Future {
-        (self)(execute_context, task)
+    fn execute(&self, execute_context: &Arc<C>, task: T, priority: P) -> Self::Future {
+        (self)(execute_context, task, priority)
     }
 }
 
 struct HeapItem<P, T> {
     priority: P,
     task: T,
+    tx: Option<Sender<()>>,
 }
 
 impl<P: Eq, T> PartialEq for HeapItem<P, T> {
@@ -61,7 +63,7 @@ pub struct PriorityRunner<
     C: Send + Sync + 'static,
     T: Send + 'static,
     P: Ord + Send + 'static,
-    E: Executor<C, T> + 'static,
+    E: Executor<C, T, P> + 'static,
 > {
     executor: E,
     target_workers: usize,
@@ -78,7 +80,7 @@ impl<
     C: Send + Sync + 'static,
     T: Send + 'static,
     P: Debug + Ord + Send + 'static,
-    E: Executor<C, T> + 'static,
+    E: Executor<C, T, P> + 'static,
 > PriorityRunner<C, T, P, E>
 {
     pub fn new(executor: E) -> Self {
@@ -94,12 +96,33 @@ impl<
     }
 
     pub fn schedule(self: &Arc<Self>, execute_context: &Arc<C>, task: T, priority: P) {
+        self.schedule_internal(execute_context, task, priority, None);
+    }
+
+    pub fn schedule_with_join_handle(
+        self: &Arc<Self>,
+        execute_context: &Arc<C>,
+        task: T,
+        priority: P,
+    ) -> JoinHandle {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        self.schedule_internal(execute_context, task, priority, Some(tx));
+        JoinHandle { receiver: rx }
+    }
+
+    fn schedule_internal(
+        self: &Arc<Self>,
+        execute_context: &Arc<C>,
+        task: T,
+        priority: P,
+        tx: Option<Sender<()>>,
+    ) {
         let mut inner = self.inner.lock();
         if !inner.queue.is_empty() {
             // If there is already work in the queue, we don't have any
             // free capacity so we can just push the task to the queue.
             // It will be picked up by existing workers.
-            inner.queue.push(HeapItem { priority, task });
+            inner.queue.push(HeapItem { priority, task, tx });
             return;
         }
         // The queue is empty, so we might have free capacity to spawn a new worker.
@@ -108,11 +131,11 @@ impl<
             // We have free capacity, spawn a new worker to execute this task immediately.
             drop(inner);
 
-            let future = self.executor.execute(execute_context, task);
-            WorkerFuture::spawn(future, execute_context.clone(), self.clone(), true);
+            let future = self.executor.execute(execute_context, task, priority);
+            WorkerFuture::spawn(future, tx, execute_context.clone(), self.clone(), true);
         } else {
             // No free capacity, push the task to the queue.
-            inner.queue.push(HeapItem { priority, task });
+            inner.queue.push(HeapItem { priority, task, tx });
             drop(inner);
 
             // Active polls might be reduced in the meantime and we might have free capacity now,
@@ -127,10 +150,18 @@ impl<
         }
     }
 
-    fn pop_future_from_worker(&self, execute_context: &Arc<C>) -> Option<E::Future> {
+    fn pop_future_from_worker(
+        &self,
+        execute_context: &Arc<C>,
+    ) -> Option<(E::Future, Option<Sender<()>>)> {
         let mut inner = self.inner.lock();
         if let Some(heap_item) = inner.queue.pop() {
-            Some(self.executor.execute(execute_context, heap_item.task))
+            let tx = heap_item.tx;
+            Some((
+                self.executor
+                    .execute(execute_context, heap_item.task, heap_item.priority),
+                tx,
+            ))
         } else {
             None
         }
@@ -143,13 +174,16 @@ impl<
     ) -> bool {
         let mut inner = self.inner.lock();
         if let Some(heap_item) = inner.queue.pop() {
-            let new_future = self.executor.execute(execute_context, heap_item.task);
+            let tx = heap_item.tx;
+            let new_future =
+                self.executor
+                    .execute(execute_context, heap_item.task, heap_item.priority);
             drop(inner);
 
             if !has_active_poll {
                 self.active_polls.fetch_add(1, Ordering::Relaxed);
             }
-            WorkerFuture::spawn(new_future, execute_context.clone(), self.clone(), true);
+            WorkerFuture::spawn(new_future, tx, execute_context.clone(), self.clone(), true);
             true
         } else {
             false
@@ -169,12 +203,13 @@ pin_project! {
         P: Ord,
         P: Send,
         P: 'static,
-        E: Executor<C, T>,
+        E: Executor<C, T, P>,
         E: 'static,
 
     {
         #[pin]
         future: E::Future,
+        tx: Option<Sender<()>>,
         execute_context: Arc<C>,
         runner: Arc<PriorityRunner<C, T, P, E>>,
         has_active_poll: bool,
@@ -185,17 +220,19 @@ impl<
     C: Send + Sync + 'static,
     T: Send + 'static,
     P: Debug + Ord + Send + 'static,
-    E: Executor<C, T> + 'static,
+    E: Executor<C, T, P> + 'static,
 > WorkerFuture<C, T, P, E>
 {
     fn spawn(
         future: E::Future,
+        tx: Option<Sender<()>>,
         execute_context: Arc<C>,
         runner: Arc<PriorityRunner<C, T, P, E>>,
         has_active_poll: bool,
     ) {
         tokio::task::spawn(Self {
             future,
+            tx,
             execute_context,
             runner,
             has_active_poll,
@@ -207,7 +244,7 @@ impl<
     C: Send + Sync + 'static,
     T: Send + 'static,
     P: Debug + Ord + Send + 'static,
-    E: Executor<C, T> + 'static,
+    E: Executor<C, T, P> + 'static,
 > Future for WorkerFuture<C, T, P, E>
 {
     type Output = ();
@@ -221,9 +258,14 @@ impl<
         loop {
             match this.future.as_mut().poll(cx) {
                 Poll::Ready(()) => {
+                    // Notify that the task is done
+                    if let Some(tx) = this.tx.take() {
+                        let _ = tx.send(());
+                    }
+
                     // This future is done, we need to check the queue for more tasks,
                     // so we can continue working on a new future in this worker.
-                    if let Some(new_future) =
+                    if let Some((new_future, new_tx)) =
                         this.runner.pop_future_from_worker(&this.execute_context)
                     {
                         // We are replacing the future with a new one, but the current future is
@@ -237,6 +279,7 @@ impl<
                             drop_in_place(future_slot);
                             future_slot.write(new_future);
                         }
+                        *this.tx = new_tx;
                         continue;
                     } else {
                         // No more tasks to execute
@@ -276,6 +319,25 @@ impl<
     }
 }
 
+pub struct JoinHandle {
+    receiver: Receiver<()>,
+}
+
+impl Future for JoinHandle {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.get_mut();
+        match Pin::new(&mut this.receiver).poll(cx) {
+            Poll::Ready(result) => {
+                let _ = result;
+                Poll::Ready(())
+            }
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{sync::Arc, thread::sleep, time::Duration};
@@ -286,10 +348,15 @@ mod tests {
     async fn test_cpu_bound_tasks() {
         struct ExecutorImpl;
 
-        impl Executor<Mutex<Vec<u32>>, u32> for ExecutorImpl {
+        impl Executor<Mutex<Vec<u32>>, u32, u32> for ExecutorImpl {
             type Future = Pin<Box<dyn Future<Output = ()> + Send>>;
 
-            fn execute(&self, execute_context: &Arc<Mutex<Vec<u32>>>, task: u32) -> Self::Future {
+            fn execute(
+                &self,
+                execute_context: &Arc<Mutex<Vec<u32>>>,
+                task: u32,
+                _priority: u32,
+            ) -> Self::Future {
                 let execute_context = execute_context.clone();
                 Box::pin(async move {
                     println!("Executing task {}...", task);
@@ -334,10 +401,15 @@ mod tests {
     async fn test_waiting_tasks() {
         struct ExecutorImpl;
 
-        impl Executor<Mutex<Vec<u32>>, u32> for ExecutorImpl {
+        impl Executor<Mutex<Vec<u32>>, u32, u32> for ExecutorImpl {
             type Future = Pin<Box<dyn Future<Output = ()> + Send>>;
 
-            fn execute(&self, execute_context: &Arc<Mutex<Vec<u32>>>, task: u32) -> Self::Future {
+            fn execute(
+                &self,
+                execute_context: &Arc<Mutex<Vec<u32>>>,
+                task: u32,
+                _priority: u32,
+            ) -> Self::Future {
                 let execute_context = execute_context.clone();
                 Box::pin(async move {
                     println!("Executing task {}...", task);

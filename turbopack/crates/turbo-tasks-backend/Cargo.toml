@@ -13,7 +13,7 @@ bench = false
 workspace = true
 
 [features]
-default = []
+default = ["trace_task_dirty"]
 print_cache_item_size = []
 no_fast_stale = []
 verify_serialization = []
