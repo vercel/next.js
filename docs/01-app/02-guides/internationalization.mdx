@@ -222,36 +222,36 @@ export default async function RootLayout({ children, params }) {
 
 ### SEO Optimization
 
-For optimal SEO with internationalized content, add `hreflang` tags to indicate alternate language versions of your pages:
+For optimal SEO with internationalized content, use the [Metadata API](/docs/app/api-reference/functions/generate-metadata#alternates) to add `hreflang` tags indicating alternate language versions:
 
 ```tsx filename="app/[lang]/layout.tsx" switcher
-type Props = {
-  children: React.ReactNode
-  params: Promise<{ lang: string }>
+import type { Metadata } from 'next'
+
+export async function generateMetadata({
+  params,
+}: LayoutProps<'/[lang]'>): Promise<Metadata> {
+  const { lang } = await params
+
+  return {
+    alternates: {
+      canonical: `https://example.com/${lang}`,
+      languages: {
+        'en-US': 'https://example.com/en-US',
+        'nl-NL': 'https://example.com/nl-NL',
+        'x-default': 'https://example.com/en-US',
+      },
+    },
+  }
 }
 
-export default async function RootLayout({ children, params }: Props) {
+export default async function RootLayout({
+  children,
+  params,
+}: LayoutProps<'/[lang]'>) {
   const { lang } = await params
 
   return (
     <html lang={lang}>
-      <head>
-        <link
-          rel="alternate"
-          hrefLang="en-US"
-          href="https://example.com/en-US"
-        />
-        <link
-          rel="alternate"
-          hrefLang="nl-NL"
-          href="https://example.com/nl-NL"
-        />
-        <link
-          rel="alternate"
-          hrefLang="x-default"
-          href="https://example.com/en-US"
-        />
-      </head>
       <body>{children}</body>
     </html>
   )
@@ -259,28 +259,26 @@ export default async function RootLayout({ children, params }: Props) {
 ```
 
 ```jsx filename="app/[lang]/layout.js" switcher
+export async function generateMetadata({ params }) {
+  const { lang } = await params
+
+  return {
+    alternates: {
+      canonical: `https://example.com/${lang}`,
+      languages: {
+        'en-US': 'https://example.com/en-US',
+        'nl-NL': 'https://example.com/nl-NL',
+        'x-default': 'https://example.com/en-US',
+      },
+    },
+  }
+}
+
 export default async function RootLayout({ children, params }) {
   const { lang } = await params
 
   return (
     <html lang={lang}>
-      <head>
-        <link
-          rel="alternate"
-          hrefLang="en-US"
-          href="https://example.com/en-US"
-        />
-        <link
-          rel="alternate"
-          hrefLang="nl-NL"
-          href="https://example.com/nl-NL"
-        />
-        <link
-          rel="alternate"
-          hrefLang="x-default"
-          href="https://example.com/en-US"
-        />
-      </head>
       <body>{children}</body>
     </html>
   )
@@ -289,26 +287,31 @@ export default async function RootLayout({ children, params }) {
 
 ### Locale Persistence
 
-Consider storing the user's locale preference in a cookie to persist their choice across sessions:
+Store the user's locale preference in a cookie to persist their choice across sessions:
 
 ```tsx filename="proxy.ts" switcher
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+let locales = ['en-US', 'nl-NL', 'nl']
+
 export function proxy(request: NextRequest) {
-  // Check for saved locale in cookie
-  const savedLocale = request.cookies.get('NEXT_LOCALE')?.value
   const { pathname } = request.nextUrl
-
-  // Use saved locale if available
-  if (savedLocale && !pathname.startsWith(`/${savedLocale}`)) {
-    request.nextUrl.pathname = `/${savedLocale}${pathname}`
-    const response = NextResponse.redirect(request.nextUrl)
-    return response
-  }
-
-  // Otherwise, detect locale and save preference
-  const locale = getLocale(request)
+  
+  // Check if pathname already has a locale
+  const pathnameHasLocale = locales.some(
+    (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
+  )
+  
+  if (pathnameHasLocale) return
+  
+  // Try to use saved locale from cookie, otherwise detect it
+  const savedLocale = request.cookies.get('NEXT_LOCALE')?.value
+  const locale = savedLocale && locales.includes(savedLocale)
+    ? savedLocale
+    : getLocale(request)
+  
+  // Redirect with locale and save preference
   request.nextUrl.pathname = `/${locale}${pathname}`
   const response = NextResponse.redirect(request.nextUrl)
   response.cookies.set('NEXT_LOCALE', locale, { path: '/' })
@@ -319,20 +322,25 @@ export function proxy(request: NextRequest) {
 ```js filename="proxy.js" switcher
 import { NextResponse } from 'next/server'
 
+let locales = ['en-US', 'nl-NL', 'nl']
+
 export function proxy(request) {
-  // Check for saved locale in cookie
-  const savedLocale = request.cookies.get('NEXT_LOCALE')?.value
   const { pathname } = request.nextUrl
-
-  // Use saved locale if available
-  if (savedLocale && !pathname.startsWith(`/${savedLocale}`)) {
-    request.nextUrl.pathname = `/${savedLocale}${pathname}`
-    const response = NextResponse.redirect(request.nextUrl)
-    return response
-  }
-
-  // Otherwise, detect locale and save preference
-  const locale = getLocale(request)
+  
+  // Check if pathname already has a locale
+  const pathnameHasLocale = locales.some(
+    (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
+  )
+  
+  if (pathnameHasLocale) return
+  
+  // Try to use saved locale from cookie, otherwise detect it
+  const savedLocale = request.cookies.get('NEXT_LOCALE')?.value
+  const locale = savedLocale && locales.includes(savedLocale)
+    ? savedLocale
+    : getLocale(request)
+  
+  // Redirect with locale and save preference
   request.nextUrl.pathname = `/${locale}${pathname}`
   const response = NextResponse.redirect(request.nextUrl)
   response.cookies.set('NEXT_LOCALE', locale, { path: '/' })
@@ -340,49 +348,7 @@ export function proxy(request) {
 }
 ```
 
-### TypeScript Support
 
-For better type safety with dictionaries, define types for your translations:
-
-```ts filename="app/[lang]/dictionaries.ts"
-import 'server-only'
-
-type Dictionary = {
-  products: {
-    cart: string
-  }
-  navigation: {
-    home: string
-    about: string
-  }
-}
-
-const dictionaries = {
-  en: () =>
-    import('./dictionaries/en.json').then(
-      (module) => module.default as Dictionary
-    ),
-  nl: () =>
-    import('./dictionaries/nl.json').then(
-      (module) => module.default as Dictionary
-    ),
-}
-
-export type Locale = keyof typeof dictionaries
-
-export const hasLocale = (locale: string): locale is Locale =>
-  locale in dictionaries
-
-export const getDictionary = async (locale: Locale): Promise<Dictionary> =>
-  dictionaries[locale]()
-```
-
-### Common Pitfalls
-
-- **Always await params**: In Next.js 15+, route parameters are promises and must be awaited. Forgetting to `await params` will cause runtime errors.
-- **Avoid client-side locale detection**: Detecting locale on the client can cause hydration mismatches. Always handle locale detection in middleware or on the server.
-- **Consider default locale SEO**: For the default locale, you might want to serve content at both `/` and `/en-US` to avoid duplicate content issues.
-- **Handle locale switching carefully**: When implementing locale switchers, ensure you preserve the current path structure to maintain user context.
 
 ## Resources
 
