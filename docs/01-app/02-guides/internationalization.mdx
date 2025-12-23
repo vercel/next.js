@@ -24,15 +24,22 @@ npm install --save-dev @types/negotiator
 ```
 
 ```js filename="proxy.js"
-import { match } from '@formatjs/intl-localematcher'
+import { match as matchLocale } from '@formatjs/intl-localematcher'
 import Negotiator from 'negotiator'
+import type { NextRequest } from 'next/server'
 
-const headers = { 'accept-language': 'en-US,en;q=0.5' }
-const languages = new Negotiator({ headers }).languages()
 const locales = ['en-US', 'nl-NL', 'nl']
 const defaultLocale = 'en-US'
 
-match(languages, locales, defaultLocale) // -> 'en-US'
+function getLocale(request: NextRequest): string {
+  // Negotiator expects plain object, so we need to transform headers
+  // Example of what headers look like: { 'accept-language': 'en-US,en;q=0.5' }
+  const negotiatorHeaders: Record<string, string> = {}
+  request.headers.forEach((value, key) => (negotiatorHeaders[key] = value))
+
+  const languages = new Negotiator({ headers: negotiatorHeaders }).languages(locales)
+  return matchLocale(languages, locales, defaultLocale)
+}
 ```
 
 Routing can be internationalized by either the sub-path (`/fr/products`) or domain (`my-site.fr/products`). With this information, you can now redirect the user based on the locale inside [Proxy](/docs/app/api-reference/file-conventions/proxy).
@@ -251,73 +258,6 @@ export default async function RootLayout({ children, params }) {
   )
 }
 ```
-
-## Best Practices
-
-### Locale Persistence
-
-Store the user's locale preference in a cookie to persist their choice across sessions:
-
-```tsx filename="proxy.ts" switcher
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-
-let locales = ['en-US', 'nl-NL', 'nl']
-
-export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl
-  
-  // Check if pathname already has a locale
-  const pathnameHasLocale = locales.some(
-    (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
-  )
-  
-  if (pathnameHasLocale) return
-  
-  // Try to use saved locale from cookie, otherwise detect it
-  const savedLocale = request.cookies.get('NEXT_LOCALE')?.value
-  const locale = savedLocale && locales.includes(savedLocale)
-    ? savedLocale
-    : getLocale(request)
-  
-  // Redirect with locale and save preference
-  request.nextUrl.pathname = `/${locale}${pathname}`
-  const response = NextResponse.redirect(request.nextUrl)
-  response.cookies.set('NEXT_LOCALE', locale, { path: '/' })
-  return response
-}
-```
-
-```js filename="proxy.js" switcher
-import { NextResponse } from 'next/server'
-
-let locales = ['en-US', 'nl-NL', 'nl']
-
-export function proxy(request) {
-  const { pathname } = request.nextUrl
-  
-  // Check if pathname already has a locale
-  const pathnameHasLocale = locales.some(
-    (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
-  )
-  
-  if (pathnameHasLocale) return
-  
-  // Try to use saved locale from cookie, otherwise detect it
-  const savedLocale = request.cookies.get('NEXT_LOCALE')?.value
-  const locale = savedLocale && locales.includes(savedLocale)
-    ? savedLocale
-    : getLocale(request)
-  
-  // Redirect with locale and save preference
-  request.nextUrl.pathname = `/${locale}${pathname}`
-  const response = NextResponse.redirect(request.nextUrl)
-  response.cookies.set('NEXT_LOCALE', locale, { path: '/' })
-  return response
-}
-```
-
-
 
 ## Resources
 
