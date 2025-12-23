@@ -35,6 +35,7 @@ export async function createApp({
   biome,
   app,
   srcDir,
+  mongodb,
   importAlias,
   skipInstall,
   empty,
