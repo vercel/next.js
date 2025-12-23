@@ -1,4 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
+import fs from 'fs-extra'
+import { join } from 'path'
 
 describe('app dir - next-image', () => {
   const { next, skipped } = nextTestSetup({
@@ -12,27 +14,30 @@ describe('app dir - next-image', () => {
 
   describe('ssr content', () => {
     it('should handle HEAD requests for uncached images', async () => {
-      // Run this test first to ensure the image cache is empty
+      const imagesDir = join(next.testDir, '.next/cache/images')
+      await fs.remove(imagesDir).catch(() => {})
+
       const $ = await next.render$('/')
       const imageUrl = $('#app-layout').attr('src')
 
-      // With an empty cache, HEAD requests should return 200
       const headRes = await next.fetch(imageUrl, { method: 'HEAD' })
       expect(headRes.status).toBe(200)
       expect(headRes.headers.get('content-type')).toMatch(/^image\//)
+      expect(headRes.headers.get('X-Nextjs-Cache')).toBe('MISS')
 
       const contentLength = headRes.headers.get('content-length')
       expect(Number(contentLength || '0')).toBeGreaterThan(0)
 
-      // GET requests should return 200 w/ content
       const getRes = await next.fetch(imageUrl)
       expect(getRes.status).toBe(200)
       expect(getRes.headers.get('content-type')).toMatch(/^image\//)
+      expect(getRes.headers.get('X-Nextjs-Cache')).toBe('HIT')
 
       const getContentLength = getRes.headers.get('content-length')
       expect(Number(getContentLength || '0')).toBeGreaterThan(0)
 
       const getBody = await getRes.arrayBuffer()
+      expect(getBody.byteLength).toBeGreaterThan(0)
       expect(getBody.byteLength).toBe(Number(getContentLength))
     })
 
