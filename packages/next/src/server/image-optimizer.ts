@@ -1091,7 +1091,12 @@ export function sendResponse(
   )
   if (!result.finished) {
     res.setHeader('Content-Length', Buffer.byteLength(buffer))
-    res.end(buffer)
+    // A response body must not be sent for HEAD requests
+    if (req.method === 'HEAD') {
+      res.end()
+    } else {
+      res.end(buffer)
+    }
   }
 }
 
