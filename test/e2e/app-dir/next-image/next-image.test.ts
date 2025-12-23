@@ -20,6 +20,20 @@ describe('app dir - next-image', () => {
       const headRes = await next.fetch(imageUrl, { method: 'HEAD' })
       expect(headRes.status).toBe(200)
       expect(headRes.headers.get('content-type')).toMatch(/^image\//)
+
+      const contentLength = headRes.headers.get('content-length')
+      expect(Number(contentLength || '0')).toBeGreaterThan(0)
+
+      // GET requests should return 200 w/ content
+      const getRes = await next.fetch(imageUrl)
+      expect(getRes.status).toBe(200)
+      expect(getRes.headers.get('content-type')).toMatch(/^image\//)
+
+      const getContentLength = getRes.headers.get('content-length')
+      expect(Number(getContentLength || '0')).toBeGreaterThan(0)
+
+      const getBody = await getRes.arrayBuffer()
+      expect(getBody.byteLength).toBe(Number(getContentLength))
     })
 
     it('should render images on / route', async () => {
