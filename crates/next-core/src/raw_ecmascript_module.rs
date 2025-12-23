@@ -7,7 +7,7 @@ use regex::Regex;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, glob::Glob, rope::Rope};
+use turbo_tasks_fs::{FileContent, rope::Rope};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -18,11 +18,11 @@ use turbopack_core::{
     },
     context::AssetContext,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     resolve::ModulePart,
-    source::Source,
+    source::{OptionSource, Source},
     source_map::GenerateSourceMap,
 };
 use turbopack_ecmascript::{
@@ -94,11 +94,13 @@ impl Module for RawEcmascriptModule {
     }
 
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        _side_effect_free_packages: Vc<Glob>,
-    ) -> Vc<bool> {
-        Vc::cell(false)
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 
@@ -218,15 +220,16 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
                                     name,
                                     if let Some(value) =
                                         replacements.get(&DefinableNameSegment::Name(name.into()))
-                                        && let Some((_, value)) = value.iter().find(|(path, _)| {
-                                            matches!(
-                                                path.as_slice(),
-                                                [
-                                                    DefinableNameSegment::Name(a),
-                                                    DefinableNameSegment::Name(b)
-                                                ] if a == "process" && b == "env"
-                                            )
-                                        })
+                                        && let Some((_, value)) =
+                                            value.0.iter().find(|(path, _)| {
+                                                matches!(
+                                                    path.as_slice(),
+                                                    [
+                                                        DefinableNameSegment::Name(a),
+                                                        DefinableNameSegment::Name(b)
+                                                    ] if a == "process" && b == "env"
+                                                )
+                                            })
                                     {
                                         let value = value.await?;
                                         let value = match &*value {
@@ -267,7 +270,8 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
             )
             .await?
             {
-                source_map.generate_source_map().owned().await?
+                let source_map = source_map.generate_source_map().await?;
+                source_map.as_content().map(|f| f.content().clone())
             } else {
                 None
             };

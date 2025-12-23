@@ -252,7 +252,6 @@ export async function walkTreeWithFlightRouterState({
   )
   if (layoutPath) {
     getLinkAndScriptTags(
-      ctx.clientReferenceManifest,
       layoutPath,
       injectedCSSWithCurrentLayout,
       injectedJSWithCurrentLayout,
@@ -307,5 +306,5 @@ const canSegmentBeOverridden = (
     return false
   }
 
-  return getSegmentParam(existingSegment)?.param === segment[0]
+  return getSegmentParam(existingSegment)?.paramName === segment[0]
 }

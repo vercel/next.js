@@ -2,7 +2,11 @@ import type { ReactDOMServerReadableStream } from 'react-dom/server'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { DetachedPromise } from '../../lib/detached-promise'
-import { scheduleImmediate, atLeastOneTask } from '../../lib/scheduler'
+import {
+  scheduleImmediate,
+  atLeastOneTask,
+  waitAtLeastOneReactRenderTask,
+} from '../../lib/scheduler'
 import { ENCODED_TAGS } from './encoded-tags'
 import {
   indexOfUint8Array,
@@ -92,11 +96,11 @@ export function streamFromBuffer(chunk: Buffer): ReadableStream<Uint8Array> {
   })
 }
 
-export async function streamToBuffer(
+async function streamToChunks(
   stream: ReadableStream<Uint8Array>
-): Promise<Buffer> {
+): Promise<Array<Uint8Array>> {
   const reader = stream.getReader()
-  const chunks: Uint8Array[] = []
+  const chunks: Array<Uint8Array> = []
 
   while (true) {
     const { done, value } = await reader.read()
@@ -107,7 +111,30 @@ export async function streamToBuffer(
     chunks.push(value)
   }
 
-  return Buffer.concat(chunks)
+  return chunks
+}
+
+function concatUint8Arrays(chunks: Array<Uint8Array>): Uint8Array {
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
+  const result = new Uint8Array(totalLength)
+  let offset = 0
+  for (const chunk of chunks) {
+    result.set(chunk, offset)
+    offset += chunk.length
+  }
+  return result
+}
+
+export async function streamToUint8Array(
+  stream: ReadableStream<Uint8Array>
+): Promise<Uint8Array> {
+  return concatUint8Arrays(await streamToChunks(stream))
+}
+
+export async function streamToBuffer(
+  stream: ReadableStream<Uint8Array>
+): Promise<Buffer> {
+  return Buffer.concat(await streamToChunks(stream))
 }
 
 export async function streamToString(
@@ -797,9 +824,13 @@ export async function continueFizzStream(
   // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
-  // If we're generating static HTML we need to wait for it to resolve before continuing.
   if (isStaticGeneration) {
+    // If we're generating static HTML we need to wait for it to resolve before continuing.
     await renderStream.allReady
+  } else {
+    // Otherwise, we want to make sure Fizz is done with all microtasky work
+    // before we start pulling the stream and cause a flush.
+    await waitAtLeastOneReactRenderTask()
   }
 
   return chainTransformers(renderStream, [

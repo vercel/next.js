@@ -298,7 +298,9 @@ export const experimentalSchema = {
   turbopackFileSystemCacheForDev: z.boolean().optional(),
   turbopackFileSystemCacheForBuild: z.boolean().optional(),
   turbopackSourceMaps: z.boolean().optional(),
+  turbopackInputSourceMaps: z.boolean().optional(),
   turbopackTreeShaking: z.boolean().optional(),
+  turbopackRemoveUnusedImports: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),
   turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
@@ -308,6 +310,7 @@ export const experimentalSchema = {
   turbopackUseBuiltinBabel: z.boolean().optional(),
   turbopackUseBuiltinSass: z.boolean().optional(),
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
+  turbopackInferModuleSideEffects: z.boolean().optional(),
   optimizePackageImports: z.array(z.string()).optional(),
   optimizeServerReact: z.boolean().optional(),
   clientTraceMetadata: z.array(z.string()).optional(),
@@ -345,6 +348,7 @@ export const experimentalSchema = {
     .optional(),
   lockDistDir: z.boolean().optional(),
   hideLogsAfterAbort: z.boolean().optional(),
+  runtimeServerDeploymentId: z.boolean().optional(),
 }
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>

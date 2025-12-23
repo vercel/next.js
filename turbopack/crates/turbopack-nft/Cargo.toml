@@ -36,6 +36,7 @@ turbo-tasks-malloc = { workspace = true, default-features = false, features = [
     "custom_allocator"
 ] }
 turbopack = { workspace = true }
+turbopack-ecmascript = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-resolve = { workspace = true }

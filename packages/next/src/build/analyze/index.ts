@@ -30,14 +30,12 @@ import { eventAnalyzeCompleted } from '../../telemetry/events'
 import { traceGlobals } from '../../trace/shared'
 import type { RoutesManifest } from '..'
 
-const ANALYZE_PATH = '.next/diagnostics/analyze'
-
 export type AnalyzeOptions = {
   dir: string
   reactProductionProfiling?: boolean
   noMangling?: boolean
   appDirOnly?: boolean
-  serve?: boolean
+  output?: boolean
   port?: number
 }
 
@@ -46,7 +44,7 @@ export default async function analyze({
   reactProductionProfiling = false,
   noMangling = false,
   appDirOnly = false,
-  serve = false,
+  output = false,
   port = 4000,
 }: AnalyzeOptions): Promise<void> {
   try {
@@ -77,26 +75,26 @@ export default async function analyze({
       await turbopackAnalyze(analyzeContext)
 
     const durationString = durationToString(analyzeDuration)
-    Log.event(
-      `Analyze data created successfully in ${durationString}. To explore it, run \`next experimental-analyze --serve\`.`
-    )
+    const analyzeDir = path.join(distDir, 'diagnostics/analyze')
 
     await shutdownPromise
 
-    await cp(
-      path.join(__dirname, '../../bundle-analyzer'),
-      path.join(dir, ANALYZE_PATH),
-      { recursive: true }
-    )
-
-    // Collect and write routes for the bundle analyzer
     const routes = await collectRoutesForAnalyze(dir, config, appDirOnly)
 
-    await mkdir(path.join(dir, ANALYZE_PATH, 'data'), { recursive: true })
+    await cp(path.join(__dirname, '../../bundle-analyzer'), analyzeDir, {
+      recursive: true,
+    })
+    await mkdir(path.join(analyzeDir, 'data'), { recursive: true })
     await writeFile(
-      path.join(dir, ANALYZE_PATH, 'data', 'routes.json'),
+      path.join(analyzeDir, 'data', 'routes.json'),
       JSON.stringify(routes, null, 2)
     )
+
+    let logMessage = `Analyze completed in ${durationString}.`
+    if (output) {
+      logMessage += ` Results written to ${analyzeDir}.\nTo explore the analyze results interactively, run \`next experimental-analyze\` without \`--output\`.`
+    }
+    Log.event(logMessage)
 
     telemetry.record(
       eventAnalyzeCompleted({
@@ -106,8 +104,8 @@ export default async function analyze({
       })
     )
 
-    if (serve) {
-      await startServer(path.join(dir, ANALYZE_PATH), port)
+    if (!output) {
+      await startServer(analyzeDir, port)
     }
   } catch (e) {
     const telemetry = traceGlobals.get('telemetry') as Telemetry | undefined
@@ -238,8 +236,15 @@ function startServer(dir: string, port: number): Promise<void> {
       let addressString
       if (typeof address === 'string') {
         addressString = address
+      } else if (
+        address.family === 'IPv6' &&
+        (address.address === '::' || address.address === '::1')
+      ) {
+        addressString = `localhost:${address.port}`
+      } else if (address.family === 'IPv6') {
+        addressString = `[${address.address}]:${address.port}`
       } else {
-        addressString = `${address.address === '::' ? 'localhost' : address.address}:${address.port}`
+        addressString = `${address.address}:${address.port}`
       }
 
       Log.info(`Bundle analyzer available at http://${addressString}`)

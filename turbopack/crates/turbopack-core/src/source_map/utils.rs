@@ -128,9 +128,9 @@ pub async fn resolve_source_map_sources(
             } else {
                 // assume it's a relative URL, and just remove any percent encoding from path
                 // segments. Our internal path format is POSIX-like, without percent encoding.
-                origin.parent().try_join(
-                    &urlencoding::decode(source_url).unwrap_or(Cow::Borrowed(source_url)),
-                )?
+                origin
+                    .parent()
+                    .try_join(&urlencoding::decode(source_url).unwrap_or(Cow::Borrowed(source_url)))
             };
 
             if let Some(fs_path) = fs_path {

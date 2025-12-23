@@ -1,6 +1,7 @@
 use std::{borrow::Cow, iter, sync::Arc, thread::available_parallelism, time::Duration};
 
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use futures_retry::{FutureRetry, RetryPolicy};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
@@ -10,7 +11,7 @@ use turbo_tasks::{
     TryJoinIterExt, Vc, duration_span, fxindexmap, get_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fs::{File, FileSystemPath, to_sys_path};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
 use turbopack_core::{
     asset::AssetContent,
     changed::content_changed,
@@ -132,17 +133,7 @@ async fn emit_evaluate_pool_assets_with_effects_operation(
 }
 
 #[derive(
-    Clone,
-    Copy,
-    Hash,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TaskInput,
-    NonLocalValue,
-    TraceRawVcs,
+    Clone, Copy, Hash, Debug, PartialEq, Eq, TaskInput, NonLocalValue, TraceRawVcs, Encode, Decode,
 )]
 pub enum EnvVarTracking {
     WholeEnvTracked,
@@ -376,7 +367,10 @@ pub async fn get_evaluate_entries(
             Vc::upcast(VirtualSource::new(
                 runtime_asset.ident().path().await?.join("evaluate.js")?,
                 AssetContent::file(
-                    File::from("import { run } from 'RUNTIME'; run(() => import('INNER'))").into(),
+                    FileContent::Content(File::from(
+                        "import { run } from 'RUNTIME'; run(() => import('INNER'))",
+                    ))
+                    .cell(),
                 ),
             )),
             ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
@@ -506,7 +500,6 @@ async fn pull_operation<T: EvaluateContext>(
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, Serialize, Deserialize, TraceRawVcs)]
 struct BasicEvaluateContext {
     entries: ResolvedVc<EvaluateEntries>,
     cwd: FileSystemPath,

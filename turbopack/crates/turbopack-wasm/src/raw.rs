@@ -6,10 +6,10 @@ use turbopack_core::{
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     context::AssetContext,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
-    source::Source,
+    source::{OptionSource, Source},
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -58,6 +58,17 @@ impl Module for RawWebAssemblyModuleAsset {
             .ident()
             .with_modifier(rcstr!("wasm raw"))
             .with_layer(self.asset_context.into_trait_ref().await?.layer()))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(ResolvedVc::upcast(self.source)))
+    }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // this just exports a path
+        ModuleSideEffects::SideEffectFree.cell()
     }
 }
 

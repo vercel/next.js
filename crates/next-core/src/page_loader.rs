@@ -45,7 +45,7 @@ pub async fn create_page_loader_entry_module(
 
     let virtual_source = Vc::upcast(VirtualSource::new(
         page_loader_path,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     ));
 
     let module = client_context
@@ -202,6 +202,8 @@ impl Asset for PageLoaderAsset {
             StringifyJs(&chunks_data)
         );
 
-        Ok(AssetContent::file(File::from(content).into()))
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(content)).cell(),
+        ))
     }
 }
