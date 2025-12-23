@@ -12,7 +12,7 @@ describe('Node Extensions', () => {
         return
       }
 
-      it('should not error when accessing middlware that use Math.random()', async () => {
+      it('should not error when accessing middleware that use Math.random()', async () => {
         let res: Awaited<ReturnType<typeof next.fetch>>,
           $: Awaited<ReturnType<typeof next.render$>>
 
@@ -155,7 +155,7 @@ describe('Node Extensions', () => {
         return
       }
 
-      it('should not error when accessing middlware that use Math.random()', async () => {
+      it('should not error when accessing middleware that use Math.random()', async () => {
         let res, $
 
         res = await next.fetch('/rewrite')

@@ -41,13 +41,13 @@ describe('acceptLanguage', () => {
     expect(language).toEqual('en-US')
   })
 
-  it('returns preference with highest order when equal weigths', () => {
+  it('returns preference with highest order when equal weights', () => {
     expect(acceptLanguage('da, en, en-GB', ['en', 'en-GB'])).toEqual('en')
     expect(acceptLanguage('da, en, en-GB', ['en-GB', 'en'])).toEqual('en-GB')
     expect(acceptLanguage('en, en-GB, en-US')).toEqual('en')
   })
 
-  it('return language with heighest weight', () => {
+  it('return language with highest weight', () => {
     const language = acceptLanguage('da;q=0.5, en;q=1', ['da', 'en'])
     expect(language).toEqual('en')
   })

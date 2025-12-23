@@ -251,7 +251,7 @@ describe('app-dir static/dynamic handling', () => {
       })
     })
 
-    it('force-dynamic should supercede a "default" cache value', async () => {
+    it('force-dynamic should supersede a "default" cache value', async () => {
       const $ = await next.render$('/force-dynamic-fetch-cache/default-cache')
       const initData = $('#data').text()
       await retry(async () => {
@@ -276,7 +276,7 @@ describe('app-dir static/dynamic handling', () => {
       })
     })
 
-    it('fetchCache config should supercede dynamic config when force-dynamic is used', async () => {
+    it('fetchCache config should supersede dynamic config when force-dynamic is used', async () => {
       const $ = await next.render$(
         '/force-dynamic-fetch-cache/with-fetch-cache'
       )
@@ -303,7 +303,7 @@ describe('app-dir static/dynamic handling', () => {
       })
     })
 
-    it('fetch `cache` should supercede dynamic config when force-dynamic is used', async () => {
+    it('fetch `cache` should supersede dynamic config when force-dynamic is used', async () => {
       const $ = await next.render$('/force-dynamic-fetch-cache/force-cache')
       const initData = $('#data').text()
       await retry(async () => {

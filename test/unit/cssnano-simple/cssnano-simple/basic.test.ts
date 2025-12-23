@@ -20,7 +20,7 @@ describe('basic test', () => {
   })
 
   test('should be able to declare layer names', async () => {
-    // @layer b is equivlaent to @layer b {}
+    // @layer b is equivalents to @layer b {}
     const input = css`
       @layer b {
         ._5-enzrfpb:lang(ar) {

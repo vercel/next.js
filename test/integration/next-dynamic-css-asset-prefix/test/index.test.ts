@@ -75,7 +75,7 @@ describe('next/dynamic with assetPrefix', () => {
               // [NOTE] if socket doesn't have a handler to error event and if error
               // event leaks, node.js ends its process with errored exit code.
               // However, there can be failing socket event while running test
-              // as long as assertion is correct, do not care indiviual socket errors.
+              // as long as assertion is correct, do not care individual socket errors.
               proxyRes.on('error', (e) => {
                 require('console').error(e)
               })
@@ -132,7 +132,7 @@ describe('next/dynamic with assetPrefix', () => {
               // [NOTE] if socket doesn't have a handler to error event and if error
               // event leaks, node.js ends its process with errored exit code.
               // However, there can be failing socket event while running test
-              // as long as assertion is correct, do not care indiviual socket errors.
+              // as long as assertion is correct, do not care individual socket errors.
               proxyRes.on('error', (e) => {
                 require('console').error(e)
               })

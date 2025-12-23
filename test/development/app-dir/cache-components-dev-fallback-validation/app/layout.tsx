@@ -22,7 +22,7 @@ export default function Root({ children }: { children: React.ReactNode }) {
           <p>
             In Dev, our validation needs to match and the way we do this is we
             look at the current route and determine the most specific set of
-            params that would be availalbe during the build and then use the
+            params that would be available during the build and then use the
             remaining fallback params for the validation render. This way if you
             see an error during the build you should be able to debug that error
             during development too.

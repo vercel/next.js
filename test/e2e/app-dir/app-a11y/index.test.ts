@@ -20,7 +20,7 @@ describe('app a11y features', () => {
       )
     }
 
-    it('should not announce the initital title', async () => {
+    it('should not announce the initial title', async () => {
       const browser = await next.browser('/page-with-h1')
       await check(() => getAnnouncerContent(browser), '')
     })

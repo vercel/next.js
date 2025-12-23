@@ -6,7 +6,7 @@ export default function Page(props) {
 
   return (
     <>
-      <p id="catch-alll">catch-all page</p>
+      <p id="catch-all">catch-all page</p>
       <p id="props">{JSON.stringify(props)}</p>
       <p id="router-locale">{router.locale}</p>
       <p id="router-default-locale">{router.defaultLocale}</p>

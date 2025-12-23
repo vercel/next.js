@@ -764,8 +764,8 @@
   },
   "test/development/app-dir/edge-errors-hmr/index.test.ts": {
     "passed": [
-      "develop - app-dir - edge errros hmr should recover from build errors when client component error",
-      "develop - app-dir - edge errros hmr should recover from build errors when server component error"
+      "develop - app-dir - edge errors hmr should recover from build errors when client component error",
+      "develop - app-dir - edge errors hmr should recover from build errors when server component error"
     ],
     "failed": [],
     "pending": [],
@@ -1212,7 +1212,7 @@
     "passed": [
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
       "app-dir-hmr filesystem changes should not break when renaming a folder",
-      "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
+      "app-dir-hmr filesystem changes should not continuously poll when hitting a not found page",
       "app-dir-hmr filesystem changes should update server components after navigating to a page with a different runtime"
     ],
     "failed": [
@@ -1381,7 +1381,7 @@
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should have client HMR events in trace file",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should not continously poll a custom error page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should not continuously poll a custom error page",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after an error reported via SSR",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after exporting an invalid page",
@@ -1404,7 +1404,7 @@
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect runtime errors on the module scope",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should have client HMR events in trace file",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should not continuously poll a custom error page",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after an error reported via SSR",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after exporting an invalid page",
@@ -1427,7 +1427,7 @@
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should have client HMR events in trace file",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should not continously poll a custom error page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should not continuously poll a custom error page",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after an error reported via SSR",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after exporting an invalid page",
@@ -1450,7 +1450,7 @@
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect runtime errors on the module scope",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should have client HMR events in trace file",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should not continuously poll a custom error page",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after an error reported via SSR",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after exporting an invalid page",
@@ -2123,7 +2123,7 @@
       "middlewares does not warn when populating response with a function call",
       "middlewares does not warn when populating response with a value",
       "middlewares does not warn when populating response with an async function call",
-      "middlewares does not warn when returning null reponse body",
+      "middlewares does not warn when returning null response body",
       "middlewares does not warn when returning response with JSON.stringify",
       "middlewares does not warn when returning response with literal number",
       "middlewares does not warn when returning response with literal string",
@@ -3010,7 +3010,7 @@
       "app a11y features route announcer should announce document.title changes",
       "app a11y features route announcer should announce h1 changes",
       "app a11y features route announcer should announce route changes when h1 changes inside an inner layout",
-      "app a11y features route announcer should not announce the initital title"
+      "app a11y features route announcer should not announce the initial title"
     ],
     "failed": [],
     "pending": [],
@@ -7288,12 +7288,12 @@
   },
   "test/e2e/app-dir/node-extensions/node-extensions.random.test.ts": {
     "passed": [
-      "Node Extensions Random Cache Components should not error when accessing middlware that use Math.random()",
+      "Node Extensions Random Cache Components should not error when accessing middleware that use Math.random()",
       "Node Extensions Random Cache Components should not error when accessing pages that use Math.random() in App Router",
       "Node Extensions Random Cache Components should not error when accessing pages that use Math.random() in Pages Router",
       "Node Extensions Random Cache Components should not error when accessing routes that use Math.random() in App Router",
       "Node Extensions Random Cache Components should not error when accessing routes that use Math.random() in Pages Router",
-      "Node Extensions Random Legacy should not error when accessing middlware that use Math.random()",
+      "Node Extensions Random Legacy should not error when accessing middleware that use Math.random()",
       "Node Extensions Random Legacy should not error when accessing pages that use Math.random() in App Router",
       "Node Extensions Random Legacy should not error when accessing pages that use Math.random() in Pages Router",
       "Node Extensions Random Legacy should not error when accessing routes that use Math.random() in App Router",
@@ -11371,18 +11371,18 @@
       "using a single matcher does not add the header for root data request",
       "using a single matcher does not add the header for root request",
       "using a single matcher with i18n adds the header for a matched path",
-      "using a single matcher with i18n adds the header for a mathed root path with /index",
+      "using a single matcher with i18n adds the header for a matched root path with /index",
       "using a single matcher with i18n adds the headers for a matched data path",
       "using a single matcher with i18n and basePath adds the header for a matched path",
-      "using a single matcher with i18n and basePath adds the header for a mathed root path with /index",
+      "using a single matcher with i18n and basePath adds the header for a matched root path with /index",
       "using a single matcher with i18n and basePath adds the headers for a matched data path",
       "using a single matcher with i18n and basePath and trailingSlash adds the header for a matched path",
-      "using a single matcher with i18n and basePath and trailingSlash adds the header for a mathed root path with /index",
+      "using a single matcher with i18n and basePath and trailingSlash adds the header for a matched root path with /index",
       "using a single matcher with i18n and basePath and trailingSlash adds the headers for a matched data path",
       "using a single matcher with i18n and basePath and trailingSlash does not add the header for an unmatched path",
       "using a single matcher with i18n and basePath does not add the header for an unmatched path",
       "using a single matcher with i18n and trailingSlash adds the header for a matched path",
-      "using a single matcher with i18n and trailingSlash adds the header for a mathed root path with /index",
+      "using a single matcher with i18n and trailingSlash adds the header for a matched root path with /index",
       "using a single matcher with i18n and trailingSlash adds the headers for a matched data path",
       "using a single matcher with i18n and trailingSlash does not add the header for an unmatched path",
       "using a single matcher with i18n does not add the header for an unmatched path",
@@ -12499,7 +12499,7 @@
       "testmode app router should handle RSC with fetch in edge function",
       "testmode app router should handle RSC with fetch in serverless function",
       "testmode app router should handle RSC with http.get in serverless function",
-      "testmode middleware should intercept fetchs in middleware",
+      "testmode middleware should intercept fetches in middleware",
       "testmode page router should handle API with fetch",
       "testmode page router should handle API with http.get",
       "testmode page router should handle getServerSideProps with fetch",
@@ -12655,7 +12655,7 @@
       "transpile packages css should handle global css imports inside transpiled modules",
       "transpile packages css should handle global scss imports inside transpiled modules",
       "transpile packages css should handle scss modules imports inside transpiled modules",
-      "transpile packages optional deps should hide dynammic module dependency errors from node_modules",
+      "transpile packages optional deps should hide dynamic module dependency errors from node_modules",
       "transpile packages optional deps should not throw an error when optional deps are not installed"
     ],
     "failed": [],
@@ -19427,11 +19427,11 @@
   },
   "test/integration/invalid-multi-match/test/index.test.ts": {
     "passed": [
-      "Custom routes invalid multi-match development mode should show error for invalid mulit-match"
+      "Custom routes invalid multi-match development mode should show error for invalid multi-match"
     ],
     "failed": [],
     "pending": [
-      "Custom routes invalid multi-match production mode should show error for invalid mulit-match"
+      "Custom routes invalid multi-match production mode should show error for invalid multi-match"
     ],
     "flakey": [],
     "runtimeError": false
@@ -20196,7 +20196,7 @@
       "Image Component Default Tests development mode should call callback ref cleanups when unmounting",
       "Image Component Default Tests development mode should callback native onError even when error before hydration",
       "Image Component Default Tests development mode should callback native onError when error occurred while loading image",
-      "Image Component Default Tests development mode should callback native onLoad with sythetic event",
+      "Image Component Default Tests development mode should callback native onLoad with synthetic event",
       "Image Component Default Tests development mode should callback onLoadingComplete when image is fully loaded",
       "Image Component Default Tests development mode should correctly ignore prose styles",
       "Image Component Default Tests development mode should emit image for next/dynamic with non ssr case",
@@ -20260,7 +20260,7 @@
       "Image Component Default Tests production mode should call callback ref cleanups when unmounting",
       "Image Component Default Tests production mode should callback native onError even when error before hydration",
       "Image Component Default Tests production mode should callback native onError when error occurred while loading image",
-      "Image Component Default Tests production mode should callback native onLoad with sythetic event",
+      "Image Component Default Tests production mode should callback native onLoad with synthetic event",
       "Image Component Default Tests production mode should callback onLoadingComplete when image is fully loaded",
       "Image Component Default Tests production mode should correctly ignore prose styles",
       "Image Component Default Tests production mode should correctly rotate image",
@@ -20421,7 +20421,7 @@
       "Image Component Default Tests development mode should be valid HTML",
       "Image Component Default Tests development mode should callback native onError even when error before hydration",
       "Image Component Default Tests development mode should callback native onError when error occurred while loading image",
-      "Image Component Default Tests development mode should callback native onLoad with sythetic event",
+      "Image Component Default Tests development mode should callback native onLoad with synthetic event",
       "Image Component Default Tests development mode should callback onLoadingComplete when image is fully loaded",
       "Image Component Default Tests development mode should correctly ignore prose styles",
       "Image Component Default Tests development mode should emit image for next/dynamic with non ssr case",
@@ -20483,7 +20483,7 @@
       "Image Component Default Tests production mode should be valid HTML",
       "Image Component Default Tests production mode should callback native onError even when error before hydration",
       "Image Component Default Tests production mode should callback native onError when error occurred while loading image",
-      "Image Component Default Tests production mode should callback native onLoad with sythetic event",
+      "Image Component Default Tests production mode should callback native onLoad with synthetic event",
       "Image Component Default Tests production mode should callback onLoadingComplete when image is fully loaded",
       "Image Component Default Tests production mode should correctly ignore prose styles",
       "Image Component Default Tests production mode should correctly rotate image",
@@ -21822,7 +21822,7 @@
       "config telemetry production mode detects i18n and image configs for session start",
       "config telemetry production mode detects output config for session start",
       "config telemetry production mode detects rewrites, headers, and redirects for next build",
-      "config telemetry production mode emits telemery for usage of image, script & dynamic",
+      "config telemetry production mode emits telemetry for usage of image, script & dynamic",
       "config telemetry production mode emits telemetry for configured React Compiler options",
       "config telemetry production mode emits telemetry for default React Compiler options",
       "config telemetry production mode emits telemetry for enabled React Compiler",

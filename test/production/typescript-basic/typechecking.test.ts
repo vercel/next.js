@@ -21,7 +21,7 @@ describe('typechecking', () => {
     if (status !== 0) {
       // Piped output is incomplete and the format barely useable.
       // Printing it as a last resort in case it's not reproducible locally.
-      // Best to NEXT_TEST_SKIP_CLEANUP=1 this test and run the command in the app localy.
+      // Best to NEXT_TEST_SKIP_CLEANUP=1 this test and run the command in the app locally.
       throw new Error('Typecheck failed: \n' + stdout)
     }
   })

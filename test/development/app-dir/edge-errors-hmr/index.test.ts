@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { waitForRedbox, waitForNoRedbox } from 'next-test-utils'
 
-describe('develop - app-dir - edge errros hmr', () => {
+describe('develop - app-dir - edge errors hmr', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })

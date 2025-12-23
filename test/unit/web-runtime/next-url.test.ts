@@ -107,7 +107,7 @@ it('allows to get empty locale when there is no locale', () => {
   expect(url.locale).toEqual('')
 })
 
-it('doesnt allow to set an unexisting locale', () => {
+it("doesn't allow to set an unexisting locale", () => {
   const url = new NextURL('https://localhost:3000/foo')
   let error: Error | null = null
   try {

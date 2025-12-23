@@ -9,7 +9,7 @@ module.exports = {
   },
   plugins: [
     plugin(function ({ addVariant }) {
-      // this class is applied to `html` by `app/theme-efect.ts`, similar
+      // this class is applied to `html` by `app/theme-effect.ts`, similar
       // to how `dark:` gets enabled
       addVariant('theme-system', '.theme-system &')
     }),

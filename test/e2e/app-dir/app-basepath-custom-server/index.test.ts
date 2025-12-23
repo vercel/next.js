@@ -40,7 +40,7 @@ describe('custom-app-server-action-redirect', () => {
     expect(await getCount()).toBe('Count: 2')
   })
 
-  it('redirects with proper cookies set from both redirect response and post respose', async () => {
+  it('redirects with proper cookies set from both redirect response and post response', async () => {
     const browser = await next.browser('/base')
 
     await browser.elementById('submit-server-action-redirect').click()

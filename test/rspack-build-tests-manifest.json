@@ -466,7 +466,7 @@
       "app a11y features route announcer should announce document.title changes",
       "app a11y features route announcer should announce h1 changes",
       "app a11y features route announcer should announce route changes when h1 changes inside an inner layout",
-      "app a11y features route announcer should not announce the initital title"
+      "app a11y features route announcer should not announce the initial title"
     ],
     "failed": [],
     "pending": [],
@@ -486,7 +486,7 @@
   "test/e2e/app-dir/app-basepath-custom-server/index.test.ts": {
     "passed": [
       "custom-app-server-action-redirect redirects with basepath properly when server action handler uses `redirect`",
-      "custom-app-server-action-redirect redirects with proper cookies set from both redirect response and post respose"
+      "custom-app-server-action-redirect redirects with proper cookies set from both redirect response and post response"
     ],
     "failed": [],
     "pending": [],
@@ -1215,9 +1215,9 @@
   "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts": {
     "passed": [
       "app-dir static/dynamic handling Incremental cache limits should cache large data when using custom cache handler and force-cache mode",
-      "app-dir static/dynamic handling fetch `cache` should supercede dynamic config when force-dynamic is used",
-      "app-dir static/dynamic handling fetchCache config should supercede dynamic config when force-dynamic is used",
-      "app-dir static/dynamic handling force-dynamic should supercede a \"default\" cache value",
+      "app-dir static/dynamic handling fetch `cache` should supersede dynamic config when force-dynamic is used",
+      "app-dir static/dynamic handling fetchCache config should supersede dynamic config when force-dynamic is used",
+      "app-dir static/dynamic handling force-dynamic should supersede a \"default\" cache value",
       "app-dir static/dynamic handling should allow dynamic routes to access cookies",
       "app-dir static/dynamic handling should build dynamic param with edge runtime correctly",
       "app-dir static/dynamic handling should cache correctly for cache: \"force-cache\" and \"revalidate\"",
@@ -1320,9 +1320,9 @@
   "test/e2e/app-dir/app-static/app-static.test.ts": {
     "passed": [
       "app-dir static/dynamic handling Incremental cache limits should load data only at build time even if response data size is greater than 2MB and FetchCache is possible",
-      "app-dir static/dynamic handling fetch `cache` should supercede dynamic config when force-dynamic is used",
-      "app-dir static/dynamic handling fetchCache config should supercede dynamic config when force-dynamic is used",
-      "app-dir static/dynamic handling force-dynamic should supercede a \"default\" cache value",
+      "app-dir static/dynamic handling fetch `cache` should supersede dynamic config when force-dynamic is used",
+      "app-dir static/dynamic handling fetchCache config should supersede dynamic config when force-dynamic is used",
+      "app-dir static/dynamic handling force-dynamic should supersede a \"default\" cache value",
       "app-dir static/dynamic handling it should revalidate correctly with edge route handler",
       "app-dir static/dynamic handling it should revalidate correctly with node route handler",
       "app-dir static/dynamic handling it should revalidate tag correctly with edge route handler",
@@ -4080,7 +4080,7 @@
       "app dir - navigation navigating to dynamic params & changing the casing should load the page correctly",
       "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from app to pages",
       "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from pages to app",
-      "app dir - navigation navigation between pages and app should not continously initiate a mpa navigation to the same URL when router state changes",
+      "app dir - navigation navigation between pages and app should not continuously initiate a mpa navigation to the same URL when router state changes",
       "app dir - navigation navigation between pages and app should not omit the hash while navigating from app to pages",
       "app dir - navigation navigations when attaching a Proxy to `window.Promise` should navigate without issue",
       "app dir - navigation nested navigation should load chunks correctly without double encoding of url",
@@ -4983,12 +4983,12 @@
   },
   "test/e2e/app-dir/node-extensions/node-extensions.random.test.ts": {
     "passed": [
-      "Node Extensions Random Cache Components should not error when accessing middlware that use Math.random()",
+      "Node Extensions Random Cache Components should not error when accessing middleware that use Math.random()",
       "Node Extensions Random Cache Components should not error when accessing pages that use Math.random() in App Router",
       "Node Extensions Random Cache Components should not error when accessing pages that use Math.random() in Pages Router",
       "Node Extensions Random Cache Components should not error when accessing routes that use Math.random() in App Router",
       "Node Extensions Random Cache Components should not error when accessing routes that use Math.random() in Pages Router",
-      "Node Extensions Random Legacy should not error when accessing middlware that use Math.random()",
+      "Node Extensions Random Legacy should not error when accessing middleware that use Math.random()",
       "Node Extensions Random Legacy should not error when accessing pages that use Math.random() in App Router",
       "Node Extensions Random Legacy should not error when accessing pages that use Math.random() in Pages Router",
       "Node Extensions Random Legacy should not error when accessing routes that use Math.random() in App Router",
@@ -9333,18 +9333,18 @@
       "using a single matcher does not add the header for root data request",
       "using a single matcher does not add the header for root request",
       "using a single matcher with i18n adds the header for a matched path",
-      "using a single matcher with i18n adds the header for a mathed root path with /index",
+      "using a single matcher with i18n adds the header for a matched root path with /index",
       "using a single matcher with i18n adds the headers for a matched data path",
       "using a single matcher with i18n and basePath adds the header for a matched path",
-      "using a single matcher with i18n and basePath adds the header for a mathed root path with /index",
+      "using a single matcher with i18n and basePath adds the header for a matched root path with /index",
       "using a single matcher with i18n and basePath adds the headers for a matched data path",
       "using a single matcher with i18n and basePath and trailingSlash adds the header for a matched path",
-      "using a single matcher with i18n and basePath and trailingSlash adds the header for a mathed root path with /index",
+      "using a single matcher with i18n and basePath and trailingSlash adds the header for a matched root path with /index",
       "using a single matcher with i18n and basePath and trailingSlash adds the headers for a matched data path",
       "using a single matcher with i18n and basePath and trailingSlash does not add the header for an unmatched path",
       "using a single matcher with i18n and basePath does not add the header for an unmatched path",
       "using a single matcher with i18n and trailingSlash adds the header for a matched path",
-      "using a single matcher with i18n and trailingSlash adds the header for a mathed root path with /index",
+      "using a single matcher with i18n and trailingSlash adds the header for a matched root path with /index",
       "using a single matcher with i18n and trailingSlash adds the headers for a matched data path",
       "using a single matcher with i18n and trailingSlash does not add the header for an unmatched path",
       "using a single matcher with i18n does not add the header for an unmatched path",
@@ -10503,7 +10503,7 @@
       "testmode app router should handle RSC with fetch in edge function",
       "testmode app router should handle RSC with fetch in serverless function",
       "testmode app router should handle RSC with http.get in serverless function",
-      "testmode middleware should intercept fetchs in middleware",
+      "testmode middleware should intercept fetches in middleware",
       "testmode page router should handle API with fetch",
       "testmode page router should handle API with http.get",
       "testmode page router should handle getServerSideProps with fetch",
@@ -10657,7 +10657,7 @@
       "transpile packages css should handle global css imports inside transpiled modules",
       "transpile packages css should handle global scss imports inside transpiled modules",
       "transpile packages css should handle scss modules imports inside transpiled modules",
-      "transpile packages optional deps should hide dynammic module dependency errors from node_modules",
+      "transpile packages optional deps should hide dynamic module dependency errors from node_modules",
       "transpile packages optional deps should not throw an error when optional deps are not installed"
     ],
     "failed": [],
@@ -17433,11 +17433,11 @@
   },
   "test/integration/invalid-multi-match/test/index.test.ts": {
     "passed": [
-      "Custom routes invalid multi-match production mode should show error for invalid mulit-match"
+      "Custom routes invalid multi-match production mode should show error for invalid multi-match"
     ],
     "failed": [],
     "pending": [
-      "Custom routes invalid multi-match development mode should show error for invalid mulit-match"
+      "Custom routes invalid multi-match development mode should show error for invalid multi-match"
     ],
     "flakey": [],
     "runtimeError": false
@@ -18198,7 +18198,7 @@
       "Image Component Default Tests production mode should call callback ref cleanups when unmounting",
       "Image Component Default Tests production mode should callback native onError even when error before hydration",
       "Image Component Default Tests production mode should callback native onError when error occurred while loading image",
-      "Image Component Default Tests production mode should callback native onLoad with sythetic event",
+      "Image Component Default Tests production mode should callback native onLoad with synthetic event",
       "Image Component Default Tests production mode should callback onLoadingComplete when image is fully loaded",
       "Image Component Default Tests production mode should correctly ignore prose styles",
       "Image Component Default Tests production mode should correctly rotate image",
@@ -18243,7 +18243,7 @@
       "Image Component Default Tests development mode should call callback ref cleanups when unmounting",
       "Image Component Default Tests development mode should callback native onError even when error before hydration",
       "Image Component Default Tests development mode should callback native onError when error occurred while loading image",
-      "Image Component Default Tests development mode should callback native onLoad with sythetic event",
+      "Image Component Default Tests development mode should callback native onLoad with synthetic event",
       "Image Component Default Tests development mode should callback onLoadingComplete when image is fully loaded",
       "Image Component Default Tests development mode should correctly ignore prose styles",
       "Image Component Default Tests development mode should emit image for next/dynamic with non ssr case",
@@ -18424,7 +18424,7 @@
       "Image Component Default Tests production mode should be valid HTML",
       "Image Component Default Tests production mode should callback native onError even when error before hydration",
       "Image Component Default Tests production mode should callback native onError when error occurred while loading image",
-      "Image Component Default Tests production mode should callback native onLoad with sythetic event",
+      "Image Component Default Tests production mode should callback native onLoad with synthetic event",
       "Image Component Default Tests production mode should callback onLoadingComplete when image is fully loaded",
       "Image Component Default Tests production mode should correctly ignore prose styles",
       "Image Component Default Tests production mode should correctly rotate image",
@@ -18469,7 +18469,7 @@
       "Image Component Default Tests development mode should be valid HTML",
       "Image Component Default Tests development mode should callback native onError even when error before hydration",
       "Image Component Default Tests development mode should callback native onError when error occurred while loading image",
-      "Image Component Default Tests development mode should callback native onLoad with sythetic event",
+      "Image Component Default Tests development mode should callback native onLoad with synthetic event",
       "Image Component Default Tests development mode should callback onLoadingComplete when image is fully loaded",
       "Image Component Default Tests development mode should correctly ignore prose styles",
       "Image Component Default Tests development mode should emit image for next/dynamic with non ssr case",
@@ -19819,7 +19819,7 @@
       "config telemetry production mode detects i18n and image configs for session start",
       "config telemetry production mode detects output config for session start",
       "config telemetry production mode detects rewrites, headers, and redirects for next build",
-      "config telemetry production mode emits telemery for usage of image, script & dynamic",
+      "config telemetry production mode emits telemetry for usage of image, script & dynamic",
       "config telemetry production mode emits telemetry for configured React Compiler options",
       "config telemetry production mode emits telemetry for default React Compiler options",
       "config telemetry production mode emits telemetry for enabled React Compiler",
@@ -21820,7 +21820,7 @@
       "required server files i18n should have the correct asPath for fallback page",
       "required server files i18n should have the correct asPath for fallback page locale",
       "required server files i18n should match the index page correctly",
-      "required server files i18n should match the root dyanmic page correctly",
+      "required server files i18n should match the root dynamic page correctly",
       "required server files i18n should normalize catch-all rewrite query values correctly",
       "required server files i18n should normalize optional values correctly for API page",
       "required server files i18n should normalize optional values correctly for SSG page",

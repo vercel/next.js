@@ -122,7 +122,7 @@ describe('testmode', () => {
   })
 
   describe('middleware', () => {
-    it('should intercept fetchs in middleware', async () => {
+    it('should intercept fetches in middleware', async () => {
       const resp = await fetchForTest('/app/rsc-fetch')
       expect(resp.headers.get('x-middleware-fetch')).toEqual('middleware-test1')
     })

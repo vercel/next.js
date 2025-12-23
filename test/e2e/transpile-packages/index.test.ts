@@ -82,7 +82,7 @@ describe('transpile packages', () => {
       )
     })
 
-    it('should hide dynammic module dependency errors from node_modules', async () => {
+    it('should hide dynamic module dependency errors from node_modules', async () => {
       expect(next.cliOutput).not.toContain(
         'Critical dependency: the request of a dependency is an expression'
       )

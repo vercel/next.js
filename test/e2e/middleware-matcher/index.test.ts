@@ -383,7 +383,7 @@ describe.each([
     expect(res2.headers.get('X-From-Middleware')).toBe('true')
   })
 
-  it('adds the header for a mathed root path with /index', async () => {
+  it('adds the header for a matched root path with /index', async () => {
     const res1 = await fetchViaHTTP(next.url, `/index`)
     expect(await res1.text()).toContain(`(en) Hello from /`)
     expect(res1.headers.get('X-From-Middleware')).toBe('true')
@@ -488,7 +488,7 @@ describe.each([
       expect(res2.headers.get('X-From-Middleware')).toBe('true')
     })
 
-    it('adds the header for a mathed root path with /index', async () => {
+    it('adds the header for a matched root path with /index', async () => {
       const res1 = await fetchViaHTTP(next.url, `/root/index`)
       expect(await res1.text()).toContain(`(en) Hello from /`)
       expect(res1.headers.get('X-From-Middleware')).toBe('true')

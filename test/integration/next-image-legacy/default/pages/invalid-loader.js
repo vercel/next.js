@@ -4,7 +4,7 @@ import Image from 'next/legacy/image'
 const Page = () => {
   return (
     <div>
-      <h1>Warn for this loader that doesnt use width</h1>
+      <h1>Warn for this loader that doesn't use width</h1>
       <Image
         id="no-width"
         src="/test.png"
