@@ -1217,12 +1217,11 @@ Streaming metadata at runtime while the rest of the page is fully prerenderable 
 
 To resolve this, you have two options. If metadata depends on external data but not runtime data, use `use cache`:
 
-```tsx filename="app/blog/[slug]/page.tsx" highlight={2}
-export async function generateMetadata({ params }) {
+```tsx filename="app/page.tsx" highlight={2}
+export async function generateMetadata() {
   'use cache'
-  const { slug } = await params
-  const post = await db.getPost(slug)
-  return { title: post.title }
+  const { title, description } = await db.query('site-metadata')
+  return { title, description }
 }
 ```
 
