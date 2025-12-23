@@ -38,7 +38,7 @@ ENV NODE_ENV=production \
     HOSTNAME="0.0.0.0"
 
 RUN groupadd --system --gid 1001 nodejs && \
-    useradd --system --create-home --uid 1001 nextjs
+    useradd --system --uid 1001 --no-log-init -g nodejs nextjs
 
 COPY --from=builder /app/public ./public
 
