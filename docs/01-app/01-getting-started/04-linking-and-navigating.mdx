@@ -402,6 +402,8 @@ export function LocaleSwitcher() {
   const pathname = usePathname()
 
   function switchLocale(locale: string) {
+    // Remove existing locale prefix if present
+    const pathWithoutLocale = pathname.replace(/^\/(en|fr)/, '') || '/'
     // e.g. '/en/about' or '/fr/contact'
     const newPath = `/${locale}${pathname}`
     window.history.replaceState(null, '', newPath)
@@ -425,6 +427,8 @@ export function LocaleSwitcher() {
   const pathname = usePathname()
 
   function switchLocale(locale) {
+    // Remove existing locale prefix if present
+    const pathWithoutLocale = pathname.replace(/^\/(en|fr)/, '') || '/'
     // e.g. '/en/about' or '/fr/contact'
     const newPath = `/${locale}${pathname}`
     window.history.replaceState(null, '', newPath)
