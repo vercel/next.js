@@ -1,4 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
+
 import retry from 'async-retry'
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
@@ -217,54 +218,7 @@ export async function createApp({
         join(root, 'next-env.d.ts')
       )
     }
-    // --- MongoDB Logic Start ---
-  if (mongodb) {
-    const dbFolderPath = join(root, 'lib')
-    const dbFilePath = join(dbFolderPath, typescript ? 'db.ts' : 'db.js')
 
-    // 1. 'lib' folder banayein agar nahi hai
-    if (!existsSync(dbFolderPath)) {
-      mkdirSync(dbFolderPath, { recursive: true })
-    }
-
-    // 2. Database connection ka standard code
-    const dbCode = `import { MongoClient } from 'mongodb'
-
-if (!process.env.MONGODB_URI) {
-  throw new Error('Invalid/Missing environment variable: "MONGODB_URI"')
-}
-
-const uri = process.env.MONGODB_URI
-const options = {}
-
-let client
-let clientPromise${typescript ? ': Promise<MongoClient>' : ''}
-
-if (process.env.NODE_ENV === 'development') {
-  if (!global._mongoClientPromise) {
-    client = new MongoClient(uri, options)
-    global._mongoClientPromise = client.connect()
-  }
-  clientPromise = global._mongoClientPromise
-} else {
-  client = new MongoClient(uri, options)
-  clientPromise = client.connect()
-}
-
-export default clientPromise`
-
-    // 3. File write karein
-    writeFileSync(dbFilePath, dbCode)
-    
-    // 4. .env.local file mein URI placeholder dalein
-    const envPath = join(root, '.env.local')
-    const envContent = `MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/myDatabase?retryWrites=true&w=majority`
-    writeFileSync(envPath, envContent)
-
-    console.log(`${green('Added')} MongoDB connection utility in ${cyan('lib/db.' + (typescript ? 'ts' : 'js'))}`)
-    console.log(`${green('Added')} MONGODB_URI placeholder in ${cyan('.env.local')}`)
-  }
-  // --- MongoDB Logic End ---
     hasPackageJson = existsSync(packageJsonPath)
     if (!skipInstall && hasPackageJson) {
       console.log('Installing packages. This might take a couple of minutes.')
@@ -303,7 +257,62 @@ export default clientPromise`
       reactCompiler,
     })
   }
+  // --- MongoDB Logic Start ---
+  // --- MongoDB Change Start ---
+  if (mongodb) {
+    const dbFolderPath = join(root, 'lib')
+    const dbFilePath = join(dbFolderPath, typescript ? 'db.ts' : 'db.js')
 
+    if (!existsSync(dbFolderPath)) {
+      mkdirSync(dbFolderPath, { recursive: true })
+    }
+
+    const dbCode = `import { MongoClient } from 'mongodb'
+
+if (!process.env.MONGODB_URI) {
+  throw new Error('Invalid/Missing environment variable: "MONGODB_URI"')
+}
+
+const uri = process.env.MONGODB_URI
+const options = {}
+
+let client: MongoClient
+let clientPromise: Promise<MongoClient>
+
+if (process.env.NODE_ENV === 'development') {
+  let globalWithMongo = global as typeof globalThis & {
+    _mongoClientPromise?: Promise<MongoClient>
+  }
+  if (!globalWithMongo._mongoClientPromise) {
+    client = new MongoClient(uri, options)
+    globalWithMongo._mongoClientPromise = client.connect()
+  }
+  clientPromise = globalWithMongo._mongoClientPromise
+} else {
+  client = new MongoClient(uri, options)
+  clientPromise = client.connect()
+}
+
+export default clientPromise`
+
+    writeFileSync(dbFilePath, dbCode)
+
+    // Safely append to .env.local with proper casting
+    const fs = require('node:fs') as typeof import('node:fs')
+    const envPath = join(root, '.env.local')
+    const envContent = `\nMONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/myDatabase?retryWrites=true&w=majority\n`
+
+    if (fs.existsSync(envPath)) {
+      fs.appendFileSync(envPath, envContent)
+    } else {
+      fs.writeFileSync(envPath, envContent)
+    }
+
+    console.log(
+      `${green('Added')} MongoDB connection utility in ${cyan('lib/db.' + (typescript ? 'ts' : 'js'))}`
+    )
+  }
+  // --- MongoDB Logic End ---
   if (disableGit) {
     console.log('Skipping git initialization.')
     console.log()
