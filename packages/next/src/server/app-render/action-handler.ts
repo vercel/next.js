@@ -1,20 +1,20 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'node:http'
 import type { SizeLimit } from '../../types'
 import type { RequestStore } from '../app-render/work-unit-async-storage.external'
-import type { AppRenderContext, GenerateFlight } from './app-render'
-import type { AppPageModule } from '../route-modules/app-page/module'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
+import type { AppPageModule } from '../route-modules/app-page/module'
+import type { AppRenderContext, GenerateFlight } from './app-render'
 
 import {
-  RSC_HEADER,
-  RSC_CONTENT_TYPE_HEADER,
-  NEXT_ROUTER_STATE_TREE_HEADER,
   ACTION_HEADER,
   NEXT_ACTION_NOT_FOUND_HEADER,
+  NEXT_ACTION_REVALIDATED_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
-  NEXT_ACTION_REVALIDATED_HEADER,
+  RSC_CONTENT_TYPE_HEADER,
+  RSC_HEADER,
 } from '../../client/components/app-router-headers'
 import {
   getAccessFallbackHTTPStatus,
@@ -28,47 +28,47 @@ import {
   isRedirectError,
   type RedirectType,
 } from '../../client/components/redirect-error'
+import type { WorkStore } from '../app-render/work-async-storage.external'
+import {
+  actionsForbiddenHeaders,
+  filterReqHeaders,
+} from '../lib/server-ipc/utils'
 import RenderResult, {
   type AppPageRenderResultMetadata,
 } from '../render-result'
-import type { WorkStore } from '../app-render/work-async-storage.external'
-import { FlightRenderResult } from './flight-render-result'
-import {
-  filterReqHeaders,
-  actionsForbiddenHeaders,
-} from '../lib/server-ipc/utils'
 import { getModifiedCookieValues } from '../web/spec-extension/adapters/request-cookies'
+import { FlightRenderResult } from './flight-render-result'
 
+import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server'
+import { warn } from '../../build/output/log'
+import { RedirectStatusCode } from '../../client/components/redirect-status-code'
+import { setCacheBustingSearchParam } from '../../client/components/router-reducer/set-cache-busting-search-param'
 import {
   JSON_CONTENT_TYPE_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
-import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
-import { isCsrfOriginAllowed } from './csrf-protection'
-import { warn } from '../../build/output/log'
-import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
-import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
-import { fromNodeOutgoingHttpHeaders } from '../web/utils'
-import {
-  selectWorkerForForwarding,
-  type ServerModuleMap,
-  getServerActionsManifest,
-  getServerModuleMap,
-} from './manifests-singleton'
-import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
-import { RedirectStatusCode } from '../../client/components/redirect-status-code'
-import { synchronizeMutableCookies } from '../async-storage/request-store'
-import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server'
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
-import { InvariantError } from '../../shared/lib/invariant-error'
-import { executeRevalidates } from '../revalidation-utils'
-import { getRequestMeta } from '../request-meta'
-import { setCacheBustingSearchParam } from '../../client/components/router-reducer/set-cache-busting-search-param'
 import {
   ActionDidNotRevalidate,
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
+import { InvariantError } from '../../shared/lib/invariant-error'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import { synchronizeMutableCookies } from '../async-storage/request-store'
+import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
+import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
+import { getRequestMeta } from '../request-meta'
+import { executeRevalidates } from '../revalidation-utils'
+import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
+import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
+import { fromNodeOutgoingHttpHeaders } from '../web/utils'
+import { isCsrfOriginAllowed } from './csrf-protection'
+import {
+  getServerActionsManifest,
+  getServerModuleMap,
+  selectWorkerForForwarding,
+  type ServerModuleMap,
+} from './manifests-singleton'
 
 /**
  * Checks if the app has any server actions defined in any runtime.
@@ -377,7 +377,7 @@ async function createRedirectRenderResult(
       forwardedHeaders.set(
         NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
         workStore.incrementalCache?.prerenderManifest?.preview?.previewModeId ||
-          ''
+        ''
       )
     }
 
@@ -444,13 +444,13 @@ const enum HostType {
 }
 type Host =
   | {
-      type: HostType.XForwardedHost
-      value: string
-    }
+    type: HostType.XForwardedHost
+    value: string
+  }
   | {
-      type: HostType.Host
-      value: string
-    }
+    type: HostType.Host
+    value: string
+  }
   | undefined
 
 /**
@@ -474,27 +474,27 @@ export function parseHostHeader(
   if (originDomain) {
     return forwardedHostHeaderValue === originDomain
       ? {
-          type: HostType.XForwardedHost,
-          value: forwardedHostHeaderValue,
-        }
+        type: HostType.XForwardedHost,
+        value: forwardedHostHeaderValue,
+      }
       : hostHeader === originDomain
         ? {
-            type: HostType.Host,
-            value: hostHeader,
-          }
+          type: HostType.Host,
+          value: hostHeader,
+        }
         : undefined
   }
 
   return forwardedHostHeaderValue
     ? {
-        type: HostType.XForwardedHost,
-        value: forwardedHostHeaderValue,
-      }
+      type: HostType.XForwardedHost,
+      value: forwardedHostHeaderValue,
+    }
     : hostHeader
       ? {
-          type: HostType.Host,
-          value: hostHeader,
-        }
+        type: HostType.Host,
+        value: hostHeader,
+      }
       : undefined
 }
 
@@ -505,14 +505,14 @@ type ServerActionsConfig = {
 
 type HandleActionResult =
   | {
-      /** An MPA action threw notFound(), and we need to render the appropriate HTML */
-      type: 'not-found'
-    }
+    /** An MPA action threw notFound(), and we need to render the appropriate HTML */
+    type: 'not-found'
+  }
   | {
-      type: 'done'
-      result: RenderResult | undefined
-      formState?: any
-    }
+    type: 'done'
+    result: RenderResult | undefined
+    formState?: any
+  }
   /** The request turned out not to be a server action. */
   | null
 
@@ -633,8 +633,7 @@ export async function handleAction({
       if (host) {
         // This seems to be an CSRF attack. We should not proceed the action.
         console.error(
-          `\`${
-            host.type
+          `\`${host.type
           }\` header with value \`${limitUntrustedHeaderValueForLogs(
             host.value
           )}\` does not match \`origin\` header with value \`${limitUntrustedHeaderValueForLogs(
@@ -763,9 +762,7 @@ export async function handleAction({
               if (areAllActionIdsValid(formData, serverModuleMap) === false) {
                 // TODO: This can be from skew or manipulated input. We should handle this case
                 // more gracefully but this preserves the prior behavior where decodeAction would throw instead.
-                throw new Error(
-                  `Failed to find Server Action. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
-                )
+                throw getActionNotFoundError(null)
               }
 
               const action = await decodeAction(formData, serverModuleMap)
@@ -869,8 +866,8 @@ export async function handleAction({
           const bodySizeLimitBytes =
             bodySizeLimit !== defaultBodySizeLimit
               ? (
-                  require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
-                ).parse(bodySizeLimit)
+                require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
+              ).parse(bodySizeLimit)
               : 1024 * 1024 // 1 MB
 
           let size = 0
@@ -885,7 +882,7 @@ export async function handleAction({
                   new ApiError(
                     413,
                     `Body exceeded ${bodySizeLimit} limit.\n` +
-                      `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+                    `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
                   )
                 )
                 return
@@ -962,9 +959,7 @@ export async function handleAction({
               if (areAllActionIdsValid(formData, serverModuleMap) === false) {
                 // TODO: This can be from skew or manipulated input. We should handle this case
                 // more gracefully but this preserves the prior behavior where decodeAction would throw instead.
-                throw new Error(
-                  `Failed to find Server Action. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
-                )
+                throw getActionNotFoundError(null)
               }
 
               // TODO: Refactor so it is harder to accidentally decode an action before you have validated that the
@@ -1062,8 +1057,8 @@ export async function handleAction({
         )) as Record<string, (...args: unknown[]) => Promise<unknown>>
         const actionHandler =
           actionMod[
-            // `actionId` must exist if we got here, as otherwise we would have thrown an error above
-            actionId!
+          // `actionId` must exist if we got here, as otherwise we would have thrown an error above
+          actionId!
           ]
 
         const { actionResult, skipPageRendering } =
@@ -1277,6 +1272,17 @@ function getActionModIdOrError(
 }
 
 function getActionNotFoundError(actionId: string | null): Error {
+  // check if the app has any server actions at all
+  if (!hasServerActions()) {
+    return new Error(
+      `No Server Actions are available for this application. ` +
+      `This could indicate one of the following:\n` +
+      `  - This request is from an older or newer deployment that had Server Actions\n` +
+      `  - The request may be part of a targeted attack attempting to invoke non-existent endpoints\n` +
+      `Read more: https://nextjs.org/docs/messages/failed-to-find-server-action`
+    )
+  }
+
   return new Error(
     `Failed to find Server Action${actionId ? ` "${actionId}"` : ''}. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
   )
