@@ -574,6 +574,17 @@ export async function handleAction({
     return null
   }
 
+  // If the app has no server actions at all, we can bail out early to avoid
+  // unnecessary CPU work (CSRF checks, header parsing, etc.) for spam requests.
+  if (!hasServerActions()) {
+    if (isFetchAction) {
+      return handleUnrecognizedFetchAction(getActionNotFoundError(actionId))
+    }
+    // For non-fetch requests (potential MPA), just return null since they're
+    // regular form submissions that don't need action handling.
+    return null
+  }
+
   // We don't currently support URL encoded actions, so we bail out early.
   // Depending on if it's a fetch action or an MPA, we return a different response.
   if (isURLEncodedAction) {
@@ -585,11 +596,6 @@ export async function handleAction({
       // This is an MPA action, so we return null
       return null
     }
-  }
-
-  // If the app has no server actions at all, we can 404 early.
-  if (!hasServerActions()) {
-    return handleUnrecognizedFetchAction(getActionNotFoundError(actionId))
   }
 
   if (workStore.isStaticGeneration) {
