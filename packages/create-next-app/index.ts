@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable import/no-extraneous-dependencies */
+import { existsSync } from 'node:fs'
+import { isFolderEmpty } from './helpers/is-folder-empty'
 import ciInfo from 'ci-info'
 import { Command } from 'commander'
 import Conf from 'conf'
@@ -187,9 +189,11 @@ async function run(): Promise<void> {
     )
     process.exit(1)
   }
-
   const appPath = resolve(projectPath)
   const appName = basename(appPath)
+  if (existsSync(appPath) && !isFolderEmpty(appPath, appName)) {
+    process.exit(1)
+  }
 
   const validation = validateNpmName(appName)
   if (!validation.valid) {
