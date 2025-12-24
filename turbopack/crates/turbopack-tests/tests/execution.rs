@@ -91,6 +91,7 @@ enum IssueSnapshotMode {
 //
 // "Skip" directories named `__skipped__`, which include test directories to
 // skip.
+
 #[testing::fixture(
     "tests/execution/*/*/*/input/index.js",
     exclude("node_modules|__skipped__")
@@ -433,6 +434,8 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         ResolveOptionsContext {
             enable_typescript: true,
             enable_node_modules: Some(project_root.clone()),
+            enable_node_native_modules: true,
+            enable_node_externals: true,
             custom_conditions: vec![rcstr!("development")],
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
