@@ -3,7 +3,6 @@
 import ciInfo from 'ci-info'
 import { Command } from 'commander'
 import Conf from 'conf'
-import { existsSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 import { blue, bold, cyan, green, red, yellow } from 'picocolors'
 import type { InitialReturnValue } from 'prompts'
@@ -12,7 +11,6 @@ import updateCheck from 'update-check'
 import { createApp, DownloadError } from './create-app'
 import type { PackageManager } from './helpers/get-pkg-manager'
 import { getPkgManager } from './helpers/get-pkg-manager'
-import { isFolderEmpty } from './helpers/is-folder-empty'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
 import { Bundler } from './templates'
@@ -109,7 +107,7 @@ const program = new Command(packageJson.name)
 `
   )
   .option('--disable-git', `Skip initializing a git repository.`)
-  .option('--mongodb', 'Initialize with MongoDB connection logic.') 
+  .option('--mongodb', 'Initialize with MongoDB connection logic.')
   .action((name) => {
     // Commander does not implicitly support negated options. When they are used
     // by the user they will be interpreted as the positional argument (name) in
@@ -213,13 +211,7 @@ async function run(): Promise<void> {
     )
     process.exit(1)
   }
-const displayConfig: DisplayConfigItem[] = [
-     
-      { key: 'mongodb', values: { true: 'MongoDB', false: '' } }, 
-    ]
-  if (existsSync(appPath) && !isFolderEmpty(appPath, appName)) {
-    process.exit(1)
-  }
+  // Inside the !example block where displayConfig is defined
 
   const example = typeof opts.example === 'string' && opts.example.trim()
   const preferences = (conf.get('preferences') || {}) as Record<
@@ -265,6 +257,7 @@ const displayConfig: DisplayConfigItem[] = [
       { key: 'tailwind', values: { true: 'Tailwind CSS' } },
       { key: 'srcDir', values: { true: 'src/ dir' } },
       { key: 'app', values: { true: 'App Router', false: 'Pages Router' } },
+      { key: 'mongodb', values: { true: 'MongoDB', false: '' } },
     ]
 
     // Helper to format settings for display based on displayConfig
@@ -447,28 +440,28 @@ const displayConfig: DisplayConfigItem[] = [
               getPrefOrDefault('linter') as keyof typeof linterIndexMap
             ],
         })
-  // MongoDB Prompt
-    if (!opts.mongodb && !args.includes('--no-mongodb') && !opts.api) {
-      if (skipPrompt) {
-        opts.mongodb = getPrefOrDefault('mongodb')
-      } else {
-        const mongoLabel = blue('MongoDB')
-        const { mongodb } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'mongodb',
-          message: `Would you like to use ${mongoLabel} connection?`,
-          initial: getPrefOrDefault('mongodb'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        opts.mongodb = Boolean(mongodb)
-        preferences.mongodb = Boolean(mongodb)
-      }
-    }
+        // MongoDB Prompt
+        if (!opts.mongodb && !args.includes('--no-mongodb') && !opts.api) {
+          if (skipPrompt) {
+            opts.mongodb = getPrefOrDefault('mongodb')
+          } else {
+            const mongoLabel = blue('MongoDB')
+            const { mongodb } = await prompts({
+              onState: onPromptState,
+              type: 'toggle',
+              name: 'mongodb',
+              message: `Would you like to use ${mongoLabel} connection?`,
+              initial: getPrefOrDefault('mongodb'),
+              active: 'Yes',
+              inactive: 'No',
+            })
+            opts.mongodb = Boolean(mongodb)
+            preferences.mongodb = Boolean(mongodb)
+          }
+        }
         opts.eslint = linter === 'eslint'
         opts.biome = linter === 'biome'
-        
+
         preferences.linter = linter
 
         // Keep backwards compatibility with old eslint preference
