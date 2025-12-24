@@ -61,8 +61,6 @@ describe('tsconfig module: preserve', () => {
          },
          "include": [
            "next-env.d.ts",
-           ".next/types/**/*.ts",
-           ".next/dev/types/**/*.ts",
            "**/*.mts",
            "**/*.ts",
            "**/*.tsx"
