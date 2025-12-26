@@ -786,14 +786,16 @@ jobs:
     with:
       nodeVersion: 20.9.0
       afterBuild: |
-        export IS_WEBPACK_TEST=1
+        export IS_TURBOPACK_TEST=1
         node run-tests.js \
           --concurrency 4 \
           test/production/pages-dir/production/test/index.test.ts \
           test/integration/css-client-nav/test/index.test.ts \
           test/integration/rewrites-has-condition/test/index.test.ts \
           test/integration/create-next-app/index.test.ts \
-          test/integration/create-next-app/package-manager/pnpm.test.ts
+          test/integration/create-next-app/package-manager/pnpm.test.ts \
+          test/integration/export-image-loader/test/index.test.js \
+          /Users/niklas/code/next.js/test/integration/image-optimizer/test
       stepName: 'test-integration-windows'
       runs_on_labels: '["windows","self-hosted","x64"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
