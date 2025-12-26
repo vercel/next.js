@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 /* eslint-disable jest/no-identical-title */
-import url from 'url'
 import fs from 'fs-extra'
 import { join } from 'path'
 import {
@@ -23,7 +22,7 @@ const expectStatus = async (path) => {
   const checkRes = async (res) => {
     if (res.status === 308) {
       const redirectDest = res.headers.get('location')
-      const parsedUrl = url.parse(redirectDest, true)
+      const parsedUrl = new URL(redirectDest)
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
     } else {
       try {
