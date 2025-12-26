@@ -297,6 +297,10 @@ program
     '--experimental-next-config-strip-types',
     'Use Node.js native TypeScript resolution for next.config.(ts|mts)'
   )
+  .option(
+    '--experimental-tui',
+    'Enables an experimental terminal UI with per-session log isolation.'
+  )
   .action(
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
       if (options.experimentalNextConfigStripTypes) {

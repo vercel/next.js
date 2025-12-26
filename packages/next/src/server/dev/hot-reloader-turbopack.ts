@@ -101,7 +101,10 @@ import { getSupportedBrowsers, printBuildErrors } from '../../build/utils'
 import {
   receiveBrowserLogsTurbopack,
   handleClientFileLogs,
+  setServerLogHandler,
+  handleLog,
 } from './browser-logs/receive-logs'
+import type { MappingContext } from './browser-logs/source-map'
 import { normalizePath } from '../../lib/normalize-path'
 import {
   devToolsConfigMiddleware,
@@ -300,6 +303,35 @@ export async function createHotReloaderTurbopack(
     await lockfile?.unlock()
   })
   const entrypointsSubscription = project.entrypointsSubscribe()
+
+  // Set up server log handler for TUI with source mapping
+  if (process.env.__NEXT_TUI_ENABLED) {
+    const serverLogContext: MappingContext = {
+      bundler: 'turbopack',
+      project,
+      projectPath: normalizePath(relative(rootPath, projectPath) || '.'),
+      isServer: true,
+      isEdgeServer: false,
+      isAppDirectory: true,
+    }
+
+    setServerLogHandler(async (entry) => {
+      // Create a console entry in the format handleLog expects
+      const consoleEntry = {
+        kind: 'console' as const,
+        method: entry.method as any,
+        consoleMethodStack: entry.rawStack || null,
+        args: [{ kind: 'arg' as const, data: JSON.stringify(entry.message) }],
+      }
+
+      await handleLog(
+        [consoleEntry],
+        serverLogContext,
+        distDir,
+        true // config
+      )
+    })
+  }
 
   const currentWrittenEntrypoints: Map<EntryKey, WrittenEndpoint> = new Map()
   const currentEntrypoints: Entrypoints = {

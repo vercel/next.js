@@ -1,6 +1,7 @@
 import { consoleAsyncStorage } from '../app-render/console-async-storage.external'
 import { getFileLogger } from '../dev/browser-logs/file-logger'
 import { formatConsoleArgs } from '../../client/lib/console'
+import { getServerLogHandler } from '../dev/browser-logs/receive-logs'
 
 type InterceptableConsoleMethod =
   | 'error'
@@ -35,14 +36,30 @@ function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
         // to decide if this log is ignorable for reporting in our file logger.
         return originalMethod.apply(this, args)
       } else {
-        const ret = originalMethod.apply(this, args)
-
-        const fileLogger = getFileLogger()
         const message = formatConsoleArgs(args)
         // Strip ANSI escape codes for file logging
         // eslint-disable-next-line no-control-regex
         const ansiEscapeRegex = new RegExp('\u001b\\[[0-9;]*m', 'g')
         const cleanMessage = message.replace(ansiEscapeRegex, '')
+
+        // Send to TUI if enabled - use handler for source mapping
+        if (process.env.__NEXT_TUI_ENABLED) {
+          const handler = getServerLogHandler()
+          if (handler) {
+            // Capture raw stack for source mapping
+            const rawStack = new Error().stack
+            handler({
+              method: methodName,
+              message: cleanMessage,
+              rawStack,
+            })
+            // File logging is handled by the handler
+            return undefined
+          }
+        }
+
+        const ret = originalMethod.apply(this, args)
+        const fileLogger = getFileLogger()
         fileLogger.logServer(methodName.toUpperCase(), cleanMessage)
         return ret
       }

@@ -420,6 +420,52 @@ async function handleDefaultConsole(
   isServerLog: boolean
 ) {
   const consoleArgs = await prepareConsoleArgs(entry, ctx, distDir)
+
+  // Get source-mapped stack for TUI
+  let location: string | undefined
+  let stackLines: string[] | undefined
+  if (entry.consoleMethodStack) {
+    const mapped = await getSourceMappedStackFrames(
+      entry.consoleMethodStack,
+      ctx,
+      distDir
+    )
+    location = getConsoleLocation(mapped) ?? undefined
+    if (
+      mapped.kind === 'mapped-stack' ||
+      mapped.kind === 'stack' ||
+      mapped.kind === 'with-frame-code'
+    ) {
+      stackLines = mapped.stack.split('\n').filter((line) => line.trim())
+    }
+  }
+
+  // Send to TUI if enabled
+  if (process.env.__NEXT_TUI_ENABLED && process.send) {
+    const message = cleanConsoleArgsForFileLogging(consoleArgs)
+    process.send({
+      tuiMessage: {
+        type: 'structured-log',
+        payload: {
+          type: 'console',
+          source: isServerLog ? 'server' : 'browser',
+          method: entry.method,
+          message,
+          location,
+          stack: stackLines,
+        },
+      },
+    })
+    // Still log to file but skip console output
+    const fileLogger = getFileLogger()
+    if (isServerLog) {
+      fileLogger.logServer(entry.method.toUpperCase(), message)
+    } else {
+      fileLogger.logBrowser(entry.method.toUpperCase(), message)
+    }
+    return
+  }
+
   const withStackEntry = await withLocation(
     {
       original: consoleArgs,
@@ -663,4 +709,22 @@ export async function handleClientFileLogs(
   for (const log of logs) {
     fileLogger.logBrowser(log.level, log.message)
   }
+}
+
+// Server log handler for TUI - processes with source mapping
+// This is set by the hot-reloader when it has the mapping context
+let serverLogHandler:
+  | ((entry: {
+      method: string
+      message: string
+      rawStack?: string
+    }) => Promise<void>)
+  | null = null
+
+export function setServerLogHandler(handler: typeof serverLogHandler): void {
+  serverLogHandler = handler
+}
+
+export function getServerLogHandler(): typeof serverLogHandler {
+  return serverLogHandler
 }

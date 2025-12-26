@@ -81,7 +81,37 @@ let loadingLogTimer: NodeJS.Timeout | null = null
 let traceSpan: Span | null = null
 let logging = true
 
+/**
+ * Send compilation state to parent process TUI if enabled
+ */
+function sendCompilationStateToTui(state: OutputState) {
+  if (!process.env.__NEXT_TUI_ENABLED || !process.send) {
+    return
+  }
+
+  if (state.bootstrap) {
+    return
+  }
+
+  const payload = state.loading
+    ? {
+        loading: true,
+        trigger: state.trigger ? formatTrigger(state.trigger) : undefined,
+        url: state.url,
+      }
+    : {
+        loading: false,
+        totalModulesCount: state.totalModulesCount,
+        errors: state.errors,
+        warnings: state.warnings,
+      }
+
+  process.send({ tuiMessage: { type: 'compilation', payload } })
+}
+
 store.subscribe((state) => {
+  // Send compilation state to TUI
+  sendCompilationStateToTui(state)
   // Update persisted logging state
   if ('logging' in state) {
     logging = state.logging
@@ -96,6 +126,10 @@ store.subscribe((state) => {
     return
   }
 
+  // Skip console logging when TUI is enabled (compilation state sent via IPC)
+  // but still run all state management logic below
+  const shouldLog = !process.env.__NEXT_TUI_ENABLED
+
   if (state.bootstrap) {
     return
   }
@@ -108,7 +142,7 @@ store.subscribe((state) => {
         traceSpan = trace('compile-path', undefined, {
           trigger: trigger,
         })
-        if (!loadingLogTimer) {
+        if (!loadingLogTimer && shouldLog) {
           // Only log compiling if compiled is not finished quickly
           loadingLogTimer = setTimeout(() => {
             if (
@@ -132,7 +166,9 @@ store.subscribe((state) => {
 
   if (state.errors) {
     // Log compilation errors
-    Log.error(state.errors[0])
+    if (shouldLog) {
+      Log.error(state.errors[0])
+    }
 
     startTime = 0
     // Ensure traces are flushed after each compile in development mode
@@ -157,7 +193,9 @@ store.subscribe((state) => {
   }
 
   if (state.warnings) {
-    Log.warn(state.warnings.join('\n\n'))
+    if (shouldLog) {
+      Log.warn(state.warnings.join('\n\n'))
+    }
     // Ensure traces are flushed after each compile in development mode
     flushAllTraces()
     teardownTraceSubscriber()
@@ -165,9 +203,11 @@ store.subscribe((state) => {
   }
 
   if (state.typeChecking) {
-    Log.info(
-      `bundled ${trigger}${timeMessage}${modulesMessage}, type checking...`
-    )
+    if (shouldLog) {
+      Log.info(
+        `bundled ${trigger}${timeMessage}${modulesMessage}, type checking...`
+      )
+    }
     return
   }
 

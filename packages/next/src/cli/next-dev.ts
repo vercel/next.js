@@ -44,6 +44,7 @@ import {
   finalizeBundlerFromConfig,
   parseBundlerArgs,
 } from '../lib/bundler'
+import type { TuiInstance } from 'next/dist/compiled/tui/index.mjs'
 
 export type NextDevOptions = {
   disableSourceMaps: boolean
@@ -60,12 +61,14 @@ export type NextDevOptions = {
   experimentalHttpsCa?: string
   experimentalUploadTrace?: string
   experimentalNextConfigStripTypes?: boolean
+  experimentalTui?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
 
 let dir: string
 let child: undefined | ChildProcess
+let tuiInstance: TuiInstance | undefined
 // The config in next-dev is only used to access config.distDir for telemetry and trace.
 let config: NextConfigComplete
 let bundler: Bundler
@@ -85,6 +88,12 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   if (signal != null && child?.pid) child.kill(signal)
   if (sessionStopHandled) return
   sessionStopHandled = true
+
+  // Cleanup TUI if it was started
+  if (tuiInstance) {
+    tuiInstance.unmount()
+    tuiInstance = undefined
+  }
 
   // Capture the child's exit code if it has already exited and caused the
   // session stop (via the 'exit' event), otherwise assume success (0).
@@ -300,8 +309,11 @@ const nextDev = async (
         nodeOptions.inspect = formatDebugAddress(address)
       }
 
+      // When TUI is enabled, use pipes for stdio so we can capture output
+      const tuiEnabled = options.experimentalTui && process.stdout.isTTY
+
       child = fork(startServerPath, {
-        stdio: 'inherit',
+        stdio: tuiEnabled ? ['pipe', 'pipe', 'pipe', 'ipc'] : 'inherit',
         env: {
           ...defaultEnv,
           ...(bundler === Bundler.Turbopack
@@ -318,10 +330,12 @@ const nextDev = async (
           // https://github.com/nodejs/node/issues/29949
           WATCHPACK_WATCHER_LIMIT:
             os.platform() === 'darwin' ? '20' : undefined,
+          // Tell child process that TUI is enabled
+          __NEXT_TUI_ENABLED: tuiEnabled ? '1' : undefined,
         },
       })
 
-      child.on('message', (msg: any) => {
+      child.on('message', async (msg: any) => {
         if (msg && typeof msg === 'object') {
           if (msg.nextWorkerReady) {
             child?.send({ nextWorkerOptions: startServerOptions })
@@ -330,6 +344,20 @@ const nextDev = async (
               // Store the used port in case a random one was selected, so that
               // it can be re-used on automatic dev server restarts.
               port = parseInt(msg.port, 10)
+            }
+
+            // Start TUI after server is ready
+            if (tuiEnabled && child) {
+              const protocol = startServerOptions.selfSignedCertificate
+                ? 'https'
+                : 'http'
+              const serverUrl = `${protocol}://localhost:${port}`
+              const distDir = path.join(dir, '.next')
+
+              // Dynamically import TUI (ESM bundle with ink)
+              import('next/dist/compiled/tui/index.mjs').then((tui) => {
+                tuiInstance = tui.startTui(child!, serverUrl, distDir)
+              })
             }
 
             resolved = true
