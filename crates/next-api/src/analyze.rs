@@ -75,6 +75,7 @@ pub struct AnalyzeChunkPart {
     pub source_index: u32,
     pub output_file_index: u32,
     pub size: u32,
+    pub compressed_size: u32,
 }
 
 #[derive(Serialize)]
@@ -384,6 +385,7 @@ pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc
                 source_index,
                 output_file_index,
                 size: chunk_part.real_size + chunk_part.unaccounted_size,
+                compressed_size: chunk_part.get_compressed_size().await?,
             });
             builder.add_chunk_part_to_output_file(output_file_index, chunk_part_index);
             builder.add_chunk_part_to_source(source_index, chunk_part_index);
@@ -424,7 +426,7 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
     let mut all_async_edges = FxIndexSet::default();
     for &module_graph in module_graphs.await? {
         let module_graph = module_graph.read_graphs().await?;
-        module_graph.traverse_all_edges_unordered(|parent, node| {
+        module_graph.traverse_edges_unordered(|parent, node| {
             if let Some((parent_node, reference)) = parent {
                 all_modules.insert(parent_node);
                 all_modules.insert(node);

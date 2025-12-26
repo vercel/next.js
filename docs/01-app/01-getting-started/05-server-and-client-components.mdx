@@ -32,7 +32,7 @@ Use **Server Components** when you need:
 
 For example, the `<Page>` component is a Server Component that fetches data about a post, and passes it as props to the `<LikeButton>` which handles client-side interactivity.
 
-```tsx filename="app/[id]/page.tsx" highlight={1,12} switcher
+```tsx filename="app/[id]/page.tsx" highlight={1,17} switcher
 import LikeButton from '@/app/ui/like-button'
 import { getPost } from '@/lib/data'
 
@@ -241,7 +241,7 @@ export default function Search() {
 
 You can pass data from Server Components to Client Components using props.
 
-```tsx filename="app/[id]/page.tsx" highlight={1,7} switcher
+```tsx filename="app/[id]/page.tsx" highlight={1,12} switcher
 import LikeButton from '@/app/ui/like-button'
 import { getPost } from '@/lib/data'
 

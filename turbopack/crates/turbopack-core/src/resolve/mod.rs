@@ -7,7 +7,6 @@ use std::{
 };
 
 use anyhow::{Result, bail};
-use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use either::Either;
 use once_cell::sync::Lazy;
@@ -15,11 +14,11 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::{Instrument, Level};
-use turbo_frozenmap::FrozenMap;
+use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, SliceMap, TaskInput,
-    TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 use turbo_unix_path::normalize_request;
@@ -129,7 +128,7 @@ pub enum ImportUsage {
     ///
     /// (This is only ever set on `ModulePart::Export` references. Side effects are handled via
     /// `ModulePart::Evaluation` references, which always have `ImportUsage::SideEffects`.)
-    Exports(AutoSet<RcStr>),
+    Exports(FrozenSet<RcStr>),
 }
 
 #[turbo_tasks::value]
@@ -174,7 +173,7 @@ impl ExportUsage {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
-    pub primary: SliceMap<RequestKey, ModuleResolveResultItem>,
+    pub primary: Box<[(RequestKey, ModuleResolveResultItem)]>,
     /// Affecting sources are other files that influence the resolve result.  For example,
     /// traversed symlinks
     pub affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
@@ -514,7 +513,7 @@ impl RequestKey {
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub struct ResolveResult {
-    pub primary: SliceMap<RequestKey, ResolveResultItem>,
+    pub primary: Box<[(RequestKey, ResolveResultItem)]>,
     /// Affecting sources are other files that influence the resolve result.  For example,
     /// traversed symlinks
     pub affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
