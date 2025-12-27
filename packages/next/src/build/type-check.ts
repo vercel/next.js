@@ -136,10 +136,15 @@ export async function startTypeChecking({
 
     if (typeCheckingSpinner) {
       typeCheckingSpinner.stop()
+    }
 
-      createSpinner(
-        `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
-      )?.stopAndPersist()
+    if (!ignoreTypeScriptErrors) {
+      const message = `Finished TypeScript in ${hrtimeDurationToString(typeCheckEnd)}`
+      if (process.stdout.isTTY) {
+        createSpinner(message)?.stopAndPersist()
+      } else {
+        Log.event(message)
+      }
     }
 
     if (!ignoreTypeScriptErrors && verifyResult) {
