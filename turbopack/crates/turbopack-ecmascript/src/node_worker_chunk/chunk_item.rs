@@ -35,7 +35,7 @@ impl NodeWorkerLoaderChunkItem {
 
         Ok(self.chunking_context.evaluated_chunk_group_assets(
             module.inner.ident().with_modifier(rcstr!("node worker")),
-            ChunkGroup::Entry(vec![ResolvedVc::upcast(module.inner)]),
+            ChunkGroup::Isolated(ResolvedVc::upcast(module.inner)),
             *self.module_graph,
             AvailabilityInfo::root(),
         ))
