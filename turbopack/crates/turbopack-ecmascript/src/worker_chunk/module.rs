@@ -29,18 +29,13 @@ impl WorkerLoaderModule {
     pub fn new(module: ResolvedVc<Box<dyn ChunkableModule>>) -> Vc<Self> {
         Self::cell(WorkerLoaderModule { inner: module })
     }
-
-    #[turbo_tasks::function]
-    pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
-        module.ident().with_modifier(rcstr!("worker loader"))
-    }
 }
 
 #[turbo_tasks::value_impl]
 impl Module for WorkerLoaderModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        Self::asset_ident_for(*self.inner)
+        self.inner.ident().with_modifier(rcstr!("worker loader"))
     }
 
     #[turbo_tasks::function]

@@ -52,10 +52,6 @@ impl EcmascriptBuildNodeEvaluateChunk {
 
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
-        eprintln!(
-            "generating an evaluate chunk: {}",
-            self.await?.ident.to_string().await?
-        );
         let this = self.await?;
         let chunk_path = self.path().owned().await?;
         let runtime_path = self.runtime_chunk().path().owned().await?;

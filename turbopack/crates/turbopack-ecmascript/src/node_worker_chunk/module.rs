@@ -32,18 +32,15 @@ impl NodeWorkerLoaderModule {
     pub fn new(module: ResolvedVc<Box<dyn ChunkableModule>>) -> Vc<Self> {
         Self::cell(NodeWorkerLoaderModule { inner: module })
     }
-
-    #[turbo_tasks::function]
-    pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
-        module.ident().with_modifier(rcstr!("node worker loader"))
-    }
 }
 
 #[turbo_tasks::value_impl]
 impl Module for NodeWorkerLoaderModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        Self::asset_ident_for(*self.inner)
+        self.inner
+            .ident()
+            .with_modifier(rcstr!("node worker loader"))
     }
 
     #[turbo_tasks::function]
@@ -82,7 +79,6 @@ impl ChunkableModule for NodeWorkerLoaderModule {
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        eprintln!("fetching node worker chunk item");
         Vc::upcast(
             NodeWorkerLoaderChunkItem {
                 module: self,
@@ -113,7 +109,6 @@ impl NodeWorkerModuleReference {
 impl ChunkableModuleReference for NodeWorkerModuleReference {
     #[turbo_tasks::function]
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        eprintln!("NodeWorkerModuleReference::chunking_type called");
         Vc::cell(Some(ChunkingType::Isolated {
             _ty: ChunkGroupType::Evaluated,
             merge_tag: None,

@@ -191,11 +191,9 @@ impl NodeWorkerAssetReference {
         }
     }
 
-    async fn node_worker_loader_module(
-        &self,
-        asset_context: Vc<Box<dyn AssetContext>>,
-    ) -> Result<Option<Vc<NodeWorkerLoaderModule>>> {
-        eprintln!("resolving: {}", self.path.to_string().await?);
+    async fn node_worker_loader_module(&self) -> Result<Option<Vc<NodeWorkerLoaderModule>>> {
+        let asset_context = self.origin.asset_context();
+
         let result = resolve_raw(
             self.context_dir.clone(),
             *self.path,
@@ -219,20 +217,6 @@ impl NodeWorkerAssetReference {
             return Ok(None);
         };
 
-        // // Check for self-reference: if the resolved module is the same as the origin module,
-        // // we have a self-referencing worker (e.g., new Worker(__filename)).
-        // // In this case, return None to avoid infinite recursion in chunk group generation.
-        // let origin_path = self.origin.origin_path().owned().await?;
-        // let module_path = module.ident().path().owned().await?;
-        // if module_path == origin_path {
-        //     eprintln!(
-        //         "SELF-REFERENCE DETECTED: Worker references itself ({}), skipping
-        // NodeWorkerLoaderModule creation",         origin_path
-        //     );
-        //     // Return None to prevent infinite chunking recursion
-        //     return Ok(None);
-        // }
-
         let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) else {
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug,
@@ -253,10 +237,7 @@ impl NodeWorkerAssetReference {
 impl ModuleReference for NodeWorkerAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let asset_context = self.origin.asset_context();
-        if let Some(node_worker_loader_module) =
-            self.node_worker_loader_module(asset_context).await?
-        {
+        if let Some(node_worker_loader_module) = self.node_worker_loader_module().await? {
             Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
                 node_worker_loader_module.to_resolved().await?,
             )))
@@ -309,11 +290,9 @@ impl NodeWorkerAssetReferenceCodeGen {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
-        let asset_context = reference.origin.asset_context();
 
-        let Some(loader) = reference.node_worker_loader_module(asset_context).await? else {
+        let Some(loader) = reference.node_worker_loader_module().await? else {
             // If we can't create the loader, generate an error expression
-            // TODO: should we instead load a data:uri that throws?? what does
             let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
                 *expr = *quote_expr!(
                     "(() => { throw new Error($message); })()",

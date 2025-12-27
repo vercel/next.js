@@ -54,10 +54,9 @@ impl EcmascriptChunkItem for NodeWorkerLoaderChunkItem {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        eprintln!("generating worker entry path module");
         let worker_path = if estimated {
-            // in estimation mode we cannot call into chunking context APIs otherwise we may induce
-            // a turbo tasks cycle.
+            // in estimation mode we cannot call into chunking context APIs otherwise we will induce
+            // a turbo tasks cycle.  But we only need an approximate solution.
             rcstr!("a_fake_path_for_size_estimation")
         } else {
             let this = self.await?;
@@ -82,7 +81,6 @@ impl EcmascriptChunkItem for NodeWorkerLoaderChunkItem {
             // We'll use __dirname to resolve it at runtime
             RcStr::from(relative_path)
         };
-        eprintln!("computed path: {worker_path:?}");
 
         // For Node.js workers, we export the path to the worker entry chunk
         // The path is relative to the output root, so we use require.resolve or
