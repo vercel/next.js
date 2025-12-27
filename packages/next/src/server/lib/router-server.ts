@@ -14,7 +14,6 @@ import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import * as Log from '../../build/output/log'
 import { DecodeError } from '../../shared/lib/utils'
-import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
 import { isAbortError, pipeToNodeResponse } from '../pipe-readable'
@@ -33,8 +32,8 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../../shared/lib/constants'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
-import { DevBundlerService } from './dev-bundler-service'
-import { type Span, trace } from '../../trace'
+import type { DevBundlerService } from './dev-bundler-service'
+import type { Span } from '../../trace'
 import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-slash'
 import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
 import { getHostname } from '../../shared/lib/get-hostname'
@@ -45,11 +44,9 @@ import {
   type AppIsrManifestMessage,
 } from '../dev/hot-reloader-types'
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
-import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
 import { blockCrossSite } from './router-utils/block-cross-site'
-import { traceGlobals } from '../../trace/shared'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import {
   RouterServerContextSymbol,
@@ -130,63 +127,23 @@ export async function initialize(opts: {
   let originalFetch = globalThis.fetch
 
   if (opts.dev) {
-    const { Telemetry } =
-      require('../../telemetry/storage') as typeof import('../../telemetry/storage')
+    // Lazy load dev server initialization to reduce startup time
+    // and enable better bundling of production code paths
+    const { initializeDevelopmentServer } =
+      require('./dev-server-init') as typeof import('./dev-server-init')
 
-    const telemetry = new Telemetry({
-      distDir: path.join(opts.dir, config.distDir),
+    development = await initializeDevelopmentServer({
+      dir: opts.dir,
+      port: opts.port,
+      config: config as NextConfigComplete,
+      fsChecker,
+      renderServer,
+      customServer: opts.customServer,
+      startServerSpan: opts.startServerSpan,
+      onDevServerCleanup: opts.onDevServerCleanup,
+      originalFetch,
+      getRequestHandler: () => requestHandlers[opts.dir],
     })
-    traceGlobals.set('telemetry', telemetry)
-
-    const { pagesDir, appDir } = findPagesDir(opts.dir)
-
-    const { setupDevBundler } =
-      require('./router-utils/setup-dev-bundler') as typeof import('./router-utils/setup-dev-bundler')
-
-    const resetFetch = () => {
-      globalThis.fetch = originalFetch
-      ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = false
-    }
-
-    const setupDevBundlerSpan = opts.startServerSpan
-      ? opts.startServerSpan.traceChild('setup-dev-bundler')
-      : trace('setup-dev-bundler')
-
-    // In development, it's always the complete config.
-    let developmentConfig = config as NextConfigComplete
-
-    let developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
-      setupDevBundler({
-        // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
-        renderServer,
-        appDir,
-        pagesDir,
-        telemetry,
-        fsChecker,
-        dir: opts.dir,
-        nextConfig: developmentConfig,
-        isCustomServer: opts.customServer,
-        turbo: !!process.env.TURBOPACK,
-        port: opts.port,
-        onDevServerCleanup: opts.onDevServerCleanup,
-        resetFetch,
-      })
-    )
-
-    let devBundlerService = new DevBundlerService(
-      developmentBundler,
-      // The request handler is assigned below, this allows us to create a lazy
-      // reference to it.
-      (req, res) => {
-        return requestHandlers[opts.dir](req, res)
-      }
-    )
-
-    development = {
-      bundler: developmentBundler,
-      service: devBundlerService,
-      config: developmentConfig,
-    }
   }
 
   renderServer.instance =

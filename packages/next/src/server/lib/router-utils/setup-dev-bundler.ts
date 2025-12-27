@@ -370,7 +370,15 @@ async function startWatcher(
       },
     })
     const fileWatchTimes = new Map()
-    let enabledTypeScript = await verifyTypeScript(opts)
+    // Start TypeScript verification in the background to avoid blocking startup.
+    // The result will be awaited when first needed in the aggregated handler.
+    let enabledTypeScript = false
+    let tsVerificationComplete = false
+    const tsVerificationPromise = verifyTypeScript(opts).then((result) => {
+      enabledTypeScript = result
+      tsVerificationComplete = true
+      return result
+    })
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
 
@@ -1117,6 +1125,11 @@ async function startWatcher(
           }
         }
         prevSortedRoutes = sortedRoutes
+
+        // Ensure the deferred TypeScript verification is complete before proceeding
+        if (!tsVerificationComplete) {
+          await tsVerificationPromise
+        }
 
         if (enabledTypeScript) {
           // Using === false to make the check clearer.

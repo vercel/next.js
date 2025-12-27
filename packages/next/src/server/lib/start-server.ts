@@ -460,13 +460,26 @@ export async function startServer(
         nextServer = initResult.server
         closeUpgraded = initResult.closeUpgraded
 
-        const startServerProcessDuration =
-          performance.mark('next-start-end') &&
-          performance.measure(
+        // Calculate the duration from the CLI start time (if available) for accurate
+        // total startup time, including fork overhead and IPC handshake. Falls back
+        // to performance marks for direct server starts (e.g., programmatic API).
+        let startServerProcessDuration: number
+        const cliStartTime = process.env.NEXT_CLI_START_TIME
+          ? parseInt(process.env.NEXT_CLI_START_TIME, 10)
+          : null
+
+        if (cliStartTime) {
+          // Use CLI start time for accurate total duration
+          startServerProcessDuration = Date.now() - cliStartTime
+        } else {
+          // Fall back to performance marks for non-CLI starts
+          performance.mark('next-start-end')
+          startServerProcessDuration = performance.measure(
             'next-start-duration',
             'next-start',
             'next-start-end'
           ).duration
+        }
 
         handlersReady()
         const formatDurationText =

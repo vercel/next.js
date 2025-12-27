@@ -309,6 +309,8 @@ const nextDev = async (
             : undefined),
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
+          // Pass CLI start time to child for accurate timing measurement
+          NEXT_CLI_START_TIME: String(sessionStarted),
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
