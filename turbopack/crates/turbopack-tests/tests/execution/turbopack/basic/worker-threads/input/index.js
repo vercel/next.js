@@ -1,8 +1,9 @@
 const { Worker, isMainThread, parentPort } = require('node:worker_threads')
+const path = require('path')
 
-it('should run a worker thread and receive a message', async () => {
-  if (isMainThread) {
-    const worker = new Worker(__filename)
+if (isMainThread) {
+  it('should run a worker thread with separate file', async () => {
+    const worker = new Worker(path.join(__dirname, 'worker.js'))
 
     const message = await new Promise((resolve, reject) => {
       worker.on('message', resolve)
@@ -18,40 +19,31 @@ it('should run a worker thread and receive a message', async () => {
 
     expect(message).toBe('pong')
     await worker.terminate()
-  } else {
-    // Worker thread
-    parentPort.on('message', (msg) => {
-      if (msg === 'ping') {
-        parentPort.postMessage('pong')
-      }
-    })
-  }
-})
+  })
 
-it('should handle worker with computation', async () => {
-  if (isMainThread) {
+  it('should handle self-referencing worker (__filename)', async () => {
     const worker = new Worker(__filename)
 
-    const result = await new Promise((resolve, reject) => {
-      worker.on('message', (msg) => {
-        if (msg.type === 'result') {
-          resolve(msg.value)
+    const message = await new Promise((resolve, reject) => {
+      worker.on('message', resolve)
+      worker.on('error', reject)
+      worker.on('exit', (code) => {
+        if (code !== 0) {
+          reject(new Error(`Worker stopped with exit code ${code}`))
         }
       })
-      worker.on('error', reject)
 
-      worker.postMessage({ type: 'compute', a: 10, b: 32 })
+      worker.postMessage('self-ref-ping')
     })
 
-    expect(result).toBe(42)
+    expect(message).toBe('self-ref-pong')
     await worker.terminate()
-  } else {
-    // Worker thread
-    parentPort.on('message', (msg) => {
-      if (msg.type === 'compute') {
-        const result = msg.a + msg.b
-        parentPort.postMessage({ type: 'result', value: result })
-      }
-    })
-  }
-})
+  })
+} else {
+  // Worker thread - handle self-referencing worker messages
+  parentPort.on('message', (msg) => {
+    if (msg === 'self-ref-ping') {
+      parentPort.postMessage('self-ref-pong')
+    }
+  })
+}
