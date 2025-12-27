@@ -13,7 +13,10 @@ export { prerender } from 'react-server-dom-webpack/static'
 // TODO: Just re-export `* as ReactServer`
 export { captureOwnerStack, createElement, Fragment } from 'react'
 
-export { default as LayoutRouter } from '../../client/components/layout-router'
+export {
+  default as LayoutRouter,
+  LoadingBoundaryProvider,
+} from '../../client/components/layout-router'
 export { default as RenderFromTemplateContext } from '../../client/components/render-from-template-context'
 export { workAsyncStorage } from '../app-render/work-async-storage.external'
 export { workUnitAsyncStorage } from './work-unit-async-storage.external'

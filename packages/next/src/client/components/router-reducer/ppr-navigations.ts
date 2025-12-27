@@ -8,10 +8,7 @@ import type {
   ChildSegmentMap,
   CacheNode,
 } from '../../../shared/lib/app-router-types'
-import type {
-  HeadData,
-  LoadingModuleData,
-} from '../../../shared/lib/app-router-types'
+import type { HeadData } from '../../../shared/lib/app-router-types'
 import {
   PAGE_SEGMENT_KEY,
   DEFAULT_SEGMENT_KEY,
@@ -382,12 +379,10 @@ function updateCacheNodeOnNavigation(
     needsDynamicRequest = false
   } else {
     const seedRsc = seedData !== null ? seedData[0] : null
-    const seedLoading = seedData !== null ? seedData[2] : null
     const result = createCacheNodeForSegment(
       navigatedAt,
       newRouteTree,
       seedRsc,
-      seedLoading,
       newMetadataVaryPath,
       seedHead,
       newParallelRoutes,
@@ -719,12 +714,10 @@ function createCacheNodeOnNavigation(
     needsDynamicRequest = false
   } else {
     const seedRsc = seedData !== null ? seedData[0] : null
-    const seedLoading = seedData !== null ? seedData[2] : null
     const result = createCacheNodeForSegment(
       navigatedAt,
       newRouteTree,
       seedRsc,
-      seedLoading,
       newMetadataVaryPath,
       seedHead,
       newParallelRoutes,
@@ -992,7 +985,6 @@ function reuseDynamicCacheNode(
     dropPrefetchRsc ? null : existingCacheNode.prefetchRsc,
     existingCacheNode.head,
     dropPrefetchRsc ? null : existingCacheNode.prefetchHead,
-    existingCacheNode.loading,
     parallelRoutes,
     existingCacheNode.navigatedAt
   )
@@ -1002,7 +994,6 @@ function createCacheNodeForSegment(
   now: number,
   tree: RouteTree,
   seedRsc: React.ReactNode | null,
-  seedLoading: LoadingModuleData | Promise<LoadingModuleData> | null,
   metadataVaryPath: PageVaryPath | null,
   seedHead: HeadData | null,
   newParallelRoutes: Map<string, ChildSegmentMap>,
@@ -1044,7 +1035,6 @@ function createCacheNodeForSegment(
         null,
         isPage ? seedHead : null,
         null,
-        seedLoading,
         newParallelRoutes,
         now
       ),
@@ -1054,8 +1044,6 @@ function createCacheNodeForSegment(
 
   let cachedRsc: React.ReactNode | null = null
   let isCachedRscPartial: boolean = true
-  let cachedLoading: LoadingModuleData | Promise<LoadingModuleData> | null =
-    null
 
   const segmentEntry = readSegmentCacheEntry(now, tree.varyPath)
   if (segmentEntry !== null) {
@@ -1064,7 +1052,6 @@ function createCacheNodeForSegment(
         // Happy path: a cache hit
         cachedRsc = segmentEntry.rsc
         isCachedRscPartial = segmentEntry.isPartial
-        cachedLoading = segmentEntry.loading
         break
       }
       case EntryStatus.Pending: {
@@ -1086,9 +1073,6 @@ function createCacheNodeForSegment(
         // we can assume the response will be full. This field is set to `false`
         // for such segments.
         isCachedRscPartial = segmentEntry.isPartial
-        cachedLoading = promiseForFulfilledEntry.then((entry) =>
-          entry !== null ? entry.loading : null
-        )
         break
       }
       case EntryStatus.Empty:
@@ -1114,7 +1098,6 @@ function createCacheNodeForSegment(
   // means the data failed to load; the LayoutRouter will suspend indefinitely
   // until the router updates again (refer to finishNavigationTask).
   let rsc: React.ReactNode | null
-  let loading: LoadingModuleData | Promise<LoadingModuleData> | null
   let doesSegmentNeedDynamicRequest: boolean
 
   if (seedRsc !== null) {
@@ -1124,7 +1107,6 @@ function createCacheNodeForSegment(
       // partial cached state in the meantime.
       prefetchRsc = cachedRsc
       rsc = seedRsc
-      loading = seedLoading
     } else {
       // We already have a completely cached segment. Ignore the seed data,
       // which may still be streaming in. This shouldn't happen in the normal
@@ -1132,7 +1114,6 @@ function createCacheNodeForSegment(
       // already fully cached, and the server will skip rendering them.
       prefetchRsc = null
       rsc = cachedRsc
-      loading = cachedLoading
     }
     doesSegmentNeedDynamicRequest = false
   } else {
@@ -1145,16 +1126,10 @@ function createCacheNodeForSegment(
       // data arrives from the server.
       prefetchRsc = cachedRsc
       rsc = createDeferredRsc()
-      // TODO: Technically, a loading boundary could contain dynamic data. We
-      // should have separate `loading` and `prefetchLoading` fields to handle
-      // this, like we do for the segment data and head.
-      const isCacheHit = cachedRsc !== null
-      loading = isCacheHit ? cachedLoading : createDeferredRsc()
     } else {
       // The data is fully cached.
       prefetchRsc = null
       rsc = cachedRsc
-      loading = cachedLoading
     }
     doesSegmentNeedDynamicRequest = isCachedRscPartial
   }
@@ -1227,7 +1202,6 @@ function createCacheNodeForSegment(
       prefetchRsc,
       head,
       prefetchHead,
-      loading,
       newParallelRoutes,
       now
     ),
@@ -1244,7 +1218,6 @@ function createCacheNode(
   prefetchRsc: React.ReactNode | null,
   head: React.ReactNode | null,
   prefetchHead: HeadData | null,
-  loading: LoadingModuleData | Promise<LoadingModuleData> | null,
   parallelRoutes: Map<string, ChildSegmentMap>,
   navigatedAt: number
 ): CacheNode {
@@ -1253,7 +1226,6 @@ function createCacheNode(
     prefetchRsc,
     head,
     prefetchHead,
-    loading,
     parallelRoutes,
     navigatedAt,
   }
@@ -1702,14 +1674,6 @@ function finishPendingCacheNode(
     // been populated by a different navigation. We must not overwrite it.
   }
 
-  // If we navigated without a prefetch, then `loading` will be a deferred promise too.
-  // Fulfill it using the dynamic response so that we can display the loading boundary.
-  const loading = cacheNode.loading
-  if (isDeferredRsc(loading)) {
-    const dynamicLoading = dynamicData[2]
-    loading.resolve(dynamicLoading, debugInfo)
-  }
-
   // Check if this is a leaf segment. If so, it will have a `head` property with
   // a pending promise that needs to be resolved with the dynamic head from
   // the server.
@@ -1794,11 +1758,6 @@ function abortPendingCacheNode(
       // This will trigger an error during rendering.
       rsc.reject(error, debugInfo)
     }
-  }
-
-  const loading = cacheNode.loading
-  if (isDeferredRsc(loading)) {
-    loading.resolve(null, debugInfo)
   }
 
   // Check if this is a leaf segment. If so, it will have a `head` property with

@@ -3,7 +3,6 @@ import type {
   RootTreePrefetch,
   SegmentPrefetch,
 } from '../../../server/app-render/collect-segment-data'
-import type { LoadingModuleData } from '../../../shared/lib/app-router-types'
 import type {
   CacheNodeSeedData,
   Segment as FlightRouterStateSegment,
@@ -237,7 +236,6 @@ type SegmentCacheEntryShared = {
 export type EmptySegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Empty
   rsc: null
-  loading: null
   isPartial: true
   promise: null
 }
@@ -245,7 +243,6 @@ export type EmptySegmentCacheEntry = SegmentCacheEntryShared & {
 export type PendingSegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Pending
   rsc: null
-  loading: null
   isPartial: boolean
   promise: null | PromiseWithResolvers<FulfilledSegmentCacheEntry | null>
 }
@@ -253,7 +250,6 @@ export type PendingSegmentCacheEntry = SegmentCacheEntryShared & {
 type RejectedSegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Rejected
   rsc: null
-  loading: null
   isPartial: true
   promise: null
 }
@@ -261,7 +257,6 @@ type RejectedSegmentCacheEntry = SegmentCacheEntryShared & {
 export type FulfilledSegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Fulfilled
   rsc: React.ReactNode | null
-  loading: LoadingModuleData | Promise<LoadingModuleData>
   isPartial: boolean
   promise: null
 }
@@ -811,7 +806,6 @@ export function upsertSegmentEntry(
       // the entry expires.
       const rejectedEntry: RejectedSegmentCacheEntry = candidateEntry as any
       rejectedEntry.status = EntryStatus.Rejected
-      rejectedEntry.loading = null
       rejectedEntry.rsc = null
       return null
     }
@@ -834,7 +828,6 @@ export function createDetachedSegmentCacheEntry(
     // when a fetch is actually initiated.
     fetchStrategy: FetchStrategy.PPR,
     rsc: null,
-    loading: null,
     isPartial: true,
     promise: null,
 
@@ -927,14 +920,12 @@ function fulfillRouteCacheEntry(
 function fulfillSegmentCacheEntry(
   segmentCacheEntry: PendingSegmentCacheEntry,
   rsc: React.ReactNode,
-  loading: LoadingModuleData | Promise<LoadingModuleData>,
   staleAt: number,
   isPartial: boolean
 ): FulfilledSegmentCacheEntry {
   const fulfilledEntry: FulfilledSegmentCacheEntry = segmentCacheEntry as any
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.rsc = rsc
-  fulfilledEntry.loading = loading
   fulfilledEntry.staleAt = staleAt
   fulfilledEntry.isPartial = isPartial
   // Resolve any listeners that were waiting for this data.
@@ -1725,7 +1716,6 @@ export async function fetchSegmentOnCacheMiss(
       value: fulfillSegmentCacheEntry(
         segmentCacheEntry,
         serverData.rsc,
-        serverData.loading,
         // TODO: The server does not currently provide per-segment stale time.
         // So we use the stale time of the route.
         route.staleAt,
@@ -2078,7 +2068,6 @@ function writeDynamicRenderResponseIntoCache(
         fetchStrategy,
         route,
         head,
-        null,
         flightData.isHeadPartial,
         staleAt,
         route.metadata,
@@ -2124,14 +2113,12 @@ function writeSeedDataIntoCache(
   // This function is used to write the result of a runtime server request
   // (CacheNodeSeedData) into the prefetch cache.
   const rsc = seedData[0]
-  const loading = seedData[2]
   const isPartial = rsc === null || isResponsePartial
   fulfillEntrySpawnedByRuntimePrefetch(
     now,
     fetchStrategy,
     route,
     rsc,
-    loading,
     isPartial,
     staleAt,
     tree,
@@ -2171,7 +2158,6 @@ function fulfillEntrySpawnedByRuntimePrefetch(
     | FetchStrategy.Full,
   route: FulfilledRouteCacheEntry,
   rsc: React.ReactNode,
-  loading: LoadingModuleData | Promise<LoadingModuleData>,
   isPartial: boolean,
   staleAt: number,
   tree: RouteTree,
@@ -2188,7 +2174,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       ? entriesOwnedByCurrentTask.get(tree.requestKey)
       : undefined
   if (ownedEntry !== undefined) {
-    fulfillSegmentCacheEntry(ownedEntry, rsc, loading, staleAt, isPartial)
+    fulfillSegmentCacheEntry(ownedEntry, rsc, staleAt, isPartial)
   } else {
     // There's no matching entry. Attempt to create a new one.
     const possiblyNewEntry = readOrCreateSegmentCacheEntry(
@@ -2203,7 +2189,6 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       fulfillSegmentCacheEntry(
         upgradeToPendingSegment(newEntry, fetchStrategy),
         rsc,
-        loading,
         staleAt,
         isPartial
       )
@@ -2216,7 +2201,6 @@ function fulfillEntrySpawnedByRuntimePrefetch(
           fetchStrategy
         ),
         rsc,
-        loading,
         staleAt,
         isPartial
       )

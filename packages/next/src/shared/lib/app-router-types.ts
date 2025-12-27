@@ -48,8 +48,6 @@ export type CacheNode = {
 
   head: HeadData
 
-  loading: LoadingModuleData | Promise<LoadingModuleData>
-
   parallelRoutes: Map<string, ChildSegmentMap>
 
   /**
@@ -191,7 +189,8 @@ export type CacheNodeSeedData = [
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
-  loading: LoadingModuleData | Promise<LoadingModuleData>,
+  // TODO: This field is no longer used. Remove it.
+  loading: null,
   isPartial: boolean,
   /** TODO: this doesn't feel like it belongs here, because it's only used during build, in `collectSegmentData` */
   hasRuntimePrefetch: boolean,
