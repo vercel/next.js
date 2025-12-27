@@ -18,7 +18,6 @@ import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
 } from './webpack/plugins/middleware-plugin'
-import type { WebpackLayerName } from '../lib/constants'
 import {
   INSTRUMENTATION_HOOK_FILENAME,
   MIDDLEWARE_FILENAME,
@@ -1554,45 +1553,14 @@ export function getSupportedBrowsers(
   return MODERN_BROWSERSLIST_TARGET
 }
 
-export function shouldUseReactServerCondition(
-  layer: WebpackLayerName | null | undefined
-): boolean {
-  return Boolean(
-    layer && WEBPACK_LAYERS.GROUP.serverOnly.includes(layer as any)
-  )
-}
-
-export function isWebpackClientOnlyLayer(
-  layer: WebpackLayerName | null | undefined
-): boolean {
-  return Boolean(
-    layer && WEBPACK_LAYERS.GROUP.clientOnly.includes(layer as any)
-  )
-}
-
-export function isWebpackDefaultLayer(
-  layer: WebpackLayerName | null | undefined
-): boolean {
-  return (
-    layer === null ||
-    layer === undefined ||
-    layer === WEBPACK_LAYERS.pagesDirBrowser ||
-    layer === WEBPACK_LAYERS.pagesDirEdge ||
-    layer === WEBPACK_LAYERS.pagesDirNode
-  )
-}
-
-export function isWebpackBundledLayer(
-  layer: WebpackLayerName | null | undefined
-): boolean {
-  return Boolean(layer && WEBPACK_LAYERS.GROUP.bundled.includes(layer as any))
-}
-
-export function isWebpackAppPagesLayer(
-  layer: WebpackLayerName | null | undefined
-): boolean {
-  return Boolean(layer && WEBPACK_LAYERS.GROUP.appPages.includes(layer as any))
-}
+// Re-export webpack layer utilities from dedicated module (for backwards compatibility)
+export {
+  shouldUseReactServerCondition,
+  isWebpackClientOnlyLayer,
+  isWebpackDefaultLayer,
+  isWebpackBundledLayer,
+  isWebpackAppPagesLayer,
+} from './webpack-layer'
 
 export function collectMeta({
   status,
