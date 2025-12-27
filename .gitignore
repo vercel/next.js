@@ -45,6 +45,9 @@ test/traces
 **/.#*
 .nvmrc
 
+# Claude Code local settings
+.claude/settings.local.json
+
 # examples
 examples/**/out/*
 examples/**/.env*.local
