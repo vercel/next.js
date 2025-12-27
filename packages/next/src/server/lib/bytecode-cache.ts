@@ -263,7 +263,7 @@ export function isBytecodeCacheEnabled(): boolean {
 export function clearBytecodeCache(): void {
   const cacheDir = getCacheDir()
   if (existsSync(cacheDir)) {
-    const { rmSync } = (require('fs') as typeof import('fs'))
+    const { rmSync } = require('fs') as typeof import('fs')
     rmSync(cacheDir, { recursive: true, force: true })
   }
 }

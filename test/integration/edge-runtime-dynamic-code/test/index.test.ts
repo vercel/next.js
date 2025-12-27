@@ -103,33 +103,45 @@ describe.each([
           expect(await extractValue(res)).toEqual(100)
           await waitFor(500)
           expect(output).toContain(EVAL_ERROR)
+          // Check for user-level stack frames (bundled dev server may add internal frames between user code and source display)
           if (title === 'Middleware') {
-            expect(output).toContain(
-              isTurbopack
-                ? '' +
-                    // TODO(veil): Turbopack duplicates project path
-                    '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/utils.js:3:17)' +
-                    '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:12:54)' +
-                    '\n  1 | export async function usingEval() {'
-                : '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:3:19)' +
-                    '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:12:54)' +
-                    // Next.js internal frame. Feel free to adjust.
-                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-                    '\n    at eval (../packages/next/dist'
-            )
+            if (isTurbopack) {
+              // TODO(veil): Turbopack duplicates project path
+              expect(output).toContain(
+                'at usingEval (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/utils.js:3:17)'
+              )
+              expect(output).toContain(
+                'at middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:12:54)'
+              )
+            } else {
+              expect(output).toContain(
+                'at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:3:19)'
+              )
+              expect(output).toContain(
+                'at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:12:54)'
+              )
+            }
           } else {
-            expect(output).toContain(
-              isTurbopack
-                ? '' +
-                    // TODO(veil): Turbopack duplicates project path
-                    '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/utils.js:3:17)' +
-                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:12:41)' +
-                    '\n  1 | export async function usingEval() {'
-                : '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:3:19)' +
-                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:12:41)' +
-                    '\n  1 | export async function usingEval() {'
-            )
+            if (isTurbopack) {
+              // TODO(veil): Turbopack duplicates project path
+              expect(output).toContain(
+                'at usingEval (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/utils.js:3:17)'
+              )
+              expect(output).toContain(
+                'at handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:12:41)'
+              )
+            } else {
+              expect(output).toContain(
+                'at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:3:19)'
+              )
+              expect(output).toContain(
+                'at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:12:41)'
+              )
+            }
           }
+
+          // Check for source code display
+          expect(output).toContain('1 | export async function usingEval() {')
 
           // Turbopack produces incorrect mappings in the sourcemap.
           if (isTurbopack) {
@@ -165,53 +177,61 @@ describe.each([
           expect(await extractValue(res)).toEqual(81)
           await waitFor(500)
           expect(output).toContain(WASM_COMPILE_ERROR)
+          // Check for user-level stack frames (bundled dev server may add internal frames between user code and source display)
           if (title === 'Middleware') {
-            // Turbopack produces incorrect mappings in the sourcemap.
-            expect(output).toContain(
-              isTurbopack
-                ? '' +
-                    '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:18)' +
-                    '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:24:68)' +
-                    '\n  20 |' +
-                    '\n  21 | export async function usingWebAssemblyCompile(x) {' +
-                    '\n> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)' +
-                    '\n     |                  ^'
-                : '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:24)' +
-                    '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:24:68)' +
-                    // Next.js internal frame. Feel free to adjust.
-                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-                    '\n    at'
-            )
-          } else {
-            // Turbopack produces incorrect mappings in the sourcemap.
-            expect(output).toContain(
-              isTurbopack
-                ? '' +
-                    // TODO(veil): Turbopack duplicates project path
-                    '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:18)' +
-                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:20:55)' +
-                    '\n  20 |'
-                : '' +
-                    '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:24)' +
-                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:20:55)' +
-                    '\n  20 |'
-            )
-
-            // Turbopack produces incorrect mappings in the sourcemap.
             if (isTurbopack) {
               expect(output).toContain(
-                '' +
-                  '\n> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)' +
-                  '\n     |                  ^'
+                'at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:18)'
+              )
+              expect(output).toContain(
+                'at middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:24:68)'
               )
             } else {
-              // TODO(veil): Inconsistent cursor position
               expect(output).toContain(
-                '' +
-                  '\n> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)' +
-                  '\n     |                        ^'
+                'at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:24)'
+              )
+              expect(output).toContain(
+                'at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:24:68)'
               )
             }
+          } else {
+            if (isTurbopack) {
+              // TODO(veil): Turbopack duplicates project path
+              expect(output).toContain(
+                'at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:18)'
+              )
+              expect(output).toContain(
+                'at handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:20:55)'
+              )
+            } else {
+              expect(output).toContain(
+                'at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:24)'
+              )
+              expect(output).toContain(
+                'at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:20:55)'
+              )
+            }
+          }
+
+          // Check for source code display
+          expect(output).toContain(
+            '21 | export async function usingWebAssemblyCompile(x) {'
+          )
+
+          // Turbopack produces incorrect mappings in the sourcemap.
+          if (isTurbopack) {
+            expect(output).toContain(
+              '' +
+                '\n> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)' +
+                '\n     |                  ^'
+            )
+          } else {
+            // TODO(veil): Inconsistent cursor position
+            expect(output).toContain(
+              '' +
+                '\n> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)' +
+                '\n     |                        ^'
+            )
           }
         })
 
@@ -223,45 +243,48 @@ describe.each([
           expect(await extractValue(res)).toEqual(81)
           await waitFor(500)
           expect(output).toContain(WASM_INSTANTIATE_ERROR)
+          // Check for user-level stack frames (bundled dev server may add internal frames between user code and source display)
           if (title === 'Middleware') {
-            expect(output).toContain(
-              isTurbopack
-                ? '' +
-                    '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)' +
-                    '\n    at async middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:39:30)' +
-                    '\n  26 |\n'
-                : '' +
-                    '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)' +
-                    '\n    at async middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:39:30)' +
-                    // Next.js internal frame. Feel free to adjust.
-                    // TODO(veil): https://linear.app/vercel/issue/NDX-464
-                    '\n    at '
-            )
-            expect(stripAnsi(output)).toContain(
-              '' +
-                '\n> 28 |   const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})' +
-                '\n     |                        ^'
-            )
+            if (isTurbopack) {
+              expect(output).toContain(
+                'at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)'
+              )
+              expect(output).toContain(
+                'at async middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:39:30)'
+              )
+            } else {
+              expect(output).toContain(
+                'at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)'
+              )
+              expect(output).toContain(
+                'at async middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:39:30)'
+              )
+            }
           } else {
-            expect(output).toContain(
-              isTurbopack
-                ? '' +
-                    // TODO(veil): Turbopack duplicates project path
-                    '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)' +
-                    '\n    at async handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:28:26)' +
-                    '\n  26 |'
-                : '' +
-                    '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)' +
-                    '\n    at async handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:28:26)' +
-                    '\n  26 |'
-            )
-            // TODO(veil): Inconsistent cursor position
-            expect(stripAnsi(output)).toContain(
-              '' +
-                '\n> 28 |   const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})' +
-                '\n     |                        ^'
-            )
+            if (isTurbopack) {
+              // TODO(veil): Turbopack duplicates project path
+              expect(output).toContain(
+                'at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)'
+              )
+              expect(output).toContain(
+                'at async handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:28:26)'
+              )
+            } else {
+              expect(output).toContain(
+                'at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)'
+              )
+              expect(output).toContain(
+                'at async handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:28:26)'
+              )
+            }
           }
+
+          // Check for source code display
+          expect(stripAnsi(output)).toContain(
+            '' +
+              '\n> 28 |   const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})' +
+              '\n     |                        ^'
+          )
         })
 
         it('does not show a warning when running WebAssembly.instantiate with a module parameter', async () => {

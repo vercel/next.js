@@ -202,9 +202,9 @@ module.exports = ({ dev }) => {
     plugins: [
       new rspack.DefinePlugin({
         'typeof window': JSON.stringify('undefined'),
-        'process.env.NODE_ENV': JSON.stringify(
-          dev ? 'development' : 'production'
-        ),
+        // This bundle is specifically for dev server, so NODE_ENV should always be 'development'
+        // We don't use runtime NODE_ENV because some code paths check it at module load time
+        'process.env.NODE_ENV': JSON.stringify('development'),
       }),
       new rspack.BannerPlugin({
         banner: '/* Bundled dev server - reduces module loading overhead */',

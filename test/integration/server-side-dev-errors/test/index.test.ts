@@ -44,13 +44,18 @@ describe('server-side dev errors', () => {
 
   // TODO: update to ensure this frame is ignored properly by default
   function stripInternalHandler(output) {
-    return output
-      .replace(/.*at async handler .*next-route-loader.*/, '')
-      .replace(/.*at async handleResponse.*/, '')
-      .replace(/.*at async doRender \(.*/, '')
-      .split(/\n/)
-      .filter((item) => !!item.trim())
-      .join('\n')
+    return (
+      output
+        .replace(/.*at async handler .*next-route-loader.*/, '')
+        .replace(/.*at async handleResponse.*/, '')
+        .replace(/.*at async doRender \(.*/, '')
+        // Strip bundled dev-server internal frames
+        .replace(/.*at.*dev-server\/start-server\.js.*/g, '')
+        .replace(/.*at.*compiled\/dev-server.*/g, '')
+        .split(/\n/)
+        .filter((item) => !!item.trim())
+        .join('\n')
+    )
   }
 
   it('should show server-side error for gsp page correctly', async () => {
