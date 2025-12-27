@@ -32,7 +32,11 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../../shared/lib/constants'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
-import type { DevBundlerService } from './dev-bundler-service'
+import { DevBundlerService } from './dev-bundler-service'
+import { findPagesDir } from '../../lib/find-pages-dir'
+import { trace } from '../../trace'
+import { traceGlobals } from '../../trace/shared'
+import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { Span } from '../../trace'
 import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-slash'
 import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
@@ -127,23 +131,57 @@ export async function initialize(opts: {
   let originalFetch = globalThis.fetch
 
   if (opts.dev) {
-    // Lazy load dev server initialization to reduce startup time
-    // and enable better bundling of production code paths
-    const { initializeDevelopmentServer } =
-      require('./dev-server-init') as typeof import('./dev-server-init')
+    const { Telemetry } =
+      require('../../telemetry/storage') as typeof import('../../telemetry/storage')
 
-    development = await initializeDevelopmentServer({
-      dir: opts.dir,
-      port: opts.port,
-      config: config as NextConfigComplete,
-      fsChecker,
-      renderServer,
-      customServer: opts.customServer,
-      startServerSpan: opts.startServerSpan,
-      onDevServerCleanup: opts.onDevServerCleanup,
-      originalFetch,
-      getRequestHandler: () => requestHandlers[opts.dir],
+    const telemetry = new Telemetry({
+      distDir: path.join(opts.dir, config.distDir),
     })
+    traceGlobals.set('telemetry', telemetry)
+
+    const { pagesDir, appDir } = findPagesDir(opts.dir)
+
+    const { setupDevBundler } =
+      require('./router-utils/setup-dev-bundler') as typeof import('./router-utils/setup-dev-bundler')
+
+    const resetFetch = () => {
+      globalThis.fetch = originalFetch
+      ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = false
+    }
+
+    const setupDevBundlerSpan = opts.startServerSpan
+      ? opts.startServerSpan.traceChild('setup-dev-bundler')
+      : trace('setup-dev-bundler')
+
+    const developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
+      setupDevBundler({
+        renderServer,
+        appDir,
+        pagesDir,
+        telemetry,
+        fsChecker,
+        dir: opts.dir,
+        nextConfig: config as NextConfigComplete,
+        isCustomServer: opts.customServer,
+        turbo: !!process.env.TURBOPACK,
+        port: opts.port,
+        onDevServerCleanup: opts.onDevServerCleanup,
+        resetFetch,
+      })
+    )
+
+    const devBundlerService = new DevBundlerService(
+      developmentBundler,
+      (req, res) => {
+        return requestHandlers[opts.dir](req, res)
+      }
+    )
+
+    development = {
+      bundler: developmentBundler,
+      service: devBundlerService,
+      config: config as NextConfigComplete,
+    }
   }
 
   renderServer.instance =
