@@ -193,7 +193,10 @@ describe('resolveRoutes with i18n', () => {
           'accept-language': 'fr',
         }),
         i18n: i18nConfig,
-        shouldNormalizeNextData: true,
+        routes: {
+          ...baseParams.routes,
+          shouldNormalizeNextData: true,
+        },
       })
 
       // Should not redirect for _next/data routes

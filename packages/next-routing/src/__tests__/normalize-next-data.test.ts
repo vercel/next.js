@@ -49,9 +49,9 @@ describe('normalizeNextData - beforeMiddleware', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/_next/data/BUILD_ID/api/blog/post.json'],
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -77,9 +77,9 @@ describe('normalizeNextData - beforeMiddleware', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/base/_next/data/BUILD_ID/api/page.json'],
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -102,9 +102,9 @@ describe('normalizeNextData - pathname checking', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/_next/data/BUILD_ID/posts/hello.json'],
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -128,9 +128,9 @@ describe('normalizeNextData - pathname checking', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/_next/data/BUILD_ID/posts.json'],
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -156,9 +156,9 @@ describe('normalizeNextData - afterFiles', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/_next/data/BUILD_ID/404.json'],
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -187,9 +187,9 @@ describe('normalizeNextData - afterFiles', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/_next/data/BUILD_ID/internal/users.json'],
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -217,9 +217,9 @@ describe('normalizeNextData - dynamic routes', () => {
         ],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/_next/data/BUILD_ID/posts/123.json'],
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -253,9 +253,9 @@ describe('normalizeNextData - dynamic routes', () => {
         ],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/_next/data/BUILD_ID/users/alice.json'],
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -289,9 +289,9 @@ describe('normalizeNextData - dynamic routes', () => {
         ],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/_next/data/BUILD_ID/posts/post-1.json'],
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -323,9 +323,9 @@ describe('normalizeNextData - fallback routes', () => {
             destination: '/404',
           },
         ],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/_next/data/BUILD_ID/404.json'],
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -377,9 +377,9 @@ describe('normalizeNextData - without normalization', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: undefined,
       },
       pathnames: ['/api/page'],
-      shouldNormalizeNextData: undefined,
     })
 
     const result = await resolveRoutes(params)
@@ -398,9 +398,9 @@ describe('normalizeNextData - without normalization', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/regular/path'],
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -424,9 +424,9 @@ describe('normalizeNextData - without normalization', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/posts/post'],
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -451,9 +451,9 @@ describe('normalizeNextData - without normalization', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/_next/data/BUILD_ID/some/path.json'],
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -485,9 +485,9 @@ describe('normalizeNextData - without normalization', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/processed.json'],
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -507,9 +507,9 @@ describe('normalizeNextData - without normalization', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/_next/data/DIFFERENT_ID/page.json'],
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -528,9 +528,9 @@ describe('normalizeNextData - without normalization', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/_next/data/BUILD_ID/page.json'],
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -550,9 +550,9 @@ describe('normalizeNextData - without normalization', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/posts', '/_next/data/BUILD_ID/posts.json'], // Both exist
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -573,9 +573,9 @@ describe('normalizeNextData - without normalization', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/posts', '/_next/data/BUILD_ID/posts.json'], // Both exist
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -601,9 +601,9 @@ describe('normalizeNextData - without normalization', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/posts', '/_next/data/BUILD_ID/posts.json'], // Both exist
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -629,9 +629,9 @@ describe('normalizeNextData - without normalization', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/posts', '/_next/data/BUILD_ID/posts.json'], // Both exist
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -657,9 +657,9 @@ describe('normalizeNextData - without normalization', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/404', '/_next/data/BUILD_ID/404.json'], // Both exist
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -685,9 +685,9 @@ describe('normalizeNextData - without normalization', () => {
         dynamicRoutes: [],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/404', '/_next/data/BUILD_ID/404.json'], // Both exist
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -717,9 +717,9 @@ describe('normalizeNextData - without normalization', () => {
         ],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/posts/hello', '/_next/data/BUILD_ID/posts/hello.json'], // Both exist
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)
@@ -753,9 +753,9 @@ describe('normalizeNextData - without normalization', () => {
         ],
         onMatch: [],
         fallback: [],
+        shouldNormalizeNextData: true,
       },
       pathnames: ['/posts/hello', '/_next/data/BUILD_ID/posts/hello.json'], // Both exist
-      shouldNormalizeNextData: true,
     })
 
     const result = await resolveRoutes(params)

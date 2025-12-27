@@ -64,8 +64,8 @@ export type ResolveRoutesParams = {
     dynamicRoutes: Array<Route>
     onMatch: Array<Route>
     fallback: Array<Route>
+    shouldNormalizeNextData?: boolean
   }
-  shouldNormalizeNextData?: boolean
   invokeMiddleware: (ctx: MiddlewareContext) => Promise<MiddlewareResult>
 }
 

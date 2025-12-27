@@ -274,10 +274,11 @@ export async function resolveRoutes(
     pathnames,
     routes,
     invokeMiddleware,
-    shouldNormalizeNextData,
     buildId,
     i18n,
   } = params
+
+  const { shouldNormalizeNextData } = routes
 
   let currentUrl = new URL(initialUrl.toString())
   let currentHeaders = new Headers(initialHeaders)
