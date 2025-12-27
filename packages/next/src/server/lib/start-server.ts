@@ -374,6 +374,8 @@ export async function startServer(
           logBundler: isDev,
         })
 
+        Log.event(`Starting...`)
+
         let cleanupStarted = false
         let closeUpgraded: (() => void) | null = null
         const cleanup = () => {
