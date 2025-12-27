@@ -1,22 +1,5 @@
 #!/usr/bin/env node
 
-// Enable V8 compile cache for faster module loading (Node.js 22+)
-// This must be called before any other imports to be effective
-import module from 'module'
-const moduleWithCompileCache = module as typeof module & {
-  enableCompileCache?: () => void
-}
-if (
-  !process.env.NEXT_DISABLE_COMPILE_CACHE &&
-  typeof moduleWithCompileCache.enableCompileCache === 'function'
-) {
-  try {
-    moduleWithCompileCache.enableCompileCache()
-  } catch {
-    // Ignore errors - compile cache is best-effort
-  }
-}
-
 import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
 import {
@@ -36,14 +19,15 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
 import type { NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
-import { Telemetry } from '../telemetry/storage'
-import loadConfig from '../server/config'
-import { findPagesDir } from '../lib/find-pages-dir'
-import { fileExists, FileType } from '../lib/file-exists'
-import { getNpxCommand } from '../lib/helpers/get-npx-command'
-import { createSelfSignedCertificate } from '../lib/mkcert'
+// Heavy modules - lazy loaded to speed up CLI startup
+// import { Telemetry } from '../telemetry/storage' - loaded in handleSessionStop
+// import loadConfig from '../server/config' - loaded in handleSessionStop
+// import { findPagesDir } from '../lib/find-pages-dir' - loaded in handleSessionStop
+// import { getNpxCommand } from '../lib/helpers/get-npx-command' - loaded in preflight
+// import { createSelfSignedCertificate } from '../lib/mkcert' - loaded only with --experimental-https
+// import uploadTrace from '../trace/upload-trace' - loaded only with --experimental-upload-trace
 import type { SelfSignedCertificate } from '../lib/mkcert'
-import uploadTrace from '../trace/upload-trace'
+import { fileExists, FileType } from '../lib/file-exists'
 import { initialEnv } from '@next/env'
 import { fork } from 'child_process'
 import type { ChildProcess } from 'child_process'
@@ -134,15 +118,22 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       typeof traceGlobals.get('pagesDir') === 'undefined' ||
       typeof traceGlobals.get('appDir') === 'undefined'
     ) {
+      const { findPagesDir } =
+        require('../lib/find-pages-dir') as typeof import('../lib/find-pages-dir')
       const pagesResult = findPagesDir(dir)
       appDir = !!pagesResult.appDir
       pagesDir = !!pagesResult.pagesDir
     }
 
+    const loadConfig = (
+      require('../server/config') as typeof import('../server/config')
+    ).default
     config =
       config ||
       (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, { silent: true }))
 
+    const { Telemetry } =
+      require('../telemetry/storage') as typeof import('../telemetry/storage')
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
         typeof import('../telemetry/storage').Telemetry
@@ -170,6 +161,9 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   }
 
   if (traceUploadUrl) {
+    const uploadTrace = (
+      require('../trace/upload-trace') as typeof import('../trace/upload-trace')
+    ).default
     uploadTrace({
       traceUploadUrl,
       mode: 'dev',
@@ -234,6 +228,8 @@ const nextDev = async (
         (devDependencies['@next/font'] &&
           devDependencies['@next/font'] !== 'workspace:*')
       ) {
+        const { getNpxCommand } =
+          require('../lib/helpers/get-npx-command') as typeof import('../lib/helpers/get-npx-command')
         const command = getNpxCommand(dir)
         Log.warn(
           'Your project has `@next/font` installed as a dependency, please use the built-in `next/font` instead. ' +
@@ -272,7 +268,13 @@ const nextDev = async (
     hostname: host,
   }
 
-  const startServerPath = require.resolve('../server/lib/start-server')
+  // Use the bundled dev server with optional bytecode caching for faster startup
+  // Set NEXT_USE_UNBUNDLED_SERVER=1 to use unbundled version
+  // Set NEXT_DISABLE_BYTECODE_CACHE=1 to disable bytecode caching
+  const useBytecodeCache = !process.env.NEXT_DISABLE_BYTECODE_CACHE
+  const startServerPath = useBytecodeCache
+    ? require.resolve('../server/lib/start-server-with-cache')
+    : require.resolve('../compiled/dev-server/start-server')
 
   async function startServer(startServerOptions: StartServerOptions) {
     return new Promise<void>((resolve) => {
@@ -317,14 +319,18 @@ const nextDev = async (
         nodeOptions.inspect = formatDebugAddress(address)
       }
 
-      // Enable Node.js compile cache for faster subsequent starts (Node 22+)
-      // This caches V8's compiled bytecode for modules
-      const nodeCompileCacheDir = process.env.NEXT_DISABLE_COMPILE_CACHE
-        ? undefined
-        : path.join(dir, '.next', 'cache', 'node-compile-cache')
+      // Build execArgv for the child process
+      const execArgv: string[] = []
+
+      // Support CPU profiling via NEXT_CPU_PROF_DIR env var
+      if (process.env.NEXT_CPU_PROF_DIR) {
+        execArgv.push('--cpu-prof')
+        execArgv.push(`--cpu-prof-dir=${process.env.NEXT_CPU_PROF_DIR}`)
+      }
 
       child = fork(startServerPath, {
         stdio: 'inherit',
+        execArgv: execArgv.length > 0 ? execArgv : undefined,
         env: {
           ...defaultEnv,
           ...(bundler === Bundler.Turbopack
@@ -332,12 +338,8 @@ const nextDev = async (
             : undefined),
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
-          // Pass CLI start time to child for accurate timing measurement
-          NEXT_CLI_START_TIME: String(sessionStarted),
           // Pass server options via env to eliminate IPC handshake latency
           NEXT_PRIVATE_WORKER_OPTIONS: JSON.stringify(startServerOptions),
-          // Enable V8 compile cache for Node.js 22+ (ignored on older versions)
-          NODE_COMPILE_CACHE: nodeCompileCacheDir,
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
@@ -376,12 +378,18 @@ const nextDev = async (
           if (traceUploadUrl) {
             // Postpone loading next config when we need to get
             //  config.distDir for upload trace.
+            const loadConfig = (
+              require('../server/config') as typeof import('../server/config')
+            ).default
             config =
               config ||
               (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
                 silent: true,
               }))
             bundler = finalizeBundlerFromConfig(bundler)
+            const uploadTrace = (
+              require('../trace/upload-trace') as typeof import('../trace/upload-trace')
+            ).default
             uploadTrace({
               traceUploadUrl,
               mode: 'dev',
@@ -421,6 +429,8 @@ const nextDev = async (
             rootCA: rootCA ? path.resolve(rootCA) : undefined,
           }
         } else {
+          const { createSelfSignedCertificate } =
+            require('../lib/mkcert') as typeof import('../lib/mkcert')
           certificate = await createSelfSignedCertificate(host)
         }
 
