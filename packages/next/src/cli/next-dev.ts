@@ -319,18 +319,8 @@ const nextDev = async (
         nodeOptions.inspect = formatDebugAddress(address)
       }
 
-      // Build execArgv for the child process
-      const execArgv: string[] = []
-
-      // Support CPU profiling via NEXT_CPU_PROF_DIR env var
-      if (process.env.NEXT_CPU_PROF_DIR) {
-        execArgv.push('--cpu-prof')
-        execArgv.push(`--cpu-prof-dir=${process.env.NEXT_CPU_PROF_DIR}`)
-      }
-
       child = fork(startServerPath, {
         stdio: 'inherit',
-        execArgv: execArgv.length > 0 ? execArgv : undefined,
         env: {
           ...defaultEnv,
           ...(bundler === Bundler.Turbopack

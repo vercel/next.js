@@ -96,29 +96,18 @@ async function runProfile() {
   return new Promise((resolve, reject) => {
     let resolved = false
 
-    // Build the command based on whether we're profiling parent or child
-    let spawnArgs
-    let spawnEnv = { ...process.env, FORCE_COLOR: '0' }
-
-    if (profileParent) {
-      // Profile the parent process (next-dev.ts)
-      spawnArgs = [
-        process.execPath,
-        [
-          '--cpu-prof',
-          `--cpu-prof-dir=${outputDir}`,
-          nextBin,
-          'dev',
-          bundlerFlag,
-        ],
-      ]
-    } else {
-      // Profile the child process (start-server.ts)
-      // next-dev.ts checks NEXT_CPU_PROF_DIR and passes --cpu-prof to the forked child
-      spawnEnv.NEXT_CPU_PROF_DIR = outputDir
-
-      spawnArgs = [nextBin, ['dev', bundlerFlag]]
+    // Enable CPU profiling via inspector API
+    const spawnEnv = {
+      ...process.env,
+      FORCE_COLOR: '0',
+      NEXT_CPU_PROF: '1',
+      NEXT_CPU_PROF_DIR: outputDir,
     }
+
+    // Profile either parent or child process
+    const spawnArgs = profileParent
+      ? [process.execPath, [nextBin, 'dev', bundlerFlag]]
+      : [nextBin, ['dev', bundlerFlag]]
 
     const child = spawn(spawnArgs[0], spawnArgs[1], {
       cwd: testDir,
@@ -222,15 +211,16 @@ async function runCliProfile() {
   console.log('')
 
   return new Promise((resolve, reject) => {
-    const child = spawn(
-      process.execPath,
-      ['--cpu-prof', `--cpu-prof-dir=${outputDir}`, nextBin, '--help'],
-      {
-        cwd: process.cwd(),
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env, FORCE_COLOR: '0' },
-      }
-    )
+    const child = spawn(process.execPath, [nextBin, '--help'], {
+      cwd: process.cwd(),
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        FORCE_COLOR: '0',
+        NEXT_CPU_PROF: '1',
+        NEXT_CPU_PROF_DIR: outputDir,
+      },
+    })
 
     child.stdout.on('data', () => {})
     child.stderr.on('data', () => {})
