@@ -6,7 +6,8 @@ describe('next start without next build', () => {
       files: __dirname,
       skipStart: true,
       startCommand: `pnpm next start`,
-      serverReadyPattern: /✓ Starting.../,
+      // Match "Ready in" or the error message since there's no build
+      serverReadyPattern: /Ready in|Could not find a production build/,
     })
 
     await next.start()

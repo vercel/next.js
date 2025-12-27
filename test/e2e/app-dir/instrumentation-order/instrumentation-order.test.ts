@@ -11,7 +11,10 @@ describe('instrumentation-order', () => {
     await next.fetch('/')
 
     await retry(async () => {
-      const serverLog = next.cliOutput.split('Starting...')[1]
+      // Split on "Ready in" to get the logs after server startup
+      const readyIndex = next.cliOutput.indexOf('Ready in')
+      const serverLog =
+        readyIndex !== -1 ? next.cliOutput.slice(readyIndex) : next.cliOutput
       const cliOutputLines = serverLog.split('\n')
 
       const ORDERED_LOGS = [
