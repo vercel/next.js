@@ -1,3 +1,9 @@
+// Measure fork/spawn overhead - must be at the very top
+const childStartTime = Date.now()
+const forkTime = process.env.NEXT_PRIVATE_FORK_TIME
+  ? childStartTime - parseInt(process.env.NEXT_PRIVATE_FORK_TIME, 10)
+  : null
+
 // Start CPU profile if it wasn't already started.
 import './cpu-profile'
 import { getNetworkHost } from '../../lib/get-network-host'
@@ -39,6 +45,12 @@ import type { ConfiguredExperimentalFeature } from '../config'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
+
+// Log fork/spawn timing
+const moduleLoadTime = Date.now() - childStartTime
+if (forkTime !== null) {
+  debug(`fork/spawn overhead: ${forkTime}ms, module load: ${moduleLoadTime}ms`)
+}
 
 /**
  * Get the process ID (PID) of the process using the specified port

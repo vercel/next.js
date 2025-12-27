@@ -94,16 +94,24 @@ export async function initialize(opts: {
   startServerSpan?: Span
   quiet?: boolean
 }): Promise<ServerInitResult> {
+  const timings: Record<string, number> = {}
+  const mark = (name: string) => {
+    timings[name] = performance.now()
+  }
+  mark('init-start')
+
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
   }
 
+  mark('before-loadConfig')
   const config = await loadConfig(
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
     opts.dir,
     { silent: false }
   )
+  mark('after-loadConfig')
 
   let compress: ReturnType<typeof setupCompression> | undefined
 
@@ -111,12 +119,14 @@ export async function initialize(opts: {
     compress = setupCompression()
   }
 
+  mark('before-fsCheck')
   const fsChecker = await setupFsCheck({
     dev: opts.dev,
     dir: opts.dir,
     config,
     minimalMode: opts.minimalMode,
   })
+  mark('after-fsCheck')
 
   const renderServer: LazyRenderServerInstance = {}
 
@@ -131,6 +141,7 @@ export async function initialize(opts: {
   let originalFetch = globalThis.fetch
 
   if (opts.dev) {
+    mark('dev-block-start')
     const { Telemetry } =
       require('../../telemetry/storage') as typeof import('../../telemetry/storage')
 
@@ -138,11 +149,14 @@ export async function initialize(opts: {
       distDir: path.join(opts.dir, config.distDir),
     })
     traceGlobals.set('telemetry', telemetry)
+    mark('after-telemetry')
 
     const { pagesDir, appDir } = findPagesDir(opts.dir)
+    mark('after-findPagesDir')
 
     const { setupDevBundler } =
       require('./router-utils/setup-dev-bundler') as typeof import('./router-utils/setup-dev-bundler')
+    mark('after-require-setupDevBundler')
 
     const resetFetch = () => {
       globalThis.fetch = originalFetch
@@ -153,6 +167,7 @@ export async function initialize(opts: {
       ? opts.startServerSpan.traceChild('setup-dev-bundler')
       : trace('setup-dev-bundler')
 
+    mark('before-setupDevBundler')
     const developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
       setupDevBundler({
         renderServer,
@@ -169,6 +184,7 @@ export async function initialize(opts: {
         resetFetch,
       })
     )
+    mark('after-setupDevBundler')
 
     const devBundlerService = new DevBundlerService(
       developmentBundler,
@@ -182,6 +198,7 @@ export async function initialize(opts: {
       service: devBundlerService,
       config: config as NextConfigComplete,
     }
+    mark('dev-block-end')
   }
 
   renderServer.instance =
@@ -884,6 +901,23 @@ export async function initialize(opts: {
       console.error('Error handling upgrade request', err)
       socket.end()
     }
+  }
+
+  mark('init-end')
+
+  // Log timing breakdown
+  if (debug.enabled) {
+    const entries = Object.entries(timings)
+    const start = timings['init-start']
+    debug('timing breakdown:')
+    for (let i = 1; i < entries.length; i++) {
+      const [prevName] = entries[i - 1]
+      const [currName, currTime] = entries[i]
+      debug(
+        `  ${prevName} → ${currName}: ${(currTime - entries[i - 1][1]).toFixed(1)}ms`
+      )
+    }
+    debug(`  TOTAL: ${(timings['init-end'] - start).toFixed(1)}ms`)
   }
 
   return {

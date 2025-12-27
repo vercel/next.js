@@ -319,6 +319,7 @@ const nextDev = async (
         nodeOptions.inspect = formatDebugAddress(address)
       }
 
+      const forkStartTime = Date.now()
       child = fork(startServerPath, {
         stdio: 'inherit',
         env: {
@@ -330,6 +331,8 @@ const nextDev = async (
           NEXT_PRIVATE_TRACE_ID: traceId,
           // Pass server options via env to eliminate IPC handshake latency
           NEXT_PRIVATE_WORKER_OPTIONS: JSON.stringify(startServerOptions),
+          // Pass fork start time for timing measurement
+          NEXT_PRIVATE_FORK_TIME: String(forkStartTime),
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
