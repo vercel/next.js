@@ -29,7 +29,7 @@ pub struct NodeWorkerLoaderModule {
 #[turbo_tasks::value_impl]
 impl NodeWorkerLoaderModule {
     #[turbo_tasks::function]
-    pub fn new(module: ResolvedVc<Box<dyn ChunkableModule>>) -> Vc<Self> {
+    pub(crate) fn new(module: ResolvedVc<Box<dyn ChunkableModule>>) -> Vc<Self> {
         Self::cell(NodeWorkerLoaderModule { inner: module })
     }
 }
@@ -100,7 +100,7 @@ struct NodeWorkerModuleReference {
 #[turbo_tasks::value_impl]
 impl NodeWorkerModuleReference {
     #[turbo_tasks::function]
-    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+    fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
         Self::cell(NodeWorkerModuleReference { module })
     }
 }

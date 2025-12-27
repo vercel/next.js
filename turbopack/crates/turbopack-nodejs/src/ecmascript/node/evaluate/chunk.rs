@@ -33,7 +33,7 @@ pub(crate) struct EcmascriptBuildNodeEvaluateChunk {
 impl EcmascriptBuildNodeEvaluateChunk {
     /// Creates a new [`Vc<EcmascriptBuildNodeEvaluateChunk>`].
     #[turbo_tasks::function]
-    pub async fn new(
+    pub(crate) async fn new(
         chunking_context: ResolvedVc<NodeJsChunkingContext>,
         ident: ResolvedVc<AssetIdent>,
         other_chunks: ResolvedVc<OutputAssets>,
