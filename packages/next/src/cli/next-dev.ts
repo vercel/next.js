@@ -1,5 +1,22 @@
 #!/usr/bin/env node
 
+// Enable V8 compile cache for faster module loading (Node.js 22+)
+// This must be called before any other imports to be effective
+import module from 'module'
+const moduleWithCompileCache = module as typeof module & {
+  enableCompileCache?: () => void
+}
+if (
+  !process.env.NEXT_DISABLE_COMPILE_CACHE &&
+  typeof moduleWithCompileCache.enableCompileCache === 'function'
+) {
+  try {
+    moduleWithCompileCache.enableCompileCache()
+  } catch {
+    // Ignore errors - compile cache is best-effort
+  }
+}
+
 import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
 import {
@@ -300,6 +317,12 @@ const nextDev = async (
         nodeOptions.inspect = formatDebugAddress(address)
       }
 
+      // Enable Node.js compile cache for faster subsequent starts (Node 22+)
+      // This caches V8's compiled bytecode for modules
+      const nodeCompileCacheDir = process.env.NEXT_DISABLE_COMPILE_CACHE
+        ? undefined
+        : path.join(dir, '.next', 'cache', 'node-compile-cache')
+
       child = fork(startServerPath, {
         stdio: 'inherit',
         env: {
@@ -311,6 +334,8 @@ const nextDev = async (
           NEXT_PRIVATE_TRACE_ID: traceId,
           // Pass CLI start time to child for accurate timing measurement
           NEXT_CLI_START_TIME: String(sessionStarted),
+          // Enable V8 compile cache for Node.js 22+ (ignored on older versions)
+          NODE_COMPILE_CACHE: nodeCompileCacheDir,
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
