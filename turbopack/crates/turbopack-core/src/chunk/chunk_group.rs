@@ -340,7 +340,6 @@ pub async fn chunk_group_content(
                     unreachable!();
                 }
                 ChunkingType::Isolated { .. } => {
-                    // panic!("uh oh");
                     // TODO currently not implemented
                     GraphTraversalAction::Exclude
                 }
