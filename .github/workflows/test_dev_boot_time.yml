@@ -101,10 +101,12 @@ jobs:
       - name: Build Next.js (canary)
         run: pnpm turbo run build --filter=next...
 
-      - name: Link Next.js to test app (canary)
+      - name: Pack and install Next.js (canary)
         run: |
+          cd ${{ github.workspace }}/packages/next
+          pnpm pack --pack-destination /tmp
           cd /tmp/boot-test-app
-          npm link ${{ github.workspace }}/packages/next
+          npm install /tmp/next-*.tgz
 
       - name: Benchmark canary (5 runs)
         id: canary-bench
@@ -113,15 +115,11 @@ jobs:
           TIMES=""
           for i in 1 2 3 4 5; do
             rm -rf .next
-            # Measure actual wall-clock time from command start to "Ready" appearing
+            # Measure actual wall-clock time from command start to server ready
             START_TIME=$(date +%s%3N)
-            ${{ github.workspace }}/packages/next/dist/bin/next dev --turbopack 2>&1 &
+            npx next dev --turbopack 2>&1 &
             PID=$!
-            # Wait for "Ready" to appear (poll the output)
-            while ! grep -q "Ready" /tmp/boot-test-app/.next/server/app-paths-manifest.json 2>/dev/null && kill -0 $PID 2>/dev/null; do
-              sleep 0.05
-            done
-            # Also check stdout for Ready message
+            # Wait for server to be ready (accepting connections)
             for j in $(seq 1 200); do
               if curl -s http://localhost:3000 > /dev/null 2>&1; then
                 break
@@ -150,11 +148,14 @@ jobs:
       - name: Build Next.js (PR)
         run: pnpm turbo run build --filter=next...
 
-      - name: Link Next.js to test app (PR)
+      - name: Pack and install Next.js (PR)
         run: |
+          rm -f /tmp/next-*.tgz
+          cd ${{ github.workspace }}/packages/next
+          pnpm pack --pack-destination /tmp
           cd /tmp/boot-test-app
-          rm -rf node_modules/.cache
-          npm link ${{ github.workspace }}/packages/next
+          rm -rf node_modules/.cache node_modules/next
+          npm install /tmp/next-*.tgz
 
       - name: Benchmark PR cold start (5 runs)
         id: pr-cold
@@ -165,7 +166,7 @@ jobs:
             rm -rf .next
             # Measure actual wall-clock time from command start to server ready
             START_TIME=$(date +%s%3N)
-            ${{ github.workspace }}/packages/next/dist/bin/next dev --turbopack 2>&1 &
+            npx next dev --turbopack 2>&1 &
             PID=$!
             # Wait for server to be ready (accepting connections)
             for j in $(seq 1 200); do
@@ -192,7 +193,7 @@ jobs:
           cd /tmp/boot-test-app
           # First run to create bytecode cache
           rm -rf .next
-          ${{ github.workspace }}/packages/next/dist/bin/next dev --turbopack 2>&1 &
+          npx next dev --turbopack 2>&1 &
           PID=$!
           for j in $(seq 1 200); do
             if curl -s http://localhost:3000 > /dev/null 2>&1; then
@@ -209,7 +210,7 @@ jobs:
           for i in 1 2 3 4 5; do
             # Measure actual wall-clock time from command start to server ready
             START_TIME=$(date +%s%3N)
-            ${{ github.workspace }}/packages/next/dist/bin/next dev --turbopack 2>&1 &
+            npx next dev --turbopack 2>&1 &
             PID=$!
             # Wait for server to be ready (accepting connections)
             for j in $(seq 1 200); do
