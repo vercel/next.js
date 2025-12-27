@@ -15,12 +15,16 @@ import { verifyTypeScriptSetup } from '../lib/verify-typescript-setup'
 import path from 'path'
 import spawn from 'next/dist/compiled/cross-spawn'
 
+import type { SupportedTestRunners } from './next-test-constants.js'
+
 export interface NextTestOptions {
   testRunner?: string
 }
 
-export const SUPPORTED_TEST_RUNNERS_LIST = ['playwright'] as const
-export type SupportedTestRunners = (typeof SUPPORTED_TEST_RUNNERS_LIST)[number]
+export {
+  SUPPORTED_TEST_RUNNERS_LIST,
+  type SupportedTestRunners,
+} from './next-test-constants.js'
 
 const requiredPackagesByTestRunner: {
   [k in SupportedTestRunners]: MissingDependency[]
