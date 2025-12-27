@@ -17,6 +17,5 @@ indexmap = { workspace = true }
 mime = { workspace = true }
 ringmap = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
 smallvec = { workspace = true }
 unty = { workspace = true }

@@ -8,7 +8,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::Environment,
     ident::AssetIdent,
-    module::{Module, StyleModule, StyleType},
+    module::{Module, ModuleSideEffects, StyleModule, StyleType},
     module_graph::ModuleGraph,
     output::{OutputAssetsReference, OutputAssetsWithReferenced},
     reference::{ModuleReference, ModuleReferences},
@@ -152,6 +152,11 @@ impl Module for CssModuleAsset {
             ParseCssResult::Unparsable => Ok(ModuleReferences::empty()),
             ParseCssResult::NotFound => Ok(ModuleReferences::empty()),
         }
+    }
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // global css is always a side effect
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 

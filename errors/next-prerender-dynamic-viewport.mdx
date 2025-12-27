@@ -10,11 +10,11 @@ When `cacheComponents` is enabled, Next.js requires that `generateViewport()` no
 
 To fix this issue, you must first determine your goal for the affected route.
 
-Normally, Next.js ensures every page can produce an initial UI that allows the page to start loading even before uncached data and Runtime data is available. This is accomplished by defining prerenderable UI with Suspense. However viewport metadata is not able to be deferred until after the page loads because it affects initial page load UI.
+Next.js ensures every page can produce an initial UI before uncached data and Runtime data is available. This is accomplished by defining prerenderable UI with Suspense. Viewport metadata, though, cannot be deferred because it affects initial page load UI.
 
 Ideally, you update `generateViewport` so it does not depend on any uncached data or Runtime data. This allows navigations to appear instant.
 
-However if this is not possibl you can instruct Next.js to allow all navigations to be potentially blocking by wrapping your document `<body>` in a Suspense boundary.
+If this is not possible, you can instruct Next.js to allow all navigations to be potentially blocking by wrapping your document `<body>` in a Suspense boundary.
 
 ### Caching External Data
 
@@ -69,7 +69,7 @@ import { cookies } from 'next/headers'
 export async function generateViewport() {
   const cookieJar = await cookies()
   return {
-    themeColor: cookieJar.get('theme-color'),
+    themeColor: cookieJar.get('theme-color')?.value,
   }
 }
 
@@ -91,7 +91,7 @@ import { cookies } from 'next/headers'
 export async function generateViewport() {
   const cookieJar = await cookies()
   return {
-    themeColor: cookieJar.get('theme-color'),
+    themeColor: cookieJar.get('theme-color')?.value,
   }
 }
 

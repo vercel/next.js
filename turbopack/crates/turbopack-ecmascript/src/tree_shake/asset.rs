@@ -1,16 +1,14 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
-    context::AssetContext,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
-    resolve::{ExportUsage, ModulePart, origin::ResolveOrigin},
+    resolve::{ExportUsage, ModulePart},
 };
 
 use super::{
@@ -175,17 +173,11 @@ impl EcmascriptModulePartAsset {
                         ),
                     ));
                 }
-                let side_effect_free_packages = module.asset_context().side_effect_free_packages();
                 let source_module = Vc::upcast(module);
                 let FollowExportsWithSideEffectsResult {
                     side_effects,
                     result,
-                } = &*follow_reexports_with_side_effects(
-                    source_module,
-                    export.clone(),
-                    side_effect_free_packages,
-                )
-                .await?;
+                } = &*follow_reexports_with_side_effects(source_module, export.clone()).await?;
                 let FollowExportsResult {
                     module: final_module,
                     export_name: new_export,
@@ -256,30 +248,20 @@ struct FollowExportsWithSideEffectsResult {
 async fn follow_reexports_with_side_effects(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
-    side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<FollowExportsWithSideEffectsResult>> {
     let mut side_effects = vec![];
 
     let mut current_module = module;
     let mut current_export_name = export_name;
     let result = loop {
-        let is_side_effect_free = *current_module
-            .is_marked_as_side_effect_free(side_effect_free_packages)
-            .await?;
-
-        if !is_side_effect_free {
+        if *current_module.side_effects().await? != ModuleSideEffects::SideEffectFree {
             side_effects.push(only_effects(*current_module).to_resolved().await?);
         }
 
         // We ignore the side effect of the entry module here, because we need to proceed.
-        let result = follow_reexports(
-            *current_module,
-            current_export_name.clone(),
-            side_effect_free_packages,
-            true,
-        )
-        .to_resolved()
-        .await?;
+        let result = follow_reexports(*current_module, current_export_name.clone(), true)
+            .to_resolved()
+            .await?;
 
         let FollowExportsResult {
             module,
@@ -353,15 +335,12 @@ impl Module for EcmascriptModulePartAsset {
     }
 
     #[turbo_tasks::function]
-    async fn is_marked_as_side_effect_free(
-        &self,
-        side_effect_free_packages: Vc<Glob>,
-    ) -> Result<Vc<bool>> {
+    async fn side_effects(&self) -> Vc<ModuleSideEffects> {
         match self.part {
-            ModulePart::Exports | ModulePart::Export(..) => Ok(Vc::cell(true)),
-            _ => Ok(self
-                .full_module
-                .is_marked_as_side_effect_free(side_effect_free_packages)),
+            ModulePart::Exports | ModulePart::Export(..) => {
+                ModuleSideEffects::SideEffectFree.cell()
+            }
+            _ => self.full_module.side_effects(),
         }
     }
 }
