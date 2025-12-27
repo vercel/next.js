@@ -1,0 +1,361 @@
+name: Dev Server Boot Time
+
+on:
+  push:
+    branches: ['canary']
+    paths:
+      - 'packages/next/src/cli/**'
+      - 'packages/next/src/server/lib/start-server.ts'
+      - 'packages/next/src/server/lib/router-server.ts'
+      - 'packages/next/src/server/lib/bytecode-cache.ts'
+      - 'packages/next/src/server/lib/start-server-with-cache.ts'
+      - 'packages/next/next-dev-server.webpack-config.js'
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - 'packages/next/src/cli/**'
+      - 'packages/next/src/server/lib/start-server.ts'
+      - 'packages/next/src/server/lib/router-server.ts'
+      - 'packages/next/src/server/lib/bytecode-cache.ts'
+      - 'packages/next/src/server/lib/start-server-with-cache.ts'
+      - 'packages/next/next-dev-server.webpack-config.js'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: 1
+  NODE_LTS_VERSION: 22
+
+jobs:
+  benchmark-boot-time:
+    name: Benchmark Dev Server Boot Time
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Need full history to checkout canary
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+
+      - name: Setup pnpm
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+          corepack prepare pnpm@9.15.1 --activate
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-
+
+      - name: Create test app
+        run: |
+          mkdir -p /tmp/boot-test-app
+          cd /tmp/boot-test-app
+          cat > package.json << 'EOF'
+          {
+            "name": "boot-test-app",
+            "version": "0.0.1",
+            "private": true,
+            "dependencies": {
+              "react": "19.0.0",
+              "react-dom": "19.0.0"
+            }
+          }
+          EOF
+          mkdir -p app
+          cat > app/layout.tsx << 'EOF'
+          export default function RootLayout({ children }: { children: React.ReactNode }) {
+            return <html><body>{children}</body></html>
+          }
+          EOF
+          cat > app/page.tsx << 'EOF'
+          export default function Home() {
+            return <h1>Hello World</h1>
+          }
+          EOF
+          npm install
+
+      # ===== BASELINE (canary) =====
+      - name: Checkout canary branch
+        run: git checkout origin/canary
+
+      - name: Install dependencies (canary)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Next.js (canary)
+        run: pnpm build
+        working-directory: packages/next
+
+      - name: Link Next.js to test app (canary)
+        run: |
+          cd /tmp/boot-test-app
+          npm link ${{ github.workspace }}/packages/next
+
+      - name: Benchmark canary (5 runs)
+        id: canary-bench
+        run: |
+          cd /tmp/boot-test-app
+          TIMES=""
+          for i in 1 2 3 4 5; do
+            rm -rf .next
+            # Measure actual wall-clock time from command start to "Ready" appearing
+            START_TIME=$(date +%s%3N)
+            ${{ github.workspace }}/packages/next/dist/bin/next dev --turbopack 2>&1 &
+            PID=$!
+            # Wait for "Ready" to appear (poll the output)
+            while ! grep -q "Ready" /tmp/boot-test-app/.next/server/app-paths-manifest.json 2>/dev/null && kill -0 $PID 2>/dev/null; do
+              sleep 0.05
+            done
+            # Also check stdout for Ready message
+            for j in $(seq 1 200); do
+              if curl -s http://localhost:3000 > /dev/null 2>&1; then
+                break
+              fi
+              sleep 0.05
+            done
+            END_TIME=$(date +%s%3N)
+            kill $PID 2>/dev/null || true
+            wait $PID 2>/dev/null || true
+
+            TIME=$((END_TIME - START_TIME))
+            TIMES="$TIMES $TIME"
+            echo "Canary run $i: ${TIME}ms (wall-clock)"
+          done
+          AVG=$(echo $TIMES | tr ' ' '\n' | grep -v '^$' | awk '{sum+=$1; count++} END {if(count>0) printf "%.0f", sum/count; else print "0"}')
+          echo "canary_avg=${AVG}" >> $GITHUB_OUTPUT
+          echo "Canary average: ${AVG}ms"
+
+      # ===== PR BRANCH =====
+      - name: Checkout PR branch
+        run: git checkout ${{ github.sha }}
+
+      - name: Install dependencies (PR)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Next.js (PR)
+        run: pnpm build
+        working-directory: packages/next
+
+      - name: Link Next.js to test app (PR)
+        run: |
+          cd /tmp/boot-test-app
+          rm -rf node_modules/.cache
+          npm link ${{ github.workspace }}/packages/next
+
+      - name: Benchmark PR cold start (5 runs)
+        id: pr-cold
+        run: |
+          cd /tmp/boot-test-app
+          TIMES=""
+          for i in 1 2 3 4 5; do
+            rm -rf .next
+            # Measure actual wall-clock time from command start to server ready
+            START_TIME=$(date +%s%3N)
+            ${{ github.workspace }}/packages/next/dist/bin/next dev --turbopack 2>&1 &
+            PID=$!
+            # Wait for server to be ready (accepting connections)
+            for j in $(seq 1 200); do
+              if curl -s http://localhost:3000 > /dev/null 2>&1; then
+                break
+              fi
+              sleep 0.05
+            done
+            END_TIME=$(date +%s%3N)
+            kill $PID 2>/dev/null || true
+            wait $PID 2>/dev/null || true
+
+            TIME=$((END_TIME - START_TIME))
+            TIMES="$TIMES $TIME"
+            echo "PR cold run $i: ${TIME}ms (wall-clock)"
+          done
+          AVG=$(echo $TIMES | tr ' ' '\n' | grep -v '^$' | awk '{sum+=$1; count++} END {if(count>0) printf "%.0f", sum/count; else print "0"}')
+          echo "pr_cold_avg=${AVG}" >> $GITHUB_OUTPUT
+          echo "PR cold start average: ${AVG}ms"
+
+      - name: Benchmark PR warm start (5 runs)
+        id: pr-warm
+        run: |
+          cd /tmp/boot-test-app
+          # First run to create bytecode cache
+          rm -rf .next
+          ${{ github.workspace }}/packages/next/dist/bin/next dev --turbopack 2>&1 &
+          PID=$!
+          for j in $(seq 1 200); do
+            if curl -s http://localhost:3000 > /dev/null 2>&1; then
+              break
+            fi
+            sleep 0.05
+          done
+          # Let it run for a bit to create bytecode cache
+          sleep 12
+          kill $PID 2>/dev/null || true
+          wait $PID 2>/dev/null || true
+
+          TIMES=""
+          for i in 1 2 3 4 5; do
+            # Measure actual wall-clock time from command start to server ready
+            START_TIME=$(date +%s%3N)
+            ${{ github.workspace }}/packages/next/dist/bin/next dev --turbopack 2>&1 &
+            PID=$!
+            # Wait for server to be ready (accepting connections)
+            for j in $(seq 1 200); do
+              if curl -s http://localhost:3000 > /dev/null 2>&1; then
+                break
+              fi
+              sleep 0.05
+            done
+            END_TIME=$(date +%s%3N)
+            kill $PID 2>/dev/null || true
+            wait $PID 2>/dev/null || true
+
+            TIME=$((END_TIME - START_TIME))
+            TIMES="$TIMES $TIME"
+            echo "PR warm run $i: ${TIME}ms (wall-clock)"
+          done
+          AVG=$(echo $TIMES | tr ' ' '\n' | grep -v '^$' | awk '{sum+=$1; count++} END {if(count>0) printf "%.0f", sum/count; else print "0"}')
+          echo "pr_warm_avg=${AVG}" >> $GITHUB_OUTPUT
+          echo "PR warm start average: ${AVG}ms"
+
+      - name: Calculate difference
+        id: diff
+        run: |
+          CANARY=${{ steps.canary-bench.outputs.canary_avg }}
+          PR_COLD=${{ steps.pr-cold.outputs.pr_cold_avg }}
+          PR_WARM=${{ steps.pr-warm.outputs.pr_warm_avg }}
+
+          if [ "$CANARY" -gt 0 ]; then
+            COLD_DIFF=$((PR_COLD - CANARY))
+            COLD_PCT=$(awk "BEGIN {printf \"%.1f\", ($PR_COLD - $CANARY) / $CANARY * 100}")
+            WARM_DIFF=$((PR_WARM - CANARY))
+            WARM_PCT=$(awk "BEGIN {printf \"%.1f\", ($PR_WARM - $CANARY) / $CANARY * 100}")
+          else
+            COLD_DIFF=0
+            COLD_PCT="N/A"
+            WARM_DIFF=0
+            WARM_PCT="N/A"
+          fi
+
+          echo "cold_diff=${COLD_DIFF}" >> $GITHUB_OUTPUT
+          echo "cold_pct=${COLD_PCT}" >> $GITHUB_OUTPUT
+          echo "warm_diff=${WARM_DIFF}" >> $GITHUB_OUTPUT
+          echo "warm_pct=${WARM_PCT}" >> $GITHUB_OUTPUT
+
+      - name: Print results
+        run: |
+          CANARY=${{ steps.canary-bench.outputs.canary_avg }}
+          PR_COLD=${{ steps.pr-cold.outputs.pr_cold_avg }}
+          PR_WARM=${{ steps.pr-warm.outputs.pr_warm_avg }}
+          COLD_DIFF=${{ steps.diff.outputs.cold_diff }}
+          COLD_PCT=${{ steps.diff.outputs.cold_pct }}
+          WARM_DIFF=${{ steps.diff.outputs.warm_diff }}
+          WARM_PCT=${{ steps.diff.outputs.warm_pct }}
+
+          # Determine status emoji
+          if [ "$COLD_DIFF" -lt 0 ]; then
+            COLD_STATUS="🟢"
+          elif [ "$COLD_DIFF" -gt 100 ]; then
+            COLD_STATUS="🔴"
+          else
+            COLD_STATUS="🟡"
+          fi
+
+          if [ "$WARM_DIFF" -lt 0 ]; then
+            WARM_STATUS="🟢"
+          elif [ "$WARM_DIFF" -gt 100 ]; then
+            WARM_STATUS="🔴"
+          else
+            WARM_STATUS="🟡"
+          fi
+
+          echo "## Dev Server Boot Time Comparison" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Canary | PR | Difference |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------|-----|------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Cold Start | ${CANARY}ms | ${PR_COLD}ms | ${COLD_STATUS} ${COLD_DIFF}ms (${COLD_PCT}%) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Warm Start | ${CANARY}ms | ${PR_WARM}ms | ${WARM_STATUS} ${WARM_DIFF}ms (${WARM_PCT}%) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Legend:**" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟢 Faster than canary" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟡 Within 100ms of canary" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔴 More than 100ms slower than canary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Notes:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Measured: Wall-clock time from command invocation to server accepting connections" >> $GITHUB_STEP_SUMMARY
+          echo "- Cold start: Fresh .next directory" >> $GITHUB_STEP_SUMMARY
+          echo "- Warm start: Existing .next with bytecode cache (after 12s warmup)" >> $GITHUB_STEP_SUMMARY
+          echo "- Each measurement is the average of 5 runs" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check for regression
+        run: |
+          COLD_DIFF=${{ steps.diff.outputs.cold_diff }}
+          WARM_DIFF=${{ steps.diff.outputs.warm_diff }}
+
+          # Fail if cold start regression exceeds 200ms (allowing some variance)
+          if [ "$COLD_DIFF" -gt 200 ]; then
+            echo "::error::Cold start regression detected: ${COLD_DIFF}ms slower than canary (threshold: 200ms)"
+            exit 1
+          fi
+
+          # Warn if warm start is slower (but don't fail)
+          if [ "$WARM_DIFF" -gt 100 ]; then
+            echo "::warning::Warm start is ${WARM_DIFF}ms slower than canary"
+          fi
+
+          echo "✅ No significant regression detected"
+
+  test-bytecode-cache:
+    name: Test Bytecode Cache
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+
+      - name: Setup pnpm
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+          corepack prepare pnpm@9.15.1 --activate
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build Next.js
+        run: pnpm build
+        working-directory: packages/next
+
+      - name: Run bytecode cache unit tests
+        run: pnpm jest test/unit/bytecode-cache.test.ts --runInBand
