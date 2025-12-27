@@ -99,7 +99,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Next.js (canary)
-        run: turbo run build --filter=next...
+        run: pnpm turbo run build --filter=next...
 
       - name: Link Next.js to test app (canary)
         run: |
@@ -148,7 +148,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Next.js (PR)
-        run: turbo run build --filter=next...
+        run: pnpm turbo run build --filter=next...
 
       - name: Link Next.js to test app (PR)
         run: |
@@ -352,7 +352,7 @@ jobs:
         run: pnpm install
 
       - name: Build Next.js
-        run: turbo run build --filter=next...
+        run: pnpm turbo run build --filter=next...
 
       - name: Run bytecode cache unit tests
         run: pnpm jest test/unit/bytecode-cache.test.ts --runInBand
