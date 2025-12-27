@@ -334,6 +334,8 @@ const nextDev = async (
           NEXT_PRIVATE_TRACE_ID: traceId,
           // Pass CLI start time to child for accurate timing measurement
           NEXT_CLI_START_TIME: String(sessionStarted),
+          // Pass server options via env to eliminate IPC handshake latency
+          NEXT_PRIVATE_WORKER_OPTIONS: JSON.stringify(startServerOptions),
           // Enable V8 compile cache for Node.js 22+ (ignored on older versions)
           NODE_COMPILE_CACHE: nodeCompileCacheDir,
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
@@ -350,9 +352,7 @@ const nextDev = async (
 
       child.on('message', (msg: any) => {
         if (msg && typeof msg === 'object') {
-          if (msg.nextWorkerReady) {
-            child?.send({ nextWorkerOptions: startServerOptions })
-          } else if (msg.nextServerReady && !resolved) {
+          if (msg.nextServerReady && !resolved) {
             if (msg.port) {
               // Store the used port in case a random one was selected, so that
               // it can be re-used on automatic dev server restarts.

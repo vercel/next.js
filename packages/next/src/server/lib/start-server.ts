@@ -537,13 +537,14 @@ export async function startServer(
 }
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
-  process.addListener('message', async (msg: any) => {
-    if (
-      msg &&
-      typeof msg === 'object' &&
-      msg.nextWorkerOptions &&
-      process.send
-    ) {
+  // Read server options from env to eliminate IPC handshake latency
+  const workerOptions = process.env.NEXT_PRIVATE_WORKER_OPTIONS
+    ? JSON.parse(process.env.NEXT_PRIVATE_WORKER_OPTIONS)
+    : null
+
+  if (workerOptions) {
+    // Start server immediately without waiting for IPC message
+    ;(async () => {
       startServerSpan = trace('start-dev-server', undefined, {
         cpus: String(os.cpus().length),
         platform: os.platform(),
@@ -551,9 +552,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         'memory.totalMem': String(os.totalmem()),
         'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
       })
-      await startServerSpan.traceAsyncFn(() =>
-        startServer(msg.nextWorkerOptions)
-      )
+      await startServerSpan.traceAsyncFn(() => startServer(workerOptions))
       const memoryUsage = process.memoryUsage()
       startServerSpan.setAttribute('memory.rss', String(memoryUsage.rss))
       startServerSpan.setAttribute(
@@ -564,8 +563,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         'memory.heapUsed',
         String(memoryUsage.heapUsed)
       )
-      process.send({ nextServerReady: true, port: process.env.PORT })
-    }
-  })
-  process.send({ nextWorkerReady: true })
+      process.send!({ nextServerReady: true, port: process.env.PORT })
+    })()
+  }
 }
