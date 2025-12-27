@@ -62,6 +62,7 @@ pub async fn make_chunk_group(
     let should_merge_modules = *chunking_context.is_module_merging_enabled().await?;
     let batching_config = chunking_context.batching_config();
 
+    eprintln!("\tcalling chunk_group_content");
     let ChunkGroupContent {
         chunkable_items,
         batch_groups,
@@ -150,6 +151,7 @@ pub async fn make_chunk_group(
         .await?;
 
     chunk_items.extend(async_loader_chunk_items);
+    eprintln!("\tcalling make_chunks");
 
     // Pass chunk items to chunking algorithm
     let chunks = make_chunks(
@@ -161,6 +163,7 @@ pub async fn make_chunk_group(
     )
     .await?;
 
+    eprintln!("\t make_chunks returned {} chunks", chunks.len());
     Ok(MakeChunkGroupResult {
         chunks,
         referenced_output_assets,
@@ -340,6 +343,7 @@ pub async fn chunk_group_content(
                     unreachable!();
                 }
                 ChunkingType::Isolated { .. } => {
+                    // panic!("uh oh");
                     // TODO currently not implemented
                     GraphTraversalAction::Exclude
                 }

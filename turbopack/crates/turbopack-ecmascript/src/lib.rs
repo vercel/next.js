@@ -19,6 +19,7 @@ pub mod magic_identifier;
 pub mod manifest;
 mod merged_module;
 pub mod minify;
+pub mod node_worker_chunk;
 pub mod parse;
 mod path_visitor;
 pub mod references;

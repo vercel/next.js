@@ -34,6 +34,7 @@ use constant_condition::{ConstantConditionCodeGen, ConstantConditionValue};
 use constant_value::ConstantValueCodeGen;
 use either::Either;
 use indexmap::map::Entry;
+use node::NodeWorkerAssetReference;
 use num_traits::Zero;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
@@ -1950,8 +1951,7 @@ where
                 // Ignore (e.g. dynamic parameter or string literal), just as Webpack does
                 return Ok(());
             }
-            WellKnownFunctionKind::NodeWorkerConstructor if analysis.analyze_mode.is_tracing() => {
-                // Only for tracing, not for bundling (yet?)
+            WellKnownFunctionKind::NodeWorkerConstructor => {
                 let args = linked_args().await?;
                 if !args.is_empty() {
                     let pat = js_value_to_pattern(&args[0]);
@@ -1968,17 +1968,34 @@ where
                             return Ok(());
                         }
                     }
-                    analysis.add_reference(
-                        FilePathModuleReference::new(
-                            origin.asset_context(),
-                            get_traced_project_dir().await?,
-                            Pattern::new(pat),
-                            collect_affecting_sources,
-                            get_issue_source(),
-                        )
-                        .to_resolved()
-                        .await?,
-                    );
+
+                    if analysis.analyze_mode.is_tracing() {
+                        // In tracing mode, use FilePathModuleReference for NFT
+                        analysis.add_reference(
+                            FilePathModuleReference::new(
+                                origin.asset_context(),
+                                get_traced_project_dir().await?,
+                                Pattern::new(pat),
+                                collect_affecting_sources,
+                                get_issue_source(),
+                            )
+                            .to_resolved()
+                            .await?,
+                        );
+                    } else {
+                        // In bundling mode, use NodeWorkerAssetReference to create evaluated chunk
+                        // groups
+                        analysis.add_reference_code_gen(
+                            NodeWorkerAssetReference::new(
+                                origin,
+                                get_traced_project_dir().await?,
+                                Pattern::new(pat).to_resolved().await?,
+                                issue_source(source, span),
+                                in_try,
+                            ),
+                            ast_path.to_vec().into(),
+                        );
+                    }
                     return Ok(());
                 }
                 let (args, hints) = explain_args(args);

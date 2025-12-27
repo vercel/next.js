@@ -5,7 +5,7 @@
 
 mod util;
 
-use std::{env, path::PathBuf};
+use std::{env, path::PathBuf, time::Duration};
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
@@ -91,7 +91,6 @@ enum IssueSnapshotMode {
 //
 // "Skip" directories named `__skipped__`, which include test directories to
 // skip.
-
 #[testing::fixture(
     "tests/execution/*/*/*/input/index.js",
     exclude("node_modules|__skipped__")
@@ -548,18 +547,22 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     }
     let chunking_context = builder.build();
 
-    let res = evaluate(
-        entries,
-        path.clone(),
-        Vc::upcast(CommandLineProcessEnv::new()),
-        Vc::upcast(test_source),
-        Vc::upcast(chunking_context),
-        module_graph,
-        vec![],
-        Completion::immutable(),
-        should_debug("execution_test"),
+    let res = tokio::time::timeout(
+        Duration::from_secs(15),
+        evaluate(
+            entries,
+            path.clone(),
+            Vc::upcast(CommandLineProcessEnv::new()),
+            Vc::upcast(test_source),
+            Vc::upcast(chunking_context),
+            module_graph,
+            vec![],
+            Completion::immutable(),
+            should_debug("execution_test"),
+        ),
     )
-    .await?;
+    .await
+    .context("Test execution timed out after 15 seconds")??;
 
     let Some(str) = &*res else {
         return Ok(RunTestResult {

@@ -33,6 +33,7 @@ use turbopack_ecmascript_runtime::RuntimeType;
 
 use crate::ecmascript::node::{
     chunk::EcmascriptBuildNodeChunk, entry::chunk::EcmascriptBuildNodeEntryChunk,
+    evaluate::chunk::EcmascriptBuildNodeEvaluateChunk,
 };
 
 /// A builder for [`Vc<NodeJsChunkingContext>`].
@@ -257,25 +258,6 @@ impl NodeJsChunkingContext {
 
 #[turbo_tasks::value_impl]
 impl NodeJsChunkingContext {
-    #[turbo_tasks::function]
-    async fn generate_chunk(
-        self: Vc<Self>,
-        chunk: ResolvedVc<Box<dyn Chunk>>,
-    ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        Ok(
-            if let Some(ecmascript_chunk) = ResolvedVc::try_downcast_type::<EcmascriptChunk>(chunk)
-            {
-                Vc::upcast(EcmascriptBuildNodeChunk::new(self, *ecmascript_chunk))
-            } else if let Some(output_asset) =
-                ResolvedVc::try_sidecast::<Box<dyn OutputAsset>>(chunk)
-            {
-                *output_asset
-            } else {
-                bail!("Unable to generate output asset for chunk");
-            },
-        )
-    }
-
     /// Returns the kind of runtime to include in output chunks.
     ///
     /// This is defined directly on `NodeJsChunkingContext` so it is zero-cost
@@ -294,6 +276,45 @@ impl NodeJsChunkingContext {
     #[turbo_tasks::function]
     pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
         Vc::cell(self.asset_prefix.clone())
+    }
+}
+
+impl NodeJsChunkingContext {
+    async fn generate_chunk(
+        self: Vc<Self>,
+        chunk: ResolvedVc<Box<dyn Chunk>>,
+    ) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
+        Ok(
+            if let Some(ecmascript_chunk) = ResolvedVc::try_downcast_type::<EcmascriptChunk>(chunk)
+            {
+                ResolvedVc::upcast(
+                    EcmascriptBuildNodeChunk::new(self, *ecmascript_chunk)
+                        .to_resolved()
+                        .await?,
+                )
+            } else if let Some(output_asset) =
+                ResolvedVc::try_sidecast::<Box<dyn OutputAsset>>(chunk)
+            {
+                output_asset
+            } else {
+                bail!("Unable to generate output asset for chunk");
+            },
+        )
+    }
+    fn generate_evaluate_chunk(
+        self: Vc<Self>,
+        ident: Vc<AssetIdent>,
+        other_chunks: Vc<OutputAssets>,
+        evaluatable_assets: Vc<EvaluatableAssets>,
+        module_graph: Vc<ModuleGraph>,
+    ) -> Vc<Box<dyn OutputAsset>> {
+        Vc::upcast(EcmascriptBuildNodeEvaluateChunk::new(
+            self,
+            ident,
+            other_chunks,
+            evaluatable_assets,
+            module_graph,
+        ))
     }
 }
 
@@ -481,7 +502,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
             let assets = chunks
                 .iter()
-                .map(|chunk| self.generate_chunk(**chunk).to_resolved())
+                .map(|chunk| self.generate_chunk(*chunk))
                 .try_join()
                 .await?;
 
@@ -534,7 +555,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             let extra_chunks = extra_chunks.await?;
             let mut other_chunks = chunks
                 .iter()
-                .map(|chunk| self.generate_chunk(**chunk).to_resolved())
+                .map(|chunk| self.generate_chunk(*chunk))
                 .try_join()
                 .await?;
             other_chunks.extend(extra_chunks.iter().copied());
@@ -572,14 +593,75 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn evaluated_chunk_group(
-        self: Vc<Self>,
-        _ident: Vc<AssetIdent>,
-        _chunk_group: ChunkGroup,
-        _module_graph: Vc<ModuleGraph>,
-        _availability_info: AvailabilityInfo,
+    async fn evaluated_chunk_group(
+        self: ResolvedVc<Self>,
+        ident: Vc<AssetIdent>,
+        chunk_group: ChunkGroup,
+        module_graph: Vc<ModuleGraph>,
+        input_availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
-        bail!("the Node.js chunking context does not support evaluated chunk groups")
+        let span = tracing::info_span!(
+            "chunking",
+            name = display(ident.to_string().await?),
+            chunking_type = "evaluated",
+        );
+        eprintln!(
+            "Creating an evaluated_chunk_group: {}",
+            ident.to_string().await?
+        );
+        async move {
+            let entries = chunk_group.entries();
+            eprintln!("About to call make_chunk_group");
+            let MakeChunkGroupResult {
+                chunks,
+                referenced_output_assets,
+                references,
+                availability_info,
+            } = make_chunk_group(
+                entries,
+                module_graph,
+                ResolvedVc::upcast(self),
+                input_availability_info,
+            )
+            .await?;
+            eprintln!("make_chunk_group returned, chunks: {}", chunks.len());
+
+            let mut assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = chunks
+                .iter()
+                .map(|chunk| self.generate_chunk(*chunk))
+                .try_join()
+                .await?;
+
+            let other_assets = Vc::cell(assets.clone());
+
+            let entries = Vc::cell(
+                chunk_group
+                    .entries()
+                    .map(|m| {
+                        ResolvedVc::try_downcast::<
+                                Box<dyn turbopack_core::chunk::EvaluatableAsset>,
+                            >(m)
+                            .context("evaluated_chunk_group entries must be evaluatable assets")
+                    })
+                    .collect::<Result<Vec<_>>>()?,
+            );
+
+            assets.push(
+                self.generate_evaluate_chunk(ident, other_assets, entries, module_graph)
+                    .to_resolved()
+                    .await?,
+            );
+
+            Ok(ChunkGroupResult {
+                assets: ResolvedVc::cell(assets),
+                referenced_assets: ResolvedVc::cell(referenced_output_assets),
+                references: ResolvedVc::cell(references),
+                availability_info,
+            }
+            .cell())
+        }
+        .instrument(span)
+        .await
     }
 
     #[turbo_tasks::function]
