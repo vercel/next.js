@@ -1,44 +1,23 @@
-import { spawn } from 'child_process'
+import { createNext } from 'e2e-utils'
 
 describe('next start without next build', () => {
   it('should show error when there is no production build', async () => {
-    const appDir = __dirname
+    const next = await createNext({
+      files: __dirname,
+      skipStart: true,
+      startCommand: `pnpm next start`,
+      serverReadyPattern: /✓ Starting.../,
+    })
 
-    const result = await new Promise<{ stdout: string; stderr: string }>(
-      (resolve) => {
-        const child = spawn('pnpm', ['next', 'start'], {
-          cwd: appDir,
-          env: {
-            ...process.env,
-            NODE_ENV: 'production',
-          },
-        })
+    await next.start()
+    await new Promise<void>((resolve, reject) => {
+      next.on('stderr', (msg) => {
+        if (msg.includes('Could not find a production build in the')) {
+          resolve()
+        }
+      })
+    })
 
-        let stdout = ''
-        let stderr = ''
-
-        child.stdout?.on('data', (data) => {
-          stdout += data.toString()
-        })
-
-        child.stderr?.on('data', (data) => {
-          stderr += data.toString()
-        })
-
-        child.on('close', () => {
-          resolve({ stdout, stderr })
-        })
-
-        // Timeout after 10 seconds
-        setTimeout(() => {
-          child.kill()
-          resolve({ stdout, stderr })
-        }, 10000)
-      }
-    )
-
-    // The error message should appear in stdout (where Next.js logs errors)
-    const combinedOutput = result.stdout + result.stderr
-    expect(combinedOutput).toContain('Could not find a production build')
+    await next.destroy()
   })
 })

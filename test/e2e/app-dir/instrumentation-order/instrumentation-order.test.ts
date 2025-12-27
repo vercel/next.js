@@ -11,37 +11,21 @@ describe('instrumentation-order', () => {
     await next.fetch('/')
 
     await retry(async () => {
-      const output = next.cliOutput
+      const serverLog = next.cliOutput.split('Starting...')[1]
+      const cliOutputLines = serverLog.split('\n')
 
-      // Verify instrumentation runs in correct order
-      const instrumentationSideEffect = output.indexOf(
-        'instrumentation:side-effect'
-      )
-      const instrumentationBegin = output.indexOf(
-        'instrumentation:register:begin'
-      )
-      const instrumentationTimeout = output.indexOf(
-        'instrumentation:register:timeout'
-      )
-      const instrumentationEnd = output.indexOf('instrumentation:register:end')
-      // Find the global side effect that comes AFTER instrumentation
-      const globalSideEffect = output.indexOf(
+      const ORDERED_LOGS = [
+        'instrumentation:side-effect',
+        'instrumentation:register:begin',
+        'instrumentation:register:timeout',
+        'instrumentation:register:end',
         'global-side-effect:app-router-page',
-        instrumentationEnd
+      ]
+      const searchedLines = cliOutputLines.filter((line) =>
+        ORDERED_LOGS.includes(line.trim())
       )
 
-      // All logs should be present
-      expect(instrumentationSideEffect).toBeGreaterThan(-1)
-      expect(instrumentationBegin).toBeGreaterThan(-1)
-      expect(instrumentationTimeout).toBeGreaterThan(-1)
-      expect(instrumentationEnd).toBeGreaterThan(-1)
-      expect(globalSideEffect).toBeGreaterThan(-1)
-
-      // Verify correct order: side-effect < begin < timeout < end < global-side-effect
-      expect(instrumentationSideEffect).toBeLessThan(instrumentationBegin)
-      expect(instrumentationBegin).toBeLessThan(instrumentationTimeout)
-      expect(instrumentationTimeout).toBeLessThan(instrumentationEnd)
-      expect(instrumentationEnd).toBeLessThan(globalSideEffect)
+      expect(searchedLines).toEqual(ORDERED_LOGS)
     })
   })
 })
