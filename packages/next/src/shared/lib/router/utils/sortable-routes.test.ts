@@ -1012,3 +1012,35 @@ describe('compareRouteSegments', () => {
     ])
   })
 })
+
+// Import the deprecated function for testing
+import { getSortedRouteObjects } from './sorted-routes'
+
+describe('getSortedRouteObjects (deprecated)', () => {
+  it('should handle duplicate pathnames correctly', () => {
+    // This test verifies that objects with the same pathname are all preserved
+    // Common case: layouts and pages sharing the same route path
+    const objects = [
+      { id: 'layout-a', type: 'layout', route: '/blog/[slug]' },
+      { id: 'page-b', type: 'page', route: '/blog/post-1' },
+      { id: 'page-c', type: 'page', route: '/blog/[slug]' }, // Same route as layout-a
+      { id: 'api-d', type: 'api', route: '/api/users' },
+    ]
+
+    const sorted = getSortedRouteObjects(objects, (obj) => obj.route)
+
+    // Verify all objects are preserved
+    expect(sorted.length).toBe(objects.length)
+
+    // Verify no duplicates in output (each id should appear exactly once)
+    const outputIds = sorted.map((o) => o.id)
+    const uniqueIds = new Set(outputIds)
+    expect(uniqueIds.size).toBe(objects.length)
+
+    // Verify all original IDs are present
+    expect(outputIds).toContain('layout-a')
+    expect(outputIds).toContain('page-b')
+    expect(outputIds).toContain('page-c')
+    expect(outputIds).toContain('api-d')
+  })
+})
