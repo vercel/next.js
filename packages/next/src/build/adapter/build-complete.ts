@@ -174,37 +174,50 @@ export interface AdapterOutput {
     /**
      * fallback is initial cache data generated during build for a prerender
      */
-    fallback?: {
-      /**
-       * path to the fallback file can be HTML/JSON/RSC
-       */
-      filePath: string
-      /**
-       * initialStatus is the status code that should be applied
-       * when serving the fallback
-       */
-      initialStatus?: number
-      /**
-       * initialHeaders are the headers that should be sent when
-       * serving the fallback
-       */
-      initialHeaders?: Record<string, string | string[]>
-      /**
-       * initial expiration is how long until the fallback entry
-       * is considered expired and no longer valid to serve
-       */
-      initialExpiration?: number
-      /**
-       * initial revalidate is how long until the fallback is
-       * considered stale and should be revalidated
-       */
-      initialRevalidate?: Revalidate
+    fallback?:
+      | {
+          /**
+           * path to the fallback file can be HTML/JSON/RSC,
+           */
+          filePath: string
+          /**
+           * initialStatus is the status code that should be applied
+           * when serving the fallback
+           */
+          initialStatus?: number
+          /**
+           * initialHeaders are the headers that should be sent when
+           * serving the fallback
+           */
+          initialHeaders?: Record<string, string | string[]>
+          /**
+           * initial expiration is how long until the fallback entry
+           * is considered expired and no longer valid to serve
+           */
+          initialExpiration?: number
+          /**
+           * initial revalidate is how long until the fallback is
+           * considered stale and should be revalidated
+           */
+          initialRevalidate?: Revalidate
 
-      /**
-       * postponedState is the PPR state when it postponed and is used for resuming
-       */
-      postponedState?: string
-    }
+          /**
+           * postponedState is the PPR state when it postponed and is used for resuming
+           */
+          postponedState?: string
+        }
+      | {
+          /*
+        a fallback filePath can be omitted when postponedState is
+        present which signals the fallback should just resume with
+        the postpone state but doesn't have fallback to seed cache
+      */
+          postponedState: string
+          initialExpiration?: number
+          initialRevalidate?: Revalidate
+          initialHeaders?: Record<string, string | string[]>
+          initialStatus?: number
+        }
     /**
      * config related to the route
      */
@@ -1164,7 +1177,6 @@ export async function handleBuildComplete({
           initialRevalidateSeconds: initialRevalidate,
           initialHeaders,
           initialStatus,
-          prefetchDataRoute,
           dataRoute,
           renderingMode,
           allowHeader,
@@ -1273,10 +1285,11 @@ export async function handleBuildComplete({
         outputs.prerenders.push(initialOutput)
 
         if (dataRoute) {
-          let dataFilePath = path.join(
+          let dataFilePath: string | undefined = path.join(
             pagesDistDir,
             `${normalizePagePath(route)}.json`
           )
+          let postponed = meta.postponed
 
           if (isAppPage) {
             // When experimental PPR is enabled, we expect that the data
@@ -1284,32 +1297,52 @@ export async function handleBuildComplete({
             // be from the prefetch data route. If this isn't enabled
             // for ppr, the only way to get the data is from the data
             // route.
-            dataFilePath = path.join(
-              appDistDir,
-              prefetchDataRoute &&
-                renderingMode === RenderingMode.PARTIALLY_STATIC
-                ? prefetchDataRoute
-                : dataRoute
-            )
+            dataFilePath = path.join(appDistDir, dataRoute)
           }
 
-          outputs.prerenders.push({
-            ...initialOutput,
-            id: dataRoute,
-            pathname: dataRoute,
-            fallback: isNotFoundTrue
-              ? undefined
-              : {
-                  ...initialOutput.fallback,
-                  initialHeaders: {
-                    ...initialOutput.fallback?.initialHeaders,
-                    'content-type': isAppPage
-                      ? rscContentTypeHeader
-                      : JSON_CONTENT_TYPE_HEADER,
+          if (
+            renderingMode === RenderingMode.PARTIALLY_STATIC &&
+            !(await cachedFilePathCheck(dataFilePath))
+          ) {
+            // TODO: allowQuery should diverge based on app client param
+            // parsing flag
+            outputs.prerenders.push({
+              ...initialOutput,
+              id: dataRoute,
+              pathname: dataRoute,
+              fallback: !postponed
+                ? undefined
+                : {
+                    ...initialOutput.fallback,
+                    postponedState: postponed,
+                    initialHeaders: {
+                      ...initialOutput.fallback?.initialHeaders,
+                      'content-type': isAppPage
+                        ? rscContentTypeHeader
+                        : JSON_CONTENT_TYPE_HEADER,
+                    },
+                    filePath: undefined,
                   },
-                  filePath: dataFilePath,
-                },
-          })
+            })
+          } else {
+            outputs.prerenders.push({
+              ...initialOutput,
+              id: dataRoute,
+              pathname: dataRoute,
+              fallback: isNotFoundTrue
+                ? undefined
+                : {
+                    ...initialOutput.fallback,
+                    initialHeaders: {
+                      ...initialOutput.fallback?.initialHeaders,
+                      'content-type': isAppPage
+                        ? rscContentTypeHeader
+                        : JSON_CONTENT_TYPE_HEADER,
+                    },
+                    filePath: dataFilePath,
+                  },
+            })
+          }
         }
 
         if (isAppPage) {
@@ -1325,13 +1358,16 @@ export async function handleBuildComplete({
           fallbackRevalidate,
           fallbackHeaders,
           fallbackStatus,
+          fallbackSourceRoute,
           allowHeader,
           dataRoute,
           renderingMode,
           experimentalBypassFor,
         } = prerenderManifest.dynamicRoutes[dynamicRoute]
 
-        const isAppPage = Boolean(appOutputMap[dynamicRoute])
+        const srcRoute = fallbackSourceRoute || dynamicRoute
+        const parentOutput = getParentOutput(srcRoute, dynamicRoute)
+        const isAppPage = Boolean(appOutputMap[srcRoute])
 
         const allowQuery = Object.values(
           routesManifest.dynamicRoutes.find(
@@ -1344,7 +1380,7 @@ export async function handleBuildComplete({
           id: dynamicRoute,
           type: AdapterOutputType.PRERENDER,
           pathname: dynamicRoute,
-          parentOutputId: getParentOutput(dynamicRoute, dynamicRoute).id,
+          parentOutputId: parentOutput.id,
           groupId: prerenderGroupId,
           config: {
             allowQuery,
@@ -1380,7 +1416,25 @@ export async function handleBuildComplete({
             await handleAppMeta(dynamicRoute, initialOutput, meta)
           }
 
-          if (dataRoute) {
+          if (renderingMode === RenderingMode.PARTIALLY_STATIC) {
+            outputs.prerenders.push({
+              ...initialOutput,
+              id: `${dynamicRoute}.rsc`,
+              pathname: `${dynamicRoute}.rsc`,
+              fallback: meta.postponed
+                ? {
+                    ...initialOutput.fallback,
+                    postponedState: meta.postponed,
+                    initialHeaders: {
+                      ...initialOutput.fallback?.initialHeaders,
+                      'content-type': isAppPage
+                        ? rscContentTypeHeader
+                        : JSON_CONTENT_TYPE_HEADER,
+                    },
+                  }
+                : undefined,
+            })
+          } else if (dataRoute) {
             outputs.prerenders.push({
               ...initialOutput,
               id: dataRoute,
@@ -1521,7 +1575,7 @@ export async function handleBuildComplete({
           route.page
         ) + getDestinationQuery(route.routeKeys)
 
-      if (appPageKeys && appPageKeys.length > 0 && config.cacheComponents) {
+      if (appPageKeys && appPageKeys.length > 0) {
         // If we have fallback root params (implying we've already
         // emitted a rewrite for the /_tree request), or if the route
         // has PPR enabled and client param parsing is enabled, then

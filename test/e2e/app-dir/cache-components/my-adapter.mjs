@@ -15,7 +15,6 @@ const myAdapter = {
       throw new Error(`invalid phase value provided to modifyConfig ${phase}`)
     }
     console.log('called modify config in adapter with phase', phase)
-    config.basePath = '/docs'
     return config
   },
   onBuildComplete: async (ctx) => {
@@ -121,32 +120,19 @@ const myAdapter = {
 
     // Validate that all appPages have matching .rsc and non .rsc pathnames
     const appPagePathnames = new Map()
-
-    // Helper function to normalize /index to / for matching
-    const normalizePathname = (pathname) => {
-      if (pathname.endsWith('/index')) {
-        return pathname.slice(0, -6) || '/'
-      }
-      return pathname
-    }
-
     for (const appPage of ctx.outputs.appPages) {
       const pathname = appPage.pathname
       if (pathname.endsWith('.rsc')) {
-        const basePathname = normalizePathname(pathname.slice(0, -4)) // Remove .rsc extension and normalize
+        const basePathname = pathname.slice(0, -4) // Remove .rsc extension
         if (!appPagePathnames.has(basePathname)) {
           appPagePathnames.set(basePathname, { rsc: false, nonRsc: false })
         }
         appPagePathnames.get(basePathname).rsc = true
       } else {
-        const normalizedPathname = normalizePathname(pathname)
-        if (!appPagePathnames.has(normalizedPathname)) {
-          appPagePathnames.set(normalizedPathname, {
-            rsc: false,
-            nonRsc: false,
-          })
+        if (!appPagePathnames.has(pathname)) {
+          appPagePathnames.set(pathname, { rsc: false, nonRsc: false })
         }
-        appPagePathnames.get(normalizedPathname).nonRsc = true
+        appPagePathnames.get(pathname).nonRsc = true
       }
     }
 

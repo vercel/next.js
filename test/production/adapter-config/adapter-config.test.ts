@@ -110,10 +110,15 @@ describe('adapter-config', () => {
       try {
         expect(prerenderOutput.parentOutputId).toBeTruthy()
         if (prerenderOutput.fallback) {
-          const stats = await fs.promises.stat(
+          if (
+            'filePath' in prerenderOutput.fallback &&
             prerenderOutput.fallback.filePath
-          )
-          expect(stats.isFile()).toBe(true)
+          ) {
+            const stats = await fs.promises.stat(
+              prerenderOutput.fallback.filePath
+            )
+            expect(stats.isFile()).toBe(true)
+          }
           expect(prerenderOutput.fallback.initialRevalidate).toBeDefined()
         }
 
