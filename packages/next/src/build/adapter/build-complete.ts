@@ -33,6 +33,7 @@ import type {
 } from '..'
 
 import {
+  CACHE_ONE_YEAR,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
   NEXT_RESUME_HEADER,
@@ -298,6 +299,20 @@ type DynamicRouteItem = {
   missing: RouteHas[] | undefined
 }
 
+type Route = {
+  // regex as string can have named or un-named matches
+  source?: string
+  sourceRegex: string
+  // destination can have matches to replace in destination
+  // keyed by $1 for un-named and $name for named
+  destination?: string
+  headers?: Record<string, string>
+  has?: RouteHas[]
+  missing?: RouteHas[]
+  status?: number
+  priority?: boolean
+}
+
 export interface NextAdapter {
   name: string
   /**
@@ -314,30 +329,20 @@ export interface NextAdapter {
     }
   ) => Promise<NextConfigComplete> | NextConfigComplete
   onBuildComplete?: (ctx: {
-    routes: {
-      headers: Array<{
-        source: string
-        sourceRegex: string
-        headers: Record<string, string>
-        has: RouteHas[] | undefined
-        missing: RouteHas[] | undefined
-        priority?: boolean
-      }>
-      redirects: Array<{
-        source: string
-        sourceRegex: string
-        destination: string
-        statusCode: number
-        has: RouteHas[] | undefined
-        missing: RouteHas[] | undefined
-        priority?: boolean
-      }>
-      rewrites: {
-        beforeFiles: RewriteItem[]
-        afterFiles: RewriteItem[]
-        fallback: RewriteItem[]
-      }
-      dynamicRoutes: Array<DynamicRouteItem>
+    routing: {
+      beforeMiddleware: Array<Route>
+      beforeFiles: Array<Route>
+      afterFiles: Array<Route>
+      dynamicRoutes: Array<Route>
+      onMatch: Array<Route>
+      fallback: Array<Route>
+      /**
+       * shouldNormalizeNextData indicates whether Next.js data URLs
+       * (e.g., /_next/data/BUILD_ID/page.json) should be normalized
+       * during route resolution. This is true when middleware is present
+       * and there are pages router items to resolve.
+       */
+      shouldNormalizeNextData: boolean
     }
     outputs: AdapterOutputs
     /**
@@ -1649,53 +1654,73 @@ export async function handleBuildComplete({
         destination: converted.dest || route.destination,
         has: route.has,
         missing: route.missing,
-      }
+      } satisfies Route
     }
 
     try {
       Log.info(`Running onBuildComplete from ${adapterMod.name}`)
+
+      const combinedDynamicRoutes = [
+        ...dynamicDataRoutes,
+        ...dynamicSegmentRoutes,
+        ...dynamicRoutes,
+      ] satisfies Route[]
+
+      const rewrites = {
+        beforeFiles: routesManifest.rewrites.beforeFiles.map(buildRewriteItem),
+        afterFiles: routesManifest.rewrites.afterFiles.map(buildRewriteItem),
+        fallback: routesManifest.rewrites.fallback.map(buildRewriteItem),
+      }
+
+      const redirects = routesManifest.redirects.map((route) => {
+        const converted = convertRedirects([route], 307)[0]
+        const regex = converted.src || route.regex
+
+        return {
+          source: route.source,
+          sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
+          headers: 'headers' in converted ? converted.headers || {} : {},
+          status: converted.status || getRedirectStatus(route),
+          has: route.has,
+          missing: route.missing,
+          priority: route.internal || undefined,
+        } satisfies Route
+      })
+
+      const headers = routesManifest.headers.map((route) => {
+        const converted = convertHeaders([route])[0]
+        const regex = converted.src || route.regex
+
+        return {
+          source: route.source,
+          sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
+          headers: 'headers' in converted ? converted.headers || {} : {},
+          has: route.has,
+          missing: route.missing,
+          priority: route.internal || undefined,
+        } satisfies Route
+      })
+
       await adapterMod.onBuildComplete({
-        routes: {
-          dynamicRoutes: [
-            ...dynamicDataRoutes,
-            ...dynamicSegmentRoutes,
-            ...dynamicRoutes,
+        routing: {
+          beforeMiddleware: [...headers, ...redirects],
+          beforeFiles: rewrites.beforeFiles,
+          afterFiles: rewrites.afterFiles,
+          dynamicRoutes: combinedDynamicRoutes,
+          onMatch: [
+            {
+              // This ensures we only match known emitted-by-Next.js files and not
+              // user-emitted files which may be missing a hash in their filename.
+              sourceRegex: `^/${escapeStringRegexp(buildId)}/_next/static/(?:[^/]+/pages|pages|chunks|runtime|css|image|media|${escapeStringRegexp(buildId)})/.+`,
+              // Next.js assets contain a hash or entropy in their filenames, so they
+              // are guaranteed to be unique and cacheable indefinitely.
+              headers: {
+                'cache-control': `public,max-age=${CACHE_ONE_YEAR},immutable`,
+              },
+            },
           ],
-          rewrites: {
-            beforeFiles:
-              routesManifest.rewrites.beforeFiles.map(buildRewriteItem),
-            afterFiles:
-              routesManifest.rewrites.afterFiles.map(buildRewriteItem),
-            fallback: routesManifest.rewrites.fallback.map(buildRewriteItem),
-          },
-          redirects: routesManifest.redirects.map((route) => {
-            const converted = convertRedirects([route], 307)[0]
-            let dest = 'headers' in converted && converted.headers?.Location
-            const regex = converted.src || route.regex
-
-            return {
-              source: route.source,
-              sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
-              destination: dest || route.destination,
-              statusCode: converted.status || getRedirectStatus(route),
-              has: route.has,
-              missing: route.missing,
-              priority: route.internal || undefined,
-            }
-          }),
-          headers: routesManifest.headers.map((route) => {
-            const converted = convertHeaders([route])[0]
-            const regex = converted.src || route.regex
-
-            return {
-              source: route.source,
-              sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
-              headers: 'headers' in converted ? converted.headers || {} : {},
-              has: route.has,
-              missing: route.missing,
-              priority: route.internal || undefined,
-            }
-          }),
+          fallback: rewrites.fallback,
+          shouldNormalizeNextData: !!needsMiddlewareResolveRoutes,
         },
         outputs,
 

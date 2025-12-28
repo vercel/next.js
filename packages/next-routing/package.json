@@ -1,0 +1,39 @@
+{
+  "name": "@next/routing",
+  "version": "16.1.1-canary.6",
+  "keywords": [
+    "react",
+    "next",
+    "next.js",
+    "routing"
+  ],
+  "description": "Next.js shared route resolving",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "packages/next-routing"
+  },
+  "author": "Next.js Team <support@vercel.com>",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "ncc build ./src/index.ts -w -o dist/",
+    "prerelease": "node ../../scripts/rm.mjs dist",
+    "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
+    "release": "ncc build ./src/index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
+    "build": "pnpm release && pnpm types",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "prepublishOnly": "cd ../../ && turbo run build"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@vercel/ncc": "0.34.0",
+    "jest": "^29.5.0",
+    "ts-jest": "^29.1.0"
+  }
+}
