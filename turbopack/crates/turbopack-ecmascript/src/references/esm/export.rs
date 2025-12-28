@@ -3,7 +3,6 @@ use std::{borrow::Cow, collections::BTreeMap, ops::ControlFlow};
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashSet;
-use serde::{Deserialize, Serialize};
 use swc_core::{
     common::{DUMMY_SP, SyntaxContext},
     ecma::ast::{
@@ -16,12 +15,11 @@ use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     chunk::{ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, analyze::AnalyzeIssue},
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::binding_usage_info::ModuleExportUsageInfo,
     reference::ModuleReference,
     resolve::ModulePart,
@@ -42,20 +40,7 @@ use crate::{
 /// Models the 'liveness' of an esm export
 /// All ESM exports are technically live but many never change and we can optimize representation to
 /// support that, this enum tracks the actual behavior of the export binding.
-#[derive(
-    Copy,
-    Clone,
-    Hash,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Copy, Clone, Hash, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum Liveness {
     // The binding never changes after module evaluation
     Constant,
@@ -67,19 +52,7 @@ pub enum Liveness {
     Mutable,
 }
 
-#[derive(
-    Clone,
-    Hash,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum EsmExport {
     /// A local binding that is exported (export { a } or export const a = 1)
     ///
@@ -158,19 +131,7 @@ pub async fn all_known_export_names(
     Ok(Vc::cell(export_names.esm_exports.keys().cloned().collect()))
 }
 
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum FoundExportType {
     Found,
     Dynamic,
@@ -190,7 +151,6 @@ pub struct FollowExportsResult {
 pub async fn follow_reexports(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
-    side_effect_free_packages: Vc<Glob>,
     ignore_side_effect_of_entry: bool,
 ) -> Result<Vc<FollowExportsResult>> {
     let mut ignore_side_effects = ignore_side_effect_of_entry;
@@ -208,9 +168,7 @@ pub async fn follow_reexports(
         };
 
         if !ignore_side_effects
-            && !*module
-                .is_marked_as_side_effect_free(side_effect_free_packages)
-                .await?
+            && *module.side_effects().await? != ModuleSideEffects::SideEffectFree
         {
             // TODO It's unfortunate that we have to use the whole module here.
             // This is often the Facade module, which includes all reexports.
@@ -440,7 +398,7 @@ pub async fn expand_star_exports(
                     if key == "default" {
                         continue;
                     }
-                    esm_exports.entry(key.clone()).or_insert_with(|| asset);
+                    esm_exports.entry(key.clone()).or_insert(asset);
                 }
                 for esm_ref in exports.star_exports.iter() {
                     if let ReferencedAsset::Some(asset) =

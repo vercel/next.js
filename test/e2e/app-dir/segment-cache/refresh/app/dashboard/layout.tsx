@@ -1,5 +1,19 @@
 import { LinkAccordion } from '../../components/link-accordion'
 import { ClientRefreshButton } from './client'
+import { refresh } from 'next/cache'
+
+function ServerRefreshButton() {
+  return (
+    <form
+      action={async () => {
+        'use server'
+        refresh()
+      }}
+    >
+      <button id="server-refresh-button">Server refresh</button>
+    </form>
+  )
+}
 
 export default function DashboardLayout({
   navbar,
@@ -14,6 +28,7 @@ export default function DashboardLayout({
         {navbar}
         <div>
           <ClientRefreshButton />
+          <ServerRefreshButton />
         </div>
         <ul>
           <li>
@@ -21,6 +36,9 @@ export default function DashboardLayout({
           </li>
           <li>
             <LinkAccordion href="/dashboard/analytics">Analytics</LinkAccordion>
+          </li>
+          <li>
+            <LinkAccordion href="/docs">Docs</LinkAccordion>
           </li>
         </ul>
       </div>

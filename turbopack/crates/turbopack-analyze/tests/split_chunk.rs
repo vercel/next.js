@@ -10,7 +10,7 @@ use turbo_tasks_fs::{
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem, rope::Rope,
 };
 use turbo_tasks_testing::{Registration, register, run_once};
-use turbopack_analyze::split_chunk::{ChunkPart, ChunkPartRange, split_output_asset_into_parts};
+use turbopack_analyze::split_chunk::{ChunkPartRange, split_output_asset_into_parts};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     code_builder::{Code, CodeBuilder},
@@ -59,38 +59,41 @@ async fn split_chunk() {
 
         let parts = split_output_asset_into_parts(asset).await.unwrap();
 
+        assert_eq!(parts.len(), 2);
+
+        assert_eq!(parts[0].source, rcstr!("source1.js"));
+        assert_eq!(parts[0].real_size, 46);
+        assert_eq!(parts[0].unaccounted_size, 34);
         assert_eq!(
-            &*parts,
-            &vec![
-                ChunkPart {
-                    source: rcstr!("source1.js"),
-                    real_size: 15,
-                    unaccounted_size: 51,
-                    ranges: vec![
-                        ChunkPartRange {
-                            line: 2,
-                            start_column: 0,
-                            end_column: 12,
-                        },
-                        ChunkPartRange {
-                            line: 3,
-                            start_column: 0,
-                            end_column: 3,
-                        },
-                    ],
+            parts[0].ranges,
+            vec![
+                ChunkPartRange {
+                    line: 2,
+                    start_column: 0,
+                    end_column: 12
                 },
-                ChunkPart {
-                    source: rcstr!("source2.js"),
-                    real_size: 31,
-                    unaccounted_size: 46,
-                    ranges: vec![ChunkPartRange {
-                        line: 4,
-                        start_column: 0,
-                        end_column: 31,
-                    }],
+                ChunkPartRange {
+                    line: 3,
+                    start_column: 0,
+                    end_column: 34
                 },
             ]
         );
+
+        assert_eq!(parts[1].source, rcstr!("source2.js"));
+        assert_eq!(parts[1].real_size, 31);
+        assert_eq!(parts[1].unaccounted_size, 30);
+        assert_eq!(
+            parts[1].ranges,
+            vec![ChunkPartRange {
+                line: 4,
+                start_column: 0,
+                end_column: 31
+            }]
+        );
+
+        assert_eq!(parts[0].get_compressed_size().await.unwrap(), 43);
+        assert_eq!(parts[1].get_compressed_size().await.unwrap(), 28);
 
         println!("{:#?}", parts);
         anyhow::Ok(())
