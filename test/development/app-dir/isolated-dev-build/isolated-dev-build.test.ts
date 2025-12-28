@@ -7,6 +7,10 @@ describe('isolated-dev-build', () => {
   })
 
   it('should create dev artifacts in .next/dev/ directory', async () => {
+    // Make a request to trigger compilation and directory creation
+    const browser = await next.browser('/')
+    await browser.close()
+
     expect(await next.hasFile('.next/dev')).toBe(true)
     expect(await next.hasFile('.next/server')).toBe(false)
   })

@@ -69,6 +69,8 @@ describe('TypeScript Image Component', () => {
       afterAll(() => killApp(app))
 
       it('should have image types when enabled', async () => {
+        // Make a request to ensure full initialization is complete
+        await renderViaHTTP(appPort, '/')
         const envTypes = await fs.readFile(
           join(appDir, 'next-env.d.ts'),
           'utf8'
@@ -95,7 +97,10 @@ describe('TypeScript Image Component', () => {
       nextConfig,
       content.replace('// disableStaticImages', 'disableStaticImages')
     )
-    const app = await launchApp(appDir, await findPort())
+    const port = await findPort()
+    const app = await launchApp(appDir, port)
+    // Make a request to ensure full initialization is complete
+    await renderViaHTTP(port, '/')
     await killApp(app)
     await fs.writeFile(nextConfig, content)
     const envTypes = await fs.readFile(join(appDir, 'next-env.d.ts'), 'utf8')

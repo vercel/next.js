@@ -2,7 +2,14 @@
 
 import fs from 'fs-extra'
 import { join } from 'path'
-import { launchApp, findPort, nextBuild } from 'next-test-utils'
+import {
+  launchApp,
+  findPort,
+  nextBuild,
+  killApp,
+  fetchViaHTTP,
+  retry,
+} from 'next-test-utils'
 
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
@@ -582,18 +589,43 @@ describe('Errors on invalid custom routes', () => {
     'development mode',
     () => {
       let stderr = ''
+      let app
+      let port
       beforeAll(() => {
         getStderr = async () => {
-          const port = await findPort()
-          await launchApp(appDir, port, {
+          stderr = ''
+          port = await findPort()
+          app = await launchApp(appDir, port, {
             onStderr: (msg) => {
               stderr += msg
             },
           })
+          // Make a request to trigger route validation (lazy loaded with early-ready optimization)
+          try {
+            await fetchViaHTTP(port, '/')
+          } catch {
+            // ignore - request may fail due to invalid config
+          }
+          // Wait for stderr to be populated
+          await retry(
+            () => {
+              if (stderr.length === 0) {
+                throw new Error('stderr still empty')
+              }
+            },
+            3000,
+            500
+          ).catch(() => {
+            // If no stderr after waiting, that's okay - test will fail with assertion
+          })
           return stderr
         }
       })
-      afterEach(() => {
+      afterEach(async () => {
+        if (app) {
+          await killApp(app)
+          app = undefined
+        }
         stderr = ''
       })
 

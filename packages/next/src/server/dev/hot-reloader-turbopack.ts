@@ -64,7 +64,7 @@ import {
   type SetupOpts,
 } from '../lib/router-utils/setup-dev-bundler'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
-import { findPagePathData } from './on-demand-entry-handler'
+// findPagePathData is lazy loaded - on-demand-entry-handler imports build/entries which is heavy
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import {
   type EntryKey,
@@ -97,7 +97,7 @@ import { devIndicatorServerState } from './dev-indicator-server-state'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers, printBuildErrors } from '../../build/utils'
+import { getSupportedBrowsers } from '../../build/get-supported-browsers'
 import {
   receiveBrowserLogsTurbopack,
   handleClientFileLogs,
@@ -653,6 +653,8 @@ export async function createHotReloaderTurbopack(
 
       // Certain crtical issues prevent any entrypoints from being constructed so return early
       if (!('routes' in entrypoints)) {
+        const { printBuildErrors } =
+          require('../../build/utils') as typeof import('../../build/utils')
         printBuildErrors(entrypoints, true)
 
         currentEntriesHandlingResolve!()
@@ -1312,19 +1314,21 @@ export async function createHotReloaderTurbopack(
           await currentEntriesHandling
 
           // TODO We shouldn't look into the filesystem again. This should use the information from entrypoints
-          let routeDef: Pick<
-            RouteDefinition,
-            'filename' | 'bundlePath' | 'page'
-          > =
-            definition ??
-            (await findPagePathData(
+          let routeDef:
+            | Pick<RouteDefinition, 'filename' | 'bundlePath' | 'page'>
+            | undefined = definition
+          if (!routeDef) {
+            const { findPagePathData } =
+              require('./on-demand-entry-handler') as typeof import('./on-demand-entry-handler')
+            routeDef = await findPagePathData(
               projectPath,
               inputPage,
               nextConfig.pageExtensions,
               opts.pagesDir,
               opts.appDir,
               !!nextConfig.experimental.globalNotFound
-            ))
+            )
+          }
 
           // If the route is actually an app page route, then we should have access
           // to the app route definition, and therefore, the appPaths from it.

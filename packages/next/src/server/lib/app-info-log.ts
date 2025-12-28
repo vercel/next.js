@@ -114,6 +114,7 @@ export async function getStartServerInfo({
   envInfo?: string[]
   experimentalFeatures?: ConfiguredExperimentalFeature[]
   cacheComponents?: boolean
+  logging?: boolean
 }> {
   let experimentalFeatures: ConfiguredExperimentalFeature[] = []
   let cacheComponents = false
@@ -146,5 +147,6 @@ export async function getStartServerInfo({
     envInfo,
     experimentalFeatures,
     cacheComponents,
+    logging: config.logging !== false,
   }
 }

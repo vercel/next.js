@@ -357,12 +357,20 @@ export async function startServer(
       let envInfo: string[] | undefined
       let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
       let cacheComponents: boolean | undefined
+      let logging: boolean | undefined
       try {
         if (isDev) {
           const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
           envInfo = startServerInfo.envInfo
           cacheComponents = startServerInfo.cacheComponents
           experimentalFeatures = startServerInfo.experimentalFeatures
+          logging = startServerInfo.logging
+
+          // Set logging state before any output to respect next.config.js setting
+          if (logging !== undefined) {
+            const { store: consoleStore } = (require('../../build/output/store') as typeof import('../../build/output/store'))
+            consoleStore.setState({ logging })
+          }
         }
         logStartInfo({
           networkUrl,
@@ -372,6 +380,21 @@ export async function startServer(
           cacheComponents,
           logBundler: isDev,
         })
+
+        // Print "Ready" immediately for fast perceived startup
+        // Requests will wait via handlersPromise until init completes
+        const startServerProcessDuration =
+          performance.mark('next-start-end') &&
+          performance.measure(
+            'next-start-duration',
+            'next-start',
+            'next-start-end'
+          ).duration
+        const formatDurationText =
+          startServerProcessDuration > 2000
+            ? `${Math.round(startServerProcessDuration / 100) / 10}s`
+            : `${Math.round(startServerProcessDuration)}ms`
+        Log.event(`Ready in ${formatDurationText}`)
 
         let cleanupStarted = false
         let closeUpgraded: (() => void) | null = null
@@ -457,21 +480,7 @@ export async function startServer(
         nextServer = initResult.server
         closeUpgraded = initResult.closeUpgraded
 
-        const startServerProcessDuration =
-          performance.mark('next-start-end') &&
-          performance.measure(
-            'next-start-duration',
-            'next-start',
-            'next-start-end'
-          ).duration
-
         handlersReady()
-        const formatDurationText =
-          startServerProcessDuration > 2000
-            ? `${Math.round(startServerProcessDuration / 100) / 10}s`
-            : `${Math.round(startServerProcessDuration)}ms`
-
-        Log.event(`Ready in ${formatDurationText}`)
 
         if (process.env.TURBOPACK && isDev) {
           await validateTurboNextConfig({

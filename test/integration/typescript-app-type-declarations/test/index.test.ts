@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { findPort, launchApp, killApp } from 'next-test-utils'
+import { findPort, launchApp, killApp, renderViaHTTP } from 'next-test-utils'
 import { promises as fs } from 'fs'
 
 const appDir = join(__dirname, '..')
@@ -16,6 +16,8 @@ describe('TypeScript App Type Declarations', () => {
       let app
       try {
         app = await launchApp(appDir, appPort, {})
+        // Make a request to ensure full initialization is complete
+        await renderViaHTTP(appPort, '/')
         const content = await fs.readFile(appTypeDeclarations, 'utf8')
         expect(content).toEqual(prevContent)
       } finally {
@@ -34,6 +36,8 @@ describe('TypeScript App Type Declarations', () => {
       let app
       try {
         app = await launchApp(appDir, appPort, {})
+        // Make a request to ensure full initialization is complete
+        await renderViaHTTP(appPort, '/')
         const content = await fs.readFile(appTypeDeclarations, 'utf8')
         expect(content).toEqual(prevContent)
       } finally {
@@ -50,6 +54,8 @@ describe('TypeScript App Type Declarations', () => {
     let app
     try {
       app = await launchApp(appDir, appPort, {})
+      // Make a request to ensure full initialization is complete
+      await renderViaHTTP(appPort, '/')
       const stat = await fs.stat(appTypeDeclarations)
       expect(stat.mtime).toEqual(prevStat.mtime)
     } finally {
