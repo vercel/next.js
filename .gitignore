@@ -63,3 +63,8 @@ test-timings.json
 
 # Storybook
 *storybook.log
+
+# Native CLI binaries (shell scripts next and next.cmd are committed)
+packages/next/bin/next-native
+packages/next/bin/next-native.exe
+packages/next/bin/next-cli-*

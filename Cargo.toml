@@ -8,6 +8,7 @@ members = [
   "crates/next-api",
   "crates/next-build-test",
   "crates/next-build",
+  "crates/next-cli",
   "crates/next-core",
   "crates/next-custom-transforms",
   "crates/next-taskless",

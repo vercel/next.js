@@ -1,0 +1,26 @@
+{
+  "name": "@next/cli-linux-x64-gnu",
+  "version": "0.0.0",
+  "description": "Next.js CLI binary for linux-x64-gnu",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "crates/next-cli"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "bin": {
+    "next-native": "next"
+  },
+  "files": [
+    "next"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">= 20"
+  }
+}

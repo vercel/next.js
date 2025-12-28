@@ -1,0 +1,15 @@
+#!/bin/sh
+# Next.js CLI entry point
+#
+# Tries to use the native Rust binary for faster restarts, falls back to Node.js.
+# The Rust binary is distributed via @next/cli-* platform-specific packages.
+
+DIR="$(dirname "$0")"
+
+# Production: check installed @next/cli-* package (hoisted to node_modules/@next/cli-*)
+for pkg in "$DIR"/../../@next/cli-*/next; do
+  [ -x "$pkg" ] && exec "$pkg" "$@"
+done
+
+# Fallback: Node.js (also used for in-repo development)
+exec node "$DIR/../dist/bin/next" "$@"

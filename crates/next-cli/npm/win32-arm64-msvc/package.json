@@ -1,0 +1,26 @@
+{
+  "name": "@next/cli-win32-arm64-msvc",
+  "version": "0.0.0",
+  "description": "Next.js CLI binary for win32-arm64-msvc",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "crates/next-cli"
+  },
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "bin": {
+    "next-native": "next.exe"
+  },
+  "files": [
+    "next.exe"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">= 20"
+  }
+}

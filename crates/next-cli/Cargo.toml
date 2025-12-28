@@ -1,0 +1,13 @@
+[package]
+name = "next-cli"
+version = "0.1.0"
+edition = "2021"
+description = "Ultra-fast CLI wrapper for Next.js"
+license = "MIT"
+
+[[bin]]
+name = "next"
+path = "src/main.rs"
+
+[dependencies]
+# No dependencies - keeps binary tiny and compile fast

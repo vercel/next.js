@@ -2,17 +2,8 @@
 
 import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
-import {
-  RESTART_EXIT_CODE,
-  getNodeDebugType,
-  getParsedDebugAddress,
-  getMaxOldSpaceSize,
-  printAndExit,
-  formatNodeOptions,
-  formatDebugAddress,
-  getParsedNodeOptions,
-  type DebugAddress,
-} from '../server/lib/utils'
+import { printAndExit } from '../server/lib/utils'
+import type { DebugAddress } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
@@ -28,18 +19,11 @@ import { traceGlobals } from '../trace/shared'
 // import uploadTrace from '../trace/upload-trace' - loaded only with --experimental-upload-trace
 import type { SelfSignedCertificate } from '../lib/mkcert'
 import { fileExists, FileType } from '../lib/file-exists'
-import { initialEnv } from '@next/env'
-import { fork } from 'child_process'
-import type { ChildProcess } from 'child_process'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
-import os from 'os'
-import { once } from 'node:events'
-import { clearTimeout } from 'timers'
 import { flushAllTraces, trace } from '../trace'
-import { traceId } from '../trace/shared'
 import {
   Bundler,
   finalizeBundlerFromConfig,
@@ -66,7 +50,6 @@ export type NextDevOptions = {
 type PortSource = 'cli' | 'default' | 'env'
 
 let dir: string
-let child: undefined | ChildProcess
 // The config in next-dev is only used to access config.distDir for telemetry and trace.
 let config: NextConfigComplete
 let bundler: Bundler
@@ -75,34 +58,9 @@ let sessionStopHandled = false
 const sessionStarted = Date.now()
 const sessionSpan = trace('next-dev')
 
-// How long should we wait for the child to cleanly exit after sending
-// SIGINT/SIGTERM to the child process before sending SIGKILL?
-const CHILD_EXIT_TIMEOUT_MS = parseInt(
-  process.env.NEXT_EXIT_TIMEOUT_MS ?? '100',
-  10
-)
-
-const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
-  if (signal != null && child?.pid) child.kill(signal)
+const handleSessionStop = async () => {
   if (sessionStopHandled) return
   sessionStopHandled = true
-
-  // Capture the child's exit code if it has already exited and caused the
-  // session stop (via the 'exit' event), otherwise assume success (0).
-  const exitCode = child?.exitCode || 0
-
-  if (
-    signal != null &&
-    child?.pid &&
-    child.exitCode === null &&
-    child.signalCode === null
-  ) {
-    let exitTimeout = setTimeout(() => {
-      child?.kill('SIGKILL')
-    }, CHILD_EXIT_TIMEOUT_MS)
-    await once(child, 'exit').catch(() => {})
-    clearTimeout(exitTimeout)
-  }
 
   sessionSpan.stop()
   await flushAllTraces({ end: true })
@@ -177,14 +135,11 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   // the program, or the cursor could remain hidden
   process.stdout.write('\x1B[?25h')
   process.stdout.write('\n')
-  process.exit(exitCode)
+  process.exit(0)
 }
 
-process.on('SIGINT', () => handleSessionStop('SIGINT'))
-process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
-
-// exit event must be synchronous
-process.on('exit', () => child?.kill('SIGKILL'))
+process.on('SIGINT', () => handleSessionStop())
+process.on('SIGTERM', () => handleSessionStop())
 
 const nextDev = async (
   options: NextDevOptions,
@@ -268,141 +223,23 @@ const nextDev = async (
     hostname: host,
   }
 
-  const startServerPath = require.resolve(
-    '../server/lib/start-server-with-cache'
-  )
-
-  async function startServer(startServerOptions: StartServerOptions) {
-    return new Promise<void>((resolve) => {
-      let resolved = false
-      const defaultEnv = (initialEnv || process.env) as typeof process.env
-
-      const nodeOptions = getParsedNodeOptions()
-
-      let maxOldSpaceSize: string | number | undefined = getMaxOldSpaceSize()
-      if (!maxOldSpaceSize && !process.env.NEXT_DISABLE_MEM_OVERRIDE) {
-        const totalMem = os.totalmem()
-        const totalMemInMB = Math.floor(totalMem / 1024 / 1024)
-        maxOldSpaceSize = Math.floor(totalMemInMB * 0.5).toString()
-
-        nodeOptions['max-old-space-size'] = maxOldSpaceSize
-
-        // Ensure the max_old_space_size is not also set.
-        delete nodeOptions['max_old_space_size']
-      }
-
-      if (options.disableSourceMaps) {
-        delete nodeOptions['enable-source-maps']
-      } else {
-        nodeOptions['enable-source-maps'] = true
-      }
-
-      const nodeDebugType = getNodeDebugType(nodeOptions)
-      const originalAddress =
-        nodeDebugType === undefined ? undefined : nodeOptions[nodeDebugType]
-      delete nodeOptions.inspect
-      delete nodeOptions['inspect-brk']
-      delete nodeOptions['inspect_brk']
-      if (nodeDebugType !== undefined) {
-        const address = getParsedDebugAddress(originalAddress)
-        address.port = address.port === 0 ? 0 : address.port + 1
-        nodeOptions[nodeDebugType] = formatDebugAddress(address)
-      } else if (options.inspect) {
-        const address: DebugAddress =
-          options.inspect === true
-            ? getParsedDebugAddress(true)
-            : options.inspect
-        nodeOptions.inspect = formatDebugAddress(address)
-      }
-
-      child = fork(startServerPath, {
-        stdio: 'inherit',
-        env: {
-          ...defaultEnv,
-          ...(bundler === Bundler.Turbopack
-            ? { TURBOPACK: process.env.TURBOPACK }
-            : undefined),
-          NEXT_PRIVATE_WORKER: '1',
-          NEXT_PRIVATE_TRACE_ID: traceId,
-          // Pass server options via env to eliminate IPC handshake latency
-          NEXT_PRIVATE_WORKER_OPTIONS: JSON.stringify(startServerOptions),
-          NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
-            ? startServerOptions.selfSignedCertificate.rootCA
-            : defaultEnv.NODE_EXTRA_CA_CERTS,
-          NODE_OPTIONS: formatNodeOptions(nodeOptions),
-          // There is a node.js bug on MacOS which causes closing file watchers to be really slow.
-          // This limits the number of watchers to mitigate the issue.
-          // https://github.com/nodejs/node/issues/29949
-          WATCHPACK_WATCHER_LIMIT:
-            os.platform() === 'darwin' ? '20' : undefined,
-        },
-      })
-
-      child.on('message', (msg: any) => {
-        if (msg && typeof msg === 'object') {
-          if (msg.nextServerReady && !resolved) {
-            if (msg.port) {
-              // Store the used port in case a random one was selected, so that
-              // it can be re-used on automatic dev server restarts.
-              port = parseInt(msg.port, 10)
-            }
-
-            resolved = true
-            resolve()
-          }
-        }
-      })
-
-      child.on('exit', async (code, signal) => {
-        if (sessionStopHandled || signal) {
-          return
-        }
-        if (code === RESTART_EXIT_CODE) {
-          // Starting the dev server will overwrite the `.next/trace` file, so we
-          // must upload the existing contents before restarting the server to
-          // preserve the metrics.
-          if (traceUploadUrl) {
-            // Postpone loading next config when we need to get
-            //  config.distDir for upload trace.
-            const loadConfig = (
-              require('../server/config') as typeof import('../server/config')
-            ).default
-            config =
-              config ||
-              (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
-                silent: true,
-              }))
-            bundler = finalizeBundlerFromConfig(bundler)
-            const uploadTrace = (
-              require('../trace/upload-trace') as typeof import('../trace/upload-trace')
-            ).default
-            uploadTrace({
-              traceUploadUrl,
-              mode: 'dev',
-              projectDir: dir,
-              distDir: config.distDir,
-              isTurboSession: bundler === Bundler.Turbopack,
-              sync: true,
-            })
-          }
-
-          return startServer({ ...startServerOptions, port })
-        }
-        // Call handler (e.g. upload telemetry). Don't try to send a signal to
-        // the child, as it has already exited.
-        await handleSessionStop(/* signal */ null)
-      })
-    })
+  // Set TURBOPACK env if using turbopack bundler
+  if (bundler === Bundler.Turbopack) {
+    process.env.TURBOPACK = '1'
   }
 
   const runDevServer = async (reboot: boolean) => {
     try {
+      // Load startServer from bundled version with optional bytecode caching
+      // The Rust wrapper handles restarts via exit code 77
+      const { startServer } =
+        require('../server/lib/start-server-with-cache') as typeof import('../server/lib/start-server-with-cache')
+
+      let certificate: SelfSignedCertificate | undefined
       if (!!options.experimentalHttps) {
         Log.warn(
           'Self-signed certificates are currently an experimental feature, use with caution.'
         )
-
-        let certificate: SelfSignedCertificate | undefined
 
         const key = options.experimentalHttpsKey
         const cert = options.experimentalHttpsCert
@@ -419,14 +256,14 @@ const nextDev = async (
             require('../lib/mkcert') as typeof import('../lib/mkcert')
           certificate = await createSelfSignedCertificate(host)
         }
-
-        await startServer({
-          ...devServerOptions,
-          selfSignedCertificate: certificate,
-        })
-      } else {
-        await startServer(devServerOptions)
       }
+
+      // Start server directly in this process
+      // Exit code 77 (from config watcher) will be handled by Rust wrapper
+      await startServer({
+        ...devServerOptions,
+        selfSignedCertificate: certificate,
+      })
 
       await preflight(reboot)
     } catch (err) {

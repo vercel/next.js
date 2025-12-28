@@ -17,7 +17,6 @@ import v8 from 'v8'
 import path from 'path'
 import http from 'http'
 import https from 'https'
-import os from 'os'
 import { exec } from 'child_process'
 import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
@@ -518,45 +517,5 @@ export async function startServer(
       )
       process.exit(RESTART_EXIT_CODE)
     })
-  }
-}
-
-if (process.env.NEXT_PRIVATE_WORKER && process.send) {
-  // Read server options from env to eliminate IPC handshake latency
-  let workerOptions = null
-  if (process.env.NEXT_PRIVATE_WORKER_OPTIONS) {
-    try {
-      workerOptions = JSON.parse(process.env.NEXT_PRIVATE_WORKER_OPTIONS)
-    } catch (err) {
-      console.error(
-        'Failed to parse NEXT_PRIVATE_WORKER_OPTIONS:',
-        err instanceof Error ? err.message : err
-      )
-    }
-  }
-
-  if (workerOptions) {
-    // Start server immediately without waiting for IPC message
-    ;(async () => {
-      startServerSpan = trace('start-dev-server', undefined, {
-        cpus: String(os.cpus().length),
-        platform: os.platform(),
-        'memory.freeMem': String(os.freemem()),
-        'memory.totalMem': String(os.totalmem()),
-        'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
-      })
-      await startServerSpan.traceAsyncFn(() => startServer(workerOptions))
-      const memoryUsage = process.memoryUsage()
-      startServerSpan.setAttribute('memory.rss', String(memoryUsage.rss))
-      startServerSpan.setAttribute(
-        'memory.heapTotal',
-        String(memoryUsage.heapTotal)
-      )
-      startServerSpan.setAttribute(
-        'memory.heapUsed',
-        String(memoryUsage.heapUsed)
-      )
-      process.send!({ nextServerReady: true, port: process.env.PORT })
-    })()
   }
 }

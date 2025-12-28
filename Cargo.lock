@@ -4344,6 +4344,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "next-cli"
+version = "0.1.0"
+
+[[package]]
 name = "next-core"
 version = "0.1.0"
 dependencies = [
