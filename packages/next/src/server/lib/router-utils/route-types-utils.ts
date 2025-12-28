@@ -10,6 +10,8 @@ import {
   generateRouteTypesFile,
   generateLinkTypesFile,
   generateValidatorFile,
+  generateValidatorFileStrict,
+  generateRouteTypesFileStrict,
 } from './typegen'
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
 import {
@@ -361,7 +363,12 @@ export async function writeRouteTypesManifest(
   }
 
   // Write the main routes.d.ts file
-  await fs.promises.writeFile(filePath, generateRouteTypesFile(manifest))
+  await fs.promises.writeFile(
+    filePath,
+    config.experimental.strictRouteTypes
+      ? generateRouteTypesFileStrict(manifest)
+      : generateRouteTypesFile(manifest)
+  )
 
   // Write the link.d.ts file if typedRoutes is enabled
   if (config.typedRoutes === true) {
@@ -372,7 +379,8 @@ export async function writeRouteTypesManifest(
 
 export async function writeValidatorFile(
   manifest: RouteTypesManifest,
-  filePath: string
+  filePath: string,
+  strict: boolean
 ) {
   const dirname = path.dirname(filePath)
 
@@ -380,5 +388,10 @@ export async function writeValidatorFile(
     await fs.promises.mkdir(dirname, { recursive: true })
   }
 
-  await fs.promises.writeFile(filePath, generateValidatorFile(manifest))
+  await fs.promises.writeFile(
+    filePath,
+    strict
+      ? generateValidatorFileStrict(manifest)
+      : generateValidatorFile(manifest)
+  )
 }

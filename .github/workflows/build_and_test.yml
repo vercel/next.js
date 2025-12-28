@@ -249,6 +249,7 @@ jobs:
         export TURBOPACK_DEV=1
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
 
         node run-tests.js \
           --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' \
@@ -279,6 +280,7 @@ jobs:
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
 
         node run-tests.js \
           --timings \
@@ -309,6 +311,7 @@ jobs:
         export TURBOPACK_BUILD=1
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
 
         node run-tests.js --timings -g ${{ matrix.group }} --type production
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
@@ -336,6 +339,7 @@ jobs:
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
 
         node run-tests.js \
           --timings \
@@ -363,6 +367,7 @@ jobs:
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -399,6 +404,7 @@ jobs:
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -435,6 +441,7 @@ jobs:
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -468,6 +475,7 @@ jobs:
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -562,6 +570,7 @@ jobs:
       nodeVersion: ${{ matrix.node }}
       afterBuild: |
         export __NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         NEXT_TEST_MODE=dev NODE_OPTIONS=--experimental-transform-types node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
       stepName: 'test-next-config-ts-native-ts-dev-${{ matrix.node }}'
 
@@ -583,6 +592,7 @@ jobs:
       nodeVersion: ${{ matrix.node }}
       afterBuild: |
         export __NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         NEXT_TEST_MODE=start NODE_OPTIONS=--experimental-transform-types node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
       stepName: 'test-next-config-ts-native-ts-prod-${{ matrix.node }}'
 
@@ -623,6 +633,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode dev \
@@ -647,6 +658,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode start \
@@ -672,6 +684,7 @@ jobs:
     with:
       afterBuild: |
         export NEXT_E2E_TEST_TIMEOUT=240000
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         export GH_PR_NUMBER=${{ github.event.pull_request && github.event.pull_request.number || '' }}
         node scripts/test-new-tests.mjs \
           --mode deploy \
@@ -733,6 +746,7 @@ jobs:
         export IS_WEBPACK_TEST=1
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
 
         node run-tests.js \
           --timings \
@@ -759,6 +773,7 @@ jobs:
       afterBuild: |
         export NEXT_TEST_MODE=dev
         export IS_WEBPACK_TEST=1
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
 
         node run-tests.js \
           test/e2e/app-dir/app/index.test.ts \
@@ -787,6 +802,7 @@ jobs:
       nodeVersion: 20.9.0
       afterBuild: |
         export IS_WEBPACK_TEST=1
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         node run-tests.js \
           --concurrency 4 \
           test/production/pages-dir/production/test/index.test.ts \
@@ -816,6 +832,7 @@ jobs:
       afterBuild: |
         export NEXT_TEST_MODE=start
         export IS_WEBPACK_TEST=1
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
 
         node run-tests.js --type production \
           test/e2e/app-dir/app/index.test.ts \
@@ -848,6 +865,7 @@ jobs:
         export IS_WEBPACK_TEST=1
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
 
         node run-tests.js --timings -g ${{ matrix.group }} --type production
       stepName: 'test-prod-react-${{ matrix.react }}-${{ matrix.group }}'
@@ -887,6 +905,7 @@ jobs:
       afterBuild: |
         export IS_WEBPACK_TEST=1
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
 
         node run-tests.js \
           --timings \

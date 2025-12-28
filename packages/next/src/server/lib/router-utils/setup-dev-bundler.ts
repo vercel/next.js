@@ -1179,7 +1179,11 @@ async function startWatcher(
             routeTypesFilePath,
             opts.nextConfig
           )
-          await writeValidatorFile(routeTypesManifest, validatorFilePath)
+          await writeValidatorFile(
+            routeTypesManifest,
+            validatorFilePath,
+            Boolean(nextConfig.experimental.strictRouteTypes)
+          )
 
           // Generate cache-life types if cacheLife config exists
           const cacheLifeFilePath = path.join(distTypesDir, 'cache-life.d.ts')

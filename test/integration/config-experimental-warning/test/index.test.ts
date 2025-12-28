@@ -54,6 +54,11 @@ describe('Config Experimental Warning', () => {
       module.exports = (phase, { defaultConfig }) => {
         return {
           ...defaultConfig,
+          experimental: {
+            ...defaultConfig.experimental,
+            // We enable this by default in CI
+            strictRouteTypes: false,
+          }
         }
       }
     `)
@@ -66,6 +71,10 @@ describe('Config Experimental Warning', () => {
     configFile.write(`
       module.exports = {
         images: {},
+        experimental: {
+          // We enable this by default in CI
+          strictRouteTypes: false,
+        }
       }
     `)
 
@@ -106,6 +115,8 @@ describe('Config Experimental Warning', () => {
       module.exports = (phase) => ({
         experimental: {
           workerThreads: false
+          // We enable this by default in CI
+          strictRouteTypes: false,
         }
       })
     `)
