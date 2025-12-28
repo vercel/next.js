@@ -2,8 +2,8 @@ import type { Rewrite } from '../lib/load-custom-routes'
 import type { RouteMatchFn } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from './config'
 import type { BaseNextRequest } from './base-http'
+import type { NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
-import type { UrlWithParsedQuery } from 'url'
 
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
@@ -218,11 +218,13 @@ export function getServerUtils({
 
   function handleRewrites(
     req: BaseNextRequest | IncomingMessage,
-    parsedUrl: DeepReadonly<UrlWithParsedQuery>
+    parsedUrl: DeepReadonly<NextUrlWithParsedQuery>
   ) {
     // Here we deep clone the parsedUrl to avoid mutating the original. We also
     // cast this to a mutable type so we can mutate it within this scope.
-    const rewrittenParsedUrl = structuredClone(parsedUrl) as UrlWithParsedQuery
+    const rewrittenParsedUrl = structuredClone(
+      parsedUrl
+    ) as NextUrlWithParsedQuery
     const rewriteParams: Record<string, string> = {}
     let fsPathname = rewrittenParsedUrl.pathname
 

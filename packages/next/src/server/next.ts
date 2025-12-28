@@ -3,7 +3,6 @@ import type {
   NodeRequestHandler,
   Options as ServerOptions,
 } from './next-server'
-import type { UrlWithParsedQuery } from 'url'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Duplex } from 'stream'
 import type { NextUrlWithParsedQuery, RequestMeta } from './request-meta'
@@ -148,7 +147,7 @@ export class NextServer implements NextWrapperServer {
     return async (
       req: IncomingMessage,
       res: ServerResponse,
-      parsedUrl?: UrlWithParsedQuery
+      parsedUrl?: NextUrlWithParsedQuery
     ) => {
       return getTracer().trace(NextServerSpan.getRequestHandler, async () => {
         const requestHandler = await this.getServerRequestHandler()
@@ -165,7 +164,7 @@ export class NextServer implements NextWrapperServer {
     return async (
       req: IncomingMessage,
       res: ServerResponse,
-      parsedUrl?: UrlWithParsedQuery
+      parsedUrl?: NextUrlWithParsedQuery
     ) => {
       return getTracer().trace(
         NextServerSpan.getRequestHandlerWithMetadata,
@@ -444,7 +443,7 @@ class NextCustomServer implements NextWrapperServer {
     return async (
       req: IncomingMessage,
       res: ServerResponse,
-      parsedUrl?: UrlWithParsedQuery
+      parsedUrl?: NextUrlWithParsedQuery
     ) => {
       this.setupWebSocketHandler(this.options.httpServer, req)
 
