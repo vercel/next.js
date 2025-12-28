@@ -1888,6 +1888,25 @@ function enforceExperimentalFeatures(
     }
   }
 
+  // TODO: Remove this once strictRouteTypes is the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.strictRouteTypes === undefined ||
+      (isDefaultConfig && !config.experimental.strictRouteTypes))
+  ) {
+    config.experimental.strictRouteTypes = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'strictRouteTypes',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES`'
+      )
+    }
+  }
+
   if (
     process.env.__NEXT_EXPERIMENTAL_TRANSITION_INDICATOR === 'true' &&
     // We do respect an explicit value in the user config.
