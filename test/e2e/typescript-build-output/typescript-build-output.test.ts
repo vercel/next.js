@@ -17,7 +17,7 @@ describe('typescript-build-output', () => {
   }
 
   it('should show "Finished TypeScript" message in build output', async () => {
-    await next.start().catch(() => {})
+    await next.build()
     expect(next.cliOutput).toContain('Finished TypeScript')
   })
 })
