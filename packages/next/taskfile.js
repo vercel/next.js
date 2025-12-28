@@ -2408,6 +2408,47 @@ export async function bin(task, opts) {
     .target('dist/bin', { mode: '0755' })
 }
 
+// Build the native CLI wrapper binary (Rust)
+// This is a simple binary that handles the restart loop for dev server
+export async function cli_native(task, opts) {
+  const { execSync } = require('child_process')
+  const fs = require('fs')
+  const path = require('path')
+
+  const crateDir = path.join(__dirname, '../../crates/next-cli')
+  const binDir = path.join(__dirname, 'bin')
+
+  // Ensure bin directory exists
+  if (!fs.existsSync(binDir)) {
+    fs.mkdirSync(binDir, { recursive: true })
+  }
+
+  // Build the Rust binary
+  console.log('Building next-cli native binary...')
+  execSync('cargo build --release', {
+    cwd: crateDir,
+    stdio: 'inherit',
+  })
+
+  // Copy the binary to packages/next/bin/
+  const targetDir = path.join(__dirname, '../../target/release')
+  const binaryName = process.platform === 'win32' ? 'next.exe' : 'next'
+  const targetName =
+    process.platform === 'win32' ? 'next-native.exe' : 'next-native'
+
+  fs.copyFileSync(
+    path.join(targetDir, binaryName),
+    path.join(binDir, targetName)
+  )
+
+  // Make executable on Unix
+  if (process.platform !== 'win32') {
+    fs.chmodSync(path.join(binDir, targetName), 0o755)
+  }
+
+  console.log(`Built next-cli native binary: bin/${targetName}`)
+}
+
 export async function cli(task, opts) {
   await task
     .source('src/cli/**/*.+(js|ts|tsx)')

@@ -19,19 +19,23 @@ export type ServerInitResult = {
 
 let initializations: Record<string, Promise<ServerInitResult> | undefined> = {}
 
+// Lazy loaded - only needed when edge functions are used
 let sandboxContext: undefined | typeof import('../web/sandbox/context')
 
-if (process.env.NODE_ENV !== 'production') {
-  sandboxContext =
-    require('../web/sandbox/context') as typeof import('../web/sandbox/context')
+function getSandboxContext() {
+  if (process.env.NODE_ENV !== 'production' && !sandboxContext) {
+    sandboxContext =
+      require('../web/sandbox/context') as typeof import('../web/sandbox/context')
+  }
+  return sandboxContext
 }
 
 export function clearAllModuleContexts() {
-  return sandboxContext?.clearAllModuleContexts()
+  return getSandboxContext()?.clearAllModuleContexts()
 }
 
 export function clearModuleContext(target: string) {
-  return sandboxContext?.clearModuleContext(target)
+  return getSandboxContext()?.clearModuleContext(target)
 }
 
 export async function getServerField(

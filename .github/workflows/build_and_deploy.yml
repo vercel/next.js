@@ -430,6 +430,18 @@ jobs:
           name: next-swc-binaries-${{ matrix.settings.target }}
           path: packages/next-swc/native/next-swc.*.node
 
+      # Build next-cli native binary (simple Rust CLI wrapper)
+      - name: Build next-cli
+        if: ${{ steps.check-did-build.outputs.DID_BUILD == 'true' }}
+        run: cargo build --release --target ${{ matrix.settings.target }} -p next-cli
+
+      - name: Upload next-cli artifact
+        if: ${{ steps.check-did-build.outputs.DID_BUILD == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-cli-${{ matrix.settings.target }}
+          path: target/${{ matrix.settings.target }}/release/next${{ matrix.settings.target == 'x86_64-pc-windows-msvc' && '.exe' || matrix.settings.target == 'aarch64-pc-windows-msvc' && '.exe' || '' }}
+
       - name: Upload turbo summary artifact
         uses: actions/upload-artifact@v4
         with:
@@ -539,6 +551,28 @@ jobs:
           merge-multiple: true
           path: crates/wasm
 
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: next-cli-*
+          merge-multiple: false
+          path: packages/next/bin
+
+      # Rename next-cli binaries to include platform in filename
+      - name: Organize next-cli binaries
+        run: |
+          cd packages/next/bin
+          for dir in next-cli-*/; do
+            platform="${dir#next-cli-}"
+            platform="${platform%/}"
+            if [[ "$platform" == *"win32"* ]]; then
+              mv "$dir/next.exe" "next-cli-${platform}.exe" 2>/dev/null || true
+            else
+              mv "$dir/next" "next-cli-${platform}" 2>/dev/null || true
+            fi
+            rmdir "$dir" 2>/dev/null || true
+          done
+          ls -la
+
       - name: Create tarballs
         # github.event.after is available on push and pull_request#synchronize events.
         # For workflow_dispatch events, github.sha is the head commit.
@@ -603,6 +637,28 @@ jobs:
           pattern: wasm-binaries-*
           merge-multiple: true
           path: crates/wasm
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: next-cli-*
+          merge-multiple: false
+          path: packages/next/bin
+
+      # Rename next-cli binaries to include platform in filename
+      - name: Organize next-cli binaries
+        run: |
+          cd packages/next/bin
+          for dir in next-cli-*/; do
+            platform="${dir#next-cli-}"
+            platform="${platform%/}"
+            if [[ "$platform" == *"win32"* ]]; then
+              mv "$dir/next.exe" "next-cli-${platform}.exe" 2>/dev/null || true
+            else
+              mv "$dir/next" "next-cli-${platform}" 2>/dev/null || true
+            fi
+            rmdir "$dir" 2>/dev/null || true
+          done
+          ls -la
 
       - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc

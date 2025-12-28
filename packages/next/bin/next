@@ -1,0 +1,13 @@
+#!/bin/sh
+DIR="$(dirname "$0")"
+
+# Development: local binary
+[ -x "$DIR/next-native" ] && exec "$DIR/next-native" "$@"
+
+# Production: check installed @next/cli-* package (npm installs only the matching one)
+for pkg in "$DIR"/../node_modules/@next/cli-*/next; do
+  [ -x "$pkg" ] && exec "$pkg" "$@"
+done
+
+# Fallback: Node.js
+exec node "$DIR/../dist/bin/next" "$@"

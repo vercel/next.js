@@ -29,6 +29,8 @@ const sharedExternals = [
   'next/dist/compiled/@opentelemetry/api',
   'next/dist/compiled/@mswjs/interceptors/ClientRequest',
   'next/dist/compiled/ws',
+  'next/dist/compiled/tar',
+  'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp',
 ]
 
 // Dev server specific externals
@@ -51,10 +53,14 @@ const externalPatterns = [
   /hot-reloader-turbopack/,
   /hot-reloader-webpack/,
   /hot-reloader-rspack/,
+  // MCP server - only needed when clients connect
+  /\/mcp\//,
   // Turbopack internals - native bindings
   /turbopack/,
   // SWC bindings - native (matches ./swc, build/swc, etc.)
   /\/swc($|\/)/,
+  // Download SWC - only needed for fallback, loads tar
+  /download-swc/,
   // Sandbox - manipulates require.cache
   /web\/sandbox/,
   // Require hook - uses require.resolve with user-facing packages

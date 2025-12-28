@@ -72,10 +72,11 @@
     "experimental/testmode/playwright/msw.js",
     "experimental/testmode/playwright/msw.d.ts",
     "experimental/testmode/proxy.js",
-    "experimental/testmode/proxy.d.ts"
+    "experimental/testmode/proxy.d.ts",
+    "bin"
   ],
   "bin": {
-    "next": "./dist/bin/next"
+    "next": "./bin/next"
   },
   "scripts": {
     "dev": "cross-env NEXT_SERVER_NO_MANGLE=1 taskr",

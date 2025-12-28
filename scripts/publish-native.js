@@ -19,6 +19,12 @@ const cwd = process.cwd()
       (name) => !name.startsWith('.')
     )
 
+    // Also publish next-cli packages
+    let cliPackagesDir = path.join(cwd, 'crates/next-cli/npm')
+    let cliPlatforms = (await readdir(cliPackagesDir)).filter(
+      (name) => !name.startsWith('.')
+    )
+
     await Promise.all(
       platforms.map(async (platform) => {
         await publishSema.acquire()
@@ -128,6 +134,66 @@ const cwd = process.cwd()
       })
     )
 
+    // Publish next-cli platform packages
+    await Promise.all(
+      cliPlatforms.map(async (platform) => {
+        await publishSema.acquire()
+        let output = ''
+
+        try {
+          // Map platform name to binary name
+          const isWindows = platform.startsWith('win32')
+          const binaryName = isWindows ? 'next.exe' : 'next'
+
+          await cp(
+            path.join(
+              cwd,
+              'packages/next/bin',
+              `next-cli-${platform}${isWindows ? '.exe' : ''}`
+            ),
+            path.join(cliPackagesDir, platform, binaryName)
+          )
+          let pkg = JSON.parse(
+            await readFile(path.join(cliPackagesDir, platform, 'package.json'))
+          )
+          pkg.version = version
+          await writeFile(
+            path.join(cliPackagesDir, platform, 'package.json'),
+            JSON.stringify(pkg, null, 2)
+          )
+          const child = execa(
+            `npm`,
+            [
+              `publish`,
+              `${path.join(cliPackagesDir, platform)}`,
+              `--access`,
+              `public`,
+              ...(version.includes('canary') ? ['--tag', 'canary'] : []),
+            ],
+            { stdio: 'inherit' }
+          )
+          const handleData = (type) => (chunk) => {
+            process[type].write(chunk)
+            output += chunk.toString()
+          }
+          child.stdout?.on('data', handleData('stdout'))
+          child.stderr?.on('data', handleData('stderr'))
+          await child
+        } catch (err) {
+          console.error(`Failed to publish next-cli`, platform, err)
+          if (
+            output.includes(
+              'cannot publish over the previously published versions'
+            )
+          ) {
+            console.error('Ignoring already published error', platform, err)
+          }
+        } finally {
+          publishSema.release()
+        }
+      })
+    )
+
     // Update optional dependencies versions
     let nextPkg = JSON.parse(
       await readFile(path.join(cwd, 'packages/next/package.json'))
@@ -135,6 +201,12 @@ const cwd = process.cwd()
     for (let platform of platforms) {
       let optionalDependencies = nextPkg.optionalDependencies || {}
       optionalDependencies['@next/swc-' + platform] = version
+      nextPkg.optionalDependencies = optionalDependencies
+    }
+    // Add next-cli optional dependencies
+    for (let platform of cliPlatforms) {
+      let optionalDependencies = nextPkg.optionalDependencies || {}
+      optionalDependencies['@next/cli-' + platform] = version
       nextPkg.optionalDependencies = optionalDependencies
     }
     await writeFile(
