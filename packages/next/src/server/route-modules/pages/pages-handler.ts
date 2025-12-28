@@ -102,9 +102,7 @@ export const getHandler = ({
       return
     }
 
-    const isMinimalMode = Boolean(
-      process.env.MINIMAL_MODE || getRequestMeta(req, 'minimalMode')
-    )
+    const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
     const render404 = async () => {
       // TODO: should route-module itself handle rendering the 404

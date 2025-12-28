@@ -121,9 +121,7 @@ export async function handler(
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }
-  const isMinimalMode = Boolean(
-    process.env.MINIMAL_MODE || getRequestMeta(req, 'minimalMode')
-  )
+  const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
   let srcPage = 'VAR_DEFINITION_PAGE'
 
