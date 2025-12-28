@@ -33,6 +33,7 @@ import type {
 } from '..'
 
 import {
+  CACHE_ONE_YEAR,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
   NEXT_RESUME_HEADER,
@@ -173,37 +174,50 @@ export interface AdapterOutput {
     /**
      * fallback is initial cache data generated during build for a prerender
      */
-    fallback?: {
-      /**
-       * path to the fallback file can be HTML/JSON/RSC
-       */
-      filePath: string
-      /**
-       * initialStatus is the status code that should be applied
-       * when serving the fallback
-       */
-      initialStatus?: number
-      /**
-       * initialHeaders are the headers that should be sent when
-       * serving the fallback
-       */
-      initialHeaders?: Record<string, string | string[]>
-      /**
-       * initial expiration is how long until the fallback entry
-       * is considered expired and no longer valid to serve
-       */
-      initialExpiration?: number
-      /**
-       * initial revalidate is how long until the fallback is
-       * considered stale and should be revalidated
-       */
-      initialRevalidate?: Revalidate
+    fallback?:
+      | {
+          /**
+           * path to the fallback file can be HTML/JSON/RSC,
+           */
+          filePath: string
+          /**
+           * initialStatus is the status code that should be applied
+           * when serving the fallback
+           */
+          initialStatus?: number
+          /**
+           * initialHeaders are the headers that should be sent when
+           * serving the fallback
+           */
+          initialHeaders?: Record<string, string | string[]>
+          /**
+           * initial expiration is how long until the fallback entry
+           * is considered expired and no longer valid to serve
+           */
+          initialExpiration?: number
+          /**
+           * initial revalidate is how long until the fallback is
+           * considered stale and should be revalidated
+           */
+          initialRevalidate?: Revalidate
 
-      /**
-       * postponedState is the PPR state when it postponed and is used for resuming
-       */
-      postponedState?: string
-    }
+          /**
+           * postponedState is the PPR state when it postponed and is used for resuming
+           */
+          postponedState?: string
+        }
+      | {
+          /*
+        a fallback filePath can be omitted when postponedState is
+        present which signals the fallback should just resume with
+        the postpone state but doesn't have fallback to seed cache
+      */
+          postponedState: string
+          initialExpiration?: number
+          initialRevalidate?: Revalidate
+          initialHeaders?: Record<string, string | string[]>
+          initialStatus?: number
+        }
     /**
      * config related to the route
      */
@@ -298,6 +312,20 @@ type DynamicRouteItem = {
   missing: RouteHas[] | undefined
 }
 
+type Route = {
+  // regex as string can have named or un-named matches
+  source?: string
+  sourceRegex: string
+  // destination can have matches to replace in destination
+  // keyed by $1 for un-named and $name for named
+  destination?: string
+  headers?: Record<string, string>
+  has?: RouteHas[]
+  missing?: RouteHas[]
+  status?: number
+  priority?: boolean
+}
+
 export interface NextAdapter {
   name: string
   /**
@@ -314,30 +342,20 @@ export interface NextAdapter {
     }
   ) => Promise<NextConfigComplete> | NextConfigComplete
   onBuildComplete?: (ctx: {
-    routes: {
-      headers: Array<{
-        source: string
-        sourceRegex: string
-        headers: Record<string, string>
-        has: RouteHas[] | undefined
-        missing: RouteHas[] | undefined
-        priority?: boolean
-      }>
-      redirects: Array<{
-        source: string
-        sourceRegex: string
-        destination: string
-        statusCode: number
-        has: RouteHas[] | undefined
-        missing: RouteHas[] | undefined
-        priority?: boolean
-      }>
-      rewrites: {
-        beforeFiles: RewriteItem[]
-        afterFiles: RewriteItem[]
-        fallback: RewriteItem[]
-      }
-      dynamicRoutes: Array<DynamicRouteItem>
+    routing: {
+      beforeMiddleware: Array<Route>
+      beforeFiles: Array<Route>
+      afterFiles: Array<Route>
+      dynamicRoutes: Array<Route>
+      onMatch: Array<Route>
+      fallback: Array<Route>
+      /**
+       * shouldNormalizeNextData indicates whether Next.js data URLs
+       * (e.g., /_next/data/BUILD_ID/page.json) should be normalized
+       * during route resolution. This is true when middleware is present
+       * and there are pages router items to resolve.
+       */
+      shouldNormalizeNextData: boolean
     }
     outputs: AdapterOutputs
     /**
@@ -1159,7 +1177,6 @@ export async function handleBuildComplete({
           initialRevalidateSeconds: initialRevalidate,
           initialHeaders,
           initialStatus,
-          prefetchDataRoute,
           dataRoute,
           renderingMode,
           allowHeader,
@@ -1268,10 +1285,11 @@ export async function handleBuildComplete({
         outputs.prerenders.push(initialOutput)
 
         if (dataRoute) {
-          let dataFilePath = path.join(
+          let dataFilePath: string | undefined = path.join(
             pagesDistDir,
             `${normalizePagePath(route)}.json`
           )
+          let postponed = meta.postponed
 
           if (isAppPage) {
             // When experimental PPR is enabled, we expect that the data
@@ -1279,32 +1297,52 @@ export async function handleBuildComplete({
             // be from the prefetch data route. If this isn't enabled
             // for ppr, the only way to get the data is from the data
             // route.
-            dataFilePath = path.join(
-              appDistDir,
-              prefetchDataRoute &&
-                renderingMode === RenderingMode.PARTIALLY_STATIC
-                ? prefetchDataRoute
-                : dataRoute
-            )
+            dataFilePath = path.join(appDistDir, dataRoute)
           }
 
-          outputs.prerenders.push({
-            ...initialOutput,
-            id: dataRoute,
-            pathname: dataRoute,
-            fallback: isNotFoundTrue
-              ? undefined
-              : {
-                  ...initialOutput.fallback,
-                  initialHeaders: {
-                    ...initialOutput.fallback?.initialHeaders,
-                    'content-type': isAppPage
-                      ? rscContentTypeHeader
-                      : JSON_CONTENT_TYPE_HEADER,
+          if (
+            renderingMode === RenderingMode.PARTIALLY_STATIC &&
+            !(await cachedFilePathCheck(dataFilePath))
+          ) {
+            // TODO: allowQuery should diverge based on app client param
+            // parsing flag
+            outputs.prerenders.push({
+              ...initialOutput,
+              id: dataRoute,
+              pathname: dataRoute,
+              fallback: !postponed
+                ? undefined
+                : {
+                    ...initialOutput.fallback,
+                    postponedState: postponed,
+                    initialHeaders: {
+                      ...initialOutput.fallback?.initialHeaders,
+                      'content-type': isAppPage
+                        ? rscContentTypeHeader
+                        : JSON_CONTENT_TYPE_HEADER,
+                    },
+                    filePath: undefined,
                   },
-                  filePath: dataFilePath,
-                },
-          })
+            })
+          } else {
+            outputs.prerenders.push({
+              ...initialOutput,
+              id: dataRoute,
+              pathname: dataRoute,
+              fallback: isNotFoundTrue
+                ? undefined
+                : {
+                    ...initialOutput.fallback,
+                    initialHeaders: {
+                      ...initialOutput.fallback?.initialHeaders,
+                      'content-type': isAppPage
+                        ? rscContentTypeHeader
+                        : JSON_CONTENT_TYPE_HEADER,
+                    },
+                    filePath: dataFilePath,
+                  },
+            })
+          }
         }
 
         if (isAppPage) {
@@ -1320,13 +1358,16 @@ export async function handleBuildComplete({
           fallbackRevalidate,
           fallbackHeaders,
           fallbackStatus,
+          fallbackSourceRoute,
           allowHeader,
           dataRoute,
           renderingMode,
           experimentalBypassFor,
         } = prerenderManifest.dynamicRoutes[dynamicRoute]
 
-        const isAppPage = Boolean(appOutputMap[dynamicRoute])
+        const srcRoute = fallbackSourceRoute || dynamicRoute
+        const parentOutput = getParentOutput(srcRoute, dynamicRoute)
+        const isAppPage = Boolean(appOutputMap[srcRoute])
 
         const allowQuery = Object.values(
           routesManifest.dynamicRoutes.find(
@@ -1339,7 +1380,7 @@ export async function handleBuildComplete({
           id: dynamicRoute,
           type: AdapterOutputType.PRERENDER,
           pathname: dynamicRoute,
-          parentOutputId: getParentOutput(dynamicRoute, dynamicRoute).id,
+          parentOutputId: parentOutput.id,
           groupId: prerenderGroupId,
           config: {
             allowQuery,
@@ -1375,7 +1416,25 @@ export async function handleBuildComplete({
             await handleAppMeta(dynamicRoute, initialOutput, meta)
           }
 
-          if (dataRoute) {
+          if (renderingMode === RenderingMode.PARTIALLY_STATIC) {
+            outputs.prerenders.push({
+              ...initialOutput,
+              id: `${dynamicRoute}.rsc`,
+              pathname: `${dynamicRoute}.rsc`,
+              fallback: meta.postponed
+                ? {
+                    ...initialOutput.fallback,
+                    postponedState: meta.postponed,
+                    initialHeaders: {
+                      ...initialOutput.fallback?.initialHeaders,
+                      'content-type': isAppPage
+                        ? rscContentTypeHeader
+                        : JSON_CONTENT_TYPE_HEADER,
+                    },
+                  }
+                : undefined,
+            })
+          } else if (dataRoute) {
             outputs.prerenders.push({
               ...initialOutput,
               id: dataRoute,
@@ -1516,7 +1575,7 @@ export async function handleBuildComplete({
           route.page
         ) + getDestinationQuery(route.routeKeys)
 
-      if (appPageKeys && appPageKeys.length > 0 && config.cacheComponents) {
+      if (appPageKeys && appPageKeys.length > 0) {
         // If we have fallback root params (implying we've already
         // emitted a rewrite for the /_tree request), or if the route
         // has PPR enabled and client param parsing is enabled, then
@@ -1649,53 +1708,73 @@ export async function handleBuildComplete({
         destination: converted.dest || route.destination,
         has: route.has,
         missing: route.missing,
-      }
+      } satisfies Route
     }
 
     try {
       Log.info(`Running onBuildComplete from ${adapterMod.name}`)
+
+      const combinedDynamicRoutes = [
+        ...dynamicDataRoutes,
+        ...dynamicSegmentRoutes,
+        ...dynamicRoutes,
+      ] satisfies Route[]
+
+      const rewrites = {
+        beforeFiles: routesManifest.rewrites.beforeFiles.map(buildRewriteItem),
+        afterFiles: routesManifest.rewrites.afterFiles.map(buildRewriteItem),
+        fallback: routesManifest.rewrites.fallback.map(buildRewriteItem),
+      }
+
+      const redirects = routesManifest.redirects.map((route) => {
+        const converted = convertRedirects([route], 307)[0]
+        const regex = converted.src || route.regex
+
+        return {
+          source: route.source,
+          sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
+          headers: 'headers' in converted ? converted.headers || {} : {},
+          status: converted.status || getRedirectStatus(route),
+          has: route.has,
+          missing: route.missing,
+          priority: route.internal || undefined,
+        } satisfies Route
+      })
+
+      const headers = routesManifest.headers.map((route) => {
+        const converted = convertHeaders([route])[0]
+        const regex = converted.src || route.regex
+
+        return {
+          source: route.source,
+          sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
+          headers: 'headers' in converted ? converted.headers || {} : {},
+          has: route.has,
+          missing: route.missing,
+          priority: route.internal || undefined,
+        } satisfies Route
+      })
+
       await adapterMod.onBuildComplete({
-        routes: {
-          dynamicRoutes: [
-            ...dynamicDataRoutes,
-            ...dynamicSegmentRoutes,
-            ...dynamicRoutes,
+        routing: {
+          beforeMiddleware: [...headers, ...redirects],
+          beforeFiles: rewrites.beforeFiles,
+          afterFiles: rewrites.afterFiles,
+          dynamicRoutes: combinedDynamicRoutes,
+          onMatch: [
+            {
+              // This ensures we only match known emitted-by-Next.js files and not
+              // user-emitted files which may be missing a hash in their filename.
+              sourceRegex: `^/${escapeStringRegexp(buildId)}/_next/static/(?:[^/]+/pages|pages|chunks|runtime|css|image|media|${escapeStringRegexp(buildId)})/.+`,
+              // Next.js assets contain a hash or entropy in their filenames, so they
+              // are guaranteed to be unique and cacheable indefinitely.
+              headers: {
+                'cache-control': `public,max-age=${CACHE_ONE_YEAR},immutable`,
+              },
+            },
           ],
-          rewrites: {
-            beforeFiles:
-              routesManifest.rewrites.beforeFiles.map(buildRewriteItem),
-            afterFiles:
-              routesManifest.rewrites.afterFiles.map(buildRewriteItem),
-            fallback: routesManifest.rewrites.fallback.map(buildRewriteItem),
-          },
-          redirects: routesManifest.redirects.map((route) => {
-            const converted = convertRedirects([route], 307)[0]
-            let dest = 'headers' in converted && converted.headers?.Location
-            const regex = converted.src || route.regex
-
-            return {
-              source: route.source,
-              sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
-              destination: dest || route.destination,
-              statusCode: converted.status || getRedirectStatus(route),
-              has: route.has,
-              missing: route.missing,
-              priority: route.internal || undefined,
-            }
-          }),
-          headers: routesManifest.headers.map((route) => {
-            const converted = convertHeaders([route])[0]
-            const regex = converted.src || route.regex
-
-            return {
-              source: route.source,
-              sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
-              headers: 'headers' in converted ? converted.headers || {} : {},
-              has: route.has,
-              missing: route.missing,
-              priority: route.internal || undefined,
-            }
-          }),
+          fallback: rewrites.fallback,
+          shouldNormalizeNextData: !!needsMiddlewareResolveRoutes,
         },
         outputs,
 
