@@ -388,6 +388,12 @@ export interface ExperimentalConfig {
   optimizeServerReact?: boolean
 
   /**
+   * Type-checks props and return values of pages.
+   * Requires literal values for segment config (e.g. `export const dynamic = 'force-static' as const`).
+   */
+  strictRouteTypes?: boolean
+
+  /**
    * Displays an indicator when a React Transition has no other indicator rendered.
    * This includes displaying an indicator on client-side navigations.
    */
@@ -1548,6 +1554,7 @@ export const defaultConfig = Object.freeze({
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
+    strictRouteTypes: false,
     viewTransition: false,
     removeUncaughtErrorAndRejectionListeners: false,
     validateRSCRequestHeaders: !!(

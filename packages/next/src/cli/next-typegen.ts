@@ -169,7 +169,11 @@ const nextTypegen = async (
     nextConfig
   )
 
-  await writeValidatorFile(routeTypesManifest, validatorFilePath)
+  await writeValidatorFile(
+    routeTypesManifest,
+    validatorFilePath,
+    Boolean(nextConfig.experimental.strictRouteTypes)
+  )
 
   // Generate cache-life types if cacheLife config exists
   const cacheLifeFilePath = join(distDir, 'types', 'cache-life.d.ts')
