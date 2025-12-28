@@ -138,14 +138,9 @@ export async function startTypeChecking({
       typeCheckingSpinner.stop()
     }
 
-    if (!ignoreTypeScriptErrors) {
-      const message = `Finished TypeScript in ${hrtimeDurationToString(typeCheckEnd)}`
-      if (process.stdout.isTTY) {
-        createSpinner(message)?.stopAndPersist()
-      } else {
-        Log.event(message)
-      }
-    }
+    createSpinner(
+      `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
+    )?.stopAndPersist()
 
     if (!ignoreTypeScriptErrors && verifyResult) {
       telemetry.record(
