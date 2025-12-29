@@ -617,7 +617,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             )
             .await?;
 
-            let mut assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = chunks
+            let mut assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = chunks.await?
                 .iter()
                 .map(|chunk| self.generate_chunk(*chunk))
                 .try_join()

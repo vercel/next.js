@@ -88,7 +88,7 @@ pub(super) async fn generate_node_chunk_bootstrap(
                 r#"
                     R.m({})
                 "#,
-                StringifyJs(&*runtime_module_id),
+                StringifyJs(&runtime_module_id),
             )?;
         }
     }
