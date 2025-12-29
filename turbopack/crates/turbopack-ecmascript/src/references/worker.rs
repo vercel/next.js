@@ -28,7 +28,6 @@ use crate::{
     references::{
         AstPath,
         pattern_mapping::{PatternMapping, ResolveType},
-        util::check_and_emit_too_many_matches_warning,
     },
     runtime_functions::TURBOPACK_REQUIRE,
     worker_chunk::{WorkerType, module::WorkerLoaderModule},
@@ -119,14 +118,6 @@ impl ModuleReference for WorkerAssetReference {
                 );
                 let reference_type = ReferenceType::Worker(WorkerReferenceSubType::NodeWorker);
                 let result = asset_context.process_resolve_result(result, reference_type.clone());
-
-                check_and_emit_too_many_matches_warning(
-                    result,
-                    self.issue_source,
-                    context_dir.clone(),
-                    *path,
-                )
-                .await?;
 
                 // Report an error if we cannot resolve
                 handle_resolve_error(
@@ -279,15 +270,14 @@ impl WorkerAssetReferenceCodeGen {
                             );
 
                             // For web workers, modify the options to set type: undefined
-                            if reference.worker_type == WorkerType::WebWorker {
-                                if let Some(opts) = args.get_mut(1)
-                                    && opts.spread.is_none()
-                                {
-                                    *opts.expr = *quote_expr!(
-                                        "{...$opts, type: undefined}",
-                                        opts: Expr = (*opts.expr).take()
-                                    );
-                                }
+                            if reference.worker_type == WorkerType::WebWorker
+                                && let Some(opts) = args.get_mut(1)
+                                && opts.spread.is_none()
+                            {
+                                *opts.expr = *quote_expr!(
+                                    "{...$opts, type: undefined}",
+                                    opts: Expr = (*opts.expr).take()
+                                );
                             }
                             return;
                         }
