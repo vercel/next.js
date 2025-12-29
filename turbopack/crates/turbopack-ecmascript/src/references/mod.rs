@@ -139,7 +139,7 @@ use crate::{
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         ident::IdentReplacement,
         member::MemberReplacement,
-        node::{FilePathModuleReference, PackageJsonReference},
+        node::PackageJsonReference,
         raw::{DirAssetReference, FileSourceReference},
         require_context::{RequireContextAssetReference, RequireContextMap},
         type_issue::SpecifiedModuleTypeIssue,
@@ -1968,34 +1968,18 @@ where
                         }
                     }
 
-                    if analysis.analyze_mode.is_tracing() {
-                        // In tracing mode, use FilePathModuleReference for NFT
-                        analysis.add_reference(
-                            FilePathModuleReference::new(
-                                origin.asset_context(),
-                                get_traced_project_dir().await?,
-                                Pattern::new(pat),
-                                collect_affecting_sources,
-                                get_issue_source(),
-                            )
-                            .to_resolved()
-                            .await?,
-                        );
-                    } else {
-                        // In bundling mode, use NodeWorkerAssetReference to create evaluated chunk
-                        // groups
-                        let context_dir = origin.origin_path().await?.parent();
-                        analysis.add_reference_code_gen(
-                            WorkerAssetReference::new_node_worker_thread(
-                                origin,
-                                context_dir,
-                                Pattern::new(pat).to_resolved().await?,
-                                get_issue_source(),
-                                in_try,
-                            ),
-                            ast_path.to_vec().into(),
-                        );
-                    }
+                    let context_dir = origin.origin_path().await?.parent();
+                    analysis.add_reference_code_gen(
+                        WorkerAssetReference::new_node_worker_thread(
+                            origin,
+                            context_dir,
+                            Pattern::new(pat).to_resolved().await?,
+                            get_issue_source(),
+                            in_try,
+                        ),
+                        ast_path.to_vec().into(),
+                    );
+
                     return Ok(());
                 }
                 let (args, hints) = explain_args(args);

@@ -124,7 +124,7 @@ impl EcmascriptChunkItem for WorkerLoaderChunkItem {
                         r#"
                             {TURBOPACK_EXPORT_VALUE}(__dirname + "/" + {worker_path:#});
                         "#,
-                        worker_path = StringifyJs(&*entry_path.file_name()),
+                        worker_path = StringifyJs(entry_path.file_name()),
                     }
                 }
             }
