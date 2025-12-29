@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use indoc::formatdoc;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
 use turbopack_core::{
     chunk::{
@@ -28,40 +28,35 @@ pub struct NodeWorkerLoaderChunkItem {
 }
 
 #[turbo_tasks::value_impl]
-impl NodeWorkerLoaderChunkItem {
-    #[turbo_tasks::function]
-    async fn chunk_group(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let module = self.module.await?;
-
-        Ok(self.chunking_context.evaluated_chunk_group_assets(
-            module.inner.ident().with_modifier(rcstr!("node worker")),
-            ChunkGroup::Isolated(ResolvedVc::upcast(module.inner)),
-            *self.module_graph,
-            AvailabilityInfo::root(),
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for NodeWorkerLoaderChunkItem {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent> {
         panic!("should not be called");
     }
+
     #[turbo_tasks::function]
     async fn content_with_async_module_info(
         self: Vc<Self>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let worker_path = if estimated {
+        fn build_code(worker_path: &str) -> String {
+            // For Node.js workers, we export the path to the worker entry chunk
+            // The path is relative to the output root, so we use require.resolve or
+            // __dirname-based resolution at runtime
+            formatdoc! {
+                r#"
+                {TURBOPACK_EXPORT_VALUE}(__dirname + "/" + {worker_path:#});
+            "#,
+                worker_path = StringifyJs(&*worker_path),
+            }
+        }
+        let code = if estimated {
             // in estimation mode we cannot call into chunking context APIs otherwise we will induce
             // a turbo tasks cycle.  But we only need an approximate solution.
-            rcstr!("a_fake_path_for_size_estimation")
+            build_code("a_fake_path_for_size_estimation")
         } else {
-            let this = self.await?;
-            let output_root = this.chunking_context.output_root().await?;
-            let chunk_group = self.chunk_group().await?;
+            let chunk_group = self.references().await?;
             let assets = chunk_group.assets.await?;
 
             // The last asset is the evaluate chunk (entry point) for the worker.
@@ -74,23 +69,14 @@ impl EcmascriptChunkItem for NodeWorkerLoaderChunkItem {
                 bail!("cannot find worker entry point asset");
             };
             let entry_path = entry_asset.path().await?;
-            let Some(relative_path) = output_root.get_path_to(&entry_path) else {
-                bail!("generated chunk {entry_path} is not under the output root: {output_root}");
-            };
-            // For Node.js workers, we need to provide the absolute path
-            // We'll use __dirname to resolve it at runtime
-            RcStr::from(relative_path)
-        };
 
-        // For Node.js workers, we export the path to the worker entry chunk
-        // The path is relative to the output root, so we use require.resolve or
-        // __dirname-based resolution at runtime
-        let code = formatdoc! {
-            r#"
-                {TURBOPACK_EXPORT_VALUE}(__dirname + "/" + {worker_path:#});
-            "#,
-            worker_path = StringifyJs(&*worker_path),
+            // Get the filename of the worker entry chunk
+            // We use just the filename because both the loader module and the worker entry
+            // chunk are in the same directory (typically server/chunks/), so we don't need
+            // a relative path - __dirname will already point to the correct directory
+            build_code(entry_path.file_name())
         };
+        eprintln!("loader_module_content: {}", code);
 
         Ok(EcmascriptChunkItemContent {
             inner_code: code.into(),
@@ -103,8 +89,15 @@ impl EcmascriptChunkItem for NodeWorkerLoaderChunkItem {
 #[turbo_tasks::value_impl]
 impl OutputAssetsReference for NodeWorkerLoaderChunkItem {
     #[turbo_tasks::function]
-    fn references(self: Vc<Self>) -> Vc<OutputAssetsWithReferenced> {
-        self.chunk_group()
+    async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let module = self.module.await?;
+
+        Ok(self.chunking_context.evaluated_chunk_group_assets(
+            module.inner.ident().with_modifier(rcstr!("node worker")),
+            ChunkGroup::Isolated(ResolvedVc::upcast(module.inner)),
+            *self.module_graph,
+            AvailabilityInfo::root(),
+        ))
     }
 }
 

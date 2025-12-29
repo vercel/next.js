@@ -22,7 +22,10 @@ use turbopack_core::{
     raw_module::RawModule,
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
-    resolve::{ModuleResolveResult, origin::ResolveOrigin, pattern::Pattern, resolve_raw},
+    resolve::{
+        ModuleResolveResult, handle_resolve_error, origin::ResolveOrigin, parse::Request,
+        pattern::Pattern, resolve_raw,
+    },
 };
 
 use crate::{
@@ -190,31 +193,38 @@ impl NodeWorkerAssetReference {
             in_try,
         }
     }
+}
 
-    async fn node_worker_loader_module(&self) -> Result<Option<Vc<NodeWorkerLoaderModule>>> {
+#[turbo_tasks::value_impl]
+impl ModuleReference for NodeWorkerAssetReference {
+    #[turbo_tasks::function]
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let asset_context = self.origin.asset_context();
 
+        // Use resolve_raw since we are looking for a filename not a module specifier.
         let result = resolve_raw(
             self.context_dir.clone(),
             *self.path,
             /* collect_affecting_sources */ false,
             /* force_in_lookup_dir */ false,
         );
-        let result = asset_context.process_resolve_result(
-            result,
-            ReferenceType::Worker(WorkerReferenceSubType::NodeWorker),
-        );
+        let reference_type = ReferenceType::Worker(WorkerReferenceSubType::NodeWorker);
+        let mut result = asset_context.process_resolve_result(result, reference_type.clone());
 
-        check_and_emit_too_many_matches_warning(
+        // report an error if we cannot resolve
+        result = handle_resolve_error(
             result,
-            self.issue_source,
-            self.context_dir.clone(),
-            self.path,
+            reference_type.clone(),
+            *self.origin,
+            Request::parse(self.path.owned().await?),
+            self.origin.resolve_options(reference_type),
+            self.in_try,
+            Some(self.issue_source),
         )
         .await?;
 
         let Some(module) = *result.first_module().await? else {
-            return Ok(None);
+            return Ok(*ModuleResolveResult::unresolvable());
         };
 
         let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) else {
@@ -226,24 +236,14 @@ impl NodeWorkerAssetReference {
             }
             .resolved_cell()
             .emit();
-            return Ok(None);
+            return Ok(*ModuleResolveResult::unresolvable());
         };
 
-        Ok(Some(NodeWorkerLoaderModule::new(*chunkable)))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for NodeWorkerAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        if let Some(node_worker_loader_module) = self.node_worker_loader_module().await? {
-            Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-                node_worker_loader_module.to_resolved().await?,
-            )))
-        } else {
-            Ok(*ModuleResolveResult::unresolvable())
-        }
+        Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
+            NodeWorkerLoaderModule::new(*chunkable)
+                .to_resolved()
+                .await?,
+        )))
     }
 }
 
@@ -289,9 +289,7 @@ impl NodeWorkerAssetReferenceCodeGen {
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let reference = self.reference.await?;
-
-        let Some(loader) = reference.node_worker_loader_module().await? else {
+        let Some(loader_module) = *self.reference.resolve_reference().first_module().await? else {
             // If we can't create the loader, generate an error expression
             let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
                 *expr = *quote_expr!(
@@ -303,7 +301,7 @@ impl NodeWorkerAssetReferenceCodeGen {
         };
 
         let item_id = chunking_context
-            .chunk_item_id_from_ident(loader.ident())
+            .chunk_item_id_from_ident(loader_module.ident())
             .await?;
 
         let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
