@@ -973,5 +973,9 @@
   "972": "Failed to resolve pattern \"%s\": %s",
   "973": "Server Actions are not enabled for this application. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
   "974": "Failed to find Server Action%s. This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
-  "975": "Failed to find Server Action. This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action"
+  "975": "Failed to find Server Action. This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
+  "976": "Specified outputFileTracingRoot is not a directory, received %s",
+  "977": "turbopack.root path provided does not exist, received %s",
+  "978": "Specified turbopack.root is not a directory, received %s",
+  "979": "outputFileTracingRoot path provided does not exist, received %s"
 }
