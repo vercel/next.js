@@ -65,6 +65,7 @@ impl WorkerAssetReference {
             self.in_try,
         );
 
+        // TODO: this doesn't handle _multiple_ results from dynamic patterns
         let Some(module) = *module.first_module().await? else {
             return Ok(None);
         };
