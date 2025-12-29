@@ -1,6 +1,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
+    common::util::take::Take,
     ecma::ast::{Expr, ExprOrSpread, Lit, NewExpr},
     quote_expr,
 };
@@ -18,13 +19,12 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
-    module::Module,
     raw_module::RawModule,
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
     resolve::{
-        ModuleResolveResult, handle_resolve_error, origin::ResolveOrigin, parse::Request,
-        pattern::Pattern, resolve_raw,
+        ModuleResolveResult, ModuleResolveResultItem, handle_resolve_error, origin::ResolveOrigin,
+        parse::Request, pattern::Pattern, resolve_raw,
     },
 };
 
@@ -32,9 +32,12 @@ use crate::{
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     node_worker_chunk::module::NodeWorkerLoaderModule,
-    references::{AstPath, util::check_and_emit_too_many_matches_warning},
+    references::{
+        AstPath,
+        pattern_mapping::{PatternMapping, ResolveType},
+        util::check_and_emit_too_many_matches_warning,
+    },
     runtime_functions::TURBOPACK_REQUIRE,
-    utils::module_id_to_lit,
 };
 
 #[turbo_tasks::value]
@@ -209,10 +212,18 @@ impl ModuleReference for NodeWorkerAssetReference {
             /* force_in_lookup_dir */ false,
         );
         let reference_type = ReferenceType::Worker(WorkerReferenceSubType::NodeWorker);
-        let mut result = asset_context.process_resolve_result(result, reference_type.clone());
+        let result = asset_context.process_resolve_result(result, reference_type.clone());
+
+        check_and_emit_too_many_matches_warning(
+            result,
+            self.issue_source,
+            self.context_dir.clone(),
+            self.path,
+        )
+        .await?;
 
         // report an error if we cannot resolve
-        result = handle_resolve_error(
+        let result = handle_resolve_error(
             result,
             reference_type.clone(),
             *self.origin,
@@ -223,27 +234,51 @@ impl ModuleReference for NodeWorkerAssetReference {
         )
         .await?;
 
-        let Some(module) = *result.first_module().await? else {
-            return Ok(*ModuleResolveResult::unresolvable());
-        };
+        // Wrap each resolved module in a NodeWorkerLoaderModule
+        // This loader module will export the file path to the bundled worker chunk
+        let result_ref = result.await?;
+        let mut primary = Vec::new();
 
-        let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) else {
-            CodeGenerationIssue {
-                severity: IssueSeverity::Bug,
-                title: StyledString::Text(rcstr!("non-chunkable module")).resolved_cell(),
-                message: StyledString::Text(rcstr!("asset is not chunkable")).resolved_cell(),
-                path: self.origin.origin_path().owned().await?,
+        for (request_key, resolve_item) in result_ref.primary.iter() {
+            match resolve_item {
+                ModuleResolveResultItem::Module(module) => {
+                    let Some(chunkable) =
+                        ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
+                    else {
+                        CodeGenerationIssue {
+                            severity: IssueSeverity::Bug,
+                            title: StyledString::Text(rcstr!("non-chunkable module"))
+                                .resolved_cell(),
+                            message: StyledString::Text(rcstr!("asset is not chunkable"))
+                                .resolved_cell(),
+                            path: self.origin.origin_path().owned().await?,
+                        }
+                        .resolved_cell()
+                        .emit();
+                        continue;
+                    };
+
+                    let loader = NodeWorkerLoaderModule::new(*chunkable)
+                        .to_resolved()
+                        .await?;
+
+                    primary.push((
+                        request_key.clone(),
+                        ModuleResolveResultItem::Module(ResolvedVc::upcast(loader)),
+                    ));
+                }
+                // Pass through other result types (External, Ignore, etc.)
+                _ => {
+                    primary.push((request_key.clone(), resolve_item.clone()));
+                }
             }
-            .resolved_cell()
-            .emit();
-            return Ok(*ModuleResolveResult::unresolvable());
-        };
+        }
 
-        Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-            NodeWorkerLoaderModule::new(*chunkable)
-                .to_resolved()
-                .await?,
-        )))
+        Ok(ModuleResolveResult {
+            primary: primary.into_boxed_slice(),
+            affecting_sources: result_ref.affecting_sources.clone(),
+        }
+        .cell())
     }
 }
 
@@ -289,33 +324,37 @@ impl NodeWorkerAssetReferenceCodeGen {
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let Some(loader_module) = *self.reference.resolve_reference().first_module().await? else {
-            // If we can't create the loader, generate an error expression
-            let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
-                *expr = *quote_expr!(
-                    "(() => { throw new Error($message); })()",
-                    message: Expr = Expr::Lit(Lit::Str("Worker loader could not be created".into()))
-                );
-            });
-            return Ok(CodeGeneration::visitors(vec![visitor]));
-        };
+        let reference = self.reference.await?;
 
-        let item_id = chunking_context
-            .chunk_item_id_from_ident(loader_module.ident())
-            .await?;
+        // Create a Request from the Pattern for PatternMapping
+        let request = Request::parse(reference.path.owned().await?);
+
+        // Use PatternMapping to handle both single and multiple (dynamic) worker results
+        let pm = PatternMapping::resolve_request(
+            request,
+            *reference.origin,
+            chunking_context,
+            self.reference.resolve_reference(),
+            ResolveType::ChunkItem,
+        )
+        .await?;
 
         let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
             let message = if let Expr::New(NewExpr { args, .. }) = expr {
                 if let Some(args) = args {
                     match args.first_mut() {
-                        Some(ExprOrSpread { spread: None, expr }) => {
-                            let item_id = module_id_to_lit(&item_id);
+                        Some(ExprOrSpread {
+                            spread: None,
+                            expr: key_expr,
+                        }) => {
                             // Replace the first argument (the path) with a turbopack_require call
-                            // that returns the actual file path to the worker entry chunk
-                            *expr = quote_expr!(
-                                "$turbopack_require($item_id)",
+                            // that uses the pattern mapping to resolve to the correct loader
+                            // module, which then returns the actual
+                            // file path to the worker entry chunk
+                            *key_expr = quote_expr!(
+                                "$turbopack_require($id)",
                                 turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
-                                item_id: Expr = item_id
+                                id: Expr = pm.create_id(*key_expr.take())
                             );
                             return;
                         }

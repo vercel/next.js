@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
     common::util::take::Take,
@@ -12,18 +12,22 @@ use turbo_tasks::{
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
-    module::Module,
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
-    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
+    resolve::{
+        ModuleResolveResult, ModuleResolveResultItem, origin::ResolveOrigin, parse::Request,
+        url_resolve,
+    },
 };
 
 use crate::{
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
+    references::{
+        AstPath,
+        pattern_mapping::{PatternMapping, ResolveType},
+    },
     runtime_functions::TURBOPACK_REQUIRE,
-    utils::module_id_to_lit,
     worker_chunk::module::WorkerLoaderModule,
 };
 
@@ -52,11 +56,11 @@ impl WorkerAssetReference {
     }
 }
 
-impl WorkerAssetReference {
-    async fn worker_loader_module(
-        self: &WorkerAssetReference,
-    ) -> Result<Option<Vc<WorkerLoaderModule>>> {
-        let module = url_resolve(
+#[turbo_tasks::value_impl]
+impl ModuleReference for WorkerAssetReference {
+    #[turbo_tasks::function]
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        let result = url_resolve(
             *self.origin,
             *self.request,
             // TODO support more worker types
@@ -65,38 +69,49 @@ impl WorkerAssetReference {
             self.in_try,
         );
 
-        // TODO: this doesn't handle _multiple_ results from dynamic patterns
-        let Some(module) = *module.first_module().await? else {
-            return Ok(None);
-        };
-        let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) else {
-            CodeGenerationIssue {
-                severity: IssueSeverity::Bug,
-                title: StyledString::Text(rcstr!("non-ecmascript placeable asset")).resolved_cell(),
-                message: StyledString::Text(rcstr!("asset is not placeable in ESM chunks"))
-                    .resolved_cell(),
-                path: self.origin.origin_path().owned().await?,
+        // Wrap each resolved module in a WorkerLoaderModule
+        // This loader module will export a blob URL for the bundled worker chunk
+        let result_ref = result.await?;
+        let mut primary = Vec::new();
+
+        for (request_key, resolve_item) in result_ref.primary.iter() {
+            match resolve_item {
+                ModuleResolveResultItem::Module(module) => {
+                    let Some(chunkable) =
+                        ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
+                    else {
+                        CodeGenerationIssue {
+                            severity: IssueSeverity::Bug,
+                            title: StyledString::Text(rcstr!("non-chunkable module"))
+                                .resolved_cell(),
+                            message: StyledString::Text(rcstr!("asset is not chunkable"))
+                                .resolved_cell(),
+                            path: self.origin.origin_path().owned().await?,
+                        }
+                        .resolved_cell()
+                        .emit();
+                        continue;
+                    };
+
+                    let loader = WorkerLoaderModule::new(*chunkable).to_resolved().await?;
+
+                    primary.push((
+                        request_key.clone(),
+                        ModuleResolveResultItem::Module(ResolvedVc::upcast(loader)),
+                    ));
+                }
+                // Pass through other result types (External, Ignore, etc.)
+                _ => {
+                    primary.push((request_key.clone(), resolve_item.clone()));
+                }
             }
-            .resolved_cell()
-            .emit();
-            return Ok(None);
-        };
-
-        Ok(Some(WorkerLoaderModule::new(*chunkable)))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for WorkerAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        if let Some(worker_loader_module) = self.worker_loader_module().await? {
-            Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-                worker_loader_module.to_resolved().await?,
-            )))
-        } else {
-            Ok(*ModuleResolveResult::unresolvable())
         }
+
+        Ok(ModuleResolveResult {
+            primary: primary.into_boxed_slice(),
+            affecting_sources: result_ref.affecting_sources.clone(),
+        }
+        .cell())
     }
 }
 
@@ -139,24 +154,34 @@ impl WorkerAssetReferenceCodeGen {
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let Some(loader) = self.reference.await?.worker_loader_module().await? else {
-            bail!("Worker loader could not be created");
-        };
+        let reference = self.reference.await?;
 
-        let item_id = chunking_context
-            .chunk_item_id_from_ident(loader.ident())
-            .await?;
+        // Use PatternMapping to handle both single and multiple (dynamic) worker results
+        let pm = PatternMapping::resolve_request(
+            *reference.request,
+            *reference.origin,
+            chunking_context,
+            self.reference.resolve_reference(),
+            ResolveType::ChunkItem,
+        )
+        .await?;
 
         let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
             let message = if let Expr::New(NewExpr { args, .. }) = expr {
                 if let Some(args) = args {
                     match args.first_mut() {
-                        Some(ExprOrSpread { spread: None, expr }) => {
-                            let item_id = module_id_to_lit(&item_id);
-                            *expr = quote_expr!(
-                                "$turbopack_require($item_id)",
+                        Some(ExprOrSpread {
+                            spread: None,
+                            expr: key_expr,
+                        }) => {
+                            // Replace the first argument (the URL/path) with a turbopack_require
+                            // call that uses the pattern mapping to
+                            // resolve to the correct loader module,
+                            // which then returns the blob URL for the worker
+                            *key_expr = quote_expr!(
+                                "$turbopack_require($id)",
                                 turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
-                                item_id: Expr = item_id
+                                id: Expr = pm.create_id(*key_expr.take())
                             );
 
                             if let Some(opts) = args.get_mut(1)
