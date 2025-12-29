@@ -34,7 +34,6 @@ use constant_condition::{ConstantConditionCodeGen, ConstantConditionValue};
 use constant_value::ConstantValueCodeGen;
 use either::Either;
 use indexmap::map::Entry;
-use node::NodeWorkerAssetReference;
 use num_traits::Zero;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
@@ -1936,7 +1935,7 @@ where
 
                     if *compile_time_info.environment().rendering().await? == Rendering::Client {
                         analysis.add_reference_code_gen(
-                            WorkerAssetReference::new(
+                            WorkerAssetReference::new_web_worker(
                                 origin,
                                 Request::parse(pat).to_resolved().await?,
                                 issue_source(source, span),
@@ -1987,7 +1986,7 @@ where
                         // groups
                         let context_dir = origin.origin_path().await?.parent();
                         analysis.add_reference_code_gen(
-                            NodeWorkerAssetReference::new(
+                            WorkerAssetReference::new_node_worker_thread(
                                 origin,
                                 context_dir,
                                 Pattern::new(pat).to_resolved().await?,

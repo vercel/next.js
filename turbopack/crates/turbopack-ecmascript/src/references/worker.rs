@@ -9,14 +9,16 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
+    context::AssetContext,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
     resolve::{
-        ModuleResolveResult, ModuleResolveResultItem, origin::ResolveOrigin, parse::Request,
-        url_resolve,
+        ModuleResolveResult, ModuleResolveResultItem, handle_resolve_error, origin::ResolveOrigin,
+        parse::Request, pattern::Pattern, resolve_raw, url_resolve,
     },
 };
 
@@ -26,30 +28,64 @@ use crate::{
     references::{
         AstPath,
         pattern_mapping::{PatternMapping, ResolveType},
+        util::check_and_emit_too_many_matches_warning,
     },
     runtime_functions::TURBOPACK_REQUIRE,
-    worker_chunk::module::WorkerLoaderModule,
+    worker_chunk::{WorkerType, module::WorkerLoaderModule},
 };
 
+/// A unified reference to a Worker (web or Node.js) that creates an isolated chunk group
+/// for the worker module.
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct WorkerAssetReference {
+    pub worker_type: WorkerType,
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    pub request: ResolvedVc<Request>,
+    pub request: WorkerRequest,
     pub issue_source: IssueSource,
     pub in_try: bool,
 }
 
+/// The request type varies between web and Node.js workers
+#[turbo_tasks::value]
+#[derive(Hash, Debug, Clone)]
+pub enum WorkerRequest {
+    /// Web workers use Request (URLs)
+    Url(ResolvedVc<Request>),
+    /// Node.js workers use Pattern (file paths) with a context directory
+    Pattern {
+        context_dir: FileSystemPath,
+        path: ResolvedVc<Pattern>,
+    },
+}
+
 impl WorkerAssetReference {
-    pub fn new(
+    pub fn new_web_worker(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
         in_try: bool,
     ) -> Self {
         WorkerAssetReference {
+            worker_type: WorkerType::WebWorker,
             origin,
-            request,
+            request: WorkerRequest::Url(request),
+            issue_source,
+            in_try,
+        }
+    }
+
+    pub fn new_node_worker_thread(
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        context_dir: FileSystemPath,
+        path: ResolvedVc<Pattern>,
+        issue_source: IssueSource,
+        in_try: bool,
+    ) -> Self {
+        WorkerAssetReference {
+            worker_type: WorkerType::NodeWorkerThread,
+            origin,
+            request: WorkerRequest::Pattern { context_dir, path },
             issue_source,
             in_try,
         }
@@ -60,17 +96,57 @@ impl WorkerAssetReference {
 impl ModuleReference for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let result = url_resolve(
-            *self.origin,
-            *self.request,
-            // TODO support more worker types
-            ReferenceType::Worker(WorkerReferenceSubType::WebWorker),
-            Some(self.issue_source),
-            self.in_try,
-        );
+        let result = match (&self.worker_type, &self.request) {
+            (WorkerType::WebWorker, WorkerRequest::Url(request)) => {
+                // Web worker resolution uses url_resolve
+                url_resolve(
+                    *self.origin,
+                    **request,
+                    ReferenceType::Worker(WorkerReferenceSubType::WebWorker),
+                    Some(self.issue_source),
+                    self.in_try,
+                )
+            }
+            (WorkerType::NodeWorkerThread, WorkerRequest::Pattern { context_dir, path }) => {
+                let asset_context = self.origin.asset_context();
+
+                // Node.js worker resolution uses resolve_raw
+                let result = resolve_raw(
+                    context_dir.clone(),
+                    **path,
+                    /* collect_affecting_sources */ false,
+                    /* force_in_lookup_dir */ false,
+                );
+                let reference_type = ReferenceType::Worker(WorkerReferenceSubType::NodeWorker);
+                let result = asset_context.process_resolve_result(result, reference_type.clone());
+
+                check_and_emit_too_many_matches_warning(
+                    result,
+                    self.issue_source,
+                    context_dir.clone(),
+                    *path,
+                )
+                .await?;
+
+                // Report an error if we cannot resolve
+                handle_resolve_error(
+                    result,
+                    reference_type.clone(),
+                    *self.origin,
+                    Request::parse(path.owned().await?),
+                    self.origin.resolve_options(reference_type),
+                    self.in_try,
+                    Some(self.issue_source),
+                )
+                .await?
+            }
+            _ => {
+                // This should never happen due to our constructor functions
+                unreachable!("WorkerType and WorkerRequest mismatch");
+            }
+        };
 
         // Wrap each resolved module in a WorkerLoaderModule
-        // This loader module will export a blob URL for the bundled worker chunk
         let result_ref = result.await?;
         let mut primary = Vec::new();
 
@@ -93,7 +169,9 @@ impl ModuleReference for WorkerAssetReference {
                         continue;
                     };
 
-                    let loader = WorkerLoaderModule::new(*chunkable).to_resolved().await?;
+                    let loader = WorkerLoaderModule::new(*chunkable, self.worker_type)
+                        .to_resolved()
+                        .await?;
 
                     primary.push((
                         request_key.clone(),
@@ -120,7 +198,18 @@ impl ValueToString for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(
-            format!("new Worker {}", self.request.to_string().await?,).into(),
+            format!(
+                "new {}({})",
+                match self.worker_type {
+                    WorkerType::WebWorker => "WebWorker",
+                    WorkerType::NodeWorkerThread => "NodeWorkerThread",
+                },
+                match &self.request {
+                    WorkerRequest::Url(request) => request.to_string().await?,
+                    WorkerRequest::Pattern { path, .. } => path.to_string().await?,
+                }
+            )
+            .into(),
         ))
     }
 }
@@ -156,9 +245,15 @@ impl WorkerAssetReferenceCodeGen {
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
 
+        // Build the request for PatternMapping
+        let request = match &reference.request {
+            WorkerRequest::Url(request) => **request,
+            WorkerRequest::Pattern { path, .. } => Request::parse(path.owned().await?),
+        };
+
         // Use PatternMapping to handle both single and multiple (dynamic) worker results
         let pm = PatternMapping::resolve_request(
-            *reference.request,
+            request,
             *reference.origin,
             chunking_context,
             self.reference.resolve_reference(),
@@ -175,22 +270,24 @@ impl WorkerAssetReferenceCodeGen {
                             expr: key_expr,
                         }) => {
                             // Replace the first argument (the URL/path) with a turbopack_require
-                            // call that uses the pattern mapping to
-                            // resolve to the correct loader module,
-                            // which then returns the blob URL for the worker
+                            // call that uses the pattern mapping to resolve to the correct loader
+                            // module
                             *key_expr = quote_expr!(
                                 "$turbopack_require($id)",
                                 turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
                                 id: Expr = pm.create_id(*key_expr.take())
                             );
 
-                            if let Some(opts) = args.get_mut(1)
-                                && opts.spread.is_none()
-                            {
-                                *opts.expr = *quote_expr!(
-                                    "{...$opts, type: undefined}",
-                                    opts: Expr = (*opts.expr).take()
-                                );
+                            // For web workers, modify the options to set type: undefined
+                            if reference.worker_type == WorkerType::WebWorker {
+                                if let Some(opts) = args.get_mut(1)
+                                    && opts.spread.is_none()
+                                {
+                                    *opts.expr = *quote_expr!(
+                                        "{...$opts, type: undefined}",
+                                        opts: Expr = (*opts.expr).take()
+                                    );
+                                }
                             }
                             return;
                         }
