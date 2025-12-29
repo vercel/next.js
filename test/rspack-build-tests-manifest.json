@@ -189,7 +189,6 @@
       "unrecognized server actions should 404 when POSTing a non-server-action request to a nonexistent page",
       "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: form-data/multipart",
       "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: plaintext",
-      "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: urlencoded",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with complex argument",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with simple argument",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked via form - js disabled",
@@ -197,7 +196,8 @@
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked from JS - with complex argument",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked from JS - with simple argument",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked via form - js disabled",
-      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked via form - js enabled"
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked via form - js enabled",
+      "unrecognized server actions should error when POSTing a urlencoded action to a nonexistent page"
     ],
     "failed": [],
     "pending": [],
@@ -2311,6 +2311,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/concurrent-navigations/mismatching-prefetch.test.ts": {
+    "passed": [
+      "mismatching prefetch recovers when a navigation rewrites to a different route than the one that was prefetched"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts": {
     "passed": [
       "conflicting-page-segments should throw an error when a route groups causes a conflict with a parallel segment"
@@ -2963,6 +2972,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/external-redirect/external-redirect.test.ts": {
+    "passed": [
+      "external-redirect regression: Server Action triggered from onClick redirects to external URL"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/externalize-node-binary/externalize-node-binary.test.ts": {
     "passed": [],
     "failed": [],
@@ -3224,6 +3242,7 @@
       "app dir - hooks usePathname should have the canonical url pathname on rewrite",
       "app dir - hooks usePathname should have the correct pathname",
       "app dir - hooks useRouter should allow access to the router",
+      "app dir - hooks useSearchParams should be able to use instanceof ReadonlyURLSearchParams",
       "app dir - hooks useSearchParams should have the canonical url search params on rewrite",
       "app dir - hooks useSearchParams should have the correct search params",
       "app dir - hooks useSelectedLayoutSegment should have the correct layout segment at /hooks/use-selected-layout-segment/first",
@@ -4981,6 +5000,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/no-server-actions/no-server-actions.test.ts": {
+    "passed": [
+      "app-dir - no server actions should error when triggering a fetch action on an app with no server actions",
+      "app-dir - no server actions should error when triggering an MPA action on an app with no server actions"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/node-extensions/node-extensions.random.test.ts": {
     "passed": [
       "Node Extensions Random Cache Components should not error when accessing middlware that use Math.random()",
@@ -5221,33 +5250,60 @@
   },
   "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts": {
     "passed": [
-      "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
-      "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
-      "parallel-routes-and-interception parallel routes should handle a loading state",
-      "parallel-routes-and-interception parallel routes should load CSS for a default page that exports another page",
-      "parallel-routes-and-interception parallel routes should match parallel routes",
-      "parallel-routes-and-interception parallel routes should match parallel routes in route groups",
-      "parallel-routes-and-interception parallel routes should match the catch-all routes of the more specific path, if there is more than one catch-all route",
-      "parallel-routes-and-interception parallel routes should navigate with a link with prefetch=false",
-      "parallel-routes-and-interception parallel routes should only scroll to the parallel route that was navigated to",
-      "parallel-routes-and-interception parallel routes should render nested parallel routes",
-      "parallel-routes-and-interception parallel routes should support layout files in parallel routes",
-      "parallel-routes-and-interception parallel routes should support parallel route tab bars",
-      "parallel-routes-and-interception parallel routes should throw a 404 when no matching parallel route is found",
-      "parallel-routes-and-interception route intercepting should intercept on routes that contain hyphenated/special dynamic params",
-      "parallel-routes-and-interception route intercepting should not have /default paths in the prerender manifest",
-      "parallel-routes-and-interception route intercepting should re-render the layout on the server when it had a default child route",
-      "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
-      "parallel-routes-and-interception route intercepting should render an intercepted route from a slot",
-      "parallel-routes-and-interception route intercepting should render intercepted route",
-      "parallel-routes-and-interception route intercepting should render intercepted route from a nested route",
-      "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes",
-      "parallel-routes-and-interception route intercepting should support intercepting local dynamic sibling routes",
-      "parallel-routes-and-interception route intercepting should support intercepting with beforeFiles rewrites",
-      "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
-      "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
-      "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route",
-      "parallel-routes-and-interception route intercepting with prerendered dynamic routes  should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should apply the catch-all route to the parallel route if no matching route is found",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should display all parallel route params with useParams",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should handle a loading state",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should load CSS for a default page that exports another page",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should match parallel routes",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should match parallel routes in route groups",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should match the catch-all routes of the more specific path, if there is more than one catch-all route",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should navigate with a link with prefetch=false",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should only scroll to the parallel route that was navigated to",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should render nested parallel routes",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should support layout files in parallel routes",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should support parallel route tab bars",
+      "parallel-routes-and-interception (trailingSlash: false) parallel routes should throw a 404 when no matching parallel route is found",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should intercept on routes that contain hyphenated/special dynamic params",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should not have /default paths in the prerender manifest",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should re-render the layout on the server when it had a default child route",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should render an intercepted route at the top level from a nested path",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should render an intercepted route from a slot",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should render intercepted route from a nested route",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should render modal when paired with parallel routes",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should support intercepting local dynamic sibling routes",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting should support intercepting with beforeFiles rewrites",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting with dynamic catch-all routes should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting with dynamic optional catch-all routes should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting with dynamic routes should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: false) route intercepting with prerendered dynamic routes  should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should apply the catch-all route to the parallel route if no matching route is found",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should display all parallel route params with useParams",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should handle a loading state",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should load CSS for a default page that exports another page",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should match parallel routes",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should match parallel routes in route groups",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should match the catch-all routes of the more specific path, if there is more than one catch-all route",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should navigate with a link with prefetch=false",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should only scroll to the parallel route that was navigated to",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should render nested parallel routes",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should support layout files in parallel routes",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should support parallel route tab bars",
+      "parallel-routes-and-interception (trailingSlash: true) parallel routes should throw a 404 when no matching parallel route is found",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should intercept on routes that contain hyphenated/special dynamic params",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should not have /default paths in the prerender manifest",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should re-render the layout on the server when it had a default child route",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should render an intercepted route at the top level from a nested path",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should render an intercepted route from a slot",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should render intercepted route from a nested route",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should render modal when paired with parallel routes",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should support intercepting local dynamic sibling routes",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting should support intercepting with beforeFiles rewrites",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting with dynamic catch-all routes should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting with dynamic optional catch-all routes should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting with dynamic routes should render intercepted route",
+      "parallel-routes-and-interception (trailingSlash: true) route intercepting with prerendered dynamic routes  should render intercepted route",
       "parallel-routes-and-interception-conflicting-pages should gracefully handle when two page segments match the `children` parallel slot"
     ],
     "failed": [],
@@ -6995,7 +7051,8 @@
   },
   "test/e2e/app-dir/segment-cache/refresh/segment-cache-refresh.test.ts": {
     "passed": [
-      "segment cache (refresh) refreshes data inside reused default parallel route slots"
+      "segment cache (refresh) Server Action refresh() refreshes dynamic data only, not cached",
+      "segment cache (refresh) router.refresh() refreshes both cached and dynamic data"
     ],
     "failed": [],
     "pending": [],
@@ -10044,6 +10101,7 @@
       "opentelemetry incoming context propagation app router should handle RSC with fetch in RSC mode",
       "opentelemetry incoming context propagation app router should handle RSC with fetch on edge",
       "opentelemetry incoming context propagation app router should handle error in RSC",
+      "opentelemetry incoming context propagation app router should handle error inside Suspense boundary",
       "opentelemetry incoming context propagation app router should handle route handlers in app router",
       "opentelemetry incoming context propagation app router should handle route handlers in app router on edge",
       "opentelemetry incoming context propagation app router should propagate custom context without span",
@@ -10059,6 +10117,7 @@
       "opentelemetry root context app router should handle RSC with fetch in RSC mode",
       "opentelemetry root context app router should handle RSC with fetch on edge",
       "opentelemetry root context app router should handle error in RSC",
+      "opentelemetry root context app router should handle error inside Suspense boundary",
       "opentelemetry root context app router should handle route handlers in app router",
       "opentelemetry root context app router should handle route handlers in app router on edge",
       "opentelemetry root context app router should propagate custom context without span",
@@ -12023,12 +12082,11 @@
     "passed": [
       "CSS Modules: Import Exports production mode should've emitted a single CSS file",
       "CSS Modules: Import Global CSS production mode should've emitted a single CSS file",
+      "CSS Modules: Importing Invalid Global CSS production mode should fail to build",
       "Custom Properties: Fail for :root {} in CSS Modules production mode should fail to build",
       "Custom Properties: Fail for global element in CSS Modules production mode should fail to build"
     ],
-    "failed": [
-      "CSS Modules: Importing Invalid Global CSS production mode should fail to build"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12102,16 +12160,15 @@
       "CSS URL via `file-loader` and asset prefix (1) production mode should've emitted expected files",
       "CSS URL via `file-loader` and asset prefix (2) production mode should've emitted expected files",
       "CSS URL via `file-loader` production mode useLightnincsss(false) should've emitted expected files",
+      "CSS URL via `file-loader` production mode useLightnincsss(true) should've emitted expected files",
       "Multi Global Support (reversed) production mode useLightnincsss(false) should've emitted a single CSS file",
       "Multi Global Support (reversed) production mode useLightnincsss(true) should've emitted a single CSS file",
       "Multi Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
       "Multi Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
-      "Nested @import() Global Support production mode useLightnincsss(false) should've emitted a single CSS file"
-    ],
-    "failed": [
-      "CSS URL via `file-loader` production mode useLightnincsss(true) should've emitted expected files",
+      "Nested @import() Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
       "Nested @import() Global Support production mode useLightnincsss(true) should've emitted a single CSS file"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12131,6 +12188,7 @@
     "passed": [
       "CSS Property Ordering production mode useLightnincsss(false) should have the border width (property ordering)",
       "CSS Property Ordering production mode useLightnincsss(true) should have the border width (property ordering)",
+      "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should've compiled and prefixed",
       "CSS Support production mode Good CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file",
       "CSS Support production mode Good CSS Import from node_modules useLightnincsss(true) should've emitted a single CSS file",
       "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file",
@@ -12143,7 +12201,6 @@
       "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have the correct color on mount after navigation"
     ],
     "failed": [
-      "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should've compiled and prefixed",
       "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've compiled and prefixed"
     ],
     "pending": [],
