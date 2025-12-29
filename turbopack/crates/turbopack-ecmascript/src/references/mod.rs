@@ -1985,12 +1985,13 @@ where
                     } else {
                         // In bundling mode, use NodeWorkerAssetReference to create evaluated chunk
                         // groups
+                        let context_dir = origin.origin_path().await?.parent();
                         analysis.add_reference_code_gen(
                             NodeWorkerAssetReference::new(
                                 origin,
-                                get_traced_project_dir().await?,
+                                context_dir,
                                 Pattern::new(pat).to_resolved().await?,
-                                issue_source(source, span),
+                                get_issue_source(),
                                 in_try,
                             ),
                             ast_path.to_vec().into(),
