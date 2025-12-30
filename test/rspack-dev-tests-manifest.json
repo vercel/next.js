@@ -839,10 +839,10 @@
     "runtimeError": false
   },
   "test/development/app-dir/hmr-iframe/hmr-iframe.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "hmr-iframe should do HMR when rendering two server component changes at the same time"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1073,24 +1073,24 @@
       "server-components-hmr-cache edge runtime in after() should use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache edge runtime should not use cached fetch calls for intentional refresh requests",
       "server-components-hmr-cache edge runtime should use cached fetch calls for fast refresh requests",
-      "server-components-hmr-cache edge runtime with cacheMaxMemorySize set to 0 should not warn about \"Single item size exceeds maxSize\"",
-      "server-components-hmr-cache edge runtime with cacheMaxMemorySize set to 0 should still use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache edge runtime with experimental.serverComponentsHmrCache disabled in after() should not use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache edge runtime with experimental.serverComponentsHmrCache disabled should not use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime in after() should not use cached fetch calls for intentional refresh requests",
       "server-components-hmr-cache node runtime in after() should use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime should not use cached fetch calls for intentional refresh requests",
-      "server-components-hmr-cache node runtime should use cached fetch calls for fast refresh requests"
+      "server-components-hmr-cache node runtime should use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache node runtime with cacheMaxMemorySize set to 0 should not warn about \"Single item size exceeds maxSize\"",
+      "server-components-hmr-cache node runtime with cacheMaxMemorySize set to 0 should still use cached fetch calls for fast refresh requests"
     ],
     "failed": [
-      "server-components-hmr-cache node runtime with cacheMaxMemorySize set to 0 should not warn about \"Single item size exceeds maxSize\"",
-      "server-components-hmr-cache node runtime with cacheMaxMemorySize set to 0 should still use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache edge runtime with cacheMaxMemorySize set to 0 should not warn about \"Single item size exceeds maxSize\"",
+      "server-components-hmr-cache edge runtime with cacheMaxMemorySize set to 0 should still use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled in after() should not use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled should not use cached fetch calls for fast refresh requests"
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/development/app-dir/server-navigation-error/server-navigation-error.test.ts": {
     "passed": [
