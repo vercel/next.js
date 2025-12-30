@@ -22,16 +22,26 @@ export function trackStreamConsumed<TChunk>(
   stream: ReadableStream<TChunk>,
   onEnd: () => void
 ): ReadableStream<TChunk> {
-  // NOTE: This function must handle `stream` being aborted or cancelled,
-  // so it can't just be this:
-  //
-  //   return stream.pipeThrough(new TransformStream({ flush() { onEnd() } }))
-  //
-  // because that doesn't handle cancellations.
-  // (and cancellation handling via `Transformer.cancel` is only available in node >20)
-  const dest = new TransformStream()
-  const runOnEnd = () => onEnd()
+  // Track when the stream is fully consumed by monitoring the actual reads
+  // from the destination stream, not just when the source finishes piping.
+  let ended = false
+  const runOnEnd = () => {
+    if (!ended) {
+      ended = true
+      onEnd()
+    }
+  }
+
+  const dest = new TransformStream({
+    flush() {
+      // Called when the stream is cleanly closed after all chunks are transformed
+      runOnEnd()
+    },
+  })
+
+  // Also handle cancellations/errors during piping
   stream.pipeTo(dest.writable).then(runOnEnd, runOnEnd)
+
   return dest.readable
 }
 
