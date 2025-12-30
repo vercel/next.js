@@ -6,7 +6,8 @@ import * as Log from '../output/log'
 import { getParserOptions } from './options'
 import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
-import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
+// Lazy loaded - only needed for fallback download
+// import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
 import type {
   NextConfigComplete,
   TurbopackLoaderBuiltinCondition,
@@ -315,6 +316,8 @@ async function tryLoadNativeWithFallback(attempts: Array<string>) {
   )
 
   if (!downloadNativeBindingsPromise) {
+    const { downloadNativeNextSwc } =
+      require('../../lib/download-swc') as typeof import('../../lib/download-swc')
     downloadNativeBindingsPromise = downloadNativeNextSwc(
       nextVersion,
       nativeBindingsDirectory,
@@ -358,6 +361,8 @@ async function tryLoadWasmWithFallback(
       'wasm'
     )
     if (!downloadWasmPromise) {
+      const { downloadWasmSwc } =
+        require('../../lib/download-swc') as typeof import('../../lib/download-swc')
       downloadWasmPromise = downloadWasmSwc(nextVersion, wasmDirectory)
     }
     await downloadWasmPromise

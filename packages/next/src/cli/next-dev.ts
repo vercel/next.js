@@ -19,14 +19,15 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
 import type { NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
-import { Telemetry } from '../telemetry/storage'
-import loadConfig from '../server/config'
-import { findPagesDir } from '../lib/find-pages-dir'
-import { fileExists, FileType } from '../lib/file-exists'
-import { getNpxCommand } from '../lib/helpers/get-npx-command'
-import { createSelfSignedCertificate } from '../lib/mkcert'
+// Heavy modules - lazy loaded to speed up CLI startup
+// import { Telemetry } from '../telemetry/storage' - loaded in handleSessionStop
+// import loadConfig from '../server/config' - loaded in handleSessionStop
+// import { findPagesDir } from '../lib/find-pages-dir' - loaded in handleSessionStop
+// import { getNpxCommand } from '../lib/helpers/get-npx-command' - loaded in preflight
+// import { createSelfSignedCertificate } from '../lib/mkcert' - loaded only with --experimental-https
+// import uploadTrace from '../trace/upload-trace' - loaded only with --experimental-upload-trace
 import type { SelfSignedCertificate } from '../lib/mkcert'
-import uploadTrace from '../trace/upload-trace'
+import { fileExists, FileType } from '../lib/file-exists'
 import { initialEnv } from '@next/env'
 import { fork } from 'child_process'
 import type { ChildProcess } from 'child_process'
@@ -117,15 +118,22 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       typeof traceGlobals.get('pagesDir') === 'undefined' ||
       typeof traceGlobals.get('appDir') === 'undefined'
     ) {
+      const { findPagesDir } =
+        require('../lib/find-pages-dir') as typeof import('../lib/find-pages-dir')
       const pagesResult = findPagesDir(dir)
       appDir = !!pagesResult.appDir
       pagesDir = !!pagesResult.pagesDir
     }
 
+    const loadConfig = (
+      require('../server/config') as typeof import('../server/config')
+    ).default
     config =
       config ||
       (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, { silent: true }))
 
+    const { Telemetry } =
+      require('../telemetry/storage') as typeof import('../telemetry/storage')
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
         typeof import('../telemetry/storage').Telemetry
@@ -153,6 +161,9 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   }
 
   if (traceUploadUrl) {
+    const uploadTrace = (
+      require('../trace/upload-trace') as typeof import('../trace/upload-trace')
+    ).default
     uploadTrace({
       traceUploadUrl,
       mode: 'dev',
@@ -217,6 +228,8 @@ const nextDev = async (
         (devDependencies['@next/font'] &&
           devDependencies['@next/font'] !== 'workspace:*')
       ) {
+        const { getNpxCommand } =
+          require('../lib/helpers/get-npx-command') as typeof import('../lib/helpers/get-npx-command')
         const command = getNpxCommand(dir)
         Log.warn(
           'Your project has `@next/font` installed as a dependency, please use the built-in `next/font` instead. ' +
@@ -309,6 +322,8 @@ const nextDev = async (
             : undefined),
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
+          // Pass server options via env to eliminate IPC handshake latency
+          NEXT_PRIVATE_WORKER_OPTIONS: JSON.stringify(startServerOptions),
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
@@ -323,9 +338,7 @@ const nextDev = async (
 
       child.on('message', (msg: any) => {
         if (msg && typeof msg === 'object') {
-          if (msg.nextWorkerReady) {
-            child?.send({ nextWorkerOptions: startServerOptions })
-          } else if (msg.nextServerReady && !resolved) {
+          if (msg.nextServerReady && !resolved) {
             if (msg.port) {
               // Store the used port in case a random one was selected, so that
               // it can be re-used on automatic dev server restarts.
@@ -349,12 +362,18 @@ const nextDev = async (
           if (traceUploadUrl) {
             // Postpone loading next config when we need to get
             //  config.distDir for upload trace.
+            const loadConfig = (
+              require('../server/config') as typeof import('../server/config')
+            ).default
             config =
               config ||
               (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
                 silent: true,
               }))
             bundler = finalizeBundlerFromConfig(bundler)
+            const uploadTrace = (
+              require('../trace/upload-trace') as typeof import('../trace/upload-trace')
+            ).default
             uploadTrace({
               traceUploadUrl,
               mode: 'dev',
@@ -394,6 +413,8 @@ const nextDev = async (
             rootCA: rootCA ? path.resolve(rootCA) : undefined,
           }
         } else {
+          const { createSelfSignedCertificate } =
+            require('../lib/mkcert') as typeof import('../lib/mkcert')
           certificate = await createSelfSignedCertificate(host)
         }
 

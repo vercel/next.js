@@ -11,8 +11,9 @@ describe('instrumentation-order', () => {
     await next.fetch('/')
 
     await retry(async () => {
-      const serverLog = next.cliOutput.split('Starting...')[1]
-      const cliOutputLines = serverLog.split('\n')
+      // Filter CLI output for the instrumentation-related logs
+      // We look for these logs starting from when instrumentation begins
+      const cliOutputLines = next.cliOutput.split('\n')
 
       const ORDERED_LOGS = [
         'instrumentation:side-effect',
@@ -21,8 +22,21 @@ describe('instrumentation-order', () => {
         'instrumentation:register:end',
         'global-side-effect:app-router-page',
       ]
-      const searchedLines = cliOutputLines.filter((line) =>
-        ORDERED_LOGS.includes(line.trim())
+
+      // Find all matching lines
+      const allMatchingLines = cliOutputLines
+        .map((line) => line.trim())
+        .filter((line) => ORDERED_LOGS.includes(line))
+
+      // Find where instrumentation starts and extract the sequence from there
+      const instrumentationStartIndex = allMatchingLines.indexOf(
+        'instrumentation:side-effect'
+      )
+      expect(instrumentationStartIndex).toBeGreaterThanOrEqual(0)
+
+      const searchedLines = allMatchingLines.slice(
+        instrumentationStartIndex,
+        instrumentationStartIndex + ORDERED_LOGS.length
       )
 
       expect(searchedLines).toEqual(ORDERED_LOGS)

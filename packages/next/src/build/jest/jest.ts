@@ -1,3 +1,14 @@
+// Set up the Node.js environment for next/jest users.
+// node-environment patches globals (setImmediate, process.nextTick) and process
+// event handlers. Loaded here to maintain backwards compatibility for users who
+// may rely on this environment setup when using next/jest.
+// Note: This was discovered when internal tests failed after removing these imports
+// from the module loading chain during lazy loading optimization.
+// TODO: Reevaluate whether exposing this environment setup to next/jest users is intended.
+import '../../server/require-hook'
+import '../../server/node-polyfill-crypto'
+import '../../server/node-environment'
+
 import { loadEnvConfig } from '@next/env'
 import { resolve, join } from 'path'
 import loadConfig from '../../server/config'

@@ -19,10 +19,8 @@ import {
   parseValidPositiveInteger,
   type DebugAddress,
 } from '../server/lib/utils'
-import {
-  SUPPORTED_TEST_RUNNERS_LIST,
-  type NextTestOptions,
-} from '../cli/next-test.js'
+import { SUPPORTED_TEST_RUNNERS_LIST } from '../cli/next-test-constants.js'
+import type { NextTestOptions } from '../cli/next-test.js'
 import type { NextTelemetryOptions } from '../cli/next-telemetry.js'
 import type { NextStartOptions } from '../cli/next-start.js'
 import type { NextInfoOptions } from '../cli/next-info.js'
