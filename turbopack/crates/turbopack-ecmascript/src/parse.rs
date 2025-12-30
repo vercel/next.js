@@ -2,8 +2,9 @@ use std::{future::Future, sync::Arc};
 
 use anyhow::{Context, Result, anyhow};
 use bytes_str::BytesStr;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
+    atoms::Atom,
     base::SwcComments,
     common::{
         BytePos, FileName, GLOBALS, Globals, LineCol, Mark, SyntaxContext,
@@ -12,7 +13,7 @@ use swc_core::{
         source_map::{Files, SourceMapGenConfig, build_source_map},
     },
     ecma::{
-        ast::{EsVersion, Id, ObjectPatProp, Pat, Program, VarDecl},
+        ast::{EsVersion, Id, Ident, IdentName, ObjectPatProp, Pat, Program, VarDecl},
         lints::{self, config::LintConfig, rules::LintParams},
         parser::{EsSyntax, Parser, Syntax, TsSyntax, lexer::Lexer},
         transforms::{
@@ -51,6 +52,40 @@ use crate::{
     transform::{EcmascriptInputTransforms, TransformContext},
 };
 
+/// Collects identifier names and their byte positions from an AST.
+/// This is used to populate the `names` field in source maps.
+/// Based on swc_compiler_base::IdentCollector.
+pub struct IdentCollector {
+    pub names: FxHashMap<BytePos, Atom>,
+}
+
+impl IdentCollector {
+    pub fn new() -> Self {
+        Self {
+            names: FxHashMap::default(),
+        }
+    }
+}
+
+impl Visit for IdentCollector {
+    noop_visit_type!();
+
+    fn visit_ident(&mut self, ident: &Ident) {
+        self.names.insert(ident.span.lo, ident.sym.clone());
+    }
+
+    fn visit_ident_name(&mut self, ident: &IdentName) {
+        // We don't want to specifically include the constructor name in the source map
+        // so that the source map name in thrown errors refers to the class name
+        // instead of the constructor name.
+        if ident.sym == "constructor" {
+            return;
+        }
+
+        self.names.insert(ident.span.lo, ident.sym.clone());
+    }
+}
+
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 #[allow(clippy::large_enum_variant)]
 pub enum ParseResult {
@@ -82,6 +117,7 @@ pub fn generate_js_source_map<'a>(
     original_source_maps: impl IntoIterator<Item = &'a Rope>,
     original_source_maps_complete: bool,
     inline_sources_content: bool,
+    names: &FxHashMap<BytePos, Atom>,
 ) -> Result<Rope> {
     let original_source_maps = original_source_maps
         .into_iter()
@@ -107,6 +143,7 @@ pub fn generate_js_source_map<'a>(
             // We only need the source content of `A`, and a way to map the content of `B` back to
             // `A`, while constructing the final source map, `C`.
             inline_sources_content: inline_sources_content && !fast_path_single_original_source_map,
+            names,
         },
     );
 
@@ -143,11 +180,12 @@ pub fn generate_js_source_map<'a>(
 /// A config to generate a source map which includes the source content of every
 /// source file. SWC doesn't inline sources content by default when generating a
 /// sourcemap, so we need to provide a custom config to do it.
-pub struct InlineSourcesContentConfig {
+pub struct InlineSourcesContentConfig<'a> {
     inline_sources_content: bool,
+    names: &'a FxHashMap<BytePos, Atom>,
 }
 
-impl SourceMapGenConfig for InlineSourcesContentConfig {
+impl SourceMapGenConfig for InlineSourcesContentConfig<'_> {
     fn file_name_to_source(&self, f: &FileName) -> String {
         match f {
             FileName::Custom(s) => {
@@ -159,6 +197,10 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
 
     fn inline_sources_content(&self, _f: &FileName) -> bool {
         self.inline_sources_content
+    }
+
+    fn name_for_bytepos(&self, pos: BytePos) -> Option<&str> {
+        self.names.get(&pos).map(|v| &**v)
     }
 }
 
