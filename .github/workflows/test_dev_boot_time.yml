@@ -1,0 +1,363 @@
+name: Dev Server Boot Time
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: 1
+  NODE_LTS_VERSION: 22
+  # Enable Turbo remote caching - canary builds are likely already cached from other CI runs
+  TURBO_TEAM: 'vercel'
+  TURBO_CACHE: 'remote:rw'
+  TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
+
+jobs:
+  benchmark-boot-time:
+    name: Benchmark Dev Server Boot Time
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+
+      - name: Setup pnpm
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+          corepack prepare pnpm@9.15.1 --activate
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-
+
+      - name: Create test app
+        run: |
+          mkdir -p /tmp/boot-test-app/app
+          cat > /tmp/boot-test-app/package.json << 'EOF'
+          {
+            "name": "boot-test-app",
+            "private": true,
+            "dependencies": {
+              "react": "19.0.0",
+              "react-dom": "19.0.0"
+            }
+          }
+          EOF
+          cat > /tmp/boot-test-app/app/layout.tsx << 'EOF'
+          export default function RootLayout({ children }: { children: React.ReactNode }) {
+            return <html><body>{children}</body></html>
+          }
+          EOF
+          cat > /tmp/boot-test-app/app/page.tsx << 'EOF'
+          export default function Home() { return <h1>Hello</h1> }
+          EOF
+          cd /tmp/boot-test-app && npm install
+
+      # ===== BENCHMARK FUNCTION =====
+      # Measures two metrics:
+      # - listen_time: when port starts accepting TCP connections
+      # - ready_time: when first HTTP request succeeds
+      - name: Create benchmark script
+        run: |
+          cat > /tmp/benchmark.sh << 'SCRIPT'
+          #!/bin/bash
+          set -e
+          NEXT_BIN=$1
+          TEST_DIR=$2
+          RUNS=${3:-5}
+          PORT=3456
+          LOG_FILE=/tmp/next-server.log
+
+          # Sanity check: verify binary exists
+          if [ ! -f "$NEXT_BIN" ]; then
+            echo "ERROR: Next.js binary not found at $NEXT_BIN" >&2
+            echo "COLD_LISTEN=0"
+            echo "COLD_READY=0"
+            echo "WARM_LISTEN=0"
+            echo "WARM_READY=0"
+            exit 0
+          fi
+
+          # Kill any existing process on port
+          pkill -f "next.*$PORT" 2>/dev/null || true
+          sleep 0.5
+
+          benchmark_run() {
+            local clean=$1
+            [ "$clean" = "true" ] && rm -rf "$TEST_DIR/.next"
+
+            # Kill any lingering process
+            pkill -f "next.*$PORT" 2>/dev/null || true
+            sleep 0.3
+
+            local start_ms=$(date +%s%3N)
+            # Capture output to log file for debugging
+            "$NEXT_BIN" dev --turbopack --port $PORT "$TEST_DIR" > "$LOG_FILE" 2>&1 &
+            local pid=$!
+
+            local listen_ms=""
+            local ready_ms=""
+
+            # Wait for port to listen (max 45s = 900 * 50ms)
+            for i in $(seq 1 900); do
+              if nc -z localhost $PORT 2>/dev/null; then
+                listen_ms=$(date +%s%3N)
+                break
+              fi
+              # Check if process died
+              if ! kill -0 $pid 2>/dev/null; then
+                echo "ERROR: Server process died. Last 20 lines of log:" >&2
+                tail -20 "$LOG_FILE" >&2
+                break
+              fi
+              sleep 0.05
+            done
+
+            # Wait for HTTP response (max 45s)
+            if [ -n "$listen_ms" ]; then
+              for i in $(seq 1 900); do
+                if curl -s -m 2 "http://localhost:$PORT" > /dev/null 2>&1; then
+                  ready_ms=$(date +%s%3N)
+                  break
+                fi
+                sleep 0.05
+              done
+            fi
+
+            kill $pid 2>/dev/null || true
+            wait $pid 2>/dev/null || true
+
+            if [ -n "$listen_ms" ] && [ -n "$ready_ms" ]; then
+              echo "$((listen_ms - start_ms)),$((ready_ms - start_ms))"
+            else
+              echo "TIMEOUT: listen_ms=$listen_ms ready_ms=$ready_ms" >&2
+              if [ -f "$LOG_FILE" ]; then
+                echo "Last 30 lines of server log:" >&2
+                tail -30 "$LOG_FILE" >&2
+              fi
+              echo "TIMEOUT,TIMEOUT"
+            fi
+          }
+
+          run_series() {
+            local name=$1
+            local clean=$2
+            local listen_sum=0
+            local ready_sum=0
+            local count=0
+
+            for i in $(seq 1 $RUNS); do
+              result=$(benchmark_run "$clean")
+              listen=$(echo "$result" | cut -d',' -f1)
+              ready=$(echo "$result" | cut -d',' -f2)
+              if [ "$listen" != "TIMEOUT" ]; then
+                listen_sum=$((listen_sum + listen))
+                ready_sum=$((ready_sum + ready))
+                count=$((count + 1))
+                echo "${name} run $i: listen=${listen}ms ready=${ready}ms" >&2
+              else
+                echo "${name} run $i: TIMEOUT" >&2
+              fi
+            done
+
+            if [ $count -gt 0 ]; then
+              echo "$((listen_sum / count)),$((ready_sum / count))"
+            else
+              echo "0,0"
+            fi
+          }
+
+          # Run cold benchmark
+          echo "=== Cold Start Benchmark ===" >&2
+          cold=$(run_series "cold" "true")
+          echo "COLD_LISTEN=$(echo $cold | cut -d',' -f1)"
+          echo "COLD_READY=$(echo $cold | cut -d',' -f2)"
+
+          # Warmup for bytecode cache (only if cold benchmarks succeeded)
+          cold_listen=$(echo $cold | cut -d',' -f1)
+          if [ "$cold_listen" != "0" ]; then
+            echo "=== Warming up bytecode cache (12s) ===" >&2
+            rm -rf "$TEST_DIR/.next"
+            "$NEXT_BIN" dev --turbopack --port $PORT "$TEST_DIR" > "$LOG_FILE" 2>&1 &
+            pid=$!
+            for i in $(seq 1 400); do
+              curl -s -m 2 "http://localhost:$PORT" > /dev/null 2>&1 && break
+              sleep 0.05
+            done
+            sleep 12
+            kill $pid 2>/dev/null || true
+            wait $pid 2>/dev/null || true
+
+            # Run warm benchmark
+            echo "=== Warm Start Benchmark ===" >&2
+            warm=$(run_series "warm" "false")
+            echo "WARM_LISTEN=$(echo $warm | cut -d',' -f1)"
+            echo "WARM_READY=$(echo $warm | cut -d',' -f2)"
+          else
+            echo "Skipping warm benchmark - cold benchmark failed" >&2
+            echo "WARM_LISTEN=0"
+            echo "WARM_READY=0"
+          fi
+          SCRIPT
+          chmod +x /tmp/benchmark.sh
+
+      # ===== BASELINE (canary) =====
+      - name: Checkout canary
+        run: git checkout origin/canary
+
+      - name: Get canary commit hash
+        id: canary-hash
+        run: echo "hash=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Cache canary Next.js build
+        id: cache-canary
+        uses: actions/cache@v4
+        with:
+          path: packages/next/dist
+          key: next-canary-dist-${{ steps.canary-hash.outputs.hash }}
+
+      - name: Install dependencies (canary)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Next.js (canary)
+        if: steps.cache-canary.outputs.cache-hit != 'true'
+        run: pnpm turbo run build --filter=next...
+
+      - name: Link Next.js (canary)
+        run: |
+          cd /tmp/boot-test-app
+          npm link ${{ github.workspace }}/packages/next
+
+      - name: Verify Next.js binary (canary)
+        run: |
+          echo "Checking Next.js binary..."
+          ls -la ${{ github.workspace }}/packages/next/dist/bin/next || echo "Binary not found!"
+          echo "Testing Next.js version..."
+          node ${{ github.workspace }}/packages/next/dist/bin/next --version || echo "Version check failed!"
+
+      - name: Benchmark canary
+        id: canary
+        run: |
+          cd /tmp/boot-test-app
+          /tmp/benchmark.sh "${{ github.workspace }}/packages/next/dist/bin/next" /tmp/boot-test-app 5 >> $GITHUB_OUTPUT
+
+      # ===== PR BRANCH =====
+      - name: Checkout PR
+        run: git checkout ${{ github.sha }}
+
+      - name: Install dependencies (PR)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Next.js (PR)
+        run: pnpm turbo run build --filter=next...
+
+      - name: Link Next.js (PR)
+        run: |
+          cd /tmp/boot-test-app
+          rm -rf node_modules/next node_modules/.next
+          npm link ${{ github.workspace }}/packages/next
+
+      - name: Verify Next.js binary (PR)
+        run: |
+          echo "Checking Next.js binary..."
+          ls -la ${{ github.workspace }}/packages/next/dist/bin/next || echo "Binary not found!"
+          echo "Testing Next.js version..."
+          node ${{ github.workspace }}/packages/next/dist/bin/next --version || echo "Version check failed!"
+
+      - name: Benchmark PR
+        id: pr
+        run: |
+          cd /tmp/boot-test-app
+          /tmp/benchmark.sh "${{ github.workspace }}/packages/next/dist/bin/next" /tmp/boot-test-app 5 >> $GITHUB_OUTPUT
+
+      # ===== RESULTS =====
+      - name: Calculate and report results
+        run: |
+          # Canary results
+          CANARY_LISTEN=${{ steps.canary.outputs.COLD_LISTEN }}
+          CANARY_READY=${{ steps.canary.outputs.COLD_READY }}
+          CANARY_WARM_LISTEN=${{ steps.canary.outputs.WARM_LISTEN }}
+          CANARY_WARM_READY=${{ steps.canary.outputs.WARM_READY }}
+
+          # PR results
+          PR_LISTEN=${{ steps.pr.outputs.COLD_LISTEN }}
+          PR_READY=${{ steps.pr.outputs.COLD_READY }}
+          PR_WARM_LISTEN=${{ steps.pr.outputs.WARM_LISTEN }}
+          PR_WARM_READY=${{ steps.pr.outputs.WARM_READY }}
+
+          # Calculate differences
+          COLD_LISTEN_DIFF=$((PR_LISTEN - CANARY_LISTEN))
+          COLD_READY_DIFF=$((PR_READY - CANARY_READY))
+          WARM_LISTEN_DIFF=$((PR_WARM_LISTEN - CANARY_WARM_LISTEN))
+          WARM_READY_DIFF=$((PR_WARM_READY - CANARY_WARM_READY))
+
+          # Status indicators
+          status() {
+            if [ $1 -lt -20 ]; then echo "🟢";
+            elif [ $1 -gt 50 ]; then echo "🔴";
+            else echo "🟡"; fi
+          }
+
+          COLD_LISTEN_STATUS=$(status $COLD_LISTEN_DIFF)
+          COLD_READY_STATUS=$(status $COLD_READY_DIFF)
+          WARM_LISTEN_STATUS=$(status $WARM_LISTEN_DIFF)
+          WARM_READY_STATUS=$(status $WARM_READY_DIFF)
+
+          # Generate summary
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## Dev Server Boot Time Benchmark
+
+          ### Cold Start (fresh .next)
+          | Metric | Canary | PR | Diff |
+          |--------|--------|-----|------|
+          | Port listening | ${CANARY_LISTEN}ms | ${PR_LISTEN}ms | ${COLD_LISTEN_STATUS} ${COLD_LISTEN_DIFF}ms |
+          | First request | ${CANARY_READY}ms | ${PR_READY}ms | ${COLD_READY_STATUS} ${COLD_READY_DIFF}ms |
+
+          ### Warm Start (with cache)
+          | Metric | Canary | PR | Diff |
+          |--------|--------|-----|------|
+          | Port listening | ${CANARY_WARM_LISTEN}ms | ${PR_WARM_LISTEN}ms | ${WARM_LISTEN_STATUS} ${WARM_LISTEN_DIFF}ms |
+          | First request | ${CANARY_WARM_READY}ms | ${PR_WARM_READY}ms | ${WARM_READY_STATUS} ${WARM_READY_DIFF}ms |
+
+          **Legend:** 🟢 Faster (>20ms improvement) | 🟡 Similar | 🔴 Slower (>50ms regression)
+
+          **Metrics:**
+          - **Port listening**: When server starts accepting TCP connections
+          - **First request**: When server handles first HTTP request (actual readiness)
+          EOF
+
+          # Log to console
+          echo "=== RESULTS ==="
+          echo "Cold: listen ${CANARY_LISTEN}ms→${PR_LISTEN}ms (${COLD_LISTEN_DIFF}ms), ready ${CANARY_READY}ms→${PR_READY}ms (${COLD_READY_DIFF}ms)"
+          echo "Warm: listen ${CANARY_WARM_LISTEN}ms→${PR_WARM_LISTEN}ms (${WARM_LISTEN_DIFF}ms), ready ${CANARY_WARM_READY}ms→${PR_WARM_READY}ms (${WARM_READY_DIFF}ms)"
+
+      - name: Check for regression
+        run: |
+          COLD_READY_DIFF=$((${{ steps.pr.outputs.COLD_READY }} - ${{ steps.canary.outputs.COLD_READY }}))
+
+          if [ "$COLD_READY_DIFF" -gt 200 ]; then
+            echo "::error::Cold start regression: ${COLD_READY_DIFF}ms slower (threshold: 200ms)"
+            exit 1
+          fi
+
+          echo "✅ No significant regression"
