@@ -24,20 +24,29 @@ function PostsList() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchPosts() {
       setIsLoading(true);
+      setError(null);
       try {
         const res = await fetch(`/api/posts?page=${page}`);
         if (!res.ok) {
-          throw new Error("Failed to fetch posts");
+          throw new Error(
+            `Failed to fetch posts: ${res.status} ${res.statusText}`,
+          );
         }
         const data = await res.json();
         setPosts(data.posts);
         setTotalPages(data.totalPages);
       } catch (error) {
         console.error("Error fetching posts:", error);
+        setError(
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred",
+        );
       } finally {
         setIsLoading(false);
       }
@@ -52,6 +61,19 @@ function PostsList() {
         <div className="flex items-center justify-center space-x-2 min-h-[200px]">
           <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
           <p className="text-gray-600">Loading...</p>
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center min-h-[200px] space-y-4">
+          <div className="text-red-500 text-center">
+            <p className="text-lg font-semibold">Failed to load posts</p>
+            <p className="text-sm text-gray-600 mt-1">{error}</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       ) : (
         <>

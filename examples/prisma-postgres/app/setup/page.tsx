@@ -75,7 +75,7 @@ export default function SetupPage() {
                 Prisma Postgres extension
               </a>{" "}
               in your Netlify account. Next, you need to copy Prisma&apos;s
-              integration token into the extension in your Neltify Dashboard:
+              integration token into the extension in your Netlify Dashboard:
             </p>
             <ol className="list-decimal pl-6 mt-2 space-y-1 text-gray-700">
               <li>
