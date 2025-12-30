@@ -136,11 +136,11 @@ export async function startTypeChecking({
 
     if (typeCheckingSpinner) {
       typeCheckingSpinner.stop()
-
-      createSpinner(
-        `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
-      )?.stopAndPersist()
     }
+
+    createSpinner(
+      `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
+    )?.stopAndPersist()
 
     if (!ignoreTypeScriptErrors && verifyResult) {
       telemetry.record(
